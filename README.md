@@ -42,8 +42,9 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 ### Security & Data Portability
 - Credentials encrypted with AES-256-GCM (stored separately from session metadata)
-- Known hosts verification (TOFU)
-- Data export/import to `.lfs` archive (ZIP + AES-256-GCM, master password protected)
+- File permissions restricted (chmod 600) on Unix systems
+- Known hosts verification (TOFU) — explicit user confirmation required
+- Data export/import to `.lfs` archive (ZIP + AES-256-GCM, PBKDF2-SHA256 600k iterations)
 - Import modes: merge (add new) or replace (overwrite all)
 - Auto-migration from plaintext to encrypted storage on upgrade
 
@@ -59,7 +60,9 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Pinch-to-zoom terminal font size
 - Single-pane SFTP with Local/Remote toggle
 - Long-press selection mode with bulk actions
-- Touch-friendly UI (48dp touch targets)
+- Swipe left/right to switch navigation tabs
+- Deep link: `letsflutssh://connect?host=X&user=Y`
+- Open SSH key files (.pem/.key) directly from file manager
 
 ### Cross-Platform
 - **Desktop:** Windows, Linux, macOS
@@ -74,7 +77,11 @@ _Coming soon_
 
 ### Pre-built Binaries
 
-_Coming soon — see Releases page_
+Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
+- **Linux:** AppImage, .deb, tar.gz
+- **Windows:** MSIX, portable zip
+- **macOS:** dmg, tar.gz
+- **Android:** APK (arm64, arm, x64)
 
 ### Build from Source
 
@@ -167,14 +174,14 @@ make build-ios
 
 ## Current Status
 
-**v0.8.1** — Phase 9 (Stable Release) in progress. All core features implemented across 8 phases:
+**v0.9.0** — Phase 9 (Stable Release) complete. All core features implemented across 9 phases:
 - Phases 1-3: SSH terminal, session manager, SFTP file browser (MVP)
 - Phase 4: Polish — tab reorder, toast notifications, settings, responsive layout
 - Phase 5: Security — AES-256-GCM credential encryption, .lfs export/import
 - Phase 6: Terminal search (Ctrl+Shift+F), auto-detect SSH keys, session folders
 - Phase 7: Tiling terminal layout — recursive split, drag-to-resize, focus tracking
-- Phase 8: Mobile UI — bottom nav, SSH virtual keyboard, single-pane SFTP, pinch-to-zoom
-- Phase 9: 168 unit tests covering all core modules
+- Phase 8: Mobile UI — bottom nav, SSH virtual keyboard, deep links, swipe navigation
+- Phase 9: 242 tests, security audit, packaging (AppImage/deb/dmg/MSIX), user docs
 
 ## Development
 

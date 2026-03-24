@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/connection/connection.dart';
+import 'core/deeplink/deeplink_handler.dart';
 import 'core/session/session.dart';
 import 'core/ssh/errors.dart';
 import 'features/settings/export_import.dart';
@@ -107,6 +108,49 @@ class MainScreen extends ConsumerStatefulWidget {
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> {
+  final _deepLinkHandler = DeepLinkHandler();
+
+  @override
+  void initState() {
+    super.initState();
+    _setupDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _deepLinkHandler.dispose();
+    super.dispose();
+  }
+
+  void _setupDeepLinks() {
+    _deepLinkHandler.onConnect = (config) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx == null) return;
+      final manager = ref.read(connectionManagerProvider);
+      manager.connect(config, label: config.displayName).then((conn) {
+        ref.read(tabProvider.notifier).addTerminalTab(conn);
+      }).catchError((e) {
+        final c = navigatorKey.currentContext;
+        if (c != null && c.mounted) {
+          Toast.show(c, message: 'Deep link connect failed: $e', level: ToastLevel.error);
+        }
+      });
+    };
+    _deepLinkHandler.onLfsFileOpened = (filePath) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        _showLfsImportDialog(ctx, filePath);
+      }
+    };
+    _deepLinkHandler.onKeyFileOpened = (filePath) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        Toast.show(ctx, message: 'SSH key received: ${filePath.split('/').last}', level: ToastLevel.info);
+      }
+    };
+    _deepLinkHandler.init();
+  }
+
   @override
   Widget build(BuildContext context) {
     // Mobile: completely different navigation (bottom nav bar)

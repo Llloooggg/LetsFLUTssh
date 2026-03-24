@@ -94,9 +94,8 @@ class KnownHostsManager {
       return false;
     }
 
-    // Auto-TOFU
-    await _addHost(hostPort, keyString);
-    return true;
+    // No callback — reject unknown host (require explicit user confirmation)
+    return false;
   }
 
   Future<void> _addHost(String hostPort, String keyString) async {

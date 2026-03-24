@@ -102,9 +102,12 @@ LetsFLUTssh/
 │   │   ├── security/               # Credential encryption
 │   │   │   └── credential_store.dart # AES-256-GCM encrypted credential storage
 │   │   │
-│   │   └── connection/              # Connection lifecycle manager
-│   │       ├── connection.dart      # Connection model (SSH client ref, state, label)
-│   │       └── connection_manager.dart # Active connections tracking, tab association
+│   │   ├── connection/              # Connection lifecycle manager
+│   │   │   ├── connection.dart      # Connection model (SSH client ref, state, label)
+│   │   │   └── connection_manager.dart # Active connections tracking, tab association
+│   │   │
+│   │   └── deeplink/               # Deep link handling
+│   │       └── deeplink_handler.dart # URL scheme + file open intent handler
 │   │
 │   ├── features/                    # Feature modules (UI + logic)
 │   │   ├── terminal/                # Terminal tab
@@ -187,7 +190,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.8.1 — Phase 9 in progress, unit tests)
+## Current State (v0.9.0 — Phase 9 complete)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -255,6 +258,14 @@ LetsFLUTssh/
 - **Mobile SFTP** — single-pane with SegmentedButton Local/Remote toggle, long-press selection mode, bottom sheet actions
 - **Mobile tab switcher** — ChoiceChips for multiple terminal/SFTP tabs, badges on nav bar
 - **Adaptive dialogs** — QuickConnect/SessionEdit use ConstrainedBox instead of fixed width
+- **Mobile swipe navigation** — GestureDetector.onHorizontalDragEnd switches bottom nav tabs (velocity > 300)
+- **Deep links** — `letsflutssh://connect?host=X&user=Y` via app_links package (Android intent filter + iOS CFBundleURLTypes)
+- **File open intents** — ACTION_VIEW for .pem/.key/.pub/.lfs files (Android), open SSH keys and .lfs archives
+- **Packaging** — AppImage + deb + tar.gz (Linux), MSIX + zip (Windows), dmg + tar.gz (macOS), per-ABI APK (Android)
+- **Security hardening** — chmod 600 on credential files, TOFU rejects unknown hosts without callback, PBKDF2 600k iterations, file paths removed from error messages
+- **hardwareKeyboardOnly on desktop** — fixes Windows keyboard input by using KeyEvent.character instead of broken TextInputConnection/IME path
+- **242 tests** — 168 unit + 67 widget + 7 deeplink; covers all core modules and major UI components
+- **User documentation** — docs/USER_GUIDE.md with keyboard shortcuts, features, security notes
 
 ### Решения и почему
 - **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
@@ -267,7 +278,7 @@ LetsFLUTssh/
 - **TransferManager с Stream notifications** — Riverpod StreamProvider подписывается на onChange для reactive UI updates
 - **pointycastle вместо encrypt** — encrypt ^5.0.3 требует pointycastle ^3.6.2, конфликт с dartssh2 (needs ^4.0.0); pointycastle уже transitive dep
 - **CredentialStore вместо flutter_secure_storage** — pure Dart, no OS-specific native deps; AES-256-GCM с random key в credentials.key
-- **PBKDF2 100k iterations для .lfs** — industry standard key derivation для password-based encryption архивов
+- **PBKDF2 600k iterations для .lfs** — OWASP 2024 recommendation для password-based encryption архивов
 - **Listener вместо GestureDetector для marquee** — Listener (raw pointer events) не участвует в gesture arena, поэтому не конфликтует с Draggable на строках файлов
 - **Draggable только на выделенных файлах** — клик по невыделенному файлу + drag = marquee; клик по выделенному + drag = transfer между панелями
 - **PaneDragData с sourcePaneId** — DragTarget отклоняет drop с тем же paneId, предотвращая transfer в ту же панель
@@ -291,6 +302,12 @@ LetsFLUTssh/
 - **Long-press selection** — на мобильных нет Ctrl+click и marquee; long press входит в selection mode с чекбоксами (как Android file manager)
 - **AnimatedBuilder для toolbar** — MobileFileBrowser toolbar слушает FilePaneController через AnimatedBuilder для обновления path при навигации
 - **Focus(autofocus: true) убран из main.dart** — крал текстовый ввод у TerminalView на Windows; backspace работал (raw key event) а буквы нет (IME/TextInputClient путь)
+- **hardwareKeyboardOnly: true на desktop** — xterm.dart CustomTextEdit (TextInputClient) не работает на Windows; CustomKeyboardListener читает KeyEvent.character напрямую — надёжнее для desktop
+- **app_links вместо uni_links** — более актуальный пакет, поддержка desktop, custom schemes + file URIs
+- **TOFU reject без callback** — auto-accept убран; unknown hosts теперь отклоняются если нет UI callback; предотвращает MITM при отсутствии диалога
+- **PBKDF2 600k итераций** — OWASP 2024 рекомендация; 100k было достаточно в 2020, но GPU brute-force стал быстрее
+- **chmod 600 на credential файлах** — предотвращает чтение credentials.enc/key другими пользователями на Unix системах
+- **DeepLinkHandler.parseConnectUri static** — вынесен из приватного метода для тестируемости; тесты проверяют парсинг URI без инициализации app_links
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 

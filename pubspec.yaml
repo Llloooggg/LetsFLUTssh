@@ -1,7 +1,7 @@
 name: letsflutssh
 description: Lightweight cross-platform SSH/SFTP client with GUI
 publish_to: 'none'
-version: 0.8.1+12
+version: 0.9.0+13
 
 environment:
   sdk: ^3.11.0
@@ -38,6 +38,9 @@ dependencies:
   # OS drag&drop into app (desktop)
   desktop_drop: ^0.7.0
 
+  # Deep links / file open intents
+  app_links: ^7.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -45,6 +48,7 @@ dev_dependencies:
   build_runner: ^2.4.15
   json_serializable: ^6.9.5
   flutter_launcher_icons: ^0.14.3
+  msix: ^3.16.13
 
 flutter_launcher_icons:
   android: true
@@ -64,6 +68,16 @@ flutter_launcher_icons:
   linux:
     generate: true
     image_path: "assets/icons/icon.png"
+
+msix_config:
+  display_name: LetsFLUTssh
+  publisher_display_name: LetsFLUTssh
+  identity_name: com.letsflutssh.app
+  msix_version: 0.8.1.0
+  logo_path: assets/icons/icon.png
+  capabilities: internetClient, privateNetworkClientServer
+  protocol_activation: letsflutssh
+  file_extension: .lfs
 
 flutter:
   uses-material-design: true

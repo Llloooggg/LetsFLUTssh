@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=LetsFLUTssh
+GenericName=SSH Client
+Comment=Lightweight cross-platform SSH/SFTP client
+Exec=letsflutssh %u
+Icon=letsflutssh
+Type=Application
+Categories=Network;RemoteAccess;
+Keywords=ssh;sftp;terminal;remote;
+MimeType=x-scheme-handler/letsflutssh;
+StartupWMClass=letsflutssh
+Terminal=false

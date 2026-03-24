@@ -60,6 +60,7 @@ class CredentialStore {
     } else {
       keyBytes = _generateKey();
       await keyFile.writeAsBytes(keyBytes);
+      _restrictFilePermissions(keyFile.path);
     }
 
     final json = jsonEncode(
@@ -67,6 +68,7 @@ class CredentialStore {
     );
     final encData = _encrypt(json, keyBytes);
     await credFile.writeAsBytes(encData);
+    _restrictFilePermissions(credFile.path);
   }
 
   /// Get credentials for a session.
@@ -87,6 +89,15 @@ class CredentialStore {
     final all = await loadAll();
     all.remove(sessionId);
     await saveAll(all);
+  }
+
+  /// Set file permissions to owner-only (0600) on Unix systems.
+  void _restrictFilePermissions(String path) {
+    if (Platform.isLinux || Platform.isMacOS) {
+      try {
+        Process.runSync('chmod', ['600', path]);
+      } catch (_) {}
+    }
   }
 
   Uint8List _generateKey() {

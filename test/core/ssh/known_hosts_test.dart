@@ -137,9 +137,8 @@ void main() {
         return false;
       }
 
-      // Auto-TOFU
-      hosts[hostPort] = keyString;
-      return true;
+      // No callback — reject (require explicit user confirmation)
+      return false;
     }
 
     test('unknown host with callback — accepted', () async {
@@ -157,14 +156,14 @@ void main() {
       expect(hosts.containsKey('example.com:22'), isFalse);
     });
 
-    test('unknown host without callback — auto TOFU', () async {
+    test('unknown host without callback — rejected', () async {
       final result = await verify(
         'example.com', 22, 'ssh-rsa', [1, 2, 3],
         hasUnknownCallback: false,
       );
-      expect(result, isTrue);
+      expect(result, isFalse);
       expect(unknownHostCalls, isEmpty);
-      expect(hosts.containsKey('example.com:22'), isTrue);
+      expect(hosts.containsKey('example.com:22'), isFalse);
     });
 
     test('known host with matching key — accepted silently', () async {

@@ -1,5 +1,5 @@
 APP_NAME := letsflutssh
-VERSION := 0.7.1
+VERSION := 0.9.0
 BUILD_DIR := build
 FLUTTER := flutter
 UNAME := $(shell uname)
@@ -101,11 +101,40 @@ package-linux: build-linux ## Build + tar.gz for Linux
 		tar czf $(CURDIR)/$(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-linux-$(ARCH).tar.gz .
 	@echo "Package: $(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-linux-$(ARCH).tar.gz"
 
+package-appimage: build-linux ## Build + AppImage for Linux
+	@mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+	cp -r build/linux/$(ARCH)/release/bundle/* AppDir/usr/bin/
+	cp linux/packaging/letsflutssh.desktop AppDir/usr/share/applications/
+	cp linux/packaging/letsflutssh.desktop AppDir/
+	cp assets/icons/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+	cp assets/icons/icon.png AppDir/letsflutssh.png
+	printf '#!/bin/bash\nHERE="$$(dirname "$$(readlink -f "$$0")")"\nexec "$$HERE/usr/bin/letsflutssh" "$$@"\n' > AppDir/AppRun
+	chmod +x AppDir/AppRun
+	@echo "AppDir created. Run: ARCH=$(ARCH) appimagetool AppDir $(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-linux-$(ARCH).AppImage"
+
+package-deb: build-linux ## Build + deb for Linux
+	@mkdir -p $(BUILD_DIR)/package
+	@PKG=$(APP_NAME)_$(VERSION)_amd64 && \
+	mkdir -p $$PKG/DEBIAN $$PKG/usr/bin $$PKG/usr/lib/letsflutssh $$PKG/usr/share/applications $$PKG/usr/share/icons/hicolor/256x256/apps && \
+	cp -r build/linux/$(ARCH)/release/bundle/* $$PKG/usr/lib/letsflutssh/ && \
+	ln -sf /usr/lib/letsflutssh/letsflutssh $$PKG/usr/bin/letsflutssh && \
+	cp linux/packaging/letsflutssh.desktop $$PKG/usr/share/applications/ && \
+	cp assets/icons/icon.png $$PKG/usr/share/icons/hicolor/256x256/apps/letsflutssh.png && \
+	printf 'Package: letsflutssh\nVersion: $(VERSION)\nArchitecture: amd64\nMaintainer: LetsFLUTssh <noreply@letsflutssh.dev>\nDescription: Lightweight cross-platform SSH/SFTP client\nDepends: libgtk-3-0\nSection: net\nPriority: optional\n' > $$PKG/DEBIAN/control && \
+	dpkg-deb --build $$PKG && \
+	mv $${PKG}.deb $(BUILD_DIR)/package/ && \
+	rm -rf $$PKG
+	@echo "Package: $(BUILD_DIR)/package/$(APP_NAME)_$(VERSION)_amd64.deb"
+
 package-windows: build-windows ## Build + zip for Windows
 	@mkdir -p $(BUILD_DIR)/package
 	cd build/windows/x64/runner/Release && \
 		zip -r $(CURDIR)/$(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-windows-amd64.zip .
 	@echo "Package: $(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-windows-amd64.zip"
+
+package-msix: build-windows ## Build + MSIX for Windows
+	dart run msix:create
+	@echo "MSIX package created in build/windows/"
 
 release: package-linux ## Build all release packages
 	@echo "Built packages:"

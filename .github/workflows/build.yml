@@ -60,15 +60,70 @@ jobs:
       - name: Build Linux x64
         run: flutter build linux --release
 
-      - name: Package
+      - name: Package tar.gz
         run: |
           cd build/linux/x64/release/bundle
           tar czf ${{ github.workspace }}/letsflutssh-${{ needs.version.outputs.version }}-linux-x64.tar.gz .
 
+      - name: Package AppImage
+        run: |
+          # Create AppDir structure
+          APPDIR=AppDir
+          mkdir -p $APPDIR/usr/bin $APPDIR/usr/lib $APPDIR/usr/share/applications $APPDIR/usr/share/icons/hicolor/256x256/apps
+          cp -r build/linux/x64/release/bundle/* $APPDIR/usr/bin/
+          cp linux/packaging/letsflutssh.desktop $APPDIR/usr/share/applications/
+          cp linux/packaging/letsflutssh.desktop $APPDIR/
+          cp assets/icons/icon.png $APPDIR/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+          cp assets/icons/icon.png $APPDIR/letsflutssh.png
+          # Create AppRun
+          cat > $APPDIR/AppRun << 'APPRUN'
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          exec "$HERE/usr/bin/letsflutssh" "$@"
+          APPRUN
+          chmod +x $APPDIR/AppRun
+          # Download appimagetool and build
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool --no-appstream $APPDIR letsflutssh-${{ needs.version.outputs.version }}-linux-x64.AppImage
+
+      - name: Package deb
+        run: |
+          VER=${{ needs.version.outputs.version }}
+          PKG=letsflutssh_${VER}_amd64
+          mkdir -p $PKG/DEBIAN
+          mkdir -p $PKG/usr/bin
+          mkdir -p $PKG/usr/lib/letsflutssh
+          mkdir -p $PKG/usr/share/applications
+          mkdir -p $PKG/usr/share/icons/hicolor/256x256/apps
+          # Copy app bundle to /usr/lib, symlink binary
+          cp -r build/linux/x64/release/bundle/* $PKG/usr/lib/letsflutssh/
+          ln -sf /usr/lib/letsflutssh/letsflutssh $PKG/usr/bin/letsflutssh
+          cp linux/packaging/letsflutssh.desktop $PKG/usr/share/applications/
+          cp assets/icons/icon.png $PKG/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+          # Control file
+          cat > $PKG/DEBIAN/control << EOF
+          Package: letsflutssh
+          Version: ${VER}
+          Architecture: amd64
+          Maintainer: LetsFLUTssh <noreply@letsflutssh.dev>
+          Description: Lightweight cross-platform SSH/SFTP client
+           A full-featured SSH terminal and SFTP file browser with session
+           management, encrypted credential storage, and tiling terminal layout.
+          Depends: libgtk-3-0
+          Section: net
+          Priority: optional
+          EOF
+          dpkg-deb --build $PKG
+          mv ${PKG}.deb letsflutssh-${VER}-linux-amd64.deb
+
       - uses: actions/upload-artifact@v5
         with:
           name: linux-x64
-          path: letsflutssh-${{ needs.version.outputs.version }}-linux-x64.tar.gz
+          path: |
+            letsflutssh-${{ needs.version.outputs.version }}-linux-x64.tar.gz
+            letsflutssh-${{ needs.version.outputs.version }}-linux-x64.AppImage
+            letsflutssh-${{ needs.version.outputs.version }}-linux-amd64.deb
 
   build-windows:
     needs: version
@@ -83,13 +138,18 @@ jobs:
       - name: Build Windows x64
         run: flutter build windows --release
 
-      - name: Package
+      - name: Package zip
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
+
+      - name: Package MSIX
+        run: dart run msix:create --output-path . --output-name letsflutssh-${{ needs.version.outputs.version }}-windows-x64
 
       - uses: actions/upload-artifact@v5
         with:
           name: windows-x64
-          path: letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
+          path: |
+            letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
+            letsflutssh-${{ needs.version.outputs.version }}-windows-x64.msix
 
   build-macos:
     needs: version
@@ -104,15 +164,21 @@ jobs:
       - name: Build macOS (universal — x64 + arm64)
         run: flutter build macos --release
 
-      - name: Package
+      - name: Package tar.gz
         run: |
           cd build/macos/Build/Products/Release
           tar czf ${{ github.workspace }}/letsflutssh-${{ needs.version.outputs.version }}-macos-universal.tar.gz *.app
 
+      - name: Package dmg
+        run: |
+          hdiutil create -volname "LetsFLUTssh" -srcfolder build/macos/Build/Products/Release/letsflutssh.app -ov -format UDZO letsflutssh-${{ needs.version.outputs.version }}-macos-universal.dmg
+
       - uses: actions/upload-artifact@v5
         with:
           name: macos-universal
-          path: letsflutssh-${{ needs.version.outputs.version }}-macos-universal.tar.gz
+          path: |
+            letsflutssh-${{ needs.version.outputs.version }}-macos-universal.tar.gz
+            letsflutssh-${{ needs.version.outputs.version }}-macos-universal.dmg
 
   build-android:
     needs: version
@@ -171,8 +237,12 @@ jobs:
           prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
           files: |
             artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-x64.tar.gz
+            artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-x64.AppImage
+            artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-amd64.deb
             artifacts/windows-x64/letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
+            artifacts/windows-x64/letsflutssh-${{ needs.version.outputs.version }}-windows-x64.msix
             artifacts/macos-universal/letsflutssh-${{ needs.version.outputs.version }}-macos-universal.tar.gz
+            artifacts/macos-universal/letsflutssh-${{ needs.version.outputs.version }}-macos-universal.dmg
             artifacts/android-apk/letsflutssh-${{ needs.version.outputs.version }}-android-arm64.apk
             artifacts/android-apk/letsflutssh-${{ needs.version.outputs.version }}-android-arm.apk
             artifacts/android-apk/letsflutssh-${{ needs.version.outputs.version }}-android-x64.apk

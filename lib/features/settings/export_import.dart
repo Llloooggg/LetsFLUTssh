@@ -23,7 +23,7 @@ import '../../core/session/session.dart';
 class ExportImport {
   static const _saltLen = 32;
   static const _ivLen = 12;
-  static const _pbkdf2Iterations = 100000;
+  static const _pbkdf2Iterations = 600000;
 
   /// Export app data to an encrypted .lfs file.
   ///

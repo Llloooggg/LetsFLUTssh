@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show VoidCallback;
@@ -153,7 +154,8 @@ class SSHConnection {
         final keyData = await keyFile.readAsString();
         identities.addAll(SSHKeyPair.fromPem(keyData, passphrase));
       } catch (e) {
-        throw AuthError('Failed to load key from file: ${config.keyPath}', e);
+        dev.log('SSH: failed to load key from ${config.keyPath}: $e');
+        throw AuthError('Failed to load SSH key file', e);
       }
     }
 
@@ -178,8 +180,8 @@ class SSHConnection {
               try {
                 final keyData = await keyFile.readAsString();
                 identities.addAll(SSHKeyPair.fromPem(keyData, null));
-              } catch (_) {
-                // Skip keys that can't be parsed (encrypted without passphrase, etc.)
+              } catch (e) {
+                dev.log('SSH: skipped key $name (${e.runtimeType})');
               }
             }
           }
