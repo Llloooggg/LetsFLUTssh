@@ -235,8 +235,8 @@
 
 **Goal:** Production-ready release
 
-- [x] Unit тесты для core модулей (168 тестов)
-- [x] Widget тесты для UI компонентов (67 widget тестов, итого 242)
+- [x] Unit тесты для core модулей (209 тестов)
+- [x] Widget тесты для UI компонентов (67 widget тестов, итого 283)
 - [x] CI/CD (GitHub Actions)
     - [x] flutter analyze + flutter test on PR
     - [x] Build artifacts: Linux, Windows, macOS, Android APK
@@ -260,6 +260,17 @@
     - [x] Error messages: removed file paths from user-facing errors
     - [x] Logging: auto-detect SSH key failures now logged
 - [x] Документация пользователя (docs/USER_GUIDE.md)
+- [x] Architecture refactoring (v0.9.1)
+    - [x] ShellHelper — shared SSH shell connection logic (retry + stream wiring), extracted from terminal_pane + mobile_terminal_view
+    - [x] SFTPInitializer — shared SFTP init factory (service + controllers), extracted from file_browser_tab + mobile_file_browser
+    - [x] FilePaneDialogs — shared dialogs (New Folder, Rename, Delete), extracted from file_pane + mobile_file_browser
+    - [x] SessionConnect — shared connection logic (connectTerminal, connectSftp, quickConnect), extracted from main.dart
+    - [x] Settings screen split into section widgets with `configProvider.select()` — fine-grained rebuilds
+    - [x] Silent `catch (_)` → `catch (e) { dev.log() }` in credential_store, config_store, sftp_client
+    - [x] FilePaneController.dispose() now calls super.dispose() (memory leak fix)
+    - [x] Mockito-based SSH shell tests (8 tests with mocked SSHConnection/SSHSession)
+    - [x] FilePaneController tests (20 tests — navigation, selection, sort, cache, dispose)
+    - [x] FilePaneDialogs widget tests (14 tests — new folder, rename, delete dialogs)
 
 ## Phase 10: Post-Release Polish (v1.x)
 
@@ -293,7 +304,7 @@
 ## Текущий статус
 
 **Активная фаза:** Phase 9 (Stable Release) — завершена
-**Прогресс:** Phases 1-9 завершены. v0.9.0 — 242 теста (168 unit + 67 widget + 7 deeplink). Security audit, packaging (AppImage/deb/dmg/MSIX), deep links, user docs.
+**Прогресс:** Phases 1-9 завершены. v0.9.1 — 283 теста (209 unit + 67 widget + 7 deeplink). Architecture refactoring (ShellHelper, SFTPInitializer, FilePaneDialogs, SessionConnect), mockito SSH mocks, security audit, packaging, user docs.
 
 ### Порядок работы
 

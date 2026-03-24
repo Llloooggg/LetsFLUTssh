@@ -3,15 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/connection/connection.dart';
-import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_client.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/transfer_task.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
-import '../../widgets/toast.dart';
 import '../file_browser/file_browser_controller.dart';
+import '../file_browser/file_pane_dialogs.dart';
+import '../file_browser/sftp_initializer.dart';
 import '../file_browser/transfer_panel.dart';
 
 /// Single-pane mobile SFTP browser with Local/Remote toggle.
@@ -25,12 +25,14 @@ class MobileFileBrowser extends ConsumerStatefulWidget {
 }
 
 class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
-  FilePaneController? _localCtrl;
-  FilePaneController? _remoteCtrl;
-  SFTPService? _sftpService;
+  SFTPInitResult? _sftp;
   bool _initializing = true;
   String? _error;
   bool _showRemote = true; // Start on remote pane
+
+  FilePaneController? get _localCtrl => _sftp?.localCtrl;
+  FilePaneController? get _remoteCtrl => _sftp?.remoteCtrl;
+  SFTPService? get _sftpService => _sftp?.sftpService;
 
   @override
   void initState() {
@@ -40,23 +42,13 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
 
   @override
   void dispose() {
-    _localCtrl?.dispose();
-    _remoteCtrl?.dispose();
-    _sftpService?.close();
+    _sftp?.dispose();
     super.dispose();
   }
 
   Future<void> _initSftp() async {
     try {
-      final sshClient = widget.connection.sshConnection?.client;
-      if (sshClient == null) {
-        setState(() { _error = 'SSH connection not available'; _initializing = false; });
-        return;
-      }
-      _sftpService = await SFTPService.fromSSHClient(sshClient);
-      _localCtrl = FilePaneController(fs: LocalFS(), label: 'Local');
-      _remoteCtrl = FilePaneController(fs: RemoteFS(_sftpService!), label: 'Remote');
-      await Future.wait([_localCtrl!.init(), _remoteCtrl!.init()]);
+      _sftp = await SFTPInitializer.init(widget.connection);
       if (mounted) setState(() => _initializing = false);
     } catch (e) {
       if (mounted) setState(() { _error = 'Failed to init SFTP: $e'; _initializing = false; });
@@ -450,93 +442,14 @@ class _MobileFileListState extends State<_MobileFileList> {
     );
   }
 
-  Future<void> _showNewFolderDialog(BuildContext context) async {
-    final nameCtrl = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New Folder'),
-        content: TextField(
-          controller: nameCtrl,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Folder name'),
-          onSubmitted: (v) => Navigator.of(ctx).pop(v),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(nameCtrl.text), child: const Text('Create')),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      try {
-        await ctrl.fs.mkdir('${ctrl.currentPath}/$result');
-        await ctrl.refresh();
-      } catch (e) {
-        if (context.mounted) Toast.show(context, message: 'Failed: $e', level: ToastLevel.error);
-      }
-    }
-  }
+  Future<void> _showNewFolderDialog(BuildContext context) =>
+      FilePaneDialogs.showNewFolder(context, ctrl);
 
-  Future<void> _showRenameDialog(BuildContext context, FileEntry entry) async {
-    final nameCtrl = TextEditingController(text: entry.name);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename'),
-        content: TextField(
-          controller: nameCtrl,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'New name'),
-          onSubmitted: (v) => Navigator.of(ctx).pop(v),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(nameCtrl.text), child: const Text('Rename')),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty && result != entry.name) {
-      try {
-        await ctrl.fs.rename(entry.path, '${ctrl.currentPath}/$result');
-        await ctrl.refresh();
-      } catch (e) {
-        if (context.mounted) Toast.show(context, message: 'Failed: $e', level: ToastLevel.error);
-      }
-    }
-  }
+  Future<void> _showRenameDialog(BuildContext context, FileEntry entry) =>
+      FilePaneDialogs.showRename(context, ctrl, entry);
 
   Future<void> _confirmDelete(BuildContext context, List<FileEntry> entries) async {
-    final names = entries.length == 1 ? '"${entries.first.name}"' : '${entries.length} items';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete'),
-        content: Text('Delete $names?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.disconnected),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      for (final entry in entries) {
-        try {
-          if (entry.isDir) {
-            await ctrl.fs.removeDir(entry.path);
-          } else {
-            await ctrl.fs.remove(entry.path);
-          }
-        } catch (e) {
-          if (context.mounted) Toast.show(context, message: 'Failed: $e', level: ToastLevel.error);
-        }
-      }
-      await ctrl.refresh();
-      _exitSelectionMode();
-    }
+    await FilePaneDialogs.confirmDelete(context, ctrl, entries);
+    _exitSelectionMode();
   }
 }

@@ -55,6 +55,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   bool _obscurePassphrase = true;
   bool _showKeyText = false;
   bool _keyDragging = false;
+  TextEditingController? _autoCompleteCtrl;
 
   bool get _isEditing => widget.session != null;
 
@@ -162,9 +163,12 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
                   },
                   onSelected: (value) => _groupCtrl.text = value,
                   fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                    // Sync with our controller
-                    controller.text = _groupCtrl.text;
-                    controller.addListener(() => _groupCtrl.text = controller.text);
+                    // Sync with our controller — only add listener once
+                    if (_autoCompleteCtrl != controller) {
+                      _autoCompleteCtrl = controller;
+                      controller.text = _groupCtrl.text;
+                      controller.addListener(() => _groupCtrl.text = controller.text);
+                    }
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,

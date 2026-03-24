@@ -357,6 +357,10 @@ abstract final class AppTheme {
   /// Folder icon color.
   static const Color folderIcon = _yellow;
 
+  /// Terminal search highlight.
+  static const Color searchHighlight = Color(0xFFFFFF2B);
+  static const Color searchHighlightLight = Color(0xFFFFD700);
+
   /// Light-theme variants.
   static const Color connectedLight = _lightGreen;
   static const Color connectingLight = _lightYellow;

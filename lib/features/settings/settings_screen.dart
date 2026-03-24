@@ -12,6 +12,9 @@ import '../../widgets/toast.dart';
 import 'export_import.dart';
 
 /// Settings screen with config editing.
+///
+/// Each section watches only its own config fields via `select()` to avoid
+/// unnecessary rebuilds when unrelated settings change.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -23,8 +26,6 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(configProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
@@ -32,91 +33,34 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Appearance
           const _SectionHeader(title: 'Appearance'),
-          _ThemeTile(
-            value: config.theme,
-            onChanged: (v) => _update(ref, (c) => c.copyWith(theme: v)),
-          ),
-          _SliderTile(
-            title: 'Font Size',
-            value: config.fontSize,
-            min: 8,
-            max: 24,
-            divisions: 16,
-            format: (v) => '${v.round()}',
-            onChanged: (v) => _update(ref, (c) => c.copyWith(fontSize: v)),
-          ),
+          const _AppearanceSection(),
 
           const Divider(height: 32),
 
-          // Terminal
           const _SectionHeader(title: 'Terminal'),
-          _IntTile(
-            title: 'Scrollback Lines',
-            value: config.scrollback,
-            min: 100,
-            max: 100000,
-            onChanged: (v) => _update(ref, (c) => c.copyWith(scrollback: v)),
-          ),
+          const _TerminalSection(),
 
           const Divider(height: 32),
 
-          // Connection
           const _SectionHeader(title: 'Connection'),
-          _IntTile(
-            title: 'Keep-Alive Interval (sec)',
-            value: config.keepAliveSec,
-            min: 0,
-            max: 300,
-            onChanged: (v) => _update(ref, (c) => c.copyWith(keepAliveSec: v)),
-          ),
-          _IntTile(
-            title: 'SSH Timeout (sec)',
-            value: config.sshTimeoutSec,
-            min: 1,
-            max: 60,
-            onChanged: (v) => _update(ref, (c) => c.copyWith(sshTimeoutSec: v)),
-          ),
-          _IntTile(
-            title: 'Default Port',
-            value: config.defaultPort,
-            min: 1,
-            max: 65535,
-            onChanged: (v) => _update(ref, (c) => c.copyWith(defaultPort: v)),
-          ),
+          const _ConnectionSection(),
 
           const Divider(height: 32),
 
-          // Transfers
           const _SectionHeader(title: 'Transfers'),
-          _IntTile(
-            title: 'Parallel Workers',
-            value: config.transferWorkers,
-            min: 1,
-            max: 10,
-            onChanged: (v) => _update(ref, (c) => c.copyWith(transferWorkers: v)),
-          ),
-          _IntTile(
-            title: 'Max History',
-            value: config.maxHistory,
-            min: 10,
-            max: 5000,
-            onChanged: (v) => _update(ref, (c) => c.copyWith(maxHistory: v)),
-          ),
+          const _TransferSection(),
 
           const Divider(height: 32),
 
-          // Data
           const _SectionHeader(title: 'Data'),
           _ExportImportTile(),
 
           const Divider(height: 32),
 
-          // Reset
           Center(
             child: TextButton.icon(
-              onPressed: () => _update(ref, (_) => AppConfig.defaults),
+              onPressed: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
               icon: const Icon(Icons.restore, size: 18),
               label: const Text('Reset to Defaults'),
             ),
@@ -125,9 +69,112 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  void _update(WidgetRef ref, AppConfig Function(AppConfig) updater) {
-    ref.read(configProvider.notifier).update(updater);
+class _AppearanceSection extends ConsumerWidget {
+  const _AppearanceSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(configProvider.select((c) => c.theme));
+    final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
+    return Column(
+      children: [
+        _ThemeTile(
+          value: theme,
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(theme: v)),
+        ),
+        _SliderTile(
+          title: 'Font Size',
+          value: fontSize,
+          min: 8,
+          max: 24,
+          divisions: 16,
+          format: (v) => '${v.round()}',
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(fontSize: v)),
+        ),
+      ],
+    );
+  }
+}
+
+class _TerminalSection extends ConsumerWidget {
+  const _TerminalSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scrollback = ref.watch(configProvider.select((c) => c.scrollback));
+    return _IntTile(
+      title: 'Scrollback Lines',
+      value: scrollback,
+      min: 100,
+      max: 100000,
+      onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(scrollback: v)),
+    );
+  }
+}
+
+class _ConnectionSection extends ConsumerWidget {
+  const _ConnectionSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final keepAlive = ref.watch(configProvider.select((c) => c.keepAliveSec));
+    final timeout = ref.watch(configProvider.select((c) => c.sshTimeoutSec));
+    final port = ref.watch(configProvider.select((c) => c.defaultPort));
+    return Column(
+      children: [
+        _IntTile(
+          title: 'Keep-Alive Interval (sec)',
+          value: keepAlive,
+          min: 0,
+          max: 300,
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(keepAliveSec: v)),
+        ),
+        _IntTile(
+          title: 'SSH Timeout (sec)',
+          value: timeout,
+          min: 1,
+          max: 60,
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(sshTimeoutSec: v)),
+        ),
+        _IntTile(
+          title: 'Default Port',
+          value: port,
+          min: 1,
+          max: 65535,
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(defaultPort: v)),
+        ),
+      ],
+    );
+  }
+}
+
+class _TransferSection extends ConsumerWidget {
+  const _TransferSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workers = ref.watch(configProvider.select((c) => c.transferWorkers));
+    final maxHistory = ref.watch(configProvider.select((c) => c.maxHistory));
+    return Column(
+      children: [
+        _IntTile(
+          title: 'Parallel Workers',
+          value: workers,
+          min: 1,
+          max: 10,
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(transferWorkers: v)),
+        ),
+        _IntTile(
+          title: 'Max History',
+          value: maxHistory,
+          min: 10,
+          max: 5000,
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(maxHistory: v)),
+        ),
+      ],
+    );
   }
 }
 

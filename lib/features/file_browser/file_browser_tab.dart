@@ -7,13 +7,13 @@ import 'package:path/path.dart' as p;
 import '../../theme/app_theme.dart';
 
 import '../../core/connection/connection.dart';
-import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_client.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/transfer_task.dart';
 import '../../providers/transfer_provider.dart';
 import 'file_browser_controller.dart';
 import 'file_pane.dart';
+import 'sftp_initializer.dart';
 import 'transfer_panel.dart';
 
 /// Dual-pane SFTP file browser tab.
@@ -30,12 +30,14 @@ class FileBrowserTab extends ConsumerStatefulWidget {
 }
 
 class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
-  FilePaneController? _localCtrl;
-  FilePaneController? _remoteCtrl;
-  SFTPService? _sftpService;
+  SFTPInitResult? _sftp;
   bool _initializing = true;
   String? _error;
   double _splitRatio = 0.5;
+
+  FilePaneController? get _localCtrl => _sftp?.localCtrl;
+  FilePaneController? get _remoteCtrl => _sftp?.remoteCtrl;
+  SFTPService? get _sftpService => _sftp?.sftpService;
 
   @override
   void initState() {
@@ -45,30 +47,13 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
   @override
   void dispose() {
-    _localCtrl?.dispose();
-    _remoteCtrl?.dispose();
-    _sftpService?.close();
+    _sftp?.dispose();
     super.dispose();
   }
 
   Future<void> _initSftp() async {
     try {
-      final sshClient = widget.connection.sshConnection?.client;
-      if (sshClient == null) {
-        setState(() {
-          _error = 'SSH connection not available';
-          _initializing = false;
-        });
-        return;
-      }
-
-      _sftpService = await SFTPService.fromSSHClient(sshClient);
-
-      _localCtrl = FilePaneController(fs: LocalFS(), label: 'Local');
-      _remoteCtrl = FilePaneController(fs: RemoteFS(_sftpService!), label: 'Remote');
-
-      await Future.wait([_localCtrl!.init(), _remoteCtrl!.init()]);
-
+      _sftp = await SFTPInitializer.init(widget.connection);
       if (mounted) {
         setState(() => _initializing = false);
       }

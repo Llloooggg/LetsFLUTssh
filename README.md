@@ -187,7 +187,7 @@ make build-ios
 
 ## Current Status
 
-**v0.9.0-beta** — All core features implemented across 9 development phases:
+**v0.9.1** — All core features implemented across 9 development phases:
 
 | Phase | What                                                                       |
 | ----- | -------------------------------------------------------------------------- |
@@ -197,7 +197,7 @@ make build-ios
 | 6     | Terminal search, auto-detect SSH keys, session folders                     |
 | 7     | Tiling terminal layout — recursive split, drag-to-resize, focus tracking   |
 | 8     | Mobile UI — bottom nav, SSH virtual keyboard, deep links, swipe navigation |
-| 9     | 242 tests, security audit, performance profiling, packaging, user docs     |
+| 9     | 283 tests, security audit, performance profiling, packaging, user docs     |
 
 ## Development
 

@@ -78,6 +78,7 @@ LetsFLUTssh/
 │   │   │   ├── ssh_client.dart      # SSHConnection: connect, auth, shell, resize, keepalive
 │   │   │   ├── ssh_config.dart      # SSHConfig model (host, port, user, auth params)
 │   │   │   ├── known_hosts.dart     # TOFU host key verification + storage
+│   │   │   ├── shell_helper.dart    # Shared SSH shell open + retry logic (desktop/mobile)
 │   │   │   └── errors.dart          # AuthError, ConnectError structured types
 │   │   │
 │   │   ├── sftp/                    # SFTP operations wrapper
@@ -118,8 +119,10 @@ LetsFLUTssh/
 │   │   ├── file_browser/            # Dual-pane SFTP file browser
 │   │   │   ├── file_browser_tab.dart    # Widget: split-pane (local | remote)
 │   │   │   ├── file_pane.dart           # Single pane: table + path bar + navigation
+│   │   │   ├── file_pane_dialogs.dart   # Shared dialogs: New Folder, Rename, Delete
 │   │   │   ├── file_table.dart          # DataTable with sort, multiselect, context menu
 │   │   │   ├── file_browser_controller.dart # State: listing, navigation, selection
+│   │   │   ├── sftp_initializer.dart    # Shared SFTP init factory (desktop/mobile)
 │   │   │   ├── transfer_panel.dart      # Bottom panel: progress + history (collapsible)
 │   │   │   └── file_actions.dart        # Upload/download/delete/rename/mkdir actions
 │   │   │
@@ -127,6 +130,7 @@ LetsFLUTssh/
 │   │   │   ├── session_panel.dart   # Widget: tree view + search + actions
 │   │   │   ├── session_tree_view.dart # Hierarchical session list (nested groups)
 │   │   │   ├── session_edit_dialog.dart # Create/edit session dialog
+│   │   │   ├── session_connect.dart # Shared connect logic (terminal/sftp/quick)
 │   │   │   └── quick_connect_dialog.dart # Quick connect dialog
 │   │   │
 │   │   ├── settings/                # Settings screen
@@ -190,7 +194,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.9.0 — Phase 9 complete)
+## Current State (v0.9.1 — Architecture refactoring)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -264,8 +268,16 @@ LetsFLUTssh/
 - **Packaging** — AppImage + deb + tar.gz (Linux), MSIX + zip (Windows), dmg + tar.gz (macOS), per-ABI APK (Android)
 - **Security hardening** — chmod 600 on credential files, TOFU rejects unknown hosts without callback, PBKDF2 600k iterations, file paths removed from error messages
 - **hardwareKeyboardOnly on desktop** — fixes Windows keyboard input by using KeyEvent.character instead of broken TextInputConnection/IME path
-- **242 tests** — 168 unit + 67 widget + 7 deeplink; covers all core modules and major UI components
+- **283 tests** — 209 unit + 67 widget + 7 deeplink; covers all core modules and major UI components; mockito mocks for SSH shell (ShellHelper)
 - **User documentation** — docs/USER_GUIDE.md with keyboard shortcuts, features, security notes
+- **ShellHelper** — shared SSH shell connection logic (retry, stream wiring) extracted from desktop/mobile terminal code
+- **SFTPInitializer** — shared SFTP init factory (create service + controllers) used by desktop/mobile file browsers
+- **FilePaneDialogs** — shared file operation dialogs (New Folder, Rename, Delete) extracted from file_pane.dart and mobile_file_browser.dart
+- **SessionConnect** — shared connection logic (connectTerminal, connectSftp, quickConnect) extracted from main.dart
+- **Settings screen optimized** — each section uses `ref.watch(configProvider.select(...))` for fine-grained rebuilds
+- **Consistent error handling** — all silent `catch (_)` replaced with `dev.log()` logging in credential_store, config_store, sftp_client
+- **chmod 600 error reporting** — credential_store now logs chmod failures instead of silently ignoring them
+- **FilePaneController.dispose()** — properly calls `super.dispose()` to clean up ChangeNotifier listeners
 
 ### Решения и почему
 - **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
@@ -308,6 +320,11 @@ LetsFLUTssh/
 - **PBKDF2 600k итераций** — OWASP 2024 рекомендация; 100k было достаточно в 2020, но GPU brute-force стал быстрее
 - **chmod 600 на credential файлах** — предотвращает чтение credentials.enc/key другими пользователями на Unix системах
 - **DeepLinkHandler.parseConnectUri static** — вынесен из приватного метода для тестируемости; тесты проверяют парсинг URI без инициализации app_links
+- **ShellHelper static class** — вынесен из TerminalPane/MobileTerminalView; retry logic + stream wiring в одном месте; desktop/mobile различаются только UI, не shell подключением
+- **SFTPInitializer factory** — создаёт SFTPService + FilePaneController(Local/Remote) + init(); возвращает SFTPInitResult с dispose(); desktop/mobile FileBrowser используют одинаковую инициализацию
+- **FilePaneDialogs static** — диалоги New Folder/Rename/Delete были дублированы в file_pane.dart и mobile_file_browser.dart; вынесены в общий класс
+- **SessionConnect static** — connectTerminal/connectSftp/quickConnect были трижды продублированы в main.dart; вынесены для переиспользования в mobile_shell
+- **Settings sections как отдельные ConsumerWidget** — каждая секция (Appearance, Terminal, Connection, Transfers) делает select() на свои поля; изменение font size не перерисовывает Transfers
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 

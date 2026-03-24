@@ -7,14 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/connection/connection.dart';
 import 'core/deeplink/deeplink_handler.dart';
-import 'core/session/session.dart';
-import 'core/ssh/errors.dart';
+import 'features/session_manager/session_connect.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/toast.dart';
 import 'features/file_browser/file_browser_tab.dart';
 import 'features/settings/settings_screen.dart';
-import 'features/session_manager/quick_connect_dialog.dart';
 import 'features/session_manager/session_panel.dart';
 import 'features/tabs/tab_bar.dart';
 import 'features/tabs/tab_controller.dart';
@@ -274,63 +272,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     ref.read(tabProvider.notifier).addSftpTab(connection);
   }
 
-  Future<void> _connectSessionSftp(BuildContext context, WidgetRef ref, Session session) async {
-    final config = session.toSSHConfig();
-    try {
-      final manager = ref.read(connectionManagerProvider);
-      final conn = await manager.connect(
-        config,
-        label: session.label.isNotEmpty ? session.label : session.displayName,
-      );
-      ref.read(tabProvider.notifier).addSftpTab(conn);
-    } on AuthError catch (e) {
-      if (context.mounted) _showError(context, 'Authentication failed: ${e.message}');
-    } on ConnectError catch (e) {
-      if (context.mounted) _showError(context, 'Connection failed: ${e.message}');
-    } catch (e) {
-      if (context.mounted) _showError(context, 'Error: $e');
-    }
-  }
+  Future<void> _connectSessionSftp(BuildContext context, WidgetRef ref, session) =>
+      SessionConnect.connectSftp(context, ref, session);
 
-  Future<void> _connectSession(BuildContext context, WidgetRef ref, Session session) async {
-    final config = session.toSSHConfig();
-    try {
-      final manager = ref.read(connectionManagerProvider);
-      final conn = await manager.connect(
-        config,
-        label: session.label.isNotEmpty ? session.label : session.displayName,
-      );
-      ref.read(tabProvider.notifier).addTerminalTab(conn);
-    } on AuthError catch (e) {
-      if (context.mounted) _showError(context, 'Authentication failed: ${e.message}');
-    } on ConnectError catch (e) {
-      if (context.mounted) _showError(context, 'Connection failed: ${e.message}');
-    } catch (e) {
-      if (context.mounted) _showError(context, 'Error: $e');
-    }
-  }
+  Future<void> _connectSession(BuildContext context, WidgetRef ref, session) =>
+      SessionConnect.connectTerminal(context, ref, session);
 
-  Future<void> _quickConnect(BuildContext context, WidgetRef ref) async {
-    final config = await QuickConnectDialog.show(context);
-    if (config == null) return;
-    if (!context.mounted) return;
-
-    try {
-      final manager = ref.read(connectionManagerProvider);
-      final conn = await manager.connect(config);
-      ref.read(tabProvider.notifier).addTerminalTab(conn);
-    } on AuthError catch (e) {
-      if (context.mounted) _showError(context, 'Authentication failed: ${e.message}');
-    } on ConnectError catch (e) {
-      if (context.mounted) _showError(context, 'Connection failed: ${e.message}');
-    } catch (e) {
-      if (context.mounted) _showError(context, 'Error: $e');
-    }
-  }
-
-  void _showError(BuildContext context, String message) {
-    Toast.show(context, message: message, level: ToastLevel.error);
-  }
+  Future<void> _quickConnect(BuildContext context, WidgetRef ref) =>
+      SessionConnect.quickConnect(context, ref);
 
   Future<void> _showLfsImportDialog(BuildContext context, String filePath) async {
     final passwordCtrl = TextEditingController();

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -42,7 +43,8 @@ class CredentialStore {
       final map = jsonDecode(json) as Map<String, dynamic>;
       return map.map((k, v) =>
           MapEntry(k, CredentialData.fromJson(v as Map<String, dynamic>)));
-    } catch (_) {
+    } catch (e) {
+      dev.log('CredentialStore: failed to load credentials: $e');
       return {};
     }
   }
@@ -95,8 +97,13 @@ class CredentialStore {
   void _restrictFilePermissions(String path) {
     if (Platform.isLinux || Platform.isMacOS) {
       try {
-        Process.runSync('chmod', ['600', path]);
-      } catch (_) {}
+        final result = Process.runSync('chmod', ['600', path]);
+        if (result.exitCode != 0) {
+          dev.log('CredentialStore: chmod 600 failed on $path: ${result.stderr}');
+        }
+      } catch (e) {
+        dev.log('CredentialStore: failed to restrict permissions on $path: $e');
+      }
     }
   }
 

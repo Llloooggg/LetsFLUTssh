@@ -1,11 +1,9 @@
-import 'dart:async';
-
-import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
+import '../../core/ssh/shell_helper.dart';
 import '../../theme/app_theme.dart';
 import 'ssh_keyboard_bar.dart';
 
@@ -29,11 +27,9 @@ class MobileTerminalView extends StatefulWidget {
 class _MobileTerminalViewState extends State<MobileTerminalView> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
-  SSHSession? _shell;
+  ShellConnection? _shellConn;
   bool _connected = false;
   String? _error;
-  StreamSubscription? _stdoutSub;
-  StreamSubscription? _stderrSub;
   double _fontSize = 12.0;
   double? _baseScaleFontSize;
 
@@ -46,71 +42,34 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
   }
 
   Future<void> _connectAndOpenShell() async {
-    final sshConn = widget.connection.sshConnection;
-    if (sshConn == null || !sshConn.isConnected) {
-      setState(() => _error = 'Not connected');
-      return;
-    }
-
-    const maxAttempts = 3;
-    for (var attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        if (attempt > 0) {
-          await Future.delayed(Duration(milliseconds: 300 * attempt));
-          if (!mounted) return;
-        }
-
-        _shell = await sshConn.openShell(
-          _terminal.viewWidth,
-          _terminal.viewHeight,
-        );
-
-        _stdoutSub = _shell!.stdout.listen((data) {
-          _terminal.write(String.fromCharCodes(data));
-        });
-
-        _stderrSub = _shell!.stderr.listen((data) {
-          _terminal.write(String.fromCharCodes(data));
-        });
-
-        _terminal.onOutput = (data) {
-          _shell?.write(Uint8List.fromList(data.codeUnits));
-        };
-
-        _terminal.onResize = (width, height, pixelWidth, pixelHeight) {
-          _shell?.resizeTerminal(width, height);
-        };
-
-        _shell!.done.then((_) {
+    try {
+      _shellConn = await ShellHelper.openShell(
+        connection: widget.connection,
+        terminal: _terminal,
+        onDone: () {
           if (mounted) {
             setState(() {
               _connected = false;
               _error = 'Session closed';
             });
           }
-        });
-
-        setState(() => _connected = true);
-        return;
-      } catch (e) {
-        if (attempt == maxAttempts - 1) {
-          if (mounted) setState(() => _error = e.toString());
-        }
-      }
+        },
+      );
+      if (mounted) setState(() => _connected = true);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
     }
   }
 
   @override
   void dispose() {
-    _stdoutSub?.cancel();
-    _stderrSub?.cancel();
-    _shell?.close();
+    _shellConn?.close();
     _terminalController.dispose();
     super.dispose();
   }
 
   void _onKeyboardInput(String data) {
-    _shell?.write(Uint8List.fromList(data.codeUnits));
+    _shellConn?.shell.write(Uint8List.fromList(data.codeUnits));
   }
 
   @override

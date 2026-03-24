@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -164,8 +165,9 @@ class SFTPService {
     // Create remote directory
     try {
       await _sftp.mkdir(remoteDir);
-    } catch (_) {
-      // Directory may already exist
+    } catch (e) {
+      // Directory may already exist — log but don't fail
+      dev.log('SFTP: mkdir $remoteDir: $e');
     }
 
     final dir = Directory(localDir);

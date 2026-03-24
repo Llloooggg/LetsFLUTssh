@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -34,7 +35,8 @@ class ConfigStore {
       final content = await file.readAsString();
       final json = jsonDecode(content) as Map<String, dynamic>;
       _config = AppConfig.fromJson(json);
-    } catch (_) {
+    } catch (e) {
+      dev.log('ConfigStore: failed to load config: $e');
       _config = AppConfig.defaults;
     }
     return _config;

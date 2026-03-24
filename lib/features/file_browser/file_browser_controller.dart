@@ -201,4 +201,11 @@ class FilePaneController extends ChangeNotifier {
     return _cachedSelectedEntries ??=
         _entries.where((e) => _selected.contains(e.path)).toList();
   }
+
+  @override
+  void dispose() {
+    _backStack.clear();
+    _forwardStack.clear();
+    super.dispose();
+  }
 }
