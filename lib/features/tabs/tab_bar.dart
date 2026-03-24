@@ -6,11 +6,9 @@ import '../../theme/app_theme.dart';
 import 'tab_controller.dart';
 import 'tab_model.dart';
 
-/// Custom tab bar with drag-to-reorder and drag-to-split.
+/// Custom tab bar with drag-to-reorder.
 ///
-/// Each tab has a small grip icon (⠿) for dragging. Click the tab to select,
-/// drag the grip to reorder in the bar or drop onto the content area to split.
-/// This avoids gesture conflicts between tap-to-select and drag-to-move.
+/// Drag any tab to reorder. Click to select, right-click for context menu.
 class AppTabBar extends ConsumerWidget {
   const AppTabBar({super.key});
 
@@ -169,86 +167,74 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onSelect,
-      onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
-      child: Container(
-        padding: const EdgeInsets.only(left: 2, right: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? theme.colorScheme.surfaceContainerHighest
-              : Colors.transparent,
-          border: Border(
-            bottom: BorderSide(
-              color: isActive ? theme.colorScheme.primary : Colors.transparent,
-              width: 2,
-            ),
+    final tabContent = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: isActive
+            ? theme.colorScheme.surfaceContainerHighest
+            : Colors.transparent,
+        border: Border(
+          bottom: BorderSide(
+            color: isActive ? theme.colorScheme.primary : Colors.transparent,
+            width: 2,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Grip handle — only this part is draggable
-            Draggable<TabEntry>(
-              data: tab,
-              feedback: Material(
-                elevation: 4,
-                color: Colors.transparent,
-                child: Opacity(
-                  opacity: 0.85,
-                  child: _DragChip(tab: tab, theme: theme),
-                ),
-              ),
-              childWhenDragging: Icon(
-                Icons.drag_indicator,
-                size: 16,
-                color: theme.colorScheme.primary,
-              ),
-              child: MouseRegion(
-                cursor: SystemMouseCursors.grab,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                  child: Icon(
-                    Icons.drag_indicator,
-                    size: 16,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                ),
-              ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _stateColor(),
             ),
-            const SizedBox(width: 2),
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _stateColor(),
+          ),
+          const SizedBox(width: 6),
+          Icon(_kindIcon(), size: 14),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Text(
+              tab.label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(width: 6),
-            Icon(_kindIcon(), size: 14),
-            const SizedBox(width: 4),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 150),
-              child: Text(
-                tab.label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: onClose,
+            borderRadius: BorderRadius.circular(8),
+            child: const Padding(
+              padding: EdgeInsets.all(2),
+              child: Icon(Icons.close, size: 14),
             ),
-            const SizedBox(width: 4),
-            InkWell(
-              onTap: onClose,
-              borderRadius: BorderRadius.circular(8),
-              child: const Padding(
-                padding: EdgeInsets.all(2),
-                child: Icon(Icons.close, size: 14),
-              ),
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+
+    return Draggable<TabEntry>(
+      data: tab,
+      feedback: Material(
+        elevation: 4,
+        color: Colors.transparent,
+        child: Opacity(
+          opacity: 0.85,
+          child: _DragChip(tab: tab, theme: theme),
         ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.4,
+        child: tabContent,
+      ),
+      child: GestureDetector(
+        onTap: onSelect,
+        onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
+        child: tabContent,
       ),
     );
   }

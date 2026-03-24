@@ -131,6 +131,7 @@ class TerminalPaneState extends State<TerminalPane> {
                   controller: _terminalController,
                   autofocus: widget.isFocused,
                   hardwareKeyboardOnly: plat.isDesktopPlatform,
+                  onKeyEvent: _handleTerminalKey,
                   backgroundOpacity: 1.0,
                   padding: const EdgeInsets.all(4),
                   onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
@@ -188,6 +189,26 @@ class TerminalPaneState extends State<TerminalPane> {
         default: break;
       }
     });
+  }
+
+  /// Handle Ctrl+Shift+C (copy) and Ctrl+Shift+V (paste) before xterm's
+  /// built-in shortcut manager — xterm only maps Ctrl+V for paste (no Shift),
+  /// and its ShortcutManager uses a protected API that can be fragile.
+  KeyEventResult _handleTerminalKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final ctrl = HardwareKeyboard.instance.isControlPressed;
+    final shift = HardwareKeyboard.instance.isShiftPressed;
+    if (ctrl && shift) {
+      if (event.logicalKey == LogicalKeyboardKey.keyC) {
+        _copySelection();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyV) {
+        _pasteClipboard();
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
   }
 
   void _copySelection() {
