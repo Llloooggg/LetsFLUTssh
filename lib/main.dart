@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/connection/connection.dart';
 import 'core/session/session.dart';
 import 'core/ssh/errors.dart';
+import 'widgets/toast.dart';
 import 'features/file_browser/file_browser_tab.dart';
+import 'features/settings/settings_screen.dart';
 import 'features/session_manager/quick_connect_dialog.dart';
 import 'features/session_manager/session_panel.dart';
 import 'features/tabs/tab_bar.dart';
@@ -17,6 +19,7 @@ import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/transfer_provider.dart';
 import 'widgets/split_view.dart';
 
 void main() {
@@ -88,41 +91,62 @@ class MainScreen extends ConsumerWidget {
             ref.read(tabProvider.notifier).selectTab(next);
           }
         },
+        const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): () {
+          if (tabState.tabs.length > 1) {
+            final prev = (tabState.activeIndex - 1 + tabState.tabs.length) % tabState.tabs.length;
+            ref.read(tabProvider.notifier).selectTab(prev);
+          }
+        },
       },
       child: Focus(
         autofocus: true,
-        child: Scaffold(
-          body: Column(
-            children: [
-              // Toolbar
-              _Toolbar(
-                onQuickConnect: () => _quickConnect(context, ref),
-                onOpenSftp: tabState.activeTab != null &&
-                        tabState.activeTab!.connection.isConnected
-                    ? () => _openSftp(ref, tabState.activeTab!.connection)
-                    : null,
-              ),
-              // Tab bar
-              const AppTabBar(),
-              if (tabState.tabs.isNotEmpty) const Divider(height: 1),
-              // Split: sidebar | content
-              Expanded(
-                child: SplitView(
-                  left: SessionPanel(
-                    onConnect: (session) => _connectSession(context, ref, session),
-                    onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 600;
+            final sessionPanel = SessionPanel(
+              onConnect: (session) => _connectSession(context, ref, session),
+              onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+            );
+
+            final content = tabState.activeTab != null
+                ? _buildTabContent(tabState)
+                : WelcomeScreen(
+                    onQuickConnect: () => _quickConnect(context, ref),
+                  );
+
+            return Scaffold(
+              drawer: isNarrow
+                  ? Drawer(width: 280, child: SafeArea(child: sessionPanel))
+                  : null,
+              body: Column(
+                children: [
+                  // Toolbar
+                  _Toolbar(
+                    onQuickConnect: () => _quickConnect(context, ref),
+                    onOpenSftp: tabState.activeTab != null &&
+                            tabState.activeTab!.connection.isConnected
+                        ? () => _openSftp(ref, tabState.activeTab!.connection)
+                        : null,
+                    showMenuButton: isNarrow,
                   ),
-                  right: tabState.activeTab != null
-                      ? _buildTabContent(tabState)
-                      : WelcomeScreen(
-                          onQuickConnect: () => _quickConnect(context, ref),
-                        ),
-                ),
+                  // Tab bar
+                  const AppTabBar(),
+                  if (tabState.tabs.isNotEmpty) const Divider(height: 1),
+                  // Split: sidebar | content (or just content on narrow)
+                  Expanded(
+                    child: isNarrow
+                        ? content
+                        : SplitView(
+                            left: sessionPanel,
+                            right: content,
+                          ),
+                  ),
+                  // Status bar
+                  _StatusBar(tabState: tabState),
+                ],
               ),
-              // Status bar
-              _StatusBar(tabState: tabState),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -207,21 +231,20 @@ class MainScreen extends ConsumerWidget {
   }
 
   void _showError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red[700],
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    Toast.show(context, message: message, level: ToastLevel.error);
   }
 }
 
 class _Toolbar extends StatelessWidget {
   final VoidCallback onQuickConnect;
   final VoidCallback? onOpenSftp;
+  final bool showMenuButton;
 
-  const _Toolbar({required this.onQuickConnect, this.onOpenSftp});
+  const _Toolbar({
+    required this.onQuickConnect,
+    this.onOpenSftp,
+    this.showMenuButton = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -237,6 +260,13 @@ class _Toolbar extends StatelessWidget {
       ),
       child: Row(
         children: [
+          if (showMenuButton)
+            IconButton(
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: const Icon(Icons.menu, size: 18),
+              tooltip: 'Sessions',
+              visualDensity: VisualDensity.compact,
+            ),
           const Text(
             'LetsFLUTssh',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
@@ -256,21 +286,29 @@ class _Toolbar extends StatelessWidget {
               visualDensity: VisualDensity.compact,
             ),
           const Spacer(),
+          IconButton(
+            onPressed: () => SettingsScreen.show(context),
+            icon: const Icon(Icons.settings, size: 18),
+            tooltip: 'Settings',
+            visualDensity: VisualDensity.compact,
+          ),
         ],
       ),
     );
   }
 }
 
-class _StatusBar extends StatelessWidget {
+class _StatusBar extends ConsumerWidget {
   final TabState tabState;
 
   const _StatusBar({required this.tabState});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final active = tabState.activeTab;
+    final transferStatus = ref.watch(transferStatusProvider).valueOrNull;
+
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -306,6 +344,15 @@ class _StatusBar extends StatelessWidget {
               style: TextStyle(fontSize: 11),
             ),
           const Spacer(),
+          if (transferStatus != null && transferStatus.hasActive) ...[
+            Icon(Icons.swap_vert, size: 12, color: theme.colorScheme.primary),
+            const SizedBox(width: 4),
+            Text(
+              transferStatus.currentInfo ?? '${transferStatus.running} active',
+              style: TextStyle(fontSize: 11, color: theme.colorScheme.primary),
+            ),
+            const SizedBox(width: 12),
+          ],
           Text(
             '${tabState.tabs.length} tab(s)',
             style: const TextStyle(fontSize: 11),

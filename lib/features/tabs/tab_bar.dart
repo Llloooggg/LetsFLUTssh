@@ -5,7 +5,8 @@ import '../../core/connection/connection.dart';
 import 'tab_controller.dart';
 import 'tab_model.dart';
 
-/// Custom tab bar with close buttons and connection state indicators.
+/// Custom tab bar with drag-to-reorder, close buttons, context menu,
+/// and connection state indicators.
 class AppTabBar extends ConsumerWidget {
   const AppTabBar({super.key});
 
@@ -18,21 +19,82 @@ class AppTabBar extends ConsumerWidget {
 
     return SizedBox(
       height: 36,
-      child: ListView.builder(
+      child: ReorderableListView.builder(
         scrollDirection: Axis.horizontal,
+        buildDefaultDragHandles: false,
+        proxyDecorator: (child, index, animation) {
+          return Material(
+            elevation: 4,
+            color: Colors.transparent,
+            child: child,
+          );
+        },
+        onReorder: (oldIndex, newIndex) {
+          ref.read(tabProvider.notifier).reorderTabs(oldIndex, newIndex);
+        },
         itemCount: tabs.length,
         itemBuilder: (context, index) {
           final tab = tabs[index];
           final isActive = index == tabState.activeIndex;
-          return _TabItem(
-            tab: tab,
-            isActive: isActive,
-            onSelect: () => ref.read(tabProvider.notifier).selectTab(index),
-            onClose: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+          return ReorderableDragStartListener(
+            key: ValueKey(tab.id),
+            index: index,
+            child: _TabItem(
+              tab: tab,
+              isActive: isActive,
+              onSelect: () => ref.read(tabProvider.notifier).selectTab(index),
+              onClose: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+              onContextMenu: (offset) => _showContextMenu(
+                context, ref, tab, index, tabState, offset,
+              ),
+            ),
           );
         },
       ),
     );
+  }
+
+  void _showContextMenu(
+    BuildContext context,
+    WidgetRef ref,
+    TabEntry tab,
+    int index,
+    TabState tabState,
+    Offset position,
+  ) {
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx, position.dy, position.dx, position.dy,
+      ),
+      items: [
+        const PopupMenuItem(
+          value: 'close',
+          child: Text('Close'),
+        ),
+        if (tabState.tabs.length > 1)
+          const PopupMenuItem(
+            value: 'close_others',
+            child: Text('Close Others'),
+          ),
+        if (tabState.tabs.length > 1)
+          const PopupMenuItem(
+            value: 'close_right',
+            child: Text('Close Tabs to the Right'),
+          ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+      final notifier = ref.read(tabProvider.notifier);
+      switch (value) {
+        case 'close':
+          notifier.closeTab(tab.id);
+        case 'close_others':
+          notifier.closeOthers(tab.id);
+        case 'close_right':
+          notifier.closeToTheRight(index);
+      }
+    });
   }
 }
 
@@ -41,12 +103,14 @@ class _TabItem extends StatelessWidget {
   final bool isActive;
   final VoidCallback onSelect;
   final VoidCallback onClose;
+  final void Function(Offset position) onContextMenu;
 
   const _TabItem({
     required this.tab,
     required this.isActive,
     required this.onSelect,
     required this.onClose,
+    required this.onContextMenu,
   });
 
   Color _stateColor() {
@@ -74,6 +138,7 @@ class _TabItem extends StatelessWidget {
     final theme = Theme.of(context);
     return GestureDetector(
       onTap: onSelect,
+      onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(

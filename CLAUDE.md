@@ -180,7 +180,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.3.0 — Phase 3 complete)
+## Current State (v0.4.0 — Phase 4 complete)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -216,6 +216,12 @@ LetsFLUTssh/
 - **SFTP toolbar button** — opens SFTP tab for active connection
 - **Session context menu** — "SFTP Only" option для прямого подключения к file browser
 - **FileSystem interface** — абстракция LocalFS/RemoteFS (как в LetsGOssh)
+- **Tab drag-to-reorder** — ReorderableListView, context menu (close, close others, close right)
+- **Toast notifications** — overlay-based, 4 levels (info/success/warning/error), auto-dismiss, stacking
+- **Settings screen** — theme, font size, scrollback, keepalive, timeout, port, transfer workers, max history, reset to defaults
+- **Status bar** — connection state + transfer progress (reactive via StreamProvider)
+- **Responsive layout** — sidebar → drawer on narrow screens (<600px), hamburger menu button
+- **Reconnect** — error state UI with Reconnect + Close buttons
 
 ### Решения и почему
 - **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart

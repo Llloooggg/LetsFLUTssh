@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/sftp/sftp_models.dart';
 import '../../utils/format.dart';
+import '../../widgets/toast.dart';
 import 'file_browser_controller.dart';
 
 /// A single file browser pane (local or remote).
@@ -322,9 +323,7 @@ class _FilePaneState extends State<FilePane> {
         await ctrl.refresh();
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to create folder: $e')),
-          );
+          Toast.show(context, message: 'Failed to create folder: $e', level: ToastLevel.error);
         }
       }
     }
@@ -359,9 +358,7 @@ class _FilePaneState extends State<FilePane> {
         await ctrl.refresh();
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to rename: $e')),
-          );
+          Toast.show(context, message: 'Failed to rename: $e', level: ToastLevel.error);
         }
       }
     }
@@ -397,9 +394,7 @@ class _FilePaneState extends State<FilePane> {
           }
         } catch (e) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to delete ${entry.name}: $e')),
-            );
+            Toast.show(context, message: 'Failed to delete ${entry.name}: $e', level: ToastLevel.error);
           }
         }
       }

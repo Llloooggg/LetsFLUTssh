@@ -55,6 +55,23 @@ class TabNotifier extends StateNotifier<TabState> {
     state = state.copyWith(tabs: newTabs, activeIndex: newActive);
   }
 
+  /// Close all tabs except the one with the given id.
+  void closeOthers(String id) {
+    final tab = state.tabs.firstWhere((t) => t.id == id);
+    state = state.copyWith(tabs: [tab], activeIndex: 0);
+  }
+
+  /// Close all tabs to the right of the given index.
+  void closeToTheRight(int index) {
+    if (index >= state.tabs.length - 1) return;
+    final newTabs = state.tabs.sublist(0, index + 1);
+    var newActive = state.activeIndex;
+    if (newActive >= newTabs.length) {
+      newActive = newTabs.length - 1;
+    }
+    state = state.copyWith(tabs: newTabs, activeIndex: newActive);
+  }
+
   /// Select a tab by index.
   void selectTab(int index) {
     if (index >= 0 && index < state.tabs.length) {

@@ -160,10 +160,21 @@ class _TerminalTabState extends State<TerminalTab> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _reconnect,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Reconnect'),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _reconnect,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reconnect'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: widget.onDisconnected,
+                icon: const Icon(Icons.close),
+                label: const Text('Close'),
+              ),
+            ],
           ),
         ],
       ),

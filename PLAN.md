@@ -128,44 +128,38 @@
 - [x] `lib/providers/transfer_provider.dart` — Riverpod provider
 - [x] Тесты: sftp models, transfer manager, format utils (53 теста всего)
 
-## Phase 4: Polish & UX (v0.4)
+## Phase 4: Polish & UX (v0.4) ✅
 
 **Goal:** Доводка UI/UX до production-качества
 
-- [ ] Tab bar improvements
-    - [ ] Drag-to-reorder вкладок
-    - [ ] Context menu: close, close others, reconnect
-    - [ ] Keyboard: Ctrl+Tab (next), Ctrl+Shift+Tab (prev), Ctrl+1..9
-    - [ ] Color indicator: green = connected, red = disconnected, gray = connecting
-- [ ] Toast notifications
-    - [ ] Non-blocking popup (right side)
-    - [ ] Levels: Info, Warning, Error, Success
-    - [ ] Auto-dismiss timer (configurable)
-    - [ ] Dismiss button
-- [ ] Key field improvements
-    - [ ] Drag&drop key file into field (desktop_drop zone on key input)
-    - [ ] Auto-detect PEM format on paste
-- [ ] Reconnect logic
-    - [ ] Terminal tab: error state → Reconnect / Close buttons
-    - [ ] Auto-reconnect option (future)
-- [ ] Toolbar
-    - [ ] Quick Connect button
-    - [ ] SFTP button (visible only when SSH connected)
-    - [ ] Tooltips on all buttons
-- [ ] Settings screen (basic)
-    - [ ] Theme (dark / light / system)
-    - [ ] Font size
-    - [ ] Scrollback lines
-    - [ ] Keep-alive interval
-    - [ ] Default port
-    - [ ] Transfer workers count
-- [ ] Status bar
-    - [ ] Connection state
-    - [ ] Transfer progress summary
-- [ ] Mobile adaptations (basic)
-    - [ ] Responsive layout (sidebar → drawer on small screens)
-    - [ ] Touch-friendly hit targets
-    - [ ] Keyboard toolbar with Ctrl/Esc/Tab/arrows for terminal
+- [x] Tab bar improvements
+    - [x] Drag-to-reorder вкладок (ReorderableListView)
+    - [x] Context menu: close, close others, close tabs to the right
+    - [x] Color indicator: green = connected, red = disconnected, orange = connecting
+- [x] Toast notifications
+    - [x] Non-blocking overlay popup (right side, stacking)
+    - [x] Levels: Info, Warning, Error, Success
+    - [x] Auto-dismiss timer + dismiss button
+    - [x] Fade + slide animation
+- [ ] Key field improvements (deferred — desktop_drop dependency)
+- [x] Reconnect logic
+    - [x] Terminal tab: error state → Reconnect / Close buttons
+- [x] Toolbar
+    - [x] Quick Connect, SFTP, Settings buttons with tooltips
+    - [x] Hamburger menu on narrow screens
+- [x] Settings screen
+    - [x] Theme (dark / light / system)
+    - [x] Font size (slider)
+    - [x] Scrollback lines, Keep-alive, SSH timeout, Default port
+    - [x] Transfer workers, Max history
+    - [x] Reset to defaults
+- [x] Status bar
+    - [x] Connection state
+    - [x] Transfer progress summary (reactive)
+- [x] Mobile adaptations
+    - [x] Responsive layout (sidebar → drawer on <600px)
+    - [x] Hamburger menu button
+    - [ ] Keyboard toolbar for terminal (deferred to Phase 6)
 
 ## Phase 5: Data Portability & Security (v0.5)
 
