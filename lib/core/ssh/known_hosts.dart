@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:pointycastle/digests/sha256.dart';
 
 /// TOFU (Trust On First Use) host key verification + persistent storage.
 ///
@@ -15,8 +17,14 @@ class KnownHostsManager {
   /// Callback invoked when an unknown host is encountered.
   /// Return true to accept the key, false to reject.
   /// If null, unknown hosts are auto-accepted (TOFU).
-  Future<bool> Function(String host, int port, String fingerprint)?
+  Future<bool> Function(String host, int port, String keyType, String fingerprint)?
       onUnknownHost;
+
+  /// Callback invoked when a known host's key has changed (potential MITM).
+  /// Return true to accept the new key, false to reject.
+  /// If null, changed keys are always rejected.
+  Future<bool> Function(String host, int port, String keyType, String fingerprint)?
+      onHostKeyChanged;
 
   /// Initialize and load known_hosts from app support directory.
   Future<void> load() async {
@@ -63,13 +71,22 @@ class KnownHostsManager {
       if (existing == keyString) {
         return true; // Known and matches
       }
-      return false; // Key changed — potential MITM
+      // Key changed — potential MITM
+      if (onHostKeyChanged != null) {
+        final fingerprint = _fingerprint(keyBytes);
+        final accepted = await onHostKeyChanged!(host, port, keyType, fingerprint);
+        if (accepted) {
+          await _updateHost(hostPort, keyString);
+          return true;
+        }
+      }
+      return false;
     }
 
     // Unknown host
     if (onUnknownHost != null) {
       final fingerprint = _fingerprint(keyBytes);
-      final accepted = await onUnknownHost!(host, port, fingerprint);
+      final accepted = await onUnknownHost!(host, port, keyType, fingerprint);
       if (accepted) {
         await _addHost(hostPort, keyString);
         return true;
@@ -92,9 +109,24 @@ class KnownHostsManager {
     );
   }
 
+  Future<void> _updateHost(String hostPort, String keyString) async {
+    _hosts[hostPort] = keyString;
+    await _saveAll();
+  }
+
+  Future<void> _saveAll() async {
+    final file = File(_filePath);
+    await file.parent.create(recursive: true);
+    final sb = StringBuffer();
+    for (final entry in _hosts.entries) {
+      sb.writeln('${entry.key} ${entry.value}');
+    }
+    await file.writeAsString(sb.toString());
+  }
+
   String _fingerprint(List<int> keyBytes) {
-    // Simple hex fingerprint of first 16 bytes
-    final bytes = keyBytes.length > 16 ? keyBytes.sublist(0, 16) : keyBytes;
-    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
+    final digest = SHA256Digest();
+    final hash = digest.process(Uint8List.fromList(keyBytes));
+    return 'SHA256:${base64Encode(hash)}';
   }
 }

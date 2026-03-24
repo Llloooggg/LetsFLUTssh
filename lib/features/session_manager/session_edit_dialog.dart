@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/session/session.dart';
@@ -52,6 +53,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   bool _obscurePassword = true;
   bool _obscurePassphrase = true;
   bool _showKeyText = false;
+  bool _keyDragging = false;
 
   bool get _isEditing => widget.session != null;
 
@@ -255,12 +257,46 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
                 // Key fields (for key and keyWithPassword)
                 if (_authType == AuthType.key || _authType == AuthType.keyWithPassword) ...[
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _keyPathCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Key File',
-                      hintText: '~/.ssh/id_rsa',
-                      prefixIcon: Icon(Icons.vpn_key),
+                  DropTarget(
+                    onDragEntered: (_) => setState(() => _keyDragging = true),
+                    onDragExited: (_) => setState(() => _keyDragging = false),
+                    onDragDone: (details) {
+                      setState(() => _keyDragging = false);
+                      final files = details.files;
+                      if (files.isNotEmpty) {
+                        final path = files.first.path;
+                        // If the file looks like a PEM key, read its contents into keyData
+                        final file = File(path);
+                        if (file.existsSync() && file.lengthSync() < 32768) {
+                          final content = file.readAsStringSync();
+                          if (content.contains('PRIVATE KEY')) {
+                            setState(() {
+                              _keyDataCtrl.text = content;
+                              _showKeyText = true;
+                            });
+                            return;
+                          }
+                        }
+                        // Otherwise just set the path
+                        setState(() => _keyPathCtrl.text = path);
+                      }
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        border: _keyDragging
+                            ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                            : null,
+                      ),
+                      child: TextFormField(
+                        controller: _keyPathCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'Key File',
+                          hintText: '~/.ssh/id_rsa',
+                          prefixIcon: const Icon(Icons.vpn_key),
+                          suffixText: _keyDragging ? 'Drop here' : null,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),

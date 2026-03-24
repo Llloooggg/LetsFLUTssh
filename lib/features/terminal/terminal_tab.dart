@@ -168,6 +168,7 @@ class _TerminalTabState extends State<TerminalTab> {
                 autofocus: !_showSearch,
                 backgroundOpacity: 1.0,
                 padding: const EdgeInsets.all(4),
+                onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
               ),
             ),
           ],
@@ -331,6 +332,53 @@ class _TerminalTabState extends State<TerminalTab> {
       h.dispose();
     }
     _searchHighlights = [];
+  }
+
+  void _showContextMenu(BuildContext context, Offset position) {
+    final hasSelection = _terminalController.selection != null;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      items: [
+        if (hasSelection)
+          const PopupMenuItem(value: 'copy', child: ListTile(
+            dense: true,
+            leading: Icon(Icons.copy, size: 18),
+            title: Text('Copy'),
+            contentPadding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+          )),
+        const PopupMenuItem(value: 'paste', child: ListTile(
+          dense: true,
+          leading: Icon(Icons.paste, size: 18),
+          title: Text('Paste'),
+          contentPadding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+        )),
+      ],
+    ).then((action) {
+      if (action == 'copy') {
+        _copySelection();
+      } else if (action == 'paste') {
+        _pasteClipboard();
+      }
+    });
+  }
+
+  void _copySelection() {
+    final selection = _terminalController.selection;
+    if (selection == null) return;
+    final text = _terminal.buffer.getText(selection);
+    Clipboard.setData(ClipboardData(text: text));
+    _terminalController.clearSelection();
+  }
+
+  Future<void> _pasteClipboard() async {
+    final data = await Clipboard.getData('text/plain');
+    if (data?.text != null && data!.text!.isNotEmpty) {
+      _terminal.textInput(data.text!);
+    }
   }
 
   Widget _buildErrorState() {

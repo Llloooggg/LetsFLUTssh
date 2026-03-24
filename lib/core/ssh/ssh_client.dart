@@ -131,21 +131,26 @@ class SSHConnection {
     return null;
   }
 
+  /// Standard SSH key file names, tried in order (same as OpenSSH).
+  static const _defaultKeyNames = [
+    'id_ed25519',
+    'id_ecdsa',
+    'id_rsa',
+    'id_dsa',
+  ];
+
   /// Build identity list for key-based auth.
-  /// Auth chain: key file → key text (same as LetsGOssh).
+  /// Auth chain: key file → key text → default ~/.ssh/ keys (same as OpenSSH).
   Future<List<SSHKeyPair>> _buildIdentities() async {
     final identities = <SSHKeyPair>[];
+    final passphrase = config.passphrase.isNotEmpty ? config.passphrase : null;
 
-    // Key from file
+    // Key from explicit file path
     if (config.keyPath.isNotEmpty) {
       try {
         final keyFile = File(config.keyPath);
         final keyData = await keyFile.readAsString();
-        final pairs = SSHKeyPair.fromPem(
-          keyData,
-          config.passphrase.isNotEmpty ? config.passphrase : null,
-        );
-        identities.addAll(pairs);
+        identities.addAll(SSHKeyPair.fromPem(keyData, passphrase));
       } catch (e) {
         throw AuthError('Failed to load key from file: ${config.keyPath}', e);
       }
@@ -154,13 +159,30 @@ class SSHConnection {
     // Key from PEM text
     if (config.keyData.isNotEmpty) {
       try {
-        final pairs = SSHKeyPair.fromPem(
-          config.keyData,
-          config.passphrase.isNotEmpty ? config.passphrase : null,
-        );
-        identities.addAll(pairs);
+        identities.addAll(SSHKeyPair.fromPem(config.keyData, passphrase));
       } catch (e) {
         throw AuthError('Failed to parse PEM key data', e);
+      }
+    }
+
+    // Auto-detect keys from ~/.ssh/ (like OpenSSH) if no explicit key provided
+    if (identities.isEmpty) {
+      final home = Platform.environment['HOME'] ?? '';
+      if (home.isNotEmpty) {
+        final sshDir = Directory('$home/.ssh');
+        if (await sshDir.exists()) {
+          for (final name in _defaultKeyNames) {
+            final keyFile = File('${sshDir.path}/$name');
+            if (await keyFile.exists()) {
+              try {
+                final keyData = await keyFile.readAsString();
+                identities.addAll(SSHKeyPair.fromPem(keyData, null));
+              } catch (_) {
+                // Skip keys that can't be parsed (encrypted without passphrase, etc.)
+              }
+            }
+          }
+        }
       }
     }
 

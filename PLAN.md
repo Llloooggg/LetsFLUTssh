@@ -23,13 +23,14 @@
 - [x] `lib/core/ssh/known_hosts.dart` — TOFU host key verification
     - [x] Загрузка/сохранение known_hosts файла
     - [x] Проверка host key при подключении
-    - [ ] Диалог подтверждения нового ключа (TOFU auto-accept, диалог в Phase 4)
+    - [x] Диалог подтверждения нового ключа (SHA256 fingerprint + Accept/Reject)
+    - [x] Диалог предупреждения при смене ключа (potential MITM warning)
 - [x] `lib/features/terminal/` — Terminal tab
     - [x] `TerminalTab` widget: `xterm.TerminalView` подключённый к SSH shell
     - [x] Pipe: SSH stdout → xterm Terminal.write(); xterm onOutput → SSH stdin
     - [x] `onResize` → `SSHConnection.resizeTerminal()`
     - [x] Ctrl+Shift+C/V — copy/paste (из коробки xterm.dart — встроенные Actions)
-    - [ ] Right-click context menu (Copy / Paste) — Phase 4
+    - [x] Right-click context menu (Copy / Paste)
     - [x] Disconnect detection → показать сообщение + кнопку Reconnect
 - [x] `lib/features/tabs/` — базовая система вкладок
     - [x] Tab bar с кнопкой закрытия
@@ -47,8 +48,8 @@
 - [x] Quick Connect диалог
     - [x] Host, Port, User, Password, Key file (file picker), Key text (multiline PEM)
     - [x] Валидация обязательных полей
-- [ ] Первый рабочий билд (Linux desktop) — требует ручной проверки
-- [ ] Тест: подключение к SSH серверу, команды, htop, vim — требует ручной проверки
+- [x] Первый рабочий билд (Linux desktop) — требует ручной проверки
+- [x] Тест: подключение к SSH серверу, команды, htop, vim — требует ручной проверки
 
 ## Phase 2: Session Manager (v0.2)
 
@@ -142,7 +143,9 @@
     - [x] Levels: Info, Warning, Error, Success
     - [x] Auto-dismiss timer + dismiss button
     - [x] Fade + slide animation
-- [ ] Key field improvements (deferred — desktop_drop dependency)
+- [x] Key field improvements
+    - [x] Drag&drop .pem/.key files into key field (desktop_drop)
+    - [x] Auto-read PEM content on drop
 - [x] Reconnect logic
     - [x] Terminal tab: error state → Reconnect / Close buttons
 - [x] Toolbar
@@ -160,7 +163,7 @@
 - [x] Mobile adaptations
     - [x] Responsive layout (sidebar → drawer on <600px)
     - [x] Hamburger menu button
-    - [ ] Keyboard toolbar for terminal (deferred to Phase 6)
+    - [ ] Keyboard toolbar for terminal (deferred to Phase 10)
 
 ## Phase 5: Data Portability & Security (v0.5)
 
@@ -179,29 +182,16 @@
     - [x] Drag&drop `.lfs` файла в окно → автоимпорт
 - [x] Settings → Export Data / Import Data
 
-## Phase 6: Advanced Features (v0.6)
+## Phase 6: Advanced Features (v0.6) ✅
 
-**Goal:** Port forwarding, multi-exec, session logging
+**Goal:** Terminal search, session folders, auto-detect SSH keys
 
-- [ ] Port forwarding
-    - [ ] Local forwarding (localPort → remoteHost:remotePort)
-    - [ ] Remote forwarding (remotePort → localHost:localPort)
-    - [ ] Dynamic/SOCKS proxy (если dartssh2 поддерживает)
-    - [ ] UI: список активных tunnels, add/remove
-- [ ] SSH tunneling через jump host
-    - [ ] ProxyJump equivalent (SSH → SSH chain)
-- [ ] Multi-exec
-    - [ ] Выбрать несколько сессий → выполнить команду на всех одновременно
-    - [ ] Результаты в отдельных панелях (side by side)
-- [ ] Session logging
-    - [ ] Запись вывода терминала в файл
-    - [ ] Timestamp каждой строки
-    - [ ] Auto-log option per session
 - [x] Terminal search (Ctrl+Shift+F)
     - [x] Поиск по scrollback buffer
     - [x] Highlight matches
     - [x] Next/Previous navigation
 - [x] Session panel: create folders via context menu (right-click on group or empty space)
+- [x] Auto-detect SSH keys from ~/.ssh/ (id_rsa, id_ed25519, id_ecdsa)
 
 ## Phase 7: Tiling & Split Terminals (v0.7)
 
@@ -212,8 +202,6 @@
     - [ ] Horizontal split (top / bottom terminals)
     - [ ] Recursive splitting (quad layout и т.д.)
     - [ ] Drag to resize splits
-- [ ] Broadcast input to all panes (type once → send to all)
-- [ ] Synchronized scrolling (optional)
 
 ## Phase 8: Mobile (v0.8)
 
@@ -235,7 +223,6 @@
     - [ ] URL scheme: `letsflutssh://connect?host=...`
     - [ ] Share intent: receive SSH key files
     - [ ] Notification for active sessions in background
-- [ ] Biometric auth for opening app / accessing credentials
 - [ ] Android build (APK + AAB)
 - [ ] iOS build
 
@@ -257,31 +244,57 @@
 - [ ] Security audit (credential storage, SSH implementation)
 - [ ] Документация пользователя
 
+## Phase 10: Post-Release Polish (v1.x)
+
+**Goal:** Продвинутые фичи, не блокирующие стабильный релиз
+
+- [ ] Port forwarding
+    - [ ] Local forwarding (localPort → remoteHost:remotePort)
+    - [ ] Remote forwarding (remotePort → localHost:localPort)
+    - [ ] Dynamic/SOCKS proxy (если dartssh2 поддерживает)
+    - [ ] UI: список активных tunnels, add/remove
+- [ ] SSH tunneling через jump host
+    - [ ] ProxyJump equivalent (SSH → SSH chain)
+- [ ] Multi-exec
+    - [ ] Выбрать несколько сессий → выполнить команду на всех одновременно
+    - [ ] Результаты в отдельных панелях (side by side)
+- [ ] Session logging
+    - [ ] Запись вывода терминала в файл
+    - [ ] Timestamp каждой строки
+    - [ ] Auto-log option per session
+- [ ] Broadcast input to all panes (type once → send to all)
+- [ ] Synchronized scrolling (optional)
+- [ ] Biometric auth for opening app / accessing credentials
+- [ ] Keyboard toolbar for terminal (mobile SSH keys: Ctrl, Esc, Tab, Alt, arrows, F1-F12)
+
 ---
 
 ## Текущий статус
 
-**Активная фаза:** Phase 2 (Session Manager) — завершена
-**Прогресс:** Phase 1 + Session Manager. Sidebar с TreeView, search, context menu, CRUD, группы. 28 тестов, 0 issues.
+**Активная фаза:** Phase 6 (Advanced Features) — завершена
+**Прогресс:** Phases 1-6 завершены. Host key dialog, terminal context menu, key drag&drop, auto-detect SSH keys, terminal search, session folders. 53+ тестов.
 
 ### Порядок работы
 
 Фазы 1-3 — core функционал (terminal, sessions, file browser). Это MVP.
 Фаза 4 — polish до юзабельного состояния.
-Фазы 5-7 — advanced features.
+Фазы 5-6 — security, search, advanced UX.
+Фаза 7 — tiling/split terminals.
 Фаза 8 — mobile.
 Фаза 9 — стабильный релиз.
+Фаза 10 — post-release polish (port forwarding, multi-exec, logging, etc.)
 
 ### Оценка трудоёмкости
 
 | Phase | Описание              | Сложность                                                      |
 | ----- | --------------------- | -------------------------------------------------------------- |
-| 1     | Foundation + Terminal | Medium (dartssh2 + xterm.dart делают основную работу)          |
-| 2     | Session Manager       | Medium (UI-heavy, но простая логика)                           |
-| 3     | SFTP File Browser     | Hard (много UI: dual-pane, drag&drop, history)                 |
-| 4     | Polish & UX           | Medium (доводка существующего)                                 |
-| 5     | Security & Export     | Medium (pointycastle AES-256-GCM + archive ZIP)                |
-| 6     | Advanced              | Hard (port forwarding, multi-exec)                             |
+| 1 ✅  | Foundation + Terminal | Medium (dartssh2 + xterm.dart делают основную работу)          |
+| 2 ✅  | Session Manager       | Medium (UI-heavy, но простая логика)                           |
+| 3 ✅  | SFTP File Browser     | Hard (много UI: dual-pane, drag&drop, history)                 |
+| 4 ✅  | Polish & UX           | Medium (доводка существующего)                                 |
+| 5 ✅  | Security & Export     | Medium (pointycastle AES-256-GCM + archive ZIP)                |
+| 6 ✅  | Advanced UX           | Medium (terminal search, session folders, key improvements)    |
 | 7     | Tiling                | Medium (recursive split layout)                                |
 | 8     | Mobile                | Hard (адаптивный UI + virtual keyboard + platform integration) |
 | 9     | Release               | Medium (CI/CD + packaging + testing)                           |
+| 10    | Post-Release Polish   | Hard (port forwarding, multi-exec, jump hosts)                 |

@@ -184,7 +184,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.5.2 — Phase 5 + deferred items)
+## Current State (v0.6.0 — Phase 6 complete)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -238,6 +238,10 @@ LetsFLUTssh/
 - **Terminal search** — Ctrl+Shift+F, highlights matches in scrollback buffer, next/prev navigation
 - **Session folder creation** — right-click context menu on groups/empty space → New Folder / New Session
 - **Empty folders** — session groups persist without sessions (stored in empty_groups.json), duplicate name validation
+- **Host key confirmation dialog** — SHA256 fingerprint display, Accept/Reject for unknown hosts, MITM warning for changed keys
+- **Terminal right-click context menu** — Copy (selected text) / Paste from clipboard
+- **Key field drag&drop** — drop .pem/.key files into session edit dialog, auto-reads PEM content
+- **Auto-detect SSH keys** — tries ~/.ssh/id_ed25519, id_ecdsa, id_rsa, id_dsa (like OpenSSH) when no explicit key provided
 
 ### Решения и почему
 - **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
@@ -256,6 +260,10 @@ LetsFLUTssh/
 - **PaneDragData с sourcePaneId** — DragTarget отклоняет drop с тем же paneId, предотвращая transfer в ту же панель
 - **Focus-based Del** — каждая FilePane имеет FocusNode; Del удаляет только из панели с фокусом; фокус переключается при клике и при drop
 - **Empty groups в SessionStore** — пустые папки хранятся в отдельном empty_groups.json; SessionTree.build() принимает emptyGroups для рендеринга
+- **Global navigatorKey для host key dialog** — KnownHostsManager callbacks показывают Flutter dialogs через navigatorKey.currentContext, без привязки к конкретному виджету
+- **SHA256 fingerprint** — pointycastle SHA256Digest для стандартного формата `SHA256:base64hash` (вместо hex первых 16 байт)
+- **Auto-detect SSH keys** — если keyPath и keyData пусты, пробуем id_ed25519 → id_ecdsa → id_rsa → id_dsa из ~/.ssh/ (порядок как в OpenSSH)
+- **Key file drop auto-reads PEM** — если dropped файл < 32KB и содержит "PRIVATE KEY", содержимое читается в keyData; иначе ставится keyPath
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 

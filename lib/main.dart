@@ -9,6 +9,7 @@ import 'core/connection/connection.dart';
 import 'core/session/session.dart';
 import 'core/ssh/errors.dart';
 import 'features/settings/export_import.dart';
+import 'widgets/host_key_dialog.dart';
 import 'widgets/toast.dart';
 import 'features/file_browser/file_browser_tab.dart';
 import 'features/settings/settings_screen.dart';
@@ -25,6 +26,10 @@ import 'providers/session_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transfer_provider.dart';
 import 'widgets/split_view.dart';
+
+/// Global navigator key for showing dialogs from non-UI contexts
+/// (e.g., host key verification during SSH handshake).
+final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,7 +50,34 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     Future.microtask(() {
       ref.read(configProvider.notifier).load();
       ref.read(sessionProvider.notifier).load();
+      _setupHostKeyCallbacks();
     });
+  }
+
+  void _setupHostKeyCallbacks() {
+    final knownHosts = ref.read(knownHostsProvider);
+    knownHosts.onUnknownHost = (host, port, keyType, fingerprint) async {
+      final ctx = navigatorKey.currentContext;
+      if (ctx == null) return false;
+      return HostKeyDialog.showNewHost(
+        ctx,
+        host: host,
+        port: port,
+        keyType: keyType,
+        fingerprint: fingerprint,
+      );
+    };
+    knownHosts.onHostKeyChanged = (host, port, keyType, fingerprint) async {
+      final ctx = navigatorKey.currentContext;
+      if (ctx == null) return false;
+      return HostKeyDialog.showKeyChanged(
+        ctx,
+        host: host,
+        port: port,
+        keyType: keyType,
+        fingerprint: fingerprint,
+      );
+    };
   }
 
   @override
@@ -53,6 +85,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'LetsFLUTssh',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
