@@ -82,6 +82,7 @@ class TransferManager {
         createdAt: entry.createdAt,
         startedAt: startedAt,
         endedAt: DateTime.now(),
+        sizeBytes: entry.task.sizeBytes,
       ));
     } catch (e) {
       _addHistory(HistoryEntry(
@@ -97,6 +98,7 @@ class TransferManager {
         createdAt: entry.createdAt,
         startedAt: startedAt,
         endedAt: DateTime.now(),
+        sizeBytes: entry.task.sizeBytes,
       ));
     } finally {
       _running--;

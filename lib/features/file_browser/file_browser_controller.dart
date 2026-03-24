@@ -6,7 +6,7 @@ import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_models.dart';
 
 /// Sort column options for file table.
-enum SortColumn { name, size, mode, modified }
+enum SortColumn { name, size, mode, modified, owner }
 
 /// Controller for a single file pane (local or remote).
 class FilePaneController extends ChangeNotifier {
@@ -178,6 +178,8 @@ class FilePaneController extends ChangeNotifier {
           cmp = a.mode.compareTo(b.mode);
         case SortColumn.modified:
           cmp = a.modTime.compareTo(b.modTime);
+        case SortColumn.owner:
+          cmp = a.owner.toLowerCase().compareTo(b.owner.toLowerCase());
       }
       return _sortAscending ? cmp : -cmp;
     });

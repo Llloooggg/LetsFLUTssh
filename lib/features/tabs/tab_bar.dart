@@ -87,6 +87,7 @@ class AppTabBar extends ConsumerWidget {
   ) {
     showMenu<String>(
       context: context,
+      popUpAnimationStyle: AnimationStyle.noAnimation,
       position: RelativeRect.fromLTRB(
         position.dx, position.dy, position.dx, position.dy,
       ),

@@ -114,6 +114,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               ),
             ),
           ),
+        // Column headers
+        if (_expanded)
+          _buildColumnHeaders(theme),
         // Expanded history list
         if (_expanded)
           SizedBox(
@@ -137,6 +140,44 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       ],
     );
   }
+
+  Widget _buildColumnHeaders(ThemeData theme) {
+    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
+    const style = TextStyle(fontSize: 10, fontWeight: FontWeight.w600);
+    final divider = Container(
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 3),
+      color: theme.dividerColor,
+    );
+
+    return Container(
+      height: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 24),
+          const SizedBox(width: 4),
+          const SizedBox(width: 24),
+          divider,
+          Expanded(flex: 2, child: Text('Name', style: style.copyWith(color: dimColor))),
+          divider,
+          Expanded(flex: 2, child: Text('Local', style: style.copyWith(color: dimColor))),
+          divider,
+          Expanded(flex: 2, child: Text('Remote', style: style.copyWith(color: dimColor))),
+          divider,
+          SizedBox(width: 60, child: Text('Size', style: style.copyWith(color: dimColor), textAlign: TextAlign.right)),
+          divider,
+          SizedBox(width: 55, child: Text('Duration', style: style.copyWith(color: dimColor))),
+          const SizedBox(width: 8),
+          const SizedBox(width: 16),
+        ],
+      ),
+    );
+  }
 }
 
 class _HistoryRow extends StatelessWidget {
@@ -148,54 +189,119 @@ class _HistoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isFailed = entry.status == TransferStatus.failed;
+    final isUpload = entry.direction == TransferDirection.upload;
+    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
+    final divider = Container(
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 3),
+      color: theme.dividerColor,
+    );
 
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          Text(
-            entry.directionIcon,
-            style: TextStyle(
-              fontSize: 14,
-              color: entry.direction == TransferDirection.upload
-                  ? AppTheme.info
-                  : AppTheme.connected,
+          // Direction icon
+          SizedBox(
+            width: 24,
+            child: Text(
+              entry.directionIcon,
+              style: TextStyle(
+                fontSize: 14,
+                color: isUpload ? AppTheme.info : AppTheme.connected,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(width: 6),
-          Icon(
-            isFailed ? Icons.error : Icons.check_circle,
-            size: 14,
-            color: isFailed ? AppTheme.disconnected : AppTheme.connected,
+          const SizedBox(width: 4),
+          // Status icon
+          SizedBox(
+            width: 24,
+            child: Icon(
+              isFailed ? Icons.error : Icons.check_circle,
+              size: 14,
+              color: isFailed ? AppTheme.disconnected : AppTheme.connected,
+            ),
           ),
-          const SizedBox(width: 6),
+          divider,
+          // Name
           Expanded(
+            flex: 2,
             child: Text(
               entry.name,
               style: const TextStyle(fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (entry.duration != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              formatDuration(entry.duration!),
-              style: TextStyle(
-                fontSize: 11,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          divider,
+          // Local path
+          Expanded(
+            flex: 2,
+            child: Tooltip(
+              message: isUpload ? entry.sourcePath : entry.targetPath,
+              child: Text(
+                _shortenPath(isUpload ? entry.sourcePath : entry.targetPath),
+                style: TextStyle(fontSize: 11, color: dimColor),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ],
-          if (isFailed && entry.error != null) ...[
-            const SizedBox(width: 8),
-            Tooltip(
-              message: entry.error!,
-              child: const Icon(Icons.info_outline, size: 14, color: AppTheme.disconnected),
+          ),
+          divider,
+          // Remote path
+          Expanded(
+            flex: 2,
+            child: Tooltip(
+              message: isUpload ? entry.targetPath : entry.sourcePath,
+              child: Text(
+                _shortenPath(isUpload ? entry.targetPath : entry.sourcePath),
+                style: TextStyle(fontSize: 11, color: dimColor),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ],
+          ),
+          divider,
+          // Size
+          SizedBox(
+            width: 60,
+            child: Text(
+              entry.sizeBytes > 0 ? formatSize(entry.sizeBytes) : '',
+              style: TextStyle(fontSize: 11, color: dimColor),
+              textAlign: TextAlign.right,
+            ),
+          ),
+          divider,
+          // Duration
+          SizedBox(
+            width: 55,
+            child: Text(
+              entry.duration != null ? formatDuration(entry.duration!) : '',
+              style: TextStyle(fontSize: 11, color: dimColor),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Error icon
+          SizedBox(
+            width: 16,
+            child: isFailed && entry.error != null
+                ? Tooltip(
+                    message: entry.error!,
+                    child: const Icon(Icons.info_outline, size: 14, color: AppTheme.disconnected),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
+  }
+
+  /// Shorten a path to just the last 2 segments for display.
+  static String _shortenPath(String path) {
+    if (path.isEmpty) return '';
+    // Normalize separators
+    final normalized = path.replaceAll('\\', '/');
+    final parts = normalized.split('/').where((p) => p.isNotEmpty).toList();
+    if (parts.length <= 2) return normalized;
+    return '.../${parts.sublist(parts.length - 2).join('/')}';
   }
 }

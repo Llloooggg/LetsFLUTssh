@@ -55,12 +55,13 @@ void main() {
       expect(find.text('Key+Pass'), findsOneWidget);
     });
 
-    testWidgets('Create button present for new session', (tester) async {
+    testWidgets('action buttons present for new session', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Create'), findsOneWidget);
+      expect(find.text('Save & Connect'), findsOneWidget);
+      expect(find.text('Connect'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
     });
 
@@ -69,7 +70,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Create'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('Required'), findsWidgets);

@@ -114,6 +114,8 @@ class _FilePaneState extends State<FilePane> {
               _buildHeader(theme),
               _buildPathBar(theme),
               const Divider(height: 1),
+              _buildColumnHeaders(theme),
+              const Divider(height: 1),
               Expanded(child: _buildDropTarget(_buildFileList(theme))),
               _buildFooter(theme),
             ],
@@ -209,6 +211,76 @@ class _FilePaneState extends State<FilePane> {
                     ),
                   ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── Column headers ──
+
+  Widget _buildColumnHeaders(ThemeData theme) {
+    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
+    const headerStyle = TextStyle(fontSize: 11, fontWeight: FontWeight.w600);
+
+    Widget headerCell(String label, SortColumn column, {double? width, TextAlign? textAlign}) {
+      final isActive = ctrl.sortColumn == column;
+      return InkWell(
+        onTap: () => ctrl.setSort(column),
+        child: SizedBox(
+          width: width,
+          child: Row(
+            mainAxisSize: width != null ? MainAxisSize.min : MainAxisSize.max,
+            mainAxisAlignment: textAlign == TextAlign.right
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  style: headerStyle.copyWith(
+                    color: isActive ? theme.colorScheme.primary : dimColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (isActive)
+                Icon(
+                  ctrl.sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 12,
+                  color: theme.colorScheme.primary,
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final hasOwner = ctrl.entries.any((e) => e.owner.isNotEmpty);
+
+    final divider = Container(
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: theme.dividerColor,
+    );
+
+    return Container(
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      color: theme.colorScheme.surfaceContainerLow,
+      child: Row(
+        children: [
+          const SizedBox(width: 22), // icon space
+          Expanded(flex: 3, child: headerCell('Name', SortColumn.name)),
+          divider,
+          headerCell('Size', SortColumn.size, width: 70, textAlign: TextAlign.right),
+          divider,
+          headerCell('Modified', SortColumn.modified, width: 120),
+          divider,
+          headerCell('Mode', SortColumn.mode, width: 90),
+          if (hasOwner) ...[
+            divider,
+            headerCell('Owner', SortColumn.owner, width: 60),
+          ],
         ],
       ),
     );
@@ -524,6 +596,7 @@ class _FilePaneState extends State<FilePane> {
     ctrl.clearSelection();
     showMenu(
       context: context,
+      popUpAnimationStyle: AnimationStyle.noAnimation,
       position: RelativeRect.fromLTRB(
         position.dx, position.dy, position.dx, position.dy,
       ),
@@ -550,6 +623,7 @@ class _FilePaneState extends State<FilePane> {
 
     showMenu(
       context: context,
+      popUpAnimationStyle: AnimationStyle.noAnimation,
       position: RelativeRect.fromLTRB(
         position.dx, position.dy, position.dx, position.dy,
       ),

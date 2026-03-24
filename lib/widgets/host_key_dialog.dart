@@ -17,6 +17,7 @@ class HostKeyDialog {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => _HostKeyDialogWidget(
         host: host,
         port: port,
@@ -39,6 +40,7 @@ class HostKeyDialog {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => _HostKeyDialogWidget(
         host: host,
         port: port,

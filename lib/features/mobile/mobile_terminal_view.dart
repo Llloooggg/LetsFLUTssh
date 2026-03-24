@@ -109,6 +109,7 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
     final hasSelection = _terminalController.selection != null;
     showMenu<String>(
       context: context,
+      popUpAnimationStyle: AnimationStyle.noAnimation,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
       items: [
         if (hasSelection)

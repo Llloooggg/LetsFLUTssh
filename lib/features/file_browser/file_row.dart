@@ -27,6 +27,12 @@ class FileRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
+    final divider = Container(
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: theme.dividerColor,
+    );
 
     return GestureDetector(
       onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
@@ -59,29 +65,53 @@ class FileRow extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Expanded(
+                flex: 3,
                 child: Text(
                   entry.name,
                   style: const TextStyle(fontSize: 12),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 6),
-              Text(
-                entry.isDir ? '' : formatSize(entry.size),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              divider,
+              SizedBox(
+                width: 70,
+                child: Text(
+                  entry.isDir ? '' : formatSize(entry.size),
+                  style: TextStyle(fontSize: 11, color: dimColor),
+                  textAlign: TextAlign.right,
                 ),
               ),
-              const SizedBox(width: 6),
-              Text(
-                entry.modeString,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontFamily: 'monospace',
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              divider,
+              SizedBox(
+                width: 120,
+                child: Text(
+                  formatTimestamp(entry.modTime),
+                  style: TextStyle(fontSize: 11, color: dimColor),
                 ),
               ),
+              divider,
+              SizedBox(
+                width: 90,
+                child: Text(
+                  entry.modeString,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: dimColor,
+                  ),
+                ),
+              ),
+              if (entry.owner.isNotEmpty) ...[
+                divider,
+                SizedBox(
+                  width: 60,
+                  child: Text(
+                    entry.owner,
+                    style: TextStyle(fontSize: 11, color: dimColor),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

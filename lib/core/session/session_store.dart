@@ -264,6 +264,27 @@ class SessionStore {
     return copy;
   }
 
+  /// Move a session to a different group.
+  Future<void> moveSession(String sessionId, String newGroup) async {
+    final idx = _sessions.indexWhere((s) => s.id == sessionId);
+    if (idx < 0) return;
+    _sessions[idx] = _sessions[idx].copyWith(group: newGroup);
+    await _save();
+  }
+
+  /// Move a group (and all its sessions/subgroups) under a new parent.
+  /// [groupPath] — current full path, [newParent] — new parent path ('' for root).
+  Future<void> moveGroup(String groupPath, String newParent) async {
+    if (groupPath.isEmpty) return;
+    final folderName = groupPath.split('/').last;
+    final newPath = newParent.isEmpty ? folderName : '$newParent/$folderName';
+    if (newPath == groupPath) return;
+    // Prevent moving into own subtree
+    if (newPath.startsWith('$groupPath/')) return;
+
+    await renameGroup(groupPath, newPath);
+  }
+
   /// Unique group paths sorted alphabetically.
   List<String> groups() {
     final g = _sessions.map((s) => s.group).where((g) => g.isNotEmpty).toSet().toList();

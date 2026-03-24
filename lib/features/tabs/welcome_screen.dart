@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 /// Shown when no tabs are open.
 class WelcomeScreen extends StatelessWidget {
-  final VoidCallback onQuickConnect;
+  final VoidCallback onNewSession;
 
-  const WelcomeScreen({super.key, required this.onQuickConnect});
+  const WelcomeScreen({super.key, required this.onNewSession});
 
   @override
   Widget build(BuildContext context) {
@@ -34,13 +34,13 @@ class WelcomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           FilledButton.icon(
-            onPressed: onQuickConnect,
+            onPressed: onNewSession,
             icon: const Icon(Icons.add),
-            label: const Text('Quick Connect'),
+            label: const Text('New Session'),
           ),
           const SizedBox(height: 8),
           Text(
-            'Ctrl+N to quick connect',
+            'Ctrl+N to connect',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
             ),

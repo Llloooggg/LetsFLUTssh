@@ -207,6 +207,7 @@ class _ExportImportTile extends ConsumerWidget {
 
     final password = await showDialog<String>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => AlertDialog(
         title: const Text('Export Data'),
         content: Column(
@@ -285,6 +286,7 @@ class _ExportImportTile extends ConsumerWidget {
 
     final result = await showDialog<({String path, String password, ImportMode mode})>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) {
         var mode = ImportMode.merge;
         return StatefulBuilder(

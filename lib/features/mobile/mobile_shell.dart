@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
+import '../../core/ssh/ssh_config.dart';
 import '../../core/ssh/errors.dart';
 import '../../providers/connection_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../widgets/toast.dart';
-import '../session_manager/quick_connect_dialog.dart';
+import '../session_manager/session_connect.dart';
+import '../session_manager/session_edit_dialog.dart';
 import '../session_manager/session_panel.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_controller.dart';
@@ -48,6 +51,10 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               _MobileSessionsPage(
                 onConnect: (session) => _connectSession(context, ref, session),
                 onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+                onQuickConnect: (config) async {
+                  await SessionConnect.connectConfig(context, ref, config);
+                  setState(() => _navIndex = 1);
+                },
               ),
               // Terminal page
               _MobileTerminalPage(tabState: tabState),
@@ -97,7 +104,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       ),
       floatingActionButton: _navIndex == 0
           ? FloatingActionButton(
-              onPressed: () => _quickConnect(context, ref),
+              onPressed: () => _newSession(context, ref),
               child: const Icon(Icons.add),
             )
           : null,
@@ -148,20 +155,19 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     }
   }
 
-  Future<void> _quickConnect(BuildContext ctx, WidgetRef ref) async {
-    final config = await QuickConnectDialog.show(ctx);
-    if (config == null || !ctx.mounted) return;
-    try {
-      final manager = ref.read(connectionManagerProvider);
-      final conn = await manager.connect(config);
-      ref.read(tabProvider.notifier).addTerminalTab(conn);
-      setState(() => _navIndex = 1);
-    } on AuthError catch (e) {
-      if (ctx.mounted) Toast.show(ctx, message: 'Auth failed: ${e.message}', level: ToastLevel.error);
-    } on ConnectError catch (e) {
-      if (ctx.mounted) Toast.show(ctx, message: 'Connect failed: ${e.message}', level: ToastLevel.error);
-    } catch (e) {
-      if (ctx.mounted) Toast.show(ctx, message: 'Error: $e', level: ToastLevel.error);
+  Future<void> _newSession(BuildContext ctx, WidgetRef ref) async {
+    final result = await SessionEditDialog.show(ctx);
+    if (result == null || !ctx.mounted) return;
+    switch (result) {
+      case ConnectOnlyResult(:final config):
+        await SessionConnect.connectConfig(ctx, ref, config);
+        setState(() => _navIndex = 1);
+      case SaveResult(:final session, :final connect):
+        await ref.read(sessionProvider.notifier).add(session);
+        if (connect && ctx.mounted) {
+          await SessionConnect.connectTerminal(ctx, ref, session);
+          setState(() => _navIndex = 1);
+        }
     }
   }
 }
@@ -170,10 +176,12 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 class _MobileSessionsPage extends ConsumerWidget {
   final void Function(Session) onConnect;
   final void Function(Session) onSftpConnect;
+  final void Function(SSHConfig config) onQuickConnect;
 
   const _MobileSessionsPage({
     required this.onConnect,
     required this.onSftpConnect,
+    required this.onQuickConnect,
   });
 
   @override
@@ -202,6 +210,7 @@ class _MobileSessionsPage extends ConsumerWidget {
           child: SessionPanel(
             onConnect: onConnect,
             onSftpConnect: onSftpConnect,
+            onQuickConnect: onQuickConnect,
           ),
         ),
       ],
@@ -297,7 +306,7 @@ class _MobileSftpPage extends ConsumerWidget {
             SizedBox(height: 12),
             Text('No active file browsers', style: TextStyle(fontSize: 14)),
             SizedBox(height: 4),
-            Text('Use "SFTP Only" from Sessions', style: TextStyle(fontSize: 12, color: Colors.white38)),
+            Text('Use "SFTP" from Sessions', style: TextStyle(fontSize: 12, color: Colors.white38)),
           ],
         ),
       );

@@ -28,6 +28,8 @@ class SFTPService {
       final name = item.filename;
       if (name == '.' || name == '..') continue;
       final attr = item.attr;
+      // Parse owner from longname (ls -l format: "perms links owner group ...")
+      final owner = _parseOwner(item.longname);
       entries.add(FileEntry(
         name: name,
         path: p.posix.join(path, name),
@@ -37,6 +39,7 @@ class SFTPService {
             ? DateTime.fromMillisecondsSinceEpoch(attr.modifyTime! * 1000)
             : DateTime.now(),
         isDir: attr.isDirectory,
+        owner: owner,
       ));
     }
     _sort(entries);
@@ -228,6 +231,14 @@ class SFTPService {
 
   void close() {
     _sftp.close();
+  }
+
+  /// Parse owner from ls -l longname: "-rwxr-xr-x 1 root root 4096 ..."
+  static String _parseOwner(String longname) {
+    final parts = longname.split(RegExp(r'\s+'));
+    // parts[0]=perms, [1]=links, [2]=owner, [3]=group
+    if (parts.length >= 3) return parts[2];
+    return '';
   }
 
   void _sort(List<FileEntry> entries) {

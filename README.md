@@ -26,8 +26,10 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Save and organize SSH sessions
 - Nested group folders (e.g. `Production/Web/nginx1`) with create/rename/delete
 - Search and filter by label, group, host, user
-- Quick Connect for one-off connections
-- Context menu: SSH connect, SFTP only, edit, delete, duplicate
+- Unified New Session dialog (connect without saving, or save & connect)
+- Drag & drop sessions and folders to reorganize
+- Context menu: SSH, SFTP, edit, delete, duplicate
+- Indent guide lines for nested groups
 - Host key verification (TOFU) with SHA256 fingerprint dialog
 
 ### SFTP File Browser
@@ -37,8 +39,8 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Drag & drop between panes and from OS file manager
 - Rubber-band (marquee) multi-select
 - Transfer queue with parallel workers
-- Transfer history with progress tracking
-- Sortable file table (name, size, permissions, date)
+- Transfer history with Local/Remote paths, size, duration details
+- Sortable columns (name, size, modified, mode, owner) with column dividers
 
 ### Multi-Tab Interface
 
@@ -187,7 +189,7 @@ make build-ios
 
 ## Current Status
 
-**v0.9.1** — All core features implemented across 9 development phases:
+**v0.9.2** — All core features implemented across 9 development phases:
 
 | Phase | What                                                                       |
 | ----- | -------------------------------------------------------------------------- |

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
+import '../../core/ssh/ssh_config.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import 'session_edit_dialog.dart';
@@ -10,11 +11,13 @@ import 'session_tree_view.dart';
 /// Session sidebar — tree view + search + actions.
 class SessionPanel extends ConsumerWidget {
   final void Function(Session session) onConnect;
+  final void Function(SSHConfig config) onQuickConnect;
   final void Function(Session session)? onSftpConnect;
 
   const SessionPanel({
     super.key,
     required this.onConnect,
+    required this.onQuickConnect,
     this.onSftpConnect,
   });
 
@@ -28,7 +31,7 @@ class SessionPanel extends ConsumerWidget {
       children: [
         // Header with title + add button
         _PanelHeader(
-          onAdd: () => _addSession(context, ref),
+          onAddFolder: () => _createFolder(context, ref, ''),
         ),
         // Search bar
         _SearchBar(
@@ -51,21 +54,36 @@ class SessionPanel extends ConsumerWidget {
                   onBackgroundContextMenu: (position) {
                     _showGroupContextMenu(context, ref, '', position);
                   },
+                  onSessionMoved: (sessionId, targetGroup) {
+                    ref.read(sessionProvider.notifier).moveSession(sessionId, targetGroup);
+                  },
+                  onGroupMoved: (groupPath, targetParent) {
+                    ref.read(sessionProvider.notifier).moveGroup(groupPath, targetParent);
+                  },
                 ),
         ),
       ],
     );
   }
 
+  Future<void> _handleDialogResult(WidgetRef ref, SessionDialogResult result) async {
+    switch (result) {
+      case ConnectOnlyResult(:final config):
+        onQuickConnect(config);
+      case SaveResult(:final session, :final connect):
+        await ref.read(sessionProvider.notifier).add(session);
+        if (connect) onConnect(session);
+    }
+  }
+
   Future<void> _addSession(BuildContext context, WidgetRef ref) async {
     final store = ref.read(sessionStoreProvider);
-    final session = await SessionEditDialog.show(
+    final result = await SessionEditDialog.show(
       context,
       existingGroups: store.groups(),
     );
-    if (session != null) {
-      await ref.read(sessionProvider.notifier).add(session);
-    }
+    if (result == null) return;
+    await _handleDialogResult(ref, result);
   }
 
   void _showContextMenu(
@@ -76,6 +94,7 @@ class SessionPanel extends ConsumerWidget {
   ) {
     showMenu<String>(
       context: context,
+      popUpAnimationStyle: AnimationStyle.noAnimation,
       position: RelativeRect.fromLTRB(
         position.dx,
         position.dy,
@@ -83,9 +102,9 @@ class SessionPanel extends ConsumerWidget {
         position.dy + 1,
       ),
       items: [
-        const PopupMenuItem(value: 'connect', child: ListTile(leading: Icon(Icons.terminal, size: 18), title: Text('SSH Connect'), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(value: 'connect', child: ListTile(leading: Icon(Icons.terminal, size: 18), title: Text('SSH'), dense: true, contentPadding: EdgeInsets.zero)),
         if (onSftpConnect != null)
-          const PopupMenuItem(value: 'sftp', child: ListTile(leading: Icon(Icons.folder, size: 18), title: Text('SFTP Only'), dense: true, contentPadding: EdgeInsets.zero)),
+          const PopupMenuItem(value: 'sftp', child: ListTile(leading: Icon(Icons.folder, size: 18), title: Text('SFTP'), dense: true, contentPadding: EdgeInsets.zero)),
         const PopupMenuDivider(),
         const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit, size: 18), title: Text('Edit'), dense: true, contentPadding: EdgeInsets.zero)),
         const PopupMenuItem(value: 'duplicate', child: ListTile(leading: Icon(Icons.copy, size: 18), title: Text('Duplicate'), dense: true, contentPadding: EdgeInsets.zero)),
@@ -111,13 +130,14 @@ class SessionPanel extends ConsumerWidget {
 
   Future<void> _editSession(BuildContext context, WidgetRef ref, Session session) async {
     final store = ref.read(sessionStoreProvider);
-    final updated = await SessionEditDialog.show(
+    final result = await SessionEditDialog.show(
       context,
       session: session,
       existingGroups: store.groups(),
     );
-    if (updated != null) {
-      await ref.read(sessionProvider.notifier).update(updated);
+    if (result == null) return;
+    if (result is SaveResult) {
+      await ref.read(sessionProvider.notifier).update(result.session);
     }
   }
 
@@ -129,6 +149,7 @@ class SessionPanel extends ConsumerWidget {
   ) {
     showMenu<String>(
       context: context,
+      popUpAnimationStyle: AnimationStyle.noAnimation,
       position: RelativeRect.fromLTRB(
         position.dx, position.dy, position.dx + 1, position.dy + 1,
       ),
@@ -190,14 +211,13 @@ class SessionPanel extends ConsumerWidget {
 
   Future<void> _addSessionInGroup(BuildContext context, WidgetRef ref, String groupPath) async {
     final store = ref.read(sessionStoreProvider);
-    final session = await SessionEditDialog.show(
+    final result = await SessionEditDialog.show(
       context,
       existingGroups: store.groups(),
       defaultGroup: groupPath,
     );
-    if (session != null) {
-      await ref.read(sessionProvider.notifier).add(session);
-    }
+    if (result == null) return;
+    await _handleDialogResult(ref, result);
   }
 
   Future<void> _createFolder(BuildContext context, WidgetRef ref, String parentGroup) async {
@@ -217,6 +237,7 @@ class SessionPanel extends ConsumerWidget {
 
     final result = await showDialog<String>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           void validate() {
@@ -290,6 +311,7 @@ class SessionPanel extends ConsumerWidget {
 
     final result = await showDialog<String>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           void validate() {
@@ -352,6 +374,7 @@ class SessionPanel extends ConsumerWidget {
 
     final confirmed = await showDialog<bool>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Folder'),
         content: Column(
@@ -389,6 +412,7 @@ class SessionPanel extends ConsumerWidget {
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Session session) async {
     final confirmed = await showDialog<bool>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Session'),
         content: Text('Delete "${session.label.isNotEmpty ? session.label : session.displayName}"?'),
@@ -409,9 +433,9 @@ class SessionPanel extends ConsumerWidget {
 }
 
 class _PanelHeader extends StatelessWidget {
-  final VoidCallback onAdd;
+  final VoidCallback onAddFolder;
 
-  const _PanelHeader({required this.onAdd});
+  const _PanelHeader({required this.onAddFolder});
 
   @override
   Widget build(BuildContext context) {
@@ -425,9 +449,9 @@ class _PanelHeader extends StatelessWidget {
           ),
           const Spacer(),
           IconButton(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add, size: 18),
-            tooltip: 'New Session',
+            onPressed: onAddFolder,
+            icon: const Icon(Icons.create_new_folder, size: 18),
+            tooltip: 'New Folder',
             visualDensity: VisualDensity.compact,
           ),
         ],

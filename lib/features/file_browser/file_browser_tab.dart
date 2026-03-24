@@ -198,6 +198,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       direction: TransferDirection.upload,
       sourcePath: entry.path,
       targetPath: remotePath,
+      sizeBytes: entry.size,
       run: (update) async {
         update(0, 'Starting upload...');
         if (entry.isDir) {
@@ -228,6 +229,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       direction: TransferDirection.download,
       sourcePath: entry.path,
       targetPath: localPath,
+      sizeBytes: entry.size,
       run: (update) async {
         update(0, 'Starting download...');
         if (entry.isDir) {

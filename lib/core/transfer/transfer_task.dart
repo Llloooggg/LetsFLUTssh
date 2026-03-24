@@ -10,6 +10,7 @@ class TransferTask {
   final TransferDirection direction;
   final String sourcePath;
   final String targetPath;
+  final int sizeBytes;
   final Future<void> Function(void Function(double percent, String message) update) run;
 
   const TransferTask({
@@ -17,6 +18,7 @@ class TransferTask {
     required this.direction,
     required this.sourcePath,
     required this.targetPath,
+    this.sizeBytes = 0,
     required this.run,
   });
 }
@@ -35,6 +37,7 @@ class HistoryEntry {
   final DateTime createdAt;
   final DateTime? startedAt;
   final DateTime? endedAt;
+  final int sizeBytes;
 
   const HistoryEntry({
     required this.id,
@@ -49,6 +52,7 @@ class HistoryEntry {
     required this.createdAt,
     this.startedAt,
     this.endedAt,
+    this.sizeBytes = 0,
   });
 
   Duration? get duration =>

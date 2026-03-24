@@ -3,40 +3,40 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/tabs/welcome_screen.dart';
 
 void main() {
-  Widget buildApp({required VoidCallback onQuickConnect}) {
+  Widget buildApp({required VoidCallback onNewSession}) {
     return MaterialApp(
       home: Scaffold(
-        body: WelcomeScreen(onQuickConnect: onQuickConnect),
+        body: WelcomeScreen(onNewSession: onNewSession),
       ),
     );
   }
 
   group('WelcomeScreen', () {
     testWidgets('shows app name and subtitle', (tester) async {
-      await tester.pumpWidget(buildApp(onQuickConnect: () {}));
+      await tester.pumpWidget(buildApp(onNewSession: () {}));
       expect(find.text('LetsFLUTssh'), findsOneWidget);
       expect(find.text('SSH/SFTP Client'), findsOneWidget);
     });
 
     testWidgets('shows terminal icon', (tester) async {
-      await tester.pumpWidget(buildApp(onQuickConnect: () {}));
+      await tester.pumpWidget(buildApp(onNewSession: () {}));
       expect(find.byIcon(Icons.terminal), findsOneWidget);
     });
 
-    testWidgets('shows Quick Connect button', (tester) async {
-      await tester.pumpWidget(buildApp(onQuickConnect: () {}));
-      expect(find.text('Quick Connect'), findsOneWidget);
+    testWidgets('shows New Session button', (tester) async {
+      await tester.pumpWidget(buildApp(onNewSession: () {}));
+      expect(find.text('New Session'), findsOneWidget);
     });
 
     testWidgets('shows keyboard shortcut hint', (tester) async {
-      await tester.pumpWidget(buildApp(onQuickConnect: () {}));
-      expect(find.text('Ctrl+N to quick connect'), findsOneWidget);
+      await tester.pumpWidget(buildApp(onNewSession: () {}));
+      expect(find.text('Ctrl+N to connect'), findsOneWidget);
     });
 
-    testWidgets('Quick Connect button triggers callback', (tester) async {
+    testWidgets('New Session button triggers callback', (tester) async {
       var tapped = false;
-      await tester.pumpWidget(buildApp(onQuickConnect: () => tapped = true));
-      await tester.tap(find.text('Quick Connect'));
+      await tester.pumpWidget(buildApp(onNewSession: () => tapped = true));
+      await tester.tap(find.text('New Session'));
       expect(tapped, isTrue);
     });
   });

@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
 import '../../core/ssh/errors.dart';
+import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../widgets/toast.dart';
 import '../tabs/tab_controller.dart';
-import 'quick_connect_dialog.dart';
 
 /// Shared connection logic used by both main.dart and mobile_shell.dart.
 class SessionConnect {
@@ -50,11 +50,8 @@ class SessionConnect {
     }
   }
 
-  /// Show quick connect dialog and open a terminal tab.
-  static Future<void> quickConnect(BuildContext context, WidgetRef ref) async {
-    final config = await QuickConnectDialog.show(context);
-    if (config == null || !context.mounted) return;
-
+  /// Connect with SSHConfig directly (without saving a session).
+  static Future<void> connectConfig(BuildContext context, WidgetRef ref, SSHConfig config) async {
     try {
       final manager = ref.read(connectionManagerProvider);
       final conn = await manager.connect(config);

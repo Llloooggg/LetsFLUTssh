@@ -13,6 +13,7 @@ class QuickConnectDialog extends StatefulWidget {
   static Future<SSHConfig?> show(BuildContext context) {
     return showDialog<SSHConfig>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (_) => const QuickConnectDialog(),
     );
   }

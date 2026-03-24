@@ -4,9 +4,28 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/session/session.dart';
+import '../../core/ssh/ssh_config.dart';
 import '../../utils/platform.dart';
 
+/// Result of the session edit dialog.
+sealed class SessionDialogResult {}
+
+/// User chose "Connect" (without saving).
+class ConnectOnlyResult extends SessionDialogResult {
+  final SSHConfig config;
+  ConnectOnlyResult(this.config);
+}
+
+/// User chose "Save" or "Save & Connect".
+class SaveResult extends SessionDialogResult {
+  final Session session;
+  final bool connect;
+  SaveResult(this.session, {this.connect = false});
+}
+
 /// Dialog for creating or editing a session.
+/// In create mode, shows 3 buttons: Cancel | Connect | Save & Connect
+/// In edit mode, shows 2 buttons: Cancel | Save
 class SessionEditDialog extends StatefulWidget {
   final Session? session; // null = create new
   final List<String> existingGroups;
@@ -19,14 +38,16 @@ class SessionEditDialog extends StatefulWidget {
     this.defaultGroup,
   });
 
-  static Future<Session?> show(
+  /// Show dialog. Returns [SessionDialogResult] or null on cancel.
+  static Future<SessionDialogResult?> show(
     BuildContext context, {
     Session? session,
     List<String> existingGroups = const [],
     String? defaultGroup,
   }) {
-    return showDialog<Session>(
+    return showDialog<SessionDialogResult>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (_) => SessionEditDialog(
         session: session,
         existingGroups: existingGroups,
@@ -90,41 +111,62 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     super.dispose();
   }
 
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-
-    final keyPath = _keyPathCtrl.text.trim().replaceFirst(
-      '~',
-      homeDirectory,
+  SSHConfig _buildConfig() {
+    final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
+    return SSHConfig(
+      host: _hostCtrl.text.trim(),
+      port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+      user: _userCtrl.text.trim(),
+      password: _passwordCtrl.text,
+      keyPath: keyPath,
+      keyData: _keyDataCtrl.text.trim(),
+      passphrase: _passphraseCtrl.text,
     );
+  }
 
-    final session = _isEditing
-        ? widget.session!.copyWith(
-            label: _labelCtrl.text.trim(),
-            group: _groupCtrl.text.trim(),
-            host: _hostCtrl.text.trim(),
-            port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-            user: _userCtrl.text.trim(),
-            authType: _authType,
-            password: _passwordCtrl.text,
-            keyPath: keyPath,
-            keyData: _keyDataCtrl.text.trim(),
-            passphrase: _passphraseCtrl.text,
-          )
-        : Session(
-            label: _labelCtrl.text.trim(),
-            group: _groupCtrl.text.trim(),
-            host: _hostCtrl.text.trim(),
-            port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-            user: _userCtrl.text.trim(),
-            authType: _authType,
-            password: _passwordCtrl.text,
-            keyPath: keyPath,
-            keyData: _keyDataCtrl.text.trim(),
-            passphrase: _passphraseCtrl.text,
-          );
+  Session _buildSession() {
+    final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
+    if (_isEditing) {
+      return widget.session!.copyWith(
+        label: _labelCtrl.text.trim(),
+        group: _groupCtrl.text.trim(),
+        host: _hostCtrl.text.trim(),
+        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+        user: _userCtrl.text.trim(),
+        authType: _authType,
+        password: _passwordCtrl.text,
+        keyPath: keyPath,
+        keyData: _keyDataCtrl.text.trim(),
+        passphrase: _passphraseCtrl.text,
+      );
+    }
+    return Session(
+      label: _labelCtrl.text.trim(),
+      group: _groupCtrl.text.trim(),
+      host: _hostCtrl.text.trim(),
+      port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+      user: _userCtrl.text.trim(),
+      authType: _authType,
+      password: _passwordCtrl.text,
+      keyPath: keyPath,
+      keyData: _keyDataCtrl.text.trim(),
+      passphrase: _passphraseCtrl.text,
+    );
+  }
 
-    Navigator.of(context).pop(session);
+  void _connectOnly() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.of(context).pop(ConnectOnlyResult(_buildConfig()));
+  }
+
+  void _saveAndConnect() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.of(context).pop(SaveResult(_buildSession(), connect: true));
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.of(context).pop(SaveResult(_buildSession()));
   }
 
   @override
@@ -346,17 +388,32 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.icon(
-          onPressed: _submit,
-          icon: Icon(_isEditing ? Icons.save : Icons.add),
-          label: Text(_isEditing ? 'Save' : 'Create'),
-        ),
-      ],
+      actions: _isEditing
+          ? [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.save),
+                label: const Text('Save'),
+              ),
+            ]
+          : [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              OutlinedButton(
+                onPressed: _connectOnly,
+                child: const Text('Connect'),
+              ),
+              FilledButton(
+                onPressed: _saveAndConnect,
+                child: const Text('Save & Connect'),
+              ),
+            ],
     );
   }
 }

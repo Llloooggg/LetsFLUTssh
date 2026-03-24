@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/connection/connection.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'features/session_manager/session_connect.dart';
+import 'features/session_manager/session_edit_dialog.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/toast.dart';
@@ -161,7 +162,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyN, control: true): () {
-          _quickConnect(context, ref);
+          _newSession(context, ref);
         },
         const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
           final active = tabState.activeTab;
@@ -196,13 +197,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             final isNarrow = constraints.maxWidth < 600;
             final sessionPanel = SessionPanel(
               onConnect: (session) => _connectSession(context, ref, session),
+              onQuickConnect: (config) => SessionConnect.connectConfig(context, ref, config),
               onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
             );
 
             final content = tabState.activeTab != null
                 ? _buildTabContent(tabState)
                 : WelcomeScreen(
-                    onQuickConnect: () => _quickConnect(context, ref),
+                    onNewSession: () => _newSession(context, ref),
                   );
 
             // Right side: toolbar + tabs + content + status bar
@@ -210,7 +212,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               children: [
                 // Toolbar
                 _Toolbar(
-                  onQuickConnect: () => _quickConnect(context, ref),
+                  onNewSession: () => _newSession(context, ref),
                   onOpenSftp: tabState.activeTab != null &&
                           tabState.activeTab!.connection.isConnected
                       ? () => _openSftp(ref, tabState.activeTab!.connection)
@@ -278,14 +280,30 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Future<void> _connectSession(BuildContext context, WidgetRef ref, session) =>
       SessionConnect.connectTerminal(context, ref, session);
 
-  Future<void> _quickConnect(BuildContext context, WidgetRef ref) =>
-      SessionConnect.quickConnect(context, ref);
+  Future<void> _newSession(BuildContext context, WidgetRef ref) async {
+    final store = ref.read(sessionStoreProvider);
+    final result = await SessionEditDialog.show(
+      context,
+      existingGroups: store.groups(),
+    );
+    if (result == null || !context.mounted) return;
+    switch (result) {
+      case ConnectOnlyResult(:final config):
+        SessionConnect.connectConfig(context, ref, config);
+      case SaveResult(:final session, :final connect):
+        await ref.read(sessionProvider.notifier).add(session);
+        if (connect && context.mounted) {
+          SessionConnect.connectTerminal(context, ref, session);
+        }
+    }
+  }
 
   Future<void> _showLfsImportDialog(BuildContext context, String filePath) async {
     final passwordCtrl = TextEditingController();
 
     final result = await showDialog<({String password, ImportMode mode})>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) {
         var mode = ImportMode.merge;
         return StatefulBuilder(
@@ -411,12 +429,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 }
 
 class _Toolbar extends StatelessWidget {
-  final VoidCallback onQuickConnect;
+  final VoidCallback onNewSession;
   final VoidCallback? onOpenSftp;
   final bool showMenuButton;
 
   const _Toolbar({
-    required this.onQuickConnect,
+    required this.onNewSession,
     this.onOpenSftp,
     this.showMenuButton = false,
   });
@@ -443,9 +461,9 @@ class _Toolbar extends StatelessWidget {
               visualDensity: VisualDensity.compact,
             ),
           IconButton(
-            onPressed: onQuickConnect,
+            onPressed: onNewSession,
             icon: const Icon(Icons.add, size: 18),
-            tooltip: 'Quick Connect (Ctrl+N)',
+            tooltip: 'New Session (Ctrl+N)',
             visualDensity: VisualDensity.compact,
           ),
           if (onOpenSftp != null)

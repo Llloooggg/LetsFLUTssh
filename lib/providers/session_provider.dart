@@ -59,6 +59,16 @@ class SessionNotifier extends StateNotifier<List<Session>> {
     await _store.deleteGroup(groupPath);
     state = _store.sessions;
   }
+
+  Future<void> moveSession(String sessionId, String newGroup) async {
+    await _store.moveSession(sessionId, newGroup);
+    state = _store.sessions;
+  }
+
+  Future<void> moveGroup(String groupPath, String newParent) async {
+    await _store.moveGroup(groupPath, newParent);
+    state = _store.sessions;
+  }
 }
 
 /// Tree built from current session list (includes empty groups).

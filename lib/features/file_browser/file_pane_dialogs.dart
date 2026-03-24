@@ -14,6 +14,7 @@ class FilePaneDialogs {
     final nameCtrl = TextEditingController();
     final result = await showDialog<String>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => AlertDialog(
         title: const Text('New Folder'),
         content: TextField(
@@ -50,6 +51,7 @@ class FilePaneDialogs {
     final nameCtrl = TextEditingController(text: entry.name);
     final result = await showDialog<String>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => AlertDialog(
         title: const Text('Rename'),
         content: TextField(
@@ -88,6 +90,7 @@ class FilePaneDialogs {
         : '${entries.length} items';
     final confirmed = await showDialog<bool>(
       context: context,
+      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete'),
         content: Text('Delete $names?'),

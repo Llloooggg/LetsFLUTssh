@@ -6,6 +6,7 @@ class FileEntry {
   final int mode; // Unix permissions (e.g. 0755)
   final DateTime modTime;
   final bool isDir;
+  final String owner;
 
   const FileEntry({
     required this.name,
@@ -14,6 +15,7 @@ class FileEntry {
     this.mode = 0,
     required this.modTime,
     required this.isDir,
+    this.owner = '',
   });
 
   String get modeString {

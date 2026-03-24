@@ -75,6 +75,16 @@ abstract final class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: _bg,
       dividerColor: _border,
+      splashFactory: NoSplash.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       dividerTheme: const DividerThemeData(color: _border, space: 1),
       appBarTheme: const AppBarTheme(
         backgroundColor: _darker,
@@ -173,6 +183,7 @@ abstract final class AppTheme {
         overlayColor: Color(0x2261AFEF),
       ),
       tooltipTheme: TooltipThemeData(
+        waitDuration: const Duration(milliseconds: 400),
         decoration: BoxDecoration(
           color: _darker,
           borderRadius: BorderRadius.circular(4),
@@ -232,6 +243,16 @@ abstract final class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: _lightBg,
       dividerColor: _lightBorder,
+      splashFactory: NoSplash.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       dividerTheme: const DividerThemeData(color: _lightBorder, space: 1),
       appBarTheme: const AppBarTheme(
         backgroundColor: _lightSurface,
@@ -323,6 +344,7 @@ abstract final class AppTheme {
         overlayColor: Color(0x224078F2),
       ),
       tooltipTheme: TooltipThemeData(
+        waitDuration: const Duration(milliseconds: 400),
         decoration: BoxDecoration(
           color: _lightFg,
           borderRadius: BorderRadius.circular(4),

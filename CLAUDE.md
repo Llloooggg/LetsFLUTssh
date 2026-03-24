@@ -195,7 +195,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 doesn't support SCP; SFTP covers all use cases (file/directory upload/download with progress)
 7. **Tree-based sessions** — nested groups via `/` separator (Production/Web/nginx1), stored as flat list with group path, UI builds TreeView
 
-## Current State (v0.9.1 — Architecture refactoring)
+## Current State (v0.9.2 — UX improvements)
 
 ### What works
 - SSH connection via dartssh2 (password, key file, key text)
@@ -279,6 +279,17 @@ LetsFLUTssh/
 - **Consistent error handling** — all silent `catch (_)` replaced with `dev.log()` logging in credential_store, config_store, sftp_client
 - **chmod 600 error reporting** — credential_store now logs chmod failures instead of silently ignoring them
 - **FilePaneController.dispose()** — properly calls `super.dispose()` to clean up ChangeNotifier listeners
+- **Unified New Session dialog** — merged Quick Connect + New Session into one dialog: Cancel | Connect (without saving) | Save & Connect; sealed result types (ConnectOnlyResult | SaveResult)
+- **Session drag&drop** — LongPressDraggable + DragTarget: move sessions into folders, folders into folders, extract to root
+- **Sortable file browser columns** — clickable headers (Name, Size, Modified, Mode, Owner) with sort indicators
+- **File owner column** — parsed from dartssh2 `SftpName.longname` (ls -l format)
+- **Transfer history details** — Local/Remote paths (direction-aware), sizeBytes from FileEntry, column dividers
+- **Column dividers** — visible vertical separators in file browser headers/rows and transfer panel
+- **Indent guide lines** — VS Code-style vertical lines in session tree showing nesting depth
+- **No animations** — `AnimationStyle.noAnimation` on all showMenu/showDialog calls, `NoSplash.splashFactory`, instant page transitions
+- **Session panel header** — removed redundant "New Session" button (uses toolbar + / FAB instead), kept "New Folder"
+- **App display name** — "LetsFLUTssh" on all platforms (Android, iOS, macOS, Windows)
+- **283 tests** — updated for new dialog result types (Save & Connect / Connect), welcome screen (onNewSession)
 
 ### Decisions and Why
 - **SSHConnectionState instead of ConnectionState** — name conflict with Flutter's `ConnectionState` from async.dart
@@ -326,6 +337,14 @@ LetsFLUTssh/
 - **FilePaneDialogs static** — New Folder/Rename/Delete dialogs were duplicated in file_pane.dart and mobile_file_browser.dart; extracted to shared class
 - **SessionConnect static** — connectTerminal/connectSftp/quickConnect were duplicated three times in main.dart; extracted for reuse in mobile_shell
 - **Settings sections as separate ConsumerWidget** — each section (Appearance, Terminal, Connection, Transfers) uses select() on its own fields; changing font size doesn't rebuild Transfers
+- **Sealed class SessionDialogResult** — `ConnectOnlyResult(SSHConfig)` | `SaveResult(Session, {bool connect})` — one dialog handles both connect-without-saving and save-and-connect flows
+- **Sealed class SessionDragData** — `SessionDrag(Session)` | `GroupDrag(String groupPath)` — type-safe drag data for session tree; DragTarget validates drop (can't drop group into itself/subtree)
+- **_buildGroupContent() extracted** — avoids sharing widget instances between DragTarget builder and LongPressDraggable child (Flutter assertion: `child._parent == this`)
+- **AnimationStyle.noAnimation everywhere** — Flutter 3.41+ supports `popUpAnimationStyle` on showMenu and `animationStyle` on showDialog; set to noAnimation for instant UX
+- **Transfer Local/Remote columns** — instead of Source/Target (ambiguous), show Local and Remote; swap display based on direction (upload: source=local, download: source=remote)
+- **TransferTask.sizeBytes** — FileEntry.size passed through to HistoryEntry for display in transfer panel
+- **Indent guides via SizedBox+Container** — each depth level renders a 1px vertical Container inside a 16px SizedBox; simpler than CustomPainter, consistent with VS Code style
+- **FORCE_JAVASCRIPT_ACTIONS_TO_NODE24** — GitHub Actions env var to suppress Node.js 20 deprecation warnings across all workflow steps
 
 ### What's planned (ported from LetsGOssh + improvements)
 
