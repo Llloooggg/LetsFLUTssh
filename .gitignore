@@ -36,6 +36,9 @@ android/app/release/
 # Linux
 linux/flutter/ephemeral/
 
+# Web (not targeted)
+web/
+
 # Windows
 windows/flutter/ephemeral/
 
