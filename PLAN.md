@@ -54,31 +54,31 @@
 
 **Goal:** Сохранение сессий, sidebar, группы, поиск
 
-- [ ] `lib/core/session/` — модель и хранилище
-    - [ ] `Session` модель (freezed): id, label, group, host, port, user, authType, password, keyPath, keyData, passphrase, createdAt, updatedAt
-    - [ ] `Session.validate()` — host required, port 1-65535, user required
-    - [ ] `SessionStore` — CRUD + JSON persistence + flutter_secure_storage для credentials
-    - [ ] `SessionTree` — построение дерева из flat-списка по group path (`/`-separated)
-    - [ ] Groups: `Production/Web/nginx1` → nested tree
-    - [ ] Search: по label, group, host (computed display format)
-    - [ ] Duplicate session
-- [ ] `lib/features/session_manager/` — UI sidebar
-    - [ ] `SessionPanel` — боковая панель (resizable)
-    - [ ] `SessionTreeView` — TreeView с вложенными группами
-    - [ ] Search/filter bar
-    - [ ] Double-click → SSH connect
-    - [ ] Context menu: SSH connect, SFTP only, Edit, Delete, Duplicate
-    - [ ] New / Edit session dialogs
-        - [ ] Label, Group (select existing or type new path), Host, Port, User
-        - [ ] Auth type selector (Password / Key / Key+Password)
-        - [ ] Key file field (file picker + drag&drop)
-        - [ ] Key text field (paste PEM)
-        - [ ] Passphrase field
-        - [ ] Inline validation + toast errors
-- [ ] `lib/providers/session_provider.dart` — Riverpod provider для sessions
-- [ ] Split layout: sidebar (sessions) | main area (tabs)
-- [ ] Sidebar resizable с drag-divider
-- [ ] Тесты: session CRUD, validation, tree building, search
+- [x] `lib/core/session/` — модель и хранилище
+    - [x] `Session` модель: id, label, group, host, port, user, authType, password, keyPath, keyData, passphrase, createdAt, updatedAt
+    - [x] `Session.validate()` — host required, port 1-65535, user required
+    - [x] `SessionStore` — CRUD + JSON persistence (credentials inline, Phase 5 → secure storage)
+    - [x] `SessionTree` — построение дерева из flat-списка по group path (`/`-separated)
+    - [x] Groups: `Production/Web/nginx1` → nested tree
+    - [x] Search: по label, group, host, user
+    - [x] Duplicate session
+- [x] `lib/features/session_manager/` — UI sidebar
+    - [x] `SessionPanel` — боковая панель (resizable)
+    - [x] `SessionTreeView` — TreeView с вложенными группами
+    - [x] Search/filter bar
+    - [x] Double-click → SSH connect
+    - [x] Context menu: SSH connect, Edit, Delete, Duplicate
+    - [x] New / Edit session dialogs
+        - [x] Label, Group (autocomplete existing groups), Host, Port, User
+        - [x] Auth type selector (Password / Key / Key+Password)
+        - [x] Key file field (path input с ~ expansion)
+        - [x] Key text field (paste PEM)
+        - [x] Passphrase field
+        - [x] Inline validation
+- [x] `lib/providers/session_provider.dart` — Riverpod provider для sessions
+- [x] Split layout: sidebar (sessions) | main area (tabs)
+- [x] Sidebar resizable с drag-divider
+- [x] Тесты: session validation, tree building (28 тестов всего)
 
 ## Phase 3: SFTP File Browser (v0.3)
 
@@ -284,8 +284,8 @@
 
 ## Текущий статус
 
-**Активная фаза:** Phase 1 (Foundation + Terminal) — завершена
-**Прогресс:** Flutter-проект создан. Реализованы: SSH клиент (dartssh2), терминал (xterm.dart), система вкладок, Quick Connect диалог, конфиг, connection manager, Riverpod providers. `flutter analyze` чисто, 11 тестов проходят.
+**Активная фаза:** Phase 2 (Session Manager) — завершена
+**Прогресс:** Phase 1 + Session Manager. Sidebar с TreeView, search, context menu, CRUD, группы. 28 тестов, 0 issues.
 
 ### Порядок работы
 

@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/session/session.dart';
 import 'core/ssh/errors.dart';
 import 'features/session_manager/quick_connect_dialog.dart';
+import 'features/session_manager/session_panel.dart';
 import 'features/tabs/tab_bar.dart';
 import 'features/tabs/tab_controller.dart';
 import 'features/tabs/welcome_screen.dart';
 import 'features/terminal/terminal_tab.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
+import 'providers/session_provider.dart';
 import 'providers/theme_provider.dart';
+import 'widgets/split_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,8 +32,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   @override
   void initState() {
     super.initState();
-    // Load config on startup
-    Future.microtask(() => ref.read(configProvider.notifier).load());
+    Future.microtask(() {
+      ref.read(configProvider.notifier).load();
+      ref.read(sessionProvider.notifier).load();
+    });
   }
 
   @override
@@ -89,15 +95,19 @@ class MainScreen extends ConsumerWidget {
               _Toolbar(onQuickConnect: () => _quickConnect(context, ref)),
               // Tab bar
               const AppTabBar(),
-              // Divider
               if (tabState.tabs.isNotEmpty) const Divider(height: 1),
-              // Content
+              // Split: sidebar | content
               Expanded(
-                child: tabState.activeTab != null
-                    ? _buildTabContent(tabState)
-                    : WelcomeScreen(
-                        onQuickConnect: () => _quickConnect(context, ref),
-                      ),
+                child: SplitView(
+                  left: SessionPanel(
+                    onConnect: (session) => _connectSession(context, ref, session),
+                  ),
+                  right: tabState.activeTab != null
+                      ? _buildTabContent(tabState)
+                      : WelcomeScreen(
+                          onQuickConnect: () => _quickConnect(context, ref),
+                        ),
+                ),
               ),
               // Status bar
               _StatusBar(tabState: tabState),
@@ -109,7 +119,6 @@ class MainScreen extends ConsumerWidget {
   }
 
   Widget _buildTabContent(TabState tabState) {
-    // Use IndexedStack to preserve tab state when switching
     return IndexedStack(
       index: tabState.activeIndex,
       children: tabState.tabs.map((tab) {
@@ -119,6 +128,24 @@ class MainScreen extends ConsumerWidget {
         );
       }).toList(),
     );
+  }
+
+  Future<void> _connectSession(BuildContext context, WidgetRef ref, Session session) async {
+    final config = session.toSSHConfig();
+    try {
+      final manager = ref.read(connectionManagerProvider);
+      final conn = await manager.connect(
+        config,
+        label: session.label.isNotEmpty ? session.label : session.displayName,
+      );
+      ref.read(tabProvider.notifier).addTerminalTab(conn);
+    } on AuthError catch (e) {
+      if (context.mounted) _showError(context, 'Authentication failed: ${e.message}');
+    } on ConnectError catch (e) {
+      if (context.mounted) _showError(context, 'Connection failed: ${e.message}');
+    } catch (e) {
+      if (context.mounted) _showError(context, 'Error: $e');
+    }
   }
 
   Future<void> _quickConnect(BuildContext context, WidgetRef ref) async {
@@ -131,17 +158,11 @@ class MainScreen extends ConsumerWidget {
       final conn = await manager.connect(config);
       ref.read(tabProvider.notifier).addTerminalTab(conn);
     } on AuthError catch (e) {
-      if (context.mounted) {
-        _showError(context, 'Authentication failed: ${e.message}');
-      }
+      if (context.mounted) _showError(context, 'Authentication failed: ${e.message}');
     } on ConnectError catch (e) {
-      if (context.mounted) {
-        _showError(context, 'Connection failed: ${e.message}');
-      }
+      if (context.mounted) _showError(context, 'Connection failed: ${e.message}');
     } catch (e) {
-      if (context.mounted) {
-        _showError(context, 'Error: $e');
-      }
+      if (context.mounted) _showError(context, 'Error: $e');
     }
   }
 

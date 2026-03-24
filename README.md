@@ -146,7 +146,7 @@ make build-ios
 
 ## Current Status
 
-**v0.1.0** — Phase 1 (Foundation + Terminal) complete. SSH terminal works with password and key auth. Quick Connect dialog, multi-tab interface, dark/light theme.
+**v0.2.0** — Phase 2 (Session Manager) complete. Saved sessions with nested groups, sidebar with tree view, search, context menu, CRUD. SSH terminal with password and key auth, multi-tab interface, dark/light theme.
 
 ## Development
 

@@ -1,0 +1,112 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+
+import 'session.dart';
+
+/// CRUD + JSON persistence for sessions.
+class SessionStore {
+  static const _fileName = 'sessions.json';
+
+  final List<Session> _sessions = [];
+  late final String _filePath;
+  bool _initialized = false;
+
+  List<Session> get sessions => List.unmodifiable(_sessions);
+
+  Future<void> init() async {
+    if (_initialized) return;
+    final dir = await getApplicationSupportDirectory();
+    _filePath = p.join(dir.path, _fileName);
+    _initialized = true;
+  }
+
+  Future<List<Session>> load() async {
+    await init();
+    final file = File(_filePath);
+    if (!await file.exists()) return _sessions;
+    try {
+      final content = await file.readAsString();
+      final list = jsonDecode(content) as List;
+      _sessions
+        ..clear()
+        ..addAll(list.map((e) => Session.fromJson(e as Map<String, dynamic>)));
+    } catch (_) {
+      // Corrupted file — start fresh
+    }
+    return _sessions;
+  }
+
+  Future<void> _save() async {
+    await init();
+    final file = File(_filePath);
+    await file.parent.create(recursive: true);
+    final content = const JsonEncoder.withIndent('  ')
+        .convert(_sessions.map((s) => s.toJson()).toList());
+    await file.writeAsString(content);
+  }
+
+  Future<void> add(Session session) async {
+    final error = session.validate();
+    if (error != null) throw ArgumentError(error);
+    _sessions.add(session);
+    await _save();
+  }
+
+  Future<void> update(Session session) async {
+    final error = session.validate();
+    if (error != null) throw ArgumentError(error);
+    final idx = _sessions.indexWhere((s) => s.id == session.id);
+    if (idx < 0) throw ArgumentError('Session not found: ${session.id}');
+    _sessions[idx] = session;
+    await _save();
+  }
+
+  Future<void> delete(String id) async {
+    _sessions.removeWhere((s) => s.id == id);
+    await _save();
+  }
+
+  Session? get(String id) {
+    try {
+      return _sessions.firstWhere((s) => s.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Duplicate a session with new ID and "(copy)" suffix.
+  Future<Session> duplicateSession(String id) async {
+    final original = get(id);
+    if (original == null) throw ArgumentError('Session not found: $id');
+    final copy = original.duplicate();
+    await add(copy);
+    return copy;
+  }
+
+  /// Unique group paths sorted alphabetically.
+  List<String> groups() {
+    final g = _sessions.map((s) => s.group).where((g) => g.isNotEmpty).toSet().toList();
+    g.sort();
+    return g;
+  }
+
+  /// Sessions in a specific group.
+  List<Session> byGroup(String group) {
+    return _sessions.where((s) => s.group == group).toList();
+  }
+
+  /// Search sessions by label, group, or host.
+  List<Session> search(String query) {
+    if (query.isEmpty) return _sessions;
+    final q = query.toLowerCase();
+    return _sessions.where((s) {
+      return s.label.toLowerCase().contains(q) ||
+          s.group.toLowerCase().contains(q) ||
+          s.host.toLowerCase().contains(q) ||
+          s.user.toLowerCase().contains(q);
+    }).toList();
+  }
+}

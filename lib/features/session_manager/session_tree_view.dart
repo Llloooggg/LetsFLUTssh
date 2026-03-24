@@ -1,0 +1,200 @@
+import 'package:flutter/material.dart';
+
+import '../../core/session/session.dart';
+import '../../core/session/session_tree.dart';
+
+/// Hierarchical tree view of sessions with nested group folders.
+class SessionTreeView extends StatefulWidget {
+  final List<SessionTreeNode> tree;
+  final void Function(Session session)? onSessionTap;
+  final void Function(Session session)? onSessionDoubleTap;
+  final void Function(Session session, Offset position)? onSessionContextMenu;
+
+  const SessionTreeView({
+    super.key,
+    required this.tree,
+    this.onSessionTap,
+    this.onSessionDoubleTap,
+    this.onSessionContextMenu,
+  });
+
+  @override
+  State<SessionTreeView> createState() => _SessionTreeViewState();
+}
+
+class _SessionTreeViewState extends State<SessionTreeView> {
+  final _expandedGroups = <String>{};
+  String? _selectedSessionId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Expand all groups by default
+    _expandAllGroups(widget.tree);
+  }
+
+  void _expandAllGroups(List<SessionTreeNode> nodes) {
+    for (final node in nodes) {
+      if (node.isGroup) {
+        _expandedGroups.add(node.fullPath);
+        _expandAllGroups(node.children);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.tree.isEmpty) {
+      return Center(
+        child: Text(
+          'No sessions',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+          ),
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      children: _buildNodes(widget.tree, 0),
+    );
+  }
+
+  List<Widget> _buildNodes(List<SessionTreeNode> nodes, int depth) {
+    final widgets = <Widget>[];
+    for (final node in nodes) {
+      if (node.isGroup) {
+        widgets.add(_buildGroupTile(node, depth));
+        if (_expandedGroups.contains(node.fullPath)) {
+          widgets.addAll(_buildNodes(node.children, depth + 1));
+        }
+      } else {
+        widgets.add(_buildSessionTile(node, depth));
+      }
+    }
+    return widgets;
+  }
+
+  Widget _buildGroupTile(SessionTreeNode node, int depth) {
+    final expanded = _expandedGroups.contains(node.fullPath);
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (expanded) {
+            _expandedGroups.remove(node.fullPath);
+          } else {
+            _expandedGroups.add(node.fullPath);
+          }
+        });
+      },
+      child: Padding(
+        padding: EdgeInsets.only(left: 8.0 + depth * 16.0),
+        child: SizedBox(
+          height: 30,
+          child: Row(
+            children: [
+              Icon(
+                expanded ? Icons.expand_more : Icons.chevron_right,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                expanded ? Icons.folder_open : Icons.folder,
+                size: 16,
+                color: Colors.amber[600],
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  node.name,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  '${_countSessions(node)}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSessionTile(SessionTreeNode node, int depth) {
+    final session = node.session!;
+    final isSelected = session.id == _selectedSessionId;
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onDoubleTap: () => widget.onSessionDoubleTap?.call(session),
+      onSecondaryTapUp: (details) {
+        widget.onSessionContextMenu?.call(session, details.globalPosition);
+      },
+      child: InkWell(
+        onTap: () {
+          setState(() => _selectedSessionId = session.id);
+          widget.onSessionTap?.call(session);
+        },
+        child: Container(
+          padding: EdgeInsets.only(left: 12.0 + depth * 16.0, right: 8),
+          height: 30,
+          color: isSelected
+              ? theme.colorScheme.primary.withValues(alpha: 0.15)
+              : null,
+          child: Row(
+            children: [
+              Icon(
+                _authIcon(session.authType),
+                size: 14,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  node.name,
+                  style: const TextStyle(fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '${session.host}:${session.port}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _authIcon(AuthType type) {
+    switch (type) {
+      case AuthType.password:
+        return Icons.lock;
+      case AuthType.key:
+        return Icons.vpn_key;
+      case AuthType.keyWithPassword:
+        return Icons.enhanced_encryption;
+    }
+  }
+
+  int _countSessions(SessionTreeNode node) {
+    if (node.isSession) return 1;
+    var count = 0;
+    for (final child in node.children) {
+      count += _countSessions(child);
+    }
+    return count;
+  }
+}

@@ -180,11 +180,18 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.1.0 — Phase 1 complete)
+## Current State (v0.2.0 — Phase 2 complete)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
 - Auth chain: key file → key text → password (как в LetsGOssh)
+- **Session Manager** — сохранение сессий в JSON, CRUD, duplicate
+- **Session TreeView** — вложенные группы (Production/Web/nginx1), expand/collapse
+- **Search/filter** — по label, group, host, user
+- **Context menu** — SSH connect, Edit, Delete, Duplicate (right-click)
+- **Double-click** → SSH connect
+- **Session Edit Dialog** — auth type selector (Password/Key/Key+Pass), group autocomplete
+- **Resizable sidebar** — drag-divider между sidebar и content area
 - Keep-alive через dartssh2 `keepAliveInterval`
 - TOFU known hosts (auto-accept, persistent storage)
 - Terminal emulation через xterm.dart (256-color, mouse, scrollback 5000 lines)
