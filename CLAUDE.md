@@ -195,7 +195,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 doesn't support SCP; SFTP covers all use cases (file/directory upload/download with progress)
 7. **Tree-based sessions** — nested groups via `/` separator (Production/Web/nginx1), stored as flat list with group path, UI builds TreeView
 
-## Current State (v0.9.2 — UX improvements)
+## Current State (v0.9.3 — mobile UX + polish)
 
 ### What works
 - SSH connection via dartssh2 (password, key file, key text)
@@ -290,6 +290,20 @@ LetsFLUTssh/
 - **Session panel header** — removed redundant "New Session" button (uses toolbar + / FAB instead), kept "New Folder"
 - **App display name** — "LetsFLUTssh" on all platforms (Android, iOS, macOS, Windows)
 - **283 tests** — updated for new dialog result types (Save & Connect / Connect), welcome screen (onNewSession)
+- **Mobile-friendly session list** — 48px rows, 15px font, long-press context menu, tap-to-connect (no double-tap)
+- **Mobile session management** — "Move to folder" dialog replaces drag&drop, connect/edit/delete/duplicate via long-press menu
+- **Mobile tab management** — InputChip with X close button, always visible (not just when >1 tab)
+- **Connection progress dialog** — "Connecting to..." spinner on mobile during SSH handshake
+- **Delete feedback toast** — success notification after file/folder deletion (desktop + mobile)
+- **Mouse back/forward buttons** — navigate SFTP file browser history on desktop (Listener on PointerDownEvent)
+- **About section** — Settings screen shows app version + GitHub repository link
+- **Windows title bar** — displays "LetsFLUTssh" correctly (was lowercase)
+- **Multi-size app icon** — Windows .ico contains 16-256px sizes
+- **Mobile SSH keyboard** — bigger touch targets (44-48px rows, 38-42px buttons per HIG/Material guidelines)
+- **Mobile file browser** — bigger nav buttons (40px breadcrumb, 22px icons), bigger path font
+- **Transfer panel** — bigger header (36px), bigger text (13px)
+- **Desktop-only DropTarget** — session edit dialog hides OS drag&drop on mobile
+- **Responsive host key dialog** — ConstrainedBox instead of fixed width
 
 ### Decisions and Why
 - **SSHConnectionState instead of ConnectionState** — name conflict with Flutter's `ConnectionState` from async.dart
@@ -345,6 +359,10 @@ LetsFLUTssh/
 - **TransferTask.sizeBytes** — FileEntry.size passed through to HistoryEntry for display in transfer panel
 - **Indent guides via SizedBox+Container** — each depth level renders a 1px vertical Container inside a 16px SizedBox; simpler than CustomPainter, consistent with VS Code style
 - **FORCE_JAVASCRIPT_ACTIONS_TO_NODE24** — GitHub Actions env var to suppress Node.js 20 deprecation warnings across all workflow steps
+- **Mobile long-press vs LongPressDraggable** — LongPressDraggable disabled on mobile because it conflicts with long-press context menus; mobile uses tap-to-connect instead of desktop double-click
+- **InputChip for mobile tabs** — ChoiceChip doesn't support deleteIcon/onDeleted; InputChip provides built-in X close button
+- **Listener for mouse buttons** — Listener (raw pointer events) wraps Focus widget in FilePane; kBackMouseButton/kForwardMouseButton trigger goBack()/goForward()
+- **Move to folder dialog** — mobile replacement for drag&drop session reordering; lists all groups + root, current group highlighted
 
 ### What's planned (ported from LetsGOssh + improvements)
 

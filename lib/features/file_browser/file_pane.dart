@@ -85,40 +85,49 @@ class _FilePaneState extends State<FilePane> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Focus(
-      focusNode: _focusNode,
-      onKeyEvent: _onKeyEvent,
-      child: DropTarget(
-        onDragEntered: (_) => setState(() => _osDragging = true),
-        onDragExited: (_) => setState(() => _osDragging = false),
-        onDragDone: (details) {
-          setState(() => _osDragging = false);
-          _focusNode.requestFocus();
-          final paths = details.files.map((f) => f.path).toList();
-          if (paths.isNotEmpty) {
-            widget.onOsDropReceived?.call(paths);
-          }
-        },
-        child: Container(
-          decoration: _osDragging
-              ? BoxDecoration(
-                  border: Border.all(
-                    color: theme.colorScheme.primary,
-                    width: 2,
-                  ),
-                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                )
-              : null,
-          child: Column(
-            children: [
-              _buildHeader(theme),
-              _buildPathBar(theme),
-              const Divider(height: 1),
-              _buildColumnHeaders(theme),
-              const Divider(height: 1),
-              Expanded(child: _buildDropTarget(_buildFileList(theme))),
-              _buildFooter(theme),
-            ],
+    return Listener(
+      onPointerDown: (event) {
+        if (event.buttons & kBackMouseButton != 0) {
+          ctrl.goBack();
+        } else if (event.buttons & kForwardMouseButton != 0) {
+          ctrl.goForward();
+        }
+      },
+      child: Focus(
+        focusNode: _focusNode,
+        onKeyEvent: _onKeyEvent,
+        child: DropTarget(
+          onDragEntered: (_) => setState(() => _osDragging = true),
+          onDragExited: (_) => setState(() => _osDragging = false),
+          onDragDone: (details) {
+            setState(() => _osDragging = false);
+            _focusNode.requestFocus();
+            final paths = details.files.map((f) => f.path).toList();
+            if (paths.isNotEmpty) {
+              widget.onOsDropReceived?.call(paths);
+            }
+          },
+          child: Container(
+            decoration: _osDragging
+                ? BoxDecoration(
+                    border: Border.all(
+                      color: theme.colorScheme.primary,
+                      width: 2,
+                    ),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                  )
+                : null,
+            child: Column(
+              children: [
+                _buildHeader(theme),
+                _buildPathBar(theme),
+                const Divider(height: 1),
+                _buildColumnHeaders(theme),
+                const Divider(height: 1),
+                Expanded(child: _buildDropTarget(_buildFileList(theme))),
+                _buildFooter(theme),
+              ],
+            ),
           ),
         ),
       ),

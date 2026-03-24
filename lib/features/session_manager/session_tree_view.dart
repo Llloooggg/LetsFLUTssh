@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/platform.dart';
 
 /// Drag data: either a session or a group path.
 sealed class SessionDragData {}
@@ -52,6 +53,13 @@ class _SessionTreeViewState extends State<SessionTreeView> {
   final _expandedGroups = <String>{};
   String? _selectedSessionId;
   String? _dropTargetGroup; // highlight on drag hover
+
+  static final bool _mobile = isMobilePlatform;
+  double get _rowHeight => _mobile ? 48.0 : 30.0;
+  double get _fontSize => _mobile ? 15.0 : 13.0;
+  double get _subFontSize => _mobile ? 12.0 : 10.0;
+  double get _iconSize => _mobile ? 20.0 : 16.0;
+  double get _authIconSize => _mobile ? 18.0 : 14.0;
 
   @override
   void initState() {
@@ -125,6 +133,9 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           onSecondaryTapUp: (d) {
             widget.onBackgroundContextMenu?.call(d.globalPosition);
           },
+          onLongPressStart: _mobile
+              ? (d) => widget.onBackgroundContextMenu?.call(d.globalPosition)
+              : null,
           behavior: HitTestBehavior.translucent,
           child: DragTarget<SessionDragData>(
             onWillAcceptWithDetails: (details) => _canAcceptDrop(details.data, ''),
@@ -146,7 +157,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
               return ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 itemCount: flatNodes.length,
-                itemExtent: 30,
+                itemExtent: _rowHeight,
                 itemBuilder: (context, index) {
                   final (node, depth) = flatNodes[index];
                   if (node.isGroup) {
@@ -191,6 +202,9 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       onSecondaryTapUp: (d) {
         widget.onGroupContextMenu?.call(node.fullPath, d.globalPosition);
       },
+      onLongPressStart: _mobile
+          ? (d) => widget.onGroupContextMenu?.call(node.fullPath, d.globalPosition)
+          : null,
       child: InkWell(
         onTap: () {
           setState(() {
@@ -202,7 +216,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           });
         },
         child: Container(
-          height: 30,
+          height: _rowHeight,
           decoration: isDropTarget
               ? BoxDecoration(
                   color: theme.colorScheme.primary.withValues(alpha: 0.15),
@@ -214,19 +228,19 @@ class _SessionTreeViewState extends State<SessionTreeView> {
               _buildIndentGuides(depth, theme),
               Icon(
                 expanded ? Icons.expand_more : Icons.chevron_right,
-                size: 16,
+                size: _iconSize,
               ),
               const SizedBox(width: 4),
               Icon(
                 expanded ? Icons.folder_open : Icons.folder,
-                size: 16,
+                size: _iconSize,
                 color: AppTheme.folderColor(theme.brightness),
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   node.name,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: _fontSize, fontWeight: FontWeight.w500),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -235,7 +249,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
                 child: Text(
                   '${node.sessionCount}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: _subFontSize + 1,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                 ),
@@ -248,9 +262,14 @@ class _SessionTreeViewState extends State<SessionTreeView> {
   }
 
   Widget _buildGroupTile(SessionTreeNode node, int depth) {
+    // On mobile: no drag&drop, long-press opens context menu (handled in _buildGroupContent)
+    if (_mobile) {
+      return _buildGroupContent(node, depth, false);
+    }
+
     final theme = Theme.of(context);
 
-    // Wrap as Draggable + DragTarget
+    // Desktop: Draggable + DragTarget
     return LongPressDraggable<SessionDragData>(
       data: GroupDrag(node.fullPath),
       feedback: Material(
@@ -306,17 +325,27 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     final theme = Theme.of(context);
 
     final Widget content = GestureDetector(
-      onDoubleTap: () => widget.onSessionDoubleTap?.call(session),
+      // Desktop: double-tap to connect, right-click for context menu
+      onDoubleTap: _mobile ? null : () => widget.onSessionDoubleTap?.call(session),
       onSecondaryTapUp: (details) {
         widget.onSessionContextMenu?.call(session, details.globalPosition);
       },
+      // Mobile: long-press for context menu
+      onLongPressStart: _mobile
+          ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
+          : null,
       child: InkWell(
         onTap: () {
           setState(() => _selectedSessionId = session.id);
-          widget.onSessionTap?.call(session);
+          if (_mobile) {
+            // Mobile: single tap connects
+            widget.onSessionDoubleTap?.call(session);
+          } else {
+            widget.onSessionTap?.call(session);
+          }
         },
         child: Container(
-          height: 30,
+          height: _rowHeight,
           padding: const EdgeInsets.only(right: 8),
           color: isSelected
               ? theme.colorScheme.primary.withValues(alpha: 0.15)
@@ -327,21 +356,21 @@ class _SessionTreeViewState extends State<SessionTreeView> {
               const SizedBox(width: 4),
               Icon(
                 _authIcon(session.authType),
-                size: 14,
+                size: _authIconSize,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   node.name,
-                  style: const TextStyle(fontSize: 13),
+                  style: TextStyle(fontSize: _fontSize),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
                 '${session.host}:${session.port}',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: _subFontSize,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
                 ),
               ),
@@ -351,6 +380,10 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       ),
     );
 
+    // Mobile: no drag&drop
+    if (_mobile) return content;
+
+    // Desktop: LongPressDraggable
     return LongPressDraggable<SessionDragData>(
       data: SessionDrag(session),
       feedback: Material(

@@ -41,6 +41,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Transfer queue with parallel workers
 - Transfer history with Local/Remote paths, size, duration details
 - Sortable columns (name, size, modified, mode, owner) with column dividers
+- Mouse back/forward button navigation
 
 ### Multi-Tab Interface
 
@@ -64,6 +65,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - **One Light theme** — matching light variant
 - System theme auto-detection
 - Configurable font size, scrollback, keep-alive, and more
+- About section with version and GitHub link
 
 ### Mobile
 
@@ -71,7 +73,8 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - **SSH virtual keyboard** — Esc, Tab, Ctrl, Alt, arrows, F1-F12, sticky modifiers
 - Pinch-to-zoom terminal font size
 - Single-pane SFTP with Local/Remote toggle
-- Long-press selection mode with bulk actions
+- Long-press context menu for session management (connect, edit, delete, move to folder)
+- Long-press selection mode with bulk actions in file browser
 - Swipe left/right to switch navigation tabs
 - Deep link: `letsflutssh://connect?host=X&user=Y`
 - Open SSH key files (.pem/.key) and .lfs archives directly from file manager

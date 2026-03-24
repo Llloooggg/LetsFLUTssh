@@ -5,6 +5,7 @@ import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/platform.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
@@ -108,6 +109,8 @@ class SessionPanel extends ConsumerWidget {
         const PopupMenuDivider(),
         const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit, size: 18), title: Text('Edit'), dense: true, contentPadding: EdgeInsets.zero)),
         const PopupMenuItem(value: 'duplicate', child: ListTile(leading: Icon(Icons.copy, size: 18), title: Text('Duplicate'), dense: true, contentPadding: EdgeInsets.zero)),
+        if (isMobilePlatform)
+          const PopupMenuItem(value: 'move', child: ListTile(leading: Icon(Icons.drive_file_move, size: 18), title: Text('Move to...'), dense: true, contentPadding: EdgeInsets.zero)),
         const PopupMenuDivider(),
         const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, size: 18, color: AppTheme.disconnected), title: Text('Delete', style: TextStyle(color: AppTheme.disconnected)), dense: true, contentPadding: EdgeInsets.zero)),
       ],
@@ -122,10 +125,60 @@ class SessionPanel extends ConsumerWidget {
           _editSession(context, ref, session);
         case 'duplicate':
           ref.read(sessionProvider.notifier).duplicate(session.id);
+        case 'move':
+          _moveSession(context, ref, session);
         case 'delete':
           _confirmDelete(context, ref, session);
       }
     });
+  }
+
+  Future<void> _moveSession(BuildContext context, WidgetRef ref, Session session) async {
+    final store = ref.read(sessionStoreProvider);
+    final allGroups = <String>{'', ...store.groups(), ...store.emptyGroups};
+
+    final selected = await showDialog<String>(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Move to Folder'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: allGroups.length,
+            itemBuilder: (ctx, index) {
+              final group = allGroups.elementAt(index);
+              final isCurrentGroup = group == session.group;
+              return ListTile(
+                leading: Icon(
+                  group.isEmpty ? Icons.home : Icons.folder,
+                  color: isCurrentGroup ? Theme.of(ctx).colorScheme.primary : null,
+                ),
+                title: Text(
+                  group.isEmpty ? '/ (root)' : group,
+                  style: TextStyle(
+                    fontWeight: isCurrentGroup ? FontWeight.bold : null,
+                  ),
+                ),
+                trailing: isCurrentGroup ? const Icon(Icons.check, size: 18) : null,
+                onTap: isCurrentGroup ? null : () => Navigator.of(ctx).pop(group),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      ref.read(sessionProvider.notifier).moveSession(session.id, selected);
+    }
   }
 
   Future<void> _editSession(BuildContext context, WidgetRef ref, Session session) async {

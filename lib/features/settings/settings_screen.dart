@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +11,10 @@ import '../../providers/config_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../widgets/toast.dart';
 import 'export_import.dart';
+
+/// App version — kept in sync with pubspec.yaml.
+const _appVersion = '0.9.3';
+const _githubUrl = 'https://github.com/llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
 ///
@@ -55,6 +60,11 @@ class SettingsScreen extends ConsumerWidget {
 
           const _SectionHeader(title: 'Data'),
           _ExportImportTile(),
+
+          const Divider(height: 32),
+
+          const _SectionHeader(title: 'About'),
+          const _AboutSection(),
 
           const Divider(height: 32),
 
@@ -418,6 +428,41 @@ class _ExportImportTile extends ConsumerWidget {
         Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
       }
     }
+  }
+}
+
+class _AboutSection extends StatelessWidget {
+  const _AboutSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        const ListTile(
+          leading: Icon(Icons.info_outline, size: 20),
+          title: Text('LetsFLUTssh'),
+          subtitle: Text('v$_appVersion — SSH/SFTP client'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        ListTile(
+          leading: const Icon(Icons.code, size: 20),
+          title: const Text('Source Code'),
+          subtitle: Text(
+            _githubUrl,
+            style: TextStyle(
+              color: theme.colorScheme.primary,
+              fontSize: 13,
+            ),
+          ),
+          contentPadding: EdgeInsets.zero,
+          onTap: () {
+            Clipboard.setData(const ClipboardData(text: _githubUrl));
+            Toast.show(context, message: 'URL copied to clipboard', level: ToastLevel.info);
+          },
+        ),
+      ],
+    );
   }
 }
 

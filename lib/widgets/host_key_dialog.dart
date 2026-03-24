@@ -91,8 +91,8 @@ class _HostKeyDialogWidget extends StatelessWidget {
           ),
         ],
       ),
-      content: SizedBox(
-        width: 460,
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

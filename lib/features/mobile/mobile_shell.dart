@@ -118,41 +118,65 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       s.tabs.where((t) => t.kind == TabKind.sftp).length;
 
   Future<void> _connectSession(BuildContext ctx, WidgetRef ref, Session session) async {
-    final config = session.toSSHConfig();
+    final label = session.label.isNotEmpty ? session.label : session.displayName;
+    _showConnecting(ctx, label);
     try {
       final manager = ref.read(connectionManagerProvider);
-      final conn = await manager.connect(
-        config,
-        label: session.label.isNotEmpty ? session.label : session.displayName,
-      );
+      final conn = await manager.connect(session.toSSHConfig(), label: label);
+      if (ctx.mounted) Navigator.of(ctx).pop(); // dismiss connecting dialog
       ref.read(tabProvider.notifier).addTerminalTab(conn);
       setState(() => _navIndex = 1);
     } on AuthError catch (e) {
+      if (ctx.mounted) Navigator.of(ctx).pop();
       if (ctx.mounted) Toast.show(ctx, message: 'Auth failed: ${e.message}', level: ToastLevel.error);
     } on ConnectError catch (e) {
+      if (ctx.mounted) Navigator.of(ctx).pop();
       if (ctx.mounted) Toast.show(ctx, message: 'Connect failed: ${e.message}', level: ToastLevel.error);
     } catch (e) {
+      if (ctx.mounted) Navigator.of(ctx).pop();
       if (ctx.mounted) Toast.show(ctx, message: 'Error: $e', level: ToastLevel.error);
     }
   }
 
   Future<void> _connectSessionSftp(BuildContext ctx, WidgetRef ref, Session session) async {
-    final config = session.toSSHConfig();
+    final label = session.label.isNotEmpty ? session.label : session.displayName;
+    _showConnecting(ctx, label);
     try {
       final manager = ref.read(connectionManagerProvider);
-      final conn = await manager.connect(
-        config,
-        label: session.label.isNotEmpty ? session.label : session.displayName,
-      );
+      final conn = await manager.connect(session.toSSHConfig(), label: label);
+      if (ctx.mounted) Navigator.of(ctx).pop();
       ref.read(tabProvider.notifier).addSftpTab(conn);
       setState(() => _navIndex = 2);
     } on AuthError catch (e) {
+      if (ctx.mounted) Navigator.of(ctx).pop();
       if (ctx.mounted) Toast.show(ctx, message: 'Auth failed: ${e.message}', level: ToastLevel.error);
     } on ConnectError catch (e) {
+      if (ctx.mounted) Navigator.of(ctx).pop();
       if (ctx.mounted) Toast.show(ctx, message: 'Connect failed: ${e.message}', level: ToastLevel.error);
     } catch (e) {
+      if (ctx.mounted) Navigator.of(ctx).pop();
       if (ctx.mounted) Toast.show(ctx, message: 'Error: $e', level: ToastLevel.error);
     }
+  }
+
+  void _showConnecting(BuildContext ctx, String label) {
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5)),
+              const SizedBox(width: 16),
+              Expanded(child: Text('Connecting to $label...', overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _newSession(BuildContext ctx, WidgetRef ref) async {
@@ -249,33 +273,32 @@ class _MobileTerminalPage extends ConsumerWidget {
 
     return Column(
       children: [
-        // Tab selector (horizontal chips)
-        if (termTabs.length > 1)
-          SizedBox(
-            height: 36,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              itemCount: termTabs.length,
-              itemBuilder: (context, index) {
-                final tab = termTabs[index];
-                final isActive = tab.id == activeTermTab.id;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
-                  child: ChoiceChip(
-                    label: Text(tab.label, style: const TextStyle(fontSize: 11)),
-                    selected: isActive,
-                    onSelected: (_) {
-                      final globalIdx = tabState.tabs.indexOf(tab);
-                      ref.read(tabProvider.notifier).selectTab(globalIdx);
-                    },
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                );
-              },
-            ),
+        // Tab selector (horizontal chips) — always shown so user can close the last tab
+        SizedBox(
+          height: 40,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            itemCount: termTabs.length,
+            itemBuilder: (context, index) {
+              final tab = termTabs[index];
+              final isActive = tab.id == activeTermTab.id;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
+                child: InputChip(
+                  label: Text(tab.label, style: const TextStyle(fontSize: 13)),
+                  selected: isActive,
+                  onPressed: () {
+                    final globalIdx = tabState.tabs.indexOf(tab);
+                    ref.read(tabProvider.notifier).selectTab(globalIdx);
+                  },
+                  deleteIcon: const Icon(Icons.close, size: 16),
+                  onDeleted: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+                ),
+              );
+            },
           ),
+        ),
         // Terminal view
         Expanded(
           child: MobileTerminalView(
@@ -318,32 +341,31 @@ class _MobileSftpPage extends ConsumerWidget {
 
     return Column(
       children: [
-        if (sftpTabs.length > 1)
-          SizedBox(
-            height: 36,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              itemCount: sftpTabs.length,
-              itemBuilder: (context, index) {
-                final tab = sftpTabs[index];
-                final isActive = tab.id == activeSftpTab.id;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
-                  child: ChoiceChip(
-                    label: Text(tab.label, style: const TextStyle(fontSize: 11)),
-                    selected: isActive,
-                    onSelected: (_) {
-                      final globalIdx = tabState.tabs.indexOf(tab);
-                      ref.read(tabProvider.notifier).selectTab(globalIdx);
-                    },
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                );
-              },
-            ),
+        SizedBox(
+          height: 40,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            itemCount: sftpTabs.length,
+            itemBuilder: (context, index) {
+              final tab = sftpTabs[index];
+              final isActive = tab.id == activeSftpTab.id;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
+                child: InputChip(
+                  label: Text(tab.label, style: const TextStyle(fontSize: 13)),
+                  selected: isActive,
+                  onPressed: () {
+                    final globalIdx = tabState.tabs.indexOf(tab);
+                    ref.read(tabProvider.notifier).selectTab(globalIdx);
+                  },
+                  deleteIcon: const Icon(Icons.close, size: 16),
+                  onDeleted: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+                ),
+              );
+            },
           ),
+        ),
         Expanded(
           child: MobileFileBrowser(
             key: ValueKey(activeSftpTab.id),

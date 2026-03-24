@@ -139,26 +139,22 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
               const SizedBox(height: 4),
               // Path breadcrumb
               SizedBox(
-                height: 28,
+                height: 40,
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: _activeCtrl.canGoBack ? _activeCtrl.goBack : null,
-                      icon: const Icon(Icons.arrow_back, size: 18),
-                      padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.arrow_back, size: 22),
                     ),
                     IconButton(
                       onPressed: _activeCtrl.navigateUp,
-                      icon: const Icon(Icons.arrow_upward, size: 18),
-                      padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.arrow_upward, size: 22),
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         _activeCtrl.currentPath,
-                        style: const TextStyle(fontSize: 12),
+                        style: const TextStyle(fontSize: 13),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

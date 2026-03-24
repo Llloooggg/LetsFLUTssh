@@ -61,7 +61,7 @@ class _SshKeyboardBarState extends State<SshKeyboardBar> {
         // F-keys row (expandable)
         if (_showFnKeys)
           Container(
-            height: 38,
+            height: 44,
             color: barColor,
             child: ListView(
               scrollDirection: Axis.horizontal,
@@ -77,7 +77,7 @@ class _SshKeyboardBarState extends State<SshKeyboardBar> {
           ),
         // Main row
         Container(
-          height: 42,
+          height: 48,
           color: barColor,
           padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Row(
@@ -158,28 +158,28 @@ class _KeyButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 2),
       child: Material(
         color: isActive
             ? theme.colorScheme.primary.withValues(alpha: 0.3)
             : theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
             onTap();
           },
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(6),
           child: Container(
-            constraints: const BoxConstraints(minWidth: 32),
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+            constraints: const BoxConstraints(minWidth: 38),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             alignment: Alignment.center,
             child: icon != null
-                ? Icon(icon, size: 18, color: theme.colorScheme.onSurface)
+                ? Icon(icon, size: 20, color: theme.colorScheme.onSurface)
                 : Text(
                     label!,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: FontWeight.w500,
                       color: theme.colorScheme.onSurface,
                     ),
@@ -220,24 +220,24 @@ class _ModifierButton extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 2),
       child: Material(
         color: bg,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
             onTap();
           },
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(6),
           child: Container(
-            constraints: const BoxConstraints(minWidth: 36),
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+            constraints: const BoxConstraints(minWidth: 42),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             alignment: Alignment.center,
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: fg,
               ),

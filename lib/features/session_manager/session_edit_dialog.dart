@@ -304,48 +304,59 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
                 // Key fields (for key and keyWithPassword)
                 if (_authType == AuthType.key || _authType == AuthType.keyWithPassword) ...[
                   const SizedBox(height: 12),
-                  DropTarget(
-                    onDragEntered: (_) => setState(() => _keyDragging = true),
-                    onDragExited: (_) => setState(() => _keyDragging = false),
-                    onDragDone: (details) {
-                      setState(() => _keyDragging = false);
-                      final files = details.files;
-                      if (files.isNotEmpty) {
-                        final path = files.first.path;
-                        // If the file looks like a PEM key, read its contents into keyData
-                        final file = File(path);
-                        if (file.existsSync() && file.lengthSync() < 32768) {
-                          final content = file.readAsStringSync();
-                          if (content.contains('PRIVATE KEY')) {
-                            setState(() {
-                              _keyDataCtrl.text = content;
-                              _showKeyText = true;
-                            });
-                            return;
+                  if (isDesktopPlatform)
+                    DropTarget(
+                      onDragEntered: (_) => setState(() => _keyDragging = true),
+                      onDragExited: (_) => setState(() => _keyDragging = false),
+                      onDragDone: (details) {
+                        setState(() => _keyDragging = false);
+                        final files = details.files;
+                        if (files.isNotEmpty) {
+                          final path = files.first.path;
+                          // If the file looks like a PEM key, read its contents into keyData
+                          final file = File(path);
+                          if (file.existsSync() && file.lengthSync() < 32768) {
+                            final content = file.readAsStringSync();
+                            if (content.contains('PRIVATE KEY')) {
+                              setState(() {
+                                _keyDataCtrl.text = content;
+                                _showKeyText = true;
+                              });
+                              return;
+                            }
                           }
+                          // Otherwise just set the path
+                          setState(() => _keyPathCtrl.text = path);
                         }
-                        // Otherwise just set the path
-                        setState(() => _keyPathCtrl.text = path);
-                      }
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(4),
-                        border: _keyDragging
-                            ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
-                            : null,
-                      ),
-                      child: TextFormField(
-                        controller: _keyPathCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'Key File',
-                          hintText: '~/.ssh/id_rsa',
-                          prefixIcon: const Icon(Icons.vpn_key),
-                          suffixText: _keyDragging ? 'Drop here' : null,
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          border: _keyDragging
+                              ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                              : null,
+                        ),
+                        child: TextFormField(
+                          controller: _keyPathCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Key File',
+                            hintText: '~/.ssh/id_rsa',
+                            prefixIcon: const Icon(Icons.vpn_key),
+                            suffixText: _keyDragging ? 'Drop here' : null,
+                          ),
                         ),
                       ),
+                    )
+                  else
+                    // Mobile: key file path field without drag&drop
+                    TextFormField(
+                      controller: _keyPathCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Key File Path',
+                        hintText: '/path/to/key',
+                        prefixIcon: Icon(Icons.vpn_key),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,

@@ -106,6 +106,7 @@ class FilePaneDialogs {
     );
 
     if (confirmed == true) {
+      var deleted = 0;
       for (final entry in entries) {
         try {
           if (entry.isDir) {
@@ -113,6 +114,7 @@ class FilePaneDialogs {
           } else {
             await ctrl.fs.remove(entry.path);
           }
+          deleted++;
         } catch (e) {
           if (context.mounted) {
             Toast.show(context, message: 'Failed to delete ${entry.name}: $e', level: ToastLevel.error);
@@ -120,6 +122,10 @@ class FilePaneDialogs {
         }
       }
       await ctrl.refresh();
+      if (deleted > 0 && context.mounted) {
+        final msg = deleted == 1 ? 'Deleted ${entries.first.name}' : 'Deleted $deleted items';
+        Toast.show(context, message: msg, level: ToastLevel.success);
+      }
     }
   }
 }

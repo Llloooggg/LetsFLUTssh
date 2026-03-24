@@ -250,18 +250,23 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
-            child: const Text('Go'),
-          );
-        }),
+        home: Scaffold(
+          body: Builder(builder: (context) {
+            return ElevatedButton(
+              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+              child: const Text('Go'),
+            );
+          }),
+        ),
       ));
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+      // Pump past Toast auto-dismiss timer + animation
+      await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
 
       expect(fs.removedFiles, ['/test/file.txt']);
@@ -282,18 +287,23 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
-            child: const Text('Go'),
-          );
-        }),
+        home: Scaffold(
+          body: Builder(builder: (context) {
+            return ElevatedButton(
+              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+              child: const Text('Go'),
+            );
+          }),
+        ),
       ));
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+      // Pump past Toast auto-dismiss timer + animation
+      await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
 
       expect(fs.removedDirs, ['/test/mydir']);

@@ -40,7 +40,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         GestureDetector(
           onTap: () => setState(() => _expanded = !_expanded),
           child: Container(
-            height: 28,
+            height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerLow,
@@ -50,25 +50,25 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               children: [
                 Icon(
                   _expanded ? Icons.expand_more : Icons.expand_less,
-                  size: 16,
+                  size: 20,
                 ),
                 const SizedBox(width: 4),
                 const Text(
                   'Transfers',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 8),
                 if (status != null && status.hasActive)
                   Text(
                     '${status.running} active, ${status.queued} queued',
-                    style: TextStyle(fontSize: 11, color: theme.colorScheme.primary),
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.primary),
                   ),
                 if (status?.currentInfo != null) ...[
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       status!.currentInfo!,
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: 12),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -77,22 +77,18 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                 historyAsync.when(
                   data: (history) => Text(
                     '${history.length} in history',
-                    style: const TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 12),
                   ),
                   loading: () => const SizedBox.shrink(),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
                 const SizedBox(width: 4),
                 if (_expanded)
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: IconButton(
-                      onPressed: () => manager.clearHistory(),
-                      icon: const Icon(Icons.delete_sweep, size: 14),
-                      tooltip: 'Clear history',
-                      padding: EdgeInsets.zero,
-                    ),
+                  IconButton(
+                    onPressed: () => manager.clearHistory(),
+                    icon: const Icon(Icons.delete_sweep, size: 18),
+                    tooltip: 'Clear history',
+                    visualDensity: VisualDensity.compact,
                   ),
               ],
             ),
