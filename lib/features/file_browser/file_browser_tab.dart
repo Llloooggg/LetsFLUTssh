@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -146,6 +148,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                           _download(e);
                         }
                       },
+                      onOsDropReceived: (paths) => _osDropToLocal(paths),
                     ),
                   ),
                   // Draggable divider
@@ -180,6 +183,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                           _upload(e);
                         }
                       },
+                      onOsDropReceived: (paths) => _osDropToRemote(paths),
                     ),
                   ),
                 ],
@@ -251,5 +255,77 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         _localCtrl?.refresh();
       },
     ));
+  }
+
+  /// OS drop onto local pane — copy files into the current local directory.
+  void _osDropToLocal(List<String> paths) {
+    final manager = ref.read(transferManagerProvider);
+    for (final srcPath in paths) {
+      final name = p.basename(srcPath);
+      final targetPath = p.join(_localCtrl!.currentPath, name);
+      final isDir = FileSystemEntity.isDirectorySync(srcPath);
+
+      manager.enqueue(TransferTask(
+        name: isDir ? '$name/' : name,
+        direction: TransferDirection.download,
+        sourcePath: srcPath,
+        targetPath: targetPath,
+        run: (update) async {
+          update(0, 'Copying...');
+          if (isDir) {
+            await _copyDirLocal(Directory(srcPath), Directory(targetPath));
+          } else {
+            await File(srcPath).copy(targetPath);
+          }
+          update(100, 'Done');
+          _localCtrl?.refresh();
+        },
+      ));
+    }
+  }
+
+  /// OS drop onto remote pane — upload files to the current remote directory.
+  void _osDropToRemote(List<String> paths) {
+    if (_sftpService == null) return;
+    final manager = ref.read(transferManagerProvider);
+    final sftp = _sftpService!;
+
+    for (final srcPath in paths) {
+      final name = p.basename(srcPath);
+      final remotePath = p.posix.join(_remoteCtrl!.currentPath, name);
+      final isDir = FileSystemEntity.isDirectorySync(srcPath);
+
+      manager.enqueue(TransferTask(
+        name: isDir ? '$name/' : name,
+        direction: TransferDirection.upload,
+        sourcePath: srcPath,
+        targetPath: remotePath,
+        run: (update) async {
+          update(0, 'Starting upload...');
+          if (isDir) {
+            await sftp.uploadDir(srcPath, remotePath, (progress) {
+              update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
+            });
+          } else {
+            await sftp.upload(srcPath, remotePath, (progress) {
+              update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
+            });
+          }
+          _remoteCtrl?.refresh();
+        },
+      ));
+    }
+  }
+
+  Future<void> _copyDirLocal(Directory src, Directory dst) async {
+    await dst.create(recursive: true);
+    await for (final entity in src.list()) {
+      final name = p.basename(entity.path);
+      if (entity is File) {
+        await entity.copy(p.join(dst.path, name));
+      } else if (entity is Directory) {
+        await _copyDirLocal(entity, Directory(p.join(dst.path, name)));
+      }
+    }
   }
 }

@@ -1,3 +1,4 @@
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,6 +28,9 @@ class FilePane extends StatefulWidget {
   /// Called when files are dropped onto this pane from the other pane.
   final void Function(List<FileEntry> entries)? onDropReceived;
 
+  /// Called when files are dropped from the OS file manager.
+  final void Function(List<String> paths)? onOsDropReceived;
+
   const FilePane({
     super.key,
     required this.controller,
@@ -34,6 +38,7 @@ class FilePane extends StatefulWidget {
     this.onTransfer,
     this.onTransferMultiple,
     this.onDropReceived,
+    this.onOsDropReceived,
   });
 
   @override
@@ -44,6 +49,7 @@ class _FilePaneState extends State<FilePane> {
   final _pathController = TextEditingController();
   final _focusNode = FocusNode();
   bool _editingPath = false;
+  bool _osDragging = false;
 
   FilePaneController get ctrl => widget.controller;
 
@@ -88,18 +94,37 @@ class _FilePaneState extends State<FilePane> {
     return Focus(
       focusNode: _focusNode,
       onKeyEvent: _onKeyEvent,
-      child: Column(
-      children: [
-        // Header: label + navigation
-        _buildHeader(theme),
-        // Path bar
-        _buildPathBar(theme),
-        const Divider(height: 1),
-        // File list (with drop target)
-        Expanded(child: _buildDropTarget(_buildFileList(theme))),
-          // Footer: selection info
-          _buildFooter(theme),
-        ],
+      child: DropTarget(
+        onDragEntered: (_) => setState(() => _osDragging = true),
+        onDragExited: (_) => setState(() => _osDragging = false),
+        onDragDone: (details) {
+          setState(() => _osDragging = false);
+          _focusNode.requestFocus();
+          final paths = details.files.map((f) => f.path).toList();
+          if (paths.isNotEmpty) {
+            widget.onOsDropReceived?.call(paths);
+          }
+        },
+        child: Container(
+          decoration: _osDragging
+              ? BoxDecoration(
+                  border: Border.all(
+                    color: theme.colorScheme.primary,
+                    width: 2,
+                  ),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                )
+              : null,
+          child: Column(
+            children: [
+              _buildHeader(theme),
+              _buildPathBar(theme),
+              const Divider(height: 1),
+              Expanded(child: _buildDropTarget(_buildFileList(theme))),
+              _buildFooter(theme),
+            ],
+          ),
+        ),
       ),
     );
   }

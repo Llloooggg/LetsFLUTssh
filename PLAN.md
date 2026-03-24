@@ -117,7 +117,7 @@
         - [x] New Folder
     - [x] Internal drag&drop между панелями (Draggable + DragTarget)
     - [x] Marquee (rubber band) selection + Ctrl+click для multi-select
-    - [ ] OS drag&drop (`desktop_drop`) (deferred — native dependency)
+    - [x] OS drag&drop (`desktop_drop`) — drop files from OS into panes
     - [x] Transfer panel (bottom, collapsible)
         - [x] Active transfer info (count, current file)
         - [x] History list: Direction (↑/↓), Status, Name, Duration, Error
@@ -176,7 +176,7 @@
     - [x] Export: sessions (с credentials) + config + known_hosts
     - [x] Import: merge/replace mode, config + known_hosts import
     - [x] Master password → PBKDF2-SHA256 (100k iterations) → AES-256-GCM
-    - [ ] Drag&drop `.lfs` файла в окно (Phase 6)
+    - [x] Drag&drop `.lfs` файла в окно → автоимпорт
 - [x] Settings → Export Data / Import Data
 
 ## Phase 6: Advanced Features (v0.6)

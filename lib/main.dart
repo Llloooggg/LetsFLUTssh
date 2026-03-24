@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/connection/connection.dart';
 import 'core/session/session.dart';
 import 'core/ssh/errors.dart';
+import 'features/settings/export_import.dart';
 import 'widgets/toast.dart';
 import 'features/file_browser/file_browser_tab.dart';
 import 'features/settings/settings_screen.dart';
@@ -67,11 +71,16 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   }
 }
 
-class MainScreen extends ConsumerWidget {
+class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends ConsumerState<MainScreen> {
+  @override
+  Widget build(BuildContext context) {
     final tabState = ref.watch(tabProvider);
 
     return CallbackShortcuts(
@@ -100,7 +109,16 @@ class MainScreen extends ConsumerWidget {
       },
       child: Focus(
         autofocus: true,
-        child: LayoutBuilder(
+        child: DropTarget(
+          onDragDone: (details) {
+            final lfsFiles = details.files
+                .where((f) => f.path.endsWith('.lfs'))
+                .toList();
+            if (lfsFiles.isNotEmpty) {
+              _showLfsImportDialog(context, lfsFiles.first.path);
+            }
+          },
+          child: LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 600;
             final sessionPanel = SessionPanel(
@@ -151,6 +169,7 @@ class MainScreen extends ConsumerWidget {
               ),
             );
           },
+        ),
         ),
       ),
     );
@@ -236,6 +255,133 @@ class MainScreen extends ConsumerWidget {
 
   void _showError(BuildContext context, String message) {
     Toast.show(context, message: message, level: ToastLevel.error);
+  }
+
+  Future<void> _showLfsImportDialog(BuildContext context, String filePath) async {
+    final passwordCtrl = TextEditingController();
+
+    final result = await showDialog<({String password, ImportMode mode})>(
+      context: context,
+      builder: (ctx) {
+        var mode = ImportMode.merge;
+        return StatefulBuilder(
+          builder: (ctx, setState) => AlertDialog(
+            title: const Text('Import Data'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  File(filePath).uri.pathSegments.last,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passwordCtrl,
+                  obscureText: true,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Master Password',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (v) {
+                    if (v.isNotEmpty) {
+                      Navigator.pop(ctx, (password: v, mode: mode));
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                SegmentedButton<ImportMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ImportMode.merge,
+                      label: Text('Merge'),
+                      icon: Icon(Icons.merge, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: ImportMode.replace,
+                      label: Text('Replace'),
+                      icon: Icon(Icons.swap_horiz, size: 16),
+                    ),
+                  ],
+                  selected: {mode},
+                  onSelectionChanged: (s) => setState(() => mode = s.first),
+                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  mode == ImportMode.merge
+                      ? 'Add new sessions, keep existing'
+                      : 'Replace all sessions with imported',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  if (passwordCtrl.text.isEmpty) return;
+                  Navigator.pop(ctx, (password: passwordCtrl.text, mode: mode));
+                },
+                child: const Text('Import'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (result == null || !context.mounted) return;
+
+    try {
+      final importResult = await ExportImport.import_(
+        filePath: filePath,
+        masterPassword: result.password,
+        mode: result.mode,
+        importConfig: true,
+        importKnownHosts: true,
+      );
+
+      final sessionNotifier = ref.read(sessionProvider.notifier);
+      if (importResult.mode == ImportMode.replace) {
+        final existing = ref.read(sessionProvider);
+        for (final s in existing) {
+          await sessionNotifier.delete(s.id);
+        }
+      }
+      for (final s in importResult.sessions) {
+        try {
+          await sessionNotifier.add(s);
+        } catch (_) {
+          if (importResult.mode == ImportMode.replace) rethrow;
+        }
+      }
+
+      if (importResult.config != null) {
+        ref.read(configProvider.notifier).update((_) => importResult.config!);
+      }
+
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: 'Imported ${importResult.sessions.length} session(s)',
+          level: ToastLevel.success,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
+      }
+    }
   }
 }
 

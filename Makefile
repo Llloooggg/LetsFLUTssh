@@ -1,10 +1,17 @@
 APP_NAME := letsflutssh
-VERSION := 0.1.0
+VERSION := 0.5.2
 BUILD_DIR := build
 FLUTTER := flutter
+UNAME := $(shell uname)
+ARCH := $(shell uname -m)
+
+# Platform detection
+IS_LINUX := $(filter Linux,$(UNAME))
+IS_MACOS := $(filter Darwin,$(UNAME))
 
 .PHONY: all build run clean test analyze check gen watch deps upgrade doctor \
         build-linux build-windows build-macos build-apk build-aab build-ios \
+        linux windows macos apk ios \
         package-linux package-windows release \
         deps-linux deps-macos deps-windows help
 
@@ -19,7 +26,14 @@ run-release: ## Run the app (release mode)
 	$(FLUTTER) run --release
 
 build: ## Build for current platform (release)
-	$(FLUTTER) build $(shell $(FLUTTER) devices --machine 2>/dev/null | head -1 | grep -oP '"targetPlatform":\s*"\K[^"]+' || echo linux) --release
+ifdef IS_LINUX
+	$(FLUTTER) build linux
+else ifdef IS_MACOS
+	$(FLUTTER) build macos
+else
+	@echo "Error: unsupported platform $(UNAME). Use an explicit target (build-linux, build-windows, etc.)"
+	@exit 1
+endif
 
 test: ## Run all tests
 	$(FLUTTER) test
@@ -36,32 +50,56 @@ watch: ## Watch mode code generation
 	dart run build_runner watch --delete-conflicting-outputs
 
 ## ─── Platform Builds ──────────────────────────────────────────
+## Short aliases: make linux, make macos, make apk, etc.
 
-build-linux: ## Build for Linux (release)
-	$(FLUTTER) build linux --release
+linux: build-linux
+windows: build-windows
+macos: build-macos
+apk: build-apk
+ios: build-ios
 
-build-windows: ## Build for Windows (release)
-	$(FLUTTER) build windows --release
+build-linux: ## Build for Linux
+ifdef IS_LINUX
+	$(FLUTTER) build linux
+else
+	@echo "Error: Linux builds require a Linux host (current: $(UNAME))"
+	@exit 1
+endif
 
-build-macos: ## Build for macOS (release)
-	$(FLUTTER) build macos --release
+build-windows: ## Build for Windows
+	@echo "Error: Windows builds require a Windows host (current: $(UNAME))"
+	@echo "Use: flutter build windows (on Windows)"
+	@exit 1
 
-build-apk: ## Build Android APK (release)
-	$(FLUTTER) build apk --release
+build-macos: ## Build for macOS
+ifdef IS_MACOS
+	$(FLUTTER) build macos
+else
+	@echo "Error: macOS builds require a macOS host (current: $(UNAME))"
+	@exit 1
+endif
 
-build-aab: ## Build Android App Bundle (release)
-	$(FLUTTER) build appbundle --release
+build-apk: ## Build Android APK
+	$(FLUTTER) build apk
 
-build-ios: ## Build for iOS (release)
-	$(FLUTTER) build ios --release
+build-aab: ## Build Android App Bundle
+	$(FLUTTER) build appbundle
+
+build-ios: ## Build for iOS
+ifdef IS_MACOS
+	$(FLUTTER) build ios
+else
+	@echo "Error: iOS builds require a macOS host (current: $(UNAME))"
+	@exit 1
+endif
 
 ## ─── Packaging ────────────────────────────────────────────────
 
 package-linux: build-linux ## Build + tar.gz for Linux
 	@mkdir -p $(BUILD_DIR)/package
-	cd build/linux/x64/release/bundle && \
-		tar czf $(CURDIR)/$(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-linux-amd64.tar.gz .
-	@echo "Package: $(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-linux-amd64.tar.gz"
+	cd build/linux/$(ARCH)/release/bundle && \
+		tar czf $(CURDIR)/$(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-linux-$(ARCH).tar.gz .
+	@echo "Package: $(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-linux-$(ARCH).tar.gz"
 
 package-windows: build-windows ## Build + zip for Windows
 	@mkdir -p $(BUILD_DIR)/package
@@ -72,7 +110,13 @@ package-windows: build-windows ## Build + zip for Windows
 release: package-linux ## Build all release packages
 	@echo "Built packages:"
 	@ls -lh $(BUILD_DIR)/package/
-	@echo "Note: Windows/macOS builds require respective host OS"
+	@echo ""
+	@echo "Cross-platform builds require the respective host OS:"
+	@echo "  Linux:   make linux    (on Linux)"
+	@echo "  macOS:   make macos    (on macOS)"
+	@echo "  Windows: flutter build windows (on Windows)"
+	@echo "  Android: make apk      (any host with Android SDK)"
+	@echo "  iOS:     make ios      (on macOS with Xcode)"
 
 ## ─── Dependencies ─────────────────────────────────────────────
 
