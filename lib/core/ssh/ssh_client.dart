@@ -30,6 +30,9 @@ class SSHConnection {
 
   bool get isConnected => _client != null && !_disposed;
 
+  /// Underlying SSH client (for SFTP subsystem, etc.).
+  SSHClient? get client => _client;
+
   /// Connect to SSH server with auth chain.
   Future<void> connect() async {
     if (_disposed) throw const ConnectError('Connection disposed');

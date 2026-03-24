@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/connection/connection.dart';
 import 'core/session/session.dart';
 import 'core/ssh/errors.dart';
+import 'features/file_browser/file_browser_tab.dart';
 import 'features/session_manager/quick_connect_dialog.dart';
 import 'features/session_manager/session_panel.dart';
 import 'features/tabs/tab_bar.dart';
 import 'features/tabs/tab_controller.dart';
+import 'features/tabs/tab_model.dart';
 import 'features/tabs/welcome_screen.dart';
 import 'features/terminal/terminal_tab.dart';
 import 'providers/config_provider.dart';
@@ -92,7 +95,13 @@ class MainScreen extends ConsumerWidget {
           body: Column(
             children: [
               // Toolbar
-              _Toolbar(onQuickConnect: () => _quickConnect(context, ref)),
+              _Toolbar(
+                onQuickConnect: () => _quickConnect(context, ref),
+                onOpenSftp: tabState.activeTab != null &&
+                        tabState.activeTab!.connection.isConnected
+                    ? () => _openSftp(ref, tabState.activeTab!.connection)
+                    : null,
+              ),
               // Tab bar
               const AppTabBar(),
               if (tabState.tabs.isNotEmpty) const Divider(height: 1),
@@ -101,6 +110,7 @@ class MainScreen extends ConsumerWidget {
                 child: SplitView(
                   left: SessionPanel(
                     onConnect: (session) => _connectSession(context, ref, session),
+                    onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
                   ),
                   right: tabState.activeTab != null
                       ? _buildTabContent(tabState)
@@ -122,12 +132,42 @@ class MainScreen extends ConsumerWidget {
     return IndexedStack(
       index: tabState.activeIndex,
       children: tabState.tabs.map((tab) {
-        return TerminalTab(
-          key: ValueKey(tab.id),
-          connection: tab.connection,
-        );
+        switch (tab.kind) {
+          case TabKind.terminal:
+            return TerminalTab(
+              key: ValueKey(tab.id),
+              connection: tab.connection,
+            );
+          case TabKind.sftp:
+            return FileBrowserTab(
+              key: ValueKey(tab.id),
+              connection: tab.connection,
+            );
+        }
       }).toList(),
     );
+  }
+
+  void _openSftp(WidgetRef ref, Connection connection) {
+    ref.read(tabProvider.notifier).addSftpTab(connection);
+  }
+
+  Future<void> _connectSessionSftp(BuildContext context, WidgetRef ref, Session session) async {
+    final config = session.toSSHConfig();
+    try {
+      final manager = ref.read(connectionManagerProvider);
+      final conn = await manager.connect(
+        config,
+        label: session.label.isNotEmpty ? session.label : session.displayName,
+      );
+      ref.read(tabProvider.notifier).addSftpTab(conn);
+    } on AuthError catch (e) {
+      if (context.mounted) _showError(context, 'Authentication failed: ${e.message}');
+    } on ConnectError catch (e) {
+      if (context.mounted) _showError(context, 'Connection failed: ${e.message}');
+    } catch (e) {
+      if (context.mounted) _showError(context, 'Error: $e');
+    }
   }
 
   Future<void> _connectSession(BuildContext context, WidgetRef ref, Session session) async {
@@ -179,8 +219,9 @@ class MainScreen extends ConsumerWidget {
 
 class _Toolbar extends StatelessWidget {
   final VoidCallback onQuickConnect;
+  final VoidCallback? onOpenSftp;
 
-  const _Toolbar({required this.onQuickConnect});
+  const _Toolbar({required this.onQuickConnect, this.onOpenSftp});
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +248,13 @@ class _Toolbar extends StatelessWidget {
             tooltip: 'Quick Connect (Ctrl+N)',
             visualDensity: VisualDensity.compact,
           ),
+          if (onOpenSftp != null)
+            IconButton(
+              onPressed: onOpenSftp,
+              icon: const Icon(Icons.folder_open, size: 18),
+              tooltip: 'Open SFTP Browser',
+              visualDensity: VisualDensity.compact,
+            ),
           const Spacer(),
         ],
       ),

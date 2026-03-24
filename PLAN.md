@@ -80,60 +80,53 @@
 - [x] Sidebar resizable с drag-divider
 - [x] Тесты: session validation, tree building (28 тестов всего)
 
-## Phase 3: SFTP File Browser (v0.3)
+## Phase 3: SFTP File Browser (v0.3) ✅
 
 **Goal:** Двухпанельный файловый менеджер (local | remote) с drag&drop
 
-- [ ] `lib/core/sftp/` — SFTP клиент
-    - [ ] `SFTPService` — обёртка над dartssh2 SFTP
-        - [ ] `list(path)` → sorted (dirs first, alphabetical)
-        - [ ] `upload(local, remote, onProgress)` — с progress callback
-        - [ ] `download(remote, local, onProgress)` — с progress callback
-        - [ ] `uploadDir(localDir, remoteDir, onProgress)` — recursive
-        - [ ] `downloadDir(remoteDir, localDir, onProgress)` — recursive
-        - [ ] `mkdir`, `remove`, `removeDir`, `rename`, `chmod`, `stat`, `getwd`
-    - [ ] `FileSystem` interface + `LocalFS` + `RemoteFS`
-    - [ ] `FileEntry` модель: name, path, size, mode, modTime, isDir
-    - [ ] `TransferProgress` модель: fileName, totalBytes, doneBytes, percent
-- [ ] `lib/core/transfer/` — transfer manager
-    - [ ] `TransferManager` — очередь задач + parallel workers (configurable)
-    - [ ] `TransferTask` — name, direction (upload/download), source, target, run function
-    - [ ] `HistoryEntry` — id, name, direction, status, error, duration, timestamps
-    - [ ] `clearHistory()`, `deleteHistory(ids)`
-- [ ] `lib/features/file_browser/` — UI файлового менеджера
-    - [ ] Split-pane: local (left) | remote (right) — resizable divider
-    - [ ] `FilePane` — generic single-pane file list
-        - [ ] DataTable: Name, Size, Mode, Modified — click-to-sort headers (▲/▼)
-        - [ ] Dirs always first in sort
-        - [ ] Double-click folder → navigate
-        - [ ] Editable path bar (Enter → navigate)
-        - [ ] Back / Forward buttons с историей навигации
-        - [ ] Refresh button
-        - [ ] Multi-select (Ctrl+click, Shift+click)
-    - [ ] Context menu (right-click on file):
-        - [ ] Download / Upload (в зависимости от панели)
-        - [ ] Rename
-        - [ ] Delete (с confirm dialog)
-        - [ ] New Folder
-        - [ ] Properties (name, path, size, mode, isDir)
-    - [ ] Internal drag&drop между панелями
-        - [ ] Drag из local → drop в remote = upload
-        - [ ] Drag из remote → drop в local = download
-        - [ ] Visual feedback (highlight target pane)
-    - [ ] OS drag&drop (`desktop_drop`)
-        - [ ] Drop файлов из файлового менеджера ОС в remote pane → auto upload
-    - [ ] Transfer panel (bottom, collapsible)
-        - [ ] Progress bar для текущей передачи
-        - [ ] History table: Time, Direction (↑/↓), File, Source, Target, Status, Elapsed, Info
-        - [ ] Sortable columns
-        - [ ] Auto-reveal при начале передачи
-        - [ ] Toggle bar "▲ Transfers" для collapse
-        - [ ] Clear history / delete entry
-- [ ] SFTP кнопка в toolbar → открывает SFTP tab для текущего подключения
-- [ ] Multiple SFTP tabs per connection
-- [ ] SFTP-only connect (SSH в фоне, без terminal tab)
-- [ ] `lib/providers/transfer_provider.dart` — Riverpod provider
-- [ ] Тесты: FileSystem interface, transfer manager queue, history
+- [x] `lib/core/sftp/` — SFTP клиент
+    - [x] `SFTPService` — обёртка над dartssh2 SFTP
+        - [x] `list(path)` → sorted (dirs first, alphabetical)
+        - [x] `upload(local, remote, onProgress)` — с progress callback
+        - [x] `download(remote, local, onProgress)` — с progress callback
+        - [ ] `uploadDir(localDir, remoteDir, onProgress)` — recursive (deferred to Phase 6)
+        - [ ] `downloadDir(remoteDir, localDir, onProgress)` — recursive (deferred to Phase 6)
+        - [x] `mkdir`, `remove`, `removeDir`, `rename`, `stat`, `getwd`
+    - [x] `FileSystem` interface + `LocalFS` + `RemoteFS`
+    - [x] `FileEntry` модель: name, path, size, mode, modTime, isDir
+    - [x] `TransferProgress` модель: fileName, totalBytes, doneBytes, percent
+- [x] `lib/core/transfer/` — transfer manager
+    - [x] `TransferManager` — очередь задач + parallel workers (configurable)
+    - [x] `TransferTask` — name, direction (upload/download), source, target, run function
+    - [x] `HistoryEntry` — id, name, direction, status, error, duration, timestamps
+    - [x] `clearHistory()`, `deleteHistory(ids)`
+- [x] `lib/features/file_browser/` — UI файлового менеджера
+    - [x] Split-pane: local (left) | remote (right)
+    - [x] `FilePane` — generic single-pane file list
+        - [x] File list: Name, Size, Mode, Modified — click-to-sort
+        - [x] Dirs always first in sort
+        - [x] Double-click folder → navigate
+        - [x] Editable path bar (Enter → navigate)
+        - [x] Back / Forward buttons с историей навигации
+        - [x] Refresh button
+        - [x] Multi-select (Ctrl+click)
+    - [x] Context menu (right-click on file):
+        - [x] Download / Upload (в зависимости от панели)
+        - [x] Rename
+        - [x] Delete (с confirm dialog)
+        - [x] New Folder
+    - [ ] Internal drag&drop между панелями (deferred to Phase 6)
+    - [ ] OS drag&drop (`desktop_drop`) (deferred to Phase 6)
+    - [x] Transfer panel (bottom, collapsible)
+        - [x] Active transfer info (count, current file)
+        - [x] History list: Direction (↑/↓), Status, Name, Duration, Error
+        - [x] Toggle bar "Transfers" для collapse
+        - [x] Clear history
+- [x] SFTP кнопка в toolbar → открывает SFTP tab для текущего подключения
+- [x] Multiple SFTP tabs per connection
+- [x] SFTP-only connect — через context menu "SFTP Only"
+- [x] `lib/providers/transfer_provider.dart` — Riverpod provider
+- [x] Тесты: sftp models, transfer manager, format utils (53 теста всего)
 
 ## Phase 4: Polish & UX (v0.4)
 
@@ -249,18 +242,7 @@
 - [ ] Android build (APK + AAB)
 - [ ] iOS build
 
-## Phase 9: Import from LetsGOssh (v0.x)
-
-**Goal:** Миграция данных из старой Go-версии
-
-- [ ] Import sessions from `~/.letsgossh/sessions.json`
-    - [ ] Map fields: label, group, host, port, user, authType, password, keyPath, keyData
-    - [ ] Migrate passwords to flutter_secure_storage
-- [ ] Import config from `~/.letsgossh/config.json`
-- [ ] Import known_hosts from `~/.letsgossh/known_hosts`
-- [ ] Auto-detect on first launch (если `~/.letsgossh/` существует → предложить импорт)
-
-## Phase 10: Stable Release (v1.0)
+## Phase 9: Stable Release (v1.0)
 
 **Goal:** Production-ready release
 
@@ -293,20 +275,18 @@
 Фаза 4 — polish до юзабельного состояния.
 Фазы 5-7 — advanced features.
 Фаза 8 — mobile.
-Фаза 9 — миграция с LetsGOssh (может быть раньше, если нужно).
-Фаза 10 — стабильный релиз.
+Фаза 9 — стабильный релиз.
 
 ### Оценка трудоёмкости
 
-| Phase | Описание | Сложность |
-|-------|----------|-----------|
-| 1 | Foundation + Terminal | Medium (dartssh2 + xterm.dart делают основную работу) |
-| 2 | Session Manager | Medium (UI-heavy, но простая логика) |
-| 3 | SFTP File Browser | Hard (много UI: dual-pane, drag&drop, history) |
-| 4 | Polish & UX | Medium (доводка существующего) |
-| 5 | Security & Export | Medium (flutter_secure_storage + zip/crypto) |
-| 6 | Advanced | Hard (port forwarding, multi-exec) |
-| 7 | Tiling | Medium (recursive split layout) |
-| 8 | Mobile | Hard (адаптивный UI + virtual keyboard + platform integration) |
-| 9 | Import | Easy (JSON parsing + mapping) |
-| 10 | Release | Medium (CI/CD + packaging + testing) |
+| Phase | Описание              | Сложность                                                      |
+| ----- | --------------------- | -------------------------------------------------------------- |
+| 1     | Foundation + Terminal | Medium (dartssh2 + xterm.dart делают основную работу)          |
+| 2     | Session Manager       | Medium (UI-heavy, но простая логика)                           |
+| 3     | SFTP File Browser     | Hard (много UI: dual-pane, drag&drop, history)                 |
+| 4     | Polish & UX           | Medium (доводка существующего)                                 |
+| 5     | Security & Export     | Medium (flutter_secure_storage + zip/crypto)                   |
+| 6     | Advanced              | Hard (port forwarding, multi-exec)                             |
+| 7     | Tiling                | Medium (recursive split layout)                                |
+| 8     | Mobile                | Hard (адаптивный UI + virtual keyboard + platform integration) |
+| 9     | Release               | Medium (CI/CD + packaging + testing)                           |

@@ -26,6 +26,22 @@ class TabNotifier extends StateNotifier<TabState> {
     return id;
   }
 
+  /// Open a new SFTP tab for a connection.
+  String addSftpTab(Connection connection, {String? label}) {
+    final id = _uuid.v4();
+    final tab = TabEntry(
+      id: id,
+      label: label ?? '${connection.label} (SFTP)',
+      connection: connection,
+      kind: TabKind.sftp,
+    );
+    state = state.copyWith(
+      tabs: [...state.tabs, tab],
+      activeIndex: state.tabs.length,
+    );
+    return id;
+  }
+
   /// Close a tab by id.
   void closeTab(String id) {
     final idx = state.tabs.indexWhere((t) => t.id == id);

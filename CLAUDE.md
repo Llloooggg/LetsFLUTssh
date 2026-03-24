@@ -180,7 +180,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.2.0 — Phase 2 complete)
+## Current State (v0.3.0 — Phase 3 complete)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -188,7 +188,7 @@ LetsFLUTssh/
 - **Session Manager** — сохранение сессий в JSON, CRUD, duplicate
 - **Session TreeView** — вложенные группы (Production/Web/nginx1), expand/collapse
 - **Search/filter** — по label, group, host, user
-- **Context menu** — SSH connect, Edit, Delete, Duplicate (right-click)
+- **Context menu** — SSH connect, SFTP connect, Edit, Delete, Duplicate (right-click)
 - **Double-click** → SSH connect
 - **Session Edit Dialog** — auth type selector (Password/Key/Key+Pass), group autocomplete
 - **Resizable sidebar** — drag-divider между sidebar и content area
@@ -208,6 +208,14 @@ LetsFLUTssh/
 - Keyboard shortcuts: Ctrl+N (quick connect), Ctrl+W (close tab), Ctrl+Tab (next tab)
 - Riverpod state management (config, connections, tabs, theme)
 - Makefile (run, build, test, analyze, gen, clean)
+- **SFTP File Browser** — dual-pane (local | remote) с navigation history
+- **File pane** — sortable list (name/size/mode/modified), editable path bar, back/forward/up/refresh
+- **Context menu** — open dir, transfer, new folder, rename, delete (single + multi-select)
+- **Transfer Manager** — queue с configurable parallelism (default 2 workers)
+- **Transfer Panel** — collapsible bottom panel с history (completed/failed, duration, error details)
+- **SFTP toolbar button** — opens SFTP tab for active connection
+- **Session context menu** — "SFTP Only" option для прямого подключения к file browser
+- **FileSystem interface** — абстракция LocalFS/RemoteFS (как в LetsGOssh)
 
 ### Решения и почему
 - **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
@@ -215,6 +223,9 @@ LetsFLUTssh/
 - **dartssh2 host key callback** — signature `FutureOr<bool> Function(String type, Uint8List fingerprint)`, не SSHPublicKey
 - **IndexedStack для табов** — сохраняет состояние терминала при переключении между вкладками
 - **Flutter SDK** — установлен в `/home/llloooggg/flutter-sdk` (stable 3.41.5, Dart 3.11.3)
+- **dartssh2 SFTP API** — `attr.mode?.value` (не `attr.permissions?.mode`), `remoteFile.writeBytes()` (не `write()`)
+- **FilePaneController как ChangeNotifier** — lightweight state для каждой панели, без Riverpod overhead для внутреннего состояния навигации
+- **TransferManager с Stream notifications** — Riverpod StreamProvider подписывается на onChange для reactive UI updates
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 
