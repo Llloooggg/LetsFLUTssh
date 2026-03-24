@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../utils/platform.dart';
 import 'sftp_models.dart';
 
 /// Abstract file system interface — local or remote.
@@ -18,7 +19,8 @@ abstract class FileSystem {
 class LocalFS implements FileSystem {
   @override
   Future<String> initialDir() async {
-    return Platform.environment['HOME'] ?? Directory.current.path;
+    final home = homeDirectory;
+    return home.isNotEmpty ? home : Directory.current.path;
   }
 
   @override

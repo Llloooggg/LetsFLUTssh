@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:uuid/uuid.dart';
 
+import '../../utils/platform.dart';
 import '../ssh/ssh_config.dart';
 
 /// Authentication type for a session.
@@ -60,7 +59,7 @@ class Session {
   SSHConfig toSSHConfig() {
     final expandedKeyPath = keyPath.replaceFirst(
       '~',
-      Platform.environment['HOME'] ?? '',
+      homeDirectory,
     );
     return SSHConfig(
       host: host,

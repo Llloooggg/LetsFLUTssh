@@ -4,6 +4,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/session/session.dart';
+import '../../utils/platform.dart';
 
 /// Dialog for creating or editing a session.
 class SessionEditDialog extends StatefulWidget {
@@ -93,7 +94,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
     final keyPath = _keyPathCtrl.text.trim().replaceFirst(
       '~',
-      Platform.environment['HOME'] ?? '',
+      homeDirectory,
     );
 
     final session = _isEditing

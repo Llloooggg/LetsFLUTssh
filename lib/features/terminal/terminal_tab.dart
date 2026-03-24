@@ -157,7 +157,6 @@ class _TerminalTabState extends State<TerminalTab> {
         },
       },
       child: Focus(
-        autofocus: true,
         child: Column(
           children: [
             if (_showSearch) _buildSearchBar(context),

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/ssh/ssh_config.dart';
+import '../../utils/platform.dart';
 
 /// Quick Connect dialog — host, port, user, password, key file/text.
 class QuickConnectDialog extends StatefulWidget {
@@ -51,7 +52,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
 
     final keyPath = _keyPathCtrl.text.trim().replaceFirst(
       '~',
-      Platform.environment['HOME'] ?? '',
+      homeDirectory,
     );
 
     final config = SSHConfig(
@@ -69,7 +70,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
 
   String? _validateKeyPath(String? value) {
     if (value == null || value.trim().isEmpty) return null;
-    final expanded = value.trim().replaceFirst('~', Platform.environment['HOME'] ?? '');
+    final expanded = value.trim().replaceFirst('~', homeDirectory);
     if (!File(expanded).existsSync()) {
       return 'File not found';
     }

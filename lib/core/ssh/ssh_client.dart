@@ -5,6 +5,7 @@ import 'dart:ui' show VoidCallback;
 
 import 'package:dartssh2/dartssh2.dart';
 
+import '../../utils/platform.dart';
 import 'errors.dart';
 import 'known_hosts.dart';
 import 'ssh_config.dart';
@@ -167,7 +168,7 @@ class SSHConnection {
 
     // Auto-detect keys from ~/.ssh/ (like OpenSSH) if no explicit key provided
     if (identities.isEmpty) {
-      final home = Platform.environment['HOME'] ?? '';
+      final home = homeDirectory;
       if (home.isNotEmpty) {
         final sshDir = Directory('$home/.ssh');
         if (await sshDir.exists()) {
