@@ -31,6 +31,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   SFTPService? _sftpService;
   bool _initializing = true;
   String? _error;
+  double _splitRatio = 0.5;
 
   @override
   void initState() {
@@ -118,36 +119,60 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
     return Column(
       children: [
-        // Dual-pane file browser
+        // Dual-pane file browser with resizable split
         Expanded(
-          child: Row(
-            children: [
-              // Local pane
-              Expanded(
-                child: FilePane(
-                  controller: _localCtrl!,
-                  onTransfer: (entry) => _upload(entry),
-                  onTransferMultiple: (entries) {
-                    for (final e in entries) {
-                      _upload(e);
-                    }
-                  },
-                ),
-              ),
-              const VerticalDivider(width: 1),
-              // Remote pane
-              Expanded(
-                child: FilePane(
-                  controller: _remoteCtrl!,
-                  onTransfer: (entry) => _download(entry),
-                  onTransferMultiple: (entries) {
-                    for (final e in entries) {
-                      _download(e);
-                    }
-                  },
-                ),
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final maxWidth = constraints.maxWidth;
+              final leftWidth = (_splitRatio * maxWidth)
+                  .clamp(100.0, maxWidth - 100);
+
+              return Row(
+                children: [
+                  // Local pane
+                  SizedBox(
+                    width: leftWidth,
+                    child: FilePane(
+                      controller: _localCtrl!,
+                      onTransfer: (entry) => _upload(entry),
+                      onTransferMultiple: (entries) {
+                        for (final e in entries) {
+                          _upload(e);
+                        }
+                      },
+                    ),
+                  ),
+                  // Draggable divider
+                  MouseRegion(
+                    cursor: SystemMouseCursors.resizeColumn,
+                    child: GestureDetector(
+                      onHorizontalDragUpdate: (d) {
+                        setState(() {
+                          _splitRatio = ((_splitRatio * maxWidth + d.delta.dx) / maxWidth)
+                              .clamp(0.2, 0.8);
+                        });
+                      },
+                      child: Container(
+                        width: 4,
+                        color: Theme.of(context).dividerColor,
+                      ),
+                    ),
+                  ),
+                  // Remote pane
+                  Expanded(
+                    child: FilePane(
+                      controller: _remoteCtrl!,
+                      onTransfer: (entry) => _download(entry),
+                      onTransferMultiple: (entries) {
+                        for (final e in entries) {
+                          _download(e);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
         // Transfer panel

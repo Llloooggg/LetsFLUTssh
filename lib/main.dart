@@ -114,36 +114,40 @@ class MainScreen extends ConsumerWidget {
                     onQuickConnect: () => _quickConnect(context, ref),
                   );
 
+            // Right side: toolbar + tabs + content + status bar
+            final rightSide = Column(
+              children: [
+                // Toolbar
+                _Toolbar(
+                  onQuickConnect: () => _quickConnect(context, ref),
+                  onOpenSftp: tabState.activeTab != null &&
+                          tabState.activeTab!.connection.isConnected
+                      ? () => _openSftp(ref, tabState.activeTab!.connection)
+                      : null,
+                  showMenuButton: isNarrow,
+                ),
+                // Tab bar
+                const AppTabBar(),
+                if (tabState.tabs.isNotEmpty) const Divider(height: 1),
+                // Content area
+                Expanded(child: content),
+                // Status bar
+                _StatusBar(tabState: tabState),
+              ],
+            );
+
+            if (isNarrow) {
+              return Scaffold(
+                drawer: Drawer(width: 280, child: SafeArea(child: sessionPanel)),
+                body: rightSide,
+              );
+            }
+
+            // Desktop: full-height sidebar | right side
             return Scaffold(
-              drawer: isNarrow
-                  ? Drawer(width: 280, child: SafeArea(child: sessionPanel))
-                  : null,
-              body: Column(
-                children: [
-                  // Toolbar
-                  _Toolbar(
-                    onQuickConnect: () => _quickConnect(context, ref),
-                    onOpenSftp: tabState.activeTab != null &&
-                            tabState.activeTab!.connection.isConnected
-                        ? () => _openSftp(ref, tabState.activeTab!.connection)
-                        : null,
-                    showMenuButton: isNarrow,
-                  ),
-                  // Tab bar
-                  const AppTabBar(),
-                  if (tabState.tabs.isNotEmpty) const Divider(height: 1),
-                  // Split: sidebar | content (or just content on narrow)
-                  Expanded(
-                    child: isNarrow
-                        ? content
-                        : SplitView(
-                            left: sessionPanel,
-                            right: content,
-                          ),
-                  ),
-                  // Status bar
-                  _StatusBar(tabState: tabState),
-                ],
+              body: SplitView(
+                left: sessionPanel,
+                right: rightSide,
               ),
             );
           },
@@ -332,11 +336,14 @@ class _StatusBar extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 6),
-            Text(
-              active.connection.isConnected
-                  ? 'Connected: ${active.connection.label}'
-                  : 'Disconnected',
-              style: const TextStyle(fontSize: 11),
+            Flexible(
+              child: Text(
+                active.connection.isConnected
+                    ? 'Connected: ${active.connection.label}'
+                    : 'Disconnected',
+                style: const TextStyle(fontSize: 11),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ] else
             const Text(

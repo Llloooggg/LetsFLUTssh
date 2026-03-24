@@ -182,10 +182,15 @@ class _FilePaneState extends State<FilePane> {
     }
 
     if (ctrl.entries.isEmpty) {
-      return const Center(child: Text('Empty directory', style: TextStyle(fontSize: 13)));
+      return GestureDetector(
+        onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
+        child: const Center(child: Text('Empty directory', style: TextStyle(fontSize: 13))),
+      );
     }
 
-    return ListView.builder(
+    return GestureDetector(
+      onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
+      child: ListView.builder(
       itemCount: ctrl.entries.length,
       itemBuilder: (context, index) {
         final entry = ctrl.entries[index];
@@ -206,6 +211,7 @@ class _FilePaneState extends State<FilePane> {
           onContextMenu: (offset) => _showContextMenu(context, offset, entry),
         );
       },
+      ),
     );
   }
 
@@ -238,6 +244,26 @@ class _FilePaneState extends State<FilePane> {
           ],
         ],
       ),
+    );
+  }
+
+  void _showBackgroundContextMenu(BuildContext context, Offset position) {
+    ctrl.clearSelection();
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx, position.dy, position.dx, position.dy,
+      ),
+      items: [
+        PopupMenuItem(
+          onTap: () => _showNewFolderDialog(context),
+          child: const _MenuRow(icon: Icons.create_new_folder, text: 'New Folder'),
+        ),
+        PopupMenuItem(
+          onTap: () => ctrl.refresh(),
+          child: const _MenuRow(icon: Icons.refresh, text: 'Refresh'),
+        ),
+      ],
     );
   }
 
@@ -447,45 +473,27 @@ class _FileRow extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Expanded(
-                flex: 3,
                 child: Text(
                   entry.name,
                   style: const TextStyle(fontSize: 12),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              SizedBox(
-                width: 70,
-                child: Text(
-                  entry.isDir ? '' : formatSize(entry.size),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                  textAlign: TextAlign.right,
+              const SizedBox(width: 6),
+              Text(
+                entry.isDir ? '' : formatSize(entry.size),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 80,
-                child: Text(
-                  entry.modeString,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 100,
-                child: Text(
-                  formatTimestamp(entry.modTime),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
+              const SizedBox(width: 6),
+              Text(
+                entry.modeString,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],

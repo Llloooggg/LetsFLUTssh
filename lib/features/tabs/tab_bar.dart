@@ -22,10 +22,12 @@ class AppTabBar extends ConsumerWidget {
       child: ReorderableListView.builder(
         scrollDirection: Axis.horizontal,
         buildDefaultDragHandles: false,
+        clipBehavior: Clip.none,
         proxyDecorator: (child, index, animation) {
           return Material(
             elevation: 4,
             color: Colors.transparent,
+            borderOnForeground: false,
             child: child,
           );
         },
@@ -166,10 +168,14 @@ class _TabItem extends StatelessWidget {
             const SizedBox(width: 6),
             Icon(_kindIcon(), size: 14),
             const SizedBox(width: 4),
-            Text(
-              tab.label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 150),
+              child: Text(
+                tab.label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(width: 4),
