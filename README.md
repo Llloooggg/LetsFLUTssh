@@ -1,5 +1,7 @@
 # LetsFLUTssh
 
+> **Disclaimer:** This is a neuroslop pet project — built entirely with AI assistance for personal use, self-education, and fun. Use at your own risk.
+
 Lightweight cross-platform SSH/SFTP client with GUI, built with Flutter.
 
 Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS, Android, and iOS.
@@ -7,6 +9,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 ## Features
 
 ### SSH Terminal
+
 - Full xterm/VT100 terminal emulation (256-color, RGB, curses apps)
 - Password, key file, PEM text, and SSH agent authentication
 - Auto-detect SSH keys from `~/.ssh/` (id_ed25519, id_ecdsa, id_rsa)
@@ -19,6 +22,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Right-click context menu (Copy / Paste / Split / Close Pane)
 
 ### Session Manager
+
 - Save and organize SSH sessions
 - Nested group folders (e.g. `Production/Web/nginx1`) with create/rename/delete
 - Search and filter by label, group, host, user
@@ -27,34 +31,40 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Host key verification (TOFU) with SHA256 fingerprint dialog
 
 ### SFTP File Browser
+
 - Dual-pane layout: local files | remote files
 - Upload, download, rename, delete, create folders
 - Drag & drop between panes and from OS file manager
+- Rubber-band (marquee) multi-select
 - Transfer queue with parallel workers
 - Transfer history with progress tracking
 - Sortable file table (name, size, permissions, date)
 
 ### Multi-Tab Interface
+
 - Multiple terminal and SFTP tabs
 - Drag-to-reorder tabs
 - Multiple SFTP tabs per SSH connection
 - SFTP-only connections (no terminal)
 
 ### Security & Data Portability
+
 - Credentials encrypted with AES-256-GCM (stored separately from session metadata)
 - File permissions restricted (chmod 600) on Unix systems
-- Known hosts verification (TOFU) — explicit user confirmation required
+- Known hosts verification (TOFU) — explicit user confirmation required, no auto-accept
 - Data export/import to `.lfs` archive (ZIP + AES-256-GCM, PBKDF2-SHA256 600k iterations)
 - Import modes: merge (add new) or replace (overwrite all)
 - Auto-migration from plaintext to encrypted storage on upgrade
 
 ### Appearance
+
 - **OneDark theme** — Atom OneDark Pro color palette (dark mode)
 - **One Light theme** — matching light variant
 - System theme auto-detection
 - Configurable font size, scrollback, keep-alive, and more
 
 ### Mobile
+
 - Bottom navigation (Sessions / Terminal / Files)
 - **SSH virtual keyboard** — Esc, Tab, Ctrl, Alt, arrows, F1-F12, sticky modifiers
 - Pinch-to-zoom terminal font size
@@ -62,9 +72,10 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Long-press selection mode with bulk actions
 - Swipe left/right to switch navigation tabs
 - Deep link: `letsflutssh://connect?host=X&user=Y`
-- Open SSH key files (.pem/.key) directly from file manager
+- Open SSH key files (.pem/.key) and .lfs archives directly from file manager
 
 ### Cross-Platform
+
 - **Desktop:** Windows, Linux, macOS
 - **Mobile:** Android, iOS
 - Native rendering via Flutter (Skia/Impeller) — no WebView
@@ -78,6 +89,7 @@ _Coming soon_
 ### Pre-built Binaries
 
 Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
+
 - **Linux:** AppImage, .deb, tar.gz
 - **Windows:** MSIX, portable zip
 - **macOS:** dmg, tar.gz
@@ -86,6 +98,7 @@ Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
 ### Build from Source
 
 **Prerequisites:**
+
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) 3.x (Dart 3.x included)
 - Platform-specific toolchain (see below)
 
@@ -174,14 +187,17 @@ make build-ios
 
 ## Current Status
 
-**v0.9.0** — Phase 9 (Stable Release) complete. All core features implemented across 9 phases:
-- Phases 1-3: SSH terminal, session manager, SFTP file browser (MVP)
-- Phase 4: Polish — tab reorder, toast notifications, settings, responsive layout
-- Phase 5: Security — AES-256-GCM credential encryption, .lfs export/import
-- Phase 6: Terminal search (Ctrl+Shift+F), auto-detect SSH keys, session folders
-- Phase 7: Tiling terminal layout — recursive split, drag-to-resize, focus tracking
-- Phase 8: Mobile UI — bottom nav, SSH virtual keyboard, deep links, swipe navigation
-- Phase 9: 242 tests, security audit, packaging (AppImage/deb/dmg/MSIX), user docs
+**v0.9.0-beta** — All core features implemented across 9 development phases:
+
+| Phase | What                                                                       |
+| ----- | -------------------------------------------------------------------------- |
+| 1-3   | SSH terminal, session manager, SFTP file browser (MVP)                     |
+| 4     | Polish — tab reorder, toast notifications, settings, responsive layout     |
+| 5     | Security — AES-256-GCM credential encryption, .lfs export/import           |
+| 6     | Terminal search, auto-detect SSH keys, session folders                     |
+| 7     | Tiling terminal layout — recursive split, drag-to-resize, focus tracking   |
+| 8     | Mobile UI — bottom nav, SSH virtual keyboard, deep links, swipe navigation |
+| 9     | 242 tests, security audit, performance profiling, packaging, user docs     |
 
 ## Development
 
@@ -203,6 +219,7 @@ See [CLAUDE.md](CLAUDE.md) for architecture details and [PLAN.md](PLAN.md) for t
 - **dartssh2** — SSH2 protocol implementation (auth, shell, SFTP, port forwarding)
 - **xterm.dart** — terminal emulator widget (VT100/xterm, 256-color, RGB, mouse)
 - **Riverpod** — state management
+- **pointycastle** — AES-256-GCM encryption (pure Dart, no native deps)
 
 ## Predecessor
 
