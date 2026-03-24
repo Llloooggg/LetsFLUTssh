@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
 import '../../providers/session_provider.dart';
+import '../../theme/app_theme.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
@@ -89,7 +90,7 @@ class SessionPanel extends ConsumerWidget {
         const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit, size: 18), title: Text('Edit'), dense: true, contentPadding: EdgeInsets.zero)),
         const PopupMenuItem(value: 'duplicate', child: ListTile(leading: Icon(Icons.copy, size: 18), title: Text('Duplicate'), dense: true, contentPadding: EdgeInsets.zero)),
         const PopupMenuDivider(),
-        const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, size: 18, color: Colors.red), title: Text('Delete', style: TextStyle(color: Colors.red)), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, size: 18, color: AppTheme.disconnected), title: Text('Delete', style: TextStyle(color: AppTheme.disconnected)), dense: true, contentPadding: EdgeInsets.zero)),
       ],
     ).then((value) {
       if (value == null || !context.mounted) return;
@@ -164,8 +165,8 @@ class SessionPanel extends ConsumerWidget {
           const PopupMenuItem(
             value: 'delete',
             child: ListTile(
-              leading: Icon(Icons.delete, size: 18, color: Colors.red),
-              title: Text('Delete Folder', style: TextStyle(color: Colors.red)),
+              leading: Icon(Icons.delete, size: 18, color: AppTheme.disconnected),
+              title: Text('Delete Folder', style: TextStyle(color: AppTheme.disconnected)),
               dense: true,
               contentPadding: EdgeInsets.zero,
             ),
@@ -362,7 +363,7 @@ class SessionPanel extends ConsumerWidget {
               const SizedBox(height: 8),
               Text(
                 'This will also delete $sessionCount session(s) inside.',
-                style: TextStyle(color: Colors.red[300], fontSize: 13),
+                style: const TextStyle(color: AppTheme.disconnected, fontSize: 13),
               ),
             ],
           ],
@@ -374,7 +375,7 @@ class SessionPanel extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.disconnected),
             child: const Text('Delete'),
           ),
         ],
@@ -395,7 +396,7 @@ class SessionPanel extends ConsumerWidget {
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.disconnected),
             child: const Text('Delete'),
           ),
         ],

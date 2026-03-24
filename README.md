@@ -9,19 +9,22 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 ### SSH Terminal
 - Full xterm/VT100 terminal emulation (256-color, RGB, curses apps)
 - Password, key file, PEM text, and SSH agent authentication
+- Auto-detect SSH keys from `~/.ssh/` (id_ed25519, id_ecdsa, id_rsa)
 - Keep-alive and auto-reconnect
 - Scrollback buffer (configurable, default 5000 lines)
 - Text selection, copy/paste
 - Mouse reporting for TUI apps (htop, vim, mc)
 - **Tiling / split panes** — split vertically or horizontally (like tmux), recursive nesting, drag-to-resize
 - Terminal search (Ctrl+Shift+F) with match highlighting
+- Right-click context menu (Copy / Paste / Split / Close Pane)
 
 ### Session Manager
 - Save and organize SSH sessions
-- Nested group folders (e.g. `Production/Web/nginx1`)
-- Search and filter
+- Nested group folders (e.g. `Production/Web/nginx1`) with create/rename/delete
+- Search and filter by label, group, host, user
 - Quick Connect for one-off connections
-- Context menu: connect, edit, delete, duplicate
+- Context menu: SSH connect, SFTP only, edit, delete, duplicate
+- Host key verification (TOFU) with SHA256 fingerprint dialog
 
 ### SFTP File Browser
 - Dual-pane layout: local files | remote files
@@ -43,6 +46,12 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Data export/import to `.lfs` archive (ZIP + AES-256-GCM, master password protected)
 - Import modes: merge (add new) or replace (overwrite all)
 - Auto-migration from plaintext to encrypted storage on upgrade
+
+### Appearance
+- **OneDark theme** — Atom OneDark Pro color palette (dark mode)
+- **One Light theme** — matching light variant
+- System theme auto-detection
+- Configurable font size, scrollback, keep-alive, and more
 
 ### Cross-Platform
 - **Desktop:** Windows, Linux, macOS
@@ -150,7 +159,12 @@ make build-ios
 
 ## Current Status
 
-**v0.5.0** — Phase 5 (Data Portability & Security) complete. Encrypted credential storage (AES-256-GCM), .lfs archive export/import with master password, SFTP file browser with transfer queue, settings screen, toast notifications, responsive layout.
+**v0.7.1** — Phase 7 complete. All core features implemented across 7 phases:
+- Phases 1-3: SSH terminal, session manager, SFTP file browser (MVP)
+- Phase 4: Polish — tab reorder, toast notifications, settings, responsive layout
+- Phase 5: Security — AES-256-GCM credential encryption, .lfs export/import
+- Phase 6: Terminal search (Ctrl+Shift+F), auto-detect SSH keys, session folders
+- Phase 7: Tiling terminal layout — recursive split (vertical/horizontal), drag-to-resize, focus tracking
 
 ## Development
 

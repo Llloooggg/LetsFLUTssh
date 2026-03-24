@@ -149,6 +149,9 @@ LetsFLUTssh/
 │   │   ├── key_field.dart           # SSH key input (file picker + PEM text + drag&drop)
 │   │   └── search_field.dart        # Search/filter input
 │   │
+│   ├── theme/                        # App-wide theming
+│   │   └── app_theme.dart           # OneDark/One Light palettes, semantic color constants
+│   │
 │   └── utils/                       # Utilities
 │       ├── format.dart              # formatSize, formatTimestamp, formatDuration
 │       ├── platform.dart            # Platform detection helpers
@@ -184,7 +187,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.7.0 — Phase 7 complete)
+## Current State (v0.7.1 — Phase 7 complete + cleanup)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -206,7 +209,7 @@ LetsFLUTssh/
 - Tab bar с индикатором состояния (green/orange/red)
 - Quick Connect диалог (host, port, user, password, key file picker, PEM text)
 - Валидация полей в диалоге
-- Dark/light/system theme (Material 3)
+- **OneDark theme** — Atom OneDark Pro palette (dark), One Light (light), system auto-detect
 - App config (JSON persistence в app support dir)
 - Status bar (connection state + tab count)
 - Keyboard shortcuts: Ctrl+N (quick connect), Ctrl+W (close tab), Ctrl+Tab (next tab)
@@ -272,6 +275,9 @@ LetsFLUTssh/
 - **Tiling как tree** — recursive BranchNode(direction, ratio, first, second) позволяет произвольную глубину вложенности; replaceNode/removeNode для мутации дерева
 - **TerminalPane vs TerminalTab** — TerminalPane = один терминал в тайле (без reconnect); TerminalTab = контейнер с tiling tree + reconnect + shortcuts
 - **Каждый pane → свой SSH shell** — openShell() вызывается для каждого LeafNode, все шеллы на одном SSHConnection; при reconnect дерево сбрасывается в один лист
+- **OneDark theme** — централизованная палитра в `lib/theme/app_theme.dart`; все цвета (connected/disconnected/warning/folder) через AppTheme semantic constants; нет хардкода Colors.red/green/orange
+- **file_pane.dart split** — FileRow, MenuRow, MarqueePainter, PaneDragData вынесены в `file_row.dart`; file_pane.dart содержит только FilePane + state
+- **Удалены unused deps** — go_router (не используется, навигация через MaterialApp), freezed_annotation (модели написаны вручную)
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 

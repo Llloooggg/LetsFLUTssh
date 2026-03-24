@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/transfer/transfer_task.dart';
 import '../../providers/transfer_provider.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 
 /// Collapsible bottom panel showing transfer progress and history.
@@ -158,15 +159,15 @@ class _HistoryRow extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               color: entry.direction == TransferDirection.upload
-                  ? Colors.blue
-                  : Colors.green,
+                  ? AppTheme.info
+                  : AppTheme.connected,
             ),
           ),
           const SizedBox(width: 6),
           Icon(
             isFailed ? Icons.error : Icons.check_circle,
             size: 14,
-            color: isFailed ? Colors.red : Colors.green,
+            color: isFailed ? AppTheme.disconnected : AppTheme.connected,
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -190,7 +191,7 @@ class _HistoryRow extends StatelessWidget {
             const SizedBox(width: 8),
             Tooltip(
               message: entry.error!,
-              child: Icon(Icons.info_outline, size: 14, color: Colors.red[300]),
+              child: const Icon(Icons.info_outline, size: 14, color: AppTheme.disconnected),
             ),
           ],
         ],

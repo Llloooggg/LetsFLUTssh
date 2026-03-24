@@ -274,8 +274,8 @@
 
 ## Текущий статус
 
-**Активная фаза:** Phase 7 (Tiling & Split Terminals) — завершена
-**Прогресс:** Phases 1-7 завершены. Tiling terminal layout (recursive split, resize dividers, focus tracking, keyboard shortcuts). 62 теста.
+**Активная фаза:** Phase 8 (Mobile) — следующая
+**Прогресс:** Phases 1-7 завершены. v0.7.1 — OneDark theme, cleanup (removed unused deps, split file_pane.dart, added logging). 62 теста.
 
 ### Порядок работы
 

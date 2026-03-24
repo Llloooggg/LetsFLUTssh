@@ -346,9 +346,9 @@ class _ExportImportTile extends ConsumerWidget {
       for (final s in importResult.sessions) {
         try {
           await sessionNotifier.add(s);
-        } catch (_) {
-          // Skip duplicates in merge mode
+        } catch (e) {
           if (importResult.mode == ImportMode.replace) rethrow;
+          debugPrint('Import: skipped session ${s.label}: $e');
         }
       }
 

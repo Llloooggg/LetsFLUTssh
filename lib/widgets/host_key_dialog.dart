@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_theme.dart';
+
 /// Dialog shown when connecting to an unknown SSH host (TOFU).
 /// Displays the host fingerprint and asks the user to accept or reject.
 class HostKeyDialog {
@@ -73,7 +75,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
         children: [
           Icon(
             isChanged ? Icons.warning_amber_rounded : Icons.shield_outlined,
-            color: isChanged ? Colors.orange : theme.colorScheme.primary,
+            color: isChanged ? AppTheme.connecting : theme.colorScheme.primary,
             size: 28,
           ),
           const SizedBox(width: 8),
@@ -81,7 +83,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
             child: Text(
               isChanged ? 'Host Key Changed!' : 'Unknown Host',
               style: TextStyle(
-                color: isChanged ? Colors.orange : null,
+                color: isChanged ? AppTheme.connecting : null,
               ),
             ),
           ),
@@ -97,9 +99,9 @@ class _HostKeyDialogWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
+                  color: AppTheme.connecting.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                  border: Border.all(color: AppTheme.connecting.withValues(alpha: 0.3)),
                 ),
                 child: const Text(
                   'WARNING: The host key for this server has changed. '
@@ -174,7 +176,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
           style: isChanged
-              ? FilledButton.styleFrom(backgroundColor: Colors.orange)
+              ? FilledButton.styleFrom(backgroundColor: AppTheme.connecting)
               : null,
           child: Text(isChanged ? 'Accept Anyway' : 'Accept'),
         ),

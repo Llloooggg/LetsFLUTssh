@@ -1,5 +1,5 @@
 APP_NAME := letsflutssh
-VERSION := 0.7.0
+VERSION := 0.7.1
 BUILD_DIR := build
 FLUTTER := flutter
 UNAME := $(shell uname)

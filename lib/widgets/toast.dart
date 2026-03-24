@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// Toast notification level.
 enum ToastLevel { info, success, warning, error }
 
@@ -95,10 +97,10 @@ class _ToastWidget extends StatelessWidget {
 
   (Color, IconData) _levelStyle() {
     return switch (level) {
-      ToastLevel.info => (Colors.blue, Icons.info_outline),
-      ToastLevel.success => (Colors.green, Icons.check_circle_outline),
-      ToastLevel.warning => (Colors.orange, Icons.warning_amber),
-      ToastLevel.error => (Colors.red, Icons.error_outline),
+      ToastLevel.info => (AppTheme.info, Icons.info_outline),
+      ToastLevel.success => (AppTheme.connected, Icons.check_circle_outline),
+      ToastLevel.warning => (AppTheme.connecting, Icons.warning_amber),
+      ToastLevel.error => (AppTheme.disconnected, Icons.error_outline),
     };
   }
 

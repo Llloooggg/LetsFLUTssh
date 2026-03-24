@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
+import '../../theme/app_theme.dart';
 
 /// Hierarchical tree view of sessions with nested group folders.
 class SessionTreeView extends StatefulWidget {
@@ -127,7 +128,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
                 Icon(
                   expanded ? Icons.folder_open : Icons.folder,
                   size: 16,
-                  color: Colors.amber[600],
+                  color: AppTheme.folderColor(Theme.of(context).brightness),
                 ),
                 const SizedBox(width: 6),
                 Expanded(

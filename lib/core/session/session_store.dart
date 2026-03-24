@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -66,8 +67,8 @@ class SessionStore {
       if (needsMigration) {
         await _migrateCredentials();
       }
-    } catch (_) {
-      // Corrupted file — start fresh
+    } catch (e) {
+      dev.log('SessionStore: failed to load sessions, starting fresh', error: e);
     }
 
     // Load empty groups
@@ -135,7 +136,9 @@ class SessionStore {
       _emptyGroups
         ..clear()
         ..addAll(list.cast<String>());
-    } catch (_) {}
+    } catch (e) {
+      dev.log('SessionStore: failed to load empty groups', error: e);
+    }
   }
 
   Future<void> _saveEmptyGroups() async {

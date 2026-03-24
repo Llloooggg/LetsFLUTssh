@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/ssh/ssh_client.dart';
+import '../../theme/app_theme.dart';
 import 'split_node.dart';
 import 'tiling_view.dart';
 
@@ -139,11 +140,11 @@ class _TerminalTabState extends State<TerminalTab> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+          const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
           const SizedBox(height: 16),
           Text(
             _connectionError!,
-            style: TextStyle(color: Colors.red[300]),
+            style: const TextStyle(color: AppTheme.disconnected),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),

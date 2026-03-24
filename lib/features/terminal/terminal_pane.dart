@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
+import '../../theme/app_theme.dart';
 
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
 ///
@@ -388,9 +389,9 @@ class TerminalPaneState extends State<TerminalPane> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+          const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
           const SizedBox(height: 16),
-          Text(_error!, style: TextStyle(color: Colors.red[300]), textAlign: TextAlign.center),
+          Text(_error!, style: const TextStyle(color: AppTheme.disconnected), textAlign: TextAlign.center),
         ],
       ),
     );

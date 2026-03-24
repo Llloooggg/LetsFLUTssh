@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
+import '../../theme/app_theme.dart';
 import 'tab_controller.dart';
 import 'tab_model.dart';
 
@@ -145,13 +146,14 @@ class _TabItem extends StatelessWidget {
   });
 
   Color _stateColor() {
+    final brightness = theme.brightness;
     switch (tab.connection.state) {
       case SSHConnectionState.connected:
-        return Colors.green;
+        return AppTheme.connectedColor(brightness);
       case SSHConnectionState.connecting:
-        return Colors.orange;
+        return AppTheme.connectingColor(brightness);
       case SSHConnectionState.disconnected:
-        return Colors.red;
+        return AppTheme.disconnectedColor(brightness);
     }
   }
 

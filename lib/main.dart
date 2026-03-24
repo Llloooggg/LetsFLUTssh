@@ -25,6 +25,7 @@ import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transfer_provider.dart';
+import 'theme/app_theme.dart';
 import 'widgets/split_view.dart';
 
 /// Global navigator key for showing dialogs from non-UI contexts
@@ -89,16 +90,8 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       title: 'LetsFLUTssh',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
-      theme: ThemeData(
-        colorSchemeSeed: Colors.teal,
-        brightness: Brightness.light,
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.teal,
-        brightness: Brightness.dark,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
       home: const MainScreen(),
     );
   }
@@ -395,8 +388,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       for (final s in importResult.sessions) {
         try {
           await sessionNotifier.add(s);
-        } catch (_) {
+        } catch (e) {
           if (importResult.mode == ImportMode.replace) rethrow;
+          debugPrint('Import: skipped session ${s.label}: $e');
         }
       }
 
@@ -506,8 +500,8 @@ class _StatusBar extends ConsumerWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: active.connection.isConnected
-                    ? Colors.green
-                    : Colors.red,
+                    ? AppTheme.connectedColor(theme.brightness)
+                    : AppTheme.disconnectedColor(theme.brightness),
               ),
             ),
             const SizedBox(width: 6),

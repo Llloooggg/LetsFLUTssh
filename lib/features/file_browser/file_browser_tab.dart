@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../theme/app_theme.dart';
+
 import '../../core/connection/connection.dart';
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_client.dart';
@@ -100,7 +102,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
+            const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
             const SizedBox(height: 8),
             Text(_error!),
             const SizedBox(height: 16),

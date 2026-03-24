@@ -4,16 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/toast.dart';
 import 'file_browser_controller.dart';
-
-/// Drag data with source pane identity to prevent same-pane drops.
-class PaneDragData {
-  final String sourcePaneId;
-  final List<FileEntry> entries;
-  const PaneDragData({required this.sourcePaneId, required this.entries});
-}
+import 'file_row.dart';
 
 /// A single file browser pane (local or remote).
 ///
@@ -129,6 +124,8 @@ class _FilePaneState extends State<FilePane> {
     );
   }
 
+  // ── Header ──
+
   Widget _buildHeader(ThemeData theme) {
     return Container(
       height: 32,
@@ -165,6 +162,8 @@ class _FilePaneState extends State<FilePane> {
       ),
     );
   }
+
+  // ── Path bar ──
 
   Widget _buildPathBar(ThemeData theme) {
     return Container(
@@ -216,17 +215,18 @@ class _FilePaneState extends State<FilePane> {
     );
   }
 
-  // --- Marquee & drag state ---
-  Offset? _marqueeAnchor; // raw pointer-down position (before threshold)
-  Offset? _marqueeStart; // set after movement exceeds threshold
+  // ── Marquee & drag state ──
+
+  Offset? _marqueeAnchor;
+  Offset? _marqueeStart;
   Offset? _marqueeCurrent;
   bool _marqueeActive = false;
-  bool _dragActive = false; // true while Draggable is in flight
+  bool _dragActive = false;
   final _scrollController = ScrollController();
   Set<String>? _preMarqueeSelection;
 
   static const _rowHeight = 28.0;
-  static const _marqueeThreshold = 5.0; // px before marquee activates
+  static const _marqueeThreshold = 5.0;
 
   bool get _isCtrlHeld =>
       HardwareKeyboard.instance.logicalKeysPressed
@@ -239,6 +239,8 @@ class _FilePaneState extends State<FilePane> {
         _scrollController.hasClients ? _scrollController.offset : 0.0;
     return ((localY + scrollOffset) / _rowHeight).floor();
   }
+
+  // ── File list ──
 
   Widget _buildFileList(ThemeData theme) {
     if (ctrl.loading) {
@@ -279,12 +281,8 @@ class _FilePaneState extends State<FilePane> {
         final onRow = rowIdx >= 0 && rowIdx < ctrl.entries.length;
         final onSelected = onRow && ctrl.selected.contains(ctrl.entries[rowIdx].path);
 
-
-
-        // If on a selected row, let Draggable handle a potential drag.
         if (onSelected) return;
 
-        // Record anchor for potential marquee (not yet active).
         setState(() {
           _marqueeAnchor = e.localPosition;
           _preMarqueeSelection = _isCtrlHeld ? Set.from(ctrl.selected) : null;
@@ -297,7 +295,6 @@ class _FilePaneState extends State<FilePane> {
 
         if (!_marqueeActive) {
           if (distance < _marqueeThreshold) return;
-          // Threshold exceeded — activate marquee.
           _marqueeActive = true;
           if (!_isCtrlHeld && _preMarqueeSelection == null) {
             ctrl.clearSelection();
@@ -337,7 +334,7 @@ class _FilePaneState extends State<FilePane> {
                 final entry = ctrl.entries[index];
                 final isSelected = ctrl.selected.contains(entry.path);
 
-                final row = _FileRow(
+                final row = FileRow(
                   entry: entry,
                   isSelected: isSelected,
                   onTap: () => ctrl.selectSingle(entry.path),
@@ -353,7 +350,6 @@ class _FilePaneState extends State<FilePane> {
                       _showContextMenu(context, offset, entry),
                 );
 
-                // Only selected files can be dragged (for transfer).
                 if (!isSelected) return row;
 
                 final dragEntries = ctrl.selectedEntries.length > 1
@@ -404,14 +400,13 @@ class _FilePaneState extends State<FilePane> {
                 );
               },
             ),
-            // Marquee rectangle overlay
             if (_marqueeActive &&
                 _marqueeStart != null &&
                 _marqueeCurrent != null)
               Positioned.fill(
                 child: IgnorePointer(
                   child: CustomPaint(
-                    painter: _MarqueePainter(
+                    painter: MarqueePainter(
                       start: _marqueeStart!,
                       end: _marqueeCurrent!,
                       color: theme.colorScheme.primary,
@@ -451,6 +446,8 @@ class _FilePaneState extends State<FilePane> {
     ctrl.selectPaths(newSelection);
   }
 
+  // ── Footer ──
+
   Widget _buildFooter(ThemeData theme) {
     final count = ctrl.entries.length;
     final selCount = ctrl.selected.length;
@@ -483,11 +480,12 @@ class _FilePaneState extends State<FilePane> {
     );
   }
 
+  // ── Drop target ──
+
   Widget _buildDropTarget(Widget child) {
     return DragTarget<PaneDragData>(
       onWillAcceptWithDetails: (details) {
         if (widget.onDropReceived == null) return false;
-        // Reject drops from the same pane.
         return details.data.sourcePaneId != widget.paneId;
       },
       onAcceptWithDetails: (details) {
@@ -515,6 +513,8 @@ class _FilePaneState extends State<FilePane> {
     );
   }
 
+  // ── Context menus ──
+
   void _showBackgroundContextMenu(BuildContext context, Offset position) {
     ctrl.clearSelection();
     showMenu(
@@ -525,11 +525,11 @@ class _FilePaneState extends State<FilePane> {
       items: [
         PopupMenuItem(
           onTap: () => _showNewFolderDialog(context),
-          child: const _MenuRow(icon: Icons.create_new_folder, text: 'New Folder'),
+          child: const MenuRow(icon: Icons.create_new_folder, text: 'New Folder'),
         ),
         PopupMenuItem(
           onTap: () => ctrl.refresh(),
-          child: const _MenuRow(icon: Icons.refresh, text: 'Refresh'),
+          child: const MenuRow(icon: Icons.refresh, text: 'Refresh'),
         ),
       ],
     );
@@ -552,7 +552,7 @@ class _FilePaneState extends State<FilePane> {
         if (!hasMultiple && entry.isDir)
           PopupMenuItem(
             onTap: () => ctrl.navigateTo(entry.path),
-            child: const _MenuRow(icon: Icons.folder_open, text: 'Open'),
+            child: const MenuRow(icon: Icons.folder_open, text: 'Open'),
           ),
         PopupMenuItem(
           onTap: () {
@@ -562,7 +562,7 @@ class _FilePaneState extends State<FilePane> {
               widget.onTransfer?.call(entry);
             }
           },
-          child: _MenuRow(
+          child: MenuRow(
             icon: Icons.swap_horiz,
             text: hasMultiple ? 'Transfer ${selectedEntries.length} items' : 'Transfer',
           ),
@@ -570,16 +570,16 @@ class _FilePaneState extends State<FilePane> {
         const PopupMenuDivider(),
         PopupMenuItem(
           onTap: () => _showNewFolderDialog(context),
-          child: const _MenuRow(icon: Icons.create_new_folder, text: 'New Folder'),
+          child: const MenuRow(icon: Icons.create_new_folder, text: 'New Folder'),
         ),
         if (!hasMultiple)
           PopupMenuItem(
             onTap: () => _showRenameDialog(context, entry),
-            child: const _MenuRow(icon: Icons.edit, text: 'Rename'),
+            child: const MenuRow(icon: Icons.edit, text: 'Rename'),
           ),
         PopupMenuItem(
           onTap: () => _confirmDelete(context, selectedEntries),
-          child: _MenuRow(
+          child: MenuRow(
             icon: Icons.delete,
             text: hasMultiple ? 'Delete ${selectedEntries.length} items' : 'Delete',
           ),
@@ -587,6 +587,8 @@ class _FilePaneState extends State<FilePane> {
       ],
     );
   }
+
+  // ── Dialogs ──
 
   Future<void> _showNewFolderDialog(BuildContext context) async {
     final nameCtrl = TextEditingController();
@@ -670,7 +672,7 @@ class _FilePaneState extends State<FilePane> {
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.disconnected),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Delete'),
           ),
@@ -694,147 +696,5 @@ class _FilePaneState extends State<FilePane> {
       }
       await ctrl.refresh();
     }
-  }
-}
-
-/// A single file row in the list.
-class _FileRow extends StatelessWidget {
-  final FileEntry entry;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final VoidCallback onCtrlTap;
-  final VoidCallback onDoubleTap;
-  final void Function(Offset position) onContextMenu;
-
-  const _FileRow({
-    required this.entry,
-    required this.isSelected,
-    required this.onTap,
-    required this.onCtrlTap,
-    required this.onDoubleTap,
-    required this.onContextMenu,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GestureDetector(
-      onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
-      child: InkWell(
-        onTap: () {
-          if (HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.controlLeft) ||
-              HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.controlRight)) {
-            onCtrlTap();
-          } else {
-            onTap();
-          }
-        },
-        onDoubleTap: onDoubleTap,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          color: isSelected
-              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
-              : null,
-          child: Row(
-            children: [
-              Icon(
-                entry.isDir ? Icons.folder : Icons.insert_drive_file,
-                size: 16,
-                color: entry.isDir
-                    ? Colors.amber[700]
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  entry.name,
-                  style: const TextStyle(fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                entry.isDir ? '' : formatSize(entry.size),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                entry.modeString,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontFamily: 'monospace',
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _MenuRow({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18),
-        const SizedBox(width: 8),
-        Text(text),
-      ],
-    );
-  }
-}
-
-/// Paints a semi-transparent marquee selection rectangle.
-class _MarqueePainter extends CustomPainter {
-  final Offset start;
-  final Offset end;
-  final Color color;
-
-  _MarqueePainter({
-    required this.start,
-    required this.end,
-    required this.color,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromPoints(start, end);
-
-    // Fill
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..color = color.withValues(alpha: 0.12)
-        ..style = PaintingStyle.fill,
-    );
-
-    // Border
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..color = color.withValues(alpha: 0.5)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_MarqueePainter oldDelegate) {
-    return start != oldDelegate.start || end != oldDelegate.end;
   }
 }
