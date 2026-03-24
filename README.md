@@ -35,10 +35,12 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Multiple SFTP tabs per SSH connection
 - SFTP-only connections (no terminal)
 
-### Security
-- Credentials stored in OS keychain (not plain text)
+### Security & Data Portability
+- Credentials encrypted with AES-256-GCM (stored separately from session metadata)
 - Known hosts verification (TOFU)
-- Data export/import with AES-256-GCM encryption
+- Data export/import to `.lfs` archive (ZIP + AES-256-GCM, master password protected)
+- Import modes: merge (add new) or replace (overwrite all)
+- Auto-migration from plaintext to encrypted storage on upgrade
 
 ### Cross-Platform
 - **Desktop:** Windows, Linux, macOS
@@ -146,7 +148,7 @@ make build-ios
 
 ## Current Status
 
-**v0.2.0** — Phase 2 (Session Manager) complete. Saved sessions with nested groups, sidebar with tree view, search, context menu, CRUD. SSH terminal with password and key auth, multi-tab interface, dark/light theme.
+**v0.5.0** — Phase 5 (Data Portability & Security) complete. Encrypted credential storage (AES-256-GCM), .lfs archive export/import with master password, SFTP file browser with transfer queue, settings screen, toast notifications, responsive layout.
 
 ## Development
 

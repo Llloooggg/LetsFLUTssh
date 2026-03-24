@@ -4,13 +4,18 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../security/credential_store.dart';
 import 'session.dart';
 
 /// CRUD + JSON persistence for sessions.
+///
+/// Session metadata is stored in plaintext JSON. Secrets (password, keyData,
+/// passphrase) are stored in an AES-256-GCM encrypted file via [CredentialStore].
 class SessionStore {
   static const _fileName = 'sessions.json';
 
   final List<Session> _sessions = [];
+  final CredentialStore _credStore = CredentialStore();
   late final String _filePath;
   bool _initialized = false;
 
@@ -33,19 +38,83 @@ class SessionStore {
       _sessions
         ..clear()
         ..addAll(list.map((e) => Session.fromJson(e as Map<String, dynamic>)));
+
+      // Load credentials from encrypted store and merge into sessions.
+      final allCreds = await _credStore.loadAll();
+      bool needsMigration = false;
+
+      for (int i = 0; i < _sessions.length; i++) {
+        final s = _sessions[i];
+        final cred = allCreds[s.id];
+        if (cred != null && !cred.isEmpty) {
+          // Merge encrypted credentials into session object.
+          _sessions[i] = s.copyWith(
+            password: cred.password.isNotEmpty ? cred.password : s.password,
+            keyData: cred.keyData.isNotEmpty ? cred.keyData : s.keyData,
+            passphrase: cred.passphrase.isNotEmpty ? cred.passphrase : s.passphrase,
+          );
+        } else if (s.password.isNotEmpty || s.keyData.isNotEmpty || s.passphrase.isNotEmpty) {
+          // Legacy: credentials in plaintext JSON — migrate to encrypted store.
+          needsMigration = true;
+        }
+      }
+
+      if (needsMigration) {
+        await _migrateCredentials();
+      }
     } catch (_) {
       // Corrupted file — start fresh
     }
     return _sessions;
   }
 
-  Future<void> _save() async {
+  /// Migrate plaintext credentials from sessions.json to encrypted store,
+  /// then re-save sessions.json without secrets.
+  Future<void> _migrateCredentials() async {
+    final allCreds = await _credStore.loadAll();
+    for (final s in _sessions) {
+      if (s.password.isNotEmpty || s.keyData.isNotEmpty || s.passphrase.isNotEmpty) {
+        allCreds[s.id] = CredentialData(
+          password: s.password,
+          keyData: s.keyData,
+          passphrase: s.passphrase,
+        );
+      }
+    }
+    await _credStore.saveAll(allCreds);
+    // Re-save sessions.json without secrets (toJson() now excludes them).
+    await _saveSessionFile();
+  }
+
+  /// Save session metadata (no secrets) to JSON file.
+  Future<void> _saveSessionFile() async {
     await init();
     final file = File(_filePath);
     await file.parent.create(recursive: true);
     final content = const JsonEncoder.withIndent('  ')
         .convert(_sessions.map((s) => s.toJson()).toList());
     await file.writeAsString(content);
+  }
+
+  /// Save session metadata + credentials to their respective stores.
+  Future<void> _save() async {
+    await _saveSessionFile();
+    await _saveCredentials();
+  }
+
+  /// Save all credentials to encrypted store.
+  Future<void> _saveCredentials() async {
+    final allCreds = <String, CredentialData>{};
+    for (final s in _sessions) {
+      if (s.password.isNotEmpty || s.keyData.isNotEmpty || s.passphrase.isNotEmpty) {
+        allCreds[s.id] = CredentialData(
+          password: s.password,
+          keyData: s.keyData,
+          passphrase: s.passphrase,
+        );
+      }
+    }
+    await _credStore.saveAll(allCreds);
   }
 
   Future<void> add(Session session) async {
@@ -67,6 +136,7 @@ class SessionStore {
   Future<void> delete(String id) async {
     _sessions.removeWhere((s) => s.id == id);
     await _save();
+    await _credStore.delete(id);
   }
 
   Session? get(String id) {

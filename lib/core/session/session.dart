@@ -118,6 +118,7 @@ class Session {
     );
   }
 
+  /// Serialize without secrets — safe for plaintext JSON storage.
   Map<String, dynamic> toJson() => {
     'id': id,
     'label': label,
@@ -126,12 +127,17 @@ class Session {
     'port': port,
     'user': user,
     'auth_type': authType.name,
-    'password': password,
     'key_path': keyPath,
-    'key_data': keyData,
-    'passphrase': passphrase,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
+  };
+
+  /// Serialize with secrets — for encrypted export only.
+  Map<String, dynamic> toJsonWithCredentials() => {
+    ...toJson(),
+    'password': password,
+    'key_data': keyData,
+    'passphrase': passphrase,
   };
 
   factory Session.fromJson(Map<String, dynamic> json) {

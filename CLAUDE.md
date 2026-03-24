@@ -58,7 +58,7 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 - **Framework:** Flutter 3.x — cross-platform native rendering (Skia/Impeller)
 - **SSH:** `dartssh2` ^2.15.0 — SSH2 protocol (connect, auth, shell, SFTP, port forwarding)
 - **Terminal:** `xterm` ^4.0.0 — VT100/xterm terminal widget (256-color, RGB, mouse, scrollback)
-- **Secure storage:** `flutter_secure_storage` ^10.0.0 — OS keychain/keyring for credentials
+- **Secure storage:** `pointycastle` ^4.0.0 — AES-256-GCM encrypted credential file (pure Dart, no OS deps)
 - **File picker:** `file_picker` ^10.3.10 — native file/directory picker
 - **File drop:** `desktop_drop` ^0.7.0 — OS drag&drop into app (desktop)
 - **Data dir:** `path_provider` ^2.1.5 — platform-specific app data paths
@@ -98,6 +98,9 @@ LetsFLUTssh/
 │   │   ├── config/                  # App configuration
 │   │   │   ├── app_config.dart      # Config model + defaults
 │   │   │   └── config_store.dart    # Load/Save JSON from app support dir
+│   │   │
+│   │   ├── security/               # Credential encryption
+│   │   │   └── credential_store.dart # AES-256-GCM encrypted credential storage
 │   │   │
 │   │   └── connection/              # Connection lifecycle manager
 │   │       ├── connection.dart      # Connection model (SSH client ref, state, label)
@@ -155,6 +158,7 @@ LetsFLUTssh/
 │   ├── core/                        # Core logic tests
 │   │   ├── session/
 │   │   ├── transfer/
+│   │   ├── security/
 │   │   ├── config/
 │   │   └── connection/
 │   └── features/                    # Widget tests
@@ -180,7 +184,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.4.0 — Phase 4 complete)
+## Current State (v0.5.0 — Phase 5 complete)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -222,6 +226,12 @@ LetsFLUTssh/
 - **Status bar** — connection state + transfer progress (reactive via StreamProvider)
 - **Responsive layout** — sidebar → drawer on narrow screens (<600px), hamburger menu button
 - **Reconnect** — error state UI with Reconnect + Close buttons
+- **Secure credential storage** — AES-256-GCM encrypted file (pointycastle, pure Dart, no OS deps)
+- **Credentials separated from sessions** — sessions.json без секретов, credentials.enc с AES-256-GCM
+- **Auto-migration** — plaintext credentials в sessions.json автоматически мигрируют в encrypted store
+- **Export/Import (.lfs)** — ZIP + AES-256-GCM (PBKDF2-SHA256 100k iterations), sessions + config + known_hosts
+- **Import modes** — merge (add new, skip existing) / replace (overwrite all)
+- **Settings UI** — Export Data / Import Data buttons with master password dialogs
 
 ### Решения и почему
 - **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
@@ -232,6 +242,9 @@ LetsFLUTssh/
 - **dartssh2 SFTP API** — `attr.mode?.value` (не `attr.permissions?.mode`), `remoteFile.writeBytes()` (не `write()`)
 - **FilePaneController как ChangeNotifier** — lightweight state для каждой панели, без Riverpod overhead для внутреннего состояния навигации
 - **TransferManager с Stream notifications** — Riverpod StreamProvider подписывается на onChange для reactive UI updates
+- **pointycastle вместо encrypt** — encrypt ^5.0.3 требует pointycastle ^3.6.2, конфликт с dartssh2 (needs ^4.0.0); pointycastle уже transitive dep
+- **CredentialStore вместо flutter_secure_storage** — pure Dart, no OS-specific native deps; AES-256-GCM с random key в credentials.key
+- **PBKDF2 100k iterations для .lfs** — industry standard key derivation для password-based encryption архивов
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 
@@ -255,7 +268,7 @@ LetsFLUTssh/
 - Text selection + copy/paste из коробки (xterm.dart)
 - Mouse reporting из коробки (xterm.dart)
 - Smooth split-pane drag (Flutter layout не тормозит как Fyne)
-- Secure credential storage (OS keychain вместо plaintext JSON)
+- Secure credential storage (AES-256-GCM encrypted file вместо plaintext JSON)
 - Mobile support (Android, iOS) с адаптивным UI
 - Port forwarding UI
 - Data export/import (.lfs encrypted archive)
@@ -324,7 +337,7 @@ Session management (порт из LetsGOssh `internal/session`):
   - `groups()` — unique group paths
   - `byGroup(group)` — sessions in group
   - Persist to JSON file at app support dir
-  - Credentials stored separately via `flutter_secure_storage`
+  - Credentials stored separately via `CredentialStore` (AES-256-GCM encrypted)
 - `SessionTree`: builds tree structure from flat session list for TreeView UI
 - `Session.validate()` — host required, port 1-65535, user required
 
@@ -335,6 +348,30 @@ App configuration (порт из LetsGOssh `internal/config`):
 - `AppConfig`: fontSize, theme, scrollback, keepAliveSec, defaultPort, sshTimeoutSec, toastDurationMs, transferWorkers, maxHistory, windowWidth, windowHeight
 - `ConfigStore`: load/save JSON at app support dir
 - Defaults: font 14, dark theme, 5000 scrollback, 30s keepalive, port 22
+
+### `core/security`
+
+Encrypted credential storage (pure Dart, no OS dependencies):
+
+- `CredentialStore`: AES-256-GCM encrypted file-based storage for secrets
+  - `credentials.enc` — encrypted JSON map of sessionId → CredentialData
+  - `credentials.key` — 256-bit random key (generated once, stored alongside)
+  - Methods: `loadAll()`, `saveAll()`, `get(id)`, `set(id, data)`, `delete(id)`
+- `CredentialData`: password, keyData (PEM), passphrase
+- `SessionStore` uses `CredentialStore` automatically — secrets never written to plaintext JSON
+- Auto-migration: on load, if plaintext credentials found in sessions.json, migrate to encrypted store
+
+### `features/settings/export_import`
+
+Data portability (.lfs archive format):
+
+- `ExportImport.export()`: sessions (with credentials) + config + known_hosts → ZIP → AES-256-GCM
+- `ExportImport.import_()`: decrypt → unzip → parse → merge/replace sessions + config + known_hosts
+- `ExportImport.preview()`: decrypt + list contents without applying
+- Master password → PBKDF2-SHA256 (100k iterations, 32-byte salt) → 256-bit AES key
+- Format: `[salt 32B] [iv 12B] [encrypted ZIP + GCM tag]`
+- `ImportMode.merge` — add new sessions, skip existing (by ID)
+- `ImportMode.replace` — delete all, import fresh
 
 ### `core/connection`
 
@@ -428,8 +465,7 @@ Reusable components:
 - No global mutable state — all state via Riverpod providers
 - UI updates automatic via Riverpod (no manual setState except in leaf widgets)
 - Models: `freezed` for immutability + `json_serializable` for JSON
-- Passwords/keys: stored in `flutter_secure_storage`, NOT in plain JSON
-- File permissions: delegated to OS (flutter_secure_storage handles encryption)
+- Passwords/keys: stored in `CredentialStore` (AES-256-GCM encrypted file), NOT in plain JSON
 - Test files: `*_test.dart` next to source or in `test/` mirror tree
 - Lint rules: `flutter_lints` + additional (prefer_const_constructors, etc.)
 - Platform-specific code: isolated behind `Platform.isX` checks or separate files
@@ -445,7 +481,7 @@ Reusable components:
 | Split pane | Custom throttled widget (60fps hack) | Flutter layout (no jank) |
 | Tab reorder | Not implemented (Fyne limitation) | Built-in Draggable |
 | Session tree | Flat groups only | Nested TreeView |
-| Credential storage | Plain JSON | OS keychain (flutter_secure_storage) |
+| Credential storage | Plain JSON | AES-256-GCM encrypted file (pointycastle) |
 | SCP | Supported | Not needed (SFTP covers all) |
 | Mobile | Fyne mobile (very raw) | Flutter mobile (production-ready) |
 | Community | ~8k stars (Fyne) | ~170k stars (Flutter) |

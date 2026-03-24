@@ -5,7 +5,7 @@
 **Goal:** Минимальный рабочий SSH-клиент с терминалом. Подключение, ввод, отображение.
 
 - [x] Создать Flutter-проект (`flutter create`)
-- [x] Настроить `pubspec.yaml` (зависимости: dartssh2, xterm, riverpod, path_provider, flutter_secure_storage)
+- [x] Настроить `pubspec.yaml` (зависимости: dartssh2, xterm, riverpod, path_provider, pointycastle)
 - [x] Настроить `analysis_options.yaml` (strict lint rules)
 - [x] `.gitignore` для Flutter
 - [x] Инициализировать git-репозиторий
@@ -165,18 +165,18 @@
 
 **Goal:** Безопасное хранение, экспорт/импорт, шифрование
 
-- [ ] Secure credential storage
-    - [ ] Passwords хранятся в flutter_secure_storage (OS keychain)
-    - [ ] Key data (PEM) хранятся в flutter_secure_storage
-    - [ ] JSON-файл сессий содержит только non-secret поля
-    - [ ] Migration: import plaintext sessions → secure storage
-- [ ] Export/Import
-    - [ ] Формат `.lfs` (LetsFLUTssh archive) — ZIP + AES-256-GCM
-    - [ ] Export: sessions + config + known_hosts + SSH keys (опционально)
-    - [ ] Import: превью содержимого, выбор merge/replace
-    - [ ] Master password для шифрования архива
-    - [ ] Drag&drop `.lfs` файла в окно
-- [ ] Settings → Export Data / Import Data
+- [x] Secure credential storage
+    - [x] AES-256-GCM encrypted file via pointycastle (pure Dart, no OS deps)
+    - [x] Key data (PEM) + passwords + passphrases in `credentials.enc`
+    - [x] JSON-файл сессий содержит только non-secret поля
+    - [x] Migration: import plaintext sessions → encrypted storage (auto on load)
+- [x] Export/Import
+    - [x] Формат `.lfs` (LetsFLUTssh archive) — ZIP + AES-256-GCM
+    - [x] Export: sessions (с credentials) + config + known_hosts
+    - [x] Import: merge/replace mode, config + known_hosts import
+    - [x] Master password → PBKDF2-SHA256 (100k iterations) → AES-256-GCM
+    - [ ] Drag&drop `.lfs` файла в окно (Phase 6)
+- [x] Settings → Export Data / Import Data
 
 ## Phase 6: Advanced Features (v0.6)
 
@@ -279,7 +279,7 @@
 | 2     | Session Manager       | Medium (UI-heavy, но простая логика)                           |
 | 3     | SFTP File Browser     | Hard (много UI: dual-pane, drag&drop, history)                 |
 | 4     | Polish & UX           | Medium (доводка существующего)                                 |
-| 5     | Security & Export     | Medium (flutter_secure_storage + zip/crypto)                   |
+| 5     | Security & Export     | Medium (pointycastle AES-256-GCM + archive ZIP)                |
 | 6     | Advanced              | Hard (port forwarding, multi-exec)                             |
 | 7     | Tiling                | Medium (recursive split layout)                                |
 | 8     | Mobile                | Hard (адаптивный UI + virtual keyboard + platform integration) |
