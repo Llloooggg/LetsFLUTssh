@@ -25,7 +25,9 @@ import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transfer_provider.dart';
+import 'features/mobile/mobile_shell.dart';
 import 'theme/app_theme.dart';
+import 'utils/platform.dart' as plat;
 import 'widgets/split_view.dart';
 
 /// Global navigator key for showing dialogs from non-UI contexts
@@ -107,6 +109,11 @@ class MainScreen extends ConsumerStatefulWidget {
 class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   Widget build(BuildContext context) {
+    // Mobile: completely different navigation (bottom nav bar)
+    if (plat.isMobilePlatform) {
+      return const MobileShell();
+    }
+
     final tabState = ref.watch(tabProvider);
 
     return CallbackShortcuts(
@@ -133,9 +140,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           }
         },
       },
-      child: Focus(
-        autofocus: true,
-        child: DropTarget(
+      child: DropTarget(
           onDragDone: (details) {
             final lfsFiles = details.files
                 .where((f) => f.path.endsWith('.lfs'))
@@ -195,7 +200,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               ),
             );
           },
-        ),
         ),
       ),
     );

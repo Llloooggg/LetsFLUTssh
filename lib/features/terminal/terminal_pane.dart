@@ -158,22 +158,20 @@ class TerminalPaneState extends State<TerminalPane> {
               if (_showSearch) _closeSearch();
             },
           },
-          child: Focus(
-            child: Column(
-              children: [
-                if (_showSearch) _buildSearchBar(context),
-                Expanded(
-                  child: TerminalView(
-                    _terminal,
-                    controller: _terminalController,
-                    autofocus: widget.isFocused && !_showSearch,
-                    backgroundOpacity: 1.0,
-                    padding: const EdgeInsets.all(4),
-                    onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
-                  ),
+          child: Column(
+            children: [
+              if (_showSearch) _buildSearchBar(context),
+              Expanded(
+                child: TerminalView(
+                  _terminal,
+                  controller: _terminalController,
+                  autofocus: widget.isFocused && !_showSearch,
+                  backgroundOpacity: 1.0,
+                  padding: const EdgeInsets.all(4),
+                  onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
