@@ -218,6 +218,17 @@ class SessionStore {
     await _saveEmptyGroups();
   }
 
+  /// Delete all sessions and empty groups.
+  Future<void> deleteAll() async {
+    for (final s in _sessions) {
+      await _credStore.delete(s.id);
+    }
+    _sessions.clear();
+    _emptyGroups.clear();
+    await _save();
+    await _saveEmptyGroups();
+  }
+
   /// Count sessions in a group and its subgroups.
   int countSessionsInGroup(String groupPath) {
     return _sessions

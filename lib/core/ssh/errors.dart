@@ -6,6 +6,29 @@ class SSHError implements Exception {
 
   const SSHError(this.message, [this.cause]);
 
+  /// Human-readable error with root cause details.
+  String get userMessage {
+    if (cause == null) return message;
+    // Extract the root cause message, stripping wrapper types
+    final causeStr = _rootCauseMessage(cause!);
+    if (causeStr.isNotEmpty && causeStr != message) {
+      return '$message ($causeStr)';
+    }
+    return message;
+  }
+
+  static String _rootCauseMessage(Object error) {
+    if (error is SSHError) {
+      return error.userMessage;
+    }
+    final s = error.toString();
+    // Strip common type prefixes for cleaner display
+    for (final prefix in ['SocketException: ', 'SSHAuthFailError: ', 'SSHAuthAbortError: ', 'Exception: ']) {
+      if (s.startsWith(prefix)) return s.substring(prefix.length);
+    }
+    return s;
+  }
+
   @override
   String toString() {
     if (cause != null) {

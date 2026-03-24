@@ -126,15 +126,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       if (ctx.mounted) Navigator.of(ctx).pop(); // dismiss connecting dialog
       ref.read(tabProvider.notifier).addTerminalTab(conn);
       setState(() => _navIndex = 1);
-    } on AuthError catch (e) {
-      if (ctx.mounted) Navigator.of(ctx).pop();
-      if (ctx.mounted) Toast.show(ctx, message: 'Auth failed: ${e.message}', level: ToastLevel.error);
-    } on ConnectError catch (e) {
-      if (ctx.mounted) Navigator.of(ctx).pop();
-      if (ctx.mounted) Toast.show(ctx, message: 'Connect failed: ${e.message}', level: ToastLevel.error);
     } catch (e) {
       if (ctx.mounted) Navigator.of(ctx).pop();
-      if (ctx.mounted) Toast.show(ctx, message: 'Error: $e', level: ToastLevel.error);
+      if (ctx.mounted) _showConnectError(ctx, e);
     }
   }
 
@@ -147,16 +141,24 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       if (ctx.mounted) Navigator.of(ctx).pop();
       ref.read(tabProvider.notifier).addSftpTab(conn);
       setState(() => _navIndex = 2);
-    } on AuthError catch (e) {
-      if (ctx.mounted) Navigator.of(ctx).pop();
-      if (ctx.mounted) Toast.show(ctx, message: 'Auth failed: ${e.message}', level: ToastLevel.error);
-    } on ConnectError catch (e) {
-      if (ctx.mounted) Navigator.of(ctx).pop();
-      if (ctx.mounted) Toast.show(ctx, message: 'Connect failed: ${e.message}', level: ToastLevel.error);
     } catch (e) {
       if (ctx.mounted) Navigator.of(ctx).pop();
-      if (ctx.mounted) Toast.show(ctx, message: 'Error: $e', level: ToastLevel.error);
+      if (ctx.mounted) _showConnectError(ctx, e);
     }
+  }
+
+  void _showConnectError(BuildContext ctx, Object error) {
+    final String msg;
+    if (error is HostKeyError) {
+      msg = error.userMessage;
+    } else if (error is AuthError) {
+      msg = 'Auth failed: ${error.userMessage}';
+    } else if (error is ConnectError) {
+      msg = error.userMessage;
+    } else {
+      msg = 'Connection error: $error';
+    }
+    Toast.show(ctx, message: msg, level: ToastLevel.error);
   }
 
   void _showConnecting(BuildContext ctx, String label) {

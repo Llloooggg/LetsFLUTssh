@@ -22,6 +22,7 @@ class SSHConnection {
   SSHSession? _shell;
   Timer? _keepAliveTimer;
   bool _disposed = false;
+  bool _hostKeyRejected = false;
 
   VoidCallback? onDisconnect;
 
@@ -73,10 +74,24 @@ class SSHConnection {
       throw AuthError('Authentication failed for ${config.user}@${config.host}', e);
     } on SSHAuthAbortError catch (e) {
       _cleanup();
+      if (_hostKeyRejected) {
+        throw HostKeyError(
+          'Host key rejected for ${config.host}:${config.effectivePort} — '
+          'accept the host key or check known_hosts',
+          e,
+        );
+      }
       throw AuthError('Authentication aborted', e);
     } catch (e) {
       _cleanup();
-      throw ConnectError('Connection failed', e);
+      if (_hostKeyRejected) {
+        throw HostKeyError(
+          'Host key rejected for ${config.host}:${config.effectivePort} — '
+          'accept the host key or check known_hosts',
+          e,
+        );
+      }
+      throw ConnectError('Connection failed to ${config.host}:${config.effectivePort}', e);
     }
 
     // Listen for disconnect
@@ -197,11 +212,13 @@ class SSHConnection {
     String type,
     Uint8List fingerprint,
   ) async {
-    return knownHosts.verify(
+    final accepted = await knownHosts.verify(
       config.host,
       config.effectivePort,
       type,
       fingerprint,
     );
+    if (!accepted) _hostKeyRejected = true;
+    return accepted;
   }
 }

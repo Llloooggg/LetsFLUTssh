@@ -22,12 +22,8 @@ class SessionConnect {
         label: session.label.isNotEmpty ? session.label : session.displayName,
       );
       ref.read(tabProvider.notifier).addTerminalTab(conn);
-    } on AuthError catch (e) {
-      if (context.mounted) Toast.show(context, message: 'Authentication failed: ${e.message}', level: ToastLevel.error);
-    } on ConnectError catch (e) {
-      if (context.mounted) Toast.show(context, message: 'Connection failed: ${e.message}', level: ToastLevel.error);
     } catch (e) {
-      if (context.mounted) Toast.show(context, message: 'Error: $e', level: ToastLevel.error);
+      if (context.mounted) _showError(context, e);
     }
   }
 
@@ -41,12 +37,8 @@ class SessionConnect {
         label: session.label.isNotEmpty ? session.label : session.displayName,
       );
       ref.read(tabProvider.notifier).addSftpTab(conn);
-    } on AuthError catch (e) {
-      if (context.mounted) Toast.show(context, message: 'Authentication failed: ${e.message}', level: ToastLevel.error);
-    } on ConnectError catch (e) {
-      if (context.mounted) Toast.show(context, message: 'Connection failed: ${e.message}', level: ToastLevel.error);
     } catch (e) {
-      if (context.mounted) Toast.show(context, message: 'Error: $e', level: ToastLevel.error);
+      if (context.mounted) _showError(context, e);
     }
   }
 
@@ -56,12 +48,23 @@ class SessionConnect {
       final manager = ref.read(connectionManagerProvider);
       final conn = await manager.connect(config);
       ref.read(tabProvider.notifier).addTerminalTab(conn);
-    } on AuthError catch (e) {
-      if (context.mounted) Toast.show(context, message: 'Authentication failed: ${e.message}', level: ToastLevel.error);
-    } on ConnectError catch (e) {
-      if (context.mounted) Toast.show(context, message: 'Connection failed: ${e.message}', level: ToastLevel.error);
     } catch (e) {
-      if (context.mounted) Toast.show(context, message: 'Error: $e', level: ToastLevel.error);
+      if (context.mounted) _showError(context, e);
     }
+  }
+
+  /// Show a descriptive error toast for connection failures.
+  static void _showError(BuildContext context, Object error) {
+    final String msg;
+    if (error is HostKeyError) {
+      msg = error.userMessage;
+    } else if (error is AuthError) {
+      msg = 'Auth failed: ${error.userMessage}';
+    } else if (error is ConnectError) {
+      msg = error.userMessage;
+    } else {
+      msg = 'Connection error: $error';
+    }
+    Toast.show(context, message: msg, level: ToastLevel.error);
   }
 }

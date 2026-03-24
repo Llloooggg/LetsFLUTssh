@@ -246,6 +246,18 @@ class SessionPanel extends ConsumerWidget {
             ),
           ),
         ],
+        if (groupPath.isEmpty && ref.read(sessionProvider).isNotEmpty) ...[
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: 'delete_all',
+            child: ListTile(
+              leading: Icon(Icons.delete_forever, size: 18, color: AppTheme.disconnected),
+              title: Text('Delete All Sessions', style: TextStyle(color: AppTheme.disconnected)),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null || !context.mounted) return;
@@ -258,6 +270,8 @@ class SessionPanel extends ConsumerWidget {
           _renameFolder(context, ref, groupPath);
         case 'delete':
           _confirmDeleteFolder(context, ref, groupPath);
+        case 'delete_all':
+          _confirmDeleteAll(context, ref);
       }
     });
   }
@@ -481,6 +495,32 @@ class SessionPanel extends ConsumerWidget {
     );
     if (confirmed == true) {
       await ref.read(sessionProvider.notifier).delete(session.id);
+    }
+  }
+
+  Future<void> _confirmDeleteAll(BuildContext context, WidgetRef ref) async {
+    final count = ref.read(sessionProvider).length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete All Sessions'),
+        content: Text('Delete all $count session(s) and all folders?\n\nThis cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.disconnected),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(sessionProvider.notifier).deleteAll();
     }
   }
 }

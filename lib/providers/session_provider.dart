@@ -60,6 +60,11 @@ class SessionNotifier extends StateNotifier<List<Session>> {
     state = _store.sessions;
   }
 
+  Future<void> deleteAll() async {
+    await _store.deleteAll();
+    state = _store.sessions;
+  }
+
   Future<void> moveSession(String sessionId, String newGroup) async {
     await _store.moveSession(sessionId, newGroup);
     state = _store.sessions;
