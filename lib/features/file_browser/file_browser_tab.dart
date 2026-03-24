@@ -166,16 +166,21 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     final sftp = _sftpService!;
 
     manager.enqueue(TransferTask(
-      name: entry.name,
+      name: entry.isDir ? '${entry.name}/' : entry.name,
       direction: TransferDirection.upload,
       sourcePath: entry.path,
       targetPath: remotePath,
       run: (update) async {
         update(0, 'Starting upload...');
-        await sftp.upload(entry.path, remotePath, (progress) {
-          update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
-        });
-        // Refresh remote pane after upload
+        if (entry.isDir) {
+          await sftp.uploadDir(entry.path, remotePath, (progress) {
+            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
+          });
+        } else {
+          await sftp.upload(entry.path, remotePath, (progress) {
+            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
+          });
+        }
         _remoteCtrl?.refresh();
       },
     ));
@@ -191,16 +196,21 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     final sftp = _sftpService!;
 
     manager.enqueue(TransferTask(
-      name: entry.name,
+      name: entry.isDir ? '${entry.name}/' : entry.name,
       direction: TransferDirection.download,
       sourcePath: entry.path,
       targetPath: localPath,
       run: (update) async {
         update(0, 'Starting download...');
-        await sftp.download(entry.path, localPath, (progress) {
-          update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
-        });
-        // Refresh local pane after download
+        if (entry.isDir) {
+          await sftp.downloadDir(entry.path, localPath, (progress) {
+            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
+          });
+        } else {
+          await sftp.download(entry.path, localPath, (progress) {
+            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
+          });
+        }
         _localCtrl?.refresh();
       },
     ));

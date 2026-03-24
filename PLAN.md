@@ -89,8 +89,8 @@
         - [x] `list(path)` → sorted (dirs first, alphabetical)
         - [x] `upload(local, remote, onProgress)` — с progress callback
         - [x] `download(remote, local, onProgress)` — с progress callback
-        - [ ] `uploadDir(localDir, remoteDir, onProgress)` — recursive (deferred to Phase 6)
-        - [ ] `downloadDir(remoteDir, localDir, onProgress)` — recursive (deferred to Phase 6)
+        - [x] `uploadDir(localDir, remoteDir, onProgress)` — recursive
+        - [x] `downloadDir(remoteDir, localDir, onProgress)` — recursive
         - [x] `mkdir`, `remove`, `removeDir`, `rename`, `stat`, `getwd`
     - [x] `FileSystem` interface + `LocalFS` + `RemoteFS`
     - [x] `FileEntry` модель: name, path, size, mode, modTime, isDir

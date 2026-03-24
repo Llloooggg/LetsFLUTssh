@@ -18,3 +18,35 @@ final transferHistoryProvider = StreamProvider<List<HistoryEntry>>((ref) async* 
     yield manager.history;
   }
 });
+
+/// Reactive transfer status (running count, queue length, current info).
+final transferStatusProvider = StreamProvider<ActiveTransferState>((ref) async* {
+  final manager = ref.watch(transferManagerProvider);
+  yield ActiveTransferState(
+    running: manager.runningCount,
+    queued: manager.queueLength,
+    currentInfo: manager.currentTransferInfo,
+  );
+  await for (final _ in manager.onChange) {
+    yield ActiveTransferState(
+      running: manager.runningCount,
+      queued: manager.queueLength,
+      currentInfo: manager.currentTransferInfo,
+    );
+  }
+});
+
+/// Snapshot of active transfer state.
+class ActiveTransferState {
+  final int running;
+  final int queued;
+  final String? currentInfo;
+
+  const ActiveTransferState({
+    this.running = 0,
+    this.queued = 0,
+    this.currentInfo,
+  });
+
+  bool get hasActive => running > 0 || queued > 0;
+}

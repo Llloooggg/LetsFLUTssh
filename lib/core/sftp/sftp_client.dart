@@ -155,6 +155,75 @@ class SFTPService {
     }
   }
 
+  /// Upload a local directory recursively to remote path with progress.
+  Future<void> uploadDir(
+    String localDir,
+    String remoteDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {
+    // Create remote directory
+    try {
+      await _sftp.mkdir(remoteDir);
+    } catch (_) {
+      // Directory may already exist
+    }
+
+    final dir = Directory(localDir);
+    var filesDone = 0;
+    final allFiles = await dir.list(recursive: true).toList();
+    final totalFiles = allFiles.whereType<File>().length;
+
+    await for (final entity in dir.list()) {
+      final name = p.basename(entity.path);
+      final remotePath = p.posix.join(remoteDir, name);
+
+      if (entity is Directory) {
+        await uploadDir(entity.path, remotePath, onProgress);
+      } else if (entity is File) {
+        await upload(entity.path, remotePath, null);
+        filesDone++;
+        onProgress?.call(TransferProgress(
+          fileName: name,
+          totalBytes: totalFiles,
+          doneBytes: filesDone,
+          isUpload: true,
+          isCompleted: filesDone >= totalFiles,
+        ));
+      }
+    }
+  }
+
+  /// Download a remote directory recursively to local path with progress.
+  Future<void> downloadDir(
+    String remoteDir,
+    String localDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {
+    await Directory(localDir).create(recursive: true);
+
+    final items = await list(remoteDir);
+    var filesDone = 0;
+    final totalFiles = items.where((e) => !e.isDir).length;
+
+    for (final item in items) {
+      final localPath = p.join(localDir, item.name);
+
+      if (item.isDir) {
+        await downloadDir(item.path, localPath, onProgress);
+      } else {
+        await download(item.path, localPath, null);
+        filesDone++;
+        onProgress?.call(TransferProgress(
+          fileName: item.name,
+          totalBytes: totalFiles,
+          doneBytes: filesDone,
+          isUpload: false,
+          isCompleted: filesDone >= totalFiles,
+        ));
+      }
+    }
+  }
+
   void close() {
     _sftp.close();
   }

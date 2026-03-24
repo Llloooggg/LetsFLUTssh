@@ -15,12 +15,22 @@ class TransferPanel extends ConsumerStatefulWidget {
 
 class _TransferPanelState extends ConsumerState<TransferPanel> {
   bool _expanded = false;
+  bool _wasRunning = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final manager = ref.watch(transferManagerProvider);
     final historyAsync = ref.watch(transferHistoryProvider);
+    final statusAsync = ref.watch(transferStatusProvider);
+
+    // Auto-expand when transfers start
+    final status = statusAsync.valueOrNull;
+    final isRunning = status?.hasActive ?? false;
+    if (isRunning && !_wasRunning && !_expanded) {
+      _expanded = true;
+    }
+    _wasRunning = isRunning;
 
     return Column(
       children: [
@@ -46,16 +56,19 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 8),
-                if (manager.runningCount > 0)
+                if (status != null && status.hasActive)
                   Text(
-                    '${manager.runningCount} active, ${manager.queueLength} queued',
+                    '${status.running} active, ${status.queued} queued',
                     style: TextStyle(fontSize: 11, color: theme.colorScheme.primary),
                   ),
-                if (manager.currentTransferInfo != null) ...[
+                if (status?.currentInfo != null) ...[
                   const SizedBox(width: 8),
-                  Text(
-                    manager.currentTransferInfo!,
-                    style: const TextStyle(fontSize: 11),
+                  Flexible(
+                    child: Text(
+                      status!.currentInfo!,
+                      style: const TextStyle(fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
                 const Spacer(),
