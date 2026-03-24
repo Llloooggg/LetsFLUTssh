@@ -32,19 +32,29 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(
-          index: _navIndex,
-          children: [
-            // Sessions page
-            _MobileSessionsPage(
-              onConnect: (session) => _connectSession(context, ref, session),
-              onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-            ),
-            // Terminal page
-            _MobileTerminalPage(tabState: tabState),
-            // SFTP page
-            _MobileSftpPage(tabState: tabState),
-          ],
+        child: GestureDetector(
+          onHorizontalDragEnd: (details) {
+            final velocity = details.primaryVelocity ?? 0;
+            if (velocity > 300 && _navIndex > 0) {
+              setState(() => _navIndex--);
+            } else if (velocity < -300 && _navIndex < 2) {
+              setState(() => _navIndex++);
+            }
+          },
+          child: IndexedStack(
+            index: _navIndex,
+            children: [
+              // Sessions page
+              _MobileSessionsPage(
+                onConnect: (session) => _connectSession(context, ref, session),
+                onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+              ),
+              // Terminal page
+              _MobileTerminalPage(tabState: tabState),
+              // SFTP page
+              _MobileSftpPage(tabState: tabState),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: NavigationBar(

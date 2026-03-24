@@ -7,6 +7,7 @@ import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/platform.dart' as plat;
 
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
 ///
@@ -166,6 +167,7 @@ class TerminalPaneState extends State<TerminalPane> {
                   _terminal,
                   controller: _terminalController,
                   autofocus: widget.isFocused && !_showSearch,
+                  hardwareKeyboardOnly: plat.isDesktopPlatform,
                   backgroundOpacity: 1.0,
                   padding: const EdgeInsets.all(4),
                   onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
