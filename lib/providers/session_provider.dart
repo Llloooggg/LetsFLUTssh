@@ -44,12 +44,19 @@ class SessionNotifier extends StateNotifier<List<Session>> {
     state = _store.sessions;
     return copy;
   }
+
+  Future<void> addEmptyGroup(String groupPath) async {
+    await _store.addEmptyGroup(groupPath);
+    // Trigger rebuild by re-assigning state.
+    state = _store.sessions;
+  }
 }
 
-/// Tree built from current session list.
+/// Tree built from current session list (includes empty groups).
 final sessionTreeProvider = Provider<List<SessionTreeNode>>((ref) {
   final sessions = ref.watch(sessionProvider);
-  return SessionTree.build(sessions);
+  final store = ref.watch(sessionStoreProvider);
+  return SessionTree.build(sessions, emptyGroups: store.emptyGroups);
 });
 
 /// Search query state.
@@ -72,5 +79,6 @@ final filteredSessionsProvider = Provider<List<Session>>((ref) {
 /// Filtered tree based on search.
 final filteredSessionTreeProvider = Provider<List<SessionTreeNode>>((ref) {
   final sessions = ref.watch(filteredSessionsProvider);
-  return SessionTree.build(sessions);
+  final store = ref.watch(sessionStoreProvider);
+  return SessionTree.build(sessions, emptyGroups: store.emptyGroups);
 });

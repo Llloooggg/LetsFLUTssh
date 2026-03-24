@@ -134,10 +134,16 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                     width: leftWidth,
                     child: FilePane(
                       controller: _localCtrl!,
+                      paneId: 'local',
                       onTransfer: (entry) => _upload(entry),
                       onTransferMultiple: (entries) {
                         for (final e in entries) {
                           _upload(e);
+                        }
+                      },
+                      onDropReceived: (entries) {
+                        for (final e in entries) {
+                          _download(e);
                         }
                       },
                     ),
@@ -162,10 +168,16 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                   Expanded(
                     child: FilePane(
                       controller: _remoteCtrl!,
+                      paneId: 'remote',
                       onTransfer: (entry) => _download(entry),
                       onTransferMultiple: (entries) {
                         for (final e in entries) {
                           _download(e);
+                        }
+                      },
+                      onDropReceived: (entries) {
+                        for (final e in entries) {
+                          _upload(e);
                         }
                       },
                     ),

@@ -15,16 +15,20 @@ class SessionStore {
   static const _fileName = 'sessions.json';
 
   final List<Session> _sessions = [];
+  final Set<String> _emptyGroups = {};
   final CredentialStore _credStore = CredentialStore();
   late final String _filePath;
+  late final String _groupsFilePath;
   bool _initialized = false;
 
   List<Session> get sessions => List.unmodifiable(_sessions);
+  Set<String> get emptyGroups => Set.unmodifiable(_emptyGroups);
 
   Future<void> init() async {
     if (_initialized) return;
     final dir = await getApplicationSupportDirectory();
     _filePath = p.join(dir.path, _fileName);
+    _groupsFilePath = p.join(dir.path, 'empty_groups.json');
     _initialized = true;
   }
 
@@ -65,6 +69,10 @@ class SessionStore {
     } catch (_) {
       // Corrupted file — start fresh
     }
+
+    // Load empty groups
+    await _loadEmptyGroups();
+
     return _sessions;
   }
 
@@ -115,6 +123,39 @@ class SessionStore {
       }
     }
     await _credStore.saveAll(allCreds);
+  }
+
+  Future<void> _loadEmptyGroups() async {
+    await init();
+    final file = File(_groupsFilePath);
+    if (!await file.exists()) return;
+    try {
+      final content = await file.readAsString();
+      final list = jsonDecode(content) as List;
+      _emptyGroups
+        ..clear()
+        ..addAll(list.cast<String>());
+    } catch (_) {}
+  }
+
+  Future<void> _saveEmptyGroups() async {
+    await init();
+    final file = File(_groupsFilePath);
+    await file.parent.create(recursive: true);
+    await file.writeAsString(jsonEncode(_emptyGroups.toList()));
+  }
+
+  /// Add an empty group folder (persists even without sessions).
+  Future<void> addEmptyGroup(String groupPath) async {
+    if (groupPath.isEmpty) return;
+    _emptyGroups.add(groupPath);
+    await _saveEmptyGroups();
+  }
+
+  /// Remove an empty group (called when no longer needed).
+  Future<void> removeEmptyGroup(String groupPath) async {
+    _emptyGroups.remove(groupPath);
+    await _saveEmptyGroups();
   }
 
   Future<void> add(Session session) async {

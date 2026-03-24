@@ -9,6 +9,9 @@ class SessionTreeView extends StatefulWidget {
   final void Function(Session session)? onSessionTap;
   final void Function(Session session)? onSessionDoubleTap;
   final void Function(Session session, Offset position)? onSessionContextMenu;
+  final void Function(String groupPath, Offset position)? onGroupContextMenu;
+  /// Context menu on empty space (no group path).
+  final void Function(Offset position)? onBackgroundContextMenu;
 
   const SessionTreeView({
     super.key,
@@ -16,6 +19,8 @@ class SessionTreeView extends StatefulWidget {
     this.onSessionTap,
     this.onSessionDoubleTap,
     this.onSessionContextMenu,
+    this.onGroupContextMenu,
+    this.onBackgroundContextMenu,
   });
 
   @override
@@ -54,9 +59,26 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         ),
       );
     }
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      children: _buildNodes(widget.tree, 0),
+    final nodes = _buildNodes(widget.tree, 0);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 8),
+            child: GestureDetector(
+              onSecondaryTapUp: (d) {
+                widget.onBackgroundContextMenu?.call(d.globalPosition);
+              },
+              behavior: HitTestBehavior.translucent,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: nodes,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -77,51 +99,56 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
   Widget _buildGroupTile(SessionTreeNode node, int depth) {
     final expanded = _expandedGroups.contains(node.fullPath);
-    return InkWell(
-      onTap: () {
-        setState(() {
-          if (expanded) {
-            _expandedGroups.remove(node.fullPath);
-          } else {
-            _expandedGroups.add(node.fullPath);
-          }
-        });
+    return GestureDetector(
+      onSecondaryTapUp: (d) {
+        widget.onGroupContextMenu?.call(node.fullPath, d.globalPosition);
       },
-      child: Padding(
-        padding: EdgeInsets.only(left: 8.0 + depth * 16.0),
-        child: SizedBox(
-          height: 30,
-          child: Row(
-            children: [
-              Icon(
-                expanded ? Icons.expand_more : Icons.chevron_right,
-                size: 16,
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                expanded ? Icons.folder_open : Icons.folder,
-                size: 16,
-                color: Colors.amber[600],
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  node.name,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            if (expanded) {
+              _expandedGroups.remove(node.fullPath);
+            } else {
+              _expandedGroups.add(node.fullPath);
+            }
+          });
+        },
+        child: Padding(
+          padding: EdgeInsets.only(left: 8.0 + depth * 16.0),
+          child: SizedBox(
+            height: 30,
+            child: Row(
+              children: [
+                Icon(
+                  expanded ? Icons.expand_more : Icons.chevron_right,
+                  size: 16,
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(
-                  '${_countSessions(node)}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                const SizedBox(width: 4),
+                Icon(
+                  expanded ? Icons.folder_open : Icons.folder,
+                  size: 16,
+                  color: Colors.amber[600],
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    node.name,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(
+                    '${_countSessions(node)}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -44,6 +44,12 @@ class SessionPanel extends ConsumerWidget {
                   onSessionContextMenu: (session, position) {
                     _showContextMenu(context, ref, session, position);
                   },
+                  onGroupContextMenu: (groupPath, position) {
+                    _showGroupContextMenu(context, ref, groupPath, position);
+                  },
+                  onBackgroundContextMenu: (position) {
+                    _showGroupContextMenu(context, ref, '', position);
+                  },
                 ),
         ),
       ],
@@ -112,6 +118,129 @@ class SessionPanel extends ConsumerWidget {
     if (updated != null) {
       await ref.read(sessionProvider.notifier).update(updated);
     }
+  }
+
+  void _showGroupContextMenu(
+    BuildContext context,
+    WidgetRef ref,
+    String groupPath,
+    Offset position,
+  ) {
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx, position.dy, position.dx + 1, position.dy + 1,
+      ),
+      items: [
+        const PopupMenuItem(
+          value: 'new_session',
+          child: ListTile(
+            leading: Icon(Icons.add, size: 18),
+            title: Text('New Session'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'new_folder',
+          child: ListTile(
+            leading: Icon(Icons.create_new_folder, size: 18),
+            title: Text('New Folder'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null || !context.mounted) return;
+      switch (value) {
+        case 'new_session':
+          _addSessionInGroup(context, ref, groupPath);
+        case 'new_folder':
+          _createFolder(context, ref, groupPath);
+      }
+    });
+  }
+
+  Future<void> _addSessionInGroup(BuildContext context, WidgetRef ref, String groupPath) async {
+    final store = ref.read(sessionStoreProvider);
+    final session = await SessionEditDialog.show(
+      context,
+      existingGroups: store.groups(),
+      defaultGroup: groupPath,
+    );
+    if (session != null) {
+      await ref.read(sessionProvider.notifier).add(session);
+    }
+  }
+
+  Future<void> _createFolder(BuildContext context, WidgetRef ref, String parentGroup) async {
+    final store = ref.read(sessionStoreProvider);
+    // Collect all existing group paths including parent segments.
+    // E.g. "A/B/C" implies "A" and "A/B" also exist.
+    final existingGroups = <String>{};
+    for (final g in [...store.groups(), ...store.emptyGroups]) {
+      final parts = g.split('/');
+      for (var i = 1; i <= parts.length; i++) {
+        existingGroups.add(parts.sublist(0, i).join('/'));
+      }
+    }
+
+    final nameCtrl = TextEditingController();
+    String? errorText;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          void validate() {
+            final name = nameCtrl.text.trim();
+            final fullPath = parentGroup.isEmpty ? name : '$parentGroup/$name';
+            if (name.isNotEmpty && existingGroups.contains(fullPath)) {
+              setDialogState(() => errorText = 'Folder "$name" already exists');
+            } else {
+              setDialogState(() => errorText = null);
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('New Folder'),
+            content: TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Folder name',
+                hintText: 'e.g. Production',
+                errorText: errorText,
+              ),
+              onChanged: (_) => validate(),
+              onSubmitted: (v) {
+                if (errorText == null && v.trim().isNotEmpty) {
+                  Navigator.of(ctx).pop(v);
+                }
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: errorText == null
+                    ? () => Navigator.of(ctx).pop(nameCtrl.text)
+                    : null,
+                child: const Text('Create'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (result == null || result.trim().isEmpty) return;
+
+    final newGroup = parentGroup.isEmpty ? result.trim() : '$parentGroup/${result.trim()}';
+    await ref.read(sessionProvider.notifier).addEmptyGroup(newGroup);
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Session session) async {

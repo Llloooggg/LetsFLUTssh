@@ -164,6 +164,12 @@ class FilePaneController extends ChangeNotifier {
     });
   }
 
+  /// Set selection to a specific set of paths.
+  void selectPaths(Set<String> paths) {
+    _selected = paths;
+    notifyListeners();
+  }
+
   /// Get selected file entries.
   List<FileEntry> get selectedEntries =>
       _entries.where((e) => _selected.contains(e.path)).toList();

@@ -115,8 +115,9 @@
         - [x] Rename
         - [x] Delete (с confirm dialog)
         - [x] New Folder
-    - [ ] Internal drag&drop между панелями (deferred to Phase 6)
-    - [ ] OS drag&drop (`desktop_drop`) (deferred to Phase 6)
+    - [x] Internal drag&drop между панелями (Draggable + DragTarget)
+    - [x] Marquee (rubber band) selection + Ctrl+click для multi-select
+    - [ ] OS drag&drop (`desktop_drop`) (deferred — native dependency)
     - [x] Transfer panel (bottom, collapsible)
         - [x] Active transfer info (count, current file)
         - [x] History list: Direction (↑/↓), Status, Name, Duration, Error
@@ -196,9 +197,11 @@
     - [ ] Запись вывода терминала в файл
     - [ ] Timestamp каждой строки
     - [ ] Auto-log option per session
-- [ ] Terminal search (Ctrl+Shift+F)
-    - [ ] Поиск по scrollback buffer
-    - [ ] Highlight matches
+- [x] Terminal search (Ctrl+Shift+F)
+    - [x] Поиск по scrollback buffer
+    - [x] Highlight matches
+    - [x] Next/Previous navigation
+- [x] Session panel: create folders via context menu (right-click on group or empty space)
 
 ## Phase 7: Tiling & Split Terminals (v0.7)
 
@@ -250,11 +253,9 @@
     - [ ] macOS: dmg
     - [ ] Android: Play Store / F-Droid
     - [ ] iOS: TestFlight / App Store
-- [ ] Auto-updater (desktop)
 - [ ] Performance profiling и оптимизация
 - [ ] Security audit (credential storage, SSH implementation)
 - [ ] Документация пользователя
-- [ ] Website / landing page
 
 ---
 

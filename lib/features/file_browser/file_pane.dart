@@ -1,21 +1,39 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
 import '../../utils/format.dart';
 import '../../widgets/toast.dart';
 import 'file_browser_controller.dart';
 
+/// Drag data with source pane identity to prevent same-pane drops.
+class PaneDragData {
+  final String sourcePaneId;
+  final List<FileEntry> entries;
+  const PaneDragData({required this.sourcePaneId, required this.entries});
+}
+
 /// A single file browser pane (local or remote).
+///
+/// Supports drag&drop: files can be dragged from this pane and dropped
+/// onto the other pane to trigger transfers.
 class FilePane extends StatefulWidget {
   final FilePaneController controller;
+  final String paneId;
   final void Function(FileEntry entry)? onTransfer;
   final void Function(List<FileEntry> entries)? onTransferMultiple;
+
+  /// Called when files are dropped onto this pane from the other pane.
+  final void Function(List<FileEntry> entries)? onDropReceived;
 
   const FilePane({
     super.key,
     required this.controller,
+    this.paneId = '',
     this.onTransfer,
     this.onTransferMultiple,
+    this.onDropReceived,
   });
 
   @override
@@ -24,6 +42,7 @@ class FilePane extends StatefulWidget {
 
 class _FilePaneState extends State<FilePane> {
   final _pathController = TextEditingController();
+  final _focusNode = FocusNode();
   bool _editingPath = false;
 
   FilePaneController get ctrl => widget.controller;
@@ -39,7 +58,17 @@ class _FilePaneState extends State<FilePane> {
   void dispose() {
     ctrl.removeListener(_onChanged);
     _pathController.dispose();
+    _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event.logicalKey != LogicalKeyboardKey.delete) return KeyEventResult.ignored;
+    if (ctrl.selected.isEmpty) return KeyEventResult.ignored;
+    _confirmDelete(context, ctrl.selectedEntries);
+    return KeyEventResult.handled;
   }
 
   void _onChanged() {
@@ -56,18 +85,22 @@ class _FilePaneState extends State<FilePane> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
+    return Focus(
+      focusNode: _focusNode,
+      onKeyEvent: _onKeyEvent,
+      child: Column(
       children: [
         // Header: label + navigation
         _buildHeader(theme),
         // Path bar
         _buildPathBar(theme),
         const Divider(height: 1),
-        // File list
-        Expanded(child: _buildFileList(theme)),
-        // Footer: selection info
-        _buildFooter(theme),
-      ],
+        // File list (with drop target)
+        Expanded(child: _buildDropTarget(_buildFileList(theme))),
+          // Footer: selection info
+          _buildFooter(theme),
+        ],
+      ),
     );
   }
 
@@ -158,6 +191,30 @@ class _FilePaneState extends State<FilePane> {
     );
   }
 
+  // --- Marquee & drag state ---
+  Offset? _marqueeAnchor; // raw pointer-down position (before threshold)
+  Offset? _marqueeStart; // set after movement exceeds threshold
+  Offset? _marqueeCurrent;
+  bool _marqueeActive = false;
+  bool _dragActive = false; // true while Draggable is in flight
+  final _scrollController = ScrollController();
+  Set<String>? _preMarqueeSelection;
+
+  static const _rowHeight = 28.0;
+  static const _marqueeThreshold = 5.0; // px before marquee activates
+
+  bool get _isCtrlHeld =>
+      HardwareKeyboard.instance.logicalKeysPressed
+          .contains(LogicalKeyboardKey.controlLeft) ||
+      HardwareKeyboard.instance.logicalKeysPressed
+          .contains(LogicalKeyboardKey.controlRight);
+
+  int _rowIndexAt(double localY) {
+    final scrollOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    return ((localY + scrollOffset) / _rowHeight).floor();
+  }
+
   Widget _buildFileList(ThemeData theme) {
     if (ctrl.loading) {
       return const Center(child: CircularProgressIndicator());
@@ -188,31 +245,185 @@ class _FilePaneState extends State<FilePane> {
       );
     }
 
-    return GestureDetector(
-      onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
-      child: ListView.builder(
-      itemCount: ctrl.entries.length,
-      itemBuilder: (context, index) {
-        final entry = ctrl.entries[index];
-        final isSelected = ctrl.selected.contains(entry.path);
+    return Listener(
+      onPointerDown: (e) {
+        _focusNode.requestFocus();
+        if (e.buttons != kPrimaryButton) return;
 
-        return _FileRow(
-          entry: entry,
-          isSelected: isSelected,
-          onTap: () => ctrl.selectSingle(entry.path),
-          onCtrlTap: () => ctrl.toggleSelect(entry.path),
-          onDoubleTap: () {
-            if (entry.isDir) {
-              ctrl.navigateTo(entry.path);
-            } else {
-              widget.onTransfer?.call(entry);
-            }
-          },
-          onContextMenu: (offset) => _showContextMenu(context, offset, entry),
-        );
+        final rowIdx = _rowIndexAt(e.localPosition.dy);
+        final onRow = rowIdx >= 0 && rowIdx < ctrl.entries.length;
+        final onSelected = onRow && ctrl.selected.contains(ctrl.entries[rowIdx].path);
+
+
+
+        // If on a selected row, let Draggable handle a potential drag.
+        if (onSelected) return;
+
+        // Record anchor for potential marquee (not yet active).
+        setState(() {
+          _marqueeAnchor = e.localPosition;
+          _preMarqueeSelection = _isCtrlHeld ? Set.from(ctrl.selected) : null;
+        });
       },
+      onPointerMove: (e) {
+        if (_dragActive || _marqueeAnchor == null) return;
+
+        final distance = (e.localPosition - _marqueeAnchor!).distance;
+
+        if (!_marqueeActive) {
+          if (distance < _marqueeThreshold) return;
+          // Threshold exceeded — activate marquee.
+          _marqueeActive = true;
+          if (!_isCtrlHeld && _preMarqueeSelection == null) {
+            ctrl.clearSelection();
+          }
+        }
+
+        setState(() {
+          _marqueeStart = _marqueeAnchor;
+          _marqueeCurrent = e.localPosition;
+        });
+        _updateMarqueeSelection();
+      },
+      onPointerUp: (_) {
+        if (_marqueeActive) {
+          setState(() {
+            _marqueeAnchor = null;
+            _marqueeStart = null;
+            _marqueeCurrent = null;
+            _preMarqueeSelection = null;
+            _marqueeActive = false;
+          });
+        } else {
+          _marqueeAnchor = null;
+          _preMarqueeSelection = null;
+        }
+      },
+      child: GestureDetector(
+        onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            ListView.builder(
+              controller: _scrollController,
+              itemCount: ctrl.entries.length,
+              itemExtent: _rowHeight,
+              itemBuilder: (context, index) {
+                final entry = ctrl.entries[index];
+                final isSelected = ctrl.selected.contains(entry.path);
+
+                final row = _FileRow(
+                  entry: entry,
+                  isSelected: isSelected,
+                  onTap: () => ctrl.selectSingle(entry.path),
+                  onCtrlTap: () => ctrl.toggleSelect(entry.path),
+                  onDoubleTap: () {
+                    if (entry.isDir) {
+                      ctrl.navigateTo(entry.path);
+                    } else {
+                      widget.onTransfer?.call(entry);
+                    }
+                  },
+                  onContextMenu: (offset) =>
+                      _showContextMenu(context, offset, entry),
+                );
+
+                // Only selected files can be dragged (for transfer).
+                if (!isSelected) return row;
+
+                final dragEntries = ctrl.selectedEntries.length > 1
+                    ? ctrl.selectedEntries
+                    : [entry];
+
+                return Draggable<PaneDragData>(
+                  data: PaneDragData(
+                    sourcePaneId: widget.paneId,
+                    entries: dragEntries,
+                  ),
+                  onDragStarted: () => _dragActive = true,
+                  onDragEnd: (_) => _dragActive = false,
+                  onDraggableCanceled: (_, __) => _dragActive = false,
+                  feedback: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            dragEntries.length > 1
+                                ? Icons.file_copy
+                                : (entry.isDir
+                                    ? Icons.folder
+                                    : Icons.insert_drive_file),
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            dragEntries.length > 1
+                                ? '${dragEntries.length} items'
+                                : entry.name,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  child: row,
+                );
+              },
+            ),
+            // Marquee rectangle overlay
+            if (_marqueeActive &&
+                _marqueeStart != null &&
+                _marqueeCurrent != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _MarqueePainter(
+                      start: _marqueeStart!,
+                      end: _marqueeCurrent!,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _updateMarqueeSelection() {
+    if (_marqueeStart == null || _marqueeCurrent == null) return;
+
+    final scrollOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+
+    final startY = _marqueeStart!.dy + scrollOffset;
+    final endY = _marqueeCurrent!.dy + scrollOffset;
+    final minY = startY < endY ? startY : endY;
+    final maxY = startY > endY ? startY : endY;
+
+    final firstIndex =
+        (minY / _rowHeight).floor().clamp(0, ctrl.entries.length - 1);
+    final lastIndex =
+        (maxY / _rowHeight).floor().clamp(0, ctrl.entries.length - 1);
+
+    final newSelection = <String>{};
+    if (_preMarqueeSelection != null) {
+      newSelection.addAll(_preMarqueeSelection!);
+    }
+    for (var i = firstIndex; i <= lastIndex; i++) {
+      newSelection.add(ctrl.entries[i].path);
+    }
+    ctrl.selectPaths(newSelection);
   }
 
   Widget _buildFooter(ThemeData theme) {
@@ -244,6 +455,38 @@ class _FilePaneState extends State<FilePane> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildDropTarget(Widget child) {
+    return DragTarget<PaneDragData>(
+      onWillAcceptWithDetails: (details) {
+        if (widget.onDropReceived == null) return false;
+        // Reject drops from the same pane.
+        return details.data.sourcePaneId != widget.paneId;
+      },
+      onAcceptWithDetails: (details) {
+        _focusNode.requestFocus();
+        widget.onDropReceived?.call(details.data.entries);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        return Container(
+          decoration: isHovering
+              ? BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
+                  ),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.08),
+                )
+              : null,
+          child: child,
+        );
+      },
     );
   }
 
@@ -454,7 +697,16 @@ class _FileRow extends StatelessWidget {
     return GestureDetector(
       onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          if (HardwareKeyboard.instance.logicalKeysPressed
+                  .contains(LogicalKeyboardKey.controlLeft) ||
+              HardwareKeyboard.instance.logicalKeysPressed
+                  .contains(LogicalKeyboardKey.controlRight)) {
+            onCtrlTap();
+          } else {
+            onTap();
+          }
+        },
         onDoubleTap: onDoubleTap,
         child: Container(
           height: 28,
@@ -519,5 +771,45 @@ class _MenuRow extends StatelessWidget {
         Text(text),
       ],
     );
+  }
+}
+
+/// Paints a semi-transparent marquee selection rectangle.
+class _MarqueePainter extends CustomPainter {
+  final Offset start;
+  final Offset end;
+  final Color color;
+
+  _MarqueePainter({
+    required this.start,
+    required this.end,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromPoints(start, end);
+
+    // Fill
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = color.withValues(alpha: 0.12)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Border
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = color.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_MarqueePainter oldDelegate) {
+    return start != oldDelegate.start || end != oldDelegate.end;
   }
 }

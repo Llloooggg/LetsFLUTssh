@@ -8,23 +8,27 @@ import '../../core/session/session.dart';
 class SessionEditDialog extends StatefulWidget {
   final Session? session; // null = create new
   final List<String> existingGroups;
+  final String? defaultGroup;
 
   const SessionEditDialog({
     super.key,
     this.session,
     this.existingGroups = const [],
+    this.defaultGroup,
   });
 
   static Future<Session?> show(
     BuildContext context, {
     Session? session,
     List<String> existingGroups = const [],
+    String? defaultGroup,
   }) {
     return showDialog<Session>(
       context: context,
       builder: (_) => SessionEditDialog(
         session: session,
         existingGroups: existingGroups,
+        defaultGroup: defaultGroup,
       ),
     );
   }
@@ -56,7 +60,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     super.initState();
     final s = widget.session;
     _labelCtrl = TextEditingController(text: s?.label ?? '');
-    _groupCtrl = TextEditingController(text: s?.group ?? '');
+    _groupCtrl = TextEditingController(text: s?.group ?? widget.defaultGroup ?? '');
     _hostCtrl = TextEditingController(text: s?.host ?? '');
     _portCtrl = TextEditingController(text: '${s?.port ?? 22}');
     _userCtrl = TextEditingController(text: s?.user ?? '');

@@ -26,8 +26,32 @@ class SessionTreeNode {
 /// → Production → Web → nginx1 (leaf)
 class SessionTree {
   /// Build tree from flat session list.
-  static List<SessionTreeNode> build(List<Session> sessions) {
+  ///
+  /// [emptyGroups] — group paths that should appear even without sessions.
+  static List<SessionTreeNode> build(
+    List<Session> sessions, {
+    Set<String> emptyGroups = const {},
+  }) {
     final root = <SessionTreeNode>[];
+
+    // Create nodes for empty groups first.
+    for (final groupPath in emptyGroups) {
+      final parts = groupPath.split('/');
+      var currentChildren = root;
+      var currentPath = '';
+      for (final part in parts) {
+        currentPath = currentPath.isEmpty ? part : '$currentPath/$part';
+        var groupNode = _findGroup(currentChildren, part);
+        if (groupNode == null) {
+          groupNode = SessionTreeNode(
+            name: part,
+            fullPath: currentPath,
+          );
+          currentChildren.add(groupNode);
+        }
+        currentChildren = groupNode.children;
+      }
+    }
 
     for (final session in sessions) {
       if (session.group.isEmpty) {

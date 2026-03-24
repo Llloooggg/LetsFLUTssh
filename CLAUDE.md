@@ -184,7 +184,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.5.0 — Phase 5 complete)
+## Current State (v0.5.2 — Phase 5 + deferred items)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -232,6 +232,12 @@ LetsFLUTssh/
 - **Export/Import (.lfs)** — ZIP + AES-256-GCM (PBKDF2-SHA256 100k iterations), sessions + config + known_hosts
 - **Import modes** — merge (add new, skip existing) / replace (overwrite all)
 - **Settings UI** — Export Data / Import Data buttons with master password dialogs
+- **Internal drag&drop** — Draggable + DragTarget between file browser panes, cross-pane only (same-pane drop rejected via PaneDragData identity)
+- **Marquee selection** — rubber band selection from any position (5px threshold), Ctrl+click for multi-select
+- **Del key** — deletes selected files in focused pane (Focus-based, not global)
+- **Terminal search** — Ctrl+Shift+F, highlights matches in scrollback buffer, next/prev navigation
+- **Session folder creation** — right-click context menu on groups/empty space → New Folder / New Session
+- **Empty folders** — session groups persist without sessions (stored in empty_groups.json), duplicate name validation
 
 ### Решения и почему
 - **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
@@ -245,6 +251,11 @@ LetsFLUTssh/
 - **pointycastle вместо encrypt** — encrypt ^5.0.3 требует pointycastle ^3.6.2, конфликт с dartssh2 (needs ^4.0.0); pointycastle уже transitive dep
 - **CredentialStore вместо flutter_secure_storage** — pure Dart, no OS-specific native deps; AES-256-GCM с random key в credentials.key
 - **PBKDF2 100k iterations для .lfs** — industry standard key derivation для password-based encryption архивов
+- **Listener вместо GestureDetector для marquee** — Listener (raw pointer events) не участвует в gesture arena, поэтому не конфликтует с Draggable на строках файлов
+- **Draggable только на выделенных файлах** — клик по невыделенному файлу + drag = marquee; клик по выделенному + drag = transfer между панелями
+- **PaneDragData с sourcePaneId** — DragTarget отклоняет drop с тем же paneId, предотвращая transfer в ту же панель
+- **Focus-based Del** — каждая FilePane имеет FocusNode; Del удаляет только из панели с фокусом; фокус переключается при клике и при drop
+- **Empty groups в SessionStore** — пустые папки хранятся в отдельном empty_groups.json; SessionTree.build() принимает emptyGroups для рендеринга
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 
