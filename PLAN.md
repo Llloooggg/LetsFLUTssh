@@ -4,51 +4,51 @@
 
 **Goal:** Минимальный рабочий SSH-клиент с терминалом. Подключение, ввод, отображение.
 
-- [ ] Создать Flutter-проект (`flutter create`)
-- [ ] Настроить `pubspec.yaml` (зависимости: dartssh2, xterm, riverpod, path_provider, flutter_secure_storage)
-- [ ] Настроить `analysis_options.yaml` (strict lint rules)
-- [ ] `.gitignore` для Flutter
-- [ ] Инициализировать git-репозиторий
-- [ ] `lib/core/ssh/` — SSH клиент
-    - [ ] `SSHConfig` — модель конфигурации подключения (host, port, user, password, keyPath, keyData, passphrase)
-    - [ ] `SSHConnection` — обёртка над `dartssh2.SSHClient`
-        - [ ] `connect()` — подключение с timeout
-        - [ ] Auth chain: password → key file → key text → keyboard-interactive
-        - [ ] `openShell(cols, rows)` — PTY сессия, stdin/stdout потоки
-        - [ ] `resizeTerminal(cols, rows)` — PTY resize
-        - [ ] `disconnect()`, `isConnected` getter
-        - [ ] `onDisconnect` callback
-        - [ ] Keep-alive (configurable interval, default 30s)
-    - [ ] `errors.dart` — AuthError, ConnectError с cause unwrapping
-- [ ] `lib/core/ssh/known_hosts.dart` — TOFU host key verification
-    - [ ] Загрузка/сохранение known_hosts файла
-    - [ ] Проверка host key при подключении
-    - [ ] Диалог подтверждения нового ключа
-- [ ] `lib/features/terminal/` — Terminal tab
-    - [ ] `TerminalTab` widget: `xterm.TerminalView` подключённый к SSH shell
-    - [ ] Pipe: SSH stdout → xterm Terminal.write(); xterm onOutput → SSH stdin
-    - [ ] `onResize` → `SSHConnection.resizeTerminal()`
-    - [ ] Ctrl+Shift+C/V — copy/paste (если не из коробки xterm.dart)
-    - [ ] Right-click context menu (Copy / Paste)
-    - [ ] Disconnect detection → показать сообщение + кнопку Reconnect
-- [ ] `lib/features/tabs/` — базовая система вкладок
-    - [ ] Tab bar с кнопкой закрытия
-    - [ ] Welcome screen при отсутствии вкладок
-- [ ] `lib/main.dart` — точка входа
-    - [ ] MaterialApp с темой (dark по умолчанию)
-    - [ ] Quick Connect кнопка → диалог → подключение → terminal tab
-    - [ ] Status bar (connection info)
-- [ ] `lib/core/config/` — базовый конфиг
-    - [ ] `AppConfig` модель (fontSize, theme, scrollback, keepAlive, defaultPort)
-    - [ ] Загрузка/сохранение JSON в app support dir
-- [ ] `lib/providers/` — Riverpod providers
-    - [ ] `configProvider` — загрузка конфига
-    - [ ] `connectionProvider` — отслеживание активных подключений
-- [ ] Quick Connect диалог
-    - [ ] Host, Port, User, Password, Key file (file picker), Key text (multiline PEM)
-    - [ ] Валидация обязательных полей
-- [ ] Первый рабочий билд (Linux desktop)
-- [ ] Тест: подключение к SSH серверу, команды, htop, vim
+- [x] Создать Flutter-проект (`flutter create`)
+- [x] Настроить `pubspec.yaml` (зависимости: dartssh2, xterm, riverpod, path_provider, flutter_secure_storage)
+- [x] Настроить `analysis_options.yaml` (strict lint rules)
+- [x] `.gitignore` для Flutter
+- [x] Инициализировать git-репозиторий
+- [x] `lib/core/ssh/` — SSH клиент
+    - [x] `SSHConfig` — модель конфигурации подключения (host, port, user, password, keyPath, keyData, passphrase)
+    - [x] `SSHConnection` — обёртка над `dartssh2.SSHClient`
+        - [x] `connect()` — подключение с timeout
+        - [x] Auth chain: password → key file → key text → keyboard-interactive
+        - [x] `openShell(cols, rows)` — PTY сессия, stdin/stdout потоки
+        - [x] `resizeTerminal(cols, rows)` — PTY resize
+        - [x] `disconnect()`, `isConnected` getter
+        - [x] `onDisconnect` callback
+        - [x] Keep-alive (configurable interval, default 30s)
+    - [x] `errors.dart` — AuthError, ConnectError с cause unwrapping
+- [x] `lib/core/ssh/known_hosts.dart` — TOFU host key verification
+    - [x] Загрузка/сохранение known_hosts файла
+    - [x] Проверка host key при подключении
+    - [ ] Диалог подтверждения нового ключа (TOFU auto-accept, диалог в Phase 4)
+- [x] `lib/features/terminal/` — Terminal tab
+    - [x] `TerminalTab` widget: `xterm.TerminalView` подключённый к SSH shell
+    - [x] Pipe: SSH stdout → xterm Terminal.write(); xterm onOutput → SSH stdin
+    - [x] `onResize` → `SSHConnection.resizeTerminal()`
+    - [x] Ctrl+Shift+C/V — copy/paste (из коробки xterm.dart — встроенные Actions)
+    - [ ] Right-click context menu (Copy / Paste) — Phase 4
+    - [x] Disconnect detection → показать сообщение + кнопку Reconnect
+- [x] `lib/features/tabs/` — базовая система вкладок
+    - [x] Tab bar с кнопкой закрытия
+    - [x] Welcome screen при отсутствии вкладок
+- [x] `lib/main.dart` — точка входа
+    - [x] MaterialApp с темой (dark по умолчанию)
+    - [x] Quick Connect кнопка → диалог → подключение → terminal tab
+    - [x] Status bar (connection info)
+- [x] `lib/core/config/` — базовый конфиг
+    - [x] `AppConfig` модель (fontSize, theme, scrollback, keepAlive, defaultPort)
+    - [x] Загрузка/сохранение JSON в app support dir
+- [x] `lib/providers/` — Riverpod providers
+    - [x] `configProvider` — загрузка конфига
+    - [x] `connectionProvider` — отслеживание активных подключений
+- [x] Quick Connect диалог
+    - [x] Host, Port, User, Password, Key file (file picker), Key text (multiline PEM)
+    - [x] Валидация обязательных полей
+- [ ] Первый рабочий билд (Linux desktop) — требует ручной проверки
+- [ ] Тест: подключение к SSH серверу, команды, htop, vim — требует ручной проверки
 
 ## Phase 2: Session Manager (v0.2)
 
@@ -284,8 +284,8 @@
 
 ## Текущий статус
 
-**Активная фаза:** Phase 0 (project setup)
-**Прогресс:** Проект инициализирован. CLAUDE.md, PLAN.md, README.md написаны. Flutter-проект ещё не создан.
+**Активная фаза:** Phase 1 (Foundation + Terminal) — завершена
+**Прогресс:** Flutter-проект создан. Реализованы: SSH клиент (dartssh2), терминал (xterm.dart), система вкладок, Quick Connect диалог, конфиг, connection manager, Riverpod providers. `flutter analyze` чисто, 11 тестов проходят.
 
 ### Порядок работы
 

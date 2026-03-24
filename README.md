@@ -58,55 +58,106 @@ _Coming soon — see Releases page_
 ### Build from Source
 
 **Prerequisites:**
-- [Flutter SDK](https://flutter.dev/docs/get-started/install) 3.x
-- Dart 3.x (included with Flutter)
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) 3.x (Dart 3.x included)
+- Platform-specific toolchain (see below)
 
-**Linux:**
+#### Linux (Debian/Ubuntu)
+
 ```bash
-# Install Flutter dependencies
-sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+# System dependencies
+sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev lld
 
-# Clone and build
+# If using LLVM-based clang (e.g. clang-19), install matching lld:
+sudo apt-get install lld-19
+
+# Clone, install deps, build
 git clone https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
-flutter pub get
-flutter build linux
+make deps
+make build-linux
+
+# Or use the shortcut:
+make deps-linux   # installs system deps
+make build-linux  # builds release binary
 ```
 
-**Windows:**
+Build output: `build/linux/x64/release/bundle/`
+
+#### Linux (Fedora/RHEL)
+
+```bash
+sudo dnf install clang cmake ninja-build gtk3-devel lld pkg-config
+```
+
+#### Linux (Arch)
+
+```bash
+sudo pacman -S clang cmake ninja gtk3 lld pkg-config
+```
+
+#### Windows
+
+Requires Visual Studio 2022 with **"Desktop development with C++"** workload.
+
 ```powershell
+# Install Visual Studio C++ workload (if not installed)
+winget install Microsoft.VisualStudio.2022.Community
+# (select "Desktop development with C++" during setup)
+
 git clone https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
 flutter pub get
 flutter build windows
 ```
 
-**macOS:**
+Build output: `build\windows\x64\runner\Release\`
+
+#### macOS
+
+Requires Xcode command line tools.
+
 ```bash
+xcode-select --install
+
 git clone https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
-flutter pub get
-flutter build macos
+make deps
+make build-macos
 ```
 
-**Android:**
+Build output: `build/macos/Build/Products/Release/`
+
+#### Android
+
+Requires Android SDK (via Android Studio or standalone SDK).
+
 ```bash
-flutter build apk
-# or
-flutter build appbundle
+make build-apk    # APK
+make build-aab    # App Bundle (for Play Store)
 ```
+
+#### iOS
+
+Requires Xcode on macOS.
+
+```bash
+make build-ios
+```
+
+## Current Status
+
+**v0.1.0** — Phase 1 (Foundation + Terminal) complete. SSH terminal works with password and key auth. Quick Connect dialog, multi-tab interface, dark/light theme.
 
 ## Development
 
 ```bash
-# Run in debug mode
-flutter run
-
-# Run tests
-flutter test
-
-# Analyze code
-flutter analyze
+make run            # Run in debug mode
+make test           # Run all tests
+make analyze        # Run Dart analyzer
+make check          # Analyzer + tests
+make gen            # Code generation (freezed, json_serializable)
+make clean          # Remove build artifacts
+make help           # Show all available targets
 ```
 
 See [CLAUDE.md](CLAUDE.md) for architecture details and [PLAN.md](PLAN.md) for the development roadmap.
@@ -117,7 +168,6 @@ See [CLAUDE.md](CLAUDE.md) for architecture details and [PLAN.md](PLAN.md) for t
 - **dartssh2** — SSH2 protocol implementation (auth, shell, SFTP, port forwarding)
 - **xterm.dart** — terminal emulator widget (VT100/xterm, 256-color, RGB, mouse)
 - **Riverpod** — state management
-- **flutter_secure_storage** — OS keychain integration
 
 ## Predecessor
 

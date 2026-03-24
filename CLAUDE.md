@@ -180,10 +180,34 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.0.0 — project initialized)
+## Current State (v0.1.0 — Phase 1 complete)
 
 ### What works
-- Ничего — проект только создан
+- SSH подключение через dartssh2 (password, key file, key text)
+- Auth chain: key file → key text → password (как в LetsGOssh)
+- Keep-alive через dartssh2 `keepAliveInterval`
+- TOFU known hosts (auto-accept, persistent storage)
+- Terminal emulation через xterm.dart (256-color, mouse, scrollback 5000 lines)
+- Copy/paste из коробки (xterm.dart built-in Actions: Ctrl+Shift+C/V)
+- PTY resize при изменении размера окна
+- Disconnect detection + Reconnect кнопка
+- Tab system (open, close, switch, IndexedStack для сохранения состояния)
+- Tab bar с индикатором состояния (green/orange/red)
+- Quick Connect диалог (host, port, user, password, key file picker, PEM text)
+- Валидация полей в диалоге
+- Dark/light/system theme (Material 3)
+- App config (JSON persistence в app support dir)
+- Status bar (connection state + tab count)
+- Keyboard shortcuts: Ctrl+N (quick connect), Ctrl+W (close tab), Ctrl+Tab (next tab)
+- Riverpod state management (config, connections, tabs, theme)
+- Makefile (run, build, test, analyze, gen, clean)
+
+### Решения и почему
+- **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
+- **xterm.dart built-in copy/paste** — xterm 4.0 уже имеет Actions для CopySelectionTextIntent/PasteTextIntent, не нужно реализовывать вручную
+- **dartssh2 host key callback** — signature `FutureOr<bool> Function(String type, Uint8List fingerprint)`, не SSHPublicKey
+- **IndexedStack для табов** — сохраняет состояние терминала при переключении между вкладками
+- **Flutter SDK** — установлен в `/home/llloooggg/flutter-sdk` (stable 3.41.5, Dart 3.11.3)
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 
