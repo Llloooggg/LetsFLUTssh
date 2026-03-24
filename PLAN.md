@@ -193,15 +193,19 @@
 - [x] Session panel: create folders via context menu (right-click on group or empty space)
 - [x] Auto-detect SSH keys from ~/.ssh/ (id_rsa, id_ed25519, id_ecdsa)
 
-## Phase 7: Tiling & Split Terminals (v0.7)
+## Phase 7: Tiling & Split Terminals (v0.7) ✅
 
 **Goal:** Мульти-терминал layout (как tmux/Terminator/VS Code)
 
-- [ ] Split-view внутри вкладки
-    - [ ] Vertical split (left | right terminals)
-    - [ ] Horizontal split (top / bottom terminals)
-    - [ ] Recursive splitting (quad layout и т.д.)
-    - [ ] Drag to resize splits
+- [x] Split-view внутри вкладки
+    - [x] Vertical split (left | right terminals)
+    - [x] Horizontal split (top / bottom terminals)
+    - [x] Recursive splitting (quad layout и т.д.)
+    - [x] Drag to resize splits
+    - [x] Focus indicator (blue border on active pane)
+    - [x] Keyboard shortcuts: Ctrl+Shift+D (split right), Ctrl+Shift+E (split down), Ctrl+Shift+W (close pane)
+    - [x] Context menu: Split Right / Split Down / Close Pane
+    - [x] Each pane opens its own SSH shell on shared Connection
 
 ## Phase 8: Mobile (v0.8)
 
@@ -231,15 +235,14 @@
 **Goal:** Production-ready release
 
 - [ ] Полное покрытие тестами (unit + widget + integration)
-- [ ] CI/CD (GitHub Actions)
-    - [ ] flutter analyze + flutter test on PR
-    - [ ] Build artifacts: Linux, Windows, macOS, Android APK
+- [x] CI/CD (GitHub Actions)
+    - [x] flutter analyze + flutter test on PR
+    - [x] Build artifacts: Linux, Windows, macOS, Android APK
 - [ ] Packaging
     - [ ] Linux: AppImage, deb, snap
     - [ ] Windows: MSIX, portable zip
     - [ ] macOS: dmg
     - [ ] Android: Play Store / F-Droid
-    - [ ] iOS: TestFlight / App Store
 - [ ] Performance profiling и оптимизация
 - [ ] Security audit (credential storage, SSH implementation)
 - [ ] Документация пользователя
@@ -271,8 +274,8 @@
 
 ## Текущий статус
 
-**Активная фаза:** Phase 6 (Advanced Features) — завершена
-**Прогресс:** Phases 1-6 завершены. Host key dialog, terminal context menu, key drag&drop, auto-detect SSH keys, terminal search, session folders. 53+ тестов.
+**Активная фаза:** Phase 7 (Tiling & Split Terminals) — завершена
+**Прогресс:** Phases 1-7 завершены. Tiling terminal layout (recursive split, resize dividers, focus tracking, keyboard shortcuts). 62 теста.
 
 ### Порядок работы
 
@@ -294,7 +297,7 @@
 | 4 ✅  | Polish & UX           | Medium (доводка существующего)                                 |
 | 5 ✅  | Security & Export     | Medium (pointycastle AES-256-GCM + archive ZIP)                |
 | 6 ✅  | Advanced UX           | Medium (terminal search, session folders, key improvements)    |
-| 7     | Tiling                | Medium (recursive split layout)                                |
+| 7 ✅  | Tiling                | Medium (recursive split layout)                                |
 | 8     | Mobile                | Hard (адаптивный UI + virtual keyboard + platform integration) |
 | 9     | Release               | Medium (CI/CD + packaging + testing)                           |
 | 10    | Post-Release Polish   | Hard (port forwarding, multi-exec, jump hosts)                 |

@@ -184,7 +184,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.6.0 — Phase 6 complete)
+## Current State (v0.7.0 — Phase 7 complete)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -242,6 +242,10 @@ LetsFLUTssh/
 - **Terminal right-click context menu** — Copy (selected text) / Paste from clipboard
 - **Key field drag&drop** — drop .pem/.key files into session edit dialog, auto-reads PEM content
 - **Auto-detect SSH keys** — tries ~/.ssh/id_ed25519, id_ecdsa, id_rsa, id_dsa (like OpenSSH) when no explicit key provided
+- **Tiling terminal layout** — recursive split (vertical/horizontal) like tmux/Terminator, drag-to-resize dividers
+- **Split shortcuts** — Ctrl+Shift+D (split right), Ctrl+Shift+E (split down), Ctrl+Shift+W (close pane)
+- **Pane focus tracking** — blue border on focused pane, click to switch focus
+- **Multiple shells per connection** — each pane opens its own SSH shell on the shared Connection
 
 ### Решения и почему
 - **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
@@ -264,6 +268,10 @@ LetsFLUTssh/
 - **SHA256 fingerprint** — pointycastle SHA256Digest для стандартного формата `SHA256:base64hash` (вместо hex первых 16 байт)
 - **Auto-detect SSH keys** — если keyPath и keyData пусты, пробуем id_ed25519 → id_ecdsa → id_rsa → id_dsa из ~/.ssh/ (порядок как в OpenSSH)
 - **Key file drop auto-reads PEM** — если dropped файл < 32KB и содержит "PRIVATE KEY", содержимое читается в keyData; иначе ставится keyPath
+- **Sealed class SplitNode** — Dart sealed class для recursive split tree (LeafNode | BranchNode); exhaustive switch, immutable IDs (uuid)
+- **Tiling как tree** — recursive BranchNode(direction, ratio, first, second) позволяет произвольную глубину вложенности; replaceNode/removeNode для мутации дерева
+- **TerminalPane vs TerminalTab** — TerminalPane = один терминал в тайле (без reconnect); TerminalTab = контейнер с tiling tree + reconnect + shortcuts
+- **Каждый pane → свой SSH shell** — openShell() вызывается для каждого LeafNode, все шеллы на одном SSHConnection; при reconnect дерево сбрасывается в один лист
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 

@@ -47,7 +47,16 @@ class SessionNotifier extends StateNotifier<List<Session>> {
 
   Future<void> addEmptyGroup(String groupPath) async {
     await _store.addEmptyGroup(groupPath);
-    // Trigger rebuild by re-assigning state.
+    state = _store.sessions;
+  }
+
+  Future<void> renameGroup(String oldPath, String newPath) async {
+    await _store.renameGroup(oldPath, newPath);
+    state = _store.sessions;
+  }
+
+  Future<void> deleteGroup(String groupPath) async {
+    await _store.deleteGroup(groupPath);
     state = _store.sessions;
   }
 }

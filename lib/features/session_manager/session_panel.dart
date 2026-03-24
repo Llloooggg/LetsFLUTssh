@@ -150,6 +150,27 @@ class SessionPanel extends ConsumerWidget {
             contentPadding: EdgeInsets.zero,
           ),
         ),
+        if (groupPath.isNotEmpty) ...[
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: 'rename',
+            child: ListTile(
+              leading: Icon(Icons.drive_file_rename_outline, size: 18),
+              title: Text('Rename'),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+          const PopupMenuItem(
+            value: 'delete',
+            child: ListTile(
+              leading: Icon(Icons.delete, size: 18, color: Colors.red),
+              title: Text('Delete Folder', style: TextStyle(color: Colors.red)),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
       ],
     ).then((value) {
       if (value == null || !context.mounted) return;
@@ -158,6 +179,10 @@ class SessionPanel extends ConsumerWidget {
           _addSessionInGroup(context, ref, groupPath);
         case 'new_folder':
           _createFolder(context, ref, groupPath);
+        case 'rename':
+          _renameFolder(context, ref, groupPath);
+        case 'delete':
+          _confirmDeleteFolder(context, ref, groupPath);
       }
     });
   }
@@ -241,6 +266,123 @@ class SessionPanel extends ConsumerWidget {
 
     final newGroup = parentGroup.isEmpty ? result.trim() : '$parentGroup/${result.trim()}';
     await ref.read(sessionProvider.notifier).addEmptyGroup(newGroup);
+  }
+
+  Future<void> _renameFolder(BuildContext context, WidgetRef ref, String groupPath) async {
+    // Extract the folder's own name (last segment)
+    final parts = groupPath.split('/');
+    final currentName = parts.last;
+    final parentPath = parts.length > 1 ? parts.sublist(0, parts.length - 1).join('/') : '';
+
+    final nameCtrl = TextEditingController(text: currentName);
+    String? errorText;
+
+    // Collect existing group paths for validation
+    final store = ref.read(sessionStoreProvider);
+    final existingGroups = <String>{};
+    for (final g in [...store.groups(), ...store.emptyGroups]) {
+      final gParts = g.split('/');
+      for (var i = 1; i <= gParts.length; i++) {
+        existingGroups.add(gParts.sublist(0, i).join('/'));
+      }
+    }
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          void validate() {
+            final name = nameCtrl.text.trim();
+            final newPath = parentPath.isEmpty ? name : '$parentPath/$name';
+            if (name.isEmpty) {
+              setDialogState(() => errorText = null);
+            } else if (name == currentName) {
+              setDialogState(() => errorText = null);
+            } else if (existingGroups.contains(newPath)) {
+              setDialogState(() => errorText = 'Folder "$name" already exists');
+            } else {
+              setDialogState(() => errorText = null);
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Rename Folder'),
+            content: TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Folder name',
+                errorText: errorText,
+              ),
+              onChanged: (_) => validate(),
+              onSubmitted: (v) {
+                if (errorText == null && v.trim().isNotEmpty && v.trim() != currentName) {
+                  Navigator.of(ctx).pop(v);
+                }
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: errorText == null
+                    ? () => Navigator.of(ctx).pop(nameCtrl.text)
+                    : null,
+                child: const Text('Rename'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (result == null || result.trim().isEmpty || result.trim() == currentName) return;
+
+    final newPath = parentPath.isEmpty ? result.trim() : '$parentPath/${result.trim()}';
+    await ref.read(sessionProvider.notifier).renameGroup(groupPath, newPath);
+  }
+
+  Future<void> _confirmDeleteFolder(BuildContext context, WidgetRef ref, String groupPath) async {
+    final store = ref.read(sessionStoreProvider);
+    final sessionCount = store.countSessionsInGroup(groupPath);
+    final folderName = groupPath.split('/').last;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Folder'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Delete folder "$folderName"?'),
+            if (sessionCount > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                'This will also delete $sessionCount session(s) inside.',
+                style: TextStyle(color: Colors.red[300], fontSize: 13),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(sessionProvider.notifier).deleteGroup(groupPath);
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Session session) async {

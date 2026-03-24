@@ -72,6 +72,15 @@ class TabNotifier extends StateNotifier<TabState> {
     state = state.copyWith(tabs: newTabs, activeIndex: newActive);
   }
 
+  /// Close all tabs to the left of the given index.
+  void closeToTheLeft(int index) {
+    if (index <= 0) return;
+    final newTabs = state.tabs.sublist(index);
+    var newActive = state.activeIndex - index;
+    if (newActive < 0) newActive = 0;
+    state = state.copyWith(tabs: newTabs, activeIndex: newActive);
+  }
+
   /// Select a tab by index.
   void selectTab(int index) {
     if (index >= 0 && index < state.tabs.length) {
@@ -93,6 +102,24 @@ class TabNotifier extends StateNotifier<TabState> {
       activeIdx--;
     } else if (oldIndex > activeIdx && newIndex <= activeIdx) {
       activeIdx++;
+    }
+    state = state.copyWith(tabs: tabs, activeIndex: activeIdx);
+  }
+
+  /// Swap two tabs by index (for drag-and-drop reorder).
+  void swapTabs(int idx1, int idx2) {
+    if (idx1 == idx2) return;
+    if (idx1 < 0 || idx2 < 0 || idx1 >= state.tabs.length || idx2 >= state.tabs.length) return;
+    final tabs = [...state.tabs];
+    final temp = tabs[idx1];
+    tabs[idx1] = tabs[idx2];
+    tabs[idx2] = temp;
+
+    var activeIdx = state.activeIndex;
+    if (activeIdx == idx1) {
+      activeIdx = idx2;
+    } else if (activeIdx == idx2) {
+      activeIdx = idx1;
     }
     state = state.copyWith(tabs: tabs, activeIndex: activeIdx);
   }

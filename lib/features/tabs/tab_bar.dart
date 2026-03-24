@@ -5,8 +5,11 @@ import '../../core/connection/connection.dart';
 import 'tab_controller.dart';
 import 'tab_model.dart';
 
-/// Custom tab bar with drag-to-reorder, close buttons, context menu,
-/// and connection state indicators.
+/// Custom tab bar with drag-to-reorder and drag-to-split.
+///
+/// Each tab has a small grip icon (⠿) for dragging. Click the tab to select,
+/// drag the grip to reorder in the bar or drop onto the content area to split.
+/// This avoids gesture conflicts between tap-to-select and drag-to-move.
 class AppTabBar extends ConsumerWidget {
   const AppTabBar({super.key});
 
@@ -17,39 +20,56 @@ class AppTabBar extends ConsumerWidget {
 
     if (tabs.isEmpty) return const SizedBox.shrink();
 
+    final theme = Theme.of(context);
+
     return SizedBox(
       height: 36,
-      child: ReorderableListView.builder(
+      child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        buildDefaultDragHandles: false,
-        clipBehavior: Clip.none,
-        proxyDecorator: (child, index, animation) {
-          return Material(
-            elevation: 4,
-            color: Colors.transparent,
-            borderOnForeground: false,
-            child: child,
-          );
-        },
-        onReorder: (oldIndex, newIndex) {
-          ref.read(tabProvider.notifier).reorderTabs(oldIndex, newIndex);
-        },
+        physics: const NeverScrollableScrollPhysics(),
         itemCount: tabs.length,
         itemBuilder: (context, index) {
           final tab = tabs[index];
           final isActive = index == tabState.activeIndex;
-          return ReorderableDragStartListener(
-            key: ValueKey(tab.id),
-            index: index,
-            child: _TabItem(
-              tab: tab,
-              isActive: isActive,
-              onSelect: () => ref.read(tabProvider.notifier).selectTab(index),
-              onClose: () => ref.read(tabProvider.notifier).closeTab(tab.id),
-              onContextMenu: (offset) => _showContextMenu(
-                context, ref, tab, index, tabState, offset,
-              ),
-            ),
+
+          // DragTarget for reorder: accepts drops from other tabs' grip handles.
+          return DragTarget<TabEntry>(
+            key: ValueKey('drop_${tab.id}'),
+            onWillAcceptWithDetails: (d) => d.data.id != tab.id,
+            onAcceptWithDetails: (d) {
+              final oldIdx = tabs.indexWhere((t) => t.id == d.data.id);
+              if (oldIdx >= 0 && oldIdx != index) {
+                ref.read(tabProvider.notifier).swapTabs(oldIdx, index);
+              }
+            },
+            builder: (context, candidates, rejected) {
+              final isDropHover = candidates.isNotEmpty;
+
+              return Container(
+                decoration: isDropHover
+                    ? BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                      )
+                    : null,
+                child: _TabItem(
+                  tab: tab,
+                  isActive: isActive,
+                  theme: theme,
+                  onSelect: () =>
+                      ref.read(tabProvider.notifier).selectTab(index),
+                  onClose: () =>
+                      ref.read(tabProvider.notifier).closeTab(tab.id),
+                  onContextMenu: (offset) => _showContextMenu(
+                    context, ref, tab, index, tabState, offset,
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -79,7 +99,12 @@ class AppTabBar extends ConsumerWidget {
             value: 'close_others',
             child: Text('Close Others'),
           ),
-        if (tabState.tabs.length > 1)
+        if (index > 0)
+          const PopupMenuItem(
+            value: 'close_left',
+            child: Text('Close Tabs to the Left'),
+          ),
+        if (index < tabState.tabs.length - 1)
           const PopupMenuItem(
             value: 'close_right',
             child: Text('Close Tabs to the Right'),
@@ -93,6 +118,8 @@ class AppTabBar extends ConsumerWidget {
           notifier.closeTab(tab.id);
         case 'close_others':
           notifier.closeOthers(tab.id);
+        case 'close_left':
+          notifier.closeToTheLeft(index);
         case 'close_right':
           notifier.closeToTheRight(index);
       }
@@ -103,6 +130,7 @@ class AppTabBar extends ConsumerWidget {
 class _TabItem extends StatelessWidget {
   final TabEntry tab;
   final bool isActive;
+  final ThemeData theme;
   final VoidCallback onSelect;
   final VoidCallback onClose;
   final void Function(Offset position) onContextMenu;
@@ -110,6 +138,7 @@ class _TabItem extends StatelessWidget {
   const _TabItem({
     required this.tab,
     required this.isActive,
+    required this.theme,
     required this.onSelect,
     required this.onClose,
     required this.onContextMenu,
@@ -137,12 +166,11 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onSelect,
       onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.only(left: 2, right: 8),
         decoration: BoxDecoration(
           color: isActive
               ? theme.colorScheme.surfaceContainerHighest
@@ -157,6 +185,35 @@ class _TabItem extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Grip handle — only this part is draggable
+            Draggable<TabEntry>(
+              data: tab,
+              feedback: Material(
+                elevation: 4,
+                color: Colors.transparent,
+                child: Opacity(
+                  opacity: 0.85,
+                  child: _DragChip(tab: tab, theme: theme),
+                ),
+              ),
+              childWhenDragging: Icon(
+                Icons.drag_indicator,
+                size: 16,
+                color: theme.colorScheme.primary,
+              ),
+              child: MouseRegion(
+                cursor: SystemMouseCursors.grab,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                  child: Icon(
+                    Icons.drag_indicator,
+                    size: 16,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 2),
             Container(
               width: 8,
               height: 8,
@@ -189,6 +246,39 @@ class _TabItem extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Drag feedback chip shown while dragging a tab.
+class _DragChip extends StatelessWidget {
+  final TabEntry tab;
+  final ThemeData theme;
+
+  const _DragChip({required this.tab, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: theme.colorScheme.primary, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            tab.kind == TabKind.terminal ? Icons.terminal : Icons.folder,
+            size: 14,
+            color: theme.colorScheme.onSurface,
+          ),
+          const SizedBox(width: 4),
+          Text(tab.label, style: theme.textTheme.bodySmall),
+        ],
       ),
     );
   }

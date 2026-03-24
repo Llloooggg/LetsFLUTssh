@@ -216,6 +216,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           case TabKind.terminal:
             return TerminalTab(
               key: ValueKey(tab.id),
+              tabId: tab.id,
               connection: tab.connection,
             );
           case TabKind.sftp:

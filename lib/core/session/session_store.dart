@@ -158,6 +158,70 @@ class SessionStore {
     await _saveEmptyGroups();
   }
 
+  /// Rename a group and all its subgroups.
+  /// Updates sessions and empty groups with the old path prefix.
+  Future<void> renameGroup(String oldPath, String newPath) async {
+    if (oldPath.isEmpty || newPath.isEmpty || oldPath == newPath) return;
+
+    // Update sessions: exact match or subgroup (oldPath/...)
+    for (int i = 0; i < _sessions.length; i++) {
+      final s = _sessions[i];
+      if (s.group == oldPath) {
+        _sessions[i] = s.copyWith(group: newPath);
+      } else if (s.group.startsWith('$oldPath/')) {
+        _sessions[i] = s.copyWith(group: newPath + s.group.substring(oldPath.length));
+      }
+    }
+
+    // Update empty groups
+    final toRemove = <String>[];
+    final toAdd = <String>[];
+    for (final g in _emptyGroups) {
+      if (g == oldPath) {
+        toRemove.add(g);
+        toAdd.add(newPath);
+      } else if (g.startsWith('$oldPath/')) {
+        toRemove.add(g);
+        toAdd.add(newPath + g.substring(oldPath.length));
+      }
+    }
+    _emptyGroups.removeAll(toRemove);
+    _emptyGroups.addAll(toAdd);
+
+    await _save();
+    await _saveEmptyGroups();
+  }
+
+  /// Delete a group: remove all sessions and empty groups under this path.
+  Future<void> deleteGroup(String groupPath) async {
+    if (groupPath.isEmpty) return;
+
+    // Delete sessions in this group and subgroups
+    final toDelete = _sessions
+        .where((s) => s.group == groupPath || s.group.startsWith('$groupPath/'))
+        .map((s) => s.id)
+        .toList();
+    for (final id in toDelete) {
+      _sessions.removeWhere((s) => s.id == id);
+      await _credStore.delete(id);
+    }
+
+    // Remove empty groups under this path
+    _emptyGroups.removeWhere(
+      (g) => g == groupPath || g.startsWith('$groupPath/'),
+    );
+
+    await _save();
+    await _saveEmptyGroups();
+  }
+
+  /// Count sessions in a group and its subgroups.
+  int countSessionsInGroup(String groupPath) {
+    return _sessions
+        .where((s) => s.group == groupPath || s.group.startsWith('$groupPath/'))
+        .length;
+  }
+
   Future<void> add(Session session) async {
     final error = session.validate();
     if (error != null) throw ArgumentError(error);
