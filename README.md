@@ -53,6 +53,14 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - System theme auto-detection
 - Configurable font size, scrollback, keep-alive, and more
 
+### Mobile
+- Bottom navigation (Sessions / Terminal / Files)
+- **SSH virtual keyboard** — Esc, Tab, Ctrl, Alt, arrows, F1-F12, sticky modifiers
+- Pinch-to-zoom terminal font size
+- Single-pane SFTP with Local/Remote toggle
+- Long-press selection mode with bulk actions
+- Touch-friendly UI (48dp touch targets)
+
 ### Cross-Platform
 - **Desktop:** Windows, Linux, macOS
 - **Mobile:** Android, iOS
@@ -159,12 +167,13 @@ make build-ios
 
 ## Current Status
 
-**v0.7.1** — Phase 7 complete. All core features implemented across 7 phases:
+**v0.8.0** — Phase 8 complete. All core features implemented across 8 phases:
 - Phases 1-3: SSH terminal, session manager, SFTP file browser (MVP)
 - Phase 4: Polish — tab reorder, toast notifications, settings, responsive layout
 - Phase 5: Security — AES-256-GCM credential encryption, .lfs export/import
 - Phase 6: Terminal search (Ctrl+Shift+F), auto-detect SSH keys, session folders
-- Phase 7: Tiling terminal layout — recursive split (vertical/horizontal), drag-to-resize, focus tracking
+- Phase 7: Tiling terminal layout — recursive split, drag-to-resize, focus tracking
+- Phase 8: Mobile UI — bottom nav, SSH virtual keyboard, single-pane SFTP, pinch-to-zoom
 
 ## Development
 

@@ -81,8 +81,8 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Quick Connect'),
-      content: SizedBox(
-        width: 420,
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(

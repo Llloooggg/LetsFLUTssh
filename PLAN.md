@@ -207,28 +207,32 @@
     - [x] Context menu: Split Right / Split Down / Close Pane
     - [x] Each pane opens its own SSH shell on shared Connection
 
-## Phase 8: Mobile (v0.8)
+## Phase 8: Mobile (v0.8) ✅
 
 **Goal:** Полноценная мобильная версия (Android + iOS)
 
-- [ ] Адаптивный UI
-    - [ ] Sidebar → bottom navigation / drawer
-    - [ ] File browser → single pane with toggle
-    - [ ] Full-screen terminal
-- [ ] Virtual keyboard
-    - [ ] SSH-specific keys panel: Ctrl, Esc, Tab, Alt, arrows, F1-F12
-    - [ ] Configurable key layout
-    - [ ] Swipe gestures (left/right = tab switch, up = keyboard)
-- [ ] Touch terminal
-    - [ ] Long press → context menu (copy/paste)
-    - [ ] Pinch to zoom (font size)
-    - [ ] Swipe up/down = scrollback
-- [ ] Platform integration
+- [x] Адаптивный UI
+    - [x] Sidebar → bottom navigation (Sessions / Terminal / Files)
+    - [x] File browser → single pane with Local/Remote toggle
+    - [x] Full-screen terminal (no tiling on mobile)
+    - [x] Tab switcher via ChoiceChips (multiple terminals/SFTP)
+    - [x] FAB for Quick Connect on Sessions page
+    - [x] Dialogs adapt to narrow screens (ConstrainedBox)
+- [x] Virtual keyboard
+    - [x] SSH-specific keys panel: Esc, Tab, Ctrl, Alt, arrows, |, ~, /, -
+    - [x] F1-F12 expandable row (Fn toggle)
+    - [x] Sticky modifiers: tap = one-shot, double-tap = lock
+    - [x] Haptic feedback on key press
+- [x] Touch terminal
+    - [x] Long press → context menu (copy/paste)
+    - [x] Pinch to zoom (font size 8-24pt)
+- [ ] Platform integration (deferred to Phase 8.1)
     - [ ] URL scheme: `letsflutssh://connect?host=...`
     - [ ] Share intent: receive SSH key files
     - [ ] Notification for active sessions in background
-- [ ] Android build (APK + AAB)
-- [ ] iOS build
+    - [ ] Swipe gestures (left/right = tab switch)
+- [x] Android build (APK + AAB)
+- [ ] iOS build (untested)
 
 ## Phase 9: Stable Release (v1.0)
 
@@ -274,8 +278,8 @@
 
 ## Текущий статус
 
-**Активная фаза:** Phase 8 (Mobile) — следующая
-**Прогресс:** Phases 1-7 завершены. v0.7.1 — OneDark theme, cleanup (removed unused deps, split file_pane.dart, added logging). 62 теста.
+**Активная фаза:** Phase 9 (Stable Release) — следующая
+**Прогресс:** Phases 1-8 завершены. v0.8.0 — Mobile UI (bottom nav, SSH keyboard bar, single-pane SFTP, pinch-to-zoom, touch interactions). Fix Windows keyboard input. 62 теста.
 
 ### Порядок работы
 
@@ -298,6 +302,7 @@
 | 5 ✅  | Security & Export     | Medium (pointycastle AES-256-GCM + archive ZIP)                |
 | 6 ✅  | Advanced UX           | Medium (terminal search, session folders, key improvements)    |
 | 7 ✅  | Tiling                | Medium (recursive split layout)                                |
+| 8 ✅  | Mobile                | Medium (mobile shell, SSH keyboard, single-pane SFTP)          |
 | 8     | Mobile                | Hard (адаптивный UI + virtual keyboard + platform integration) |
 | 9     | Release               | Medium (CI/CD + packaging + testing)                           |
 | 10    | Post-Release Polish   | Hard (port forwarding, multi-exec, jump hosts)                 |

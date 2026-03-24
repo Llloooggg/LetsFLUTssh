@@ -130,8 +130,8 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(_isEditing ? 'Edit Session' : 'New Session'),
-      content: SizedBox(
-        width: 450,
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 450),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(

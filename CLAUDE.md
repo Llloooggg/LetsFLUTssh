@@ -187,7 +187,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.7.1 — Phase 7 complete + cleanup)
+## Current State (v0.8.0 — Phase 8 complete, mobile UI)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
@@ -249,6 +249,12 @@ LetsFLUTssh/
 - **Split shortcuts** — Ctrl+Shift+D (split right), Ctrl+Shift+E (split down), Ctrl+Shift+W (close pane)
 - **Pane focus tracking** — blue border on focused pane, click to switch focus
 - **Multiple shells per connection** — each pane opens its own SSH shell on the shared Connection
+- **Mobile UI** — bottom NavigationBar (Sessions / Terminal / Files), separate from desktop layout
+- **SSH virtual keyboard** — Esc, Tab, Ctrl (sticky), Alt (sticky), arrows, F1-F12, |~/-/, haptic feedback
+- **Mobile terminal** — full-screen, pinch-to-zoom (8-24pt), long press → copy/paste context menu
+- **Mobile SFTP** — single-pane with SegmentedButton Local/Remote toggle, long-press selection mode, bottom sheet actions
+- **Mobile tab switcher** — ChoiceChips for multiple terminal/SFTP tabs, badges on nav bar
+- **Adaptive dialogs** — QuickConnect/SessionEdit use ConstrainedBox instead of fixed width
 
 ### Решения и почему
 - **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
@@ -278,6 +284,13 @@ LetsFLUTssh/
 - **OneDark theme** — централизованная палитра в `lib/theme/app_theme.dart`; все цвета (connected/disconnected/warning/folder) через AppTheme semantic constants; нет хардкода Colors.red/green/orange
 - **file_pane.dart split** — FileRow, MenuRow, MarqueePainter, PaneDragData вынесены в `file_row.dart`; file_pane.dart содержит только FilePane + state
 - **Удалены unused deps** — go_router (не используется, навигация через MaterialApp), freezed_annotation (модели написаны вручную)
+- **Отдельный features/mobile/** — десктопные виджеты имеют mouse-centric логику (marquee, right-click, drag&drop, tiling); мобильные виджеты проще но фундаментально другие по паттернам взаимодействия; общая логика (SSH, SFTP, sessions) в core/
+- **isMobilePlatform в main.dart** — на мобильных рендерится MobileShell (bottom nav) вместо десктопного layout (sidebar + tabs + split); проверка через Platform.isAndroid/isIOS
+- **Sticky modifiers** — Ctrl/Alt как toggle (тап = one-shot, двойной тап = lock); hold-to-activate неудобен на тачскрине; паттерн из Termius/JuiceSSH
+- **Нет tiling на мобильных** — даже на 6.7" экране два терминала = ~35 колонок, слишком узко для SSH; MobileTerminalView рендерит один pane
+- **Long-press selection** — на мобильных нет Ctrl+click и marquee; long press входит в selection mode с чекбоксами (как Android file manager)
+- **AnimatedBuilder для toolbar** — MobileFileBrowser toolbar слушает FilePaneController через AnimatedBuilder для обновления path при навигации
+- **Focus(autofocus: true) убран из main.dart** — крал текстовый ввод у TerminalView на Windows; backspace работал (raw key event) а буквы нет (IME/TextInputClient путь)
 
 ### What's planned (перенос из LetsGOssh + улучшения)
 
