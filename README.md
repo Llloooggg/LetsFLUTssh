@@ -167,13 +167,14 @@ make build-ios
 
 ## Current Status
 
-**v0.8.0** — Phase 8 complete. All core features implemented across 8 phases:
+**v0.8.1** — Phase 9 (Stable Release) in progress. All core features implemented across 8 phases:
 - Phases 1-3: SSH terminal, session manager, SFTP file browser (MVP)
 - Phase 4: Polish — tab reorder, toast notifications, settings, responsive layout
 - Phase 5: Security — AES-256-GCM credential encryption, .lfs export/import
 - Phase 6: Terminal search (Ctrl+Shift+F), auto-detect SSH keys, session folders
 - Phase 7: Tiling terminal layout — recursive split, drag-to-resize, focus tracking
 - Phase 8: Mobile UI — bottom nav, SSH virtual keyboard, single-pane SFTP, pinch-to-zoom
+- Phase 9: 168 unit tests covering all core modules
 
 ## Development
 

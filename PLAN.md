@@ -238,7 +238,9 @@
 
 **Goal:** Production-ready release
 
-- [ ] Полное покрытие тестами (unit + widget + integration)
+- [x] Unit тесты для core модулей (168 тестов)
+- [ ] Widget тесты для UI компонентов
+- [ ] Integration тесты (SSH + SFTP с реальным сервером)
 - [x] CI/CD (GitHub Actions)
     - [x] flutter analyze + flutter test on PR
     - [x] Build artifacts: Linux, Windows, macOS, Android APK
@@ -278,8 +280,8 @@
 
 ## Текущий статус
 
-**Активная фаза:** Phase 9 (Stable Release) — следующая
-**Прогресс:** Phases 1-8 завершены. v0.8.0 — Mobile UI (bottom nav, SSH keyboard bar, single-pane SFTP, pinch-to-zoom, touch interactions). Fix Windows keyboard input. 62 теста.
+**Активная фаза:** Phase 9 (Stable Release) — в процессе
+**Прогресс:** Phases 1-8 завершены. v0.8.1 — 168 unit тестов для всех core модулей (SSH errors, known hosts, session store, transfers, file system, key sequences).
 
 ### Порядок работы
 

@@ -187,7 +187,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
 7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
 
-## Current State (v0.8.0 — Phase 8 complete, mobile UI)
+## Current State (v0.8.1 — Phase 9 in progress, unit tests)
 
 ### What works
 - SSH подключение через dartssh2 (password, key file, key text)
