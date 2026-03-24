@@ -141,15 +141,22 @@ jobs:
       - name: Package zip
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
 
-      - name: Package MSIX
-        run: dart run msix:create --install-certificate false --output-path . --output-name letsflutssh-${{ needs.version.outputs.version }}-windows-x64
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Package EXE installer
+        run: |
+          $env:APP_VERSION = "${{ needs.version.outputs.version }}"
+          $env:BUILD_DIR = "${{ github.workspace }}\build\windows\x64\runner\Release"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
+          Move-Item "Output\letsflutssh-${{ needs.version.outputs.version }}-windows-x64-setup.exe" .
 
       - uses: actions/upload-artifact@v5
         with:
           name: windows-x64
           path: |
             letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
-            letsflutssh-${{ needs.version.outputs.version }}-windows-x64.msix
+            letsflutssh-${{ needs.version.outputs.version }}-windows-x64-setup.exe
 
   build-macos:
     needs: version
@@ -240,7 +247,7 @@ jobs:
             artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-x64.AppImage
             artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-amd64.deb
             artifacts/windows-x64/letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
-            artifacts/windows-x64/letsflutssh-${{ needs.version.outputs.version }}-windows-x64.msix
+            artifacts/windows-x64/letsflutssh-${{ needs.version.outputs.version }}-windows-x64-setup.exe
             artifacts/macos-universal/letsflutssh-${{ needs.version.outputs.version }}-macos-universal.tar.gz
             artifacts/macos-universal/letsflutssh-${{ needs.version.outputs.version }}-macos-universal.dmg
             artifacts/android-apk/letsflutssh-${{ needs.version.outputs.version }}-android-arm64.apk

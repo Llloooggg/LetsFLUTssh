@@ -91,7 +91,7 @@ _Coming soon_
 Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
 
 - **Linux:** AppImage, .deb, tar.gz
-- **Windows:** MSIX, portable zip
+- **Windows:** EXE installer, portable zip
 - **macOS:** dmg, tar.gz
 - **Android:** APK (arm64, arm, x64)
 

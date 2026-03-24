@@ -242,7 +242,7 @@
     - [x] Build artifacts: Linux, Windows, macOS, Android APK
 - [x] Packaging
     - [x] Linux: AppImage, deb, tar.gz (.desktop file, CI packaging)
-    - [x] Windows: MSIX (msix package), portable zip
+    - [x] Windows: EXE installer (Inno Setup), portable zip
     - [x] macOS: dmg (hdiutil), tar.gz
 - [x] Performance profiling и оптимизация
     - [x] Cached computed properties (totalFileSize, selectedEntries) in FilePaneController

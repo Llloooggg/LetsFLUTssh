@@ -265,7 +265,7 @@ LetsFLUTssh/
 - **Mobile swipe navigation** — GestureDetector.onHorizontalDragEnd switches bottom nav tabs (velocity > 300)
 - **Deep links** — `letsflutssh://connect?host=X&user=Y` via app_links package (Android intent filter + iOS CFBundleURLTypes)
 - **File open intents** — ACTION_VIEW for .pem/.key/.pub/.lfs files (Android), open SSH keys and .lfs archives
-- **Packaging** — AppImage + deb + tar.gz (Linux), MSIX + zip (Windows), dmg + tar.gz (macOS), per-ABI APK (Android)
+- **Packaging** — AppImage + deb + tar.gz (Linux), EXE installer (Inno Setup) + zip (Windows), dmg + tar.gz (macOS), per-ABI APK (Android)
 - **Security hardening** — chmod 600 on credential files, TOFU rejects unknown hosts without callback, PBKDF2 600k iterations, file paths removed from error messages
 - **hardwareKeyboardOnly on desktop** — fixes Windows keyboard input by using KeyEvent.character instead of broken TextInputConnection/IME path
 - **283 tests** — 209 unit + 67 widget + 7 deeplink; covers all core modules and major UI components; mockito mocks for SSH shell (ShellHelper)

@@ -132,9 +132,10 @@ package-windows: build-windows ## Build + zip for Windows
 		zip -r $(CURDIR)/$(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-windows-amd64.zip .
 	@echo "Package: $(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-windows-amd64.zip"
 
-package-msix: build-windows ## Build + MSIX for Windows
-	dart run msix:create
-	@echo "MSIX package created in build/windows/"
+package-exe: build-windows ## Build + EXE installer for Windows (requires Inno Setup)
+	@if not exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (echo "Error: Inno Setup 6 not found. Install from https://jrsoftware.org/isdl.php" && exit 1)
+	set APP_VERSION=$(VERSION) && set BUILD_DIR=$(CURDIR)\build\windows\x64\runner\Release && "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
+	@echo "Installer: Output/$(APP_NAME)-$(VERSION)-windows-x64-setup.exe"
 
 release: package-linux ## Build all release packages
 	@echo "Built packages:"

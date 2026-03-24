@@ -50,7 +50,6 @@ dev_dependencies:
   mockito: ^5.4.6
   build_verify: ^3.1.0
   flutter_launcher_icons: ^0.14.3
-  msix: ^3.16.13
 
 flutter_launcher_icons:
   android: true
@@ -70,16 +69,6 @@ flutter_launcher_icons:
   linux:
     generate: true
     image_path: "assets/icons/icon.png"
-
-msix_config:
-  display_name: LetsFLUTssh
-  publisher_display_name: LetsFLUTssh
-  identity_name: com.letsflutssh.app
-  msix_version: 0.8.1.0
-  logo_path: assets/icons/icon.png
-  capabilities: internetClient, privateNetworkClientServer
-  protocol_activation: letsflutssh
-  file_extension: .lfs
 
 flutter:
   uses-material-design: true
