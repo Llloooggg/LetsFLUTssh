@@ -19,7 +19,7 @@ import '../../core/session/session.dart';
 ///   known_hosts    — TOFU host key database
 ///
 /// The ZIP bytes are encrypted with AES-256-GCM using a key derived from
-/// a master password via PBKDF2 (100k iterations, SHA-256).
+/// a master password via PBKDF2 (600k iterations, SHA-256).
 class ExportImport {
   static const _saltLen = 32;
   static const _ivLen = 12;

@@ -2,140 +2,140 @@
 
 ## Phase 1: Foundation + Terminal (v0.1)
 
-**Goal:** Минимальный рабочий SSH-клиент с терминалом. Подключение, ввод, отображение.
+**Goal:** Minimal working SSH client with terminal. Connect, type, display.
 
-- [x] Создать Flutter-проект (`flutter create`)
-- [x] Настроить `pubspec.yaml` (зависимости: dartssh2, xterm, riverpod, path_provider, pointycastle)
-- [x] Настроить `analysis_options.yaml` (strict lint rules)
-- [x] `.gitignore` для Flutter
-- [x] Инициализировать git-репозиторий
-- [x] `lib/core/ssh/` — SSH клиент
-    - [x] `SSHConfig` — модель конфигурации подключения (host, port, user, password, keyPath, keyData, passphrase)
-    - [x] `SSHConnection` — обёртка над `dartssh2.SSHClient`
-        - [x] `connect()` — подключение с timeout
+- [x] Create Flutter project (`flutter create`)
+- [x] Configure `pubspec.yaml` (deps: dartssh2, xterm, riverpod, path_provider, pointycastle)
+- [x] Configure `analysis_options.yaml` (strict lint rules)
+- [x] `.gitignore` for Flutter
+- [x] Initialize git repository
+- [x] `lib/core/ssh/` — SSH client
+    - [x] `SSHConfig` — connection config model (host, port, user, password, keyPath, keyData, passphrase)
+    - [x] `SSHConnection` — wrapper over `dartssh2.SSHClient`
+        - [x] `connect()` — connection with timeout
         - [x] Auth chain: password → key file → key text → keyboard-interactive
-        - [x] `openShell(cols, rows)` — PTY сессия, stdin/stdout потоки
+        - [x] `openShell(cols, rows)` — PTY session, stdin/stdout streams
         - [x] `resizeTerminal(cols, rows)` — PTY resize
         - [x] `disconnect()`, `isConnected` getter
         - [x] `onDisconnect` callback
         - [x] Keep-alive (configurable interval, default 30s)
-    - [x] `errors.dart` — AuthError, ConnectError с cause unwrapping
+    - [x] `errors.dart` — AuthError, ConnectError with cause unwrapping
 - [x] `lib/core/ssh/known_hosts.dart` — TOFU host key verification
-    - [x] Загрузка/сохранение known_hosts файла
-    - [x] Проверка host key при подключении
-    - [x] Диалог подтверждения нового ключа (SHA256 fingerprint + Accept/Reject)
-    - [x] Диалог предупреждения при смене ключа (potential MITM warning)
+    - [x] Load/save known_hosts file
+    - [x] Host key verification on connect
+    - [x] New key confirmation dialog (SHA256 fingerprint + Accept/Reject)
+    - [x] Key change warning dialog (potential MITM warning)
 - [x] `lib/features/terminal/` — Terminal tab
-    - [x] `TerminalTab` widget: `xterm.TerminalView` подключённый к SSH shell
+    - [x] `TerminalTab` widget: `xterm.TerminalView` connected to SSH shell
     - [x] Pipe: SSH stdout → xterm Terminal.write(); xterm onOutput → SSH stdin
     - [x] `onResize` → `SSHConnection.resizeTerminal()`
-    - [x] Ctrl+Shift+C/V — copy/paste (из коробки xterm.dart — встроенные Actions)
+    - [x] Ctrl+Shift+C/V — copy/paste (built-in xterm.dart Actions)
     - [x] Right-click context menu (Copy / Paste)
-    - [x] Disconnect detection → показать сообщение + кнопку Reconnect
-- [x] `lib/features/tabs/` — базовая система вкладок
-    - [x] Tab bar с кнопкой закрытия
-    - [x] Welcome screen при отсутствии вкладок
-- [x] `lib/main.dart` — точка входа
-    - [x] MaterialApp с темой (dark по умолчанию)
-    - [x] Quick Connect кнопка → диалог → подключение → terminal tab
+    - [x] Disconnect detection → show message + Reconnect button
+- [x] `lib/features/tabs/` — basic tab system
+    - [x] Tab bar with close button
+    - [x] Welcome screen when no tabs open
+- [x] `lib/main.dart` — entry point
+    - [x] MaterialApp with theme (dark by default)
+    - [x] Quick Connect button → dialog → connect → terminal tab
     - [x] Status bar (connection info)
-- [x] `lib/core/config/` — базовый конфиг
-    - [x] `AppConfig` модель (fontSize, theme, scrollback, keepAlive, defaultPort)
-    - [x] Загрузка/сохранение JSON в app support dir
+- [x] `lib/core/config/` — basic config
+    - [x] `AppConfig` model (fontSize, theme, scrollback, keepAlive, defaultPort)
+    - [x] Load/save JSON in app support dir
 - [x] `lib/providers/` — Riverpod providers
-    - [x] `configProvider` — загрузка конфига
-    - [x] `connectionProvider` — отслеживание активных подключений
-- [x] Quick Connect диалог
+    - [x] `configProvider` — config loading
+    - [x] `connectionProvider` — active connections tracking
+- [x] Quick Connect dialog
     - [x] Host, Port, User, Password, Key file (file picker), Key text (multiline PEM)
-    - [x] Валидация обязательных полей
-- [x] Первый рабочий билд (Linux desktop) — требует ручной проверки
-- [x] Тест: подключение к SSH серверу, команды, htop, vim — требует ручной проверки
+    - [x] Required field validation
+- [x] First working build (Linux desktop) — requires manual testing
+- [x] Test: SSH connection, commands, htop, vim — requires manual testing
 
 ## Phase 2: Session Manager (v0.2)
 
-**Goal:** Сохранение сессий, sidebar, группы, поиск
+**Goal:** Session persistence, sidebar, groups, search
 
-- [x] `lib/core/session/` — модель и хранилище
-    - [x] `Session` модель: id, label, group, host, port, user, authType, password, keyPath, keyData, passphrase, createdAt, updatedAt
+- [x] `lib/core/session/` — model and store
+    - [x] `Session` model: id, label, group, host, port, user, authType, password, keyPath, keyData, passphrase, createdAt, updatedAt
     - [x] `Session.validate()` — host required, port 1-65535, user required
     - [x] `SessionStore` — CRUD + JSON persistence (credentials inline, Phase 5 → secure storage)
-    - [x] `SessionTree` — построение дерева из flat-списка по group path (`/`-separated)
+    - [x] `SessionTree` — tree building from flat list by group path (`/`-separated)
     - [x] Groups: `Production/Web/nginx1` → nested tree
-    - [x] Search: по label, group, host, user
+    - [x] Search: by label, group, host, user
     - [x] Duplicate session
-- [x] `lib/features/session_manager/` — UI sidebar
-    - [x] `SessionPanel` — боковая панель (resizable)
-    - [x] `SessionTreeView` — TreeView с вложенными группами
+- [x] `lib/features/session_manager/` — sidebar UI
+    - [x] `SessionPanel` — side panel (resizable)
+    - [x] `SessionTreeView` — TreeView with nested groups
     - [x] Search/filter bar
     - [x] Double-click → SSH connect
     - [x] Context menu: SSH connect, Edit, Delete, Duplicate
     - [x] New / Edit session dialogs
         - [x] Label, Group (autocomplete existing groups), Host, Port, User
         - [x] Auth type selector (Password / Key / Key+Password)
-        - [x] Key file field (path input с ~ expansion)
+        - [x] Key file field (path input with ~ expansion)
         - [x] Key text field (paste PEM)
         - [x] Passphrase field
         - [x] Inline validation
-- [x] `lib/providers/session_provider.dart` — Riverpod provider для sessions
+- [x] `lib/providers/session_provider.dart` — Riverpod provider for sessions
 - [x] Split layout: sidebar (sessions) | main area (tabs)
-- [x] Sidebar resizable с drag-divider
-- [x] Тесты: session validation, tree building (28 тестов всего)
+- [x] Sidebar resizable with drag-divider
+- [x] Tests: session validation, tree building (28 tests total)
 
 ## Phase 3: SFTP File Browser (v0.3) ✅
 
-**Goal:** Двухпанельный файловый менеджер (local | remote) с drag&drop
+**Goal:** Dual-pane file manager (local | remote) with drag&drop
 
-- [x] `lib/core/sftp/` — SFTP клиент
-    - [x] `SFTPService` — обёртка над dartssh2 SFTP
+- [x] `lib/core/sftp/` — SFTP client
+    - [x] `SFTPService` — wrapper over dartssh2 SFTP
         - [x] `list(path)` → sorted (dirs first, alphabetical)
-        - [x] `upload(local, remote, onProgress)` — с progress callback
-        - [x] `download(remote, local, onProgress)` — с progress callback
+        - [x] `upload(local, remote, onProgress)` — with progress callback
+        - [x] `download(remote, local, onProgress)` — with progress callback
         - [x] `uploadDir(localDir, remoteDir, onProgress)` — recursive
         - [x] `downloadDir(remoteDir, localDir, onProgress)` — recursive
         - [x] `mkdir`, `remove`, `removeDir`, `rename`, `stat`, `getwd`
     - [x] `FileSystem` interface + `LocalFS` + `RemoteFS`
-    - [x] `FileEntry` модель: name, path, size, mode, modTime, isDir
-    - [x] `TransferProgress` модель: fileName, totalBytes, doneBytes, percent
+    - [x] `FileEntry` model: name, path, size, mode, modTime, isDir
+    - [x] `TransferProgress` model: fileName, totalBytes, doneBytes, percent
 - [x] `lib/core/transfer/` — transfer manager
-    - [x] `TransferManager` — очередь задач + parallel workers (configurable)
+    - [x] `TransferManager` — task queue + parallel workers (configurable)
     - [x] `TransferTask` — name, direction (upload/download), source, target, run function
     - [x] `HistoryEntry` — id, name, direction, status, error, duration, timestamps
     - [x] `clearHistory()`, `deleteHistory(ids)`
-- [x] `lib/features/file_browser/` — UI файлового менеджера
+- [x] `lib/features/file_browser/` — file manager UI
     - [x] Split-pane: local (left) | remote (right)
     - [x] `FilePane` — generic single-pane file list
         - [x] File list: Name, Size, Mode, Modified — click-to-sort
         - [x] Dirs always first in sort
         - [x] Double-click folder → navigate
         - [x] Editable path bar (Enter → navigate)
-        - [x] Back / Forward buttons с историей навигации
+        - [x] Back / Forward buttons with navigation history
         - [x] Refresh button
         - [x] Multi-select (Ctrl+click)
     - [x] Context menu (right-click on file):
-        - [x] Download / Upload (в зависимости от панели)
+        - [x] Download / Upload (depending on pane)
         - [x] Rename
-        - [x] Delete (с confirm dialog)
+        - [x] Delete (with confirm dialog)
         - [x] New Folder
-    - [x] Internal drag&drop между панелями (Draggable + DragTarget)
-    - [x] Marquee (rubber band) selection + Ctrl+click для multi-select
+    - [x] Internal drag&drop between panes (Draggable + DragTarget)
+    - [x] Marquee (rubber band) selection + Ctrl+click for multi-select
     - [x] OS drag&drop (`desktop_drop`) — drop files from OS into panes
     - [x] Transfer panel (bottom, collapsible)
         - [x] Active transfer info (count, current file)
         - [x] History list: Direction (↑/↓), Status, Name, Duration, Error
-        - [x] Toggle bar "Transfers" для collapse
+        - [x] Toggle bar "Transfers" to collapse
         - [x] Clear history
-- [x] SFTP кнопка в toolbar → открывает SFTP tab для текущего подключения
+- [x] SFTP button in toolbar → opens SFTP tab for active connection
 - [x] Multiple SFTP tabs per connection
-- [x] SFTP-only connect — через context menu "SFTP Only"
+- [x] SFTP-only connect — via context menu "SFTP Only"
 - [x] `lib/providers/transfer_provider.dart` — Riverpod provider
-- [x] Тесты: sftp models, transfer manager, format utils (53 теста всего)
+- [x] Tests: sftp models, transfer manager, format utils (53 tests total)
 
 ## Phase 4: Polish & UX (v0.4) ✅
 
-**Goal:** Доводка UI/UX до production-качества
+**Goal:** UI/UX polish to production quality
 
 - [x] Tab bar improvements
-    - [x] Drag-to-reorder вкладок (ReorderableListView)
+    - [x] Drag-to-reorder tabs (ReorderableListView)
     - [x] Context menu: close, close others, close tabs to the right
     - [x] Color indicator: green = connected, red = disconnected, orange = connecting
 - [x] Toast notifications
@@ -166,19 +166,19 @@
 
 ## Phase 5: Data Portability & Security (v0.5)
 
-**Goal:** Безопасное хранение, экспорт/импорт, шифрование
+**Goal:** Secure storage, export/import, encryption
 
 - [x] Secure credential storage
     - [x] AES-256-GCM encrypted file via pointycastle (pure Dart, no OS deps)
     - [x] Key data (PEM) + passwords + passphrases in `credentials.enc`
-    - [x] JSON-файл сессий содержит только non-secret поля
+    - [x] Session JSON file contains only non-secret fields
     - [x] Migration: import plaintext sessions → encrypted storage (auto on load)
 - [x] Export/Import
-    - [x] Формат `.lfs` (LetsFLUTssh archive) — ZIP + AES-256-GCM
-    - [x] Export: sessions (с credentials) + config + known_hosts
+    - [x] `.lfs` format (LetsFLUTssh archive) — ZIP + AES-256-GCM
+    - [x] Export: sessions (with credentials) + config + known_hosts
     - [x] Import: merge/replace mode, config + known_hosts import
     - [x] Master password → PBKDF2-SHA256 (100k iterations) → AES-256-GCM
-    - [x] Drag&drop `.lfs` файла в окно → автоимпорт
+    - [x] Drag&drop `.lfs` file into window → auto-import
 - [x] Settings → Export Data / Import Data
 
 ## Phase 6: Advanced Features (v0.6) ✅
@@ -186,7 +186,7 @@
 **Goal:** Terminal search, session folders, auto-detect SSH keys
 
 - [x] Terminal search (Ctrl+Shift+F)
-    - [x] Поиск по scrollback buffer
+    - [x] Search scrollback buffer
     - [x] Highlight matches
     - [x] Next/Previous navigation
 - [x] Session panel: create folders via context menu (right-click on group or empty space)
@@ -194,12 +194,12 @@
 
 ## Phase 7: Tiling & Split Terminals (v0.7) ✅
 
-**Goal:** Мульти-терминал layout (как tmux/Terminator/VS Code)
+**Goal:** Multi-terminal layout (like tmux/Terminator/VS Code)
 
-- [x] Split-view внутри вкладки
+- [x] Split-view within a tab
     - [x] Vertical split (left | right terminals)
     - [x] Horizontal split (top / bottom terminals)
-    - [x] Recursive splitting (quad layout и т.д.)
+    - [x] Recursive splitting (quad layout, etc.)
     - [x] Drag to resize splits
     - [x] Focus indicator (blue border on active pane)
     - [x] Keyboard shortcuts: Ctrl+Shift+D (split right), Ctrl+Shift+E (split down), Ctrl+Shift+W (close pane)
@@ -208,9 +208,9 @@
 
 ## Phase 8: Mobile (v0.8) ✅
 
-**Goal:** Полноценная мобильная версия (Android + iOS)
+**Goal:** Full-featured mobile version (Android + iOS)
 
-- [x] Адаптивный UI
+- [x] Adaptive UI
     - [x] Sidebar → bottom navigation (Sessions / Terminal / Files)
     - [x] File browser → single pane with Local/Remote toggle
     - [x] Full-screen terminal (no tiling on mobile)
@@ -235,8 +235,8 @@
 
 **Goal:** Production-ready release
 
-- [x] Unit тесты для core модулей (209 тестов)
-- [x] Widget тесты для UI компонентов (67 widget тестов, итого 283)
+- [x] Unit tests for core modules (209 tests)
+- [x] Widget tests for UI components (67 widget tests, 283 total)
 - [x] CI/CD (GitHub Actions)
     - [x] flutter analyze + flutter test on PR
     - [x] Build artifacts: Linux, Windows, macOS, Android APK
@@ -244,7 +244,7 @@
     - [x] Linux: AppImage, deb, tar.gz (.desktop file, CI packaging)
     - [x] Windows: EXE installer (Inno Setup), portable zip
     - [x] macOS: dmg (hdiutil), tar.gz
-- [x] Performance profiling и оптимизация
+- [x] Performance profiling and optimization
     - [x] Cached computed properties (totalFileSize, selectedEntries) in FilePaneController
     - [x] Memoized session counts in SessionTree (O(n²) → O(1) for group rendering)
     - [x] ListView.builder for session tree (lazy rendering instead of full Column)
@@ -259,7 +259,7 @@
     - [x] PBKDF2 iterations bumped 100k → 600k (OWASP 2024)
     - [x] Error messages: removed file paths from user-facing errors
     - [x] Logging: auto-detect SSH key failures now logged
-- [x] Документация пользователя (docs/USER_GUIDE.md)
+- [x] User documentation (docs/USER_GUIDE.md)
 - [x] Architecture refactoring (v0.9.1)
     - [x] ShellHelper — shared SSH shell connection logic (retry + stream wiring), extracted from terminal_pane + mobile_terminal_view
     - [x] SFTPInitializer — shared SFTP init factory (service + controllers), extracted from file_browser_tab + mobile_file_browser
@@ -274,60 +274,59 @@
 
 ## Phase 10: Post-Release Polish (v1.x)
 
-**Goal:** Продвинутые фичи, не блокирующие стабильный релиз
+**Goal:** Advanced features, not blocking stable release
 
 - [ ] Port forwarding
     - [ ] Local forwarding (localPort → remoteHost:remotePort)
     - [ ] Remote forwarding (remotePort → localHost:localPort)
-    - [ ] Dynamic/SOCKS proxy (если dartssh2 поддерживает)
-    - [ ] UI: список активных tunnels, add/remove
-- [ ] SSH tunneling через jump host
+    - [ ] Dynamic/SOCKS proxy (if dartssh2 supports it)
+    - [ ] UI: active tunnels list, add/remove
+- [ ] SSH tunneling via jump host
     - [ ] ProxyJump equivalent (SSH → SSH chain)
 - [ ] Multi-exec
-    - [ ] Выбрать несколько сессий → выполнить команду на всех одновременно
-    - [ ] Результаты в отдельных панелях (side by side)
+    - [ ] Select multiple sessions → run command on all simultaneously
+    - [ ] Results in separate panels (side by side)
 - [ ] Session logging
-    - [ ] Запись вывода терминала в файл
-    - [ ] Timestamp каждой строки
+    - [ ] Record terminal output to file
+    - [ ] Timestamp each line
     - [ ] Auto-log option per session
 - [ ] Broadcast input to all panes (type once → send to all)
 - [ ] Synchronized scrolling (optional)
 - [ ] Biometric auth for opening app / accessing credentials
 - [ ] Notification for active sessions in background (mobile)
 - [ ] Keyboard toolbar for terminal (mobile SSH keys: Ctrl, Esc, Tab, Alt, arrows, F1-F12)
-- [ ] Integration тесты (SSH + SFTP с реальным сервером) — medium priority
+- [ ] Integration tests (SSH + SFTP with real server) — medium priority
 - [ ] iOS build (untested) — low priority
 - [ ] Android: Play Store / F-Droid — low priority
 
 ---
 
-## Текущий статус
+## Current Status
 
-**Активная фаза:** Phase 9 (Stable Release) — завершена
-**Прогресс:** Phases 1-9 завершены. v0.9.1 — 283 теста (209 unit + 67 widget + 7 deeplink). Architecture refactoring (ShellHelper, SFTPInitializer, FilePaneDialogs, SessionConnect), mockito SSH mocks, security audit, packaging, user docs.
+**Active phase:** Phase 9 (Stable Release) — completed
+**Progress:** Phases 1-9 completed. v0.9.1 — 283 tests (209 unit + 67 widget + 7 deeplink). Architecture refactoring (ShellHelper, SFTPInitializer, FilePaneDialogs, SessionConnect), mockito SSH mocks, security audit, packaging, user docs.
 
-### Порядок работы
+### Work Order
 
-Фазы 1-3 — core функционал (terminal, sessions, file browser). Это MVP.
-Фаза 4 — polish до юзабельного состояния.
-Фазы 5-6 — security, search, advanced UX.
-Фаза 7 — tiling/split terminals.
-Фаза 8 — mobile.
-Фаза 9 — стабильный релиз.
-Фаза 10 — post-release polish (port forwarding, multi-exec, logging, etc.)
+Phases 1-3 — core functionality (terminal, sessions, file browser). This is the MVP.
+Phase 4 — polish to usable state.
+Phases 5-6 — security, search, advanced UX.
+Phase 7 — tiling/split terminals.
+Phase 8 — mobile.
+Phase 9 — stable release.
+Phase 10 — post-release polish (port forwarding, multi-exec, logging, etc.)
 
-### Оценка трудоёмкости
+### Effort Estimates
 
-| Phase | Описание              | Сложность                                                      |
+| Phase | Description           | Complexity                                                     |
 | ----- | --------------------- | -------------------------------------------------------------- |
-| 1 ✅  | Foundation + Terminal | Medium (dartssh2 + xterm.dart делают основную работу)          |
-| 2 ✅  | Session Manager       | Medium (UI-heavy, но простая логика)                           |
-| 3 ✅  | SFTP File Browser     | Hard (много UI: dual-pane, drag&drop, history)                 |
-| 4 ✅  | Polish & UX           | Medium (доводка существующего)                                 |
-| 5 ✅  | Security & Export     | Medium (pointycastle AES-256-GCM + archive ZIP)                |
+| 1 ✅  | Foundation + Terminal | Medium (dartssh2 + xterm.dart do the heavy lifting)            |
+| 2 ✅  | Session Manager       | Medium (UI-heavy, but simple logic)                            |
+| 3 ✅  | SFTP File Browser     | Hard (lots of UI: dual-pane, drag&drop, history)               |
+| 4 ✅  | Polish & UX           | Medium (refinement of existing code)                           |
+| 5 ✅  | Security & Export     | Medium (pointycastle AES-256-GCM + archive ZIP)               |
 | 6 ✅  | Advanced UX           | Medium (terminal search, session folders, key improvements)    |
 | 7 ✅  | Tiling                | Medium (recursive split layout)                                |
-| 8 ✅  | Mobile                | Medium (mobile shell, SSH keyboard, single-pane SFTP)          |
-| 8     | Mobile                | Hard (адаптивный UI + virtual keyboard + platform integration) |
+| 8 ✅  | Mobile                | Hard (adaptive UI + virtual keyboard + platform integration)   |
 | 9     | Release               | Medium (CI/CD + packaging + testing)                           |
 | 10    | Post-Release Polish   | Hard (port forwarding, multi-exec, jump hosts)                 |

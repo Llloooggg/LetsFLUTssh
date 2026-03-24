@@ -1,6 +1,6 @@
 # LetsFLUTssh
 
-> **Disclaimer:** This is a neuroslop pet project — built entirely with AI assistance for personal use, self-education, and fun. Use at your own risk.
+> **Disclaimer:** This is a functional neuroslop pet project — built entirely with AI assistance for personal use, self-education, and fun. Use at your own risk.
 
 Lightweight cross-platform SSH/SFTP client with GUI, built with Flutter.
 
@@ -211,7 +211,7 @@ make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
 
-See [CLAUDE.md](CLAUDE.md) for architecture details and [PLAN.md](PLAN.md) for the development roadmap.
+See [User Guide](docs/USER_GUIDE.md) for usage instructions, [CLAUDE.md](CLAUDE.md) for architecture details, and [PLAN.md](PLAN.md) for the development roadmap.
 
 ## Tech Stack
 

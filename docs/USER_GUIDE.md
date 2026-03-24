@@ -34,7 +34,7 @@ Create saved sessions for servers you connect to regularly:
 |--------|-----------------|
 | Password | Enter in the Password field |
 | Key file | Click browse or drag a `.pem`/`.key` file onto the key field |
-| PEM text | Toggle "Paste PEM" and paste your private key |
+| PEM text | Toggle "Paste PEM key text" and paste your private key |
 | Key + passphrase | Provide both key and passphrase |
 | Auto-detect | Leave key fields empty — app tries `~/.ssh/id_ed25519`, `id_ecdsa`, `id_rsa`, `id_dsa` |
 
@@ -78,23 +78,25 @@ Type in the search bar to filter sessions by label, group, host, or username.
 | `Ctrl+Shift+F` | Search terminal |
 | `Ctrl+Shift+C` | Copy selection |
 | `Ctrl+Shift+V` | Paste |
-| `Ctrl+Shift+D` | Split pane right |
-| `Ctrl+Shift+E` | Split pane down |
-| `Ctrl+Shift+W` | Close pane |
 
 ### Tiling Layout
 
 Split the terminal into multiple panes (like tmux):
 
 - Right-click → **Split Right** or **Split Down**
-- Or use `Ctrl+Shift+D` / `Ctrl+Shift+E`
 - Drag the divider between panes to resize
 - Click a pane to focus it (blue border)
 - Each pane runs its own shell on the same SSH connection
+- Right-click → **Close Pane** to close a split (only when multiple panes exist)
 
 ### Terminal Search
 
 Press `Ctrl+Shift+F` to search the scrollback buffer. Use arrows to navigate matches. Press `Esc` to close.
+
+### Tab Management
+
+- Drag tabs to reorder them
+- Right-click a tab for context menu: **Close**, **Close Others**, **Close Tabs to the Right**
 
 ## SFTP File Browser
 
@@ -105,7 +107,7 @@ Press `Ctrl+Shift+F` to search the scrollback buffer. Use arrows to navigate mat
 
 ### Navigation
 
-- Click a directory to enter it
+- Double-click a directory to enter it
 - Click the path bar to type a path directly
 - Use **Back/Forward/Up** buttons for navigation history
 
@@ -117,11 +119,18 @@ Press `Ctrl+Shift+F` to search the scrollback buffer. Use arrows to navigate mat
 | **New folder** | Right-click → New Folder |
 | **Rename** | Right-click → Rename |
 | **Delete** | Select files → press `Del`, or right-click → Delete |
-| **Multi-select** | `Ctrl+click` individual files, or rubber-band select with mouse |
+| **Multi-select** | `Ctrl+click` individual files, or rubber-band select with mouse drag |
+| **Select all** | `Ctrl+A` selects all files in the focused pane |
 
 ### Transfer Progress
 
-Active transfers appear in the bottom panel. Click to expand/collapse. History shows completed and failed transfers with timing and error details.
+Active transfers appear in the bottom panel. Click the "Transfers" bar to expand/collapse. History shows completed and failed transfers with timing and error details. You can clear the history from the panel.
+
+### Drag & Drop
+
+- Drag files between local and remote panes to transfer
+- Drag files from your OS file manager into a pane to upload/copy
+- Drop `.pem`/`.key` files onto the key field in session dialogs to auto-import
 
 ## Settings
 
@@ -162,7 +171,7 @@ Swipe left/right or tap the bottom bar to switch between:
 Below the terminal, a keyboard bar provides special keys:
 - **Esc**, **Tab**, **Ctrl**, **Alt** — tap to send once, double-tap to lock (sticky)
 - **Arrow keys** — navigation
-- **F1-F12** — function keys
+- **F1-F12** — tap **Fn** to show function keys row
 - **|**, **~**, **-**, **/** — common SSH characters
 
 ### Terminal
@@ -186,6 +195,12 @@ letsflutssh://connect?host=myserver.com&port=22&user=admin
 
 Parameters: `host` (required), `user` (required), `port`, `password`, `key`
 
+### File Open Intents (Android)
+
+You can open these file types directly from your file manager:
+- `.pem`, `.key`, `.pub` — SSH key files (imported into the app)
+- `.lfs` — LetsFLUTssh archive (triggers import dialog)
+
 ## Security Notes
 
 - Credentials are encrypted with AES-256-GCM in a separate file from session metadata
@@ -193,4 +208,5 @@ Parameters: `host` (required), `user` (required), `port`, `password`, `key`
 - Export archives use PBKDF2-SHA256 (600k iterations) key derivation — use a strong master password
 - Host key verification requires explicit user acceptance (no auto-trust)
 - Session metadata (hosts, usernames, groups) is stored in plaintext JSON
+- Credential files are restricted with chmod 600 on Unix systems
 - For maximum security, use key-based authentication instead of passwords

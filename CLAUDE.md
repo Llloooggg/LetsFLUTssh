@@ -3,54 +3,54 @@
 ## Project Overview
 
 LetsFLUTssh — lightweight cross-platform SSH/SFTP client with GUI, written in Dart/Flutter.
-Аналог Xshell/Termius, open-source и мультиплатформенный (desktop + mobile).
+Open-source alternative to Xshell/Termius, multi-platform (desktop + mobile).
 Target platforms: Windows, Linux, macOS, Android, iOS.
 
-**Predecessor:** LetsGOssh (Go/Fyne) — перенос всего функционала + улучшения.
+**Predecessor:** LetsGOssh (Go/Fyne) — full feature port + improvements.
 **Reference:** Termius (Flutter-based commercial SSH client) — proof that Flutter works for this domain.
 
 ## Working Agreements
 
-### Коммиты
+### Commits
 
-- **Пользователь коммитит сам** — Claude только предлагает сообщение коммита
-- Формат: `type: краткое описание` (например `feat: phase 1 — SSH terminal with xterm.dart`)
-- Типы: `feat`, `fix`, `refactor`, `docs`, `chore`
-- Репозиторий **приватный** на GitHub
+- **User commits manually** — Claude only suggests commit messages
+- Format: `type: short description` (e.g. `feat: phase 1 — SSH terminal with xterm.dart`)
+- Types: `feat`, `fix`, `refactor`, `docs`, `chore`
+- Repository is **private** on GitHub
 
-### Стиль работы
+### Work Style
 
-- Документация ведётся на русском (PLAN.md) и английском (README.md, CLAUDE.md)
-- PLAN.md, CLAUDE.md, README.md **обновляются при каждом значимом изменении**
-- Все архитектурные/UX-паттерны документируются в CLAUDE.md в момент внедрения
-- Ключи SSH принимаются **и файлом, и текстом** (paste PEM) — ключевое требование
-- Лёгкий перенос данных между устройствами — приоритетная фича (формат `.lfs` archive)
-- Группировка сессий — дерево с вложенными подпапками (например `Production/Web/nginx1`)
+- Documentation is maintained in English (PLAN.md, README.md, CLAUDE.md)
+- PLAN.md, CLAUDE.md, README.md **updated on every significant change**
+- All architectural/UX patterns documented in CLAUDE.md at the time of implementation
+- SSH keys accepted **both as file and text** (paste PEM) — key requirement
+- Easy data transfer between devices — priority feature (`.lfs` archive format)
+- Session grouping — tree with nested subfolders (e.g. `Production/Web/nginx1`)
 
-### Post-change workflow (обязательно после каждого значимого изменения)
+### Post-change workflow (mandatory after every significant change)
 
-1. **Version bump** — бампать версию в `pubspec.yaml` (patch для fix/feat, minor для новой фазы)
-2. **CLAUDE.md** — обновить Current State и описания модулей; записать **почему** было принято решение
-3. **README.md** — обновить если изменение видимо пользователю
-4. **Коммит** — предложить однострочное сообщение в формате `type: краткое описание` (пользователь коммитит сам)
+1. **Version bump** — bump version in `pubspec.yaml` (patch for fix/feat, minor for new phase)
+2. **CLAUDE.md** — update Current State and module descriptions; document **why** a decision was made
+3. **README.md** — update if the change is user-visible
+4. **Commit** — suggest a one-line message in `type: short description` format (user commits manually)
 
-### Зависимости
+### Dependencies
 
-- Всегда использовать **последние стабильные версии** пакетов (последний pub.dev release)
-- Если пакет без стабильного релиза — последняя pre-release версия, совместимая с текущим SDK
+- Always use **latest stable versions** of packages (latest pub.dev release)
+- If a package has no stable release — use latest pre-release version compatible with current SDK
 
-### Сборка
+### Building
 
-- `flutter run` — запуск (debug, текущая платформа)
+- `flutter run` — run (debug, current platform)
 - `flutter build linux` / `flutter build windows` / `flutter build apk` / etc.
-- `flutter test` — тесты
-- `flutter analyze` — линтер
+- `flutter test` — tests
+- `flutter analyze` — linter
 
-### Что не делать
+### What Not To Do
 
-- Не коммитить автоматически, не пушить
-- Не устанавливать пакеты без спроса (пользователь одобряет)
-- Перед коммитом обязательно запускать `flutter analyze` + `flutter test`
+- Do not commit automatically, do not push
+- Do not install packages without asking (user approves)
+- Always run `flutter analyze` + `flutter test` before committing
 
 ## Tech Stack
 
@@ -112,9 +112,10 @@ LetsFLUTssh/
 │   │
 │   ├── features/                    # Feature modules (UI + logic)
 │   │   ├── terminal/                # Terminal tab
-│   │   │   ├── terminal_tab.dart    # Widget: xterm TerminalView + SSH pipe
-│   │   │   ├── terminal_controller.dart # State: connect, disconnect, resize, input
-│   │   │   └── terminal_shortcuts.dart  # Keyboard shortcuts (Ctrl+Shift+C/V, etc.)
+│   │   │   ├── terminal_tab.dart    # Widget: tiling container + reconnect + shortcuts
+│   │   │   ├── terminal_pane.dart   # Single terminal pane (xterm + SSH shell pipe)
+│   │   │   ├── tiling_view.dart     # Recursive split layout renderer
+│   │   │   └── split_node.dart      # Sealed class: LeafNode | BranchNode tree
 │   │   │
 │   │   ├── file_browser/            # Dual-pane SFTP file browser
 │   │   │   ├── file_browser_tab.dart    # Widget: split-pane (local | remote)
@@ -186,50 +187,50 @@ LetsFLUTssh/
 
 ## Key Design Principles
 
-1. **Feature-first structure** — каждая фича (terminal, file_browser, session_manager) — изолированный модуль с UI + логикой
-2. **Core is UI-agnostic** — `core/` не импортирует Flutter; может быть переиспользован в CLI-утилите
-3. **Riverpod for state** — единый источник правды для всех состояний (sessions, connections, config, transfers)
-4. **Immutable models** — все data-классы через `freezed` (copyWith, equality, JSON serialization)
-5. **FileSystem interface** — абстракция для local/remote файлового доступа (как в LetsGOssh)
-6. **No SCP** — dartssh2 не поддерживает SCP; SFTP покрывает все use cases (upload/download файлов и директорий с прогрессом)
-7. **Tree-based sessions** — вложенные группы через `/` разделитель (Production/Web/nginx1), хранятся как flat list с group path, UI строит TreeView
+1. **Feature-first structure** — each feature (terminal, file_browser, session_manager) is an isolated module with UI + logic
+2. **Core is UI-agnostic** — `core/` does not import Flutter; can be reused in a CLI tool
+3. **Riverpod for state** — single source of truth for all state (sessions, connections, config, transfers)
+4. **Immutable models** — all data classes via `freezed` (copyWith, equality, JSON serialization)
+5. **FileSystem interface** — abstraction for local/remote file access (same as in LetsGOssh)
+6. **No SCP** — dartssh2 doesn't support SCP; SFTP covers all use cases (file/directory upload/download with progress)
+7. **Tree-based sessions** — nested groups via `/` separator (Production/Web/nginx1), stored as flat list with group path, UI builds TreeView
 
 ## Current State (v0.9.1 — Architecture refactoring)
 
 ### What works
-- SSH подключение через dartssh2 (password, key file, key text)
-- Auth chain: key file → key text → password (как в LetsGOssh)
-- **Session Manager** — сохранение сессий в JSON, CRUD, duplicate
-- **Session TreeView** — вложенные группы (Production/Web/nginx1), expand/collapse
-- **Search/filter** — по label, group, host, user
+- SSH connection via dartssh2 (password, key file, key text)
+- Auth chain: key file → key text → password (same as LetsGOssh)
+- **Session Manager** — session persistence in JSON, CRUD, duplicate
+- **Session TreeView** — nested groups (Production/Web/nginx1), expand/collapse
+- **Search/filter** — by label, group, host, user
 - **Context menu** — SSH connect, SFTP connect, Edit, Delete, Duplicate (right-click)
 - **Double-click** → SSH connect
 - **Session Edit Dialog** — auth type selector (Password/Key/Key+Pass), group autocomplete
-- **Resizable sidebar** — drag-divider между sidebar и content area
-- Keep-alive через dartssh2 `keepAliveInterval`
+- **Resizable sidebar** — drag-divider between sidebar and content area
+- Keep-alive via dartssh2 `keepAliveInterval`
 - TOFU known hosts (auto-accept, persistent storage)
-- Terminal emulation через xterm.dart (256-color, mouse, scrollback 5000 lines)
-- Copy/paste из коробки (xterm.dart built-in Actions: Ctrl+Shift+C/V)
-- PTY resize при изменении размера окна
-- Disconnect detection + Reconnect кнопка
-- Tab system (open, close, switch, IndexedStack для сохранения состояния)
-- Tab bar с индикатором состояния (green/orange/red)
-- Quick Connect диалог (host, port, user, password, key file picker, PEM text)
-- Валидация полей в диалоге
+- Terminal emulation via xterm.dart (256-color, mouse, scrollback 5000 lines)
+- Copy/paste built-in (xterm.dart built-in Actions: Ctrl+Shift+C/V)
+- PTY resize on window resize
+- Disconnect detection + Reconnect button
+- Tab system (open, close, switch, IndexedStack for state preservation)
+- Tab bar with state indicator (green/orange/red)
+- Quick Connect dialog (host, port, user, password, key file picker, PEM text)
+- Field validation in dialogs
 - **OneDark theme** — Atom OneDark Pro palette (dark), One Light (light), system auto-detect
-- App config (JSON persistence в app support dir)
+- App config (JSON persistence in app support dir)
 - Status bar (connection state + tab count)
 - Keyboard shortcuts: Ctrl+N (quick connect), Ctrl+W (close tab), Ctrl+Tab (next tab)
 - Riverpod state management (config, connections, tabs, theme)
 - Makefile (run, build, test, analyze, gen, clean)
-- **SFTP File Browser** — dual-pane (local | remote) с navigation history
+- **SFTP File Browser** — dual-pane (local | remote) with navigation history
 - **File pane** — sortable list (name/size/mode/modified), editable path bar, back/forward/up/refresh
 - **Context menu** — open dir, transfer, new folder, rename, delete (single + multi-select)
-- **Transfer Manager** — queue с configurable parallelism (default 2 workers)
-- **Transfer Panel** — collapsible bottom panel с history (completed/failed, duration, error details)
+- **Transfer Manager** — queue with configurable parallelism (default 2 workers)
+- **Transfer Panel** — collapsible bottom panel with history (completed/failed, duration, error details)
 - **SFTP toolbar button** — opens SFTP tab for active connection
-- **Session context menu** — "SFTP Only" option для прямого подключения к file browser
-- **FileSystem interface** — абстракция LocalFS/RemoteFS (как в LetsGOssh)
+- **Session context menu** — "SFTP Only" option for direct file browser connection
+- **FileSystem interface** — LocalFS/RemoteFS abstraction (same as LetsGOssh)
 - **Tab drag-to-reorder** — ReorderableListView, context menu (close, close others, close right)
 - **Toast notifications** — overlay-based, 4 levels (info/success/warning/error), auto-dismiss, stacking
 - **Settings screen** — theme, font size, scrollback, keepalive, timeout, port, transfer workers, max history, reset to defaults
@@ -237,8 +238,8 @@ LetsFLUTssh/
 - **Responsive layout** — sidebar → drawer on narrow screens (<600px), hamburger menu button
 - **Reconnect** — error state UI with Reconnect + Close buttons
 - **Secure credential storage** — AES-256-GCM encrypted file (pointycastle, pure Dart, no OS deps)
-- **Credentials separated from sessions** — sessions.json без секретов, credentials.enc с AES-256-GCM
-- **Auto-migration** — plaintext credentials в sessions.json автоматически мигрируют в encrypted store
+- **Credentials separated from sessions** — sessions.json has no secrets, credentials.enc with AES-256-GCM
+- **Auto-migration** — plaintext credentials in sessions.json automatically migrate to encrypted store
 - **Export/Import (.lfs)** — ZIP + AES-256-GCM (PBKDF2-SHA256 100k iterations), sessions + config + known_hosts
 - **Import modes** — merge (add new, skip existing) / replace (overwrite all)
 - **Settings UI** — Export Data / Import Data buttons with master password dialogs
@@ -253,7 +254,7 @@ LetsFLUTssh/
 - **Key field drag&drop** — drop .pem/.key files into session edit dialog, auto-reads PEM content
 - **Auto-detect SSH keys** — tries ~/.ssh/id_ed25519, id_ecdsa, id_rsa, id_dsa (like OpenSSH) when no explicit key provided
 - **Tiling terminal layout** — recursive split (vertical/horizontal) like tmux/Terminator, drag-to-resize dividers
-- **Split shortcuts** — Ctrl+Shift+D (split right), Ctrl+Shift+E (split down), Ctrl+Shift+W (close pane)
+- **Split context menu** — right-click → Split Right / Split Down / Close Pane
 - **Pane focus tracking** — blue border on focused pane, click to switch focus
 - **Multiple shells per connection** — each pane opens its own SSH shell on the shared Connection
 - **Mobile UI** — bottom NavigationBar (Sessions / Terminal / Files), separate from desktop layout
@@ -279,91 +280,91 @@ LetsFLUTssh/
 - **chmod 600 error reporting** — credential_store now logs chmod failures instead of silently ignoring them
 - **FilePaneController.dispose()** — properly calls `super.dispose()` to clean up ChangeNotifier listeners
 
-### Решения и почему
-- **SSHConnectionState вместо ConnectionState** — конфликт имён с Flutter's `ConnectionState` из async.dart
-- **xterm.dart built-in copy/paste** — xterm 4.0 уже имеет Actions для CopySelectionTextIntent/PasteTextIntent, не нужно реализовывать вручную
-- **dartssh2 host key callback** — signature `FutureOr<bool> Function(String type, Uint8List fingerprint)`, не SSHPublicKey
-- **IndexedStack для табов** — сохраняет состояние терминала при переключении между вкладками
-- **Flutter SDK** — установлен в `/home/llloooggg/flutter-sdk` (stable 3.41.5, Dart 3.11.3)
-- **dartssh2 SFTP API** — `attr.mode?.value` (не `attr.permissions?.mode`), `remoteFile.writeBytes()` (не `write()`)
-- **FilePaneController как ChangeNotifier** — lightweight state для каждой панели, без Riverpod overhead для внутреннего состояния навигации
-- **TransferManager с Stream notifications** — Riverpod StreamProvider подписывается на onChange для reactive UI updates
-- **pointycastle вместо encrypt** — encrypt ^5.0.3 требует pointycastle ^3.6.2, конфликт с dartssh2 (needs ^4.0.0); pointycastle уже transitive dep
-- **CredentialStore вместо flutter_secure_storage** — pure Dart, no OS-specific native deps; AES-256-GCM с random key в credentials.key
-- **PBKDF2 600k iterations для .lfs** — OWASP 2024 recommendation для password-based encryption архивов
-- **Listener вместо GestureDetector для marquee** — Listener (raw pointer events) не участвует в gesture arena, поэтому не конфликтует с Draggable на строках файлов
-- **Draggable только на выделенных файлах** — клик по невыделенному файлу + drag = marquee; клик по выделенному + drag = transfer между панелями
-- **PaneDragData с sourcePaneId** — DragTarget отклоняет drop с тем же paneId, предотвращая transfer в ту же панель
-- **Focus-based Del** — каждая FilePane имеет FocusNode; Del удаляет только из панели с фокусом; фокус переключается при клике и при drop
-- **Empty groups в SessionStore** — пустые папки хранятся в отдельном empty_groups.json; SessionTree.build() принимает emptyGroups для рендеринга
-- **Global navigatorKey для host key dialog** — KnownHostsManager callbacks показывают Flutter dialogs через navigatorKey.currentContext, без привязки к конкретному виджету
-- **SHA256 fingerprint** — pointycastle SHA256Digest для стандартного формата `SHA256:base64hash` (вместо hex первых 16 байт)
-- **Auto-detect SSH keys** — если keyPath и keyData пусты, пробуем id_ed25519 → id_ecdsa → id_rsa → id_dsa из ~/.ssh/ (порядок как в OpenSSH)
-- **Key file drop auto-reads PEM** — если dropped файл < 32KB и содержит "PRIVATE KEY", содержимое читается в keyData; иначе ставится keyPath
-- **Sealed class SplitNode** — Dart sealed class для recursive split tree (LeafNode | BranchNode); exhaustive switch, immutable IDs (uuid)
-- **Tiling как tree** — recursive BranchNode(direction, ratio, first, second) позволяет произвольную глубину вложенности; replaceNode/removeNode для мутации дерева
-- **TerminalPane vs TerminalTab** — TerminalPane = один терминал в тайле (без reconnect); TerminalTab = контейнер с tiling tree + reconnect + shortcuts
-- **Каждый pane → свой SSH shell** — openShell() вызывается для каждого LeafNode, все шеллы на одном SSHConnection; при reconnect дерево сбрасывается в один лист
-- **OneDark theme** — централизованная палитра в `lib/theme/app_theme.dart`; все цвета (connected/disconnected/warning/folder) через AppTheme semantic constants; нет хардкода Colors.red/green/orange
-- **file_pane.dart split** — FileRow, MenuRow, MarqueePainter, PaneDragData вынесены в `file_row.dart`; file_pane.dart содержит только FilePane + state
-- **Удалены unused deps** — go_router (не используется, навигация через MaterialApp), freezed_annotation (модели написаны вручную)
-- **Отдельный features/mobile/** — десктопные виджеты имеют mouse-centric логику (marquee, right-click, drag&drop, tiling); мобильные виджеты проще но фундаментально другие по паттернам взаимодействия; общая логика (SSH, SFTP, sessions) в core/
-- **isMobilePlatform в main.dart** — на мобильных рендерится MobileShell (bottom nav) вместо десктопного layout (sidebar + tabs + split); проверка через Platform.isAndroid/isIOS
-- **Sticky modifiers** — Ctrl/Alt как toggle (тап = one-shot, двойной тап = lock); hold-to-activate неудобен на тачскрине; паттерн из Termius/JuiceSSH
-- **Нет tiling на мобильных** — даже на 6.7" экране два терминала = ~35 колонок, слишком узко для SSH; MobileTerminalView рендерит один pane
-- **Long-press selection** — на мобильных нет Ctrl+click и marquee; long press входит в selection mode с чекбоксами (как Android file manager)
-- **AnimatedBuilder для toolbar** — MobileFileBrowser toolbar слушает FilePaneController через AnimatedBuilder для обновления path при навигации
-- **Focus(autofocus: true) убран из main.dart** — крал текстовый ввод у TerminalView на Windows; backspace работал (raw key event) а буквы нет (IME/TextInputClient путь)
-- **hardwareKeyboardOnly: true на desktop** — xterm.dart CustomTextEdit (TextInputClient) не работает на Windows; CustomKeyboardListener читает KeyEvent.character напрямую — надёжнее для desktop
-- **app_links вместо uni_links** — более актуальный пакет, поддержка desktop, custom schemes + file URIs
-- **TOFU reject без callback** — auto-accept убран; unknown hosts теперь отклоняются если нет UI callback; предотвращает MITM при отсутствии диалога
-- **PBKDF2 600k итераций** — OWASP 2024 рекомендация; 100k было достаточно в 2020, но GPU brute-force стал быстрее
-- **chmod 600 на credential файлах** — предотвращает чтение credentials.enc/key другими пользователями на Unix системах
-- **DeepLinkHandler.parseConnectUri static** — вынесен из приватного метода для тестируемости; тесты проверяют парсинг URI без инициализации app_links
-- **ShellHelper static class** — вынесен из TerminalPane/MobileTerminalView; retry logic + stream wiring в одном месте; desktop/mobile различаются только UI, не shell подключением
-- **SFTPInitializer factory** — создаёт SFTPService + FilePaneController(Local/Remote) + init(); возвращает SFTPInitResult с dispose(); desktop/mobile FileBrowser используют одинаковую инициализацию
-- **FilePaneDialogs static** — диалоги New Folder/Rename/Delete были дублированы в file_pane.dart и mobile_file_browser.dart; вынесены в общий класс
-- **SessionConnect static** — connectTerminal/connectSftp/quickConnect были трижды продублированы в main.dart; вынесены для переиспользования в mobile_shell
-- **Settings sections как отдельные ConsumerWidget** — каждая секция (Appearance, Terminal, Connection, Transfers) делает select() на свои поля; изменение font size не перерисовывает Transfers
+### Decisions and Why
+- **SSHConnectionState instead of ConnectionState** — name conflict with Flutter's `ConnectionState` from async.dart
+- **xterm.dart built-in copy/paste** — xterm 4.0 already has Actions for CopySelectionTextIntent/PasteTextIntent, no need to implement manually
+- **dartssh2 host key callback** — signature `FutureOr<bool> Function(String type, Uint8List fingerprint)`, not SSHPublicKey
+- **IndexedStack for tabs** — preserves terminal state when switching between tabs
+- **Flutter SDK** — installed at `/home/llloooggg/flutter-sdk` (stable 3.41.5, Dart 3.11.3)
+- **dartssh2 SFTP API** — `attr.mode?.value` (not `attr.permissions?.mode`), `remoteFile.writeBytes()` (not `write()`)
+- **FilePaneController as ChangeNotifier** — lightweight state for each pane, without Riverpod overhead for internal navigation state
+- **TransferManager with Stream notifications** — Riverpod StreamProvider subscribes to onChange for reactive UI updates
+- **pointycastle instead of encrypt** — encrypt ^5.0.3 requires pointycastle ^3.6.2, conflicts with dartssh2 (needs ^4.0.0); pointycastle is already a transitive dep
+- **CredentialStore instead of flutter_secure_storage** — pure Dart, no OS-specific native deps; AES-256-GCM with random key in credentials.key
+- **PBKDF2 600k iterations for .lfs** — OWASP 2024 recommendation for password-based encryption of archives
+- **Listener instead of GestureDetector for marquee** — Listener (raw pointer events) doesn't participate in gesture arena, so it doesn't conflict with Draggable on file rows
+- **Draggable only on selected files** — click on unselected file + drag = marquee; click on selected + drag = transfer between panes
+- **PaneDragData with sourcePaneId** — DragTarget rejects drop with same paneId, preventing transfer to same pane
+- **Focus-based Del** — each FilePane has a FocusNode; Del deletes only from the focused pane; focus switches on click and on drop
+- **Empty groups in SessionStore** — empty folders stored in separate empty_groups.json; SessionTree.build() accepts emptyGroups for rendering
+- **Global navigatorKey for host key dialog** — KnownHostsManager callbacks show Flutter dialogs via navigatorKey.currentContext, without binding to a specific widget
+- **SHA256 fingerprint** — pointycastle SHA256Digest for standard format `SHA256:base64hash` (instead of hex of first 16 bytes)
+- **Auto-detect SSH keys** — if keyPath and keyData are empty, try id_ed25519 → id_ecdsa → id_rsa → id_dsa from ~/.ssh/ (same order as OpenSSH)
+- **Key file drop auto-reads PEM** — if dropped file < 32KB and contains "PRIVATE KEY", content is read into keyData; otherwise keyPath is set
+- **Sealed class SplitNode** — Dart sealed class for recursive split tree (LeafNode | BranchNode); exhaustive switch, immutable IDs (uuid)
+- **Tiling as tree** — recursive BranchNode(direction, ratio, first, second) allows arbitrary nesting depth; replaceNode/removeNode for tree mutation
+- **TerminalPane vs TerminalTab** — TerminalPane = single terminal in tile (no reconnect); TerminalTab = container with tiling tree + reconnect + shortcuts
+- **Each pane → own SSH shell** — openShell() called for each LeafNode, all shells on one SSHConnection; on reconnect the tree resets to a single leaf
+- **OneDark theme** — centralized palette in `lib/theme/app_theme.dart`; all colors (connected/disconnected/warning/folder) via AppTheme semantic constants; no hardcoded Colors.red/green/orange
+- **file_pane.dart split** — FileRow, MenuRow, MarqueePainter, PaneDragData extracted to `file_row.dart`; file_pane.dart contains only FilePane + state
+- **Removed unused deps** — go_router (not used, navigation via MaterialApp), freezed_annotation (models written manually)
+- **Separate features/mobile/** — desktop widgets have mouse-centric logic (marquee, right-click, drag&drop, tiling); mobile widgets are simpler but fundamentally different in interaction patterns; shared logic (SSH, SFTP, sessions) lives in core/
+- **isMobilePlatform in main.dart** — on mobile, MobileShell (bottom nav) renders instead of desktop layout (sidebar + tabs + split); checked via Platform.isAndroid/isIOS
+- **Sticky modifiers** — Ctrl/Alt as toggle (tap = one-shot, double-tap = lock); hold-to-activate is inconvenient on touchscreen; pattern from Termius/JuiceSSH
+- **No tiling on mobile** — even on 6.7" screen, two terminals = ~35 columns, too narrow for SSH; MobileTerminalView renders one pane
+- **Long-press selection** — no Ctrl+click or marquee on mobile; long press enters selection mode with checkboxes (like Android file manager)
+- **AnimatedBuilder for toolbar** — MobileFileBrowser toolbar listens to FilePaneController via AnimatedBuilder for path updates on navigation
+- **Focus(autofocus: true) removed from main.dart** — was stealing text input from TerminalView on Windows; backspace worked (raw key event) but letters didn't (IME/TextInputClient path)
+- **hardwareKeyboardOnly: true on desktop** — xterm.dart CustomTextEdit (TextInputClient) doesn't work on Windows; CustomKeyboardListener reads KeyEvent.character directly — more reliable for desktop
+- **app_links instead of uni_links** — more up-to-date package, desktop support, custom schemes + file URIs
+- **TOFU reject without callback** — auto-accept removed; unknown hosts are now rejected if no UI callback exists; prevents MITM when no dialog is available
+- **PBKDF2 600k iterations** — OWASP 2024 recommendation; 100k was sufficient in 2020, but GPU brute-force has gotten faster
+- **chmod 600 on credential files** — prevents other users from reading credentials.enc/key on Unix systems
+- **DeepLinkHandler.parseConnectUri static** — extracted from private method for testability; tests verify URI parsing without initializing app_links
+- **ShellHelper static class** — extracted from TerminalPane/MobileTerminalView; retry logic + stream wiring in one place; desktop/mobile differ only in UI, not shell connection
+- **SFTPInitializer factory** — creates SFTPService + FilePaneController(Local/Remote) + init(); returns SFTPInitResult with dispose(); desktop/mobile FileBrowser use identical initialization
+- **FilePaneDialogs static** — New Folder/Rename/Delete dialogs were duplicated in file_pane.dart and mobile_file_browser.dart; extracted to shared class
+- **SessionConnect static** — connectTerminal/connectSftp/quickConnect were duplicated three times in main.dart; extracted for reuse in mobile_shell
+- **Settings sections as separate ConsumerWidget** — each section (Appearance, Terminal, Connection, Transfers) uses select() on its own fields; changing font size doesn't rebuild Transfers
 
-### What's planned (перенос из LetsGOssh + улучшения)
+### What's planned (ported from LetsGOssh + improvements)
 
-**Переносится as-is:**
-- SSH подключение (password, key file, key text, SSH agent)
+**Ported as-is:**
+- SSH connection (password, key file, key text, SSH agent)
 - Known hosts (TOFU)
 - Keep-alive
-- Terminal emulation (xterm.dart даёт из коробки: 256-color, RGB, mouse, scrollback, alternate screen)
+- Terminal emulation (xterm.dart provides out of the box: 256-color, RGB, mouse, scrollback, alternate screen)
 - Session manager (CRUD, groups, search, context menu)
 - SFTP file browser (dual-pane, upload/download, mkdir, delete, rename, chmod, properties)
 - Transfer manager (queue, parallel workers, history)
-- Drag&drop (файлы из ОС + между панелями)
+- Drag&drop (files from OS + between panes)
 - Toast notifications
 - Config (theme, font size, scrollback, keepalive, etc.)
 - Multiple tabs (terminal + SFTP)
 
-**Улучшения по сравнению с LetsGOssh:**
+**Improvements over LetsGOssh:**
 - Tab drag reorder (Flutter has built-in Draggable)
-- Tree view для сессий (вложенные группы)
-- Scrollback из коробки (xterm.dart `maxLines`)
-- Text selection + copy/paste из коробки (xterm.dart)
-- Mouse reporting из коробки (xterm.dart)
-- Smooth split-pane drag (Flutter layout не тормозит как Fyne)
-- Secure credential storage (AES-256-GCM encrypted file вместо plaintext JSON)
-- Mobile support (Android, iOS) с адаптивным UI
+- Tree view for sessions (nested groups)
+- Scrollback out of the box (xterm.dart `maxLines`)
+- Text selection + copy/paste out of the box (xterm.dart)
+- Mouse reporting out of the box (xterm.dart)
+- Smooth split-pane drag (Flutter layout doesn't lag like Fyne)
+- Secure credential storage (AES-256-GCM encrypted file instead of plaintext JSON)
+- Mobile support (Android, iOS) with adaptive UI
 - Port forwarding UI
 - Data export/import (.lfs encrypted archive)
 - Settings screen
 
-**Не переносится:**
-- SCP (dartssh2 не поддерживает; SFTP достаточно)
-- midterm / custom VT parser (xterm.dart всё делает)
-- Custom split widget (Flutter layout достаточно производительный)
+**Not ported:**
+- SCP (dartssh2 doesn't support it; SFTP is sufficient)
+- midterm / custom VT parser (xterm.dart handles everything)
+- Custom split widget (Flutter layout is performant enough)
 
 ## Module Details
 
 ### `core/ssh`
 
-SSH-клиент обёртка над `dartssh2`:
+SSH client wrapper over `dartssh2`:
 
 - `SSHConfig`: host, port, user, password, keyPath, keyData, passphrase, keepAliveSec, timeoutSec
 - `SSHConnection`:
@@ -378,7 +379,7 @@ SSH-клиент обёртка над `dartssh2`:
 
 ### `core/sftp`
 
-SFTP обёртка над `dartssh2` SFTP subsystem:
+SFTP wrapper over `dartssh2` SFTP subsystem:
 
 - `SFTPService`:
   - `list(path)` → `List<FileEntry>` (sorted: dirs first, then files)
@@ -395,7 +396,7 @@ SFTP обёртка над `dartssh2` SFTP subsystem:
 
 ### `core/transfer`
 
-Transfer queue (порт из LetsGOssh `internal/transfer`):
+Transfer queue (ported from LetsGOssh `internal/transfer`):
 
 - `TransferManager`:
   - Configurable parallelism (default 2 workers)
@@ -408,7 +409,7 @@ Transfer queue (порт из LetsGOssh `internal/transfer`):
 
 ### `core/session`
 
-Session management (порт из LetsGOssh `internal/session`):
+Session management (ported from LetsGOssh `internal/session`):
 
 - `Session`: id, label, group (path like "Production/Web"), host, port, user, authType, password, keyPath, keyData, passphrase, createdAt, updatedAt
 - `SessionStore`:
@@ -423,7 +424,7 @@ Session management (порт из LetsGOssh `internal/session`):
 
 ### `core/config`
 
-App configuration (порт из LetsGOssh `internal/config`):
+App configuration (ported from LetsGOssh `internal/config`):
 
 - `AppConfig`: fontSize, theme, scrollback, keepAliveSec, defaultPort, sshTimeoutSec, toastDurationMs, transferWorkers, maxHistory, windowWidth, windowHeight
 - `ConfigStore`: load/save JSON at app support dir
@@ -482,7 +483,7 @@ Terminal tab using `xterm` package:
 
 ### `features/file_browser`
 
-Dual-pane SFTP browser (порт из LetsGOssh `internal/ui/filebrowser`):
+Dual-pane SFTP browser (ported from LetsGOssh `internal/ui/filebrowser`):
 
 - Split-pane: local (left) | remote (right)
 - `DataTable` with 4 columns: Name, Size, Mode, Modified — with sort headers
@@ -496,7 +497,7 @@ Dual-pane SFTP browser (порт из LetsGOssh `internal/ui/filebrowser`):
 
 ### `features/session_manager`
 
-Session sidebar (порт из LetsGOssh `internal/ui/sessionmgr`):
+Session sidebar (ported from LetsGOssh `internal/ui/sessionmgr`):
 
 - TreeView with nested groups (Production/Web/nginx1)
 - Search/filter bar

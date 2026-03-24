@@ -149,7 +149,7 @@ jobs:
           $env:APP_VERSION = "${{ needs.version.outputs.version }}"
           $env:BUILD_DIR = "${{ github.workspace }}\build\windows\x64\runner\Release"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
-          Move-Item "Output\letsflutssh-${{ needs.version.outputs.version }}-windows-x64-setup.exe" .
+          Move-Item "windows\packaging\Output\letsflutssh-${{ needs.version.outputs.version }}-windows-x64-setup.exe" .
 
       - uses: actions/upload-artifact@v5
         with:
