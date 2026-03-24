@@ -59,11 +59,11 @@ class Toast {
     final idx = _entries.indexWhere((e) => e.entry == entry);
     if (idx < 0) return;
     _entries[idx].timer?.cancel();
+    _entries.removeWhere((e) => e.entry == entry);
 
-    controller.reverse().then((_) {
+    controller.reverse().whenComplete(() {
       entry.remove();
       controller.dispose();
-      _entries.removeWhere((e) => e.entry == entry);
       // Rebuild remaining to update positions
       for (final e in _entries) {
         e.entry.markNeedsBuild();

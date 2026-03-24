@@ -43,13 +43,8 @@ class TerminalPaneState extends State<TerminalPane> {
   StreamSubscription? _stdoutSub;
   StreamSubscription? _stderrSub;
 
-  // Search state
-  bool _showSearch = false;
-  final _searchController = TextEditingController();
-  final _searchFocusNode = FocusNode();
-  List<TerminalHighlight> _searchHighlights = [];
-  int _currentMatchIndex = -1;
-  int _totalMatches = 0;
+  // Search visibility — ValueNotifier so toggling doesn't rebuild TerminalView
+  final _showSearch = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -126,11 +121,17 @@ class TerminalPaneState extends State<TerminalPane> {
   @override
   void dispose() {
     _cleanup();
-    _clearHighlights();
     _terminalController.dispose();
-    _searchController.dispose();
-    _searchFocusNode.dispose();
+    _showSearch.dispose();
     super.dispose();
+  }
+
+  void _toggleSearch() {
+    _showSearch.value = !_showSearch.value;
+  }
+
+  void _closeSearch() {
+    _showSearch.value = false;
   }
 
   @override
@@ -155,18 +156,26 @@ class TerminalPaneState extends State<TerminalPane> {
         child: CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): _toggleSearch,
-            const SingleActivator(LogicalKeyboardKey.escape): () {
-              if (_showSearch) _closeSearch();
-            },
+            const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
           },
           child: Column(
             children: [
-              if (_showSearch) _buildSearchBar(context),
+              ValueListenableBuilder<bool>(
+                valueListenable: _showSearch,
+                builder: (context, show, _) {
+                  if (!show) return const SizedBox.shrink();
+                  return _TerminalSearchBar(
+                    terminal: _terminal,
+                    terminalController: _terminalController,
+                    onClose: _closeSearch,
+                  );
+                },
+              ),
               Expanded(
                 child: TerminalView(
                   _terminal,
                   controller: _terminalController,
-                  autofocus: widget.isFocused && !_showSearch,
+                  autofocus: widget.isFocused,
                   hardwareKeyboardOnly: plat.isDesktopPlatform,
                   backgroundOpacity: 1.0,
                   padding: const EdgeInsets.all(4),
@@ -178,149 +187,6 @@ class TerminalPaneState extends State<TerminalPane> {
         ),
       ),
     );
-  }
-
-  Widget _buildSearchBar(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              autofocus: true,
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                border: const OutlineInputBorder(),
-                hintText: 'Search...',
-                suffixText: _totalMatches > 0
-                    ? '${_currentMatchIndex + 1}/$_totalMatches'
-                    : null,
-                suffixStyle: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
-              ),
-              onChanged: (_) => _performSearch(),
-              onSubmitted: (_) => _nextMatch(),
-            ),
-          ),
-          const SizedBox(width: 4),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              onPressed: _totalMatches > 0 ? _prevMatch : null,
-              icon: const Icon(Icons.keyboard_arrow_up, size: 18),
-              tooltip: 'Previous',
-              padding: EdgeInsets.zero,
-            ),
-          ),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              onPressed: _totalMatches > 0 ? _nextMatch : null,
-              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-              tooltip: 'Next',
-              padding: EdgeInsets.zero,
-            ),
-          ),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              onPressed: _closeSearch,
-              icon: const Icon(Icons.close, size: 18),
-              tooltip: 'Close (Esc)',
-              padding: EdgeInsets.zero,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _toggleSearch() {
-    setState(() {
-      _showSearch = !_showSearch;
-      if (_showSearch) {
-        _searchFocusNode.requestFocus();
-      } else {
-        _closeSearch();
-      }
-    });
-  }
-
-  void _closeSearch() {
-    _clearHighlights();
-    setState(() {
-      _showSearch = false;
-      _searchController.clear();
-      _totalMatches = 0;
-      _currentMatchIndex = -1;
-    });
-  }
-
-  void _performSearch() {
-    _clearHighlights();
-    final query = _searchController.text;
-    if (query.isEmpty) {
-      setState(() {
-        _totalMatches = 0;
-        _currentMatchIndex = -1;
-      });
-      return;
-    }
-
-    final queryLower = query.toLowerCase();
-    final buffer = _terminal.buffer;
-    final highlights = <TerminalHighlight>[];
-
-    for (var y = 0; y < buffer.height; y++) {
-      final line = buffer.lines[y];
-      final lineText = line.toString().toLowerCase();
-      var startIndex = 0;
-      while (true) {
-        final pos = lineText.indexOf(queryLower, startIndex);
-        if (pos < 0) break;
-        try {
-          final p1 = buffer.createAnchor(pos, y);
-          final p2 = buffer.createAnchor(pos + query.length, y);
-          highlights.add(_terminalController.highlight(p1: p1, p2: p2, color: const Color(0xFFFFFF2B)));
-        } catch (_) {}
-        startIndex = pos + 1;
-      }
-    }
-
-    setState(() {
-      _searchHighlights = highlights;
-      _totalMatches = highlights.length;
-      _currentMatchIndex = highlights.isNotEmpty ? 0 : -1;
-    });
-  }
-
-  void _nextMatch() {
-    if (_totalMatches == 0) return;
-    setState(() => _currentMatchIndex = (_currentMatchIndex + 1) % _totalMatches);
-  }
-
-  void _prevMatch() {
-    if (_totalMatches == 0) return;
-    setState(() => _currentMatchIndex = (_currentMatchIndex - 1 + _totalMatches) % _totalMatches);
-  }
-
-  void _clearHighlights() {
-    for (final h in _searchHighlights) {
-      h.dispose();
-    }
-    _searchHighlights = [];
   }
 
   void _showContextMenu(BuildContext context, Offset position) {
@@ -392,6 +258,173 @@ class TerminalPaneState extends State<TerminalPane> {
           const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
           const SizedBox(height: 16),
           Text(_error!, style: const TextStyle(color: AppTheme.disconnected), textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+}
+
+/// Self-contained search bar widget — manages its own state so that
+/// search interactions (typing, next/prev) don't rebuild the TerminalView.
+class _TerminalSearchBar extends StatefulWidget {
+  final Terminal terminal;
+  final TerminalController terminalController;
+  final VoidCallback onClose;
+
+  const _TerminalSearchBar({
+    required this.terminal,
+    required this.terminalController,
+    required this.onClose,
+  });
+
+  @override
+  State<_TerminalSearchBar> createState() => _TerminalSearchBarState();
+}
+
+class _TerminalSearchBarState extends State<_TerminalSearchBar> {
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+  List<TerminalHighlight> _searchHighlights = [];
+  int _currentMatchIndex = -1;
+  int _totalMatches = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocusNode.requestFocus();
+  }
+
+  @override
+  void dispose() {
+    _clearHighlights();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _performSearch() {
+    _clearHighlights();
+    final query = _searchController.text;
+    if (query.isEmpty) {
+      setState(() {
+        _totalMatches = 0;
+        _currentMatchIndex = -1;
+      });
+      return;
+    }
+
+    final queryLower = query.toLowerCase();
+    final buffer = widget.terminal.buffer;
+    final highlights = <TerminalHighlight>[];
+
+    for (var y = 0; y < buffer.height; y++) {
+      final line = buffer.lines[y];
+      final lineText = line.toString().toLowerCase();
+      var startIndex = 0;
+      while (true) {
+        final pos = lineText.indexOf(queryLower, startIndex);
+        if (pos < 0) break;
+        try {
+          final p1 = buffer.createAnchor(pos, y);
+          final p2 = buffer.createAnchor(pos + query.length, y);
+          highlights.add(widget.terminalController.highlight(p1: p1, p2: p2, color: const Color(0xFFFFFF2B)));
+        } catch (_) {}
+        startIndex = pos + 1;
+      }
+    }
+
+    setState(() {
+      _searchHighlights = highlights;
+      _totalMatches = highlights.length;
+      _currentMatchIndex = highlights.isNotEmpty ? 0 : -1;
+    });
+  }
+
+  void _nextMatch() {
+    if (_totalMatches == 0) return;
+    setState(() => _currentMatchIndex = (_currentMatchIndex + 1) % _totalMatches);
+  }
+
+  void _prevMatch() {
+    if (_totalMatches == 0) return;
+    setState(() => _currentMatchIndex = (_currentMatchIndex - 1 + _totalMatches) % _totalMatches);
+  }
+
+  void _clearHighlights() {
+    for (final h in _searchHighlights) {
+      h.dispose();
+    }
+    _searchHighlights = [];
+  }
+
+  void _close() {
+    _clearHighlights();
+    widget.onClose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              autofocus: true,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                border: const OutlineInputBorder(),
+                hintText: 'Search...',
+                suffixText: _totalMatches > 0
+                    ? '${_currentMatchIndex + 1}/$_totalMatches'
+                    : null,
+                suffixStyle: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+              ),
+              onChanged: (_) => _performSearch(),
+              onSubmitted: (_) => _nextMatch(),
+            ),
+          ),
+          const SizedBox(width: 4),
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: IconButton(
+              onPressed: _totalMatches > 0 ? _prevMatch : null,
+              icon: const Icon(Icons.keyboard_arrow_up, size: 18),
+              tooltip: 'Previous',
+              padding: EdgeInsets.zero,
+            ),
+          ),
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: IconButton(
+              onPressed: _totalMatches > 0 ? _nextMatch : null,
+              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+              tooltip: 'Next',
+              padding: EdgeInsets.zero,
+            ),
+          ),
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: IconButton(
+              onPressed: _close,
+              icon: const Icon(Icons.close, size: 18),
+              tooltip: 'Close (Esc)',
+              padding: EdgeInsets.zero,
+            ),
+          ),
         ],
       ),
     );

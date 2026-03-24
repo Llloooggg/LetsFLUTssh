@@ -142,7 +142,7 @@ jobs:
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
 
       - name: Package MSIX
-        run: dart run msix:create --output-path . --output-name letsflutssh-${{ needs.version.outputs.version }}-windows-x64
+        run: dart run msix:create --install-certificate false --output-path . --output-name letsflutssh-${{ needs.version.outputs.version }}-windows-x64
 
       - uses: actions/upload-artifact@v5
         with:

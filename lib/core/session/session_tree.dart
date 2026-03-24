@@ -8,12 +8,16 @@ class SessionTreeNode {
   final List<SessionTreeNode> children;
   bool expanded;
 
+  /// Cached recursive session count (computed during tree build).
+  int sessionCount;
+
   SessionTreeNode({
     required this.name,
     required this.fullPath,
     this.session,
     List<SessionTreeNode>? children,
     this.expanded = true,
+    this.sessionCount = 0,
   }) : children = children ?? [];
 
   bool get isGroup => session == null;
@@ -101,6 +105,7 @@ class SessionTree {
   }
 
   /// Sort: groups first (alphabetical), then sessions (alphabetical).
+  /// Also computes sessionCount for each group node.
   static void _sortTree(List<SessionTreeNode> nodes) {
     nodes.sort((a, b) {
       if (a.isGroup && b.isSession) return -1;
@@ -108,7 +113,19 @@ class SessionTree {
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
     for (final node in nodes) {
-      if (node.isGroup) _sortTree(node.children);
+      if (node.isGroup) {
+        _sortTree(node.children);
+        node.sessionCount = _countSessions(node);
+      }
     }
+  }
+
+  static int _countSessions(SessionTreeNode node) {
+    if (node.isSession) return 1;
+    var count = 0;
+    for (final child in node.children) {
+      count += _countSessions(child);
+    }
+    return count;
   }
 }

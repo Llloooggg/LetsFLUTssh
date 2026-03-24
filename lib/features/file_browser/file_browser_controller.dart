@@ -21,6 +21,10 @@ class FilePaneController extends ChangeNotifier {
   SortColumn _sortColumn = SortColumn.name;
   bool _sortAscending = true;
 
+  // Cached computed properties (invalidated on entries/selection change)
+  List<FileEntry>? _cachedSelectedEntries;
+  int? _cachedTotalFileSize;
+
   // Navigation history
   final _backStack = <String>[];
   final _forwardStack = <String>[];
@@ -92,13 +96,24 @@ class FilePaneController extends ChangeNotifier {
     try {
       _entries = await fs.list(_currentPath);
       _sortEntries();
+      _invalidateCaches();
     } catch (e) {
       _error = e.toString();
       _entries = [];
+      _invalidateCaches();
     } finally {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  void _invalidateCaches() {
+    _cachedSelectedEntries = null;
+    _cachedTotalFileSize = null;
+  }
+
+  void _invalidateSelectionCache() {
+    _cachedSelectedEntries = null;
   }
 
   /// Toggle selection of a file entry.
@@ -110,24 +125,28 @@ class FilePaneController extends ChangeNotifier {
       newSet.add(path);
     }
     _selected = newSet;
+    _invalidateSelectionCache();
     notifyListeners();
   }
 
   /// Select a single entry (clear others).
   void selectSingle(String path) {
     _selected = {path};
+    _invalidateSelectionCache();
     notifyListeners();
   }
 
   /// Clear selection.
   void clearSelection() {
     _selected = {};
+    _invalidateSelectionCache();
     notifyListeners();
   }
 
   /// Select all entries.
   void selectAll() {
     _selected = _entries.map((e) => e.path).toSet();
+    _invalidateSelectionCache();
     notifyListeners();
   }
 
@@ -167,10 +186,19 @@ class FilePaneController extends ChangeNotifier {
   /// Set selection to a specific set of paths.
   void selectPaths(Set<String> paths) {
     _selected = paths;
+    _invalidateSelectionCache();
     notifyListeners();
   }
 
-  /// Get selected file entries.
-  List<FileEntry> get selectedEntries =>
-      _entries.where((e) => _selected.contains(e.path)).toList();
+  /// Total size of all non-directory entries (cached).
+  int get totalFileSize {
+    return _cachedTotalFileSize ??=
+        _entries.where((e) => !e.isDir).fold<int>(0, (sum, e) => sum + e.size);
+  }
+
+  /// Get selected file entries (cached, invalidated on selection/entries change).
+  List<FileEntry> get selectedEntries {
+    return _cachedSelectedEntries ??=
+        _entries.where((e) => _selected.contains(e.path)).toList();
+  }
 }

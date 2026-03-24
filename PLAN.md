@@ -163,7 +163,6 @@
 - [x] Mobile adaptations
     - [x] Responsive layout (sidebar → drawer on <600px)
     - [x] Hamburger menu button
-    - [ ] Keyboard toolbar for terminal (deferred to Phase 10)
 
 ## Phase 5: Data Portability & Security (v0.5)
 
@@ -229,10 +228,8 @@
 - [x] Platform integration
     - [x] URL scheme: `letsflutssh://connect?host=...` (app_links + Android/iOS config)
     - [x] File open intents: .pem/.key/.lfs files (ACTION_VIEW)
-    - [ ] Notification for active sessions in background
     - [x] Swipe gestures (left/right = tab switch, velocity threshold 300)
 - [x] Android build (APK + AAB)
-- [ ] iOS build (untested)
 
 ## Phase 9: Stable Release (v1.0)
 
@@ -240,7 +237,6 @@
 
 - [x] Unit тесты для core модулей (168 тестов)
 - [x] Widget тесты для UI компонентов (67 widget тестов, итого 242)
-- [ ] Integration тесты (SSH + SFTP с реальным сервером)
 - [x] CI/CD (GitHub Actions)
     - [x] flutter analyze + flutter test on PR
     - [x] Build artifacts: Linux, Windows, macOS, Android APK
@@ -248,8 +244,15 @@
     - [x] Linux: AppImage, deb, tar.gz (.desktop file, CI packaging)
     - [x] Windows: MSIX (msix package), portable zip
     - [x] macOS: dmg (hdiutil), tar.gz
-    - [ ] Android: Play Store / F-Droid
-- [ ] Performance profiling и оптимизация
+- [x] Performance profiling и оптимизация
+    - [x] Cached computed properties (totalFileSize, selectedEntries) in FilePaneController
+    - [x] Memoized session counts in SessionTree (O(n²) → O(1) for group rendering)
+    - [x] ListView.builder for session tree (lazy rendering instead of full Column)
+    - [x] Extracted terminal search bar to separate widget (search state no longer rebuilds TerminalView)
+    - [x] RepaintBoundary for marquee CustomPaint
+    - [x] Throttled marquee selection updates (50ms)
+    - [x] Fixed toast AnimationController deferred disposal (memory leak)
+    - [x] Optimized ref.watch with .select() in SessionPanel
 - [x] Security audit (credential storage, SSH implementation)
     - [x] File permissions (chmod 600) on credential files
     - [x] TOFU: reject unknown hosts without callback (no auto-accept)
@@ -279,7 +282,11 @@
 - [ ] Broadcast input to all panes (type once → send to all)
 - [ ] Synchronized scrolling (optional)
 - [ ] Biometric auth for opening app / accessing credentials
+- [ ] Notification for active sessions in background (mobile)
 - [ ] Keyboard toolbar for terminal (mobile SSH keys: Ctrl, Esc, Tab, Alt, arrows, F1-F12)
+- [ ] Integration тесты (SSH + SFTP с реальным сервером) — medium priority
+- [ ] iOS build (untested) — low priority
+- [ ] Android: Play Store / F-Droid — low priority
 
 ---
 

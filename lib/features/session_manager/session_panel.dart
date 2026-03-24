@@ -22,7 +22,7 @@ class SessionPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tree = ref.watch(filteredSessionTreeProvider);
     final searchQuery = ref.watch(sessionSearchProvider);
-    final sessions = ref.watch(sessionProvider);
+    final isEmpty = ref.watch(sessionProvider.select((s) => s.isEmpty));
 
     return Column(
       children: [
@@ -37,7 +37,7 @@ class SessionPanel extends ConsumerWidget {
         ),
         // Tree view
         Expanded(
-          child: sessions.isEmpty
+          child: isEmpty
               ? _EmptyState(onAdd: () => _addSession(context, ref))
               : SessionTreeView(
                   tree: tree,

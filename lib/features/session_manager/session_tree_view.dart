@@ -48,6 +48,18 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     }
   }
 
+  /// Flattened visible nodes for ListView.builder (avoids recursive widget build).
+  List<(SessionTreeNode, int)> _flattenVisible(List<SessionTreeNode> nodes, int depth) {
+    final result = <(SessionTreeNode, int)>[];
+    for (final node in nodes) {
+      result.add((node, depth));
+      if (node.isGroup && _expandedGroups.contains(node.fullPath)) {
+        result.addAll(_flattenVisible(node.children, depth + 1));
+      }
+    }
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.tree.isEmpty) {
@@ -60,42 +72,30 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         ),
       );
     }
-    final nodes = _buildNodes(widget.tree, 0);
+    final flatNodes = _flattenVisible(widget.tree, 0);
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 8),
-            child: GestureDetector(
-              onSecondaryTapUp: (d) {
-                widget.onBackgroundContextMenu?.call(d.globalPosition);
-              },
-              behavior: HitTestBehavior.translucent,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: nodes,
-              ),
-            ),
+        return GestureDetector(
+          onSecondaryTapUp: (d) {
+            widget.onBackgroundContextMenu?.call(d.globalPosition);
+          },
+          behavior: HitTestBehavior.translucent,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            itemCount: flatNodes.length,
+            itemExtent: 30,
+            itemBuilder: (context, index) {
+              final (node, depth) = flatNodes[index];
+              if (node.isGroup) {
+                return _buildGroupTile(node, depth);
+              } else {
+                return _buildSessionTile(node, depth);
+              }
+            },
           ),
         );
       },
     );
-  }
-
-  List<Widget> _buildNodes(List<SessionTreeNode> nodes, int depth) {
-    final widgets = <Widget>[];
-    for (final node in nodes) {
-      if (node.isGroup) {
-        widgets.add(_buildGroupTile(node, depth));
-        if (_expandedGroups.contains(node.fullPath)) {
-          widgets.addAll(_buildNodes(node.children, depth + 1));
-        }
-      } else {
-        widgets.add(_buildSessionTile(node, depth));
-      }
-    }
-    return widgets;
   }
 
   Widget _buildGroupTile(SessionTreeNode node, int depth) {
@@ -141,7 +141,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: Text(
-                    '${_countSessions(node)}',
+                    '${node.sessionCount}',
                     style: TextStyle(
                       fontSize: 11,
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
@@ -215,14 +215,5 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       case AuthType.keyWithPassword:
         return Icons.enhanced_encryption;
     }
-  }
-
-  int _countSessions(SessionTreeNode node) {
-    if (node.isSession) return 1;
-    var count = 0;
-    for (final child in node.children) {
-      count += _countSessions(child);
-    }
-    return count;
   }
 }

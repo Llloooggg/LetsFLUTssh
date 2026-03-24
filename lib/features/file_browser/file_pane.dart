@@ -224,6 +224,7 @@ class _FilePaneState extends State<FilePane> {
   bool _dragActive = false;
   final _scrollController = ScrollController();
   Set<String>? _preMarqueeSelection;
+  DateTime _lastMarqueeUpdate = DateTime(0);
 
   static const _rowHeight = 28.0;
   static const _marqueeThreshold = 5.0;
@@ -352,8 +353,9 @@ class _FilePaneState extends State<FilePane> {
 
                 if (!isSelected) return row;
 
-                final dragEntries = ctrl.selectedEntries.length > 1
-                    ? ctrl.selectedEntries
+                final selected = ctrl.selectedEntries;
+                final dragEntries = selected.length > 1
+                    ? selected
                     : [entry];
 
                 return Draggable<PaneDragData>(
@@ -404,12 +406,14 @@ class _FilePaneState extends State<FilePane> {
                 _marqueeStart != null &&
                 _marqueeCurrent != null)
               Positioned.fill(
-                child: IgnorePointer(
-                  child: CustomPaint(
-                    painter: MarqueePainter(
-                      start: _marqueeStart!,
-                      end: _marqueeCurrent!,
-                      color: theme.colorScheme.primary,
+                child: RepaintBoundary(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: MarqueePainter(
+                        start: _marqueeStart!,
+                        end: _marqueeCurrent!,
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -422,6 +426,11 @@ class _FilePaneState extends State<FilePane> {
 
   void _updateMarqueeSelection() {
     if (_marqueeStart == null || _marqueeCurrent == null) return;
+
+    // Throttle selection updates to every 50ms to reduce Set allocations
+    final now = DateTime.now();
+    if (now.difference(_lastMarqueeUpdate).inMilliseconds < 50) return;
+    _lastMarqueeUpdate = now;
 
     final scrollOffset =
         _scrollController.hasClients ? _scrollController.offset : 0.0;
@@ -451,9 +460,6 @@ class _FilePaneState extends State<FilePane> {
   Widget _buildFooter(ThemeData theme) {
     final count = ctrl.entries.length;
     final selCount = ctrl.selected.length;
-    final totalSize = ctrl.entries
-        .where((e) => !e.isDir)
-        .fold<int>(0, (sum, e) => sum + e.size);
 
     return Container(
       height: 22,
@@ -465,7 +471,7 @@ class _FilePaneState extends State<FilePane> {
       child: Row(
         children: [
           Text(
-            '$count items, ${formatSize(totalSize)}',
+            '$count items, ${formatSize(ctrl.totalFileSize)}',
             style: const TextStyle(fontSize: 11),
           ),
           if (selCount > 0) ...[
