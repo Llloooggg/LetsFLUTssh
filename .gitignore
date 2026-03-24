@@ -45,7 +45,6 @@ windows/flutter/ephemeral/
 # Generated
 *.g.dart
 *.freezed.dart
-*.mocks.dart
 
 # Coverage
 coverage/
