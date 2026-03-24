@@ -271,11 +271,6 @@ class _Toolbar extends StatelessWidget {
               tooltip: 'Sessions',
               visualDensity: VisualDensity.compact,
             ),
-          const Text(
-            'LetsFLUTssh',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          ),
-          const SizedBox(width: 16),
           IconButton(
             onPressed: onQuickConnect,
             icon: const Icon(Icons.add, size: 18),

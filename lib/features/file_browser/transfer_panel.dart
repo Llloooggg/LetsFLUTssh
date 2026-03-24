@@ -16,6 +16,7 @@ class TransferPanel extends ConsumerStatefulWidget {
 class _TransferPanelState extends ConsumerState<TransferPanel> {
   bool _expanded = false;
   bool _wasRunning = false;
+  double _panelHeight = 200;
 
   @override
   Widget build(BuildContext context) {
@@ -96,10 +97,26 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             ),
           ),
         ),
+        // Resize handle
+        if (_expanded)
+          MouseRegion(
+            cursor: SystemMouseCursors.resizeRow,
+            child: GestureDetector(
+              onVerticalDragUpdate: (d) {
+                setState(() {
+                  _panelHeight = (_panelHeight - d.delta.dy).clamp(80.0, 500.0);
+                });
+              },
+              child: Container(
+                height: 4,
+                color: Theme.of(context).dividerColor,
+              ),
+            ),
+          ),
         // Expanded history list
         if (_expanded)
           SizedBox(
-            height: 200,
+            height: _panelHeight,
             child: historyAsync.when(
               data: (history) {
                 if (history.isEmpty) {
