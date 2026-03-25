@@ -6,6 +6,8 @@ on:
     paths-ignore:
       - '*.md'
       - 'docs/**'
+      - '.github/workflows/build.yml'
+      - '.github/workflows/codeql.yml'
       - 'LICENSE'
       - '.gitignore'
   pull_request:
@@ -13,6 +15,8 @@ on:
     paths-ignore:
       - '*.md'
       - 'docs/**'
+      - '.github/workflows/build.yml'
+      - '.github/workflows/codeql.yml'
       - 'LICENSE'
       - '.gitignore'
 
