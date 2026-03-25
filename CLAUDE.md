@@ -313,6 +313,7 @@ LetsFLUTssh/
 - **App display name** — "LFssh" on Android and iOS (under app icon)
 - **Manifest best practices** — Android/iOS manifests reorganized with grouped sections and comments
 - **SonarCloud** — code quality + coverage analysis on every push; Quality Gate requires ≥80% coverage on new code (target: 100%); injectable SSH/SFTP factories for testability
+- **CodeQL** — weekly security scanning for GitHub Actions workflows
 - **CI checks** — `flutter analyze --fatal-infos`, `flutter test --coverage`, `dart pub outdated`, dependency review on PRs
 - **Test infrastructure** — mockito mocks for SSHClient/SSHSocket/SSHSession/SftpClient, injectable factories in SSHConnection, FakeSessionStore, path_provider mock with temp dirs, runtime key generation via ssh-keygen
 
