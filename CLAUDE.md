@@ -274,7 +274,7 @@ LetsFLUTssh/
 - **Packaging** — AppImage + deb + tar.gz (Linux), EXE installer (Inno Setup) + zip (Windows), dmg + tar.gz (macOS), per-ABI APK (Android)
 - **Security hardening** — chmod 600 on credential files, TOFU rejects unknown hosts without callback, PBKDF2 600k iterations, file paths removed from error messages
 - **hardwareKeyboardOnly on desktop** — fixes Windows keyboard input by using KeyEvent.character instead of broken TextInputConnection/IME path
-- **648 tests** — 209 unit + 67 widget + 7 deeplink; covers all core modules and major UI components; mockito mocks for SSH shell (ShellHelper)
+- **957 tests** — 209 unit + 67 widget + 7 deeplink; covers all core modules and major UI components; mockito mocks for SSH shell (ShellHelper)
 - **User documentation** — docs/USER_GUIDE.md with keyboard shortcuts, features, security notes
 - **ShellHelper** — shared SSH shell connection logic (retry, stream wiring) extracted from desktop/mobile terminal code
 - **SFTPInitializer** — shared SFTP init factory (create service + controllers) used by desktop/mobile file browsers
@@ -294,7 +294,7 @@ LetsFLUTssh/
 - **No animations** — `AnimationStyle.noAnimation` on all showMenu/showDialog calls, `NoSplash.splashFactory`, instant page transitions
 - **Session panel header** — removed redundant "New Session" button (uses toolbar + / FAB instead), kept "New Folder"
 - **App display name** — "LetsFLUTssh" on all platforms (Android, iOS, macOS, Windows)
-- **648 tests** — updated for new dialog result types (Save & Connect / Connect), welcome screen (onNewSession)
+- **957 tests** — updated for new dialog result types (Save & Connect / Connect), welcome screen (onNewSession)
 - **Mobile-friendly session list** — 48px rows, 15px font, long-press context menu, tap-to-connect (no double-tap)
 - **Mobile session management** — "Move to folder" dialog replaces drag&drop, connect/edit/delete/duplicate via long-press menu
 - **Mobile tab management** — InputChip with X close button, always visible (not just when >1 tab)
