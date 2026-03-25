@@ -97,6 +97,46 @@ void main() {
     });
   });
 
+  group('AppTabBar — context menu single tab', () {
+    testWidgets('context menu on single tab shows only Close', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Only Tab', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      // Right-click on the only tab
+      final tab = find.text('Only Tab').first;
+      final center = tester.getCenter(tab);
+      final gesture = await tester.startGesture(center, kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Only Close should appear — no Close Others, Close Left, Close Right
+      expect(find.text('Close'), findsOneWidget);
+      expect(find.text('Close Others'), findsNothing);
+      expect(find.text('Close Tabs to the Left'), findsNothing);
+      expect(find.text('Close Tabs to the Right'), findsNothing);
+
+      // Dismiss menu
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('AppTabBar — SFTP tab icon in drag chip', () {
+    testWidgets('SFTP tab shows folder icon', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Files', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      // SFTP tab should show folder icon
+      expect(find.byIcon(Icons.folder), findsWidgets);
+    });
+  });
+
   group('AppTabBar — drag chip rendering', () {
     testWidgets('Draggable has TabEntry data', (tester) async {
       final conn = makeConn();

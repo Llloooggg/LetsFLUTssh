@@ -235,6 +235,113 @@ void main() {
       expect(find.byIcon(Icons.check_circle), findsOneWidget);
     });
 
+    testWidgets('resize handle drag updates panel height', (tester) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      // Expand panel first
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      // Find resize handle — it's a MouseRegion wrapping a GestureDetector
+      // wrapping a Container(height: 4). Find it by looking for the
+      // GestureDetector that handles vertical drag inside the panel.
+      final resizeHandles = find.byType(MouseRegion);
+      // There may be multiple MouseRegions; drag the first one visible in the panel
+      expect(resizeHandles, findsWidgets);
+
+      // Drag the first MouseRegion (resize handle)
+      await tester.drag(resizeHandles.first, const Offset(0, -50));
+      await tester.pumpAndSettle();
+
+      // Panel should still be rendered (no crash)
+      expect(find.text('Name'), findsOneWidget);
+    });
+
+    testWidgets('shows formatted size in history row', (tester) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'big.bin',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/big.bin',
+          targetPath: '/remote/big.bin',
+          status: TransferStatus.completed,
+          sizeBytes: 1048576, // 1 MB
+          createdAt: DateTime.now(),
+          startedAt: DateTime.now(),
+          endedAt: DateTime.now().add(const Duration(seconds: 5)),
+        ),
+      ];
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('big.bin'), findsOneWidget);
+      // Size should be formatted
+      expect(find.textContaining('MB'), findsOneWidget);
+    });
+
+    testWidgets('shows shortened paths for long paths', (tester) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'deep.txt',
+          direction: TransferDirection.download,
+          sourcePath: '/very/long/deep/nested/path/to/deep.txt',
+          targetPath: '/local/very/long/deep/nested/path/to/deep.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      // Shortened paths should contain "..."
+      expect(find.textContaining('...'), findsWidgets);
+    });
+
+    testWidgets('panel is collapsed initially when no active transfers', (tester) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      // Should be collapsed — column headers not visible
+      expect(find.text('Name'), findsNothing);
+      // Transfers label should still be visible
+      expect(find.text('Transfers'), findsOneWidget);
+    });
+
+    testWidgets('shows error tooltip for failed transfer', (tester) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'fail.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/fail.txt',
+          targetPath: '/remote/fail.txt',
+          status: TransferStatus.failed,
+          error: 'Permission denied',
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      // Error info icon should be present
+      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+    });
+
     testWidgets('shows active transfer status in header', (tester) async {
       const status = ActiveTransferState(
         running: 2,

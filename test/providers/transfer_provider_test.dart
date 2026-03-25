@@ -71,6 +71,48 @@ void main() {
       // After dispose, manager.dispose() was called
     });
 
+    test('transferStatusProvider updates after enqueue completes', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final manager = container.read(transferManagerProvider);
+
+      // Subscribe to history stream to force the provider to listen to onChange
+      final historySubscription = container.listen(transferHistoryProvider, (_, __) {});
+      final statusSubscription = container.listen(transferStatusProvider, (_, __) {});
+
+      // Wait for initial values
+      await container.read(transferHistoryProvider.future);
+      await container.read(transferStatusProvider.future);
+
+      // Enqueue a task that takes a moment
+      manager.enqueue(TransferTask(
+        name: 'status_test.txt',
+        direction: TransferDirection.upload,
+        sourcePath: '/local/status_test.txt',
+        targetPath: '/remote/status_test.txt',
+        run: (onProgress) async {
+          await Future.delayed(const Duration(milliseconds: 50));
+        },
+      ));
+
+      // Wait for task to complete and streams to emit
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      final status = await container.read(transferStatusProvider.future);
+      // After completion, no active transfers
+      expect(status.running, 0);
+      expect(status.queued, 0);
+
+      // History should have the completed task
+      final history = await container.read(transferHistoryProvider.future);
+      expect(history, isNotEmpty);
+      expect(history.first.name, 'status_test.txt');
+
+      historySubscription.close();
+      statusSubscription.close();
+    });
+
     test('transferHistoryProvider updates after enqueue completes', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);

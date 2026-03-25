@@ -412,11 +412,146 @@ void main() {
     });
   });
 
+  group('SessionStore — update validation', () {
+    test('update with invalid session throws ArgumentError', () async {
+      final store = SessionStore();
+      await store.load();
+      final session = makeSession(id: 'upd-1', label: 'valid', host: 'h.com');
+      await store.add(session);
+
+      // Update with invalid data (empty host)
+      final invalid = Session(id: 'upd-1', label: 'bad', host: '', user: 'root');
+      expect(() => store.update(invalid), throwsA(isA<ArgumentError>()));
+    });
+
+    test('update session not found throws ArgumentError', () async {
+      final store = SessionStore();
+      await store.load();
+      final session = makeSession(id: 'upd-2', label: 'exists', host: 'h.com');
+      await store.add(session);
+
+      final notFound = Session(id: 'nonexistent', label: 'x', host: 'h', user: 'u');
+      expect(() => store.update(notFound), throwsA(isA<ArgumentError>()));
+    });
+  });
+
+  group('SessionStore — renameGroup with empty groups exact match', () {
+    test('renameGroup renames exact empty group match', () async {
+      final store = SessionStore();
+      await store.load();
+      // Add an empty group that exactly matches the old path
+      await store.addEmptyGroup('Old');
+      await store.addEmptyGroup('Old/Sub');
+      await store.renameGroup('Old', 'New');
+
+      expect(store.emptyGroups, contains('New'));
+      expect(store.emptyGroups, contains('New/Sub'));
+      expect(store.emptyGroups, isNot(contains('Old')));
+      expect(store.emptyGroups, isNot(contains('Old/Sub')));
+    });
+  });
+
+  group('SessionStore — loadEmptyGroups with valid data', () {
+    test('empty groups file loads correctly', () async {
+      // Write both sessions.json (so load() doesn't return early) and empty_groups.json
+      final sessFile = File('${tempDir.path}/sessions.json');
+      await sessFile.parent.create(recursive: true);
+      await sessFile.writeAsString('[]');
+
+      final file = File('${tempDir.path}/empty_groups.json');
+      await file.writeAsString('["GroupA","GroupB"]');
+
+      final store = SessionStore();
+      await store.load();
+      expect(store.emptyGroups, contains('GroupA'));
+      expect(store.emptyGroups, contains('GroupB'));
+    });
+  });
+
+  group('SessionStore — moveGroup edge cases', () {
+    test('moveGroup to own subtree is no-op', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'mg-2', label: 's1', group: 'A/B'));
+      await store.moveGroup('A', 'A/B');
+
+      // Should not move into own subtree
+      expect(store.sessions.first.group, 'A/B');
+    });
+
+    test('moveGroup with empty groupPath is no-op', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'mg-3', label: 's1', group: 'X'));
+      await store.moveGroup('', 'Y');
+
+      expect(store.sessions.first.group, 'X');
+    });
+
+    test('moveGroup when already at target is no-op', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'mg-4', label: 's1', group: 'Parent/Child'));
+      await store.moveGroup('Parent/Child', 'Parent');
+
+      // Child under Parent => same path, no-op
+      expect(store.sessions.first.group, 'Parent/Child');
+    });
+
+    test('moveGroup to root', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'mg-5', label: 's1', group: 'Parent/Sub'));
+      await store.moveGroup('Parent/Sub', '');
+
+      expect(store.sessions.first.group, 'Sub');
+    });
+  });
+
+  group('SessionStore — deleteGroup removes empty groups under path', () {
+    test('deleteGroup also removes empty groups under deleted path', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.addEmptyGroup('Prod');
+      await store.addEmptyGroup('Prod/Cache');
+      await store.add(makeSession(id: 'dg-e1', label: 's', group: 'Prod'));
+      await store.deleteGroup('Prod');
+
+      expect(store.emptyGroups, isNot(contains('Prod')));
+      expect(store.emptyGroups, isNot(contains('Prod/Cache')));
+      expect(store.sessions, isEmpty);
+    });
+  });
+
+  group('SessionStore — renameGroup edge cases', () {
+    test('renameGroup with empty oldPath is no-op', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'rn-e1', label: 's1', group: 'A'));
+      await store.renameGroup('', 'B');
+
+      expect(store.sessions.first.group, 'A');
+    });
+
+    test('renameGroup same old and new is no-op', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'rn-e2', label: 's1', group: 'A'));
+      await store.renameGroup('A', 'A');
+
+      expect(store.sessions.first.group, 'A');
+    });
+  });
+
   group('SessionStore — edge cases', () {
     test('corrupted empty_groups.json loads gracefully', () async {
-      // Write garbage before store loads
+      // Write valid sessions.json so load() doesn't return early
+      final sessFile = File('${tempDir.path}/sessions.json');
+      await sessFile.parent.create(recursive: true);
+      await sessFile.writeAsString('[]');
+
+      // Write garbage to empty_groups.json
       final file = File('${tempDir.path}/empty_groups.json');
-      await file.parent.create(recursive: true);
       await file.writeAsString('not json');
 
       final store = SessionStore();

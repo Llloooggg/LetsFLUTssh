@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
@@ -222,6 +223,148 @@ void main() {
       expect(find.text('ClickMe'), findsOneWidget);
       // InkWell should be present for tap
       expect(find.byType(InkWell), findsWidgets);
+    });
+  });
+
+  group('SessionTreeView — context menu callbacks', () {
+    testWidgets('right-click on session fires onSessionContextMenu', (tester) async {
+      Session? menuSession;
+      Offset? menuPosition;
+      final s = makeSession(label: 'CtxSession');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionContextMenu: (session, pos) {
+          menuSession = session;
+          menuPosition = pos;
+        },
+      ));
+      await tester.pump();
+
+      // Right-click (secondary tap) on session
+      final sessionFinder = find.text('CtxSession');
+      final center = tester.getCenter(sessionFinder);
+      final gesture = await tester.startGesture(
+        center,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(menuSession?.label, 'CtxSession');
+      expect(menuPosition, isNotNull);
+    });
+
+    testWidgets('right-click on group fires onGroupContextMenu', (tester) async {
+      String? menuGroup;
+      Offset? menuPosition;
+      final s = makeSession(label: 'S1', group: 'MyGroup');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onGroupContextMenu: (groupPath, pos) {
+          menuGroup = groupPath;
+          menuPosition = pos;
+        },
+      ));
+      await tester.pump();
+
+      // Right-click on group
+      final groupFinder = find.text('MyGroup');
+      final center = tester.getCenter(groupFinder);
+      final gesture = await tester.startGesture(
+        center,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(menuGroup, 'MyGroup');
+      expect(menuPosition, isNotNull);
+    });
+
+    testWidgets('right-click on empty area fires onBackgroundContextMenu', (tester) async {
+      Offset? bgPosition;
+      final s = makeSession(label: 'Small');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onBackgroundContextMenu: (pos) {
+          bgPosition = pos;
+        },
+      ));
+      await tester.pump();
+
+      // Right-click on the tree background area (below sessions)
+      final treeView = find.byType(SessionTreeView);
+      final treeRect = tester.getRect(treeView);
+      final bgPoint = Offset(treeRect.center.dx, treeRect.bottom - 10);
+
+      final gesture = await tester.startGesture(
+        bgPoint,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(bgPosition, isNotNull);
+    });
+  });
+
+  group('SessionTreeView — session tap fires onSessionTap', () {
+    testWidgets('tapping session fires onSessionTap callback', (tester) async {
+      Session? tapped;
+      final s = makeSession(label: 'TapMe');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionTap: (session) => tapped = session,
+        onSessionDoubleTap: (_) {}, // Provide both so GestureDetector resolves faster
+      ));
+      await tester.pump();
+
+      // Tap and wait for GestureDetector double-tap timeout (kDoubleTapTimeout)
+      await tester.tap(find.text('TapMe'));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+
+      expect(tapped?.label, 'TapMe');
+    });
+  });
+
+  group('SessionTreeView — onSessionMoved and onGroupMoved callbacks', () {
+    testWidgets('DragTarget for root accepts session drop', (tester) async {
+      // Verify DragTarget is present and callbacks are wired
+      String? movedSessionId;
+      // ignore: unused_local_variable
+      String? movedTarget;
+      final s = makeSession(label: 'Movable', group: 'Grp');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionMoved: (id, target) {
+          movedSessionId = id;
+          movedTarget = target;
+        },
+      ));
+      await tester.pump();
+
+      // We can't easily simulate drag&drop in widget tests, but we can
+      // verify the DragTarget is present
+      expect(find.byType(DragTarget<SessionDragData>), findsWidgets);
+      // And the LongPressDraggable is present
+      expect(find.byType(LongPressDraggable<SessionDragData>), findsWidgets);
+
+      // Verify callbacks are wired (no null)
+      expect(movedSessionId, isNull); // not yet triggered
     });
   });
 

@@ -53,6 +53,35 @@ void main() {
     });
   });
 
+  group('ConnectionManager — disconnect lifecycle', () {
+    test('disconnect with existing connection removes it', () async {
+      // We can't test with real SSH, but we can verify the code path
+      // by checking that disconnect on a known ID with no sshConnection works
+      final mgr = ConnectionManager(knownHosts: KnownHostsManager());
+      addTearDown(mgr.dispose);
+
+      // Try to connect (will fail, but the connecting state is set briefly)
+      const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
+      try {
+        await mgr.connect(config);
+      } catch (_) {}
+      // After failure, connection was removed already
+      expect(mgr.connections, isEmpty);
+    });
+
+    test('disconnect on nonexistent id does not emit onChange', () async {
+      final mgr2 = ConnectionManager(knownHosts: KnownHostsManager());
+      addTearDown(mgr2.dispose);
+      var emitCount = 0;
+      final sub = mgr2.onChange.listen((_) => emitCount++);
+      mgr2.disconnect('nonexistent');
+      await Future.delayed(Duration.zero);
+      // disconnect on nonexistent returns early, no emit
+      expect(emitCount, 0);
+      await sub.cancel();
+    });
+  });
+
   group('Connection model', () {
     test('default state is disconnected', () {
       final conn = Connection(

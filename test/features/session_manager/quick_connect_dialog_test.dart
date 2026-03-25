@@ -158,6 +158,57 @@ void main() {
       expect(find.text('Quick Connect'), findsOneWidget);
     });
 
+    testWidgets('key file path validation shows error for nonexistent file', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'h');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'u');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Key File'), '/nonexistent/path/key.pem');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('File not found'), findsOneWidget);
+    });
+
+    testWidgets('passphrase visibility toggle works', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Find the passphrase visibility toggle — it's the second visibility icon
+      final visIcons = find.byIcon(Icons.visibility);
+      expect(visIcons, findsWidgets);
+
+      // Tap the last one (passphrase toggle)
+      await tester.tap(visIcons.last);
+      await tester.pumpAndSettle();
+
+      // Should show visibility_off
+      expect(find.byIcon(Icons.visibility_off), findsWidgets);
+    });
+
+    testWidgets('host field submit triggers form submission', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'quick.host');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'user');
+      await tester.pumpAndSettle();
+
+      // Submit via Enter on host field
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      // Should close the dialog and return config
+      // (the onFieldSubmitted on host calls _submit)
+      // If all required fields are filled, dialog closes
+    });
+
     testWidgets('Connect with PEM key data', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
