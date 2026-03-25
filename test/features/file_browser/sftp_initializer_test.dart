@@ -1,11 +1,18 @@
+import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
+import 'package:letsflutssh/core/sftp/sftp_client.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+
+@GenerateNiceMocks([MockSpec<SftpClient>()])
+import 'sftp_initializer_test.mocks.dart';
 
 /// Mock FileSystem for testing SFTPInitResult.
 class _MockFS implements FileSystem {
@@ -25,7 +32,7 @@ class _MockFS implements FileSystem {
 
 void main() {
   group('SFTPInitializer.init', () {
-    test('throws StateError when sshConnection is null', () async {
+    test('throws StateError when sshConnection is null (no factory)', () async {
       final conn = Connection(
         id: 'test',
         label: 'Test',
@@ -38,6 +45,77 @@ void main() {
         () => SFTPInitializer.init(conn),
         throwsA(isA<StateError>()),
       );
+    });
+
+    test('succeeds with injectable sftpServiceFactory', () async {
+      final conn = Connection(
+        id: 'test',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'localhost', user: 'user'),
+        sshConnection: null,  // null is OK — factory bypasses SSH
+        state: SSHConnectionState.disconnected,
+      );
+
+      final mockSftp = MockSftpClient();
+      when(mockSftp.absolute('.')).thenAnswer((_) async => '/home/remote');
+      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+
+      final result = await SFTPInitializer.init(
+        conn,
+        sftpServiceFactory: (_) async => SFTPService(mockSftp),
+        localFsFactory: () => _MockFS(),
+      );
+
+      expect(result.localCtrl.label, 'Local');
+      expect(result.remoteCtrl.label, 'Remote');
+      expect(result.sftpService, isNotNull);
+
+      result.dispose();
+    });
+
+    test('controllers are initialized after init', () async {
+      final conn = Connection(
+        id: 'test',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      final mockSftp = MockSftpClient();
+      when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
+      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+
+      final result = await SFTPInitializer.init(
+        conn,
+        sftpServiceFactory: (_) async => SFTPService(mockSftp),
+        localFsFactory: () => _MockFS(),
+      );
+
+      // Controllers should be initialized (currentPath set)
+      expect(result.localCtrl.currentPath, '/test');
+      expect(result.remoteCtrl.currentPath, '/remote');
+
+      result.dispose();
+    });
+
+    test('dispose closes sftp service', () async {
+      final conn = Connection(
+        id: 'test',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      final mockSftp = MockSftpClient();
+      when(mockSftp.absolute('.')).thenAnswer((_) async => '/r');
+      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+
+      final result = await SFTPInitializer.init(
+        conn,
+        sftpServiceFactory: (_) async => SFTPService(mockSftp),
+        localFsFactory: () => _MockFS(),
+      );
+
+      result.dispose();
+      verify(mockSftp.close()).called(1);
     });
   });
 

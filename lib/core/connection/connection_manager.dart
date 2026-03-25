@@ -7,6 +7,12 @@ import '../ssh/ssh_client.dart';
 import '../ssh/ssh_config.dart';
 import 'connection.dart';
 
+/// Factory for creating SSH connections — injectable for testing.
+typedef SSHConnectionFactory = SSHConnection Function(
+  SSHConfig config,
+  KnownHostsManager knownHosts,
+);
+
 /// Manages active SSH connections lifecycle.
 ///
 /// Tracks connections, associates them with tabs, notifies listeners.
@@ -14,13 +20,18 @@ class ConnectionManager {
   final _connections = <String, Connection>{};
   final _uuid = const Uuid();
   final KnownHostsManager knownHosts;
+  final SSHConnectionFactory _connectionFactory;
 
   final _controller = StreamController<void>.broadcast();
 
   /// Stream that fires on any connection state change.
   Stream<void> get onChange => _controller.stream;
 
-  ConnectionManager({required this.knownHosts});
+  ConnectionManager({
+    required this.knownHosts,
+    SSHConnectionFactory? connectionFactory,
+  }) : _connectionFactory = connectionFactory ??
+            ((config, kh) => SSHConnection(config: config, knownHosts: kh));
 
   List<Connection> get connections => _connections.values.toList();
 
@@ -38,10 +49,7 @@ class ConnectionManager {
     _connections[id] = conn;
     _notify();
 
-    final sshConn = SSHConnection(
-      config: config,
-      knownHosts: knownHosts,
-    );
+    final sshConn = _connectionFactory(config, knownHosts);
     sshConn.onDisconnect = () {
       conn.state = SSHConnectionState.disconnected;
       conn.sshConnection = null;

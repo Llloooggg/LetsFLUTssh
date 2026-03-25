@@ -45,19 +45,36 @@ class SFTPInitializer {
     }
   }
 
-  static Future<SFTPInitResult> init(Connection connection) async {
-    final sshClient = connection.sshConnection?.client;
-    if (sshClient == null) {
-      throw StateError('SSH connection not available');
+  /// Initialize SFTP service and file pane controllers from a [Connection].
+  ///
+  /// [sftpServiceFactory] can be provided for testing to avoid real SSH.
+  /// [localFsFactory] can be provided for testing to avoid real filesystem.
+  static Future<SFTPInitResult> init(
+    Connection connection, {
+    Future<SFTPService> Function(Connection conn)? sftpServiceFactory,
+    FileSystem Function()? localFsFactory,
+  }) async {
+    SFTPService sftpService;
+    if (sftpServiceFactory != null) {
+      sftpService = await sftpServiceFactory(connection);
+    } else {
+      final sshClient = connection.sshConnection?.client;
+      if (sshClient == null) {
+        throw StateError('SSH connection not available');
+      }
+
+      // On Android, request storage permission for local file browser
+      if (Platform.isAndroid) {
+        await _requestStoragePermission();
+      }
+
+      sftpService = await SFTPService.fromSSHClient(sshClient);
     }
 
-    // On Android, request storage permission for local file browser
-    if (Platform.isAndroid) {
-      await _requestStoragePermission();
-    }
-
-    final sftpService = await SFTPService.fromSSHClient(sshClient);
-    final localCtrl = FilePaneController(fs: LocalFS(), label: 'Local');
+    final localCtrl = FilePaneController(
+      fs: localFsFactory?.call() ?? LocalFS(),
+      label: 'Local',
+    );
     final remoteCtrl = FilePaneController(fs: RemoteFS(sftpService), label: 'Remote');
 
     await Future.wait([localCtrl.init(), remoteCtrl.init()]);
