@@ -492,6 +492,70 @@ void main() {
     });
   });
 
+  group('SFTPService — uploadDir mkdir already exists', () {
+    late MockSftpClient mockSftp;
+    late MockSftpFile mockFile;
+    late SFTPService service;
+
+    setUp(() {
+      mockSftp = MockSftpClient();
+      mockFile = MockSftpFile();
+      service = SFTPService(mockSftp);
+    });
+
+    test('uploadDir continues when mkdir throws (dir exists)', () async {
+      final tempDir = await Directory.systemTemp.createTemp('sftp_mkdir_exists_');
+      try {
+        await File('${tempDir.path}/file.txt').writeAsString('data');
+
+        // mkdir throws (directory already exists)
+        when(mockSftp.mkdir(any)).thenThrow(Exception('dir exists'));
+        when(mockSftp.open(any, mode: anyNamed('mode')))
+            .thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
+            .thenAnswer((_) async {});
+
+        // Should not throw
+        await service.uploadDir(tempDir.path, '/remote/existing', null);
+
+        // File should still be uploaded despite mkdir failure
+        verify(mockSftp.open(any, mode: anyNamed('mode'))).called(1);
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+  });
+
+  group('SFTPService._parseOwner', () {
+    test('list returns owner from longname', () async {
+      final items = [
+        SftpName(
+          filename: 'test.txt',
+          longname: '-rw-r--r-- 1 myuser mygroup 100 Jan 01 00:00 test.txt',
+          attr: _fileAttrs(),
+        ),
+      ];
+      when(mockSftp.listdir('/path')).thenAnswer((_) async => items);
+
+      final result = await service.list('/path');
+      expect(result.first.owner, 'myuser');
+    });
+
+    test('list returns empty owner for short longname', () async {
+      final items = [
+        SftpName(
+          filename: 'test.txt',
+          longname: '-rw-r--r--',  // no owner field
+          attr: _fileAttrs(),
+        ),
+      ];
+      when(mockSftp.listdir('/path')).thenAnswer((_) async => items);
+
+      final result = await service.list('/path');
+      expect(result.first.owner, '');
+    });
+  });
+
   group('SFTPService — fromSSHClient', () {
     test('fromSSHClient creates service from SSH client sftp subsystem', () async {
       // Can't easily test without real SSH, but verify the static method exists

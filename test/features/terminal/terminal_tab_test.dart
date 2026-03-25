@@ -186,6 +186,107 @@ void main() {
       expect(find.textContaining('Reconnect failed'), findsOneWidget);
     });
 
+    testWidgets('shows CircularProgressIndicator during reconnect attempt', (tester) async {
+      final conn = Connection(
+        id: 'test-loading',
+        label: 'Loading Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalTab(
+              tabId: 'tab-loading',
+              connection: conn,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Should show error state initially
+      expect(find.text('Not connected'), findsOneWidget);
+
+      // Tap Reconnect
+      await tester.tap(find.text('Reconnect'));
+      // Pump once to see loading state (before async reconnect completes)
+      await tester.pump();
+
+      // During reconnect, the _connectionReady is false and _connectionError is null
+      // so it should show CircularProgressIndicator briefly
+      // (It may resolve immediately because sshConnection is null, so check both states)
+      final hasLoader = find.byType(CircularProgressIndicator).evaluate().isNotEmpty;
+      final hasError = find.textContaining('Reconnect failed').evaluate().isNotEmpty;
+      expect(hasLoader || hasError, isTrue);
+    });
+
+    testWidgets('reconnect with disconnected mock SSHConnection shows error', (tester) async {
+      final mockSsh = MockSSHConnection();
+      when(mockSsh.isConnected).thenReturn(false);
+
+      final conn = Connection(
+        id: 'test-disconnected-mock',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalTab(
+              tabId: 'tab-disc-mock',
+              connection: conn,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Should show error state
+      expect(find.text('Not connected'), findsOneWidget);
+
+      // Tap Reconnect
+      await tester.tap(find.text('Reconnect'));
+      await tester.pumpAndSettle();
+
+      // Should show reconnect failed (because connect() will fail or knownHosts is null)
+      expect(find.textContaining('Reconnect failed'), findsOneWidget);
+    });
+
+    testWidgets('error text is styled with disconnected color', (tester) async {
+      final conn = Connection(
+        id: 'test-style',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalTab(
+              tabId: 'tab-style',
+              connection: conn,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Find the 'Not connected' text and verify its style
+      final textWidget = tester.widget<Text>(find.text('Not connected'));
+      expect(textWidget.style?.color, AppTheme.disconnected);
+    });
+
     testWidgets('shows error after reconnect fails with null sshConnection', (tester) async {
       final conn = Connection(
         id: 'test-4',

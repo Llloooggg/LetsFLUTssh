@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../ssh/ssh_config.dart';
 
@@ -29,7 +30,7 @@ class DeepLinkHandler {
     try {
       final initialUri = await _appLinks.getInitialLink();
       if (initialUri != null) {
-        _handleUri(initialUri);
+        handleUri(initialUri);
       }
     } catch (e) {
       dev.log('DeepLink: no initial link ($e)');
@@ -37,24 +38,26 @@ class DeepLinkHandler {
 
     // Listen for links while app is running (warm start)
     _sub = _appLinks.uriLinkStream.listen(
-      _handleUri,
+      handleUri,
       onError: (e) => dev.log('DeepLink stream error: $e'),
     );
   }
 
-  void _handleUri(Uri uri) {
+  @visibleForTesting
+  void handleUri(Uri uri) {
     dev.log('DeepLink received: $uri');
 
     if (uri.scheme == 'letsflutssh') {
-      _handleCustomScheme(uri);
+      handleCustomScheme(uri);
     } else if (uri.scheme == 'file' || uri.scheme == 'content') {
-      _handleFileUri(uri);
+      handleFileUri(uri);
     } else {
       dev.log('DeepLink: unhandled scheme "${uri.scheme}"');
     }
   }
 
-  void _handleCustomScheme(Uri uri) {
+  @visibleForTesting
+  void handleCustomScheme(Uri uri) {
     if (uri.host == 'connect') {
       final config = parseConnectUri(uri);
       if (config != null) {
@@ -67,7 +70,8 @@ class DeepLinkHandler {
     }
   }
 
-  void _handleFileUri(Uri uri) {
+  @visibleForTesting
+  void handleFileUri(Uri uri) {
     final path = uri.path.toLowerCase();
     if (path.endsWith('.lfs')) {
       onLfsFileOpened?.call(uri.toFilePath());

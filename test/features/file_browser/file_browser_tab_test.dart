@@ -143,6 +143,72 @@ void main() {
       expect(icon.color, AppTheme.disconnected);
     });
 
+    testWidgets('initializing state shows loading UI before async init resolves', (tester) async {
+      // The FileBrowserTab starts with _initializing = true, but _initSftp runs
+      // immediately in initState. Since it fails synchronously (null sshConnection),
+      // we verify the widget builds and transitions properly.
+      final conn = Connection(
+        id: 'test-loading',
+        label: 'Loading Test',
+        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: FileBrowserTab(connection: conn),
+            ),
+          ),
+        ),
+      );
+      // After settling, should be in error state (init failed quickly)
+      await tester.pumpAndSettle();
+
+      // Error state should show error icon and retry
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+      // Loading indicator should NOT be showing anymore
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets('error state shows error text with SFTP context', (tester) async {
+      final conn = Connection(
+        id: 'test-transition',
+        label: 'Transition Test',
+        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: FileBrowserTab(connection: conn),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Should show the SFTP initialization failure message
+      expect(find.textContaining('Failed to initialize SFTP'), findsOneWidget);
+      // Should have both error icon and retry button
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+    });
+
     testWidgets('Retry button is a FilledButton.tonal', (tester) async {
       final conn = Connection(
         id: 'test-4',

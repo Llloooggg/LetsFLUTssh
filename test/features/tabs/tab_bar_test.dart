@@ -332,6 +332,220 @@ void main() {
       expect(find.byType(Draggable<TabEntry>), findsOneWidget);
     });
 
+    testWidgets('context menu Close Tabs to the Right closes tabs after clicked tab', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Tab A', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Tab B', connection: conn, kind: TabKind.sftp),
+        TabEntry(id: 't3', label: 'Tab C', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      // Right-click on Tab A (index 0)
+      final tabA = find.text('Tab A').first;
+      final center = tester.getCenter(tabA);
+      final gesture = await tester.startGesture(center, kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Tap Close Tabs to the Right
+      await tester.tap(find.text('Close Tabs to the Right'));
+      await tester.pumpAndSettle();
+
+      // Only Tab A should remain
+      expect(find.text('Tab A'), findsWidgets);
+    });
+
+    testWidgets('context menu Close Tabs to the Left closes tabs before clicked tab', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Tab A', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Tab B', connection: conn, kind: TabKind.sftp),
+        TabEntry(id: 't3', label: 'Tab C', connection: conn, kind: TabKind.terminal),
+      ], activeIndex: 2));
+      await tester.pumpAndSettle();
+
+      // Right-click on Tab C (index 2)
+      final tabC = find.text('Tab C').first;
+      final center = tester.getCenter(tabC);
+      final gesture = await tester.startGesture(center, kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Tap Close Tabs to the Left
+      await tester.tap(find.text('Close Tabs to the Left'));
+      await tester.pumpAndSettle();
+
+      // Only Tab C should remain
+      expect(find.text('Tab C'), findsWidgets);
+    });
+
+    testWidgets('connected state shows green dot', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Tab', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final dotContainers = containers.where((c) {
+        final decoration = c.decoration;
+        if (decoration is BoxDecoration && decoration.shape == BoxShape.circle) {
+          return decoration.color == AppTheme.connectedColor(Brightness.dark);
+        }
+        return false;
+      });
+      expect(dotContainers, isNotEmpty);
+    });
+
+    testWidgets('connecting state shows yellow dot', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connecting);
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Tab', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final dotContainers = containers.where((c) {
+        final decoration = c.decoration;
+        if (decoration is BoxDecoration && decoration.shape == BoxShape.circle) {
+          return decoration.color == AppTheme.connectingColor(Brightness.dark);
+        }
+        return false;
+      });
+      expect(dotContainers, isNotEmpty);
+    });
+
+    testWidgets('disconnected state shows red dot', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.disconnected);
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Tab', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final dotContainers = containers.where((c) {
+        final decoration = c.decoration;
+        if (decoration is BoxDecoration && decoration.shape == BoxShape.circle) {
+          return decoration.color == AppTheme.disconnectedColor(Brightness.dark);
+        }
+        return false;
+      });
+      expect(dotContainers, isNotEmpty);
+    });
+
+    testWidgets('active tab has bold text and bottom border', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Active Tab', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Inactive Tab', connection: conn, kind: TabKind.sftp),
+      ], activeIndex: 0));
+      await tester.pumpAndSettle();
+
+      // Find the active tab text
+      final activeTexts = tester.widgetList<Text>(find.text('Active Tab'));
+      final hasActiveStyle = activeTexts.any((t) => t.style?.fontWeight == FontWeight.bold);
+      expect(hasActiveStyle, isTrue);
+    });
+
+    testWidgets('inactive tab has normal weight text', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Active Tab', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Inactive Tab', connection: conn, kind: TabKind.sftp),
+      ], activeIndex: 0));
+      await tester.pumpAndSettle();
+
+      // Find the inactive tab text
+      final inactiveTexts = tester.widgetList<Text>(find.text('Inactive Tab'));
+      final hasNormalStyle = inactiveTexts.any((t) => t.style?.fontWeight == FontWeight.normal);
+      expect(hasNormalStyle, isTrue);
+    });
+
+    testWidgets('context menu does not show Close Tabs to the Left for first tab', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Tab A', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Tab B', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      // Right-click on Tab A (index 0)
+      final tabA = find.text('Tab A').first;
+      final center = tester.getCenter(tabA);
+      final gesture = await tester.startGesture(center, kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Should NOT show Close Tabs to the Left (first tab)
+      expect(find.text('Close Tabs to the Left'), findsNothing);
+      // Should show Close Tabs to the Right
+      expect(find.text('Close Tabs to the Right'), findsOneWidget);
+    });
+
+    testWidgets('context menu does not show Close Tabs to the Right for last tab', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Tab A', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Tab B', connection: conn, kind: TabKind.sftp),
+      ], activeIndex: 1));
+      await tester.pumpAndSettle();
+
+      // Right-click on Tab B (index 1, last tab)
+      final tabB = find.text('Tab B').first;
+      final center = tester.getCenter(tabB);
+      final gesture = await tester.startGesture(center, kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Should show Close Tabs to the Left
+      expect(find.text('Close Tabs to the Left'), findsOneWidget);
+      // Should NOT show Close Tabs to the Right (last tab)
+      expect(find.text('Close Tabs to the Right'), findsNothing);
+    });
+
+    testWidgets('single tab context menu does not show Close Others', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Only Tab', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      // Right-click on the only tab
+      final tab = find.text('Only Tab').first;
+      final center = tester.getCenter(tab);
+      final gesture = await tester.startGesture(center, kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Should show Close but NOT Close Others
+      expect(find.text('Close'), findsOneWidget);
+      expect(find.text('Close Others'), findsNothing);
+      expect(find.text('Close Tabs to the Left'), findsNothing);
+      expect(find.text('Close Tabs to the Right'), findsNothing);
+    });
+
+    testWidgets('tab label truncates with ellipsis for long labels', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+          id: 't1',
+          label: 'Very Long Server Name That Should Be Truncated With Ellipsis',
+          connection: conn,
+          kind: TabKind.terminal,
+        ),
+      ]));
+      await tester.pumpAndSettle();
+
+      // The text widget should exist and have ellipsis overflow
+      final textWidgets = tester.widgetList<Text>(
+        find.text('Very Long Server Name That Should Be Truncated With Ellipsis'),
+      );
+      expect(textWidgets, isNotEmpty);
+      final hasEllipsis = textWidgets.any((t) => t.overflow == TextOverflow.ellipsis);
+      expect(hasEllipsis, isTrue);
+    });
+
     testWidgets('DragTarget is present for each tab', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs([

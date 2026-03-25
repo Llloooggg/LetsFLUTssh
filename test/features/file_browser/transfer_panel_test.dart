@@ -342,6 +342,138 @@ void main() {
       expect(find.byIcon(Icons.info_outline), findsOneWidget);
     });
 
+    testWidgets('clear history button calls manager.clearHistory', (tester) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'done.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/done.txt',
+          targetPath: '/remote/done.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpAndSettle();
+
+      // Expand panel
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      // Tap clear history button
+      expect(find.byIcon(Icons.delete_sweep), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.delete_sweep));
+      await tester.pumpAndSettle();
+
+      // After clearing, manager.history should be empty
+      expect(manager.history, isEmpty);
+    });
+
+    testWidgets('auto-expands when active transfers start', (tester) async {
+      const status = ActiveTransferState(
+        running: 1,
+        queued: 0,
+        currentInfo: 'Uploading file.txt...',
+      );
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, status: status));
+      await tester.pumpAndSettle();
+
+      // Panel should auto-expand when there are active transfers
+      // Column headers should be visible
+      expect(find.text('Name'), findsOneWidget);
+      expect(find.text('No transfers yet'), findsOneWidget);
+    });
+
+    testWidgets('shows expand_more icon when expanded', (tester) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      // Initially collapsed: shows expand_less icon
+      expect(find.byIcon(Icons.expand_less), findsOneWidget);
+
+      // Expand
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      // When expanded: shows expand_more icon
+      expect(find.byIcon(Icons.expand_more), findsOneWidget);
+    });
+
+    testWidgets('history with multiple entries shows all', (tester) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'first.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/first.txt',
+          targetPath: '/remote/first.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime.now(),
+        ),
+        HistoryEntry(
+          id: '2',
+          name: 'second.txt',
+          direction: TransferDirection.download,
+          sourcePath: '/remote/second.txt',
+          targetPath: '/local/second.txt',
+          status: TransferStatus.failed,
+          error: 'Disk full',
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 in history'), findsOneWidget);
+
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('first.txt'), findsOneWidget);
+      expect(find.text('second.txt'), findsOneWidget);
+      expect(find.text('↑'), findsOneWidget); // upload
+      expect(find.text('↓'), findsOneWidget); // download
+    });
+
+    testWidgets('shows duration for completed transfer with timing', (tester) async {
+      final startTime = DateTime(2024, 1, 1, 10, 0, 0);
+      final endTime = DateTime(2024, 1, 1, 10, 0, 10);
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'timed.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/timed.txt',
+          targetPath: '/remote/timed.txt',
+          status: TransferStatus.completed,
+          createdAt: startTime,
+          startedAt: startTime,
+          endedAt: endTime,
+        ),
+      ];
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      // Duration should be displayed (10 seconds)
+      expect(find.textContaining('10'), findsWidgets);
+    });
+
+    testWidgets('does not show clear history button when collapsed', (tester) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      // Collapsed: no clear button
+      expect(find.byIcon(Icons.delete_sweep), findsNothing);
+    });
+
     testWidgets('shows active transfer status in header', (tester) async {
       const status = ActiveTransferState(
         running: 2,

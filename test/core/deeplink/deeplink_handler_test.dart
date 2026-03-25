@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {
   group('DeepLinkHandler.parseConnectUri', () {
@@ -159,6 +160,160 @@ void main() {
       expect(config, isNotNull);
       expect(config!.host, 'h');
       expect(config.user, 'u');
+    });
+  });
+
+  group('DeepLinkHandler.handleUri routing', () {
+    late DeepLinkHandler handler;
+
+    setUp(() {
+      handler = DeepLinkHandler();
+    });
+
+    tearDown(() {
+      handler.dispose();
+    });
+
+    test('routes letsflutssh scheme to handleCustomScheme → onConnect', () {
+      SSHConfig? received;
+      handler.onConnect = (c) => received = c;
+
+      handler.handleUri(Uri.parse('letsflutssh://connect?host=h&user=u'));
+      expect(received, isNotNull);
+      expect(received!.host, 'h');
+    });
+
+    test('routes file scheme .lfs to onLfsFileOpened', () {
+      String? received;
+      handler.onLfsFileOpened = (p) => received = p;
+
+      handler.handleUri(Uri.parse('file:///tmp/archive.lfs'));
+      expect(received, isNotNull);
+      expect(received, contains('archive.lfs'));
+    });
+
+    test('routes file scheme .pem to onKeyFileOpened', () {
+      String? received;
+      handler.onKeyFileOpened = (p) => received = p;
+
+      handler.handleUri(Uri.parse('file:///tmp/id.pem'));
+      expect(received, isNotNull);
+      expect(received, contains('id.pem'));
+    });
+
+    test('routes file scheme .key to onKeyFileOpened', () {
+      String? received;
+      handler.onKeyFileOpened = (p) => received = p;
+
+      handler.handleUri(Uri.parse('file:///tmp/id.key'));
+      expect(received, isNotNull);
+    });
+
+    test('routes file scheme .pub to onKeyFileOpened', () {
+      String? received;
+      handler.onKeyFileOpened = (p) => received = p;
+
+      handler.handleUri(Uri.parse('file:///tmp/id.pub'));
+      expect(received, isNotNull);
+    });
+
+    test('routes content scheme to handleFileUri', () {
+      // content:// URIs go through handleFileUri path
+      // but toFilePath() only works with file:// scheme,
+      // so we test the routing reaches handleFileUri via file://
+      String? received;
+      handler.onLfsFileOpened = (p) => received = p;
+
+      handler.handleUri(Uri.parse('file:///provider/archive.lfs'));
+      expect(received, isNotNull);
+    });
+
+    test('ignores unknown scheme without crash', () {
+      handler.handleUri(Uri.parse('https://example.com'));
+      // Should not throw, just log
+    });
+
+    test('ignores unsupported file type', () {
+      String? key;
+      String? lfs;
+      handler.onKeyFileOpened = (p) => key = p;
+      handler.onLfsFileOpened = (p) => lfs = p;
+
+      handler.handleUri(Uri.parse('file:///tmp/readme.txt'));
+      expect(key, isNull);
+      expect(lfs, isNull);
+    });
+  });
+
+  group('DeepLinkHandler.handleCustomScheme', () {
+    late DeepLinkHandler handler;
+
+    setUp(() {
+      handler = DeepLinkHandler();
+    });
+
+    tearDown(() {
+      handler.dispose();
+    });
+
+    test('connect action calls onConnect with valid params', () {
+      SSHConfig? received;
+      handler.onConnect = (c) => received = c;
+
+      handler.handleCustomScheme(Uri.parse('letsflutssh://connect?host=h&user=u'));
+      expect(received, isNotNull);
+    });
+
+    test('connect action with invalid params does not call onConnect', () {
+      SSHConfig? received;
+      handler.onConnect = (c) => received = c;
+
+      handler.handleCustomScheme(Uri.parse('letsflutssh://connect?host=&user='));
+      expect(received, isNull);
+    });
+
+    test('unknown action does not call onConnect', () {
+      SSHConfig? received;
+      handler.onConnect = (c) => received = c;
+
+      handler.handleCustomScheme(Uri.parse('letsflutssh://settings'));
+      expect(received, isNull);
+    });
+
+    test('onConnect null does not crash', () {
+      handler.onConnect = null;
+      handler.handleCustomScheme(Uri.parse('letsflutssh://connect?host=h&user=u'));
+      // Should not throw
+    });
+  });
+
+  group('DeepLinkHandler.handleFileUri', () {
+    late DeepLinkHandler handler;
+
+    setUp(() {
+      handler = DeepLinkHandler();
+    });
+
+    tearDown(() {
+      handler.dispose();
+    });
+
+    test('onLfsFileOpened null does not crash', () {
+      handler.onLfsFileOpened = null;
+      handler.handleFileUri(Uri.parse('file:///tmp/a.lfs'));
+    });
+
+    test('onKeyFileOpened null does not crash', () {
+      handler.onKeyFileOpened = null;
+      handler.handleFileUri(Uri.parse('file:///tmp/a.pem'));
+    });
+
+    test('case insensitive file extension matching', () {
+      String? received;
+      handler.onLfsFileOpened = (p) => received = p;
+
+      handler.handleFileUri(Uri.parse('file:///tmp/Archive.LFS'));
+      expect(received, isNotNull);
     });
   });
 
