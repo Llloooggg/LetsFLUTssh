@@ -88,7 +88,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     return Column(
       children: [
         _buildToolbar(context),
-        Expanded(child: _MobileFileList(
+        Expanded(child: MobileFileList(
           controller: _activeCtrl,
           onTransfer: _showRemote ? _download : _upload,
           onTransferMultiple: _showRemote
@@ -227,22 +227,23 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
 
 /// Mobile file list — tap to navigate dirs, long press for context menu,
 /// selection mode with checkboxes.
-class _MobileFileList extends StatefulWidget {
+class MobileFileList extends StatefulWidget {
   final FilePaneController controller;
   final void Function(FileEntry) onTransfer;
   final void Function(List<FileEntry>) onTransferMultiple;
 
-  const _MobileFileList({
+  const MobileFileList({
+    super.key,
     required this.controller,
     required this.onTransfer,
     required this.onTransferMultiple,
   });
 
   @override
-  State<_MobileFileList> createState() => _MobileFileListState();
+  State<MobileFileList> createState() => _MobileFileListState();
 }
 
-class _MobileFileListState extends State<_MobileFileList> {
+class _MobileFileListState extends State<MobileFileList> {
   bool _selectionMode = false;
 
   FilePaneController get ctrl => widget.controller;
