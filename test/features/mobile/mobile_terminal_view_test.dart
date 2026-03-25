@@ -132,5 +132,109 @@ void main() {
       await stdoutCtrl.close();
       await stderrCtrl.close();
     });
+
+    testWidgets('error state uses disconnected color', (tester) async {
+      final conn = Connection(
+        id: 'test-color',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: MobileTerminalView(connection: conn),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline));
+      expect(icon.color, AppTheme.disconnected);
+      expect(icon.size, 48);
+    });
+
+    testWidgets('shell done callback sets session closed error', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      when(mockSsh.isConnected).thenReturn(true);
+
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
+
+      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+
+      final conn = Connection(
+        id: 'test-done',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: MobileTerminalView(connection: conn),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      doneCompleter.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Session closed'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
+
+    testWidgets('GestureDetector present for pinch zoom', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      when(mockSsh.isConnected).thenReturn(true);
+
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
+
+      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+
+      final conn = Connection(
+        id: 'test-zoom',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: MobileTerminalView(connection: conn),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GestureDetector), findsWidgets);
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
   });
 }
