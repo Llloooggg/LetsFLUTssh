@@ -103,6 +103,32 @@ void main() {
     });
   });
 
+  group('SSHConfig — additional coverage', () {
+    test('hasAuth is true with keyData', () {
+      const config = SSHConfig(
+        host: 'test',
+        user: 'root',
+        keyData: '-----BEGIN RSA PRIVATE KEY-----\ndata\n-----END RSA PRIVATE KEY-----',
+      );
+      expect(config.hasAuth, true);
+    });
+
+    test('effectivePort returns 22 for negative port', () {
+      const config = SSHConfig(host: 'test', user: 'root', port: -5);
+      expect(config.effectivePort, 22);
+    });
+
+    test('validate passes with keepAliveSec = 0', () {
+      const config = SSHConfig(host: 'h', user: 'u', keepAliveSec: 0);
+      expect(config.validate(), isNull);
+    });
+
+    test('validate passes with edge port values', () {
+      expect(const SSHConfig(host: 'h', user: 'u', port: 1).validate(), isNull);
+      expect(const SSHConfig(host: 'h', user: 'u', port: 65535).validate(), isNull);
+    });
+  });
+
   group('SSHConfig equality', () {
     test('equal configs are equal', () {
       const a = SSHConfig(host: 'h', user: 'u', port: 22);

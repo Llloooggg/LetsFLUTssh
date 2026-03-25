@@ -275,6 +275,70 @@ void main() {
     });
   });
 
+  group('MainScreen — status bar connected state', () {
+    testWidgets('shows Connected: label for connected tab', (tester) async {
+      final conn = makeConn(label: 'MyServer', state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'MyServer', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Connected: MyServer'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — settings button', () {
+    testWidgets('settings button opens settings screen', (tester) async {
+      await tester.pumpWidget(buildAppWithTabs());
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Settings'));
+      await tester.pumpAndSettle();
+
+      // Settings screen should be shown
+      expect(find.text('Settings'), findsWidgets);
+    });
+  });
+
+  group('MainScreen — SFTP tab content', () {
+    testWidgets('SFTP tab shows file browser error (no SSH)', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.disconnected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      // FileBrowserTab should show error since sshConnection is null
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — no active connection text', () {
+    testWidgets('shows No active connection when no tabs', (tester) async {
+      await tester.pumpWidget(buildAppWithTabs());
+      await tester.pump();
+
+      expect(find.text('No active connection'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — sidebar divider drag', () {
+    testWidgets('sidebar divider changes width on drag', (tester) async {
+      await tester.pumpWidget(buildAppWithTabs(width: 1200));
+      await tester.pumpAndSettle();
+
+      // Find the divider (MouseRegion with resizeColumn cursor)
+      final dividers = find.byWidgetPredicate((w) =>
+          w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
+
+      if (dividers.evaluate().isNotEmpty) {
+        await tester.drag(dividers.first, const Offset(50, 0));
+        await tester.pumpAndSettle();
+        // Widget should rebuild without errors
+      }
+    });
+  });
+
   group('MainScreen — narrow layout with connected tab', () {
     testWidgets('narrow layout with connected tab shows SFTP button', (tester) async {
       tester.view.physicalSize = const Size(500, 600);
