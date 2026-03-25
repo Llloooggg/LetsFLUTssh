@@ -6,6 +6,18 @@ Lightweight cross-platform SSH/SFTP client with GUI, built with Flutter.
 
 Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS, Android, and iOS.
 
+![SSH Terminal — session tree, tabbed terminal with htop](docs/screenshots/LetsFLUTssh_ssh.png)
+![SFTP File Browser — dual-pane local/remote with transfer panel](docs/screenshots/LetsFLUTssh_sftp.png)
+
+## Tech Stack
+
+- **Flutter** — cross-platform UI framework (Skia/Impeller rendering)
+- **dartssh2** — SSH2 protocol implementation (auth, shell, SFTP, port forwarding)
+- **xterm.dart** — terminal emulator widget (VT100/xterm, 256-color, RGB, mouse)
+- **Riverpod** — state management
+- **pointycastle** — AES-256-GCM encryption (pure Dart, no native deps)
+- **permission_handler** — runtime permission requests (Android storage access)
+
 ## Features
 
 ### SSH Terminal
@@ -87,14 +99,6 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - **Android:** 7.0 Nougat+ (API 24)
 - **iOS:** 13.0+
 - Native rendering via Flutter (Skia/Impeller) — no WebView
-
-## Screenshots
-
-### SSH Terminal
-![SSH Terminal — session tree, tabbed terminal with htop](docs/screenshots/LetsFLUTssh_ssh.png)
-
-### SFTP File Browser
-![SFTP File Browser — dual-pane local/remote with transfer panel](docs/screenshots/LetsFLUTssh_sftp.png)
 
 ## Installation
 
@@ -224,19 +228,6 @@ make help           # Show all available targets
 ```
 
 See [User Guide](docs/USER_GUIDE.md) for usage instructions, [CLAUDE.md](CLAUDE.md) for architecture details, and [PLAN.md](PLAN.md) for the development roadmap.
-
-## Tech Stack
-
-- **Flutter** — cross-platform UI framework (Skia/Impeller rendering)
-- **dartssh2** — SSH2 protocol implementation (auth, shell, SFTP, port forwarding)
-- **xterm.dart** — terminal emulator widget (VT100/xterm, 256-color, RGB, mouse)
-- **Riverpod** — state management
-- **pointycastle** — AES-256-GCM encryption (pure Dart, no native deps)
-- **permission_handler** — runtime permission requests (Android storage access)
-
-## Predecessor
-
-This project is a rewrite of [LetsGOssh](https://github.com/Llloooggg/LetsGOssh) (Go/Fyne). All features from the Go version are carried over, with improvements enabled by Flutter's richer widget ecosystem and cross-platform mobile support.
 
 ## License
 
