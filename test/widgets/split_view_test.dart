@@ -49,5 +49,47 @@ void main() {
           .where((s) => s.width == 250);
       expect(sizedBoxes.length, 1);
     });
+
+    testWidgets('dragging divider changes left width', (tester) async {
+      await tester.pumpWidget(buildApp(initialLeftWidth: 220));
+      await tester.pumpAndSettle();
+
+      // Find the divider (MouseRegion with resizeColumn cursor)
+      final divider = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
+      );
+      expect(divider, findsOneWidget);
+
+      // Drag right by 50px
+      await tester.drag(divider, const Offset(50, 0));
+      await tester.pumpAndSettle();
+
+      // Left pane should now be 270px
+      final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox))
+          .where((s) => s.width == 270);
+      expect(sizedBoxes.length, 1);
+    });
+
+    testWidgets('dragging divider respects min/max bounds', (tester) async {
+      await tester.pumpWidget(buildApp(
+        initialLeftWidth: 220,
+        minLeftWidth: 150,
+        maxLeftWidth: 400,
+      ));
+      await tester.pumpAndSettle();
+
+      final divider = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
+      );
+
+      // Drag far left (below min)
+      await tester.drag(divider, const Offset(-200, 0));
+      await tester.pumpAndSettle();
+
+      // Should clamp to minLeftWidth (150)
+      final minBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox))
+          .where((s) => s.width == 150);
+      expect(minBoxes.length, 1);
+    });
   });
 }

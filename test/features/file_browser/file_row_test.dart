@@ -273,4 +273,70 @@ void main() {
       expect(dataWithEntries.entries.first.name, 'a.txt');
     });
   });
+
+  group('MarqueePainter', () {
+    testWidgets('paint draws marquee rectangle', (tester) async {
+      final painter = MarqueePainter(
+        start: const Offset(10, 10),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CustomPaint(
+              painter: painter,
+              size: const Size(200, 200),
+            ),
+          ),
+        ),
+      );
+
+      // Verify it renders without error
+      expect(find.byType(CustomPaint), findsWidgets);
+    });
+
+    test('shouldRepaint returns true when start changes', () {
+      final painter1 = MarqueePainter(
+        start: const Offset(10, 10),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
+      final painter2 = MarqueePainter(
+        start: const Offset(20, 20),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
+      expect(painter2.shouldRepaint(painter1), isTrue);
+    });
+
+    test('shouldRepaint returns true when end changes', () {
+      final painter1 = MarqueePainter(
+        start: const Offset(10, 10),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
+      final painter2 = MarqueePainter(
+        start: const Offset(10, 10),
+        end: const Offset(200, 200),
+        color: Colors.blue,
+      );
+      expect(painter2.shouldRepaint(painter1), isTrue);
+    });
+
+    test('shouldRepaint returns false when same', () {
+      final painter1 = MarqueePainter(
+        start: const Offset(10, 10),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
+      final painter2 = MarqueePainter(
+        start: const Offset(10, 10),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
+      expect(painter2.shouldRepaint(painter1), isFalse);
+    });
+  });
 }
