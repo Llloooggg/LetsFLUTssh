@@ -15,6 +15,13 @@ class ConfigStore {
   late final String _filePath;
   bool _initialized = false;
 
+  /// True if config was loaded from file; false if defaults were used
+  /// (file missing or corrupted).
+  bool loadedFromFile = false;
+
+  /// Non-null if config load failed (corrupted JSON, etc.).
+  String? loadError;
+
   AppConfig get config => _config;
 
   Future<void> init() async {
@@ -26,6 +33,8 @@ class ConfigStore {
 
   Future<AppConfig> load() async {
     await init();
+    loadError = null;
+    loadedFromFile = false;
     final file = File(_filePath);
     if (!await file.exists()) {
       _config = AppConfig.defaults;
@@ -35,8 +44,10 @@ class ConfigStore {
       final content = await file.readAsString();
       final json = jsonDecode(content) as Map<String, dynamic>;
       _config = AppConfig.fromJson(json);
+      loadedFromFile = true;
     } catch (e) {
-      dev.log('ConfigStore: failed to load config: $e');
+      loadError = 'Failed to load config: $e';
+      dev.log('ConfigStore: $loadError');
       _config = AppConfig.defaults;
     }
     return _config;

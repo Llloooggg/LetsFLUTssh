@@ -339,44 +339,48 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Future<({String password, ImportMode mode})?> _showImportPasswordDialog(
-      BuildContext context, String filePath) {
+      BuildContext context, String filePath) async {
     final passwordCtrl = TextEditingController();
 
-    return showDialog<({String password, ImportMode mode})>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) {
-        var mode = ImportMode.merge;
-        return StatefulBuilder(
-          builder: (ctx, setState) => AlertDialog(
-            title: const Text('Import Data'),
-            content: _buildImportDialogContent(
-              ctx, passwordCtrl, mode,
-              onModeChanged: (newMode) => setState(() => mode = newMode),
-              onSubmitted: (v) {
-                if (v.isNotEmpty) {
-                  Navigator.pop(ctx, (password: v, mode: mode));
-                }
-              },
-              filePath: filePath,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  if (passwordCtrl.text.isEmpty) return;
-                  Navigator.pop(ctx, (password: passwordCtrl.text, mode: mode));
+    try {
+      return await showDialog<({String password, ImportMode mode})>(
+        context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        builder: (ctx) {
+          var mode = ImportMode.merge;
+          return StatefulBuilder(
+            builder: (ctx, setState) => AlertDialog(
+              title: const Text('Import Data'),
+              content: _buildImportDialogContent(
+                ctx, passwordCtrl, mode,
+                onModeChanged: (newMode) => setState(() => mode = newMode),
+                onSubmitted: (v) {
+                  if (v.isNotEmpty) {
+                    Navigator.pop(ctx, (password: v, mode: mode));
+                  }
                 },
-                child: const Text('Import'),
+                filePath: filePath,
               ),
-            ],
-          ),
-        );
-      },
-    );
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (passwordCtrl.text.isEmpty) return;
+                    Navigator.pop(ctx, (password: passwordCtrl.text, mode: mode));
+                  },
+                  child: const Text('Import'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } finally {
+      passwordCtrl.dispose();
+    }
   }
 
   Column _buildImportDialogContent(

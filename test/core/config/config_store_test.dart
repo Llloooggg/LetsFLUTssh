@@ -119,5 +119,52 @@ void main() {
       await store.load(); // calls init again, should not fail
       expect(store.config, isNotNull);
     });
+
+    test('loadedFromFile is true after successful load', () async {
+      mockPathProvider();
+      await store.save(AppConfig.defaults);
+
+      final store2 = ConfigStore();
+      await store2.load();
+      expect(store2.loadedFromFile, isTrue);
+      expect(store2.loadError, isNull);
+    });
+
+    test('loadedFromFile is false when no file exists', () async {
+      mockPathProvider();
+      await store.load();
+      expect(store.loadedFromFile, isFalse);
+      expect(store.loadError, isNull);
+    });
+
+    test('loadError is set on corrupted JSON', () async {
+      mockPathProvider();
+      await store.save(AppConfig.defaults);
+      final file = File('${tempDir.path}/config.json');
+      await file.writeAsString('corrupted {{{');
+
+      final store2 = ConfigStore();
+      await store2.load();
+      expect(store2.loadedFromFile, isFalse);
+      expect(store2.loadError, isNotNull);
+      expect(store2.loadError, contains('Failed to load'));
+    });
+
+    test('loadError is cleared on subsequent successful load', () async {
+      mockPathProvider();
+      // First: corrupt file
+      final file = File('${tempDir.path}/config.json');
+      await file.parent.create(recursive: true);
+      await file.writeAsString('bad');
+
+      await store.load();
+      expect(store.loadError, isNotNull);
+
+      // Fix the file
+      await store.save(AppConfig.defaults);
+      await store.load();
+      expect(store.loadError, isNull);
+      expect(store.loadedFromFile, isTrue);
+    });
   });
 }

@@ -113,8 +113,14 @@ class _TilingViewState extends State<TilingView> {
             1.0 - minPaneSize / availableSize,
           );
           if (newRatio != node.ratio) {
-            node.ratio = newRatio;
-            widget.onTreeChanged(widget.root);
+            final updated = BranchNode(
+              id: node.id,
+              direction: node.direction,
+              ratio: newRatio,
+              first: node.first,
+              second: node.second,
+            );
+            widget.onTreeChanged(replaceNode(widget.root, node.id, updated));
           }
         },
         child: Container(

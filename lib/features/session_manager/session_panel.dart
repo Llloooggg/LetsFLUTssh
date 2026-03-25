@@ -382,36 +382,40 @@ class SessionPanel extends ConsumerWidget {
     required String parentPath,
     String? initialValue,
     String? currentName,
-  }) {
+  }) async {
     final nameCtrl = TextEditingController(text: initialValue ?? '');
     String? errorText;
 
-    return showDialog<String>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return _buildFolderNameAlert(
-            ctx,
-            title: title,
-            confirmLabel: confirmLabel,
-            nameCtrl: nameCtrl,
-            errorText: errorText,
-            onChanged: (_) {
-              final name = nameCtrl.text.trim();
-              final fullPath = parentPath.isEmpty ? name : '$parentPath/$name';
-              final isDuplicate = name.isNotEmpty
-                  && name != currentName
-                  && existingGroups.contains(fullPath);
-              setDialogState(() {
-                errorText = isDuplicate ? 'Folder "$name" already exists' : null;
-              });
-            },
-            hintText: 'e.g. Production',
-          );
-        },
-      ),
-    );
+    try {
+      return await showDialog<String>(
+        context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return _buildFolderNameAlert(
+              ctx,
+              title: title,
+              confirmLabel: confirmLabel,
+              nameCtrl: nameCtrl,
+              errorText: errorText,
+              onChanged: (_) {
+                final name = nameCtrl.text.trim();
+                final fullPath = parentPath.isEmpty ? name : '$parentPath/$name';
+                final isDuplicate = name.isNotEmpty
+                    && name != currentName
+                    && existingGroups.contains(fullPath);
+                setDialogState(() {
+                  errorText = isDuplicate ? 'Folder "$name" already exists' : null;
+                });
+              },
+              hintText: 'e.g. Production',
+            );
+          },
+        ),
+      );
+    } finally {
+      nameCtrl.dispose();
+    }
   }
 
   AlertDialog _buildFolderNameAlert(

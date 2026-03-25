@@ -193,6 +193,14 @@ void main() {
       // Stream should be closed after dispose
       expect(emitted, isTrue); // disconnectAll emits before close
     });
+
+    test('notify after dispose does not throw', () {
+      final mgr = ConnectionManager(knownHosts: knownHosts);
+      mgr.dispose();
+      // Calling disconnectAll after dispose should not crash
+      // (internally calls _notify which should be guarded)
+      expect(() => mgr.disconnectAll(), returnsNormally);
+    });
   });
 
   group('Connection model', () {

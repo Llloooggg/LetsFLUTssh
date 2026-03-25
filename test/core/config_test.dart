@@ -41,5 +41,137 @@ void main() {
       expect(config.fontSize, 14.0);
       expect(config.theme, 'dark');
     });
+
+    test('fromJson sanitizes invalid values', () {
+      final config = AppConfig.fromJson({
+        'font_size': 0.5,
+        'theme': 'invalid',
+        'scrollback': -10,
+        'transfer_workers': 0,
+        'default_port': 99999,
+        'ssh_timeout_sec': 0,
+      });
+      // Should be clamped/replaced to safe defaults
+      expect(config.fontSize, 6.0); // clamped to min
+      expect(config.theme, 'dark'); // replaced with default
+      expect(config.scrollback, 5000); // replaced with default
+      expect(config.transferWorkers, 2); // replaced with default
+      expect(config.defaultPort, 22); // replaced with default
+      expect(config.sshTimeoutSec, 10); // replaced with default
+    });
+  });
+
+  group('AppConfig.validate', () {
+    test('returns null for valid defaults', () {
+      expect(AppConfig.defaults.validate(), isNull);
+    });
+
+    test('returns error for fontSize < 6', () {
+      const config = AppConfig(fontSize: 3);
+      expect(config.validate(), contains('Font size'));
+    });
+
+    test('returns error for fontSize > 72', () {
+      const config = AppConfig(fontSize: 100);
+      expect(config.validate(), contains('Font size'));
+    });
+
+    test('returns error for invalid theme', () {
+      const config = AppConfig(theme: 'neon');
+      expect(config.validate(), contains('Theme'));
+    });
+
+    test('accepts valid themes', () {
+      for (final t in ['dark', 'light', 'system']) {
+        expect(AppConfig(theme: t).validate(), isNull);
+      }
+    });
+
+    test('returns error for scrollback < 100', () {
+      const config = AppConfig(scrollback: 50);
+      expect(config.validate(), contains('Scrollback'));
+    });
+
+    test('returns error for negative keepAlive', () {
+      const config = AppConfig(keepAliveSec: -1);
+      expect(config.validate(), contains('Keep-alive'));
+    });
+
+    test('accepts keepAlive = 0 (disabled)', () {
+      const config = AppConfig(keepAliveSec: 0);
+      expect(config.validate(), isNull);
+    });
+
+    test('returns error for port out of range', () {
+      expect(const AppConfig(defaultPort: 0).validate(), contains('Port'));
+      expect(const AppConfig(defaultPort: 70000).validate(), contains('Port'));
+    });
+
+    test('returns error for timeout < 1', () {
+      expect(const AppConfig(sshTimeoutSec: 0).validate(), contains('timeout'));
+    });
+
+    test('returns error for transferWorkers < 1', () {
+      expect(const AppConfig(transferWorkers: 0).validate(), contains('workers'));
+    });
+
+    test('returns error for negative maxHistory', () {
+      expect(const AppConfig(maxHistory: -1).validate(), contains('history'));
+    });
+
+    test('returns error for small window dimensions', () {
+      expect(const AppConfig(windowWidth: 50).validate(), contains('width'));
+      expect(const AppConfig(windowHeight: 50).validate(), contains('height'));
+    });
+  });
+
+  group('AppConfig.sanitized', () {
+    test('clamps fontSize to range', () {
+      expect(const AppConfig(fontSize: 2).sanitized().fontSize, 6);
+      expect(const AppConfig(fontSize: 100).sanitized().fontSize, 72);
+      expect(const AppConfig(fontSize: 14).sanitized().fontSize, 14);
+    });
+
+    test('replaces invalid theme with default', () {
+      expect(const AppConfig(theme: 'neon').sanitized().theme, 'dark');
+    });
+
+    test('replaces invalid transferWorkers with default', () {
+      expect(const AppConfig(transferWorkers: 0).sanitized().transferWorkers, 2);
+    });
+
+    test('valid config unchanged', () {
+      const config = AppConfig.defaults;
+      final sanitized = config.sanitized();
+      expect(sanitized, equals(config));
+    });
+  });
+
+  group('AppConfig equality', () {
+    test('equal configs are equal', () {
+      const a = AppConfig(fontSize: 16, theme: 'light');
+      const b = AppConfig(fontSize: 16, theme: 'light');
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('different configs are not equal', () {
+      const a = AppConfig(fontSize: 14);
+      const b = AppConfig(fontSize: 18);
+      expect(a, isNot(equals(b)));
+    });
+
+    test('defaults equal defaults', () {
+      expect(AppConfig.defaults, equals(const AppConfig()));
+    });
+
+    test('identical returns true', () {
+      const a = AppConfig.defaults;
+      expect(a == a, isTrue);
+    });
+
+    test('not equal to other types', () {
+      expect(AppConfig.defaults == Object(), isFalse);
+    });
   });
 }

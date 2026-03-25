@@ -19,6 +19,9 @@ class CredentialStore {
 
   String? _basePath;
 
+  /// Guards concurrent key generation to prevent race conditions.
+  bool _keyGenInProgress = false;
+
   Future<String> _getBasePath() async {
     if (_basePath != null) return _basePath!;
     final dir = await getApplicationSupportDirectory();
@@ -27,6 +30,9 @@ class CredentialStore {
   }
 
   /// Load all credentials. Returns map of sessionId → CredentialData.
+  ///
+  /// Throws [CredentialStoreException] if decryption fails (corrupted key/data).
+  /// Returns empty map only when no credential files exist yet.
   Future<Map<String, CredentialData>> loadAll() async {
     final basePath = await _getBasePath();
     final credFile = File('$basePath/$_credFileName');
@@ -45,6 +51,21 @@ class CredentialStore {
           MapEntry(k, CredentialData.fromJson(v as Map<String, dynamic>)));
     } catch (e) {
       dev.log('CredentialStore: failed to load credentials: $e');
+      throw CredentialStoreException(
+        'Failed to decrypt credentials. Key file may be corrupted.',
+        cause: e,
+      );
+    }
+  }
+
+  /// Load all credentials, returning empty map on any error.
+  ///
+  /// Use [loadAll] when you need to distinguish between "no credentials"
+  /// and "decryption failed". This method is for non-critical reads.
+  Future<Map<String, CredentialData>> loadAllSafe() async {
+    try {
+      return await loadAll();
+    } on CredentialStoreException {
       return {};
     }
   }
@@ -55,15 +76,8 @@ class CredentialStore {
     final credFile = File('$basePath/$_credFileName');
     final keyFile = File('$basePath/$_keyFileName');
 
-    // Generate or load key
-    Uint8List keyBytes;
-    if (await keyFile.exists()) {
-      keyBytes = await keyFile.readAsBytes();
-    } else {
-      keyBytes = _generateKey();
-      await keyFile.writeAsBytes(keyBytes);
-      _restrictFilePermissions(keyFile.path);
-    }
+    // Load or generate key with guard against concurrent generation
+    final keyBytes = await _loadOrGenerateKey(keyFile);
 
     final json = jsonEncode(
       credentials.map((k, v) => MapEntry(k, v.toJson())),
@@ -71,6 +85,39 @@ class CredentialStore {
     final encData = _encrypt(json, keyBytes);
     await credFile.writeAsBytes(encData);
     _restrictFilePermissions(credFile.path);
+  }
+
+  /// Load existing key or generate a new one with concurrency guard.
+  Future<Uint8List> _loadOrGenerateKey(File keyFile) async {
+    if (await keyFile.exists()) {
+      return await keyFile.readAsBytes();
+    }
+
+    // Guard against concurrent key generation
+    if (_keyGenInProgress) {
+      // Wait for the other generation to complete, then read
+      while (_keyGenInProgress) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+      if (await keyFile.exists()) {
+        return await keyFile.readAsBytes();
+      }
+    }
+
+    _keyGenInProgress = true;
+    try {
+      // Double-check after acquiring guard
+      if (await keyFile.exists()) {
+        return await keyFile.readAsBytes();
+      }
+      final keyBytes = _generateKey();
+      await keyFile.parent.create(recursive: true);
+      await keyFile.writeAsBytes(keyBytes);
+      _restrictFilePermissions(keyFile.path);
+      return keyBytes;
+    } finally {
+      _keyGenInProgress = false;
+    }
   }
 
   /// Get credentials for a session.
@@ -162,6 +209,17 @@ class CredentialData {
 
   bool get isEmpty => password.isEmpty && keyData.isEmpty && passphrase.isEmpty;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CredentialData &&
+          password == other.password &&
+          keyData == other.keyData &&
+          passphrase == other.passphrase;
+
+  @override
+  int get hashCode => Object.hash(password, keyData, passphrase);
+
   Map<String, dynamic> toJson() => {
     'password': password,
     'key_data': keyData,
@@ -175,4 +233,15 @@ class CredentialData {
       passphrase: json['passphrase'] as String? ?? '',
     );
   }
+}
+
+/// Thrown when credential store operations fail (decryption, corrupted key).
+class CredentialStoreException implements Exception {
+  final String message;
+  final Object? cause;
+
+  const CredentialStoreException(this.message, {this.cause});
+
+  @override
+  String toString() => 'CredentialStoreException: $message';
 }

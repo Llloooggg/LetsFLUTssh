@@ -79,22 +79,42 @@ class DeepLinkHandler {
   }
 
   /// Parse a `letsflutssh://connect?...` URI into an [SSHConfig].
-  /// Returns null if required params (host, user) are missing.
+  /// Returns null if required params (host, user) are missing or invalid.
   static SSHConfig? parseConnectUri(Uri uri) {
     final params = uri.queryParameters;
-    final host = params['host'];
-    final user = params['user'];
+    final host = params['host']?.trim();
+    final user = params['user']?.trim();
 
     if (host == null || host.isEmpty || user == null || user.isEmpty) {
       return null;
     }
 
+    // Validate host: no path separators, reasonable length
+    if (host.length > 253 || host.contains('/') || host.contains('\\')) {
+      dev.log('DeepLink: invalid host "$host"');
+      return null;
+    }
+
+    // Validate port range
+    final port = int.tryParse(params['port'] ?? '') ?? 22;
+    if (port < 1 || port > 65535) {
+      dev.log('DeepLink: invalid port $port');
+      return null;
+    }
+
+    // Sanitize keyPath: reject path traversal
+    final keyPath = params['key'] ?? '';
+    if (keyPath.contains('..')) {
+      dev.log('DeepLink: rejected key path with traversal');
+      return null;
+    }
+
     return SSHConfig(
       host: host,
-      port: int.tryParse(params['port'] ?? '') ?? 22,
+      port: port,
       user: user,
       password: params['password'] ?? '',
-      keyPath: params['key'] ?? '',
+      keyPath: keyPath,
     );
   }
 

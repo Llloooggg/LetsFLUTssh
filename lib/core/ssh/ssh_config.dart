@@ -24,6 +24,16 @@ class SSHConfig {
     this.timeoutSec = 10,
   });
 
+  /// Validate required fields. Returns error message or null.
+  String? validate() {
+    if (host.trim().isEmpty) return 'Host is required';
+    if (port < 1 || port > 65535) return 'Port must be 1-65535';
+    if (user.trim().isEmpty) return 'Username is required';
+    if (keepAliveSec < 0) return 'Keep-alive must be non-negative';
+    if (timeoutSec < 1) return 'Timeout must be at least 1 second';
+    return null;
+  }
+
   /// True if any auth method is configured.
   bool get hasAuth =>
       password.isNotEmpty ||
@@ -59,4 +69,24 @@ class SSHConfig {
       timeoutSec: timeoutSec ?? this.timeoutSec,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SSHConfig &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user &&
+          password == other.password &&
+          keyPath == other.keyPath &&
+          keyData == other.keyData &&
+          passphrase == other.passphrase &&
+          keepAliveSec == other.keepAliveSec &&
+          timeoutSec == other.timeoutSec;
+
+  @override
+  int get hashCode => Object.hash(
+        host, port, user, password, keyPath,
+        keyData, passphrase, keepAliveSec, timeoutSec,
+      );
 }

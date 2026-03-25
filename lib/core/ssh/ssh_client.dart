@@ -229,7 +229,7 @@ class SSHConnection {
       final keyData = await keyFile.readAsString();
       identities.addAll(SSHKeyPair.fromPem(keyData, passphrase));
     } catch (e) {
-      dev.log('SSH: failed to load key from ${config.keyPath}: $e');
+      dev.log('SSH: failed to load key file: $e');
       throw AuthError('Failed to load SSH key file', e);
     }
   }

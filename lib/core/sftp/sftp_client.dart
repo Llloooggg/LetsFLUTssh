@@ -109,17 +109,23 @@ class SFTPService {
 
     try {
       var done = 0;
-      final stream = file.openRead();
-      await for (final chunk in stream) {
-        await remoteFile.writeBytes(Uint8List.fromList(chunk), offset: done);
-        done += chunk.length;
-        onProgress?.call(TransferProgress(
-          fileName: p.basename(localPath),
-          totalBytes: fileSize,
-          doneBytes: done,
-          isUpload: true,
-          isCompleted: done >= fileSize,
-        ));
+      final raf = await file.open(mode: FileMode.read);
+      try {
+        while (true) {
+          final chunk = await raf.read(65536);
+          if (chunk.isEmpty) break;
+          await remoteFile.writeBytes(Uint8List.fromList(chunk), offset: done);
+          done += chunk.length;
+          onProgress?.call(TransferProgress(
+            fileName: p.basename(localPath),
+            totalBytes: fileSize,
+            doneBytes: done,
+            isUpload: true,
+            isCompleted: done >= fileSize,
+          ));
+        }
+      } finally {
+        await raf.close();
       }
     } finally {
       remoteFile.close();
@@ -165,6 +171,21 @@ class SFTPService {
     String remoteDir,
     void Function(TransferProgress)? onProgress,
   ) async {
+    final dir = Directory(localDir);
+    final allFiles = await dir.list(recursive: true).toList();
+    final totalFiles = allFiles.whereType<File>().length;
+    final counter = _Counter();
+
+    await _uploadDirRecursive(localDir, remoteDir, onProgress, totalFiles, counter);
+  }
+
+  Future<void> _uploadDirRecursive(
+    String localDir,
+    String remoteDir,
+    void Function(TransferProgress)? onProgress,
+    int totalFiles,
+    _Counter counter,
+  ) async {
     // Create remote directory
     try {
       await _sftp.mkdir(remoteDir);
@@ -174,25 +195,21 @@ class SFTPService {
     }
 
     final dir = Directory(localDir);
-    var filesDone = 0;
-    final allFiles = await dir.list(recursive: true).toList();
-    final totalFiles = allFiles.whereType<File>().length;
-
     await for (final entity in dir.list()) {
       final name = p.basename(entity.path);
       final remotePath = p.posix.join(remoteDir, name);
 
       if (entity is Directory) {
-        await uploadDir(entity.path, remotePath, onProgress);
+        await _uploadDirRecursive(entity.path, remotePath, onProgress, totalFiles, counter);
       } else if (entity is File) {
         await upload(entity.path, remotePath, null);
-        filesDone++;
+        counter.value++;
         onProgress?.call(TransferProgress(
           fileName: name,
           totalBytes: totalFiles,
-          doneBytes: filesDone,
+          doneBytes: counter.value,
           isUpload: true,
-          isCompleted: filesDone >= totalFiles,
+          isCompleted: counter.value >= totalFiles,
         ));
       }
     }
@@ -248,6 +265,11 @@ class SFTPService {
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
   }
+}
+
+/// Mutable counter for tracking progress across recursive calls.
+class _Counter {
+  int value = 0;
 }
 
 /// Remote file system implementation wrapping SFTPService.

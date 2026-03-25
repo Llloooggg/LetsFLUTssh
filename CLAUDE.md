@@ -200,7 +200,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 doesn't support SCP; SFTP covers all use cases (file/directory upload/download with progress)
 7. **Tree-based sessions** — nested groups via `/` separator (Production/Web/nginx1), stored as flat list with group path, UI builds TreeView
 
-## Current State (v0.9.4 — platform permissions + manifests)
+## Current State (v0.9.5 — code quality + security hardening)
 
 ### What works
 - SSH connection via dartssh2 (password, key file, key text)
@@ -316,6 +316,21 @@ LetsFLUTssh/
 - **CodeQL** — weekly security scanning for GitHub Actions workflows
 - **CI checks** — `flutter analyze --fatal-infos`, `flutter test --coverage`, `dart pub outdated`, dependency review on PRs
 - **Test infrastructure** — mockito mocks for SSHClient/SSHSocket/SSHSession/SftpClient, injectable factories in SSHConnection, FakeSessionStore, path_provider mock with temp dirs, runtime key generation via ssh-keygen
+- **CredentialStore hardening** — key generation race guard, `CredentialStoreException` thrown on decryption failure (not silent empty map), `loadAllSafe()` for non-critical reads
+- **SessionStore data loss protection** — `_mergeAndMigrateCredentials` aborts on `CredentialStoreException` instead of overwriting encrypted store; `_save()` catches credential write failure separately
+- **Deep link URI validation** — host format (no slashes, max 253 chars), port range (1-65535), path traversal rejection (`..` in key path)
+- **known_hosts chmod 600** — file permissions restricted on Unix after write (like credential_store)
+- **ConnectionManager dispose safety** — `_notify()` guarded by `_disposed` flag; no crash from late disconnect callbacks
+- **TransferManager per-task progress** — `_activeTransfers` map replaces single `currentTransferInfo`; `_disposed` guard on `_notify()`
+- **Model equality** — `==`/`hashCode` on `Session`, `AppConfig`, `CredentialData`, `SSHConfig`; Riverpod state comparisons work correctly
+- **SSHConfig.validate()** — host, port, user, keepAlive, timeout bounds checking
+- **AppConfig.validate() + sanitized()** — bounds validation (fontSize 6-72, theme enum, port range, etc.); `fromJson()` applies `sanitized()` to clamp corrupt values
+- **ConfigStore load error reporting** — `loadedFromFile` / `loadError` fields for UI feedback on corrupt config
+- **TextEditingController disposal** — `try/finally` in `FilePaneDialogs`, `SessionPanel._showFolderNameDialog`, `main._showImportPasswordDialog`
+- **Immutable tiling tree updates** — `TilingView` creates new `BranchNode` + `replaceNode()` instead of mutating `ratio` in place
+- **Error message sanitization** — file paths stripped from SSH key load errors and transfer failure messages
+- **Android home directory** — reads `EXTERNAL_STORAGE` env var with `/storage/emulated/0` fallback
+- **SFTP upload stream safety** — `RandomAccessFile` with `try/finally` ensures file handle cleanup on error (replaces stream approach)
 
 ### Decisions and Why
 - **SSHConnectionState instead of ConnectionState** — name conflict with Flutter's `ConnectionState` from async.dart
@@ -379,6 +394,16 @@ LetsFLUTssh/
 - **permission_handler** — standard Flutter plugin for runtime permissions; bundles native code, no OS packages to install; handles MANAGE_EXTERNAL_STORAGE Settings redirect
 - **Android homeDirectory /storage/emulated/0** — `$HOME` env var is empty on Android; /storage/emulated/0 is the shared internal storage root visible to users
 - **NSLocalNetworkUsageDescription** — iOS blocks TCP connections to local network without this; SSH clients connecting to 192.168.x.x need it
+- **CredentialStoreException vs silent empty** — `loadAll()` now throws on decryption failure so callers can distinguish "no credentials" from "corrupt key"; `loadAllSafe()` wraps for backward-compatible usage
+- **SessionStore abort on credential load failure** — if encrypted credentials can't be decrypted, `_mergeAndMigrateCredentials` returns early instead of overwriting with partial data; prevents irreversible credential loss
+- **Key generation guard** — `_keyGenInProgress` flag + double-check pattern prevents two concurrent `saveAll()` calls from generating different keys and invalidating each other's ciphertext
+- **Deep link path traversal rejection** — `..` in key path parameter rejected to prevent `letsflutssh://connect?key=../../etc/passwd` attacks
+- **AppConfig.sanitized()** — clamps values to safe ranges (fontSize 6-72, port 1-65535, workers ≥1, etc.); called from `fromJson()` to protect against corrupt config files causing runtime failures
+- **Per-task _activeTransfers map** — replaces single `currentTransferInfo` string that was overwritten by concurrent tasks; `values.last` gives most recent update for status bar
+- **RandomAccessFile for upload** — replaces `file.openRead()` stream which couldn't be cleanly closed mid-iteration on error; `RandomAccessFile.close()` in `finally` guarantees handle release
+- **Immutable tree in TilingView divider drag** — `replaceNode()` creates new tree instead of mutating `BranchNode.ratio` in place; avoids shared mutable state between widget and callback
+- **TransferManager error sanitization** — `_sanitizeError()` strips absolute file paths from error messages via regex before storing in `HistoryEntry.error`
+- **EXTERNAL_STORAGE env var on Android** — fallback before hardcoded `/storage/emulated/0`; handles multi-user and work profile devices
 
 ### What's planned (ported from LetsGOssh + improvements)
 

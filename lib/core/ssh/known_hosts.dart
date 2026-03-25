@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -106,6 +107,7 @@ class KnownHostsManager {
       '$hostPort $keyString\n',
       mode: FileMode.append,
     );
+    _restrictFilePermissions(file.path);
   }
 
   Future<void> _updateHost(String hostPort, String keyString) async {
@@ -121,6 +123,21 @@ class KnownHostsManager {
       sb.writeln('${entry.key} ${entry.value}');
     }
     await file.writeAsString(sb.toString());
+    _restrictFilePermissions(file.path);
+  }
+
+  /// Set file permissions to owner-only (0600) on Unix systems.
+  void _restrictFilePermissions(String path) {
+    if (Platform.isLinux || Platform.isMacOS) {
+      try {
+        final result = Process.runSync('chmod', ['600', path]);
+        if (result.exitCode != 0) {
+          dev.log('KnownHosts: chmod 600 failed on $path: ${result.stderr}');
+        }
+      } catch (e) {
+        dev.log('KnownHosts: failed to restrict permissions: $e');
+      }
+    }
   }
 
   String _fingerprint(List<int> keyBytes) {

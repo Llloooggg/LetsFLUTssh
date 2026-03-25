@@ -575,4 +575,54 @@ void main() {
       expect(store.get('nonexistent'), isNull);
     });
   });
+
+  group('SessionStore — credential loss protection', () {
+    test('load does not overwrite encrypted creds when key is corrupted', () async {
+      // 1. Create a session with credentials
+      final store = SessionStore();
+      await store.load();
+      final session = makeSession(
+        id: 'protect-1',
+        label: 'protected',
+        password: 'my-secret',
+      );
+      await store.add(session);
+
+      // Verify credentials.enc exists
+      final credFile = File('${tempDir.path}/credentials.enc');
+      expect(await credFile.exists(), isTrue);
+      final originalEncBytes = await credFile.readAsBytes();
+
+      // 2. Corrupt the key file
+      final keyFile = File('${tempDir.path}/credentials.key');
+      await keyFile.writeAsBytes([1, 2, 3]); // too short / wrong key
+
+      // 3. Load again — should NOT overwrite credentials.enc
+      final store2 = SessionStore();
+      await store2.load();
+
+      // Credential file should be untouched (same bytes)
+      final afterLoadBytes = await credFile.readAsBytes();
+      expect(afterLoadBytes, equals(originalEncBytes));
+    });
+
+    test('load still works with sessions when creds cannot be decrypted', () async {
+      // Create session
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 's1', label: 'test', password: 'pw'));
+
+      // Corrupt key
+      final keyFile = File('${tempDir.path}/credentials.key');
+      await keyFile.writeAsBytes([0, 0, 0]);
+
+      // Load again — session metadata should still load (just without creds)
+      final store2 = SessionStore();
+      final sessions = await store2.load();
+      expect(sessions, hasLength(1));
+      expect(sessions.first.label, 'test');
+      // Password won't be restored since decryption failed
+      expect(sessions.first.password, isEmpty);
+    });
+  });
 }

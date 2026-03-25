@@ -93,6 +93,73 @@ void main() {
       expect(config, isNotNull);
       expect(config!.password, '');
     });
+
+    test('returns null for port 0', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h&user=u&port=0',
+      ));
+      expect(config, isNull);
+    });
+
+    test('returns null for port > 65535', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h&user=u&port=70000',
+      ));
+      expect(config, isNull);
+    });
+
+    test('returns null for negative port', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h&user=u&port=-1',
+      ));
+      expect(config, isNull);
+    });
+
+    test('returns null for host with slash', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h/evil&user=u',
+      ));
+      expect(config, isNull);
+    });
+
+    test('returns null for host with backslash', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h%5Cevil&user=u',
+      ));
+      expect(config, isNull);
+    });
+
+    test('returns null for excessively long host', () {
+      final longHost = 'a' * 300;
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=$longHost&user=u',
+      ));
+      expect(config, isNull);
+    });
+
+    test('rejects key path with path traversal', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h&user=u&key=../../etc/passwd',
+      ));
+      expect(config, isNull);
+    });
+
+    test('accepts valid key path without traversal', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h&user=u&key=/home/user/.ssh/id_rsa',
+      ));
+      expect(config, isNotNull);
+      expect(config!.keyPath, '/home/user/.ssh/id_rsa');
+    });
+
+    test('trims whitespace from host and user', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=%20h%20&user=%20u%20',
+      ));
+      expect(config, isNotNull);
+      expect(config!.host, 'h');
+      expect(config.user, 'u');
+    });
   });
 
   group('DeepLinkHandler callbacks', () {

@@ -34,12 +34,13 @@ This is a personal open-source project, so there are no guaranteed response time
 
 The following areas are in scope:
 
-- Credential storage and encryption (`CredentialStore`, AES-256-GCM)
+- Credential storage and encryption (`CredentialStore`, AES-256-GCM) — key generation race guard, `CredentialStoreException` for decryption failures
 - SSH key handling and authentication
-- Known hosts / TOFU verification
+- Known hosts / TOFU verification — `chmod 600` on `known_hosts` file
 - Export/import archive encryption (`.lfs` format, PBKDF2)
-- Deep link URI parsing (`letsflutssh://` scheme)
-- File permission handling (`chmod 600`)
+- Deep link URI parsing (`letsflutssh://` scheme) — host/port validation, path traversal rejection
+- File permission handling (`chmod 600` on credentials and known_hosts)
+- Error message sanitization (file paths stripped from user-facing errors)
 
 Out of scope:
 

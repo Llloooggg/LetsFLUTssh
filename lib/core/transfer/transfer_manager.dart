@@ -11,14 +11,20 @@ class TransferManager {
   final _history = <HistoryEntry>[];
   int _running = 0;
   int _counter = 0;
+  bool _disposed = false;
 
   final _controller = StreamController<void>.broadcast();
 
   /// Fires on any state change (queue/history update).
   Stream<void> get onChange => _controller.stream;
 
+  /// Per-task active transfer info, keyed by task ID.
+  final _activeTransfers = <String, String>{};
+
   /// Current active transfer info (name + percent) for status bar.
-  String? currentTransferInfo;
+  /// Shows the most recently updated active transfer.
+  String? get currentTransferInfo =>
+      _activeTransfers.isNotEmpty ? _activeTransfers.values.last : null;
 
   TransferManager({this.parallelism = 2, this.maxHistory = 500});
 
@@ -66,7 +72,7 @@ class TransferManager {
       await entry.task.run((percent, message) {
         lastPercent = percent;
         lastMessage = message;
-        currentTransferInfo = '${entry.task.name} ${percent.toStringAsFixed(0)}%';
+        _activeTransfers[entry.id] = '${entry.task.name} ${percent.toStringAsFixed(0)}%';
         _notify();
       });
 
@@ -92,7 +98,7 @@ class TransferManager {
         sourcePath: entry.task.sourcePath,
         targetPath: entry.task.targetPath,
         status: TransferStatus.failed,
-        error: e.toString(),
+        error: _sanitizeError(e),
         lastPercent: lastPercent,
         lastMessage: lastMessage,
         createdAt: entry.createdAt,
@@ -102,7 +108,7 @@ class TransferManager {
       ));
     } finally {
       _running--;
-      currentTransferInfo = null;
+      _activeTransfers.remove(entry.id);
       _notify();
       _processQueue();
     }
@@ -115,11 +121,20 @@ class TransferManager {
     }
   }
 
+  /// Strip absolute file paths from error messages to avoid leaking
+  /// directory structure in UI.
+  String _sanitizeError(Object e) {
+    return e.toString().replaceAll(RegExp(r'[/\\]\S+'), '<path>');
+  }
+
   void _notify() {
-    _controller.add(null);
+    if (!_disposed) {
+      _controller.add(null);
+    }
   }
 
   void dispose() {
+    _disposed = true;
     _controller.close();
   }
 }

@@ -192,14 +192,85 @@ void main() {
       expect(loaded['s1'], isNull);
     });
 
-    test('loadAll handles corrupted file gracefully', () async {
-      // Write garbage to credentials file
+    test('loadAll throws CredentialStoreException on corrupted file', () async {
+      // Write garbage to both files so the store attempts decryption
       final credFile = File('${tempDir.path}/credentials.enc');
+      final keyFile = File('${tempDir.path}/credentials.key');
       await credFile.writeAsString('not encrypted data');
+      await keyFile.writeAsBytes(List.generate(32, (i) => i));
 
       final store = CredentialStore();
+      expect(
+        () => store.loadAll(),
+        throwsA(isA<CredentialStoreException>()),
+      );
+    });
+
+    test('loadAllSafe returns empty on corrupted file', () async {
+      final credFile = File('${tempDir.path}/credentials.enc');
+      final keyFile = File('${tempDir.path}/credentials.key');
+      await credFile.writeAsString('not encrypted data');
+      await keyFile.writeAsBytes(List.generate(32, (i) => i));
+
+      final store = CredentialStore();
+      final all = await store.loadAllSafe();
+      expect(all, isEmpty);
+    });
+
+    test('loadAll returns empty when no files exist (not an error)', () async {
+      final store = CredentialStore();
       final all = await store.loadAll();
-      expect(all, isEmpty); // Should return empty, not throw
+      expect(all, isEmpty);
+    });
+  });
+
+  group('CredentialData equality', () {
+    test('equal data are equal', () {
+      const a = CredentialData(password: 'p', keyData: 'k', passphrase: 'pp');
+      const b = CredentialData(password: 'p', keyData: 'k', passphrase: 'pp');
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('different password not equal', () {
+      const a = CredentialData(password: 'a');
+      const b = CredentialData(password: 'b');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('different keyData not equal', () {
+      const a = CredentialData(keyData: 'PEM1');
+      const b = CredentialData(keyData: 'PEM2');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('empty credentials are equal', () {
+      const a = CredentialData();
+      const b = CredentialData();
+      expect(a, equals(b));
+    });
+
+    test('identical returns true', () {
+      const a = CredentialData(password: 'x');
+      expect(a == a, isTrue);
+    });
+
+    test('not equal to other types', () {
+      const a = CredentialData();
+      expect(a == Object(), isFalse);
+    });
+  });
+
+  group('CredentialStoreException', () {
+    test('toString includes message', () {
+      const e = CredentialStoreException('test error');
+      expect(e.toString(), contains('test error'));
+    });
+
+    test('stores cause', () {
+      const cause = FormatException('bad data');
+      const e = CredentialStoreException('decrypt failed', cause: cause);
+      expect(e.cause, cause);
     });
   });
 }

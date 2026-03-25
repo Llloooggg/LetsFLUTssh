@@ -12,74 +12,82 @@ class FilePaneDialogs {
   /// Show a dialog to create a new folder in [ctrl]'s current directory.
   static Future<void> showNewFolder(BuildContext context, FilePaneController ctrl) async {
     final nameCtrl = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New Folder'),
-        content: TextField(
-          controller: nameCtrl,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Folder name'),
-          onSubmitted: (v) => Navigator.of(ctx).pop(v),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(nameCtrl.text),
-            child: const Text('Create'),
+    try {
+      final result = await showDialog<String>(
+        context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        builder: (ctx) => AlertDialog(
+          title: const Text('New Folder'),
+          content: TextField(
+            controller: nameCtrl,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Folder name'),
+            onSubmitted: (v) => Navigator.of(ctx).pop(v),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(nameCtrl.text),
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
 
-    if (result != null && result.isNotEmpty) {
-      final path = '${ctrl.currentPath}/$result';
-      try {
-        await ctrl.fs.mkdir(path);
-        await ctrl.refresh();
-      } catch (e) {
-        if (context.mounted) {
-          Toast.show(context, message: 'Failed to create folder: $e', level: ToastLevel.error);
+      if (result != null && result.isNotEmpty) {
+        final path = '${ctrl.currentPath}/$result';
+        try {
+          await ctrl.fs.mkdir(path);
+          await ctrl.refresh();
+        } catch (e) {
+          if (context.mounted) {
+            Toast.show(context, message: 'Failed to create folder: $e', level: ToastLevel.error);
+          }
         }
       }
+    } finally {
+      nameCtrl.dispose();
     }
   }
 
   /// Show a dialog to rename [entry] in [ctrl]'s current directory.
   static Future<void> showRename(BuildContext context, FilePaneController ctrl, FileEntry entry) async {
     final nameCtrl = TextEditingController(text: entry.name);
-    final result = await showDialog<String>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename'),
-        content: TextField(
-          controller: nameCtrl,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'New name'),
-          onSubmitted: (v) => Navigator.of(ctx).pop(v),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(nameCtrl.text),
-            child: const Text('Rename'),
+    try {
+      final result = await showDialog<String>(
+        context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Rename'),
+          content: TextField(
+            controller: nameCtrl,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'New name'),
+            onSubmitted: (v) => Navigator.of(ctx).pop(v),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(nameCtrl.text),
+              child: const Text('Rename'),
+            ),
+          ],
+        ),
+      );
 
-    if (result != null && result.isNotEmpty && result != entry.name) {
-      final newPath = '${ctrl.currentPath}/$result';
-      try {
-        await ctrl.fs.rename(entry.path, newPath);
-        await ctrl.refresh();
-      } catch (e) {
-        if (context.mounted) {
-          Toast.show(context, message: 'Failed to rename: $e', level: ToastLevel.error);
+      if (result != null && result.isNotEmpty && result != entry.name) {
+        final newPath = '${ctrl.currentPath}/$result';
+        try {
+          await ctrl.fs.rename(entry.path, newPath);
+          await ctrl.refresh();
+        } catch (e) {
+          if (context.mounted) {
+            Toast.show(context, message: 'Failed to rename: $e', level: ToastLevel.error);
+          }
         }
       }
+    } finally {
+      nameCtrl.dispose();
     }
   }
 

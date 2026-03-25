@@ -139,6 +139,29 @@ class Session {
     'passphrase': passphrase,
   };
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Session &&
+          id == other.id &&
+          label == other.label &&
+          group == other.group &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user &&
+          authType == other.authType &&
+          password == other.password &&
+          keyPath == other.keyPath &&
+          keyData == other.keyData &&
+          passphrase == other.passphrase;
+
+  @override
+  int get hashCode => Object.hash(
+        id, label, group, host, port,
+        user, authType, password, keyPath, keyData,
+        passphrase,
+      );
+
   factory Session.fromJson(Map<String, dynamic> json) {
     return Session(
       id: json['id'] as String,

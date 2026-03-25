@@ -82,12 +82,17 @@ class ConnectionManager {
     _notify();
   }
 
+  bool _disposed = false;
+
   void _notify() {
-    _controller.add(null);
+    if (!_disposed) {
+      _controller.add(null);
+    }
   }
 
   void dispose() {
     disconnectAll();
+    _disposed = true;
     _controller.close();
   }
 }

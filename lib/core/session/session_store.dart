@@ -58,7 +58,16 @@ class SessionStore {
   /// Load credentials from encrypted store, merge into sessions,
   /// and migrate any legacy plaintext credentials.
   Future<void> _mergeAndMigrateCredentials() async {
-    final allCreds = await _credStore.loadAll();
+    Map<String, CredentialData> allCreds;
+    try {
+      allCreds = await _credStore.loadAll();
+    } on CredentialStoreException catch (e) {
+      // Decryption failed — do NOT overwrite encrypted store.
+      // Keep sessions without credentials rather than risk data loss.
+      dev.log('SessionStore: credential decryption failed, '
+          'skipping merge to prevent data loss', error: e);
+      return;
+    }
     bool needsMigration = false;
 
     for (int i = 0; i < _sessions.length; i++) {
@@ -96,7 +105,14 @@ class SessionStore {
   /// Migrate plaintext credentials from sessions.json to encrypted store,
   /// then re-save sessions.json without secrets.
   Future<void> _migrateCredentials() async {
-    final allCreds = await _credStore.loadAll();
+    Map<String, CredentialData> allCreds;
+    try {
+      allCreds = await _credStore.loadAll();
+    } on CredentialStoreException {
+      // Cannot load existing creds — start fresh map for migration.
+      // This is safe: we only add plaintext creds that exist in sessions.json.
+      allCreds = {};
+    }
     for (final s in _sessions) {
       if (s.password.isNotEmpty || s.keyData.isNotEmpty || s.passphrase.isNotEmpty) {
         allCreds[s.id] = CredentialData(
@@ -122,9 +138,19 @@ class SessionStore {
   }
 
   /// Save session metadata + credentials to their respective stores.
+  ///
+  /// Both saves are attempted together. If credential save fails,
+  /// the session file is still persisted (credentials remain in memory
+  /// and will be retried on next save).
   Future<void> _save() async {
     await _saveSessionFile();
-    await _saveCredentials();
+    try {
+      await _saveCredentials();
+    } catch (e) {
+      dev.log('SessionStore: credential save failed, '
+          'session file was saved — credentials will retry on next save',
+          error: e);
+    }
   }
 
   /// Save all credentials to encrypted store.
@@ -207,8 +233,7 @@ class SessionStore {
     _emptyGroups.removeAll(toRemove);
     _emptyGroups.addAll(toAdd);
 
-    await _save();
-    await _saveEmptyGroups();
+    await Future.wait([_save(), _saveEmptyGroups()]);
   }
 
   /// Delete a group: remove all sessions and empty groups under this path.
@@ -230,8 +255,7 @@ class SessionStore {
       (g) => g == groupPath || g.startsWith('$groupPath/'),
     );
 
-    await _save();
-    await _saveEmptyGroups();
+    await Future.wait([_save(), _saveEmptyGroups()]);
   }
 
   /// Delete all sessions and empty groups.
@@ -241,8 +265,7 @@ class SessionStore {
     }
     _sessions.clear();
     _emptyGroups.clear();
-    await _save();
-    await _saveEmptyGroups();
+    await Future.wait([_save(), _saveEmptyGroups()]);
   }
 
   /// Count sessions in a group and its subgroups.

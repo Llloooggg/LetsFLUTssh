@@ -460,6 +460,36 @@ void main() {
         await tempDir.delete(recursive: true);
       }
     });
+
+    test('uploadDir tracks progress correctly across nested dirs', () async {
+      final tempDir = await Directory.systemTemp.createTemp('sftp_updir_nested_');
+      try {
+        // Create nested structure: dir/a.txt, dir/sub/b.txt, dir/sub/c.txt
+        await File('${tempDir.path}/a.txt').writeAsString('aaa');
+        await Directory('${tempDir.path}/sub').create();
+        await File('${tempDir.path}/sub/b.txt').writeAsString('bbb');
+        await File('${tempDir.path}/sub/c.txt').writeAsString('ccc');
+
+        when(mockSftp.mkdir(any)).thenAnswer((_) async {});
+        when(mockSftp.open(any, mode: anyNamed('mode')))
+            .thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
+            .thenAnswer((_) async {});
+
+        final progress = <TransferProgress>[];
+        await service.uploadDir(tempDir.path, '/remote/dir', (p) => progress.add(p));
+
+        // Should have 3 progress updates (one per file)
+        expect(progress, hasLength(3));
+        // Total should be 3 for all progress events
+        expect(progress.every((p) => p.totalBytes == 3), isTrue);
+        // doneBytes should increment: 1, 2, 3
+        expect(progress.last.doneBytes, 3);
+        expect(progress.last.isCompleted, isTrue);
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
   });
 
   group('SFTPService — fromSSHClient', () {

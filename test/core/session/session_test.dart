@@ -81,4 +81,47 @@ void main() {
       expect(updated.host, 'b');
     });
   });
+
+  group('Session equality', () {
+    test('same id and fields are equal', () {
+      final a = Session(id: 'x', label: 'a', host: 'h', user: 'u');
+      final b = Session(id: 'x', label: 'a', host: 'h', user: 'u');
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('different id makes not equal', () {
+      final a = Session(id: 'x', label: 'a', host: 'h', user: 'u');
+      final b = Session(id: 'y', label: 'a', host: 'h', user: 'u');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('different host makes not equal', () {
+      final a = Session(id: 'x', label: 'a', host: 'h1', user: 'u');
+      final b = Session(id: 'x', label: 'a', host: 'h2', user: 'u');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('different password makes not equal', () {
+      final a = Session(id: 'x', label: 'a', host: 'h', user: 'u', password: 'a');
+      final b = Session(id: 'x', label: 'a', host: 'h', user: 'u', password: 'b');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('different group makes not equal', () {
+      final a = Session(id: 'x', label: 'a', host: 'h', user: 'u', group: 'A');
+      final b = Session(id: 'x', label: 'a', host: 'h', user: 'u', group: 'B');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('identical returns true', () {
+      final a = Session(label: 'a', host: 'h', user: 'u');
+      expect(a == a, isTrue);
+    });
+
+    test('not equal to other types', () {
+      final a = Session(label: 'a', host: 'h', user: 'u');
+      expect(a == Object(), isFalse);
+    });
+  });
 }
