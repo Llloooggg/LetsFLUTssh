@@ -30,6 +30,8 @@ env:
 jobs:
   analyze-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
 
@@ -52,6 +54,8 @@ jobs:
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
       - uses: actions/dependency-review-action@v4
@@ -60,6 +64,8 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: analyze-and-test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.get.outputs.version }}
     steps:
@@ -74,6 +80,8 @@ jobs:
   build-linux-x64:
     needs: version
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
 
@@ -157,6 +165,8 @@ jobs:
   build-windows:
     needs: version
     runs-on: windows-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
 
@@ -190,6 +200,8 @@ jobs:
   build-macos:
     needs: version
     runs-on: macos-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
 
@@ -219,6 +231,8 @@ jobs:
   build-android:
     needs: version
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
 
