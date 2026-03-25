@@ -27,9 +27,68 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 - Easy data transfer between devices — priority feature (`.lfs` archive format)
 - Session grouping — tree with nested subfolders (e.g. `Production/Web/nginx1`)
 
+### Versioning Strategy
+
+SemVer with two maturity stages: `MAJOR.MINOR.PATCH[-beta.N]`
+
+**Stages:**
+
+| Stage | When to use | Meaning |
+|-------|-------------|---------|
+| `beta.N` | Feature works but not battle-tested on real servers | "Can try, bugs expected" |
+| _(no suffix)_ | Beta survived 1-2 weeks without critical bugs | "Production-ready" |
+
+No `rc` stage — unnecessary overhead for a small team. Can be introduced later if external testers or contributors need a "feature freeze" signal.
+
+**Version bump rules — always bump MAJOR.MINOR.PATCH, regardless of stage:**
+
+| Change type | Bump | Example |
+|-------------|------|---------|
+| Bug fix | **patch** | 1.0.0-beta.1 → 1.0.1-beta.1, or 1.0.2 → 1.0.3 |
+| New feature | **minor** | 1.0.x → 1.1.0-beta.1, or 1.1.0 → 1.2.0 |
+| Major rework or breaking change (file format, API, crypto) | **major** | 1.x.y → 2.0.0-beta.1 |
+
+**No version bump needed for:** tests, refactoring (no behavior change), docs, CI configs, linter fixes. These are `test:`/`refactor:`/`docs:`/`chore:` commits without a version bump.
+
+Stage suffix (`-beta.N`) tracks maturity, not content changes. When a bugfix lands during beta, bump patch AND reset stage counter to 1:
+
+```
+v1.0.0-beta.1 → bugfix → v1.0.1-beta.1 → bugfix → v1.0.2-beta.1 → stable 2 weeks → v1.0.2
+```
+
+**Transition criteria:**
+
+- **beta → stable:** all tests green (analyze + test), coverage ≥80% (SonarCloud QG), manual testing on 2+ platforms with real SSH servers, no known crashes or data loss, beta lives 1-2 weeks with no critical bugs; critical bug found → fix → bump patch → new beta.1 → timer resets
+- **stable → next beta:** new feature (port forwarding, multi-exec, etc.) is functional enough to demo
+
+**Tagging workflow:**
+
+1. Bump version in `pubspec.yaml` (change MAJOR.MINOR.PATCH and/or stage suffix)
+2. Commit: `chore: bump version to X.Y.Z[-beta.N]`
+3. Tag: `git tag vX.Y.Z[-beta.N]` on HEAD
+4. Push tag: `git push origin vX.Y.Z[-beta.N]`
+5. CI creates GitHub Release (pre-release for beta, Latest for stable)
+
+**Stable release from beta (no changes needed):**
+```bash
+# Update pubspec.yaml: remove -beta.N suffix (keep same MAJOR.MINOR.PATCH) → commit
+git tag v1.0.2        # same version, just without stage
+git push origin v1.0.2
+```
+
+**Example full lifecycle:**
+```
+v1.0.0-beta.1 → bugfix → v1.0.1-beta.1 → 2 weeks stable → v1.0.1
+v1.0.1 → bugfix → v1.0.2
+v1.0.2 → new feature → v1.1.0-beta.1 → 2 weeks stable → v1.1.0
+v1.1.0 → major rework → v2.0.0-beta.1
+```
+
+Old beta tags stay in history — they document the path to release.
+
 ### Post-change workflow (mandatory after every significant change)
 
-1. **Version bump** — bump version in `pubspec.yaml` (patch for fix/feat, minor for new phase)
+1. **Version bump** — bump version in `pubspec.yaml` (see Versioning Strategy above)
 2. **CLAUDE.md** — update Current State and module descriptions; document **why** a decision was made
 3. **README.md** — update if the change is user-visible
 4. **PLAN.md** — update phase checkmarks and current status if applicable
@@ -41,13 +100,12 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 
 - Always use **latest stable versions** of packages (latest pub.dev release)
 - If a package has no stable release — use latest pre-release version compatible with current SDK
+- **No OS-level dependencies** — app must build with just Flutter SDK, no `apt install` / `brew install` required. Flutter plugins that bundle their own native code (desktop_drop, path_provider, permission_handler) are fine — they compile as part of the Flutter build
 
 ### Building
 
-- `flutter run` — run (debug, current platform)
-- `flutter build linux` / `flutter build windows` / `flutter build apk` / etc.
-- `flutter test` — tests
-- `flutter analyze` — linter
+- **Always build via Makefile** — `make run`, `make build-linux`, `make test`, `make analyze`, etc.
+- Do not call `flutter build` / `flutter run` directly — Makefile wraps them with correct flags and environment
 
 ### What Not To Do
 
@@ -55,6 +113,9 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 - Do not install packages without asking (user approves)
 - Always run `flutter analyze` + `flutter test` before committing
 - **All code must have tests** — target 100% coverage on new code AND overall; 80% is the hard minimum (SonarCloud Quality Gate), never the goal; write tests for every testable line
+  - After writing code: run `make test`, check uncovered lines, keep writing tests until all testable lines are covered
+  - Only skip lines that physically cannot be tested (real SSH server, native file I/O with path_provider)
+  - Before suggesting commit: `make analyze` + `make test`
 
 ## Tech Stack
 

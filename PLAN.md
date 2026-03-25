@@ -300,10 +300,38 @@
 
 ---
 
+## Versioning Strategy
+
+```
+beta.N  →  stable  →  next beta.1  → ...
+```
+
+| Transition | Criteria |
+|------------|----------|
+| **beta → stable** | Tests green, coverage ≥80%, manual testing on 2+ platforms with real SSH servers, no crashes/data loss, 1-2 weeks without critical bugs |
+| **stable → next beta** | New feature is functional enough to demo |
+
+**Bump rules:** always bump MAJOR.MINOR.PATCH regardless of stage; stage suffix tracks maturity only.
+- Bugfix = patch, feature = minor, major rework or breaking change (format/crypto) = major.
+- Bugfix during beta: bump patch, reset stage to beta.1 (e.g. v1.0.0-beta.1 → v1.0.1-beta.1)
+
+**Release roadmap:**
+
+```
+v0.9.5 (current)  →  v1.0.0-beta.1  →  [bugfix → v1.0.1-beta.1]  →  v1.0.1   ← stable release
+v1.1.0-beta.1     →  v1.1.0                                                    ← port forwarding
+v1.2.0-beta.1     →  v1.2.0                                                    ← multi-exec / jump hosts
+```
+
+See CLAUDE.md "Versioning Strategy" for full tagging workflow.
+
+---
+
 ## Current Status
 
 **Active phase:** Phase 10 (Post-Release Polish)
-**Progress:** Phases 1-9 completed. v0.9.4. CI/CD (GitHub Actions + SonarCloud + CodeQL), security audit, packaging, user docs.
+**Progress:** Phases 1-9 completed. v0.9.5. CI/CD (GitHub Actions + SonarCloud + CodeQL), security audit, packaging, user docs.
+**Next milestone:** v1.0.0-beta.1 — after manual testing on real servers (Linux + Windows + Android).
 
 ### Work Order
 
