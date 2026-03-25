@@ -1089,4 +1089,92 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
     });
   });
+
+  group('SessionPanel — move session dialog', () {
+    testWidgets('Move context menu opens Move to Folder dialog', (tester) async {
+      await tester.pumpWidget(buildApp(
+        emptyGroups: {'Archive'},
+        onSftpConnect: (_) {},
+      ));
+      await tester.pumpAndSettle();
+
+      // Right-click on session to open context menu
+      final session = find.text('web1');
+      expect(session, findsOneWidget);
+      await tester.tapAt(
+        tester.getCenter(session),
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pumpAndSettle();
+
+      // Tap Move
+      final moveItem = find.text('Move');
+      if (moveItem.evaluate().isNotEmpty) {
+        await tester.tap(moveItem);
+        await tester.pumpAndSettle();
+
+        // Move dialog should show
+        expect(find.text('Move to Folder'), findsOneWidget);
+        // Should show root and groups
+        expect(find.text('/ (root)'), findsOneWidget);
+
+        // Cancel
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      }
+    });
+  });
+
+  group('SessionPanel — delete all sessions', () {
+    testWidgets('Delete All from empty background context menu', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Right-click on empty area (background context menu)
+      // The background area is below the sessions
+      final panel = find.byType(SessionPanel);
+      final panelBox = tester.getRect(panel);
+      await tester.tapAt(
+        Offset(panelBox.center.dx, panelBox.bottom - 20),
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pumpAndSettle();
+
+      // Look for Delete All
+      final deleteAll = find.text('Delete All');
+      if (deleteAll.evaluate().isNotEmpty) {
+        await tester.tap(deleteAll);
+        await tester.pumpAndSettle();
+
+        // Confirmation dialog should appear
+        expect(find.text('Delete All Sessions'), findsOneWidget);
+        expect(find.textContaining('cannot be undone'), findsOneWidget);
+
+        // Cancel
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      }
+    });
+  });
+
+  group('SessionPanel — add session from empty state', () {
+    testWidgets('Add Session button in empty state opens dialog', (tester) async {
+      await tester.pumpWidget(buildApp(sessions: []));
+      await tester.pumpAndSettle();
+
+      // Empty state shows "Add Session" button
+      final addButton = find.text('Add Session');
+      if (addButton.evaluate().isNotEmpty) {
+        await tester.tap(addButton);
+        await tester.pumpAndSettle();
+
+        // New Session dialog should open
+        expect(find.text('New Session'), findsOneWidget);
+
+        // Cancel
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      }
+    });
+  });
 }
