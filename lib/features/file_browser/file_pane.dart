@@ -47,6 +47,11 @@ class _FilePaneState extends State<FilePane> {
 
   FilePaneController get ctrl => widget.controller;
 
+  static IconData _dragIcon(List<FileEntry> entries, FileEntry entry) {
+    if (entries.length > 1) return Icons.file_copy;
+    return entry.isDir ? Icons.folder : Icons.insert_drive_file;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -494,12 +499,7 @@ class _FilePaneState extends State<FilePane> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              dragEntries.length > 1
-                  ? Icons.file_copy
-                  : (entry.isDir ? Icons.folder : Icons.insert_drive_file),
-              size: 14,
-            ),
+            Icon(_dragIcon(dragEntries, entry), size: 14),
             const SizedBox(width: 4),
             Text(
               dragEntries.length > 1

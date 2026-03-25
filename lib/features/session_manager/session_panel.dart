@@ -162,24 +162,9 @@ class SessionPanel extends ConsumerWidget {
           child: ListView.builder(
             shrinkWrap: true,
             itemCount: allGroups.length,
-            itemBuilder: (ctx, index) {
-              final group = allGroups.elementAt(index);
-              final isCurrentGroup = group == session.group;
-              return ListTile(
-                leading: Icon(
-                  group.isEmpty ? Icons.home : Icons.folder,
-                  color: isCurrentGroup ? Theme.of(ctx).colorScheme.primary : null,
-                ),
-                title: Text(
-                  group.isEmpty ? '/ (root)' : group,
-                  style: TextStyle(
-                    fontWeight: isCurrentGroup ? FontWeight.bold : null,
-                  ),
-                ),
-                trailing: isCurrentGroup ? const Icon(Icons.check, size: 18) : null,
-                onTap: isCurrentGroup ? null : () => Navigator.of(ctx).pop(group),
-              );
-            },
+            itemBuilder: (ctx, index) => _buildMoveGroupTile(
+              ctx, allGroups.elementAt(index), session.group,
+            ),
           ),
         ),
         actions: [
@@ -194,6 +179,22 @@ class SessionPanel extends ConsumerWidget {
     if (selected != null) {
       ref.read(sessionProvider.notifier).moveSession(session.id, selected);
     }
+  }
+
+  Widget _buildMoveGroupTile(BuildContext context, String group, String currentGroup) {
+    final isCurrent = group == currentGroup;
+    return ListTile(
+      leading: Icon(
+        group.isEmpty ? Icons.home : Icons.folder,
+        color: isCurrent ? Theme.of(context).colorScheme.primary : null,
+      ),
+      title: Text(
+        group.isEmpty ? '/ (root)' : group,
+        style: TextStyle(fontWeight: isCurrent ? FontWeight.bold : null),
+      ),
+      trailing: isCurrent ? const Icon(Icons.check, size: 18) : null,
+      onTap: isCurrent ? null : () => Navigator.of(context).pop(group),
+    );
   }
 
   Future<void> _editSession(BuildContext context, WidgetRef ref, Session session) async {
@@ -322,7 +323,6 @@ class SessionPanel extends ConsumerWidget {
     final result = await _showFolderNameDialog(
       context,
       title: _kNewFolder,
-      hintText: 'e.g. Production',
       confirmLabel: 'Create',
       existingGroups: existingGroups,
       parentPath: parentGroup,
@@ -380,7 +380,6 @@ class SessionPanel extends ConsumerWidget {
     required String confirmLabel,
     required Set<String> existingGroups,
     required String parentPath,
-    String? hintText,
     String? initialValue,
     String? currentName,
   }) {
@@ -392,49 +391,67 @@ class SessionPanel extends ConsumerWidget {
       animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          void validate() {
-            final name = nameCtrl.text.trim();
-            final fullPath = parentPath.isEmpty ? name : '$parentPath/$name';
-            final isDuplicate = name.isNotEmpty
-                && name != currentName
-                && existingGroups.contains(fullPath);
-            setDialogState(() {
-              errorText = isDuplicate ? 'Folder "$name" already exists' : null;
-            });
-          }
-
-          return AlertDialog(
-            title: Text(title),
-            content: TextField(
-              controller: nameCtrl,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Folder name',
-                hintText: hintText,
-                errorText: errorText,
-              ),
-              onChanged: (_) => validate(),
-              onSubmitted: (v) {
-                if (errorText == null && v.trim().isNotEmpty) {
-                  Navigator.of(ctx).pop(v);
-                }
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: errorText == null
-                    ? () => Navigator.of(ctx).pop(nameCtrl.text)
-                    : null,
-                child: Text(confirmLabel),
-              ),
-            ],
+          return _buildFolderNameAlert(
+            ctx,
+            title: title,
+            confirmLabel: confirmLabel,
+            nameCtrl: nameCtrl,
+            errorText: errorText,
+            onChanged: (_) {
+              final name = nameCtrl.text.trim();
+              final fullPath = parentPath.isEmpty ? name : '$parentPath/$name';
+              final isDuplicate = name.isNotEmpty
+                  && name != currentName
+                  && existingGroups.contains(fullPath);
+              setDialogState(() {
+                errorText = isDuplicate ? 'Folder "$name" already exists' : null;
+              });
+            },
+            hintText: 'e.g. Production',
           );
         },
       ),
+    );
+  }
+
+  AlertDialog _buildFolderNameAlert(
+    BuildContext context, {
+    required String title,
+    required String confirmLabel,
+    required TextEditingController nameCtrl,
+    required String? errorText,
+    required ValueChanged<String> onChanged,
+    String? hintText,
+  }) {
+    return AlertDialog(
+      title: Text(title),
+      content: TextField(
+        controller: nameCtrl,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: 'Folder name',
+          hintText: hintText,
+          errorText: errorText,
+        ),
+        onChanged: onChanged,
+        onSubmitted: (v) {
+          if (errorText == null && v.trim().isNotEmpty) {
+            Navigator.of(context).pop(v);
+          }
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: errorText == null
+              ? () => Navigator.of(context).pop(nameCtrl.text)
+              : null,
+          child: Text(confirmLabel),
+        ),
+      ],
     );
   }
 
