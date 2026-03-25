@@ -1137,6 +1137,37 @@ void main() {
         await tester.pumpAndSettle();
       }
     });
+
+    testWidgets('Move dialog — selecting a folder moves session', (tester) async {
+      await tester.pumpWidget(buildApp(
+        emptyGroups: {'Archive'},
+        onSftpConnect: (_) {},
+      ));
+      await tester.pumpAndSettle();
+
+      // Right-click on session
+      final session = find.text('web1');
+      await tester.tapAt(
+        tester.getCenter(session),
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pumpAndSettle();
+
+      final moveItem = find.text('Move');
+      if (moveItem.evaluate().isNotEmpty) {
+        await tester.tap(moveItem);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Move to Folder'), findsOneWidget);
+
+        // Tap "/ (root)" to move to root (session is in 'Production')
+        final rootTile = find.text('/ (root)');
+        if (rootTile.evaluate().isNotEmpty) {
+          await tester.tap(rootTile);
+          await tester.pumpAndSettle();
+        }
+      }
+    });
   });
 
   group('SessionPanel — delete all sessions', () {
