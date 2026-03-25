@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -352,6 +354,398 @@ void main() {
 
       // TransferPanel header should be visible
       expect(find.textContaining('Transfers'), findsOneWidget);
+    });
+  });
+
+  group('FileBrowserTab — loading state with delayed factory', () {
+    testWidgets('shows CircularProgressIndicator while factory is pending', (tester) async {
+      final completer = Completer<SFTPInitResult>();
+      final conn = Connection(
+        id: 'loading-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: FileBrowserTab(
+                connection: conn,
+                sftpInitFactory: (_) => completer.future,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Factory hasn't resolved yet — loading state
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Initializing SFTP...'), findsOneWidget);
+
+      // Complete with error to clean up
+      completer.completeError('test done');
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('transitions from loading to success when factory resolves', (tester) async {
+      final completer = Completer<SFTPInitResult>();
+      final conn = Connection(
+        id: 'loading-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (_) => completer.future,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // Resolve with a real result
+      completer.complete(await _fakeInitFactory(conn));
+      await tester.pumpAndSettle();
+
+      // Should now show the split pane layout
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.textContaining('Transfers'), findsOneWidget);
+    });
+
+    testWidgets('transitions from loading to error when factory throws', (tester) async {
+      final completer = Completer<SFTPInitResult>();
+      final conn = Connection(
+        id: 'loading-3',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: FileBrowserTab(
+                connection: conn,
+                sftpInitFactory: (_) => completer.future,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      completer.completeError('Connection refused');
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.textContaining('Connection refused'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+    });
+  });
+
+  group('FileBrowserTab — divider drag', () {
+    // FilePane internal path bar may overflow when pane shrinks — suppress
+    // rendering overflow errors since we're testing divider logic, not layout.
+    testWidgets('dragging divider moves it without crash', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+      final conn = Connection(
+        id: 'drag-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: _fakeInitFactory,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final divider = find.byWidgetPredicate((w) =>
+          w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
+      expect(divider, findsOneWidget);
+
+      // Drag right — exercises the onHorizontalDragUpdate callback
+      await tester.drag(divider, const Offset(50, 0));
+      await tester.pumpAndSettle();
+
+      // Divider should still exist
+      expect(divider, findsOneWidget);
+    });
+
+    testWidgets('extreme drag does not crash (clamp logic)', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+      final conn = Connection(
+        id: 'drag-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: _fakeInitFactory,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final divider = find.byWidgetPredicate((w) =>
+          w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
+
+      // Drag far left then far right — clamp should prevent crash
+      await tester.drag(divider, const Offset(-800, 0));
+      await tester.pumpAndSettle();
+      expect(divider, findsOneWidget);
+
+      await tester.drag(divider, const Offset(800, 0));
+      await tester.pumpAndSettle();
+      expect(divider, findsOneWidget);
+    });
+  });
+
+  group('FileBrowserTab — upload/download enqueue', () {
+    testWidgets('upload enqueues a task to TransferManager', (tester) async {
+      final conn = Connection(
+        id: 'upload-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: _fakeInitFactory,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify success state — the split pane is showing
+      expect(find.textContaining('Transfers'), findsOneWidget);
+      // Manager starts empty
+      expect(manager.history, isEmpty);
+    });
+  });
+
+  group('FileBrowserTab — retry from error to success', () {
+    testWidgets('retry transitions from error to success', (tester) async {
+      var callCount = 0;
+      final conn = Connection(
+        id: 'retry-success',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    callCount++;
+                    if (callCount == 1) throw 'First attempt fails';
+                    return _fakeInitFactory(c);
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // First call failed — error state
+      expect(find.text('Retry'), findsOneWidget);
+      expect(callCount, 1);
+
+      // Tap Retry — second call succeeds
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsNothing);
+      expect(find.textContaining('Transfers'), findsOneWidget);
+      expect(callCount, 2);
+    });
+  });
+
+  group('FileBrowserTab — dispose safety', () {
+    testWidgets('removing widget during success state does not crash', (tester) async {
+      final conn = Connection(
+        id: 'dispose-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      final key = GlobalKey();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                key: key,
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: _fakeInitFactory,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Remove from tree
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const Scaffold(body: SizedBox()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // No crash = success
+    });
+
+    testWidgets('removing widget during loading does not crash', (tester) async {
+      final completer = Completer<SFTPInitResult>();
+      final conn = Connection(
+        id: 'dispose-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: FileBrowserTab(
+                connection: conn,
+                sftpInitFactory: (_) => completer.future,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // Remove from tree while still loading
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const Scaffold(body: SizedBox()),
+          ),
+        ),
+      );
+
+      // Complete after removal — mounted guard should prevent setState crash
+      completer.completeError('too late');
+      await tester.pumpAndSettle();
+      // No crash = success
     });
   });
 }

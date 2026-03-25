@@ -84,7 +84,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      // Error icon should have AppTheme.disconnected color
       final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline));
       expect(icon.color, AppTheme.disconnected);
       expect(icon.size, 48);
@@ -156,7 +155,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // The TerminalView should be present (no loading, no error)
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.byIcon(Icons.error_outline), findsNothing);
 
@@ -206,7 +204,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify the widget rendered with split callbacks (not called yet)
       expect(splitV, isFalse);
       expect(splitH, isFalse);
       expect(find.byType(CallbackShortcuts), findsWidgets);
@@ -220,7 +217,6 @@ void main() {
     testWidgets('shows spinner while shell is opening', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
-      // Never complete — stays in loading state
       when(mockSsh.openShell(any, any)).thenAnswer((_) => Completer<Never>().future);
 
       final conn = Connection(
@@ -278,7 +274,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Simulate shell done
       doneCompleter.complete();
       await tester.pumpAndSettle();
 
@@ -313,7 +308,6 @@ void main() {
         state: SSHConnectionState.connected,
       );
 
-      // Test focused
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(),
@@ -388,10 +382,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Should be in connected state — no spinner, no error
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.byIcon(Icons.error_outline), findsNothing);
-      // TerminalView should be rendered
       expect(find.byType(TerminalView), findsOneWidget);
     });
 
@@ -432,7 +424,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Find the Container with BoxDecoration border
       final container = tester.widgetList<Container>(find.byType(Container)).where((c) {
         final deco = c.decoration;
         return deco is BoxDecoration && deco.border != null;
@@ -492,14 +483,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Right-click on the TerminalView
       final termView = find.byType(TerminalView);
       expect(termView, findsOneWidget);
       final center = tester.getCenter(termView);
       await tester.tapAt(center, buttons: kSecondaryButton);
       await tester.pumpAndSettle();
 
-      // Context menu should show Paste, Split Right, Split Down, Close Pane
       expect(find.text('Paste'), findsOneWidget);
       expect(find.text('Split Right'), findsOneWidget);
       expect(find.text('Split Down'), findsOneWidget);
@@ -680,10 +669,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify the pane widget has the onFocused callback set
       final pane = tester.widget<TerminalPane>(find.byType(TerminalPane));
       expect(pane.onFocused, isNotNull);
-      // Call it manually to verify wiring
       pane.onFocused!();
       expect(focusCalled, isTrue);
     });
@@ -714,14 +701,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Should be connected
       expect(find.byType(TerminalView), findsOneWidget);
 
-      // Trigger onDone to simulate session close
       capturedOnDone?.call();
       await tester.pumpAndSettle();
 
-      // Should show "Session closed" error
       expect(find.textContaining('Session closed'), findsOneWidget);
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
     });
@@ -731,7 +715,6 @@ void main() {
     testWidgets('paste menu item reads from clipboard', (tester) async {
       final conn = _testConnection(id: 'sf-paste');
 
-      // Set clipboard data before pasting
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
         (call) async {
@@ -764,12 +747,456 @@ void main() {
       await tester.tap(find.text('Paste'));
       await tester.pumpAndSettle();
 
-      // Paste action should not throw; menu should close
       expect(find.text('Paste'), findsNothing);
 
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform, null,
       );
+    });
+
+    testWidgets('paste with empty clipboard text does nothing', (tester) async {
+      final conn = _testConnection(id: 'sf-paste-empty');
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.getData') {
+            return <String, dynamic>{'text': ''};
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Paste'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paste'), findsNothing);
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, null,
+      );
+    });
+
+    testWidgets('paste with null clipboard data does nothing', (tester) async {
+      final conn = _testConnection(id: 'sf-paste-null');
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.getData') {
+            return null;
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Paste'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paste'), findsNothing);
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, null,
+      );
+    });
+  });
+
+  group('TerminalPane — copy selection from context menu', () {
+    testWidgets('context menu without selection does not show Copy', (tester) async {
+      final conn = _testConnection(id: 'sf-copy-no-sel');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              onSplitVertical: () {},
+              onSplitHorizontal: () {},
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Copy'), findsNothing);
+      expect(find.text('Paste'), findsOneWidget);
+
+      await tester.tapAt(const Offset(1, 1));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('clipboard not written when no selection', (tester) async {
+      String? copiedText;
+      final conn = _testConnection(id: 'sf-copy-safe');
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map;
+            copiedText = args['text'] as String?;
+          }
+          if (call.method == 'Clipboard.getData') {
+            return <String, dynamic>{'text': ''};
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      // Copy is hidden when no selection — clipboard should not be written
+      expect(find.text('Copy'), findsNothing);
+      expect(copiedText, isNull);
+
+      await tester.tapAt(const Offset(1, 1));
+      await tester.pumpAndSettle();
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, null,
+      );
+    });
+  });
+
+  group('TerminalPane — dispose cleans up shell', () {
+    testWidgets('disposing the widget closes the shell connection', (tester) async {
+      final conn = _testConnection(id: 'sf-dispose');
+
+      final mockSession = MockSSHSession();
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
+
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+      when(mockSession.close()).thenAnswer((_) {});
+
+      final shellConn = ShellConnection(
+        shell: mockSession,
+        stdoutSub: stdoutCtrl.stream.listen((_) {}),
+        stderrSub: stderrCtrl.stream.listen((_) {}),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              shellFactory: ({
+                required Connection connection,
+                required Terminal terminal,
+                VoidCallback? onDone,
+              }) async {
+                return shellConn;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TerminalView), findsOneWidget);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: SizedBox()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      verify(mockSession.close()).called(1);
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
+
+    testWidgets('dispose is safe when shellConn is null (connection failed)', (tester) async {
+      final conn = _testConnection(id: 'sf-dispose-null');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              shellFactory: _errorShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+
+      // Dispose should not throw even though _shellConn is null
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: SizedBox()),
+        ),
+      );
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('TerminalPane — context menu dismiss without action', () {
+    testWidgets('dismissing context menu without selecting does nothing', (tester) async {
+      final conn = _testConnection(id: 'sf-ctx-dismiss');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              onSplitVertical: () {},
+              onSplitHorizontal: () {},
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paste'), findsOneWidget);
+
+      // Dismiss by tapping outside — exercises the default: break case
+      await tester.tapAt(const Offset(1, 1));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paste'), findsNothing);
+    });
+  });
+
+  group('TerminalPane — shellFactory loading state', () {
+    testWidgets('shows spinner when shellFactory is slow then shows terminal', (tester) async {
+      final completer = Completer<ShellConnection>();
+      final conn = _testConnection(id: 'sf-slow');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              shellFactory: ({
+                required Connection connection,
+                required Terminal terminal,
+                VoidCallback? onDone,
+              }) => completer.future,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      completer.complete(_fakeShellConnection());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TerminalView), findsOneWidget);
+    });
+  });
+
+  group('TerminalPane — error state layout', () {
+    testWidgets('error state shows icon and text wrapped in Center', (tester) async {
+      final conn = _testConnection(id: 'sf-error-layout');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              shellFactory: _errorShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.textContaining('Shell factory error'), findsOneWidget);
+
+      // Verify the error icon is inside a Center widget
+      final centerFinder = find.ancestor(
+        of: find.byIcon(Icons.error_outline),
+        matching: find.byType(Center),
+      );
+      expect(centerFinder, findsOneWidget);
+    });
+
+    testWidgets('error text uses textAlign center and disconnected color', (tester) async {
+      final conn = _testConnection(id: 'sf-error-align');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              shellFactory: _errorShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final text = tester.widget<Text>(find.textContaining('Shell factory error'));
+      expect(text.textAlign, TextAlign.center);
+      expect(text.style?.color, AppTheme.disconnected);
+    });
+  });
+
+  group('TerminalPane — ValueListenableBuilder search visibility', () {
+    // Note: search bar keyboard shortcut (Ctrl+Shift+F) cannot be tested in
+    // widget tests because xterm's TerminalView consumes key events before
+    // CallbackShortcuts processes them. The search toggle and _TerminalSearchBar
+    // are only exercisable through real user interaction.
+    testWidgets('search bar starts hidden (SizedBox.shrink)', (tester) async {
+      final conn = _testConnection(id: 'sf-search-hidden');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // When _showSearch is false, ValueListenableBuilder renders SizedBox.shrink
+      expect(find.text('Search...'), findsNothing);
+      expect(find.byTooltip('Previous'), findsNothing);
+      expect(find.byTooltip('Next'), findsNothing);
+      expect(find.byTooltip('Close (Esc)'), findsNothing);
+      expect(find.byType(TerminalView), findsOneWidget);
+    });
+  });
+
+  group('TerminalPane — Column layout in connected state', () {
+    testWidgets('connected state has Column with Expanded TerminalView', (tester) async {
+      final conn = _testConnection(id: 'sf-column');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Column), findsWidgets);
+      expect(find.byType(Expanded), findsWidgets);
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(find.byType(CallbackShortcuts), findsOneWidget);
+    });
+  });
+
+  group('TerminalPane — GestureDetector in connected state', () {
+    testWidgets('connected state has GestureDetector for focus', (tester) async {
+      final conn = _testConnection(id: 'sf-gesture');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              onFocused: () {},
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // GestureDetector should be present wrapping the container
+      expect(find.byType(GestureDetector), findsWidgets);
     });
   });
 }
