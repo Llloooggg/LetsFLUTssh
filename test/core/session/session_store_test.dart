@@ -411,4 +411,33 @@ void main() {
       expect(store.emptyGroups, isNot(contains('Old/Empty')));
     });
   });
+
+  group('SessionStore — edge cases', () {
+    test('corrupted empty_groups.json loads gracefully', () async {
+      // Write garbage before store loads
+      final file = File('${tempDir.path}/empty_groups.json');
+      await file.parent.create(recursive: true);
+      await file.writeAsString('not json');
+
+      final store = SessionStore();
+      await store.load();
+      expect(store.emptyGroups, isEmpty);
+    });
+
+    test('corrupted sessions.json loads gracefully', () async {
+      final file = File('${tempDir.path}/sessions.json');
+      await file.parent.create(recursive: true);
+      await file.writeAsString('corrupted');
+
+      final store = SessionStore();
+      final sessions = await store.load();
+      expect(sessions, isEmpty);
+    });
+
+    test('get returns null for unknown id', () async {
+      final store = SessionStore();
+      await store.load();
+      expect(store.get('nonexistent'), isNull);
+    });
+  });
 }

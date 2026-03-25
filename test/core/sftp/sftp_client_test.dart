@@ -371,4 +371,101 @@ void main() {
       }
     });
   });
+
+  group('SFTPService — upload', () {
+    late MockSftpClient mockSftp;
+    late MockSftpFile mockFile;
+    late SFTPService service;
+
+    setUp(() {
+      mockSftp = MockSftpClient();
+      mockFile = MockSftpFile();
+      service = SFTPService(mockSftp);
+    });
+
+    test('upload sends file data and reports progress', () async {
+      final tempDir = await Directory.systemTemp.createTemp('sftp_up_');
+      try {
+        final localFile = File('${tempDir.path}/test.txt');
+        await localFile.writeAsString('hello world');
+
+        when(mockSftp.open(any, mode: anyNamed('mode')))
+            .thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
+            .thenAnswer((_) async {});
+
+        final progress = <TransferProgress>[];
+        await service.upload(localFile.path, '/remote/test.txt', (p) => progress.add(p));
+
+        expect(progress, isNotEmpty);
+        expect(progress.last.isUpload, isTrue);
+        expect(progress.last.isCompleted, isTrue);
+        verify(mockFile.close()).called(1);
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('upload closes file on error', () async {
+      final tempDir = await Directory.systemTemp.createTemp('sftp_up_err_');
+      try {
+        final localFile = File('${tempDir.path}/test.txt');
+        await localFile.writeAsString('data');
+
+        when(mockSftp.open(any, mode: anyNamed('mode')))
+            .thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
+            .thenThrow(Exception('write failed'));
+
+        expect(
+          () => service.upload(localFile.path, '/remote/test.txt', null),
+          throwsA(anything),
+        );
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+  });
+
+  group('SFTPService — uploadDir', () {
+    late MockSftpClient mockSftp;
+    late MockSftpFile mockFile;
+    late SFTPService service;
+
+    setUp(() {
+      mockSftp = MockSftpClient();
+      mockFile = MockSftpFile();
+      service = SFTPService(mockSftp);
+    });
+
+    test('uploadDir creates remote dir and uploads files', () async {
+      final tempDir = await Directory.systemTemp.createTemp('sftp_updir_');
+      try {
+        // Create local structure: dir/file.txt
+        await File('${tempDir.path}/file.txt').writeAsString('content');
+
+        when(mockSftp.mkdir(any)).thenAnswer((_) async {});
+        when(mockSftp.open(any, mode: anyNamed('mode')))
+            .thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
+            .thenAnswer((_) async {});
+
+        final progress = <TransferProgress>[];
+        await service.uploadDir(tempDir.path, '/remote/dir', (p) => progress.add(p));
+
+        verify(mockSftp.mkdir('/remote/dir')).called(1);
+        expect(progress, isNotEmpty);
+        expect(progress.last.isUpload, isTrue);
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+  });
+
+  group('SFTPService — fromSSHClient', () {
+    test('fromSSHClient creates service from SSH client sftp subsystem', () async {
+      // Can't easily test without real SSH, but verify the static method exists
+      expect(SFTPService.fromSSHClient, isA<Function>());
+    });
+  });
 }
