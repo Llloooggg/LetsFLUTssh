@@ -222,7 +222,7 @@ make build-ios
 | 6     | Terminal search, auto-detect SSH keys, session folders                     |
 | 7     | Tiling terminal layout — recursive split, drag-to-resize, focus tracking   |
 | 8     | Mobile UI — bottom nav, SSH virtual keyboard, deep links, swipe navigation |
-| 9     | 648 tests, security audit, performance profiling, packaging, user docs     |
+| 9     | Tests, security audit, performance profiling, packaging, user docs         |
 
 ## Development
 
