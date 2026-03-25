@@ -11,12 +11,33 @@ import 'errors.dart';
 import 'known_hosts.dart';
 import 'ssh_config.dart';
 
+/// Typedef for socket creation — injectable for testing.
+typedef SSHSocketFactory = Future<SSHSocket> Function(
+  String host,
+  int port, {
+  Duration? timeout,
+});
+
+/// Typedef for SSH client creation — injectable for testing.
+typedef SSHClientFactory = SSHClient Function(
+  SSHSocket socket, {
+  required String username,
+  String? Function()? onPasswordRequest,
+  List<SSHKeyPair>? identities,
+  FutureOr<bool> Function(String type, Uint8List fingerprint)? onVerifyHostKey,
+  Duration? keepAliveInterval,
+});
+
 /// SSH connection wrapper over dartssh2.
 ///
 /// Lifecycle: create → connect() → openShell() → use → disconnect()
 class SSHConnection {
   final SSHConfig config;
   final KnownHostsManager knownHosts;
+
+  /// Optional factories for testing — defaults to real dartssh2 implementations.
+  final SSHSocketFactory _socketFactory;
+  final SSHClientFactory _clientFactory;
 
   SSHClient? _client;
   SSHSession? _shell;
@@ -29,7 +50,34 @@ class SSHConnection {
   SSHConnection({
     required this.config,
     required this.knownHosts,
-  });
+    SSHSocketFactory? socketFactory,
+    SSHClientFactory? clientFactory,
+  })  : _socketFactory = socketFactory ?? _defaultSocketFactory,
+        _clientFactory = clientFactory ?? _defaultClientFactory;
+
+  static Future<SSHSocket> _defaultSocketFactory(
+    String host,
+    int port, {
+    Duration? timeout,
+  }) =>
+      SSHSocket.connect(host, port, timeout: timeout);
+
+  static SSHClient _defaultClientFactory(
+    SSHSocket socket, {
+    required String username,
+    String? Function()? onPasswordRequest,
+    List<SSHKeyPair>? identities,
+    FutureOr<bool> Function(String type, Uint8List fingerprint)? onVerifyHostKey,
+    Duration? keepAliveInterval,
+  }) =>
+      SSHClient(
+        socket,
+        username: username,
+        onPasswordRequest: onPasswordRequest,
+        identities: identities,
+        onVerifyHostKey: onVerifyHostKey,
+        keepAliveInterval: keepAliveInterval,
+      );
 
   bool get isConnected => _client != null && !_disposed;
 
@@ -42,7 +90,7 @@ class SSHConnection {
 
     final SSHSocket socket;
     try {
-      socket = await SSHSocket.connect(
+      socket = await _socketFactory(
         config.host,
         config.effectivePort,
         timeout: Duration(seconds: config.timeoutSec),
@@ -55,7 +103,7 @@ class SSHConnection {
     }
 
     try {
-      _client = SSHClient(
+      _client = _clientFactory(
         socket,
         username: config.user,
         onPasswordRequest: _onPasswordRequest,

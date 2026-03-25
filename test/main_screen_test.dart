@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -366,6 +367,107 @@ void main() {
 
       // The welcome screen should be shown, no tab bar divider
       expect(find.text('SSH/SFTP Client'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — keyboard shortcuts', () {
+    testWidgets('Ctrl+N opens new session dialog via shortcut', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // Request focus by tapping the search field in the session panel
+      // This places focus inside the CallbackShortcuts subtree
+      final textFields = find.byType(TextField);
+      expect(textFields, findsWidgets);
+      await tester.tap(textFields.first);
+      await tester.pump();
+
+      // Send Ctrl+N keyboard shortcut
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // New Session dialog should appear
+      expect(find.text('Host *'), findsOneWidget);
+
+      // Cancel the dialog
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('MainScreen — _newSession dialog flow', () {
+    testWidgets('new session dialog cancel returns to main screen',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // Open dialog via toolbar button
+      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Host *'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+
+      // Cancel
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Back to welcome screen
+      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+    });
+
+    testWidgets('new session dialog shows auth type selector', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      await tester.pumpAndSettle();
+
+      // Dialog should have auth type options
+      expect(find.text('Password'), findsWidgets);
+    });
+  });
+
+  group('MainScreen — welcome screen interaction', () {
+    testWidgets('welcome screen New Session button opens dialog',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // Find the "New Session" FilledButton on welcome screen
+      final newSessionBtn = find.widgetWithText(FilledButton, 'New Session');
+      expect(newSessionBtn, findsOneWidget);
+
+      await tester.tap(newSessionBtn);
+      await tester.pumpAndSettle();
+
+      // Dialog opens
+      expect(find.text('Host *'), findsOneWidget);
+
+      // Cancel
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('MainScreen — DropTarget', () {
+    testWidgets('desktop layout includes DropTarget widget', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // DropTarget should be in the widget tree (from desktop_drop)
+      expect(find.byType(DropTarget), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — CallbackShortcuts', () {
+    testWidgets('layout includes CallbackShortcuts', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      expect(find.byType(CallbackShortcuts), findsOneWidget);
     });
   });
 }
