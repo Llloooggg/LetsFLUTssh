@@ -1,6 +1,6 @@
 # LetsFLUTssh — Development Plan
 
-## Phase 1: Foundation + Terminal (v0.1)
+## Phase 1: Foundation + Terminal (v0.1) ✅
 
 **Goal:** Minimal working SSH client with terminal. Connect, type, display.
 
@@ -51,7 +51,7 @@
 - [x] First working build (Linux desktop) — requires manual testing
 - [x] Test: SSH connection, commands, htop, vim — requires manual testing
 
-## Phase 2: Session Manager (v0.2)
+## Phase 2: Session Manager (v0.2) ✅
 
 **Goal:** Session persistence, sidebar, groups, search
 
@@ -164,7 +164,7 @@
     - [x] Responsive layout (sidebar → drawer on <600px)
     - [x] Hamburger menu button
 
-## Phase 5: Data Portability & Security (v0.5)
+## Phase 5: Data Portability & Security (v0.5) ✅
 
 **Goal:** Secure storage, export/import, encryption
 
@@ -231,7 +231,7 @@
     - [x] Swipe gestures (left/right = tab switch, velocity threshold 300)
 - [x] Android build (APK + AAB)
 
-## Phase 9: Stable Release (v1.0)
+## Phase 9: Stable Release (v1.0) ✅
 
 **Goal:** Production-ready release
 
@@ -294,7 +294,6 @@
 - [ ] Synchronized scrolling (optional)
 - [ ] Biometric auth for opening app / accessing credentials
 - [ ] Notification for active sessions in background (mobile)
-- [ ] Keyboard toolbar for terminal (mobile SSH keys: Ctrl, Esc, Tab, Alt, arrows, F1-F12)
 - [ ] Integration tests (SSH + SFTP with real server) — medium priority
 - [ ] iOS build (untested) — low priority
 - [ ] Android: Play Store / F-Droid — low priority
@@ -303,8 +302,8 @@
 
 ## Current Status
 
-**Active phase:** Phase 9 (Stable Release) — completed
-**Progress:** Phases 1-9 completed. v0.9.1 — 283 tests (209 unit + 67 widget + 7 deeplink). Architecture refactoring (ShellHelper, SFTPInitializer, FilePaneDialogs, SessionConnect), mockito SSH mocks, security audit, packaging, user docs.
+**Active phase:** Phase 10 (Post-Release Polish)
+**Progress:** Phases 1-9 completed. v0.9.4. CI/CD (GitHub Actions + SonarCloud + CodeQL), security audit, packaging, user docs.
 
 ### Work Order
 
@@ -328,5 +327,5 @@ Phase 10 — post-release polish (port forwarding, multi-exec, logging, etc.)
 | 6 ✅  | Advanced UX           | Medium (terminal search, session folders, key improvements)    |
 | 7 ✅  | Tiling                | Medium (recursive split layout)                                |
 | 8 ✅  | Mobile                | Hard (adaptive UI + virtual keyboard + platform integration)   |
-| 9     | Release               | Medium (CI/CD + packaging + testing)                           |
+| 9 ✅  | Release               | Medium (CI/CD + packaging + testing)                           |
 | 10    | Post-Release Polish   | Hard (port forwarding, multi-exec, jump hosts)                 |
