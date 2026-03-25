@@ -811,6 +811,137 @@ void main() {
     });
   });
 
+  group('SettingsScreen — export dialog matching passwords', () {
+    testWidgets('Export dialog closes when passwords match', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Export Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      // Enter matching passwords into the dialog TextFields
+      // Use labeled TextFields to avoid hitting Settings screen fields
+      final masterPw = find.widgetWithText(TextField, 'Master Password');
+      final confirmPw = find.widgetWithText(TextField, 'Confirm Password');
+      await tester.enterText(masterPw, 'matching');
+      await tester.enterText(confirmPw, 'matching');
+
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
+
+      // Wait for any async export operation and toast timer
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 5));
+
+      // Dialog should close (passwords match)
+      expect(find.text('Confirm Password'), findsNothing);
+    });
+  });
+
+  group('SettingsScreen — import dialog with file path and password', () {
+    testWidgets('Import dialog does not close with empty password', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      // Enter path but no password
+      final textFields = find.byType(TextField);
+      await tester.enterText(textFields.at(0), '/tmp/test.lfs');
+
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open (password empty)
+      expect(find.text('Path to .lfs file'), findsOneWidget);
+    });
+
+    testWidgets('Import dialog does not close with empty path', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      // Enter password but no path
+      final textFields = find.byType(TextField);
+      await tester.enterText(textFields.at(1), 'password123');
+
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open (path empty)
+      expect(find.text('Path to .lfs file'), findsOneWidget);
+    });
+
+    testWidgets('Import dialog closes when both fields are filled', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      // Enter both path and password using labeled TextFields
+      final pathField = find.widgetWithText(TextField, 'Path to .lfs file');
+      final pwField = find.widgetWithText(TextField, 'Master Password');
+      await tester.enterText(pathField, '/tmp/nonexistent.lfs');
+      await tester.enterText(pwField, 'password123');
+
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+
+      // Wait for async import operation (file not found error + toast)
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 5));
+
+      // The import dialog should be closed
+      expect(find.text('Path to .lfs file'), findsNothing);
+    });
+  });
+
+  group('SettingsScreen — About section source code tap', () {
+    testWidgets('tapping Source Code copies URL and shows toast', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Source Code'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Source Code'));
+      await tester.pump();
+
+      // Toast should show
+      expect(find.text('URL copied to clipboard'), findsOneWidget);
+
+      // Wait for toast to auto-dismiss
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    });
+  });
+
   group('SettingsScreen — slider interaction', () {
     testWidgets('slider has correct initial value', (tester) async {
       await tester.pumpWidget(buildApp());

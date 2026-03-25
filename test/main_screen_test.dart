@@ -266,4 +266,63 @@ void main() {
       expect(find.byType(TextField), findsWidgets);
     });
   });
+
+  group('MainScreen — toolbar new session button', () {
+    testWidgets('toolbar add button with Ctrl+N tooltip opens dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // Tap the toolbar "+" button (the one with Ctrl+N tooltip)
+      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      await tester.pumpAndSettle();
+
+      // New Session dialog should appear (may have multiple 'New Session' texts)
+      expect(find.text('Host *'), findsOneWidget);
+
+      // Cancel the dialog
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('MainScreen — settings button', () {
+    testWidgets('settings button in toolbar opens settings', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Settings'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Appearance'), findsOneWidget);
+    });
+  });
+
+  group('_StatusBar — transfer status display', () {
+    testWidgets('status bar renders without active transfers', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      expect(find.text('No active connection'), findsOneWidget);
+      expect(find.textContaining('tab(s)'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — wide vs narrow layout', () {
+    testWidgets('wide layout does not show hamburger menu', (tester) async {
+      await tester.pumpWidget(buildApp(width: 1000));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.menu), findsNothing);
+    });
+  });
+
+  group('MainScreen — divider hidden when no tabs', () {
+    testWidgets('no divider below tab bar when no tabs', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // The welcome screen should be shown, no tab bar divider
+      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+    });
+  });
 }

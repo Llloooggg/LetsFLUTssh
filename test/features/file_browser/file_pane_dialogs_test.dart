@@ -32,6 +32,57 @@ class _MockFS implements FileSystem {
       renames.add((oldPath, newPath));
 }
 
+/// FS that throws on mkdir.
+class _ErrorMkdirFS implements FileSystem {
+  @override
+  Future<String> initialDir() async => '/test';
+  @override
+  Future<List<FileEntry>> list(String path) async => [];
+  @override
+  Future<void> mkdir(String path) async => throw Exception('mkdir failed');
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+}
+
+/// FS that throws on rename.
+class _ErrorRenameFS implements FileSystem {
+  @override
+  Future<String> initialDir() async => '/test';
+  @override
+  Future<List<FileEntry>> list(String path) async => [];
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async =>
+      throw Exception('rename failed');
+}
+
+/// FS that throws on remove/removeDir.
+class _ErrorDeleteFS implements FileSystem {
+  @override
+  Future<String> initialDir() async => '/test';
+  @override
+  Future<List<FileEntry>> list(String path) async => [];
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async =>
+      throw Exception('delete failed');
+  @override
+  Future<void> removeDir(String path) async =>
+      throw Exception('delete failed');
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+}
+
 void main() {
   group('FilePaneDialogs.showNewFolder', () {
     testWidgets('shows dialog with text field', (tester) async {
@@ -174,6 +225,312 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(fs.renames, [('/test/old.txt', '/test/new.txt')]);
+      ctrl.dispose();
+    });
+  });
+
+  group('FilePaneDialogs.showNewFolder — error handling', () {
+    testWidgets('shows error toast when mkdir fails', (tester) async {
+      final fs = _ErrorMkdirFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(builder: (context) {
+            return ElevatedButton(
+              onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
+              child: const Text('Go'),
+            );
+          }),
+        ),
+      ));
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'faildir');
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      // Error toast should show
+      expect(find.textContaining('Failed to create folder'), findsOneWidget);
+
+      // Wait for toast to auto-dismiss
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      ctrl.dispose();
+    });
+
+    testWidgets('empty name does not create folder', (tester) async {
+      final fs = _MockFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(builder: (context) {
+          return ElevatedButton(
+            onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
+            child: const Text('Go'),
+          );
+        }),
+      ));
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      // Submit with empty name
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(fs.createdDirs, isEmpty);
+      ctrl.dispose();
+    });
+
+    testWidgets('submit via Enter key creates folder', (tester) async {
+      final fs = _MockFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(builder: (context) {
+          return ElevatedButton(
+            onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
+            child: const Text('Go'),
+          );
+        }),
+      ));
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'enterdir');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(fs.createdDirs, ['/test/enterdir']);
+      ctrl.dispose();
+    });
+  });
+
+  group('FilePaneDialogs.showRename — error handling', () {
+    testWidgets('shows error toast when rename fails', (tester) async {
+      final fs = _ErrorRenameFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      final entry = FileEntry(
+        name: 'old.txt',
+        path: '/test/old.txt',
+        size: 100,
+        modTime: DateTime.now(),
+        isDir: false,
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(builder: (context) {
+            return ElevatedButton(
+              onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
+              child: const Text('Go'),
+            );
+          }),
+        ),
+      ));
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'new.txt');
+      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Failed to rename'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      ctrl.dispose();
+    });
+
+    testWidgets('same name does not trigger rename', (tester) async {
+      final fs = _MockFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      final entry = FileEntry(
+        name: 'same.txt',
+        path: '/test/same.txt',
+        size: 100,
+        modTime: DateTime.now(),
+        isDir: false,
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(builder: (context) {
+          return ElevatedButton(
+            onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
+            child: const Text('Go'),
+          );
+        }),
+      ));
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      // Don't change the name, just submit
+      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.pumpAndSettle();
+
+      expect(fs.renames, isEmpty);
+      ctrl.dispose();
+    });
+
+    testWidgets('submit via Enter key renames', (tester) async {
+      final fs = _MockFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      final entry = FileEntry(
+        name: 'old.txt',
+        path: '/test/old.txt',
+        size: 100,
+        modTime: DateTime.now(),
+        isDir: false,
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(builder: (context) {
+          return ElevatedButton(
+            onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
+            child: const Text('Go'),
+          );
+        }),
+      ));
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'entered.txt');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(fs.renames, [('/test/old.txt', '/test/entered.txt')]);
+      ctrl.dispose();
+    });
+  });
+
+  group('FilePaneDialogs.confirmDelete — error handling', () {
+    testWidgets('shows error toast when delete fails', (tester) async {
+      final fs = _ErrorDeleteFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      final entry = FileEntry(
+        name: 'fail.txt',
+        path: '/test/fail.txt',
+        size: 100,
+        modTime: DateTime.now(),
+        isDir: false,
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(builder: (context) {
+            return ElevatedButton(
+              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+              child: const Text('Go'),
+            );
+          }),
+        ),
+      ));
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Failed to delete'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      ctrl.dispose();
+    });
+
+    testWidgets('shows success toast after successful delete', (tester) async {
+      final fs = _MockFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      final entry = FileEntry(
+        name: 'success.txt',
+        path: '/test/success.txt',
+        size: 100,
+        modTime: DateTime.now(),
+        isDir: false,
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(builder: (context) {
+            return ElevatedButton(
+              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+              child: const Text('Go'),
+            );
+          }),
+        ),
+      ));
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Deleted success.txt'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      ctrl.dispose();
+    });
+
+    testWidgets('deletes multiple items with success toast', (tester) async {
+      final fs = _MockFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      final entries = [
+        FileEntry(name: 'a.txt', path: '/test/a.txt', size: 10, modTime: DateTime.now(), isDir: false),
+        FileEntry(name: 'b.txt', path: '/test/b.txt', size: 20, modTime: DateTime.now(), isDir: false),
+      ];
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(builder: (context) {
+            return ElevatedButton(
+              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, entries),
+              child: const Text('Go'),
+            );
+          }),
+        ),
+      ));
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Deleted 2 items'), findsOneWidget);
+      expect(fs.removedFiles, ['/test/a.txt', '/test/b.txt']);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
       ctrl.dispose();
     });
   });

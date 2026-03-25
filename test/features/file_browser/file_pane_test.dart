@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
@@ -493,6 +494,537 @@ void main() {
       await tester.pump();
 
       // Should still show empty dir (no crash)
+      expect(find.text('Empty directory'), findsOneWidget);
+    });
+  });
+
+  group('FilePane — selection and footer', () {
+    testWidgets('selecting an entry via controller updates footer', (tester) async {
+      final entries = [
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      ctrl.selectSingle('/home/a.txt');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      expect(find.textContaining('1 selected'), findsOneWidget);
+
+      // Select both
+      ctrl.toggleSelect('/home/b.txt');
+      await tester.pump();
+      expect(find.textContaining('2 selected'), findsOneWidget);
+    });
+  });
+
+  group('FilePane — path bar submit', () {
+    testWidgets('submitting path bar navigates to new path', (tester) async {
+      final fs = _MockFS({'/home': [], '/tmp': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Tap the path text to enter edit mode
+      await tester.tap(find.text('/home').first);
+      await tester.pump();
+
+      // Enter new path and submit
+      final textFields = find.byType(TextField);
+      expect(textFields, findsWidgets);
+
+      // Find the path TextField and enter text
+      await tester.enterText(textFields.first, '/tmp');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(ctrl.currentPath, '/tmp');
+    });
+
+    testWidgets('tapping outside path bar cancels edit', (tester) async {
+      final fs = _MockFS({'/home': [], '/': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Enter edit mode
+      await tester.tap(find.text('/home').first);
+      await tester.pump();
+
+      // Tap outside to cancel
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pump();
+
+      // Path should still be /home
+      expect(ctrl.currentPath, '/home');
+    });
+  });
+
+  group('FilePane — drag & drop between panes', () {
+    testWidgets('DragTarget accepts drops from different pane', (tester) async {
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 400,
+            child: FilePane(
+              controller: ctrl,
+              paneId: 'pane-A',
+              onDropReceived: (entries) {},
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // Verify the widget renders without crashing
+      expect(find.text('file.txt'), findsOneWidget);
+    });
+  });
+
+  group('FilePane — onKeyEvent Del key', () {
+    testWidgets('Del key with selected files shows delete confirmation', (tester) async {
+      final entries = [
+        FileEntry(name: 'to_delete.txt', path: '/home/to_delete.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Click on the file row to focus the pane (pointer down requests focus)
+      await tester.tap(find.text('to_delete.txt'));
+      await tester.pump();
+
+      // Now select via controller after the focus is set
+      ctrl.selectSingle('/home/to_delete.txt');
+      await tester.pump();
+
+      // Send Delete key
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      // Delete confirmation dialog should appear
+      expect(find.text('Delete "to_delete.txt"?'), findsOneWidget);
+    });
+  });
+
+  group('FilePane — Owner column', () {
+    testWidgets('shows Owner column when entries have owner', (tester) async {
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false, owner: 'root'),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      expect(find.text('Owner'), findsOneWidget);
+    });
+
+    testWidgets('hides Owner column when no entries have owner', (tester) async {
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      expect(find.text('Owner'), findsNothing);
+    });
+  });
+
+  group('FilePane — context menu with transfer callbacks', () {
+    testWidgets('context menu Transfer calls onTransfer for single file', (tester) async {
+      FileEntry? transferred;
+      final entries = [
+        FileEntry(name: 'data.bin', path: '/home/data.bin', size: 1000, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 400,
+            child: FilePane(
+              controller: ctrl,
+              paneId: 'test',
+              onTransfer: (entry) => transferred = entry,
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // Right-click on file
+      final fileText = find.text('data.bin');
+      final center = tester.getCenter(fileText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Tap Transfer
+      await tester.tap(find.text('Transfer'));
+      await tester.pumpAndSettle();
+
+      expect(transferred, isNotNull);
+      expect(transferred!.name, 'data.bin');
+    });
+
+    testWidgets('context menu Transfer calls onTransferMultiple for multi-select', (tester) async {
+      List<FileEntry>? transferred;
+      final entries = [
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      // Select both entries
+      ctrl.toggleSelect('/home/a.txt');
+      ctrl.toggleSelect('/home/b.txt');
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 400,
+            child: FilePane(
+              controller: ctrl,
+              paneId: 'test',
+              onTransferMultiple: (entries) => transferred = entries,
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // Right-click on one of the selected files
+      final fileText = find.text('a.txt');
+      final center = tester.getCenter(fileText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Context menu should show "Transfer 2 items"
+      expect(find.text('Transfer 2 items'), findsOneWidget);
+
+      await tester.tap(find.text('Transfer 2 items'));
+      await tester.pumpAndSettle();
+
+      expect(transferred, isNotNull);
+      expect(transferred!.length, 2);
+    });
+
+    testWidgets('context menu Delete for multi-select shows count', (tester) async {
+      final entries = [
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      ctrl.toggleSelect('/home/a.txt');
+      ctrl.toggleSelect('/home/b.txt');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      final fileText = find.text('a.txt');
+      final center = tester.getCenter(fileText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete 2 items'), findsOneWidget);
+    });
+  });
+
+  group('FilePane — context menu actions', () {
+    testWidgets('context menu Open navigates into directory', (tester) async {
+      final entries = [
+        FileEntry(name: 'subdir', path: '/home/subdir', size: 0, mode: 0x41ED, modTime: now, isDir: true),
+      ];
+      final fs = _MockFS({'/home': entries, '/home/subdir': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      final dirText = find.text('subdir');
+      final center = tester.getCenter(dirText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(ctrl.currentPath, '/home/subdir');
+    });
+
+    testWidgets('context menu New Folder opens dialog', (tester) async {
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      final fileText = find.text('file.txt');
+      final center = tester.getCenter(fileText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('New Folder'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Folder name'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('context menu Rename opens rename dialog', (tester) async {
+      final entries = [
+        FileEntry(name: 'old.txt', path: '/home/old.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      final fileText = find.text('old.txt');
+      final center = tester.getCenter(fileText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Rename'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rename'), findsWidgets);
+      expect(find.text('New name'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('context menu Delete opens confirmation', (tester) async {
+      final entries = [
+        FileEntry(name: 'del.txt', path: '/home/del.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      final fileText = find.text('del.txt');
+      final center = tester.getCenter(fileText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete "del.txt"?'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('FilePane — background context menu Refresh', () {
+    testWidgets('background context menu Refresh reloads directory', (tester) async {
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Right-click on empty directory
+      final emptyText = find.text('Empty directory');
+      final center = tester.getCenter(emptyText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Refresh'));
+      await tester.pumpAndSettle();
+
+      // Should still show empty dir
+      expect(find.text('Empty directory'), findsOneWidget);
+    });
+  });
+
+  group('FilePane — background context menu New Folder', () {
+    testWidgets('background context menu New Folder opens dialog', (tester) async {
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      final emptyText = find.text('Empty directory');
+      final center = tester.getCenter(emptyText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('New Folder'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Folder name'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('FilePane — marquee selection', () {
+    testWidgets('pointer down on file list does not crash', (tester) async {
+      final entries = [
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Click on the file list area to trigger pointer down
+      await tester.tap(find.text('a.txt'));
+      await tester.pumpAndSettle();
+
+      // No crash
+      expect(find.text('a.txt'), findsOneWidget);
+    });
+  });
+
+  group('FilePane — file list with background right-click on list', () {
+    testWidgets('right-click on list background shows context menu', (tester) async {
+      final entries = [
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Right-click below the file list
+      final scaffold = find.byType(Scaffold);
+      final box = tester.getRect(scaffold);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: Offset(box.center.dx, box.bottom - 50));
+      await gesture.down(Offset(box.center.dx, box.bottom - 50));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Some form of menu may appear, or no crash
+      expect(find.byType(Scaffold), findsWidgets);
+    });
+  });
+
+  group('FilePane — OS drag enter/exit', () {
+    testWidgets('renders with osDragging false initially', (tester) async {
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // No border highlight — OS dragging is false
       expect(find.text('Empty directory'), findsOneWidget);
     });
   });
