@@ -114,7 +114,11 @@ Old beta tags stay in history — they document the path to release.
   - After writing code: run `make test`, check uncovered lines, keep writing tests until all testable lines are covered
   - Only skip lines that physically cannot be tested (real SSH server, native file I/O with path_provider)
   - Before suggesting commit: `make analyze` + `make test`
-- **Parallel agents** — when committing, only `git add` files YOU changed; do not stage unrelated changes from other agents working in parallel. This prevents agents from stepping on each other
+- **Parallel agents** — multiple agents may work in the same repo simultaneously:
+  - Only `git add` files YOU changed — never stage unrelated changes from other agents
+  - Before committing, run `git status` and verify every staged file is yours
+  - If you see untracked/modified files you didn't touch — leave them alone
+- **Version gatekeeper** — before suggesting a commit, check if the change requires a version bump per Versioning Strategy above. If it does (bugfix → patch, feature → minor, breaking → major), remind the user to bump. If it doesn't (tests, docs, refactor, CI), explicitly say no bump needed
 
 ## Tech Stack
 
