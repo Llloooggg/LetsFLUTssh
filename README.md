@@ -212,7 +212,7 @@ make build-ios
 
 ## Current Status
 
-**v0.9.4** — All core features implemented across 9 development phases:
+**v0.9.5** — All core features implemented across 9 development phases:
 
 | Phase | What                                                                       |
 | ----- | -------------------------------------------------------------------------- |
@@ -236,7 +236,7 @@ make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
 
-See [User Guide](docs/USER_GUIDE.md) for usage instructions, [CLAUDE.md](CLAUDE.md) for architecture details, and [PLAN.md](PLAN.md) for the development roadmap.
+See [CLAUDE.md](CLAUDE.md) for architecture details and [PLAN.md](PLAN.md) for the development roadmap.
 
 ## License
 
