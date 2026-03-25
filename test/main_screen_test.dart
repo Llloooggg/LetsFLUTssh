@@ -314,6 +314,49 @@ void main() {
 
       expect(find.byIcon(Icons.menu), findsNothing);
     });
+
+    testWidgets('wide layout renders SplitView with session panel', (tester) async {
+      await tester.pumpWidget(buildApp(width: 1000));
+      await tester.pump();
+
+      // Session panel should be visible
+      expect(find.text('Sessions'), findsOneWidget);
+      // Toolbar should have New Session button
+      expect(find.byTooltip('New Session (Ctrl+N)'), findsOneWidget);
+    });
+
+    testWidgets('wide layout shows welcome screen when no tabs', (tester) async {
+      await tester.pumpWidget(buildApp(width: 1000));
+      await tester.pump();
+
+      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+      expect(find.text('No active connection'), findsOneWidget);
+    });
+
+  });
+
+  group('MainScreen — toolbar', () {
+    testWidgets('SFTP button disabled when no active tab', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // SFTP button should not be visible or be disabled
+      final sftpButton = find.byTooltip('Open SFTP');
+      // No active tab = no SFTP button
+      expect(sftpButton, findsNothing);
+    });
+
+    testWidgets('settings button opens settings screen', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      final settingsButton = find.byIcon(Icons.settings);
+      expect(settingsButton, findsOneWidget);
+      await tester.tap(settingsButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Settings'), findsWidgets);
+    });
   });
 
   group('MainScreen — divider hidden when no tabs', () {
