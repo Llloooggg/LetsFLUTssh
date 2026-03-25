@@ -20,7 +20,7 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 
 ### Work Style
 
-- Documentation is maintained in English (PLAN.md, README.md, CLAUDE.md)
+- Documentation is maintained in English (PLAN.md, README.md, CLAUDE.md, SECURITY.md, docs/USER_GUIDE.md)
 - PLAN.md, CLAUDE.md, README.md **updated on every significant change**
 - All architectural/UX patterns documented in CLAUDE.md at the time of implementation
 - SSH keys accepted **both as file and text** (paste PEM) — key requirement
@@ -32,7 +32,10 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 1. **Version bump** — bump version in `pubspec.yaml` (patch for fix/feat, minor for new phase)
 2. **CLAUDE.md** — update Current State and module descriptions; document **why** a decision was made
 3. **README.md** — update if the change is user-visible
-4. **Commit** — suggest a one-line message in `type: short description` format (user commits manually)
+4. **PLAN.md** — update phase checkmarks and current status if applicable
+5. **SECURITY.md** — update if security scope changes (new crypto, auth methods, etc.)
+6. **docs/USER_GUIDE.md** — update if new user-facing features or keyboard shortcuts are added
+7. **Commit** — suggest a one-line message in `type: short description` format (user commits manually)
 
 ### Dependencies
 
