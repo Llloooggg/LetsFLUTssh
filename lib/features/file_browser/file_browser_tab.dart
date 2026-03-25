@@ -17,12 +17,19 @@ import 'sftp_initializer.dart';
 import 'transfer_panel.dart';
 
 /// Dual-pane SFTP file browser tab.
+/// Factory for SFTP initialization — injectable for testing.
+typedef SFTPInitFactory = Future<SFTPInitResult> Function(Connection connection);
+
 class FileBrowserTab extends ConsumerStatefulWidget {
   final Connection connection;
+
+  /// Optional factory for testing — bypasses real SSH/SFTP.
+  final SFTPInitFactory? sftpInitFactory;
 
   const FileBrowserTab({
     super.key,
     required this.connection,
+    this.sftpInitFactory,
   });
 
   @override
@@ -53,7 +60,9 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
   Future<void> _initSftp() async {
     try {
-      _sftp = await SFTPInitializer.init(widget.connection);
+      _sftp = widget.sftpInitFactory != null
+          ? await widget.sftpInitFactory!(widget.connection)
+          : await SFTPInitializer.init(widget.connection);
       if (mounted) {
         setState(() => _initializing = false);
       }

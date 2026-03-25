@@ -1,13 +1,61 @@
+import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 
 import 'package:letsflutssh/core/connection/connection.dart';
+import 'package:letsflutssh/core/sftp/sftp_client.dart';
+import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/transfer/transfer_manager.dart';
+import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_tab.dart';
+import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
+import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+
+@GenerateNiceMocks([MockSpec<SftpClient>()])
+import 'file_browser_tab_test.mocks.dart';
+
+/// Fake FileSystem for testing.
+class _FakeFS implements FileSystem {
+  _FakeFS();
+
+  @override
+  Future<String> initialDir() async => '/test';
+  @override
+  Future<List<FileEntry>> list(String path) async => [];
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+}
+
+/// Creates a fake SFTPInitResult for testing.
+Future<SFTPInitResult> _fakeInitFactory(Connection conn) async {
+  final mockSftp = MockSftpClient();
+  when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
+  when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+
+  final sftpService = SFTPService(mockSftp);
+  final localCtrl = FilePaneController(fs: _FakeFS(), label: 'Local');
+  final remoteCtrl = FilePaneController(fs: RemoteFS(sftpService), label: 'Remote');
+
+  await Future.wait([localCtrl.init(), remoteCtrl.init()]);
+
+  return SFTPInitResult(
+    localCtrl: localCtrl,
+    remoteCtrl: remoteCtrl,
+    sftpService: sftpService,
+  );
+}
 
 void main() {
   late TransferManager manager;
@@ -234,6 +282,76 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(FilledButton), findsOneWidget);
+    });
+  });
+
+  group('FileBrowserTab — success path (injectable factory)', () {
+    testWidgets('split divider exists in success state', (tester) async {
+      final conn = Connection(
+        id: 'success-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: _fakeInitFactory,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Divider with resize cursor should exist
+      final dividers = find.byWidgetPredicate((w) =>
+          w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
+      expect(dividers, findsOneWidget);
+    });
+
+    testWidgets('TransferPanel is shown below panes', (tester) async {
+      final conn = Connection(
+        id: 'success-4',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: _fakeInitFactory,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // TransferPanel header should be visible
+      expect(find.textContaining('Transfers'), findsOneWidget);
     });
   });
 }
