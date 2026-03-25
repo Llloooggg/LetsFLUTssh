@@ -7,6 +7,7 @@ on:
     paths-ignore:
       - '*.md'
       - 'docs/**'
+      - 'test/**'
       - '.github/workflows/sonarcloud.yml'
       - 'sonar-project.properties'
       - 'LICENSE'
@@ -16,6 +17,7 @@ on:
     paths-ignore:
       - '*.md'
       - 'docs/**'
+      - 'test/**'
       - '.github/workflows/sonarcloud.yml'
       - 'sonar-project.properties'
       - 'LICENSE'
