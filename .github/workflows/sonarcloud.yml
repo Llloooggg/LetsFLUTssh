@@ -3,22 +3,18 @@ name: SonarCloud
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - '*.md'
-      - 'docs/**'
-      - '.github/workflows/build.yml'
-      - '.github/workflows/codeql.yml'
-      - 'LICENSE'
-      - '.gitignore'
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'pubspec.*'
+      - 'sonar-project.properties'
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '*.md'
-      - 'docs/**'
-      - '.github/workflows/build.yml'
-      - '.github/workflows/codeql.yml'
-      - 'LICENSE'
-      - '.gitignore'
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'pubspec.*'
+      - 'sonar-project.properties'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
