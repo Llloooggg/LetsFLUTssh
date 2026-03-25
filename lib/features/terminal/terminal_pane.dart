@@ -12,6 +12,13 @@ import '../../utils/platform.dart' as plat;
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
 ///
 /// Multiple panes can share the same [Connection] (each opens its own shell).
+/// Factory for opening SSH shell — injectable for testing.
+typedef ShellOpenFactory = Future<ShellConnection> Function({
+  required Connection connection,
+  required Terminal terminal,
+  VoidCallback? onDone,
+});
+
 class TerminalPane extends StatefulWidget {
   final Connection connection;
   final bool isFocused;
@@ -19,6 +26,9 @@ class TerminalPane extends StatefulWidget {
   final VoidCallback? onSplitVertical;
   final VoidCallback? onSplitHorizontal;
   final VoidCallback? onClose;
+
+  /// Optional factory for testing — bypasses real SSH shell.
+  final ShellOpenFactory? shellFactory;
 
   const TerminalPane({
     super.key,
@@ -28,6 +38,7 @@ class TerminalPane extends StatefulWidget {
     this.onSplitVertical,
     this.onSplitHorizontal,
     this.onClose,
+    this.shellFactory,
   });
 
   @override
@@ -53,19 +64,29 @@ class TerminalPaneState extends State<TerminalPane> {
   }
 
   Future<void> _connectAndOpenShell() async {
+    void onDone() {
+      if (mounted) {
+        setState(() {
+          _connected = false;
+          _error = 'Session closed';
+        });
+      }
+    }
+
     try {
-      _shellConn = await ShellHelper.openShell(
-        connection: widget.connection,
-        terminal: _terminal,
-        onDone: () {
-          if (mounted) {
-            setState(() {
-              _connected = false;
-              _error = 'Session closed';
-            });
-          }
-        },
-      );
+      if (widget.shellFactory != null) {
+        _shellConn = await widget.shellFactory!(
+          connection: widget.connection,
+          terminal: _terminal,
+          onDone: onDone,
+        );
+      } else {
+        _shellConn = await ShellHelper.openShell(
+          connection: widget.connection,
+          terminal: _terminal,
+          onDone: onDone,
+        );
+      }
       if (mounted) setState(() => _connected = true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());

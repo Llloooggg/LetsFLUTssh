@@ -1,16 +1,66 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:xterm/xterm.dart';
 
 import 'package:letsflutssh/core/connection/connection.dart';
+import 'package:letsflutssh/core/ssh/shell_helper.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/terminal/terminal_pane.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
 import '../../core/ssh/shell_helper_test.mocks.dart';
+
+/// Creates a fake ShellConnection with mock session that never closes.
+ShellConnection _fakeShellConnection() {
+  final mockSession = MockSSHSession();
+  final stdoutCtrl = StreamController<Uint8List>.broadcast();
+  final stderrCtrl = StreamController<Uint8List>.broadcast();
+  final doneCompleter = Completer<void>();
+
+  when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+  when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+  when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+
+  return ShellConnection(
+    shell: mockSession,
+    stdoutSub: stdoutCtrl.stream.listen((_) {}),
+    stderrSub: stderrCtrl.stream.listen((_) {}),
+  );
+}
+
+/// A shellFactory that immediately returns a fake ShellConnection.
+Future<ShellConnection> _successShellFactory({
+  required Connection connection,
+  required Terminal terminal,
+  VoidCallback? onDone,
+}) async {
+  return _fakeShellConnection();
+}
+
+/// A shellFactory that throws an error.
+Future<ShellConnection> _errorShellFactory({
+  required Connection connection,
+  required Terminal terminal,
+  VoidCallback? onDone,
+}) async {
+  throw Exception('Shell factory error');
+}
+
+/// Helper to build a Connection for tests (sshConnection can be null for factory tests).
+Connection _testConnection({String id = 'test'}) {
+  return Connection(
+    id: id,
+    label: 'Test $id',
+    sshConfig: const SSHConfig(host: 'h', user: 'u'),
+    sshConnection: null,
+    state: SSHConnectionState.disconnected,
+  );
+}
 
 void main() {
   group('TerminalPane — error state UI', () {
@@ -317,6 +367,409 @@ void main() {
 
       await stdoutCtrl.close();
       await stderrCtrl.close();
+    });
+  });
+
+  group('TerminalPane — shellFactory connected state', () {
+    testWidgets('renders TerminalView when shellFactory succeeds', (tester) async {
+      final conn = _testConnection(id: 'sf-1');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Should be in connected state — no spinner, no error
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byIcon(Icons.error_outline), findsNothing);
+      // TerminalView should be rendered
+      expect(find.byType(TerminalView), findsOneWidget);
+    });
+
+    testWidgets('renders error when shellFactory throws', (tester) async {
+      final conn = _testConnection(id: 'sf-2');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              shellFactory: _errorShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.textContaining('Shell factory error'), findsOneWidget);
+    });
+
+    testWidgets('focused pane has primary border color', (tester) async {
+      final conn = _testConnection(id: 'sf-border-f');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the Container with BoxDecoration border
+      final container = tester.widgetList<Container>(find.byType(Container)).where((c) {
+        final deco = c.decoration;
+        return deco is BoxDecoration && deco.border != null;
+      }).first;
+      final boxDeco = container.decoration as BoxDecoration;
+      final border = boxDeco.border as Border;
+      final theme = AppTheme.dark();
+      expect(border.top.color, theme.colorScheme.primary);
+      expect(border.top.width, 1.5);
+    });
+
+    testWidgets('unfocused pane has divider border color', (tester) async {
+      final conn = _testConnection(id: 'sf-border-u');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: false,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final container = tester.widgetList<Container>(find.byType(Container)).where((c) {
+        final deco = c.decoration;
+        return deco is BoxDecoration && deco.border != null;
+      }).first;
+      final boxDeco = container.decoration as BoxDecoration;
+      final border = boxDeco.border as Border;
+      expect(border.top.width, 0.5);
+    });
+  });
+
+  group('TerminalPane — context menu via shellFactory', () {
+    testWidgets('right-click shows Paste and split menu items', (tester) async {
+      final conn = _testConnection(id: 'sf-ctx');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              onSplitVertical: () {},
+              onSplitHorizontal: () {},
+              onClose: () {},
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Right-click on the TerminalView
+      final termView = find.byType(TerminalView);
+      expect(termView, findsOneWidget);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      // Context menu should show Paste, Split Right, Split Down, Close Pane
+      expect(find.text('Paste'), findsOneWidget);
+      expect(find.text('Split Right'), findsOneWidget);
+      expect(find.text('Split Down'), findsOneWidget);
+      expect(find.text('Close Pane'), findsOneWidget);
+    });
+
+    testWidgets('split-v menu item calls onSplitVertical', (tester) async {
+      var splitVCalled = false;
+      final conn = _testConnection(id: 'sf-split-v');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              onSplitVertical: () => splitVCalled = true,
+              onSplitHorizontal: () {},
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Split Right'));
+      await tester.pumpAndSettle();
+
+      expect(splitVCalled, isTrue);
+    });
+
+    testWidgets('split-h menu item calls onSplitHorizontal', (tester) async {
+      var splitHCalled = false;
+      final conn = _testConnection(id: 'sf-split-h');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              onSplitVertical: () {},
+              onSplitHorizontal: () => splitHCalled = true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Split Down'));
+      await tester.pumpAndSettle();
+
+      expect(splitHCalled, isTrue);
+    });
+
+    testWidgets('close menu item calls onClose', (tester) async {
+      var closeCalled = false;
+      final conn = _testConnection(id: 'sf-close');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              onSplitVertical: () {},
+              onSplitHorizontal: () {},
+              onClose: () => closeCalled = true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Close Pane'));
+      await tester.pumpAndSettle();
+
+      expect(closeCalled, isTrue);
+    });
+
+    testWidgets('no Close Pane when onClose is null', (tester) async {
+      final conn = _testConnection(id: 'sf-no-close');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              onSplitVertical: () {},
+              onSplitHorizontal: () {},
+              onClose: null,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paste'), findsOneWidget);
+      expect(find.text('Split Right'), findsOneWidget);
+      expect(find.text('Close Pane'), findsNothing);
+    });
+
+    testWidgets('no split items when onSplitVertical is null', (tester) async {
+      final conn = _testConnection(id: 'sf-no-split');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              onSplitVertical: null,
+              onSplitHorizontal: null,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paste'), findsOneWidget);
+      expect(find.text('Split Right'), findsNothing);
+      expect(find.text('Split Down'), findsNothing);
+    });
+  });
+
+  group('TerminalPane — onFocused callback', () {
+    testWidgets('onFocused callback is wired to the pane widget', (tester) async {
+      var focusCalled = false;
+      final conn = _testConnection(id: 'sf-focus');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: false,
+              onFocused: () => focusCalled = true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify the pane widget has the onFocused callback set
+      final pane = tester.widget<TerminalPane>(find.byType(TerminalPane));
+      expect(pane.onFocused, isNotNull);
+      // Call it manually to verify wiring
+      pane.onFocused!();
+      expect(focusCalled, isTrue);
+    });
+  });
+
+  group('TerminalPane — shellFactory onDone callback', () {
+    testWidgets('session closed via onDone shows error state', (tester) async {
+      VoidCallback? capturedOnDone;
+      final conn = _testConnection(id: 'sf-done');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              shellFactory: ({
+                required Connection connection,
+                required Terminal terminal,
+                VoidCallback? onDone,
+              }) async {
+                capturedOnDone = onDone;
+                return _fakeShellConnection();
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Should be connected
+      expect(find.byType(TerminalView), findsOneWidget);
+
+      // Trigger onDone to simulate session close
+      capturedOnDone?.call();
+      await tester.pumpAndSettle();
+
+      // Should show "Session closed" error
+      expect(find.textContaining('Session closed'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    });
+  });
+
+  group('TerminalPane — paste action from context menu', () {
+    testWidgets('paste menu item reads from clipboard', (tester) async {
+      final conn = _testConnection(id: 'sf-paste');
+
+      // Set clipboard data before pasting
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.getData') {
+            return <String, dynamic>{'text': 'pasted text'};
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = find.byType(TerminalView);
+      final center = tester.getCenter(termView);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Paste'));
+      await tester.pumpAndSettle();
+
+      // Paste action should not throw; menu should close
+      expect(find.text('Paste'), findsNothing);
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, null,
+      );
     });
   });
 }

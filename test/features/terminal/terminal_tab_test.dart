@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -313,6 +315,167 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Reconnect failed'), findsOneWidget);
+    });
+  });
+
+  group('TerminalTab — reconnectFactory', () {
+    testWidgets('reconnect success via reconnectFactory resets to connected state', (tester) async {
+      final conn = Connection(
+        id: 'rf-ok',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalTab(
+              tabId: 'tab-rf-ok',
+              connection: conn,
+              reconnectFactory: (_) async {
+                // Simulate successful reconnect — no-op
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Should show error state initially (no sshConnection)
+      expect(find.text('Not connected'), findsOneWidget);
+      expect(find.text('Reconnect'), findsOneWidget);
+
+      // Tap Reconnect
+      await tester.tap(find.text('Reconnect'));
+      await tester.pumpAndSettle();
+
+      // After successful reconnect, should show TilingView (connected state)
+      // TilingView renders TerminalPane(s) — so no error, no spinner
+      expect(find.text('Not connected'), findsNothing);
+      expect(find.textContaining('Reconnect failed'), findsNothing);
+    });
+
+    testWidgets('reconnect failure via reconnectFactory shows error', (tester) async {
+      final conn = Connection(
+        id: 'rf-fail',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalTab(
+              tabId: 'tab-rf-fail',
+              connection: conn,
+              reconnectFactory: (_) async {
+                throw Exception('Auth failed');
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Should show error state initially
+      expect(find.text('Not connected'), findsOneWidget);
+
+      // Tap Reconnect
+      await tester.tap(find.text('Reconnect'));
+      await tester.pumpAndSettle();
+
+      // Should show reconnect error
+      expect(find.textContaining('Reconnect failed'), findsOneWidget);
+      expect(find.textContaining('Auth failed'), findsOneWidget);
+    });
+
+    testWidgets('reconnect shows loading spinner briefly', (tester) async {
+      final completer = Completer<void>();
+      final conn = Connection(
+        id: 'rf-load',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalTab(
+              tabId: 'tab-rf-load',
+              connection: conn,
+              reconnectFactory: (_) => completer.future,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Tap Reconnect
+      await tester.tap(find.text('Reconnect'));
+      await tester.pump();
+
+      // Should show loading spinner while reconnect is in progress
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Reconnect'), findsNothing);
+
+      // Complete the reconnect
+      completer.complete();
+      await tester.pumpAndSettle();
+
+      // Should be in connected state now
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.textContaining('Reconnect failed'), findsNothing);
+    });
+
+    testWidgets('double reconnect: fail then succeed', (tester) async {
+      var callCount = 0;
+      final conn = Connection(
+        id: 'rf-retry',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalTab(
+              tabId: 'tab-rf-retry',
+              connection: conn,
+              reconnectFactory: (_) async {
+                callCount++;
+                if (callCount == 1) {
+                  throw Exception('First attempt failed');
+                }
+                // Second attempt succeeds
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // First reconnect — fails
+      await tester.tap(find.text('Reconnect'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('First attempt failed'), findsOneWidget);
+
+      // Second reconnect — succeeds
+      await tester.tap(find.text('Reconnect'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Reconnect failed'), findsNothing);
+      expect(callCount, 2);
     });
   });
 }

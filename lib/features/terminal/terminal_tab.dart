@@ -10,16 +10,23 @@ import 'tiling_view.dart';
 ///
 /// Supports splitting via context menu (right-click → Split Right / Split Down).
 /// Each pane can have its own Connection (different servers in one tab).
+/// Factory for reconnecting SSH — injectable for testing.
+typedef ReconnectFactory = Future<void> Function(Connection connection);
+
 class TerminalTab extends StatefulWidget {
   final String tabId;
   final Connection connection;
   final VoidCallback? onDisconnected;
+
+  /// Optional factory for testing — bypasses real SSH reconnect.
+  final ReconnectFactory? reconnectFactory;
 
   const TerminalTab({
     super.key,
     required this.tabId,
     required this.connection,
     this.onDisconnected,
+    this.reconnectFactory,
   });
 
   @override
@@ -87,20 +94,24 @@ class _TerminalTabState extends State<TerminalTab> {
       _connectionReady = false;
     });
 
-    final sshConn = widget.connection.sshConnection;
-    if (sshConn == null || !sshConn.isConnected) {
-      try {
-        final newConn = SSHConnection(
-          config: widget.connection.sshConfig,
-          knownHosts: widget.connection.sshConnection!.knownHosts,
-        );
-        await newConn.connect();
-        widget.connection.sshConnection = newConn;
-        widget.connection.state = SSHConnectionState.connected;
-      } catch (e) {
-        setState(() => _connectionError = 'Reconnect failed: $e');
-        return;
+    try {
+      if (widget.reconnectFactory != null) {
+        await widget.reconnectFactory!(widget.connection);
+      } else {
+        final sshConn = widget.connection.sshConnection;
+        if (sshConn == null || !sshConn.isConnected) {
+          final newConn = SSHConnection(
+            config: widget.connection.sshConfig,
+            knownHosts: widget.connection.sshConnection!.knownHosts,
+          );
+          await newConn.connect();
+          widget.connection.sshConnection = newConn;
+          widget.connection.state = SSHConnectionState.connected;
+        }
       }
+    } catch (e) {
+      setState(() => _connectionError = 'Reconnect failed: $e');
+      return;
     }
 
     // Reset to single pane with original connection
