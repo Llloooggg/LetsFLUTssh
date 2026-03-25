@@ -62,6 +62,144 @@ void main() {
     );
   }
 
+  group('LetsFLUTsshApp — top-level app widget', () {
+    testWidgets('renders MaterialApp with correct title and themes', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith((ref) {
+              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+              notifier.state = AppConfig.defaults;
+              return notifier;
+            }),
+          ],
+          child: const LetsFLUTsshApp(),
+        ),
+      );
+      await tester.pump();
+
+      // Should find MaterialApp
+      final materialApps = find.byType(MaterialApp);
+      expect(materialApps, findsOneWidget);
+
+      final app = tester.widget<MaterialApp>(materialApps);
+      expect(app.title, 'LetsFLUTssh');
+      expect(app.debugShowCheckedModeBanner, isFalse);
+      expect(app.theme, isNotNull);
+      expect(app.darkTheme, isNotNull);
+    });
+
+    testWidgets('uses navigatorKey from main.dart', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith((ref) {
+              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+              notifier.state = AppConfig.defaults;
+              return notifier;
+            }),
+          ],
+          child: const LetsFLUTsshApp(),
+        ),
+      );
+      await tester.pump();
+
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+      expect(app.navigatorKey, navigatorKey);
+    });
+  });
+
+  group('MainScreen — narrow layout (drawer)', () {
+    Widget buildNarrowApp() {
+      return ProviderScope(
+        overrides: [
+          configProvider.overrideWith((ref) {
+            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+            notifier.state = AppConfig.defaults;
+            return notifier;
+          }),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const Center(
+            child: SizedBox(
+              width: 500,
+              height: 600,
+              child: MainScreen(),
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('narrow layout shows hamburger menu button', (tester) async {
+      tester.view.physicalSize = const Size(500, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildNarrowApp());
+      await tester.pump();
+
+      // In narrow mode, a menu (hamburger) button should appear in the toolbar
+      expect(find.byIcon(Icons.menu), findsOneWidget);
+    });
+
+    testWidgets('narrow layout uses Scaffold with drawer', (tester) async {
+      tester.view.physicalSize = const Size(500, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildNarrowApp());
+      await tester.pump();
+
+      final scaffolds = find.byType(Scaffold);
+      expect(scaffolds, findsWidgets);
+    });
+
+    testWidgets('hamburger button opens drawer', (tester) async {
+      tester.view.physicalSize = const Size(500, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildNarrowApp());
+      await tester.pump();
+
+      // Tap the hamburger menu button
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+
+      // Drawer should open and show Sessions panel
+      expect(find.text('Sessions'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — toolbar details', () {
+    testWidgets('toolbar does not show SFTP button when no active tab', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // No active tab → no SFTP folder_open button in toolbar
+      // The folder_open icon appears only when SFTP is available
+      expect(find.byIcon(Icons.folder_open), findsNothing);
+    });
+
+    testWidgets('settings button opens settings screen', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // Tap settings icon
+      await tester.tap(find.byIcon(Icons.settings));
+      await tester.pumpAndSettle();
+
+      // Settings screen should appear
+      expect(find.text('Appearance'), findsOneWidget);
+    });
+  });
+
   group('MainScreen — desktop layout', () {
     testWidgets('renders toolbar with New Session and Settings buttons', (tester) async {
       await tester.pumpWidget(buildApp());

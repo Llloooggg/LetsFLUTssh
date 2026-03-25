@@ -579,6 +579,215 @@ void main() {
     });
   });
 
+  group('SettingsScreen — SettingsScreen.show static method', () {
+    testWidgets('show() pushes SettingsScreen as a route', (tester) async {
+      // Build a simple app with a button that calls SettingsScreen.show
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith((ref) {
+              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+              notifier.state = AppConfig.defaults;
+              return notifier;
+            }),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => SettingsScreen.show(context),
+                  child: const Text('Open Settings'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Settings'));
+      await tester.pumpAndSettle();
+
+      // Settings screen should be visible
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Appearance'), findsOneWidget);
+    });
+  });
+
+  group('SettingsScreen — export dialog validation', () {
+    testWidgets('Export dialog does not close with empty password', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Export Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      // Tap Export without entering password
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open
+      expect(find.text('Master Password'), findsOneWidget);
+    });
+
+    testWidgets('Export dialog shows warning on password mismatch', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Export Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      // Enter mismatched passwords
+      final passwordFields = find.byType(TextField);
+      await tester.enterText(passwordFields.at(0), 'password1');
+      await tester.enterText(passwordFields.at(1), 'password2');
+
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open (passwords don't match)
+      expect(find.text('Master Password'), findsOneWidget);
+    });
+  });
+
+  group('SettingsScreen — import dialog validation', () {
+    testWidgets('Import dialog does not close with empty fields', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      // Tap Import without entering any data
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open
+      expect(find.text('Path to .lfs file'), findsOneWidget);
+    });
+
+    testWidgets('Import dialog mode selector shows Replace description', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      // Tap Replace
+      await tester.tap(find.text('Replace'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Replace all sessions with imported'), findsOneWidget);
+
+      // Switch back to Merge
+      await tester.tap(find.text('Merge'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+    });
+  });
+
+  group('SettingsScreen — connection field submission', () {
+    testWidgets('submitting valid keepalive value updates config', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final keepAliveField = find.widgetWithText(TextFormField, '30');
+      await tester.tap(keepAliveField);
+      await tester.pumpAndSettle();
+      await tester.enterText(keepAliveField, '60');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('60'), findsOneWidget);
+    });
+
+    testWidgets('submitting valid timeout value updates config', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final timeoutField = find.widgetWithText(TextFormField, '10');
+      await tester.tap(timeoutField);
+      await tester.pumpAndSettle();
+      await tester.enterText(timeoutField, '20');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('20'), findsOneWidget);
+    });
+
+    testWidgets('submitting valid port value updates config', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final portField = find.widgetWithText(TextFormField, '22');
+      await tester.tap(portField);
+      await tester.pumpAndSettle();
+      await tester.enterText(portField, '2222');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('2222'), findsOneWidget);
+    });
+  });
+
+  group('SettingsScreen — transfer field submission', () {
+    testWidgets('submitting valid workers value updates config', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Parallel Workers'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      final workersField = find.widgetWithText(TextFormField, '2');
+      await tester.tap(workersField);
+      await tester.pumpAndSettle();
+      await tester.enterText(workersField, '4');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('4'), findsOneWidget);
+    });
+
+    testWidgets('submitting valid max history value updates config', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Max History'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      final historyField = find.widgetWithText(TextFormField, '500');
+      await tester.tap(historyField);
+      await tester.pumpAndSettle();
+      await tester.enterText(historyField, '1000');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('1000'), findsOneWidget);
+    });
+  });
+
   group('SettingsScreen — section headers', () {
     testWidgets('top section headers are rendered', (tester) async {
       await tester.pumpWidget(buildApp());
