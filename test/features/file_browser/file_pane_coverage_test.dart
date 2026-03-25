@@ -362,6 +362,123 @@ void main() {
       expect(find.text('readme.md'), findsOneWidget);
     });
   });
+  group('FilePane — double-tap directory navigates', () {
+    testWidgets('double-tap on dir navigates into it', (tester) async {
+      final entries = makeEntries();
+      final fs = _MockFS({
+        '/home': entries,
+        '/home/docs': [
+          FileEntry(name: 'inner.txt', path: '/home/docs/inner.txt', size: 10, mode: 0x81A4, modTime: now, isDir: false),
+        ],
+      });
+      final ctrl = FilePaneController(fs: fs, label: 'Local');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Double-tap on 'docs' directory
+      await tester.tap(find.text('docs'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('docs'));
+      await tester.pumpAndSettle();
+
+      // Should navigate into docs — inner.txt should be visible
+      expect(find.text('inner.txt'), findsOneWidget);
+    });
+  });
+
+  group('FilePane — double-tap file triggers transfer', () {
+    testWidgets('double-tap on file calls onTransfer', (tester) async {
+      final entries = makeEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Local');
+      await ctrl.init();
+
+      FileEntry? transferred;
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onTransfer: (e) => transferred = e,
+      ));
+      await tester.pump();
+
+      // Double-tap on 'readme.md'
+      await tester.tap(find.text('readme.md'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('readme.md'));
+      await tester.pumpAndSettle();
+
+      expect(transferred, isNotNull);
+      expect(transferred!.name, 'readme.md');
+    });
+  });
+
+  group('FilePane — right-click context menu', () {
+    testWidgets('right-click on file shows context menu with Transfer', (tester) async {
+      final entries = makeEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Local');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onTransfer: (_) {},
+      ));
+      await tester.pump();
+
+      // Right-click on readme.md
+      final target = find.text('readme.md');
+      await tester.tap(target, buttons: kSecondaryMouseButton);
+      await tester.pumpAndSettle();
+
+      // Context menu should show
+      expect(find.text('Transfer'), findsOneWidget);
+      expect(find.text('Rename'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+      expect(find.text('New Folder'), findsOneWidget);
+    });
+
+    testWidgets('right-click on directory shows Open option', (tester) async {
+      final entries = makeEntries();
+      final fs = _MockFS({
+        '/home': entries,
+        '/home/docs': [],
+      });
+      final ctrl = FilePaneController(fs: fs, label: 'Local');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onTransfer: (_) {},
+      ));
+      await tester.pump();
+
+      // Right-click on docs directory
+      await tester.tap(find.text('docs'), buttons: kSecondaryMouseButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Open'), findsOneWidget);
+      expect(find.text('Transfer'), findsOneWidget);
+    });
+  });
+
+  group('FilePane — empty directory background context menu', () {
+    testWidgets('right-click on empty dir shows New Folder + Refresh', (tester) async {
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Local');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Right-click on "Empty directory" text
+      await tester.tap(find.text('Empty directory'), buttons: kSecondaryMouseButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Folder'), findsOneWidget);
+      expect(find.text('Refresh'), findsOneWidget);
+    });
+  });
 }
 
 /// A file system whose list() never completes until complete() is called.
