@@ -312,7 +312,9 @@ LetsFLUTssh/
 - **iOS local network description** — NSLocalNetworkUsageDescription for SSH connections to LAN servers
 - **App display name** — "LFssh" on Android and iOS (under app icon)
 - **Manifest best practices** — Android/iOS manifests reorganized with grouped sections and comments
-- **CI security checks** — `flutter analyze --fatal-infos`, `dart pub outdated`, dependency review on PRs (actions/dependency-review-action)
+- **SonarCloud** — code quality + coverage analysis on every push; Quality Gate requires ≥80% coverage on new code (target: 100%); injectable SSH/SFTP factories for testability
+- **CI checks** — `flutter analyze --fatal-infos`, `flutter test --coverage`, `dart pub outdated`, dependency review on PRs
+- **Test infrastructure** — mockito mocks for SSHClient/SSHSocket/SSHSession/SftpClient, injectable factories in SSHConnection, FakeSessionStore, path_provider mock with temp dirs, runtime key generation via ssh-keygen
 
 ### Decisions and Why
 - **SSHConnectionState instead of ConnectionState** — name conflict with Flutter's `ConnectionState` from async.dart
