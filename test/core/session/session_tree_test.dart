@@ -71,5 +71,13 @@ void main() {
       expect(tree[0].children[0].children[0].name, 'C');
       expect(tree[0].children[0].children[0].children[0].name, 'server');
     });
+
+    test('session with empty label uses displayName', () {
+      final sessions = [
+        Session(label: '', host: '10.0.0.1', user: 'root'),
+      ];
+      final tree = SessionTree.build(sessions);
+      expect(tree[0].name, 'root@10.0.0.1:22');
+    });
   });
 }

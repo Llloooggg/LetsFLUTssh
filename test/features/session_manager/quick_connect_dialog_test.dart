@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/quick_connect_dialog.dart';
 
 void main() {
+  SSHConfig? dialogResult;
+
   Widget buildApp() {
+    dialogResult = null;
     return MaterialApp(
       home: Scaffold(
         body: Builder(
           builder: (context) => ElevatedButton(
-            onPressed: () => QuickConnectDialog.show(context),
+            onPressed: () async {
+              dialogResult = await QuickConnectDialog.show(context);
+            },
             child: const Text('Open'),
           ),
         ),
@@ -116,6 +122,62 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Key Text (PEM)'), findsOneWidget);
+    });
+
+    testWidgets('Connect with valid fields returns SSHConfig', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'myhost.com');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'admin');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Port'), '2222');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'secret');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(dialogResult, isNotNull);
+      expect(dialogResult!.host, 'myhost.com');
+      expect(dialogResult!.user, 'admin');
+      expect(dialogResult!.port, 2222);
+      expect(dialogResult!.password, 'secret');
+    });
+
+    testWidgets('Connect without required fields does not close', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Don't fill required fields
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(dialogResult, isNull);
+      expect(find.text('Quick Connect'), findsOneWidget);
+    });
+
+    testWidgets('Connect with PEM key data', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'h');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'u');
+
+      // Toggle PEM and enter key data
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Key Text (PEM)'), 'PEM-DATA');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(dialogResult, isNotNull);
+      expect(dialogResult!.keyData, 'PEM-DATA');
     });
   });
 }

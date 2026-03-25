@@ -56,6 +56,20 @@ void main() {
     });
   });
 
+  group('SSHError — userMessage edge cases', () {
+    test('userMessage returns just message when cause message equals message', () {
+      // cause.toString() after stripping prefix == message → return message only
+      final error = SSHError('timeout', Exception('timeout'));
+      expect(error.userMessage, 'timeout');
+    });
+
+    test('userMessage with nested SSHError cause', () {
+      const inner = AuthError('bad key');
+      const outer = ConnectError('connection failed', inner);
+      expect(outer.userMessage, 'connection failed (bad key)');
+    });
+  });
+
   group('HostKeyError', () {
     test('toString uses HostKeyError prefix', () {
       const error = HostKeyError('key mismatch');

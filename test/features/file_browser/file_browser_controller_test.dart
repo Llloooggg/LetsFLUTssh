@@ -234,5 +234,19 @@ void main() {
       final size2 = ctrl.totalFileSize;
       expect(size2, 350);
     });
+
+    test('navigateUp strips trailing slash', () async {
+      await ctrl.init();
+      await ctrl.navigateTo('/home/docs/');
+      await ctrl.navigateUp();
+      expect(ctrl.currentPath, '/home');
+    });
+
+    test('sort by owner column', () async {
+      await ctrl.init();
+      ctrl.setSort(SortColumn.owner);
+      // Should not throw, entries sorted by owner
+      expect(ctrl.entries, isNotEmpty);
+    });
   });
 }

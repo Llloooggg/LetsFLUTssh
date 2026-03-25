@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pointycastle/export.dart';
 
@@ -110,6 +111,95 @@ void main() {
       final keyB = pbkdf2b.process(Uint8List.fromList(utf8.encode('password2')));
 
       expect(keyA, isNot(keyB));
+    });
+  });
+
+  group('CredentialStore — integration', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      tempDir = await Directory.systemTemp.createTemp('cred_test_');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (call) async => tempDir.path,
+      );
+    });
+
+    tearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        null,
+      );
+      await tempDir.delete(recursive: true);
+    });
+
+    test('loadAll returns empty on fresh store', () async {
+      final store = CredentialStore();
+      final all = await store.loadAll();
+      expect(all, isEmpty);
+    });
+
+    test('saveAll then loadAll roundtrip', () async {
+      final store = CredentialStore();
+      await store.saveAll({
+        'session-1': const CredentialData(password: 'pass1'),
+        'session-2': const CredentialData(keyData: 'PEM', passphrase: 'pp'),
+      });
+
+      final loaded = await store.loadAll();
+      expect(loaded.length, 2);
+      expect(loaded['session-1']!.password, 'pass1');
+      expect(loaded['session-2']!.keyData, 'PEM');
+      expect(loaded['session-2']!.passphrase, 'pp');
+    });
+
+    test('get returns specific session credentials', () async {
+      final store = CredentialStore();
+      await store.saveAll({
+        'a': const CredentialData(password: 'alpha'),
+        'b': const CredentialData(password: 'beta'),
+      });
+
+      final cred = await store.get('a');
+      expect(cred, isNotNull);
+      expect(cred!.password, 'alpha');
+
+      final unknown = await store.get('nonexistent');
+      expect(unknown, isNull);
+    });
+
+    test('set adds or updates credentials', () async {
+      final store = CredentialStore();
+      await store.set('s1', const CredentialData(password: 'initial'));
+
+      var loaded = await store.loadAll();
+      expect(loaded['s1']!.password, 'initial');
+
+      await store.set('s1', const CredentialData(password: 'updated'));
+      loaded = await store.loadAll();
+      expect(loaded['s1']!.password, 'updated');
+    });
+
+    test('delete removes credentials', () async {
+      final store = CredentialStore();
+      await store.set('s1', const CredentialData(password: 'p'));
+      await store.delete('s1');
+
+      final loaded = await store.loadAll();
+      expect(loaded['s1'], isNull);
+    });
+
+    test('loadAll handles corrupted file gracefully', () async {
+      // Write garbage to credentials file
+      final credFile = File('${tempDir.path}/credentials.enc');
+      await credFile.writeAsString('not encrypted data');
+
+      final store = CredentialStore();
+      final all = await store.loadAll();
+      expect(all, isEmpty); // Should return empty, not throw
     });
   });
 }
