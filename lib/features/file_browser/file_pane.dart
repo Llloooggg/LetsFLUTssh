@@ -327,81 +327,45 @@ class _FilePaneState extends State<FilePane> {
     if (ctrl.loading) {
       return const Center(child: CircularProgressIndicator());
     }
-
     if (ctrl.error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 8),
-            Text(ctrl.error!, style: TextStyle(color: theme.colorScheme.error)),
-            const SizedBox(height: 8),
-            FilledButton.tonal(
-              onPressed: ctrl.refresh,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
+      return _buildErrorState(theme);
     }
-
     if (ctrl.entries.isEmpty) {
-      return GestureDetector(
-        onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
-        child: const Center(child: Text('Empty directory', style: TextStyle(fontSize: 13))),
-      );
+      return _buildEmptyState();
     }
+    return _buildFileListContent(theme);
+  }
 
+  Widget _buildErrorState(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+          const SizedBox(height: 8),
+          Text(ctrl.error!, style: TextStyle(color: theme.colorScheme.error)),
+          const SizedBox(height: 8),
+          FilledButton.tonal(
+            onPressed: ctrl.refresh,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return GestureDetector(
+      onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
+      child: const Center(child: Text('Empty directory', style: TextStyle(fontSize: 13))),
+    );
+  }
+
+  Widget _buildFileListContent(ThemeData theme) {
     return Listener(
-      onPointerDown: (e) {
-        _focusNode.requestFocus();
-        if (e.buttons != kPrimaryButton) return;
-
-        final rowIdx = _rowIndexAt(e.localPosition.dy);
-        final onRow = rowIdx >= 0 && rowIdx < ctrl.entries.length;
-        final onSelected = onRow && ctrl.selected.contains(ctrl.entries[rowIdx].path);
-
-        if (onSelected) return;
-
-        setState(() {
-          _marqueeAnchor = e.localPosition;
-          _preMarqueeSelection = _isCtrlHeld ? Set.from(ctrl.selected) : null;
-        });
-      },
-      onPointerMove: (e) {
-        if (_dragActive || _marqueeAnchor == null) return;
-
-        final distance = (e.localPosition - _marqueeAnchor!).distance;
-
-        if (!_marqueeActive) {
-          if (distance < _marqueeThreshold) return;
-          _marqueeActive = true;
-          if (!_isCtrlHeld && _preMarqueeSelection == null) {
-            ctrl.clearSelection();
-          }
-        }
-
-        setState(() {
-          _marqueeStart = _marqueeAnchor;
-          _marqueeCurrent = e.localPosition;
-        });
-        _updateMarqueeSelection();
-      },
-      onPointerUp: (_) {
-        if (_marqueeActive) {
-          setState(() {
-            _marqueeAnchor = null;
-            _marqueeStart = null;
-            _marqueeCurrent = null;
-            _preMarqueeSelection = null;
-            _marqueeActive = false;
-          });
-        } else {
-          _marqueeAnchor = null;
-          _preMarqueeSelection = null;
-        }
-      },
+      onPointerDown: _onListPointerDown,
+      onPointerMove: _onListPointerMove,
+      onPointerUp: _onListPointerUp,
       child: GestureDetector(
         onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
         behavior: HitTestBehavior.translucent,
@@ -411,94 +375,155 @@ class _FilePaneState extends State<FilePane> {
               controller: _scrollController,
               itemCount: ctrl.entries.length,
               itemExtent: _rowHeight,
-              itemBuilder: (context, index) {
-                final entry = ctrl.entries[index];
-                final isSelected = ctrl.selected.contains(entry.path);
-
-                final row = FileRow(
-                  entry: entry,
-                  isSelected: isSelected,
-                  onTap: () => ctrl.selectSingle(entry.path),
-                  onCtrlTap: () => ctrl.toggleSelect(entry.path),
-                  onDoubleTap: () {
-                    if (entry.isDir) {
-                      ctrl.navigateTo(entry.path);
-                    } else {
-                      widget.onTransfer?.call(entry);
-                    }
-                  },
-                  onContextMenu: (offset) =>
-                      _showContextMenu(context, offset, entry),
-                );
-
-                if (!isSelected) return row;
-
-                final selected = ctrl.selectedEntries;
-                final dragEntries = selected.length > 1
-                    ? selected
-                    : [entry];
-
-                return Draggable<PaneDragData>(
-                  data: PaneDragData(
-                    sourcePaneId: widget.paneId,
-                    entries: dragEntries,
-                  ),
-                  onDragStarted: () => _dragActive = true,
-                  onDragEnd: (_) => _dragActive = false,
-                  onDraggableCanceled: (_, __) => _dragActive = false,
-                  feedback: Material(
-                    elevation: 4,
-                    borderRadius: BorderRadius.circular(4),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            dragEntries.length > 1
-                                ? Icons.file_copy
-                                : (entry.isDir
-                                    ? Icons.folder
-                                    : Icons.insert_drive_file),
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            dragEntries.length > 1
-                                ? '${dragEntries.length} items'
-                                : entry.name,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  child: row,
-                );
-              },
+              itemBuilder: (context, index) =>
+                  _buildFileListItem(context, index, theme),
             ),
             if (_marqueeActive &&
                 _marqueeStart != null &&
                 _marqueeCurrent != null)
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: MarqueePainter(
-                        start: _marqueeStart!,
-                        end: _marqueeCurrent!,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              _buildMarqueeOverlay(theme),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _onListPointerDown(PointerDownEvent e) {
+    _focusNode.requestFocus();
+    if (e.buttons != kPrimaryButton) return;
+
+    final rowIdx = _rowIndexAt(e.localPosition.dy);
+    final onRow = rowIdx >= 0 && rowIdx < ctrl.entries.length;
+    final onSelected = onRow && ctrl.selected.contains(ctrl.entries[rowIdx].path);
+
+    if (onSelected) return;
+
+    setState(() {
+      _marqueeAnchor = e.localPosition;
+      _preMarqueeSelection = _isCtrlHeld ? Set.from(ctrl.selected) : null;
+    });
+  }
+
+  void _onListPointerMove(PointerMoveEvent e) {
+    if (_dragActive || _marqueeAnchor == null) return;
+
+    final distance = (e.localPosition - _marqueeAnchor!).distance;
+
+    if (!_marqueeActive) {
+      if (distance < _marqueeThreshold) return;
+      _marqueeActive = true;
+      if (!_isCtrlHeld && _preMarqueeSelection == null) {
+        ctrl.clearSelection();
+      }
+    }
+
+    setState(() {
+      _marqueeStart = _marqueeAnchor;
+      _marqueeCurrent = e.localPosition;
+    });
+    _updateMarqueeSelection();
+  }
+
+  void _onListPointerUp(PointerUpEvent _) {
+    if (_marqueeActive) {
+      setState(() {
+        _marqueeAnchor = null;
+        _marqueeStart = null;
+        _marqueeCurrent = null;
+        _preMarqueeSelection = null;
+        _marqueeActive = false;
+      });
+    } else {
+      _marqueeAnchor = null;
+      _preMarqueeSelection = null;
+    }
+  }
+
+  Widget _buildFileListItem(BuildContext context, int index, ThemeData theme) {
+    final entry = ctrl.entries[index];
+    final isSelected = ctrl.selected.contains(entry.path);
+
+    final row = FileRow(
+      entry: entry,
+      isSelected: isSelected,
+      onTap: () => ctrl.selectSingle(entry.path),
+      onCtrlTap: () => ctrl.toggleSelect(entry.path),
+      onDoubleTap: () {
+        if (entry.isDir) {
+          ctrl.navigateTo(entry.path);
+        } else {
+          widget.onTransfer?.call(entry);
+        }
+      },
+      onContextMenu: (offset) =>
+          _showContextMenu(context, offset, entry),
+    );
+
+    if (!isSelected) return row;
+
+    final selected = ctrl.selectedEntries;
+    final dragEntries = selected.length > 1 ? selected : [entry];
+
+    return Draggable<PaneDragData>(
+      data: PaneDragData(
+        sourcePaneId: widget.paneId,
+        entries: dragEntries,
+      ),
+      onDragStarted: () => _dragActive = true,
+      onDragEnd: (_) => _dragActive = false,
+      onDraggableCanceled: (_, __) => _dragActive = false,
+      feedback: _buildDragFeedback(theme, entry, dragEntries),
+      child: row,
+    );
+  }
+
+  Widget _buildDragFeedback(
+    ThemeData theme,
+    FileEntry entry,
+    List<FileEntry> dragEntries,
+  ) {
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              dragEntries.length > 1
+                  ? Icons.file_copy
+                  : (entry.isDir ? Icons.folder : Icons.insert_drive_file),
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              dragEntries.length > 1
+                  ? '${dragEntries.length} items'
+                  : entry.name,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMarqueeOverlay(ThemeData theme) {
+    return Positioned.fill(
+      child: RepaintBoundary(
+        child: IgnorePointer(
+          child: CustomPaint(
+            painter: MarqueePainter(
+              start: _marqueeStart!,
+              end: _marqueeCurrent!,
+              color: theme.colorScheme.primary,
+            ),
+          ),
         ),
       ),
     );

@@ -40,61 +40,63 @@ class SessionTree {
 
     // Create nodes for empty groups first.
     for (final groupPath in emptyGroups) {
-      final parts = groupPath.split('/');
-      var currentChildren = root;
-      var currentPath = '';
-      for (final part in parts) {
-        currentPath = currentPath.isEmpty ? part : '$currentPath/$part';
-        var groupNode = _findGroup(currentChildren, part);
-        if (groupNode == null) {
-          groupNode = SessionTreeNode(
-            name: part,
-            fullPath: currentPath,
-          );
-          currentChildren.add(groupNode);
-        }
-        currentChildren = groupNode.children;
-      }
+      _ensureGroupPath(root, groupPath);
     }
 
     for (final session in sessions) {
-      if (session.group.isEmpty) {
-        // Top-level session (no group)
-        root.add(SessionTreeNode(
-          name: session.label.isNotEmpty ? session.label : session.displayName,
-          fullPath: session.label,
-          session: session,
-        ));
-      } else {
-        // Navigate/create group path
-        final parts = session.group.split('/');
-        var currentChildren = root;
-        var currentPath = '';
-
-        for (final part in parts) {
-          currentPath = currentPath.isEmpty ? part : '$currentPath/$part';
-          var groupNode = _findGroup(currentChildren, part);
-          if (groupNode == null) {
-            groupNode = SessionTreeNode(
-              name: part,
-              fullPath: currentPath,
-            );
-            currentChildren.add(groupNode);
-          }
-          currentChildren = groupNode.children;
-        }
-
-        // Add session as leaf under the deepest group
-        currentChildren.add(SessionTreeNode(
-          name: session.label.isNotEmpty ? session.label : session.displayName,
-          fullPath: session.fullPath,
-          session: session,
-        ));
-      }
+      _insertSession(root, session);
     }
 
     _sortTree(root);
     return root;
+  }
+
+  /// Navigate/create all intermediate group nodes for [groupPath]
+  /// and return the children list of the deepest group.
+  static List<SessionTreeNode> _ensureGroupPath(
+    List<SessionTreeNode> root,
+    String groupPath,
+  ) {
+    final parts = groupPath.split('/');
+    var currentChildren = root;
+    var currentPath = '';
+    for (final part in parts) {
+      currentPath = currentPath.isEmpty ? part : '$currentPath/$part';
+      var groupNode = _findGroup(currentChildren, part);
+      if (groupNode == null) {
+        groupNode = SessionTreeNode(
+          name: part,
+          fullPath: currentPath,
+        );
+        currentChildren.add(groupNode);
+      }
+      currentChildren = groupNode.children;
+    }
+    return currentChildren;
+  }
+
+  /// Create a leaf node for [session] and insert it into the tree.
+  static void _insertSession(List<SessionTreeNode> root, Session session) {
+    final name = session.label.isNotEmpty
+        ? session.label
+        : session.displayName;
+
+    if (session.group.isEmpty) {
+      // Top-level session (no group)
+      root.add(SessionTreeNode(
+        name: name,
+        fullPath: session.label,
+        session: session,
+      ));
+    } else {
+      // Add session as leaf under the deepest group
+      final parent = _ensureGroupPath(root, session.group);
+      parent.add(SessionTreeNode(
+        name: name,
+        fullPath: session.fullPath,
+        session: session,
+      ));
+    }
   }
 
   static SessionTreeNode? _findGroup(List<SessionTreeNode> nodes, String name) {

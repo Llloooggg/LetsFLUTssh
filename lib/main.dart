@@ -160,92 +160,103 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final tabState = ref.watch(tabProvider);
 
     return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyN, control: true): () {
-          _newSession(context, ref);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
-          final active = tabState.activeTab;
-          if (active != null) {
-            ref.read(tabProvider.notifier).closeTab(active.id);
-          }
-        },
-        const SingleActivator(LogicalKeyboardKey.tab, control: true): () {
-          if (tabState.tabs.length > 1) {
-            final next = (tabState.activeIndex + 1) % tabState.tabs.length;
-            ref.read(tabProvider.notifier).selectTab(next);
-          }
-        },
-        const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): () {
-          if (tabState.tabs.length > 1) {
-            final prev = (tabState.activeIndex - 1 + tabState.tabs.length) % tabState.tabs.length;
-            ref.read(tabProvider.notifier).selectTab(prev);
-          }
-        },
-      },
+      bindings: _buildKeyBindings(context, tabState),
       child: DropTarget(
-          onDragDone: (details) {
-            final lfsFiles = details.files
-                .where((f) => f.path.endsWith('.lfs'))
-                .toList();
-            if (lfsFiles.isNotEmpty) {
-              _showLfsImportDialog(context, lfsFiles.first.path);
-            }
-          },
+          onDragDone: (details) => _handleLfsDrop(context, details),
           child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isNarrow = constraints.maxWidth < 600;
-            final sessionPanel = SessionPanel(
-              onConnect: (session) => _connectSession(context, ref, session),
-              onQuickConnect: (config) => SessionConnect.connectConfig(context, ref, config),
-              onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-            );
-
-            final content = tabState.activeTab != null
-                ? _buildTabContent(tabState)
-                : WelcomeScreen(
-                    onNewSession: () => _newSession(context, ref),
-                  );
-
-            // Right side: toolbar + tabs + content + status bar
-            final rightSide = Column(
-              children: [
-                // Toolbar
-                _Toolbar(
-                  onNewSession: () => _newSession(context, ref),
-                  onOpenSftp: tabState.activeTab != null &&
-                          tabState.activeTab!.connection.isConnected
-                      ? () => _openSftp(ref, tabState.activeTab!.connection)
-                      : null,
-                  showMenuButton: isNarrow,
-                ),
-                // Tab bar
-                const AppTabBar(),
-                if (tabState.tabs.isNotEmpty) const Divider(height: 1),
-                // Content area
-                Expanded(child: content),
-                // Status bar
-                _StatusBar(tabState: tabState),
-              ],
-            );
-
-            if (isNarrow) {
-              return Scaffold(
-                drawer: Drawer(width: 280, child: SafeArea(child: sessionPanel)),
-                body: rightSide,
-              );
-            }
-
-            // Desktop: full-height sidebar | right side
-            return Scaffold(
-              body: SplitView(
-                left: sessionPanel,
-                right: rightSide,
-              ),
-            );
-          },
+          builder: (context, constraints) =>
+              _buildDesktopLayout(context, constraints, tabState),
         ),
       ),
+    );
+  }
+
+  Map<ShortcutActivator, VoidCallback> _buildKeyBindings(
+      BuildContext context, TabState tabState) {
+    return {
+      const SingleActivator(LogicalKeyboardKey.keyN, control: true): () {
+        _newSession(context, ref);
+      },
+      const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
+        final active = tabState.activeTab;
+        if (active != null) {
+          ref.read(tabProvider.notifier).closeTab(active.id);
+        }
+      },
+      const SingleActivator(LogicalKeyboardKey.tab, control: true): () {
+        _switchTab(tabState, 1);
+      },
+      const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): () {
+        _switchTab(tabState, -1);
+      },
+    };
+  }
+
+  void _switchTab(TabState tabState, int delta) {
+    if (tabState.tabs.length > 1) {
+      final index = (tabState.activeIndex + delta + tabState.tabs.length) %
+          tabState.tabs.length;
+      ref.read(tabProvider.notifier).selectTab(index);
+    }
+  }
+
+  void _handleLfsDrop(BuildContext context, DropDoneDetails details) {
+    final lfsFiles = details.files
+        .where((f) => f.path.endsWith('.lfs'))
+        .toList();
+    if (lfsFiles.isNotEmpty) {
+      _showLfsImportDialog(context, lfsFiles.first.path);
+    }
+  }
+
+  Widget _buildDesktopLayout(
+      BuildContext context, BoxConstraints constraints, TabState tabState) {
+    final isNarrow = constraints.maxWidth < 600;
+    final sessionPanel = SessionPanel(
+      onConnect: (session) => _connectSession(context, ref, session),
+      onQuickConnect: (config) => SessionConnect.connectConfig(context, ref, config),
+      onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+    );
+
+    final content = tabState.activeTab != null
+        ? _buildTabContent(tabState)
+        : WelcomeScreen(
+            onNewSession: () => _newSession(context, ref),
+          );
+
+    final rightSide = _buildRightSide(tabState, content, isNarrow);
+
+    if (isNarrow) {
+      return Scaffold(
+        drawer: Drawer(width: 280, child: SafeArea(child: sessionPanel)),
+        body: rightSide,
+      );
+    }
+
+    return Scaffold(
+      body: SplitView(
+        left: sessionPanel,
+        right: rightSide,
+      ),
+    );
+  }
+
+  Widget _buildRightSide(TabState tabState, Widget content, bool isNarrow) {
+    return Column(
+      children: [
+        _Toolbar(
+          onNewSession: () => _newSession(context, ref),
+          onOpenSftp: tabState.activeTab != null &&
+                  tabState.activeTab!.connection.isConnected
+              ? () => _openSftp(ref, tabState.activeTab!.connection)
+              : null,
+          showMenuButton: isNarrow,
+        ),
+        const AppTabBar(),
+        if (tabState.tabs.isNotEmpty) const Divider(height: 1),
+        Expanded(child: content),
+        _StatusBar(tabState: tabState),
+      ],
     );
   }
 
@@ -299,9 +310,39 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Future<void> _showLfsImportDialog(BuildContext context, String filePath) async {
+    final result = await _showImportPasswordDialog(context, filePath);
+    if (result == null || !context.mounted) return;
+
+    try {
+      final importResult = await ExportImport.import_(
+        filePath: filePath,
+        masterPassword: result.password,
+        mode: result.mode,
+        importConfig: true,
+        importKnownHosts: true,
+      );
+
+      await _applyImportResult(importResult);
+
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: 'Imported ${importResult.sessions.length} session(s)',
+          level: ToastLevel.success,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
+      }
+    }
+  }
+
+  Future<({String password, ImportMode mode})?> _showImportPasswordDialog(
+      BuildContext context, String filePath) {
     final passwordCtrl = TextEditingController();
 
-    final result = await showDialog<({String password, ImportMode mode})>(
+    return showDialog<({String password, ImportMode mode})>(
       context: context,
       animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) {
@@ -309,60 +350,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         return StatefulBuilder(
           builder: (ctx, setState) => AlertDialog(
             title: const Text('Import Data'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  File(filePath).uri.pathSegments.last,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: passwordCtrl,
-                  obscureText: true,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Master Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (v) {
-                    if (v.isNotEmpty) {
-                      Navigator.pop(ctx, (password: v, mode: mode));
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                SegmentedButton<ImportMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ImportMode.merge,
-                      label: Text('Merge'),
-                      icon: Icon(Icons.merge, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: ImportMode.replace,
-                      label: Text('Replace'),
-                      icon: Icon(Icons.swap_horiz, size: 16),
-                    ),
-                  ],
-                  selected: {mode},
-                  onSelectionChanged: (s) => setState(() => mode = s.first),
-                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  mode == ImportMode.merge
-                      ? 'Add new sessions, keep existing'
-                      : 'Replace all sessions with imported',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
+            content: _buildImportDialogContent(
+              ctx, passwordCtrl, mode,
+              onModeChanged: (newMode) => setState(() => mode = newMode),
+              onSubmitted: (v) {
+                if (v.isNotEmpty) {
+                  Navigator.pop(ctx, (password: v, mode: mode));
+                }
+              },
+              filePath: filePath,
             ),
             actions: [
               TextButton(
@@ -381,49 +377,85 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         );
       },
     );
+  }
 
-    if (result == null || !context.mounted) return;
+  Column _buildImportDialogContent(
+    BuildContext ctx,
+    TextEditingController passwordCtrl,
+    ImportMode mode, {
+    required ValueChanged<ImportMode> onModeChanged,
+    required ValueChanged<String> onSubmitted,
+    required String filePath,
+  }) {
+    final subtleStyle = TextStyle(
+      fontSize: 12,
+      color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(File(filePath).uri.pathSegments.last, style: subtleStyle),
+        const SizedBox(height: 12),
+        TextField(
+          controller: passwordCtrl,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Master Password',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: onSubmitted,
+        ),
+        const SizedBox(height: 12),
+        SegmentedButton<ImportMode>(
+          segments: const [
+            ButtonSegment(
+              value: ImportMode.merge,
+              label: Text('Merge'),
+              icon: Icon(Icons.merge, size: 16),
+            ),
+            ButtonSegment(
+              value: ImportMode.replace,
+              label: Text('Replace'),
+              icon: Icon(Icons.swap_horiz, size: 16),
+            ),
+          ],
+          selected: {mode},
+          onSelectionChanged: (s) => onModeChanged(s.first),
+          style: const ButtonStyle(visualDensity: VisualDensity.compact),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          mode == ImportMode.merge
+              ? 'Add new sessions, keep existing'
+              : 'Replace all sessions with imported',
+          style: subtleStyle,
+        ),
+      ],
+    );
+  }
 
-    try {
-      final importResult = await ExportImport.import_(
-        filePath: filePath,
-        masterPassword: result.password,
-        mode: result.mode,
-        importConfig: true,
-        importKnownHosts: true,
-      );
+  Future<void> _applyImportResult(ImportResult importResult) async {
+    final sessionNotifier = ref.read(sessionProvider.notifier);
 
-      final sessionNotifier = ref.read(sessionProvider.notifier);
-      if (importResult.mode == ImportMode.replace) {
-        final existing = ref.read(sessionProvider);
-        for (final s in existing) {
-          await sessionNotifier.delete(s.id);
-        }
+    if (importResult.mode == ImportMode.replace) {
+      final existing = ref.read(sessionProvider);
+      for (final s in existing) {
+        await sessionNotifier.delete(s.id);
       }
-      for (final s in importResult.sessions) {
-        try {
-          await sessionNotifier.add(s);
-        } catch (e) {
-          if (importResult.mode == ImportMode.replace) rethrow;
-          debugPrint('Import: skipped session ${s.label}: $e');
-        }
-      }
+    }
 
-      if (importResult.config != null) {
-        ref.read(configProvider.notifier).update((_) => importResult.config!);
+    for (final s in importResult.sessions) {
+      try {
+        await sessionNotifier.add(s);
+      } catch (e) {
+        if (importResult.mode == ImportMode.replace) rethrow;
+        debugPrint('Import: skipped session ${s.label}: $e');
       }
+    }
 
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: 'Imported ${importResult.sessions.length} session(s)',
-          level: ToastLevel.success,
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
-      }
+    if (importResult.config != null) {
+      ref.read(configProvider.notifier).update((_) => importResult.config!);
     }
   }
 }

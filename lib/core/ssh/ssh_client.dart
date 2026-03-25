@@ -160,51 +160,60 @@ class SSHConnection {
   /// Auth chain: key file → key text → default ~/.ssh/ keys (same as OpenSSH).
   Future<List<SSHKeyPair>> _buildIdentities() async {
     final identities = <SSHKeyPair>[];
-    final passphrase = config.passphrase.isNotEmpty ? config.passphrase : null;
 
-    // Key from explicit file path
-    if (config.keyPath.isNotEmpty) {
-      try {
-        final keyFile = File(config.keyPath);
-        final keyData = await keyFile.readAsString();
-        identities.addAll(SSHKeyPair.fromPem(keyData, passphrase));
-      } catch (e) {
-        dev.log('SSH: failed to load key from ${config.keyPath}: $e');
-        throw AuthError('Failed to load SSH key file', e);
-      }
-    }
+    await _tryKeyFileAuth(identities);
+    _tryKeyTextAuth(identities);
 
-    // Key from PEM text
-    if (config.keyData.isNotEmpty) {
-      try {
-        identities.addAll(SSHKeyPair.fromPem(config.keyData, passphrase));
-      } catch (e) {
-        throw AuthError('Failed to parse PEM key data', e);
-      }
-    }
-
-    // Auto-detect keys from ~/.ssh/ (like OpenSSH) if no explicit key provided
+    // Auto-detect keys from ~/.ssh/ only if no explicit key provided
     if (identities.isEmpty) {
-      final home = homeDirectory;
-      if (home.isNotEmpty) {
-        final sshDir = Directory('$home/.ssh');
-        if (await sshDir.exists()) {
-          for (final name in _defaultKeyNames) {
-            final keyFile = File('${sshDir.path}/$name');
-            if (await keyFile.exists()) {
-              try {
-                final keyData = await keyFile.readAsString();
-                identities.addAll(SSHKeyPair.fromPem(keyData, null));
-              } catch (e) {
-                dev.log('SSH: skipped key $name (${e.runtimeType})');
-              }
-            }
-          }
-        }
-      }
+      await _tryDefaultKeysAuth(identities);
     }
 
     return identities;
+  }
+
+  /// Try loading SSH key from explicit file path.
+  Future<void> _tryKeyFileAuth(List<SSHKeyPair> identities) async {
+    if (config.keyPath.isEmpty) return;
+    final passphrase = config.passphrase.isNotEmpty ? config.passphrase : null;
+    try {
+      final keyFile = File(config.keyPath);
+      final keyData = await keyFile.readAsString();
+      identities.addAll(SSHKeyPair.fromPem(keyData, passphrase));
+    } catch (e) {
+      dev.log('SSH: failed to load key from ${config.keyPath}: $e');
+      throw AuthError('Failed to load SSH key file', e);
+    }
+  }
+
+  /// Try parsing SSH key from PEM text.
+  void _tryKeyTextAuth(List<SSHKeyPair> identities) {
+    if (config.keyData.isEmpty) return;
+    final passphrase = config.passphrase.isNotEmpty ? config.passphrase : null;
+    try {
+      identities.addAll(SSHKeyPair.fromPem(config.keyData, passphrase));
+    } catch (e) {
+      throw AuthError('Failed to parse PEM key data', e);
+    }
+  }
+
+  /// Try loading default keys from ~/.ssh/ (like OpenSSH).
+  Future<void> _tryDefaultKeysAuth(List<SSHKeyPair> identities) async {
+    final home = homeDirectory;
+    if (home.isEmpty) return;
+    final sshDir = Directory('$home/.ssh');
+    if (!await sshDir.exists()) return;
+    for (final name in _defaultKeyNames) {
+      final keyFile = File('${sshDir.path}/$name');
+      if (await keyFile.exists()) {
+        try {
+          final keyData = await keyFile.readAsString();
+          identities.addAll(SSHKeyPair.fromPem(keyData, null));
+        } catch (e) {
+          dev.log('SSH: skipped key $name (${e.runtimeType})');
+        }
+      }
+    }
   }
 
   // Host key verification callback for dartssh2.

@@ -44,29 +44,7 @@ class SessionStore {
         ..clear()
         ..addAll(list.map((e) => Session.fromJson(e as Map<String, dynamic>)));
 
-      // Load credentials from encrypted store and merge into sessions.
-      final allCreds = await _credStore.loadAll();
-      bool needsMigration = false;
-
-      for (int i = 0; i < _sessions.length; i++) {
-        final s = _sessions[i];
-        final cred = allCreds[s.id];
-        if (cred != null && !cred.isEmpty) {
-          // Merge encrypted credentials into session object.
-          _sessions[i] = s.copyWith(
-            password: cred.password.isNotEmpty ? cred.password : s.password,
-            keyData: cred.keyData.isNotEmpty ? cred.keyData : s.keyData,
-            passphrase: cred.passphrase.isNotEmpty ? cred.passphrase : s.passphrase,
-          );
-        } else if (s.password.isNotEmpty || s.keyData.isNotEmpty || s.passphrase.isNotEmpty) {
-          // Legacy: credentials in plaintext JSON — migrate to encrypted store.
-          needsMigration = true;
-        }
-      }
-
-      if (needsMigration) {
-        await _migrateCredentials();
-      }
+      await _mergeAndMigrateCredentials();
     } catch (e) {
       dev.log('SessionStore: failed to load sessions, starting fresh', error: e);
     }
@@ -75,6 +53,44 @@ class SessionStore {
     await _loadEmptyGroups();
 
     return _sessions;
+  }
+
+  /// Load credentials from encrypted store, merge into sessions,
+  /// and migrate any legacy plaintext credentials.
+  Future<void> _mergeAndMigrateCredentials() async {
+    final allCreds = await _credStore.loadAll();
+    bool needsMigration = false;
+
+    for (int i = 0; i < _sessions.length; i++) {
+      final s = _sessions[i];
+      final cred = allCreds[s.id];
+      if (cred != null && !cred.isEmpty) {
+        _sessions[i] = _mergeCredential(s, cred);
+      } else if (_hasPlaintextCredentials(s)) {
+        needsMigration = true;
+      }
+    }
+
+    if (needsMigration) {
+      await _migrateCredentials();
+    }
+  }
+
+  /// Merge encrypted credential data into a session object.
+  Session _mergeCredential(Session session, CredentialData cred) {
+    return session.copyWith(
+      password: cred.password.isNotEmpty ? cred.password : session.password,
+      keyData: cred.keyData.isNotEmpty ? cred.keyData : session.keyData,
+      passphrase:
+          cred.passphrase.isNotEmpty ? cred.passphrase : session.passphrase,
+    );
+  }
+
+  /// Check if a session has credentials stored in plaintext.
+  bool _hasPlaintextCredentials(Session s) {
+    return s.password.isNotEmpty ||
+        s.keyData.isNotEmpty ||
+        s.passphrase.isNotEmpty;
   }
 
   /// Migrate plaintext credentials from sessions.json to encrypted store,

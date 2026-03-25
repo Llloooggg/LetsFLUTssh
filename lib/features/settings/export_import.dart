@@ -24,6 +24,9 @@ class ExportImport {
   static const _saltLen = 32;
   static const _ivLen = 12;
   static const _pbkdf2Iterations = 600000;
+  static const _sessionsFile = 'sessions.json';
+  static const _configFile = 'config.json';
+  static const _knownHostsFile = 'known_hosts';
 
   /// Export app data to an encrypted .lfs file.
   ///
@@ -42,7 +45,7 @@ class ExportImport {
       sessions.map((s) => s.toJsonWithCredentials()).toList(),
     );
     archive.addFile(ArchiveFile(
-      'sessions.json',
+      _sessionsFile,
       utf8.encode(sessionsJson).length,
       utf8.encode(sessionsJson),
     ));
@@ -51,17 +54,17 @@ class ExportImport {
     final configJson =
         const JsonEncoder.withIndent('  ').convert(config.toJson());
     archive.addFile(ArchiveFile(
-      'config.json',
+      _configFile,
       utf8.encode(configJson).length,
       utf8.encode(configJson),
     ));
 
     // Known hosts (if exists)
     final dir = await getApplicationSupportDirectory();
-    final knownHostsFile = File(p.join(dir.path, 'known_hosts'));
+    final knownHostsFile = File(p.join(dir.path, _knownHostsFile));
     if (await knownHostsFile.exists()) {
       final khBytes = await knownHostsFile.readAsBytes();
-      archive.addFile(ArchiveFile('known_hosts', khBytes.length, khBytes));
+      archive.addFile(ArchiveFile(_knownHostsFile, khBytes.length, khBytes));
     }
 
     // Encode ZIP
@@ -92,7 +95,7 @@ class ExportImport {
 
     // Parse sessions
     List<Session> sessions = [];
-    final sessionsFile = archive.findFile('sessions.json');
+    final sessionsFile = archive.findFile(_sessionsFile);
     if (sessionsFile != null) {
       final json = utf8.decode(sessionsFile.content as List<int>);
       final list = jsonDecode(json) as List;
@@ -102,8 +105,8 @@ class ExportImport {
     }
 
     // Check what's included
-    final hasConfig = archive.findFile('config.json') != null;
-    final hasKnownHosts = archive.findFile('known_hosts') != null;
+    final hasConfig = archive.findFile(_configFile) != null;
+    final hasKnownHosts = archive.findFile(_knownHostsFile) != null;
 
     return LfsPreview(
       sessions: sessions,
@@ -133,7 +136,7 @@ class ExportImport {
 
     // Parse sessions
     List<Session> sessions = [];
-    final sessionsFile = archive.findFile('sessions.json');
+    final sessionsFile = archive.findFile(_sessionsFile);
     if (sessionsFile != null) {
       final json = utf8.decode(sessionsFile.content as List<int>);
       final list = jsonDecode(json) as List;
@@ -145,7 +148,7 @@ class ExportImport {
     // Parse config
     AppConfig? config;
     if (importConfig) {
-      final configFile = archive.findFile('config.json');
+      final configFile = archive.findFile(_configFile);
       if (configFile != null) {
         final json = utf8.decode(configFile.content as List<int>);
         config = AppConfig.fromJson(
@@ -156,7 +159,7 @@ class ExportImport {
     // Known hosts
     Uint8List? knownHostsData;
     if (importKnownHosts) {
-      final khFile = archive.findFile('known_hosts');
+      final khFile = archive.findFile(_knownHostsFile);
       if (khFile != null) {
         knownHostsData = Uint8List.fromList(khFile.content as List<int>);
       }
@@ -165,7 +168,7 @@ class ExportImport {
     // Write known_hosts if requested
     if (knownHostsData != null) {
       final dir = await getApplicationSupportDirectory();
-      final khFile = File(p.join(dir.path, 'known_hosts'));
+      final khFile = File(p.join(dir.path, _knownHostsFile));
       await khFile.writeAsBytes(knownHostsData);
     }
 

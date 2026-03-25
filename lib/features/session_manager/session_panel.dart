@@ -9,6 +9,8 @@ import '../../utils/platform.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
+const _kNewFolder = 'New Folder';
+
 /// Session sidebar — tree view + search + actions.
 class SessionPanel extends ConsumerWidget {
   final void Function(Session session) onConnect;
@@ -102,35 +104,48 @@ class SessionPanel extends ConsumerWidget {
         position.dx + 1,
         position.dy + 1,
       ),
-      items: [
-        const PopupMenuItem(value: 'connect', child: ListTile(leading: Icon(Icons.terminal, size: 18), title: Text('SSH'), dense: true, contentPadding: EdgeInsets.zero)),
-        if (onSftpConnect != null)
-          const PopupMenuItem(value: 'sftp', child: ListTile(leading: Icon(Icons.folder, size: 18), title: Text('SFTP'), dense: true, contentPadding: EdgeInsets.zero)),
-        const PopupMenuDivider(),
-        const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit, size: 18), title: Text('Edit'), dense: true, contentPadding: EdgeInsets.zero)),
-        const PopupMenuItem(value: 'duplicate', child: ListTile(leading: Icon(Icons.copy, size: 18), title: Text('Duplicate'), dense: true, contentPadding: EdgeInsets.zero)),
-        if (isMobilePlatform)
-          const PopupMenuItem(value: 'move', child: ListTile(leading: Icon(Icons.drive_file_move, size: 18), title: Text('Move to...'), dense: true, contentPadding: EdgeInsets.zero)),
-        const PopupMenuDivider(),
-        const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, size: 18, color: AppTheme.disconnected), title: Text('Delete', style: TextStyle(color: AppTheme.disconnected)), dense: true, contentPadding: EdgeInsets.zero)),
-      ],
+      items: _sessionMenuItems(),
     ).then((value) {
       if (value == null || !context.mounted) return;
-      switch (value) {
-        case 'connect':
-          onConnect(session);
-        case 'sftp':
-          onSftpConnect?.call(session);
-        case 'edit':
-          _editSession(context, ref, session);
-        case 'duplicate':
-          ref.read(sessionProvider.notifier).duplicate(session.id);
-        case 'move':
-          _moveSession(context, ref, session);
-        case 'delete':
-          _confirmDelete(context, ref, session);
-      }
+      _handleSessionMenuAction(context, ref, session, value);
     });
+  }
+
+  List<PopupMenuEntry<String>> _sessionMenuItems() {
+    return [
+      const PopupMenuItem(value: 'connect', child: ListTile(leading: Icon(Icons.terminal, size: 18), title: Text('SSH'), dense: true, contentPadding: EdgeInsets.zero)),
+      if (onSftpConnect != null)
+        const PopupMenuItem(value: 'sftp', child: ListTile(leading: Icon(Icons.folder, size: 18), title: Text('SFTP'), dense: true, contentPadding: EdgeInsets.zero)),
+      const PopupMenuDivider(),
+      const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit, size: 18), title: Text('Edit'), dense: true, contentPadding: EdgeInsets.zero)),
+      const PopupMenuItem(value: 'duplicate', child: ListTile(leading: Icon(Icons.copy, size: 18), title: Text('Duplicate'), dense: true, contentPadding: EdgeInsets.zero)),
+      if (isMobilePlatform)
+        const PopupMenuItem(value: 'move', child: ListTile(leading: Icon(Icons.drive_file_move, size: 18), title: Text('Move to...'), dense: true, contentPadding: EdgeInsets.zero)),
+      const PopupMenuDivider(),
+      const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, size: 18, color: AppTheme.disconnected), title: Text('Delete', style: TextStyle(color: AppTheme.disconnected)), dense: true, contentPadding: EdgeInsets.zero)),
+    ];
+  }
+
+  void _handleSessionMenuAction(
+    BuildContext context,
+    WidgetRef ref,
+    Session session,
+    String value,
+  ) {
+    switch (value) {
+      case 'connect':
+        onConnect(session);
+      case 'sftp':
+        onSftpConnect?.call(session);
+      case 'edit':
+        _editSession(context, ref, session);
+      case 'duplicate':
+        ref.read(sessionProvider.notifier).duplicate(session.id);
+      case 'move':
+        _moveSession(context, ref, session);
+      case 'delete':
+        _confirmDelete(context, ref, session);
+    }
   }
 
   Future<void> _moveSession(BuildContext context, WidgetRef ref, Session session) async {
@@ -200,80 +215,94 @@ class SessionPanel extends ConsumerWidget {
     String groupPath,
     Offset position,
   ) {
+    final hasSessions = ref.read(sessionProvider).isNotEmpty;
     showMenu<String>(
       context: context,
       popUpAnimationStyle: AnimationStyle.noAnimation,
       position: RelativeRect.fromLTRB(
         position.dx, position.dy, position.dx + 1, position.dy + 1,
       ),
-      items: [
-        const PopupMenuItem(
-          value: 'new_session',
-          child: ListTile(
-            leading: Icon(Icons.add, size: 18),
-            title: Text('New Session'),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'new_folder',
-          child: ListTile(
-            leading: Icon(Icons.create_new_folder, size: 18),
-            title: Text('New Folder'),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        if (groupPath.isNotEmpty) ...[
-          const PopupMenuDivider(),
-          const PopupMenuItem(
-            value: 'rename',
-            child: ListTile(
-              leading: Icon(Icons.drive_file_rename_outline, size: 18),
-              title: Text('Rename'),
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-          const PopupMenuItem(
-            value: 'delete',
-            child: ListTile(
-              leading: Icon(Icons.delete, size: 18, color: AppTheme.disconnected),
-              title: Text('Delete Folder', style: TextStyle(color: AppTheme.disconnected)),
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-        ],
-        if (groupPath.isEmpty && ref.read(sessionProvider).isNotEmpty) ...[
-          const PopupMenuDivider(),
-          const PopupMenuItem(
-            value: 'delete_all',
-            child: ListTile(
-              leading: Icon(Icons.delete_forever, size: 18, color: AppTheme.disconnected),
-              title: Text('Delete All Sessions', style: TextStyle(color: AppTheme.disconnected)),
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-        ],
-      ],
+      items: _groupMenuItems(groupPath, hasSessions),
     ).then((value) {
       if (value == null || !context.mounted) return;
-      switch (value) {
-        case 'new_session':
-          _addSessionInGroup(context, ref, groupPath);
-        case 'new_folder':
-          _createFolder(context, ref, groupPath);
-        case 'rename':
-          _renameFolder(context, ref, groupPath);
-        case 'delete':
-          _confirmDeleteFolder(context, ref, groupPath);
-        case 'delete_all':
-          _confirmDeleteAll(context, ref);
-      }
+      _handleGroupMenuAction(context, ref, groupPath, value);
     });
+  }
+
+  List<PopupMenuEntry<String>> _groupMenuItems(String groupPath, bool hasSessions) {
+    return [
+      const PopupMenuItem(
+        value: 'new_session',
+        child: ListTile(
+          leading: Icon(Icons.add, size: 18),
+          title: Text('New Session'),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
+      const PopupMenuItem(
+        value: 'new_folder',
+        child: ListTile(
+          leading: Icon(Icons.create_new_folder, size: 18),
+          title: Text(_kNewFolder),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
+      if (groupPath.isNotEmpty) ...[
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'rename',
+          child: ListTile(
+            leading: Icon(Icons.drive_file_rename_outline, size: 18),
+            title: Text('Rename'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: ListTile(
+            leading: Icon(Icons.delete, size: 18, color: AppTheme.disconnected),
+            title: Text('Delete Folder', style: TextStyle(color: AppTheme.disconnected)),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      ],
+      if (groupPath.isEmpty && hasSessions) ...[
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'delete_all',
+          child: ListTile(
+            leading: Icon(Icons.delete_forever, size: 18, color: AppTheme.disconnected),
+            title: Text('Delete All Sessions', style: TextStyle(color: AppTheme.disconnected)),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      ],
+    ];
+  }
+
+  void _handleGroupMenuAction(
+    BuildContext context,
+    WidgetRef ref,
+    String groupPath,
+    String value,
+  ) {
+    switch (value) {
+      case 'new_session':
+        _addSessionInGroup(context, ref, groupPath);
+      case 'new_folder':
+        _createFolder(context, ref, groupPath);
+      case 'rename':
+        _renameFolder(context, ref, groupPath);
+      case 'delete':
+        _confirmDeleteFolder(context, ref, groupPath);
+      case 'delete_all':
+        _confirmDeleteAll(context, ref);
+    }
   }
 
   Future<void> _addSessionInGroup(BuildContext context, WidgetRef ref, String groupPath) async {
@@ -288,43 +317,100 @@ class SessionPanel extends ConsumerWidget {
   }
 
   Future<void> _createFolder(BuildContext context, WidgetRef ref, String parentGroup) async {
+    final existingGroups = _collectAllGroupPaths(ref);
+
+    final result = await _showFolderNameDialog(
+      context,
+      title: _kNewFolder,
+      hintText: 'e.g. Production',
+      confirmLabel: 'Create',
+      existingGroups: existingGroups,
+      parentPath: parentGroup,
+    );
+
+    if (result == null || result.trim().isEmpty) return;
+
+    final newGroup = parentGroup.isEmpty ? result.trim() : '$parentGroup/${result.trim()}';
+    await ref.read(sessionProvider.notifier).addEmptyGroup(newGroup);
+  }
+
+  Future<void> _renameFolder(BuildContext context, WidgetRef ref, String groupPath) async {
+    // Extract the folder's own name (last segment)
+    final parts = groupPath.split('/');
+    final currentName = parts.last;
+    final parentPath = parts.length > 1 ? parts.sublist(0, parts.length - 1).join('/') : '';
+
+    final existingGroups = _collectAllGroupPaths(ref);
+
+    final result = await _showFolderNameDialog(
+      context,
+      title: 'Rename Folder',
+      confirmLabel: 'Rename',
+      initialValue: currentName,
+      existingGroups: existingGroups,
+      parentPath: parentPath,
+      currentName: currentName,
+    );
+
+    if (result == null || result.trim().isEmpty || result.trim() == currentName) return;
+
+    final newPath = parentPath.isEmpty ? result.trim() : '$parentPath/${result.trim()}';
+    await ref.read(sessionProvider.notifier).renameGroup(groupPath, newPath);
+  }
+
+  /// Collects all existing group paths including implicit parent segments.
+  /// E.g. "A/B/C" implies "A" and "A/B" also exist.
+  Set<String> _collectAllGroupPaths(WidgetRef ref) {
     final store = ref.read(sessionStoreProvider);
-    // Collect all existing group paths including parent segments.
-    // E.g. "A/B/C" implies "A" and "A/B" also exist.
-    final existingGroups = <String>{};
+    final result = <String>{};
     for (final g in [...store.groups(), ...store.emptyGroups]) {
       final parts = g.split('/');
       for (var i = 1; i <= parts.length; i++) {
-        existingGroups.add(parts.sublist(0, i).join('/'));
+        result.add(parts.sublist(0, i).join('/'));
       }
     }
+    return result;
+  }
 
-    final nameCtrl = TextEditingController();
+  /// Shows a folder name input dialog with duplicate validation.
+  /// Returns the entered name, or null if cancelled.
+  Future<String?> _showFolderNameDialog(
+    BuildContext context, {
+    required String title,
+    required String confirmLabel,
+    required Set<String> existingGroups,
+    required String parentPath,
+    String? hintText,
+    String? initialValue,
+    String? currentName,
+  }) {
+    final nameCtrl = TextEditingController(text: initialValue ?? '');
     String? errorText;
 
-    final result = await showDialog<String>(
+    return showDialog<String>(
       context: context,
       animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           void validate() {
             final name = nameCtrl.text.trim();
-            final fullPath = parentGroup.isEmpty ? name : '$parentGroup/$name';
-            if (name.isNotEmpty && existingGroups.contains(fullPath)) {
-              setDialogState(() => errorText = 'Folder "$name" already exists');
-            } else {
-              setDialogState(() => errorText = null);
-            }
+            final fullPath = parentPath.isEmpty ? name : '$parentPath/$name';
+            final isDuplicate = name.isNotEmpty
+                && name != currentName
+                && existingGroups.contains(fullPath);
+            setDialogState(() {
+              errorText = isDuplicate ? 'Folder "$name" already exists' : null;
+            });
           }
 
           return AlertDialog(
-            title: const Text('New Folder'),
+            title: Text(title),
             content: TextField(
               controller: nameCtrl,
               autofocus: true,
               decoration: InputDecoration(
                 labelText: 'Folder name',
-                hintText: 'e.g. Production',
+                hintText: hintText,
                 errorText: errorText,
               ),
               onChanged: (_) => validate(),
@@ -343,95 +429,13 @@ class SessionPanel extends ConsumerWidget {
                 onPressed: errorText == null
                     ? () => Navigator.of(ctx).pop(nameCtrl.text)
                     : null,
-                child: const Text('Create'),
+                child: Text(confirmLabel),
               ),
             ],
           );
         },
       ),
     );
-
-    if (result == null || result.trim().isEmpty) return;
-
-    final newGroup = parentGroup.isEmpty ? result.trim() : '$parentGroup/${result.trim()}';
-    await ref.read(sessionProvider.notifier).addEmptyGroup(newGroup);
-  }
-
-  Future<void> _renameFolder(BuildContext context, WidgetRef ref, String groupPath) async {
-    // Extract the folder's own name (last segment)
-    final parts = groupPath.split('/');
-    final currentName = parts.last;
-    final parentPath = parts.length > 1 ? parts.sublist(0, parts.length - 1).join('/') : '';
-
-    final nameCtrl = TextEditingController(text: currentName);
-    String? errorText;
-
-    // Collect existing group paths for validation
-    final store = ref.read(sessionStoreProvider);
-    final existingGroups = <String>{};
-    for (final g in [...store.groups(), ...store.emptyGroups]) {
-      final gParts = g.split('/');
-      for (var i = 1; i <= gParts.length; i++) {
-        existingGroups.add(gParts.sublist(0, i).join('/'));
-      }
-    }
-
-    final result = await showDialog<String>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          void validate() {
-            final name = nameCtrl.text.trim();
-            final newPath = parentPath.isEmpty ? name : '$parentPath/$name';
-            if (name.isEmpty) {
-              setDialogState(() => errorText = null);
-            } else if (name == currentName) {
-              setDialogState(() => errorText = null);
-            } else if (existingGroups.contains(newPath)) {
-              setDialogState(() => errorText = 'Folder "$name" already exists');
-            } else {
-              setDialogState(() => errorText = null);
-            }
-          }
-
-          return AlertDialog(
-            title: const Text('Rename Folder'),
-            content: TextField(
-              controller: nameCtrl,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Folder name',
-                errorText: errorText,
-              ),
-              onChanged: (_) => validate(),
-              onSubmitted: (v) {
-                if (errorText == null && v.trim().isNotEmpty && v.trim() != currentName) {
-                  Navigator.of(ctx).pop(v);
-                }
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: errorText == null
-                    ? () => Navigator.of(ctx).pop(nameCtrl.text)
-                    : null,
-                child: const Text('Rename'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    if (result == null || result.trim().isEmpty || result.trim() == currentName) return;
-
-    final newPath = parentPath.isEmpty ? result.trim() : '$parentPath/${result.trim()}';
-    await ref.read(sessionProvider.notifier).renameGroup(groupPath, newPath);
   }
 
   Future<void> _confirmDeleteFolder(BuildContext context, WidgetRef ref, String groupPath) async {
@@ -544,7 +548,7 @@ class _PanelHeader extends StatelessWidget {
           IconButton(
             onPressed: onAddFolder,
             icon: const Icon(Icons.create_new_folder, size: 18),
-            tooltip: 'New Folder',
+            tooltip: _kNewFolder,
             visualDensity: VisualDensity.compact,
           ),
         ],

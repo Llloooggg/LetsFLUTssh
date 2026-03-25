@@ -293,89 +293,125 @@ class _ExportImportTile extends ConsumerWidget {
   Future<void> _showImportDialog(BuildContext context, WidgetRef ref) async {
     final pathCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
+    final modeHolder = _ValueHolder(ImportMode.merge);
 
     final result = await showDialog<({String path, String password, ImportMode mode})>(
       context: context,
       animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) {
-        var mode = ImportMode.merge;
-        return StatefulBuilder(
-          builder: (ctx, setState) => AlertDialog(
-            title: const Text('Import Data'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: pathCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Path to .lfs file',
-                    border: OutlineInputBorder(),
-                    hintText: '/path/to/export.lfs',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: passwordCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Master Password',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SegmentedButton<ImportMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ImportMode.merge,
-                      label: Text('Merge'),
-                      icon: Icon(Icons.merge, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: ImportMode.replace,
-                      label: Text('Replace'),
-                      icon: Icon(Icons.swap_horiz, size: 16),
-                    ),
-                  ],
-                  selected: {mode},
-                  onSelectionChanged: (s) => setState(() => mode = s.first),
-                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  mode == ImportMode.merge
-                      ? 'Add new sessions, keep existing'
-                      : 'Replace all sessions with imported',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  if (pathCtrl.text.isEmpty || passwordCtrl.text.isEmpty) return;
-                  Navigator.pop(ctx, (
-                    path: pathCtrl.text,
-                    password: passwordCtrl.text,
-                    mode: mode,
-                  ));
-                },
-                child: const Text('Import'),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Import Data'),
+          content: _buildImportDialogContent(ctx, pathCtrl, passwordCtrl, modeHolder, setState),
+          actions: _buildImportDialogActions(ctx, pathCtrl, passwordCtrl, modeHolder),
+        ),
+      ),
     );
 
     if (result == null || !context.mounted) return;
+    await _executeImport(context, ref, result);
+  }
 
+  Column _buildImportDialogContent(
+    BuildContext ctx,
+    TextEditingController pathCtrl,
+    TextEditingController passwordCtrl,
+    _ValueHolder<ImportMode> modeHolder,
+    StateSetter setState,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          controller: pathCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Path to .lfs file',
+            border: OutlineInputBorder(),
+            hintText: '/path/to/export.lfs',
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: passwordCtrl,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Master Password',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildImportModeSelector(ctx, modeHolder, setState),
+      ],
+    );
+  }
+
+  Widget _buildImportModeSelector(
+    BuildContext ctx,
+    _ValueHolder<ImportMode> modeHolder,
+    StateSetter setState,
+  ) {
+    return Column(
+      children: [
+        SegmentedButton<ImportMode>(
+          segments: const [
+            ButtonSegment(
+              value: ImportMode.merge,
+              label: Text('Merge'),
+              icon: Icon(Icons.merge, size: 16),
+            ),
+            ButtonSegment(
+              value: ImportMode.replace,
+              label: Text('Replace'),
+              icon: Icon(Icons.swap_horiz, size: 16),
+            ),
+          ],
+          selected: {modeHolder.value},
+          onSelectionChanged: (s) => setState(() => modeHolder.value = s.first),
+          style: const ButtonStyle(visualDensity: VisualDensity.compact),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          modeHolder.value == ImportMode.merge
+              ? 'Add new sessions, keep existing'
+              : 'Replace all sessions with imported',
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildImportDialogActions(
+    BuildContext ctx,
+    TextEditingController pathCtrl,
+    TextEditingController passwordCtrl,
+    _ValueHolder<ImportMode> modeHolder,
+  ) {
+    return [
+      TextButton(
+        onPressed: () => Navigator.pop(ctx),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (pathCtrl.text.isEmpty || passwordCtrl.text.isEmpty) return;
+          Navigator.pop(ctx, (
+            path: pathCtrl.text,
+            password: passwordCtrl.text,
+            mode: modeHolder.value,
+          ));
+        },
+        child: const Text('Import'),
+      ),
+    ];
+  }
+
+  Future<void> _executeImport(
+    BuildContext context,
+    WidgetRef ref,
+    ({String path, String password, ImportMode mode}) result,
+  ) async {
     try {
       final file = File(result.path);
       if (!await file.exists()) {
@@ -393,28 +429,8 @@ class _ExportImportTile extends ConsumerWidget {
         importKnownHosts: true,
       );
 
-      // Apply imported sessions
-      final sessionNotifier = ref.read(sessionProvider.notifier);
-      if (importResult.mode == ImportMode.replace) {
-        // Delete all existing, add imported
-        final existing = ref.read(sessionProvider);
-        for (final s in existing) {
-          await sessionNotifier.delete(s.id);
-        }
-      }
-      for (final s in importResult.sessions) {
-        try {
-          await sessionNotifier.add(s);
-        } catch (e) {
-          if (importResult.mode == ImportMode.replace) rethrow;
-          debugPrint('Import: skipped session ${s.label}: $e');
-        }
-      }
-
-      // Apply imported config
-      if (importResult.config != null) {
-        ref.read(configProvider.notifier).update((_) => importResult.config!);
-      }
+      await _applyImportedSessions(ref, importResult);
+      _applyImportedConfig(ref, importResult);
 
       if (context.mounted) {
         Toast.show(
@@ -427,6 +443,30 @@ class _ExportImportTile extends ConsumerWidget {
       if (context.mounted) {
         Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
       }
+    }
+  }
+
+  Future<void> _applyImportedSessions(WidgetRef ref, ImportResult importResult) async {
+    final sessionNotifier = ref.read(sessionProvider.notifier);
+    if (importResult.mode == ImportMode.replace) {
+      final existing = ref.read(sessionProvider);
+      for (final s in existing) {
+        await sessionNotifier.delete(s.id);
+      }
+    }
+    for (final s in importResult.sessions) {
+      try {
+        await sessionNotifier.add(s);
+      } catch (e) {
+        if (importResult.mode == ImportMode.replace) rethrow;
+        debugPrint('Import: skipped session ${s.label}: $e');
+      }
+    }
+  }
+
+  void _applyImportedConfig(WidgetRef ref, ImportResult importResult) {
+    if (importResult.config != null) {
+      ref.read(configProvider.notifier).update((_) => importResult.config!);
     }
   }
 }
@@ -589,4 +629,10 @@ class _IntTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Mutable holder for passing state by reference into extracted helper methods.
+class _ValueHolder<T> {
+  T value;
+  _ValueHolder(this.value);
 }

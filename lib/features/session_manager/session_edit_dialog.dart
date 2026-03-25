@@ -182,249 +182,303 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Label
-                TextFormField(
-                  controller: _labelCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Label',
-                    hintText: 'My Server',
-                    prefixIcon: Icon(Icons.label),
-                  ),
-                  autofocus: true,
-                ),
+                _buildLabelField(),
                 const SizedBox(height: 12),
-
-                // Group with autocomplete
-                Autocomplete<String>(
-                  initialValue: TextEditingValue(text: _groupCtrl.text),
-                  optionsBuilder: (value) {
-                    if (value.text.isEmpty) return widget.existingGroups;
-                    return widget.existingGroups.where(
-                      (g) => g.toLowerCase().contains(value.text.toLowerCase()),
-                    );
-                  },
-                  onSelected: (value) => _groupCtrl.text = value,
-                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                    // Sync with our controller — only add listener once
-                    if (_autoCompleteCtrl != controller) {
-                      _autoCompleteCtrl = controller;
-                      controller.text = _groupCtrl.text;
-                      controller.addListener(() => _groupCtrl.text = controller.text);
-                    }
-                    return TextFormField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: const InputDecoration(
-                        labelText: 'Group',
-                        hintText: 'Production/Web',
-                        prefixIcon: Icon(Icons.folder),
-                      ),
-                    );
-                  },
-                ),
+                _buildGroupField(),
                 const SizedBox(height: 16),
-
-                // Host + Port
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _hostCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Host *',
-                          hintText: '192.168.1.1',
-                          prefixIcon: Icon(Icons.dns),
-                        ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Required' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _portCtrl,
-                        decoration: const InputDecoration(labelText: 'Port'),
-                        keyboardType: TextInputType.number,
-                        validator: (v) {
-                          final port = int.tryParse(v ?? '');
-                          if (port == null || port < 1 || port > 65535) {
-                            return '1-65535';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+                _buildHostPortRow(),
                 const SizedBox(height: 12),
-
-                // User
-                TextFormField(
-                  controller: _userCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Username *',
-                    hintText: 'root',
-                    prefixIcon: Icon(Icons.person),
-                  ),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
-                ),
+                _buildUserField(),
                 const SizedBox(height: 16),
-
-                // Auth type
-                const Text('Authentication', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 4),
-                SegmentedButton<AuthType>(
-                  segments: const [
-                    ButtonSegment(value: AuthType.password, label: Text('Password'), icon: Icon(Icons.lock, size: 16)),
-                    ButtonSegment(value: AuthType.key, label: Text('Key'), icon: Icon(Icons.vpn_key, size: 16)),
-                    ButtonSegment(value: AuthType.keyWithPassword, label: Text('Key+Pass'), icon: Icon(Icons.enhanced_encryption, size: 16)),
-                  ],
-                  selected: {_authType},
-                  onSelectionChanged: (v) => setState(() => _authType = v.first),
-                ),
+                _buildAuthTypeSelector(),
                 const SizedBox(height: 12),
-
-                // Password (for password and keyWithPassword)
-                if (_authType == AuthType.password || _authType == AuthType.keyWithPassword)
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    obscureText: _obscurePassword,
-                  ),
-
-                // Key fields (for key and keyWithPassword)
-                if (_authType == AuthType.key || _authType == AuthType.keyWithPassword) ...[
-                  const SizedBox(height: 12),
-                  if (isDesktopPlatform)
-                    DropTarget(
-                      onDragEntered: (_) => setState(() => _keyDragging = true),
-                      onDragExited: (_) => setState(() => _keyDragging = false),
-                      onDragDone: (details) {
-                        setState(() => _keyDragging = false);
-                        final files = details.files;
-                        if (files.isNotEmpty) {
-                          final path = files.first.path;
-                          // If the file looks like a PEM key, read its contents into keyData
-                          final file = File(path);
-                          if (file.existsSync() && file.lengthSync() < 32768) {
-                            final content = file.readAsStringSync();
-                            if (content.contains('PRIVATE KEY')) {
-                              setState(() {
-                                _keyDataCtrl.text = content;
-                                _showKeyText = true;
-                              });
-                              return;
-                            }
-                          }
-                          // Otherwise just set the path
-                          setState(() => _keyPathCtrl.text = path);
-                        }
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          border: _keyDragging
-                              ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
-                              : null,
-                        ),
-                        child: TextFormField(
-                          controller: _keyPathCtrl,
-                          decoration: InputDecoration(
-                            labelText: 'Key File',
-                            hintText: '~/.ssh/id_rsa',
-                            prefixIcon: const Icon(Icons.vpn_key),
-                            suffixText: _keyDragging ? 'Drop here' : null,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    // Mobile: key file path field without drag&drop
-                    TextFormField(
-                      controller: _keyPathCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Key File Path',
-                        hintText: '/path/to/key',
-                        prefixIcon: Icon(Icons.vpn_key),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () => setState(() => _showKeyText = !_showKeyText),
-                      icon: Icon(_showKeyText ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 16),
-                      label: Text(
-                        _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ),
-                  if (_showKeyText)
-                    TextFormField(
-                      controller: _keyDataCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Key Text (PEM)',
-                        hintText: '-----BEGIN OPENSSH PRIVATE KEY-----',
-                        alignLabelWithHint: true,
-                      ),
-                      maxLines: 5,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                    ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _passphraseCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Key Passphrase',
-                      prefixIcon: const Icon(Icons.password),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassphrase ? Icons.visibility : Icons.visibility_off),
-                        onPressed: () => setState(() => _obscurePassphrase = !_obscurePassphrase),
-                      ),
-                    ),
-                    obscureText: _obscurePassphrase,
-                  ),
-                ],
+                ..._buildAuthFields(),
               ],
             ),
           ),
         ),
       ),
-      actions: _isEditing
-          ? [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton.icon(
-                onPressed: _save,
-                icon: const Icon(Icons.save),
-                label: const Text('Save'),
-              ),
-            ]
-          : [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              OutlinedButton(
-                onPressed: _connectOnly,
-                child: const Text('Connect'),
-              ),
-              FilledButton(
-                onPressed: _saveAndConnect,
-                child: const Text('Save & Connect'),
-              ),
-            ],
+      actions: _buildActions(),
     );
+  }
+
+  Widget _buildLabelField() {
+    return TextFormField(
+      controller: _labelCtrl,
+      decoration: const InputDecoration(
+        labelText: 'Label',
+        hintText: 'My Server',
+        prefixIcon: Icon(Icons.label),
+      ),
+      autofocus: true,
+    );
+  }
+
+  Widget _buildGroupField() {
+    return Autocomplete<String>(
+      initialValue: TextEditingValue(text: _groupCtrl.text),
+      optionsBuilder: (value) {
+        if (value.text.isEmpty) return widget.existingGroups;
+        return widget.existingGroups.where(
+          (g) => g.toLowerCase().contains(value.text.toLowerCase()),
+        );
+      },
+      onSelected: (value) => _groupCtrl.text = value,
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+        // Sync with our controller — only add listener once
+        if (_autoCompleteCtrl != controller) {
+          _autoCompleteCtrl = controller;
+          controller.text = _groupCtrl.text;
+          controller.addListener(() => _groupCtrl.text = controller.text);
+        }
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: const InputDecoration(
+            labelText: 'Group',
+            hintText: 'Production/Web',
+            prefixIcon: Icon(Icons.folder),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHostPortRow() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: TextFormField(
+            controller: _hostCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Host *',
+              hintText: '192.168.1.1',
+              prefixIcon: Icon(Icons.dns),
+            ),
+            validator: (v) =>
+                v == null || v.trim().isEmpty ? 'Required' : null,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextFormField(
+            controller: _portCtrl,
+            decoration: const InputDecoration(labelText: 'Port'),
+            keyboardType: TextInputType.number,
+            validator: (v) {
+              final port = int.tryParse(v ?? '');
+              if (port == null || port < 1 || port > 65535) {
+                return '1-65535';
+              }
+              return null;
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUserField() {
+    return TextFormField(
+      controller: _userCtrl,
+      decoration: const InputDecoration(
+        labelText: 'Username *',
+        hintText: 'root',
+        prefixIcon: Icon(Icons.person),
+      ),
+      validator: (v) =>
+          v == null || v.trim().isEmpty ? 'Required' : null,
+    );
+  }
+
+  Widget _buildAuthTypeSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Authentication', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        SegmentedButton<AuthType>(
+          segments: const [
+            ButtonSegment(value: AuthType.password, label: Text('Password'), icon: Icon(Icons.lock, size: 16)),
+            ButtonSegment(value: AuthType.key, label: Text('Key'), icon: Icon(Icons.vpn_key, size: 16)),
+            ButtonSegment(value: AuthType.keyWithPassword, label: Text('Key+Pass'), icon: Icon(Icons.enhanced_encryption, size: 16)),
+          ],
+          selected: {_authType},
+          onSelectionChanged: (v) => setState(() => _authType = v.first),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildAuthFields() {
+    return [
+      // Password (for password and keyWithPassword)
+      if (_authType == AuthType.password || _authType == AuthType.keyWithPassword)
+        _buildPasswordField(),
+
+      // Key fields (for key and keyWithPassword)
+      if (_authType == AuthType.key || _authType == AuthType.keyWithPassword)
+        ..._buildKeyFields(),
+    ];
+  }
+
+  Widget _buildPasswordField() {
+    return TextFormField(
+      controller: _passwordCtrl,
+      decoration: InputDecoration(
+        labelText: 'Password',
+        prefixIcon: const Icon(Icons.lock),
+        suffixIcon: IconButton(
+          icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+        ),
+      ),
+      obscureText: _obscurePassword,
+    );
+  }
+
+  List<Widget> _buildKeyFields() {
+    return [
+      const SizedBox(height: 12),
+      _buildKeyPathField(),
+      const SizedBox(height: 8),
+      _buildPemToggle(),
+      if (_showKeyText) _buildPemTextField(),
+      const SizedBox(height: 12),
+      _buildPassphraseField(),
+    ];
+  }
+
+  Widget _buildKeyPathField() {
+    if (isDesktopPlatform) {
+      return _buildDesktopKeyPathField();
+    }
+    // Mobile: key file path field without drag&drop
+    return TextFormField(
+      controller: _keyPathCtrl,
+      decoration: const InputDecoration(
+        labelText: 'Key File Path',
+        hintText: '/path/to/key',
+        prefixIcon: Icon(Icons.vpn_key),
+      ),
+    );
+  }
+
+  Widget _buildDesktopKeyPathField() {
+    return DropTarget(
+      onDragEntered: (_) => setState(() => _keyDragging = true),
+      onDragExited: (_) => setState(() => _keyDragging = false),
+      onDragDone: (details) {
+        setState(() => _keyDragging = false);
+        final files = details.files;
+        if (files.isNotEmpty) {
+          final path = files.first.path;
+          // If the file looks like a PEM key, read its contents into keyData
+          final file = File(path);
+          if (file.existsSync() && file.lengthSync() < 32768) {
+            final content = file.readAsStringSync();
+            if (content.contains('PRIVATE KEY')) {
+              setState(() {
+                _keyDataCtrl.text = content;
+                _showKeyText = true;
+              });
+              return;
+            }
+          }
+          // Otherwise just set the path
+          setState(() => _keyPathCtrl.text = path);
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          border: _keyDragging
+              ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+              : null,
+        ),
+        child: TextFormField(
+          controller: _keyPathCtrl,
+          decoration: InputDecoration(
+            labelText: 'Key File',
+            hintText: '~/.ssh/id_rsa',
+            prefixIcon: const Icon(Icons.vpn_key),
+            suffixText: _keyDragging ? 'Drop here' : null,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPemToggle() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: () => setState(() => _showKeyText = !_showKeyText),
+        icon: Icon(_showKeyText ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 16),
+        label: Text(
+          _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
+          style: const TextStyle(fontSize: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPemTextField() {
+    return TextFormField(
+      controller: _keyDataCtrl,
+      decoration: const InputDecoration(
+        labelText: 'Key Text (PEM)',
+        hintText: '-----BEGIN OPENSSH PRIVATE KEY-----',
+        alignLabelWithHint: true,
+      ),
+      maxLines: 5,
+      style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+    );
+  }
+
+  Widget _buildPassphraseField() {
+    return TextFormField(
+      controller: _passphraseCtrl,
+      decoration: InputDecoration(
+        labelText: 'Key Passphrase',
+        prefixIcon: const Icon(Icons.password),
+        suffixIcon: IconButton(
+          icon: Icon(_obscurePassphrase ? Icons.visibility : Icons.visibility_off),
+          onPressed: () => setState(() => _obscurePassphrase = !_obscurePassphrase),
+        ),
+      ),
+      obscureText: _obscurePassphrase,
+    );
+  }
+
+  List<Widget> _buildActions() {
+    if (_isEditing) {
+      return [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _save,
+          icon: const Icon(Icons.save),
+          label: const Text('Save'),
+        ),
+      ];
+    }
+    return [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      OutlinedButton(
+        onPressed: _connectOnly,
+        child: const Text('Connect'),
+      ),
+      FilledButton(
+        onPressed: _saveAndConnect,
+        child: const Text('Save & Connect'),
+      ),
+    ];
   }
 }

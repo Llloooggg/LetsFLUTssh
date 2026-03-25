@@ -105,27 +105,50 @@ class FilePaneDialogs {
       ),
     );
 
-    if (confirmed == true) {
-      var deleted = 0;
-      for (final entry in entries) {
-        try {
-          if (entry.isDir) {
-            await ctrl.fs.removeDir(entry.path);
-          } else {
-            await ctrl.fs.remove(entry.path);
-          }
-          deleted++;
-        } catch (e) {
-          if (context.mounted) {
-            Toast.show(context, message: 'Failed to delete ${entry.name}: $e', level: ToastLevel.error);
-          }
-        }
-      }
+    if (confirmed == true && context.mounted) {
+      final deleted = await _deleteEntries(context, ctrl, entries);
       await ctrl.refresh();
-      if (deleted > 0 && context.mounted) {
-        final msg = deleted == 1 ? 'Deleted ${entries.first.name}' : 'Deleted $deleted items';
-        Toast.show(context, message: msg, level: ToastLevel.success);
+      if (context.mounted) {
+        _showDeletedToast(context, entries, deleted);
       }
+    }
+  }
+
+  static Future<int> _deleteEntries(
+    BuildContext context,
+    FilePaneController ctrl,
+    List<FileEntry> entries,
+  ) async {
+    var deleted = 0;
+    final errors = <String>[];
+    for (final entry in entries) {
+      try {
+        await _deleteSingleEntry(ctrl, entry);
+        deleted++;
+      } catch (e) {
+        errors.add('Failed to delete ${entry.name}: $e');
+      }
+    }
+    if (errors.isNotEmpty && context.mounted) {
+      for (final msg in errors) {
+        Toast.show(context, message: msg, level: ToastLevel.error);
+      }
+    }
+    return deleted;
+  }
+
+  static Future<void> _deleteSingleEntry(FilePaneController ctrl, FileEntry entry) async {
+    if (entry.isDir) {
+      await ctrl.fs.removeDir(entry.path);
+    } else {
+      await ctrl.fs.remove(entry.path);
+    }
+  }
+
+  static void _showDeletedToast(BuildContext context, List<FileEntry> entries, int deleted) {
+    if (deleted > 0 && context.mounted) {
+      final msg = deleted == 1 ? 'Deleted ${entries.first.name}' : 'Deleted $deleted items';
+      Toast.show(context, message: msg, level: ToastLevel.success);
     }
   }
 }

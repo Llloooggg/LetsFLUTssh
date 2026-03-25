@@ -270,135 +270,144 @@ class _MobileFileListState extends State<_MobileFileList> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (ctrl.loading) return const Center(child: CircularProgressIndicator());
-    if (ctrl.error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 8),
-            Text(ctrl.error!),
-            const SizedBox(height: 8),
-            FilledButton.tonal(onPressed: ctrl.refresh, child: const Text('Retry')),
-          ],
-        ),
-      );
-    }
-    if (ctrl.entries.isEmpty) {
-      return const Center(child: Text('Empty directory'));
-    }
+    if (ctrl.error != null) return _buildError(context);
+    if (ctrl.entries.isEmpty) return const Center(child: Text('Empty directory'));
 
     return Column(
       children: [
-        // Selection action bar
         if (_selectionMode && ctrl.selected.isNotEmpty)
-          Container(
-            height: 44,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: _exitSelectionMode,
-                  icon: const Icon(Icons.close, size: 20),
-                ),
-                Text('${ctrl.selected.length} selected', style: const TextStyle(fontSize: 13)),
-                const Spacer(),
-                IconButton(
-                  onPressed: () {
-                    widget.onTransferMultiple(ctrl.selectedEntries);
-                    _exitSelectionMode();
-                  },
-                  icon: const Icon(Icons.swap_horiz, size: 20),
-                  tooltip: 'Transfer',
-                ),
-                IconButton(
-                  onPressed: () => _confirmDelete(context, ctrl.selectedEntries),
-                  icon: const Icon(Icons.delete, size: 20),
-                  tooltip: 'Delete',
-                ),
-              ],
-            ),
-          ),
-        // File list
+          _buildSelectionBar(context),
         Expanded(
           child: ListView.builder(
             itemCount: ctrl.entries.length,
-            itemExtent: 48, // Larger touch target for mobile
-            itemBuilder: (context, index) {
-              final entry = ctrl.entries[index];
-              final isSelected = ctrl.selected.contains(entry.path);
-
-              return InkWell(
-                onTap: () {
-                  if (_selectionMode) {
-                    ctrl.toggleSelect(entry.path);
-                    if (ctrl.selected.isEmpty) _exitSelectionMode();
-                  } else if (entry.isDir) {
-                    ctrl.navigateTo(entry.path);
-                  } else {
-                    widget.onTransfer(entry);
-                  }
-                },
-                onLongPress: () {
-                  if (!_selectionMode) {
-                    setState(() => _selectionMode = true);
-                    ctrl.selectSingle(entry.path);
-                  } else {
-                    _showEntryActions(context, entry);
-                  }
-                },
-                child: Container(
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  color: isSelected ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5) : null,
-                  child: Row(
-                    children: [
-                      if (_selectionMode)
-                        Checkbox(
-                          value: isSelected,
-                          onChanged: (_) => ctrl.toggleSelect(entry.path),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      Icon(
-                        entry.isDir ? Icons.folder : Icons.insert_drive_file,
-                        size: 22,
-                        color: entry.isDir ? AppTheme.folderIcon : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(entry.name, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
-                            if (!entry.isDir)
-                              Text(
-                                formatSize(entry.size),
-                                style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                              ),
-                          ],
-                        ),
-                      ),
-                      if (!_selectionMode)
-                        Text(
-                          entry.modeString,
-                          style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
+            itemExtent: 48,
+            itemBuilder: (context, index) =>
+                _buildFileRow(context, ctrl.entries[index]),
           ),
         ),
       ],
     );
+  }
+
+  Widget _buildError(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+          const SizedBox(height: 8),
+          Text(ctrl.error!),
+          const SizedBox(height: 8),
+          FilledButton.tonal(onPressed: ctrl.refresh, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectionBar(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _exitSelectionMode,
+            icon: const Icon(Icons.close, size: 20),
+          ),
+          Text('${ctrl.selected.length} selected', style: const TextStyle(fontSize: 13)),
+          const Spacer(),
+          IconButton(
+            onPressed: () {
+              widget.onTransferMultiple(ctrl.selectedEntries);
+              _exitSelectionMode();
+            },
+            icon: const Icon(Icons.swap_horiz, size: 20),
+            tooltip: 'Transfer',
+          ),
+          IconButton(
+            onPressed: () => _confirmDelete(context, ctrl.selectedEntries),
+            icon: const Icon(Icons.delete, size: 20),
+            tooltip: 'Delete',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFileRow(BuildContext context, FileEntry entry) {
+    final theme = Theme.of(context);
+    final isSelected = ctrl.selected.contains(entry.path);
+
+    return InkWell(
+      onTap: () => _onEntryTap(entry),
+      onLongPress: () => _onEntryLongPress(context, entry),
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        color: isSelected ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5) : null,
+        child: Row(
+          children: [
+            if (_selectionMode)
+              Checkbox(
+                value: isSelected,
+                onChanged: (_) => ctrl.toggleSelect(entry.path),
+                visualDensity: VisualDensity.compact,
+              ),
+            Icon(
+              entry.isDir ? Icons.folder : Icons.insert_drive_file,
+              size: 22,
+              color: entry.isDir ? AppTheme.folderIcon : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(entry.name, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
+                  if (!entry.isDir)
+                    Text(
+                      formatSize(entry.size),
+                      style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                    ),
+                ],
+              ),
+            ),
+            if (!_selectionMode)
+              Text(
+                entry.modeString,
+                style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onEntryTap(FileEntry entry) {
+    if (_selectionMode) {
+      ctrl.toggleSelect(entry.path);
+      if (ctrl.selected.isEmpty) _exitSelectionMode();
+    } else if (entry.isDir) {
+      ctrl.navigateTo(entry.path);
+    } else {
+      widget.onTransfer(entry);
+    }
+  }
+
+  void _onEntryLongPress(BuildContext context, FileEntry entry) {
+    if (!_selectionMode) {
+      setState(() => _selectionMode = true);
+      ctrl.selectSingle(entry.path);
+    } else {
+      _showEntryActions(context, entry);
+    }
   }
 
   void _showEntryActions(BuildContext context, FileEntry entry) {
