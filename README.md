@@ -81,8 +81,11 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 ### Cross-Platform
 
-- **Desktop:** Windows, Linux, macOS
-- **Mobile:** Android, iOS
+- **Windows:** 10+ (x64)
+- **Linux:** x64, GTK 3 (Ubuntu 20.04+, Fedora 33+, Arch, etc.)
+- **macOS:** 10.15 Catalina+ (universal — Intel + Apple Silicon)
+- **Android:** 7.0 Nougat+ (API 24)
+- **iOS:** 13.0+
 - Native rendering via Flutter (Skia/Impeller) — no WebView
 
 ## Screenshots
@@ -192,7 +195,7 @@ make build-ios
 
 ## Current Status
 
-**v0.9.2** — All core features implemented across 9 development phases:
+**v0.9.4** — All core features implemented across 9 development phases:
 
 | Phase | What                                                                       |
 | ----- | -------------------------------------------------------------------------- |
@@ -225,6 +228,7 @@ See [User Guide](docs/USER_GUIDE.md) for usage instructions, [CLAUDE.md](CLAUDE.
 - **xterm.dart** — terminal emulator widget (VT100/xterm, 256-color, RGB, mouse)
 - **Riverpod** — state management
 - **pointycastle** — AES-256-GCM encryption (pure Dart, no native deps)
+- **permission_handler** — runtime permission requests (Android storage access)
 
 ## Predecessor
 

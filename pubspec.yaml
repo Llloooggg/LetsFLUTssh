@@ -1,7 +1,7 @@
 name: letsflutssh
 description: Lightweight cross-platform SSH/SFTP client with GUI
 publish_to: 'none'
-version: 0.9.3+16
+version: 0.9.4+17
 
 environment:
   sdk: ^3.11.0
@@ -40,6 +40,7 @@ dependencies:
 
   # Deep links / file open intents
   app_links: ^7.0.0
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:

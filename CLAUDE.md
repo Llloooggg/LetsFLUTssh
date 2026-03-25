@@ -16,7 +16,7 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 - **User commits manually** — Claude only suggests commit messages
 - Format: `type: short description` (e.g. `feat: phase 1 — SSH terminal with xterm.dart`)
 - Types: `feat`, `fix`, `refactor`, `docs`, `chore`
-- Repository is **private** on GitHub
+- Repository is **public** on GitHub
 
 ### Work Style
 
@@ -62,6 +62,7 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 - **File picker:** `file_picker` ^10.3.10 — native file/directory picker
 - **File drop:** `desktop_drop` ^0.7.0 — OS drag&drop into app (desktop)
 - **Data dir:** `path_provider` ^2.1.5 — platform-specific app data paths
+- **Permissions:** `permission_handler` ^12.0.1 — runtime permission requests (Android storage access)
 - **State management:** `riverpod` ^2.x — reactive state (sessions, connections, transfers)
 - **Serialization:** `json_serializable` + `freezed` — immutable models with JSON
 - **Routing:** `go_router` ^14.x — declarative navigation
@@ -195,7 +196,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 doesn't support SCP; SFTP covers all use cases (file/directory upload/download with progress)
 7. **Tree-based sessions** — nested groups via `/` separator (Production/Web/nginx1), stored as flat list with group path, UI builds TreeView
 
-## Current State (v0.9.3 — mobile UX + polish)
+## Current State (v0.9.4 — platform permissions + manifests)
 
 ### What works
 - SSH connection via dartssh2 (password, key file, key text)
@@ -304,6 +305,12 @@ LetsFLUTssh/
 - **Transfer panel** — bigger header (36px), bigger text (13px)
 - **Desktop-only DropTarget** — session edit dialog hides OS drag&drop on mobile
 - **Responsive host key dialog** — ConstrainedBox instead of fixed width
+- **Android storage permissions** — MANAGE_EXTERNAL_STORAGE + READ/WRITE_EXTERNAL_STORAGE (with maxSdkVersion), requestLegacyExternalStorage, runtime permission request via permission_handler
+- **Android home directory** — `/storage/emulated/0` instead of empty `$HOME` for local file browser
+- **iOS local network description** — NSLocalNetworkUsageDescription for SSH connections to LAN servers
+- **App display name** — "LFssh" on Android and iOS (under app icon)
+- **Manifest best practices** — Android/iOS manifests reorganized with grouped sections and comments
+- **CodeQL workflow** — daily security scanning (Actions workflows) + dependency review on PRs + Dart static analysis
 
 ### Decisions and Why
 - **SSHConnectionState instead of ConnectionState** — name conflict with Flutter's `ConnectionState` from async.dart
@@ -363,6 +370,10 @@ LetsFLUTssh/
 - **InputChip for mobile tabs** — ChoiceChip doesn't support deleteIcon/onDeleted; InputChip provides built-in X close button
 - **Listener for mouse buttons** — Listener (raw pointer events) wraps Focus widget in FilePane; kBackMouseButton/kForwardMouseButton trigger goBack()/goForward()
 - **Move to folder dialog** — mobile replacement for drag&drop session reordering; lists all groups + root, current group highlighted
+- **MANAGE_EXTERNAL_STORAGE for Android** — file manager apps require full filesystem access; READ/WRITE_EXTERNAL_STORAGE deprecated on API 30+/33+; maxSdkVersion limits old permissions to relevant API levels
+- **permission_handler** — standard Flutter plugin for runtime permissions; bundles native code, no OS packages to install; handles MANAGE_EXTERNAL_STORAGE Settings redirect
+- **Android homeDirectory /storage/emulated/0** — `$HOME` env var is empty on Android; /storage/emulated/0 is the shared internal storage root visible to users
+- **NSLocalNetworkUsageDescription** — iOS blocks TCP connections to local network without this; SSH clients connecting to 192.168.x.x need it
 
 ### What's planned (ported from LetsGOssh + improvements)
 

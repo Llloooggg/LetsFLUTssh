@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:permission_handler/permission_handler.dart';
+
 import '../../core/connection/connection.dart';
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_client.dart';
@@ -29,10 +33,27 @@ class SFTPInitializer {
   /// Initialize SFTP service and file pane controllers from a [Connection].
   ///
   /// Throws if SSH connection is not available or SFTP init fails.
+  /// Request MANAGE_EXTERNAL_STORAGE on Android for local file browsing.
+  /// Falls back to READ/WRITE_EXTERNAL_STORAGE on API < 30.
+  static Future<void> _requestStoragePermission() async {
+    final status = await Permission.manageExternalStorage.status;
+    if (status.isGranted) return;
+    final result = await Permission.manageExternalStorage.request();
+    if (!result.isGranted) {
+      // Fall back to legacy storage permission (API < 30)
+      await Permission.storage.request();
+    }
+  }
+
   static Future<SFTPInitResult> init(Connection connection) async {
     final sshClient = connection.sshConnection?.client;
     if (sshClient == null) {
       throw StateError('SSH connection not available');
+    }
+
+    // On Android, request storage permission for local file browser
+    if (Platform.isAndroid) {
+      await _requestStoragePermission();
     }
 
     final sftpService = await SFTPService.fromSSHClient(sshClient);
