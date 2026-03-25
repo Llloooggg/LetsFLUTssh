@@ -325,6 +325,123 @@ void main() {
     });
   });
 
+  group('SessionEditDialog — auth type toggle Key to Password', () {
+    testWidgets('switching from Key to Password hides key fields and shows password',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Switch to Key
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      // Key fields should be visible
+      expect(find.text('Key Passphrase'), findsOneWidget);
+
+      // Switch back to Password
+      await tester.tap(find.text('Password'));
+      await tester.pumpAndSettle();
+
+      // Key fields should be hidden, password visible
+      expect(find.text('Key Passphrase'), findsNothing);
+      expect(find.text('Password'), findsWidgets);
+    });
+  });
+
+  group('SessionEditDialog — password visibility toggle', () {
+    testWidgets('toggling password visibility changes icon',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Scroll to the password visibility icon
+      await tester.scrollUntilVisible(
+        find.byIcon(Icons.visibility).first,
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+
+      // Password field should have visibility icon (obscured by default)
+      expect(find.byIcon(Icons.visibility), findsOneWidget);
+
+      // Toggle visibility
+      await tester.tap(find.byIcon(Icons.visibility).first);
+      await tester.pumpAndSettle();
+
+      // Should now show visibility_off
+      expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+    });
+  });
+
+  group('SessionEditDialog — passphrase visibility toggle', () {
+    testWidgets('toggling passphrase visibility in Key auth', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Switch to Key
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      // Scroll to passphrase
+      await tester.scrollUntilVisible(
+        find.text('Key Passphrase'),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+
+      // Find the visibility icon for passphrase (only one in Key mode)
+      final visIcon = find.byIcon(Icons.visibility);
+      expect(visIcon, findsOneWidget);
+
+      await tester.tap(visIcon);
+      await tester.pumpAndSettle();
+
+      // Should now show visibility_off
+      expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+    });
+  });
+
+  group('SessionEditDialog — PEM text field visibility toggle', () {
+    testWidgets('toggling PEM text shows and hides the PEM field',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Switch to Key
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      // PEM field should not be visible yet
+      expect(find.text('Key Text (PEM)'), findsNothing);
+
+      // Show PEM text
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      // PEM field should now be visible
+      expect(find.text('Key Text (PEM)'), findsOneWidget);
+      // Toggle text should change to "Hide PEM text"
+      expect(find.text('Hide PEM text'), findsOneWidget);
+
+      // Hide PEM text
+      await tester.tap(find.text('Hide PEM text'));
+      await tester.pumpAndSettle();
+
+      // PEM field should be hidden again
+      expect(find.text('Key Text (PEM)'), findsNothing);
+      expect(find.text('Paste PEM key text'), findsOneWidget);
+    });
+  });
+
   group('SessionEditDialog — group field with defaultGroup', () {
     testWidgets('autocomplete with empty text shows all groups', (tester) async {
       await tester.pumpWidget(

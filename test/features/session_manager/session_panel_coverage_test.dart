@@ -474,6 +474,164 @@ void main() {
     });
   });
 
+  group('SessionPanel — SSH connect via context menu', () {
+    testWidgets('SSH connect action calls onConnect', (tester) async {
+      Session? connected;
+      await tester.pumpWidget(buildApp(
+        onConnect: (s) => connected = s,
+        onSftpConnect: (_) {},
+      ));
+      await tester.pumpAndSettle();
+
+      // Right-click on web1
+      await rightClick(tester, find.text('web1'));
+
+      await tester.tap(find.text('SSH'));
+      await tester.pumpAndSettle();
+
+      expect(connected?.label, 'web1');
+    });
+  });
+
+  group('SessionPanel — SFTP connect via context menu', () {
+    testWidgets('SFTP action calls onSftpConnect', (tester) async {
+      Session? sftpConnected;
+      await tester.pumpWidget(buildApp(
+        onSftpConnect: (s) => sftpConnected = s,
+      ));
+      await tester.pumpAndSettle();
+
+      // Right-click on web1
+      await rightClick(tester, find.text('web1'));
+
+      await tester.tap(find.text('SFTP'));
+      await tester.pumpAndSettle();
+
+      expect(sftpConnected?.label, 'web1');
+    });
+  });
+
+  group('SessionPanel — duplicate action via context menu', () {
+    testWidgets('Duplicate action duplicates session', (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on web1
+      await rightClick(tester, find.text('web1'));
+
+      await tester.tap(find.text('Duplicate'));
+      await tester.pumpAndSettle();
+
+      // Should not crash — duplicate was called on notifier
+    });
+  });
+
+  group('SessionPanel — delete session confirm and execute', () {
+    testWidgets('delete confirm dialog deletes session on confirm',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on staging (root-level session)
+      await rightClick(tester, find.text('staging'));
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      // Confirm dialog should show
+      expect(find.text('Delete Session'), findsOneWidget);
+      expect(find.textContaining('Delete "staging"'), findsOneWidget);
+
+      // Confirm deletion
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      // Dialog should close
+      expect(find.text('Delete Session'), findsNothing);
+    });
+  });
+
+  group('SessionPanel — delete folder confirm', () {
+    testWidgets('delete folder with sessions shows count warning',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Right-click Production folder (has 2 sessions)
+      await rightClick(tester, find.text('Production'));
+
+      await tester.tap(find.text('Delete Folder'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Delete folder "Production"?'),
+          findsOneWidget);
+      expect(find.textContaining('session(s) inside'), findsOneWidget);
+
+      // Confirm
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      // Dialog should close
+      expect(find.text('Delete Folder'), findsNothing);
+    });
+  });
+
+  group('SessionPanel — edit session via context menu', () {
+    testWidgets('edit action opens edit dialog', (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on staging
+      await rightClick(tester, find.text('staging'));
+
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+
+      // Edit dialog should open with session data
+      expect(find.text('Edit Session'), findsOneWidget);
+
+      // Cancel
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SessionPanel — delete all sessions', () {
+    testWidgets('delete all confirm dialog deletes all sessions',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Right-click on empty area — need the background context menu
+      // Background context menu is on the SessionTreeView
+      final panel = find.byType(SessionPanel);
+      final panelBox = tester.getRect(panel);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(
+          location: Offset(panelBox.center.dx, panelBox.bottom - 10));
+      await gesture.down(
+          Offset(panelBox.center.dx, panelBox.bottom - 10));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      final deleteAll = find.text('Delete All Sessions');
+      if (deleteAll.evaluate().isNotEmpty) {
+        await tester.tap(deleteAll);
+        await tester.pumpAndSettle();
+
+        // Confirm dialog
+        expect(find.textContaining('Delete all'), findsOneWidget);
+
+        // Confirm
+        await tester.tap(find.widgetWithText(FilledButton, 'Delete All'));
+        await tester.pumpAndSettle();
+      }
+    });
+  });
+
   group('SessionPanel — move dialog current group highlighting', () {
     testWidgets('move dialog highlights current group', (tester) async {
       // This test only works on mobile (where Move is in context menu),

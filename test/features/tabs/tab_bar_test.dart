@@ -546,6 +546,25 @@ void main() {
       expect(hasEllipsis, isTrue);
     });
 
+    testWidgets('close button InkWell tap closes the tab', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Tab A', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Tab B', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      // Find the close InkWell for Tab A — close icons exist for each tab
+      // Tap the first close icon (for Tab A)
+      final closeIcons = find.byIcon(Icons.close);
+      expect(closeIcons, findsWidgets);
+      await tester.tap(closeIcons.first);
+      await tester.pumpAndSettle();
+
+      // Tab A should be gone, Tab B should remain
+      expect(find.text('Tab B'), findsWidgets);
+    });
+
     testWidgets('DragTarget is present for each tab', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs([

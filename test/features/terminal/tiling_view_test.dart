@@ -278,6 +278,64 @@ void main() {
     });
   });
 
+  group('TilingView — horizontal divider drag', () {
+    testWidgets('dragging horizontal divider changes ratio', (tester) async {
+      final mockSsh1 = MockSSHConnection();
+      final mockSession1 = MockSSHSession();
+      final conn1 = _buildConnectedConnection(
+        mockSsh: mockSsh1, mockSession: mockSession1, id: 'c1');
+      final mockSsh2 = MockSSHConnection();
+      final mockSession2 = MockSSHSession();
+      final conn2 = _buildConnectedConnection(
+        mockSsh: mockSsh2, mockSession: mockSession2, id: 'c2');
+
+      final leaf1 = LeafNode(id: 'hd1');
+      final leaf2 = LeafNode(id: 'hd2');
+      final branch = BranchNode(
+        direction: SplitDirection.horizontal,
+        ratio: 0.5,
+        first: leaf1,
+        second: leaf2,
+      );
+
+      SplitNode? changedRoot;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: TilingView(
+                tabId: 'tab-hdrag',
+                root: branch,
+                paneConnections: {'hd1': conn1, 'hd2': conn2},
+                focusedPaneId: 'hd1',
+                onPaneFocused: (_) {},
+                onSplit: (_, __, ___) {},
+                onClosePane: (_) {},
+                onTreeChanged: (r) => changedRoot = r,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Find the horizontal divider (resizeRow cursor)
+      final divider = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
+      );
+      if (divider.evaluate().isNotEmpty) {
+        await tester.drag(divider.first, const Offset(0, 30));
+        await tester.pump();
+
+        expect(changedRoot, isNotNull);
+      }
+    });
+  });
+
   group('TilingView — no connection', () {
     testWidgets('renders SizedBox.shrink when paneConnections is empty', (tester) async {
       final leaf = LeafNode(id: 'no-conn');

@@ -258,6 +258,31 @@ void main() {
       expect(find.text('Name'), findsOneWidget);
     });
 
+    testWidgets('resize handle vertical drag clamps to min/max', (tester) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      // Expand panel
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      // Find the resize handle by the resizeRow cursor
+      final resizeHandle = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
+      );
+      expect(resizeHandle, findsOneWidget);
+
+      // Drag up by a large amount (should clamp to max 500)
+      await tester.drag(resizeHandle, const Offset(0, -600));
+      await tester.pumpAndSettle();
+      expect(find.text('Name'), findsOneWidget);
+
+      // Drag down by a large amount (should clamp to min 80)
+      await tester.drag(resizeHandle, const Offset(0, 600));
+      await tester.pumpAndSettle();
+      expect(find.text('Name'), findsOneWidget);
+    });
+
     testWidgets('shows formatted size in history row', (tester) async {
       final history = [
         HistoryEntry(

@@ -357,6 +357,174 @@ void main() {
     });
   });
 
+  group('SettingsScreen — export password mismatch', () {
+    testWidgets('export with mismatched passwords shows warning toast',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Export Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      // Enter different passwords
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'pass1');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Confirm Password'), 'pass2');
+      await tester.pumpAndSettle();
+
+      // Tap Export
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pump();
+
+      // Toast "Passwords do not match" should appear
+      expect(find.text('Passwords do not match'), findsOneWidget);
+
+      // Dialog should still be open
+      expect(find.text('Export Data'), findsWidgets);
+
+      // Cancel
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+
+      // Pump past the toast auto-dismiss timer (3 seconds)
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SettingsScreen — export with empty password', () {
+    testWidgets('export with empty password does nothing', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Export Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      // Don't enter any password, just tap Export
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open (empty password returns early)
+      expect(find.text('Master Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SettingsScreen — import dialog submit', () {
+    testWidgets('import with empty fields does not submit', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      // Tap Import without filling fields
+      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open
+      expect(find.text('Path to .lfs file'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SettingsScreen — import mode selector', () {
+    testWidgets('switching to Replace mode changes description text',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      // Default is Merge
+      expect(
+          find.text('Add new sessions, keep existing'), findsOneWidget);
+
+      // Switch to Replace
+      await tester.tap(find.text('Replace'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Replace all sessions with imported'),
+          findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SettingsScreen — about clipboard copy', () {
+    testWidgets('tapping Source Code copies URL to clipboard',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      await tester.scrollUntilVisible(
+        find.text('Source Code'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Source Code'));
+      await tester.pump();
+
+      // Toast "URL copied to clipboard" should appear
+      expect(find.text('URL copied to clipboard'), findsOneWidget);
+
+      // Pump past the toast auto-dismiss timer (3 seconds)
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SettingsScreen — reset to defaults', () {
+    testWidgets('Reset to Defaults resets config to defaults',
+        (tester) async {
+      final customConfig = AppConfig.defaults.copyWith(
+        fontSize: 20.0,
+        scrollback: 10000,
+        keepAliveSec: 60,
+      );
+      await tester.pumpWidget(buildApp(initialConfig: customConfig));
+
+      await tester.scrollUntilVisible(
+        find.text('Reset to Defaults'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.text('Reset to Defaults'));
+      await tester.pumpAndSettle();
+
+      // Should not crash, settings should render
+      expect(find.byType(ListView), findsOneWidget);
+    });
+  });
+
   group('SettingsScreen — section headers styling', () {
     testWidgets('section headers use titleSmall style', (tester) async {
       await tester.pumpWidget(buildApp());

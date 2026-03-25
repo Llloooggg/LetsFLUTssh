@@ -271,6 +271,168 @@ void main() {
     });
   });
 
+  group('SessionTreeView — group expand/collapse toggle', () {
+    testWidgets('collapse then re-expand group shows children again',
+        (tester) async {
+      final s = makeSession(label: 'child', group: 'MyGroup');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(tree: tree));
+      await tester.pump();
+
+      // Initially expanded — child visible
+      expect(find.text('child'), findsOneWidget);
+
+      // Collapse
+      await tester.tap(find.text('MyGroup'));
+      await tester.pump();
+      expect(find.text('child'), findsNothing);
+
+      // folder icon should be closed (Icons.folder, not folder_open)
+      expect(find.byIcon(Icons.folder), findsOneWidget);
+
+      // Re-expand
+      await tester.tap(find.text('MyGroup'));
+      await tester.pump();
+      expect(find.text('child'), findsOneWidget);
+      // folder_open icon
+      expect(find.byIcon(Icons.folder_open), findsOneWidget);
+    });
+  });
+
+  group('SessionTreeView — session tap fires callback', () {
+    testWidgets('tapping session fires onSessionTap', (tester) async {
+      Session? tapped;
+      final s = makeSession(label: 'TapMe');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionTap: (session) => tapped = session,
+      ));
+      await tester.pump();
+
+      // Tap the text. GestureDetector has onDoubleTap which delays
+      // single tap resolution by ~300ms. Pump past the double-tap timeout.
+      await tester.tap(find.text('TapMe'));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+
+      expect(tapped?.label, 'TapMe');
+    });
+  });
+
+  group('SessionTreeView — auth icon selection', () {
+    testWidgets('password auth shows lock icon', (tester) async {
+      final s = makeSession(label: 'pw', authType: AuthType.password);
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(tree: tree));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.lock), findsWidgets);
+    });
+
+    testWidgets('key auth shows vpn_key icon', (tester) async {
+      final s = makeSession(label: 'ky', authType: AuthType.key);
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(tree: tree));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.vpn_key), findsOneWidget);
+    });
+
+    testWidgets('keyWithPassword auth shows enhanced_encryption icon',
+        (tester) async {
+      final s =
+          makeSession(label: 'kp', authType: AuthType.keyWithPassword);
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(tree: tree));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.enhanced_encryption), findsOneWidget);
+    });
+  });
+
+  group('SessionTreeView — session context menu via right-click', () {
+    testWidgets('right-click on session fires onSessionContextMenu',
+        (tester) async {
+      Session? ctxSession;
+      final s = makeSession(label: 'RightClickMe');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionContextMenu: (session, pos) => ctxSession = session,
+      ));
+      await tester.pump();
+
+      final center = tester.getCenter(find.text('RightClickMe'));
+      final gesture = await tester.startGesture(
+        center,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(ctxSession?.label, 'RightClickMe');
+    });
+  });
+
+  group('SessionTreeView — group context menu via right-click', () {
+    testWidgets('right-click on group fires onGroupContextMenu',
+        (tester) async {
+      String? ctxGroup;
+      final s = makeSession(label: 'S', group: 'GRP');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onGroupContextMenu: (path, pos) => ctxGroup = path,
+      ));
+      await tester.pump();
+
+      final center = tester.getCenter(find.text('GRP'));
+      final gesture = await tester.startGesture(
+        center,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(ctxGroup, 'GRP');
+    });
+  });
+
+  group('SessionTreeView — root DragTarget accepts session drop', () {
+    testWidgets('DragTarget at root level exists', (tester) async {
+      final s = makeSession(label: 'S', group: 'G');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      String? movedId;
+      String? movedTarget;
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionMoved: (id, target) {
+          movedId = id;
+          movedTarget = target;
+        },
+      ));
+      await tester.pump();
+
+      // Verify root-level DragTarget exists
+      expect(find.byType(DragTarget<SessionDragData>), findsWidgets);
+      // Verify the session moved callback is wired (not null)
+      expect(movedId, isNull); // not called yet
+      expect(movedTarget, isNull);
+    });
+  });
+
   group('SessionTreeView — background context menu with sessions', () {
     testWidgets('right-click on background fires onBackgroundContextMenu',
         (tester) async {
