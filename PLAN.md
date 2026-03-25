@@ -306,12 +306,13 @@
 beta.N  →  stable  →  next beta.1  → ...
 ```
 
-| Transition | Criteria |
-|------------|----------|
-| **beta → stable** | Tests green, coverage ≥80%, manual testing on 2+ platforms with real SSH servers, no crashes/data loss, 1-2 weeks without critical bugs |
-| **stable → next beta** | New feature is functional enough to demo |
+| Transition             | Criteria                                                                                                                                |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **beta → stable**      | Tests green, coverage ≥80%, manual testing on 2+ platforms with real SSH servers, no crashes/data loss, 1-2 weeks without critical bugs |
+| **stable → next beta** | New feature is functional enough to demo                                                                                                |
 
 **Bump rules:** always bump MAJOR.MINOR.PATCH regardless of stage; stage suffix tracks maturity only.
+
 - Bugfix = patch, feature = minor, major rework or breaking change (format/crypto) = major.
 - Bugfix during beta: bump patch, reset stage to beta.1 (e.g. v1.0.0-beta.1 → v1.0.1-beta.1)
 
@@ -345,15 +346,15 @@ Phase 10 — post-release polish (port forwarding, multi-exec, logging, etc.)
 
 ### Effort Estimates
 
-| Phase | Description           | Complexity                                                     |
-| ----- | --------------------- | -------------------------------------------------------------- |
-| 1 ✅  | Foundation + Terminal | Medium (dartssh2 + xterm.dart do the heavy lifting)            |
-| 2 ✅  | Session Manager       | Medium (UI-heavy, but simple logic)                            |
-| 3 ✅  | SFTP File Browser     | Hard (lots of UI: dual-pane, drag&drop, history)               |
-| 4 ✅  | Polish & UX           | Medium (refinement of existing code)                           |
-| 5 ✅  | Security & Export     | Medium (pointycastle AES-256-GCM + archive ZIP)               |
-| 6 ✅  | Advanced UX           | Medium (terminal search, session folders, key improvements)    |
-| 7 ✅  | Tiling                | Medium (recursive split layout)                                |
-| 8 ✅  | Mobile                | Hard (adaptive UI + virtual keyboard + platform integration)   |
-| 9 ✅  | Release               | Medium (CI/CD + packaging + testing)                           |
-| 10    | Post-Release Polish   | Hard (port forwarding, multi-exec, jump hosts)                 |
+| Phase | Description           | Complexity                                                   |
+| ----- | --------------------- | ------------------------------------------------------------ |
+| 1 ✅  | Foundation + Terminal | Medium (dartssh2 + xterm.dart do the heavy lifting)          |
+| 2 ✅  | Session Manager       | Medium (UI-heavy, but simple logic)                          |
+| 3 ✅  | SFTP File Browser     | Hard (lots of UI: dual-pane, drag&drop, history)             |
+| 4 ✅  | Polish & UX           | Medium (refinement of existing code)                         |
+| 5 ✅  | Security & Export     | Medium (pointycastle AES-256-GCM + archive ZIP)              |
+| 6 ✅  | Advanced UX           | Medium (terminal search, session folders, key improvements)  |
+| 7 ✅  | Tiling                | Medium (recursive split layout)                              |
+| 8 ✅  | Mobile                | Hard (adaptive UI + virtual keyboard + platform integration) |
+| 9 ✅  | Release               | Medium (CI/CD + packaging + testing)                         |
+| 10    | Post-Release Polish   | Hard (port forwarding, multi-exec, jump hosts)               |

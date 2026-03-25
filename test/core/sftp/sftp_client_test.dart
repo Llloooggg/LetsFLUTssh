@@ -562,4 +562,147 @@ void main() {
       expect(SFTPService.fromSSHClient, isA<Function>());
     });
   });
+
+  group('SFTPService.downloadDir — nested directories', () {
+    test('downloads nested subdirectories recursively', () async {
+      // Remote dir has a file and a subdirectory
+      when(mockSftp.listdir('/remote/root')).thenAnswer((_) async => [
+            ..._dotEntries(),
+            SftpName(
+              filename: 'top.txt',
+              longname: '-rw-r--r-- 1 root root 10 top.txt',
+              attr: _fileAttrs(size: 10),
+            ),
+            SftpName(
+              filename: 'subdir',
+              longname: 'drwxr-xr-x 2 root root 4096 subdir',
+              attr: _dirAttrs(),
+            ),
+          ]);
+
+      // Subdirectory has one file
+      when(mockSftp.listdir('/remote/root/subdir')).thenAnswer((_) async => [
+            ..._dotEntries(),
+            SftpName(
+              filename: 'nested.txt',
+              longname: '-rw-r--r-- 1 root root 5 nested.txt',
+              attr: _fileAttrs(size: 5),
+            ),
+          ]);
+
+      // Mock download of top.txt
+      final mockFile1 = MockSftpFile();
+      when(mockSftp.stat('/remote/root/top.txt'))
+          .thenAnswer((_) async => _fileAttrs(size: 10));
+      when(mockSftp.open('/remote/root/top.txt'))
+          .thenAnswer((_) async => mockFile1);
+      when(mockFile1.read()).thenAnswer(
+          (_) => Stream.fromIterable([Uint8List.fromList(List.filled(10, 65))]));
+
+      // Mock download of nested.txt
+      final mockFile2 = MockSftpFile();
+      when(mockSftp.stat('/remote/root/subdir/nested.txt'))
+          .thenAnswer((_) async => _fileAttrs(size: 5));
+      when(mockSftp.open('/remote/root/subdir/nested.txt'))
+          .thenAnswer((_) async => mockFile2);
+      when(mockFile2.read()).thenAnswer(
+          (_) => Stream.fromIterable([Uint8List.fromList(List.filled(5, 66))]));
+
+      final progressUpdates = <TransferProgress>[];
+      final tempDir = await Directory.systemTemp.createTemp('sftp_nested_dl_');
+      final localDir = '${tempDir.path}/root';
+
+      try {
+        await service.downloadDir(
+            '/remote/root', localDir, (p) => progressUpdates.add(p));
+
+        // Should have progress for top.txt (from top level) and nested.txt (from recursive call)
+        expect(progressUpdates, isNotEmpty);
+        // Top level has 1 file, so top-level progress reports totalFiles=1
+        expect(progressUpdates.first.isUpload, isFalse);
+
+        // Verify local structure was created
+        expect(await Directory(localDir).exists(), isTrue);
+        expect(await File('$localDir/top.txt').exists(), isTrue);
+        expect(await File('$localDir/subdir/nested.txt').exists(), isTrue);
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('downloadDir with null progress callback does not crash', () async {
+      when(mockSftp.listdir('/remote/empty')).thenAnswer((_) async => [
+            ..._dotEntries(),
+          ]);
+
+      final tempDir = await Directory.systemTemp.createTemp('sftp_dl_null_');
+      final localDir = '${tempDir.path}/empty';
+
+      try {
+        await service.downloadDir('/remote/empty', localDir, null);
+        expect(await Directory(localDir).exists(), isTrue);
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+  });
+
+  group('SFTPService._parseOwner — edge cases', () {
+    test('empty longname returns empty owner', () async {
+      final items = [
+        SftpName(
+          filename: 'empty_long.txt',
+          longname: '',
+          attr: _fileAttrs(),
+        ),
+      ];
+      when(mockSftp.listdir('/test')).thenAnswer((_) async => items);
+
+      final result = await service.list('/test');
+      expect(result.first.owner, '');
+    });
+
+    test('longname with extra whitespace still parses owner', () async {
+      final items = [
+        SftpName(
+          filename: 'spaces.txt',
+          longname: '-rw-r--r--   1   myowner   mygroup   100 Jan 01 spaces.txt',
+          attr: _fileAttrs(),
+        ),
+      ];
+      when(mockSftp.listdir('/test')).thenAnswer((_) async => items);
+
+      final result = await service.list('/test');
+      expect(result.first.owner, 'myowner');
+    });
+
+    test('longname with single field returns empty owner', () async {
+      final items = [
+        SftpName(
+          filename: 'single.txt',
+          longname: 'onlyperms',
+          attr: _fileAttrs(),
+        ),
+      ];
+      when(mockSftp.listdir('/test')).thenAnswer((_) async => items);
+
+      final result = await service.list('/test');
+      // 'onlyperms' splits to 1 part, length < 3, returns ''
+      expect(result.first.owner, '');
+    });
+
+    test('longname with exactly 3 fields returns owner', () async {
+      final items = [
+        SftpName(
+          filename: 'three.txt',
+          longname: 'perms links owneronly',
+          attr: _fileAttrs(),
+        ),
+      ];
+      when(mockSftp.listdir('/test')).thenAnswer((_) async => items);
+
+      final result = await service.list('/test');
+      expect(result.first.owner, 'owneronly');
+    });
+  });
 }

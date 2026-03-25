@@ -11,6 +11,17 @@ enum ToastLevel { info, success, warning, error }
 class Toast {
   static final _entries = <_ToastOverlayEntry>[];
 
+  /// Clear all pending toast entries without animation. For testing only.
+  @visibleForTesting
+  static void clearAllForTest() {
+    for (final e in _entries) {
+      e.timer?.cancel();
+      try { e.entry.remove(); } catch (_) {}
+      try { e.controller.dispose(); } catch (_) {}
+    }
+    _entries.clear();
+  }
+
   /// Show a toast notification.
   static void show(
     BuildContext context, {

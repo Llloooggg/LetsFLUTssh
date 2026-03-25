@@ -576,6 +576,45 @@ void main() {
     });
   });
 
+  group('SessionStore — _save credential error recovery', () {
+    test('credential save failure does not prevent session file save', () async {
+      final store = SessionStore();
+      await store.load();
+
+      // Add a session with credentials
+      final session = makeSession(
+        id: 'save-fail-1',
+        label: 'cred-fail',
+        password: 'secret',
+      );
+      await store.add(session);
+
+      // Now corrupt credentials.key by replacing it with a directory
+      // This will cause credential save to fail on next _save call
+      final keyFile = File('${tempDir.path}/credentials.key');
+      await keyFile.delete();
+      await Directory('${tempDir.path}/credentials.key').create();
+
+      // Add another session — _save will be called, credential save will fail
+      // but session file save should succeed
+      final session2 = makeSession(
+        id: 'save-fail-2',
+        label: 'after-fail',
+        password: 'pw2',
+      );
+      await store.add(session2);
+
+      // Verify session file was saved (2 sessions)
+      final sessionsFile = File('${tempDir.path}/sessions.json');
+      final content = await sessionsFile.readAsString();
+      expect(content, contains('save-fail-1'));
+      expect(content, contains('save-fail-2'));
+
+      // Clean up: remove the directory we created
+      await Directory('${tempDir.path}/credentials.key').delete();
+    });
+  });
+
   group('SessionStore — credential loss protection', () {
     test('load does not overwrite encrypted creds when key is corrupted', () async {
       // 1. Create a session with credentials

@@ -32,20 +32,20 @@ SemVer with two maturity stages: `MAJOR.MINOR.PATCH[-beta.N]`
 
 **Stages:**
 
-| Stage | When to use | Meaning |
-|-------|-------------|---------|
-| `beta.N` | Feature works but not battle-tested on real servers | "Can try, bugs expected" |
-| _(no suffix)_ | Beta survived 1-2 weeks without critical bugs | "Production-ready" |
+| Stage         | When to use                                         | Meaning                  |
+| ------------- | --------------------------------------------------- | ------------------------ |
+| `beta.N`      | Feature works but not battle-tested on real servers | "Can try, bugs expected" |
+| _(no suffix)_ | Beta survived 1-2 weeks without critical bugs       | "Production-ready"       |
 
 No `rc` stage — unnecessary overhead for a small team. Can be introduced later if external testers or contributors need a "feature freeze" signal.
 
 **Version bump rules — always bump MAJOR.MINOR.PATCH, regardless of stage:**
 
-| Change type | Bump | Example |
-|-------------|------|---------|
-| Bug fix | **patch** | 1.0.0-beta.1 → 1.0.1-beta.1, or 1.0.2 → 1.0.3 |
-| New feature | **minor** | 1.0.x → 1.1.0-beta.1, or 1.1.0 → 1.2.0 |
-| Major rework or breaking change (file format, API, crypto) | **major** | 1.x.y → 2.0.0-beta.1 |
+| Change type                                                | Bump      | Example                                       |
+| ---------------------------------------------------------- | --------- | --------------------------------------------- |
+| Bug fix                                                    | **patch** | 1.0.0-beta.1 → 1.0.1-beta.1, or 1.0.2 → 1.0.3 |
+| New feature                                                | **minor** | 1.0.x → 1.1.0-beta.1, or 1.1.0 → 1.2.0        |
+| Major rework or breaking change (file format, API, crypto) | **major** | 1.x.y → 2.0.0-beta.1                          |
 
 **No version bump needed for:** tests, refactoring (no behavior change), docs, CI configs, linter fixes. These are `test:`/`refactor:`/`docs:`/`chore:` commits without a version bump.
 
@@ -69,6 +69,7 @@ v1.0.0-beta.1 → bugfix → v1.0.1-beta.1 → bugfix → v1.0.2-beta.1 → stab
 5. CI creates GitHub Release (pre-release for beta, Latest for stable)
 
 **Stable release from beta (no changes needed):**
+
 ```bash
 # Update pubspec.yaml: remove -beta.N suffix (keep same MAJOR.MINOR.PATCH) → commit
 git tag v1.0.2        # same version, just without stage
@@ -76,6 +77,7 @@ git push origin v1.0.2
 ```
 
 **Example full lifecycle:**
+
 ```
 v1.0.0-beta.1 → bugfix → v1.0.1-beta.1 → 2 weeks stable → v1.0.1
 v1.0.1 → bugfix → v1.0.2
@@ -109,15 +111,14 @@ Old beta tags stay in history — they document the path to release.
 
 - Do not commit automatically, do not push
 - Do not install packages without asking (user approves)
-- Always run `flutter analyze` + `flutter test` before committing
 - **All code must have tests** — target 100% coverage on new code AND overall; 80% is the hard minimum (SonarCloud Quality Gate), never the goal; write tests for every testable line
-  - After writing code: run `make test`, check uncovered lines, keep writing tests until all testable lines are covered
-  - Only skip lines that physically cannot be tested (real SSH server, native file I/O with path_provider)
-  - Before suggesting commit: `make analyze` + `make test`
+    - After writing code: run `make test`, check uncovered lines, keep writing tests until all testable lines are covered
+    - Only skip lines that physically cannot be tested (real SSH server, native file I/O with path_provider)
+    - Before suggesting commit: `make analyze` + `make test`
 - **Parallel agents** — multiple agents may work in the same repo simultaneously:
-  - Only `git add` files YOU changed — never stage unrelated changes from other agents
-  - Before committing, run `git status` and verify every staged file is yours
-  - If you see untracked/modified files you didn't touch — leave them alone
+    - Only `git add` files YOU changed — never stage unrelated changes from other agents
+    - Before committing, run `git status` and verify every staged file is yours
+    - If you see untracked/modified files you didn't touch — leave them alone
 - **Version gatekeeper** — before suggesting a commit, check if the change requires a version bump per Versioning Strategy above. If it does (bugfix → patch, feature → minor, breaking → major), remind the user to bump. If it doesn't (tests, docs, refactor, CI), explicitly say no bump needed
 
 ## Tech Stack
@@ -256,22 +257,23 @@ LetsFLUTssh/
 
 ### Features by category
 
-| Category | What works |
-|----------|-----------|
-| **SSH** | dartssh2 (password, key file, key text), auth chain (key→text→password), keep-alive, TOFU known hosts (explicit accept, no auto-trust), auto-detect keys from ~/.ssh/, tiling split layout (like tmux), terminal search (Ctrl+Shift+F) |
-| **SFTP** | Dual-pane (local\|remote), upload/download/mkdir/delete/rename/chmod, drag&drop between panes + from OS, marquee selection, sortable columns with owner, transfer queue (parallel workers), transfer history |
-| **Sessions** | JSON persistence + AES-256-GCM encrypted credentials, CRUD/duplicate, nested tree groups, search/filter, drag&drop reorder, empty folders, unified New Session dialog (connect-only or save&connect) |
-| **Tabs** | Multi-tab (terminal + SFTP), drag-to-reorder, IndexedStack state preservation, context menu (close/close others/close right) |
-| **Security** | AES-256-GCM credential storage (pointycastle, pure Dart), chmod 600, PBKDF2 600k iterations for .lfs export, error message sanitization (no file paths), deep link URI validation (path traversal rejection) |
-| **Export/Import** | `.lfs` archive (ZIP + AES-256-GCM), merge/replace import modes, auto-migration from plaintext |
-| **Mobile** | Bottom nav, SSH virtual keyboard (sticky modifiers), pinch-to-zoom, single-pane SFTP, long-press selection, swipe navigation, deep links (`letsflutssh://`), file open intents (.pem/.key/.lfs) |
-| **UI** | OneDark/One Light themes, responsive layout (sidebar→drawer <600px), toast notifications, settings screen, no animations (instant UX) |
-| **CI/CD** | GitHub Actions (analyze+test+build), SonarCloud (coverage QG ≥80%), CodeQL weekly scan, packaging (AppImage/deb/tar.gz, EXE/zip, dmg, per-ABI APK) |
-| **Code quality** | Injectable factories for testability, mockito mocks, consistent error handling (no silent catch), proper dispose() chains, immutable tiling tree updates, model equality (==/hashCode) |
+| Category          | What works                                                                                                                                                                                                                             |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **SSH**           | dartssh2 (password, key file, key text), auth chain (key→text→password), keep-alive, TOFU known hosts (explicit accept, no auto-trust), auto-detect keys from ~/.ssh/, tiling split layout (like tmux), terminal search (Ctrl+Shift+F) |
+| **SFTP**          | Dual-pane (local\|remote), upload/download/mkdir/delete/rename/chmod, drag&drop between panes + from OS, marquee selection, sortable columns with owner, transfer queue (parallel workers), transfer history                           |
+| **Sessions**      | JSON persistence + AES-256-GCM encrypted credentials, CRUD/duplicate, nested tree groups, search/filter, drag&drop reorder, empty folders, unified New Session dialog (connect-only or save&connect)                                   |
+| **Tabs**          | Multi-tab (terminal + SFTP), drag-to-reorder, IndexedStack state preservation, context menu (close/close others/close right)                                                                                                           |
+| **Security**      | AES-256-GCM credential storage (pointycastle, pure Dart), chmod 600, PBKDF2 600k iterations for .lfs export, error message sanitization (no file paths), deep link URI validation (path traversal rejection)                           |
+| **Export/Import** | `.lfs` archive (ZIP + AES-256-GCM), merge/replace import modes, auto-migration from plaintext                                                                                                                                          |
+| **Mobile**        | Bottom nav, SSH virtual keyboard (sticky modifiers), pinch-to-zoom, single-pane SFTP, long-press selection, swipe navigation, deep links (`letsflutssh://`), file open intents (.pem/.key/.lfs)                                        |
+| **UI**            | OneDark/One Light themes, responsive layout (sidebar→drawer <600px), toast notifications, settings screen, no animations (instant UX)                                                                                                  |
+| **CI/CD**         | GitHub Actions (analyze+test+build), SonarCloud (coverage QG ≥80%), CodeQL weekly scan, packaging (AppImage/deb/tar.gz, EXE/zip, dmg, per-ABI APK)                                                                                     |
+| **Code quality**  | Injectable factories for testability, mockito mocks, consistent error handling (no silent catch), proper dispose() chains, immutable tiling tree updates, model equality (==/hashCode)                                                 |
 
 ### Decisions and Why
 
 **API gotchas (dartssh2 / xterm / Flutter):**
+
 - `SSHConnectionState` not `ConnectionState` — name conflict with Flutter's async.dart
 - dartssh2 host key callback: `FutureOr<bool> Function(String type, Uint8List fingerprint)`, not SSHPublicKey
 - dartssh2 SFTP API: `attr.mode?.value` (not `attr.permissions?.mode`), `remoteFile.writeBytes()` (not `write()`)
@@ -279,6 +281,7 @@ LetsFLUTssh/
 - `hardwareKeyboardOnly: true` on desktop — xterm.dart TextInputClient broken on Windows; KeyEvent.character works
 
 **Architecture choices:**
+
 - `pointycastle` instead of `encrypt` — version conflict with dartssh2 (both need pointycastle, different major versions)
 - `CredentialStore` instead of `flutter_secure_storage` — pure Dart, no OS-specific native deps
 - `app_links` instead of `uni_links` — more up-to-date, desktop support
@@ -293,6 +296,7 @@ LetsFLUTssh/
 - Global `navigatorKey` for host key dialog — callbacks need Flutter context without binding to specific widget
 
 **Security decisions:**
+
 - PBKDF2 600k iterations — OWASP 2024 recommendation
 - chmod 600 on credential files — prevents other users from reading on Unix
 - TOFU reject without callback — no auto-accept; prevents MITM when no dialog available
@@ -304,6 +308,7 @@ LetsFLUTssh/
 - `RandomAccessFile` for SFTP upload — `try/finally` guarantees file handle cleanup (replaces stream approach)
 
 **Platform-specific:**
+
 - Android home directory: `EXTERNAL_STORAGE` env var with `/storage/emulated/0` fallback
 - `MANAGE_EXTERNAL_STORAGE` — file manager needs full filesystem access; older permissions with `maxSdkVersion`
 - `NSLocalNetworkUsageDescription` — iOS blocks TCP to local network without it

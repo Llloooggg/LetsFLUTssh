@@ -16,6 +16,7 @@ import 'package:letsflutssh/main.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
+import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
 /// Additional MainScreen tests for coverage — import dialog, Ctrl+Shift+Tab,
@@ -381,6 +382,128 @@ void main() {
 
       expect(find.byIcon(Icons.menu), findsOneWidget);
       expect(find.byTooltip('Open SFTP Browser'), findsOneWidget);
+    });
+  });
+
+  group('_StatusBar — active transfer status', () {
+    testWidgets('shows transfer info when transfers are active', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith((ref) {
+            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+            notifier.state = AppConfig.defaults;
+            return notifier;
+          }),
+          sessionStoreProvider.overrideWithValue(SessionStore()),
+          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          connectionManagerProvider.overrideWithValue(
+            ConnectionManager(knownHosts: KnownHostsManager()),
+          ),
+          tabProvider.overrideWith((ref) {
+            final notifier = TabNotifier();
+            notifier.addTerminalTab(conn, label: 'Active');
+            return notifier;
+          }),
+          transferStatusProvider.overrideWith((ref) {
+            return Stream.value(const ActiveTransferState(
+              running: 2,
+              queued: 1,
+              currentInfo: 'file.txt 45%',
+            ));
+          }),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const MediaQuery(
+            data: MediaQueryData(size: Size(1000, 600)),
+            child: SizedBox(
+              width: 1000,
+              height: 600,
+              child: MainScreen(),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Transfer info should be visible in the status bar
+      expect(find.text('file.txt 45%'), findsOneWidget);
+      expect(find.byIcon(Icons.swap_vert), findsOneWidget);
+    });
+
+    testWidgets('shows running count when no currentInfo', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith((ref) {
+            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+            notifier.state = AppConfig.defaults;
+            return notifier;
+          }),
+          sessionStoreProvider.overrideWithValue(SessionStore()),
+          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          connectionManagerProvider.overrideWithValue(
+            ConnectionManager(knownHosts: KnownHostsManager()),
+          ),
+          tabProvider.overrideWith((ref) {
+            final notifier = TabNotifier();
+            notifier.addTerminalTab(conn, label: 'Active');
+            return notifier;
+          }),
+          transferStatusProvider.overrideWith((ref) {
+            return Stream.value(const ActiveTransferState(
+              running: 3,
+              queued: 0,
+              currentInfo: null,
+            ));
+          }),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const MediaQuery(
+            data: MediaQueryData(size: Size(1000, 600)),
+            child: SizedBox(
+              width: 1000,
+              height: 600,
+              child: MainScreen(),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Fallback text: "3 active"
+      expect(find.text('3 active'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — SFTP tab rendering via _buildTabContent', () {
+    testWidgets('SFTP tab renders FileBrowserTab in IndexedStack', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.disconnected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 's1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      // _buildTabContent should render TabKind.sftp case as FileBrowserTab
+      expect(find.byType(IndexedStack), findsOneWidget);
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+    });
+
+    testWidgets('mixed terminal and SFTP tabs render correctly', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.disconnected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Terminal', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 's1', label: 'Files', connection: conn, kind: TabKind.sftp),
+      ], activeIndex: 1));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('2 tab(s)'), findsOneWidget);
     });
   });
 }

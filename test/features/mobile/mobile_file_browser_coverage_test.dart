@@ -482,6 +482,390 @@ void main() {
     });
   });
 
+  group('MobileFileList — exit selection mode', () {
+    late FakeFS fakeFs;
+    late FilePaneController controller;
+
+    setUp(() {
+      fakeFs = FakeFS(fakeEntries: testEntries());
+      controller = FilePaneController(fs: fakeFs, label: 'Test');
+    });
+
+    tearDown(() {
+      controller.dispose();
+    });
+
+    Widget buildFileList({
+      FilePaneController? ctrl,
+      void Function(FileEntry)? onTransfer,
+      void Function(List<FileEntry>)? onTransferMultiple,
+    }) {
+      return ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: MobileFileList(
+              controller: ctrl ?? controller,
+              onTransfer: onTransfer ?? (_) {},
+              onTransferMultiple: onTransferMultiple ?? (_) {},
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('deselecting all entries exits selection mode', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // Enter selection mode
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pump();
+      expect(find.byType(Checkbox), findsWidgets);
+
+      // Tap the selected entry to deselect it
+      await tester.tap(find.text('readme.txt'));
+      await tester.pump();
+
+      // Selection mode should exit (no more checkboxes)
+      expect(find.byType(Checkbox), findsNothing);
+    });
+
+    testWidgets('close button in selection bar exits selection mode', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // Enter selection mode with a file
+      await tester.longPress(find.text('script.sh'));
+      await tester.pump();
+      expect(find.text('1 selected'), findsOneWidget);
+
+      // Tap close button in selection bar
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+
+      // Selection mode exited
+      expect(find.byType(Checkbox), findsNothing);
+      expect(find.text('1 selected'), findsNothing);
+    });
+  });
+
+  group('MobileFileList — file tap triggers transfer', () {
+    late FakeFS fakeFs;
+    late FilePaneController controller;
+
+    setUp(() {
+      fakeFs = FakeFS(fakeEntries: testEntries());
+      controller = FilePaneController(fs: fakeFs, label: 'Test');
+    });
+
+    tearDown(() {
+      controller.dispose();
+    });
+
+    testWidgets('tapping a file in non-selection mode calls onTransfer', (tester) async {
+      FileEntry? transferred;
+      await controller.init();
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileList(
+                controller: controller,
+                onTransfer: (e) => transferred = e,
+                onTransferMultiple: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Tap a file (not a directory)
+      await tester.tap(find.text('readme.txt'));
+      await tester.pump();
+
+      expect(transferred, isNotNull);
+      expect(transferred!.name, 'readme.txt');
+      expect(transferred!.isDir, isFalse);
+    });
+
+    testWidgets('tapping a file in selection mode toggles selection', (tester) async {
+      FileEntry? transferred;
+      await controller.init();
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileList(
+                controller: controller,
+                onTransfer: (e) => transferred = e,
+                onTransferMultiple: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Enter selection mode
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pump();
+
+      // Tap another file — should add to selection, NOT transfer
+      await tester.tap(find.text('script.sh'));
+      await tester.pump();
+
+      expect(transferred, isNull);
+      expect(find.text('2 selected'), findsOneWidget);
+    });
+  });
+
+  group('MobileFileList — empty directory state', () {
+    testWidgets('empty entries show Empty directory text', (tester) async {
+      final emptyFs = FakeFS(fakeEntries: []);
+      final ctrl = FilePaneController(fs: emptyFs, label: 'Empty');
+      await ctrl.init();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Empty directory'), findsOneWidget);
+      ctrl.dispose();
+    });
+  });
+
+  group('MobileFileList — selection bar with multiple items', () {
+    late FakeFS fakeFs;
+    late FilePaneController controller;
+
+    setUp(() {
+      fakeFs = FakeFS(fakeEntries: testEntries());
+      controller = FilePaneController(fs: fakeFs, label: 'Test');
+    });
+
+    tearDown(() {
+      controller.dispose();
+    });
+
+    testWidgets('selection bar shows correct count after adding multiple', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileList(
+                controller: controller,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Enter selection mode
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pump();
+      expect(find.text('1 selected'), findsOneWidget);
+
+      // Select more
+      await tester.tap(find.text('script.sh'));
+      await tester.pump();
+      expect(find.text('2 selected'), findsOneWidget);
+
+      // Select directory too
+      await tester.tap(find.text('docs'));
+      await tester.pump();
+      expect(find.text('3 selected'), findsOneWidget);
+    });
+
+    testWidgets('delete button in selection bar triggers confirm dialog and exits selection', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileList(
+                controller: controller,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Select a file
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pump();
+
+      // Tap delete in selection bar
+      await tester.tap(find.byTooltip('Delete'));
+      await tester.pumpAndSettle();
+
+      // Cancel the delete dialog
+      final cancelButton = find.text('Cancel');
+      if (cancelButton.evaluate().isNotEmpty) {
+        await tester.tap(cancelButton);
+        await tester.pumpAndSettle();
+      }
+
+      // Selection mode should be exited after confirmDelete
+      expect(find.byType(Checkbox), findsNothing);
+    });
+  });
+
+  group('MobileFileList — checkbox toggle', () {
+    late FakeFS fakeFs;
+    late FilePaneController controller;
+
+    setUp(() {
+      fakeFs = FakeFS(fakeEntries: testEntries());
+      controller = FilePaneController(fs: fakeFs, label: 'Test');
+    });
+
+    tearDown(() {
+      controller.dispose();
+    });
+
+    testWidgets('checkbox toggles selection in selection mode', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileList(
+                controller: controller,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Enter selection mode
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pump();
+
+      // Tap checkbox of docs entry
+      final checkboxes = find.byType(Checkbox);
+      expect(checkboxes, findsNWidgets(3)); // 3 entries, all have checkboxes
+      await tester.tap(checkboxes.at(0)); // first checkbox (docs directory)
+      await tester.pump();
+
+      expect(find.text('2 selected'), findsOneWidget);
+    });
+  });
+
+  group('MobileFileList — long press actions in selection mode', () {
+    late FakeFS fakeFs;
+    late FilePaneController controller;
+
+    setUp(() {
+      fakeFs = FakeFS(fakeEntries: testEntries());
+      controller = FilePaneController(fs: fakeFs, label: 'Test');
+    });
+
+    tearDown(() {
+      controller.dispose();
+    });
+
+    testWidgets('long press in selection mode shows bottom sheet', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileList(
+                controller: controller,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Enter selection mode
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pump();
+
+      // Long press on a different entry — should show bottom sheet
+      await tester.longPress(find.text('docs'));
+      await tester.pumpAndSettle();
+
+      // Bottom sheet should show actions
+      expect(find.text('Transfer'), findsOneWidget);
+      expect(find.text('Rename'), findsOneWidget);
+      expect(find.text('New Folder'), findsOneWidget);
+      // Open should appear for directory
+      expect(find.text('Open'), findsOneWidget);
+    });
+  });
+
+  group('MobileFileList — file icon colors', () {
+    late FakeFS fakeFs;
+    late FilePaneController controller;
+
+    setUp(() {
+      fakeFs = FakeFS(fakeEntries: testEntries());
+      controller = FilePaneController(fs: fakeFs, label: 'Test');
+    });
+
+    tearDown(() {
+      controller.dispose();
+    });
+
+    testWidgets('directory uses AppTheme.folderIcon color', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileList(
+                controller: controller,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final folderIcon = tester.widget<Icon>(find.byIcon(Icons.folder));
+      expect(folderIcon.color, AppTheme.folderIcon);
+    });
+  });
+
   group('MobileFileList — controller listener cleanup', () {
     testWidgets('widget disposes cleanly', (tester) async {
       final fakeFs = FakeFS(fakeEntries: testEntries());
