@@ -244,4 +244,11 @@ GPL-3.0 — see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-_Coming soon_
+Contributions are welcome! Please open an issue first to discuss what you'd like to change.
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feat/my-feature`)
+3. Run `make check` (analyzer + tests) before submitting
+4. Open a Pull Request
+
+See [CLAUDE.md](CLAUDE.md) for architecture details and coding conventions.
