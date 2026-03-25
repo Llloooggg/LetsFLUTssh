@@ -90,7 +90,11 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 ## Screenshots
 
-_Coming soon_
+### SSH Terminal
+![SSH Terminal — session tree, tabbed terminal with htop](docs/screenshots/LetsFLUTssh_ssh.png)
+
+### SFTP File Browser
+![SFTP File Browser — dual-pane local/remote with transfer panel](docs/screenshots/LetsFLUTssh_sftp.png)
 
 ## Installation
 
