@@ -25,10 +25,20 @@ jobs:
         run: flutter pub get
 
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --fatal-infos
 
       - name: Run tests
         run: flutter test
+
+      - name: Check outdated dependencies
+        run: dart pub outdated
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/dependency-review-action@v4
 
   version:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

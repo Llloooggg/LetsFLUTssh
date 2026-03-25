@@ -310,7 +310,7 @@ LetsFLUTssh/
 - **iOS local network description** — NSLocalNetworkUsageDescription for SSH connections to LAN servers
 - **App display name** — "LFssh" on Android and iOS (under app icon)
 - **Manifest best practices** — Android/iOS manifests reorganized with grouped sections and comments
-- **CodeQL workflow** — daily security scanning (Actions workflows) + dependency review on PRs + Dart static analysis
+- **CI security checks** — `flutter analyze --fatal-infos`, `dart pub outdated`, dependency review on PRs (actions/dependency-review-action)
 
 ### Decisions and Why
 - **SSHConnectionState instead of ConnectionState** — name conflict with Flutter's `ConnectionState` from async.dart
