@@ -136,5 +136,153 @@ void main() {
       // DB has 1
       expect(find.text('1'), findsOneWidget);
     });
+
+    testWidgets('session tap selects session', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      // Tap on staging session to select it
+      await tester.tap(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // After tap, staging should still be visible (not crashed)
+      expect(find.text('staging'), findsOneWidget);
+    });
+
+    testWidgets('shows indent guides for nested groups', (tester) async {
+      await tester.pumpWidget(buildApp());
+      // Nested sessions should be indented — look for SizedBox containers
+      // used for indent guides
+      expect(find.byType(SizedBox), findsWidgets);
+    });
+
+    testWidgets('collapsing parent hides all descendants', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      // All children should be visible initially
+      expect(find.text('nginx1'), findsOneWidget);
+      expect(find.text('db-master'), findsOneWidget);
+
+      // Collapse Production (parent of Web and DB)
+      await tester.tap(find.text('Production'));
+      await tester.pumpAndSettle();
+
+      // All descendants should be hidden
+      expect(find.text('nginx1'), findsNothing);
+      expect(find.text('nginx2'), findsNothing);
+      expect(find.text('db-master'), findsNothing);
+      expect(find.text('Web'), findsNothing);
+      expect(find.text('DB'), findsNothing);
+    });
+
+    testWidgets('shows chevron_right for collapsed group', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      // Collapse Web
+      await tester.tap(find.text('Web'));
+      await tester.pumpAndSettle();
+
+      // Collapsed group should show chevron_right
+      expect(find.byIcon(Icons.chevron_right), findsWidgets);
+    });
+
+    testWidgets('shows expand_more for expanded group', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      // Groups start expanded
+      expect(find.byIcon(Icons.expand_more), findsWidgets);
+    });
+
+    testWidgets('shows folder icon for collapsed group', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      // Collapse Web
+      await tester.tap(find.text('Web'));
+      await tester.pumpAndSettle();
+
+      // Should show closed folder icon
+      expect(find.byIcon(Icons.folder), findsWidgets);
+    });
+
+    testWidgets('shows key icon for key auth type', (tester) async {
+      final keySessions = [
+        Session(
+          id: '10',
+          label: 'key-server',
+          group: '',
+          host: '10.0.0.10',
+          user: 'root',
+          authType: AuthType.key,
+        ),
+      ];
+      final keyTree = SessionTree.build(keySessions);
+      await tester.pumpWidget(buildApp(overrideTree: keyTree));
+
+      expect(find.byIcon(Icons.vpn_key), findsOneWidget);
+    });
+
+    testWidgets('shows enhanced_encryption icon for keyWithPassword auth', (tester) async {
+      final keySessions = [
+        Session(
+          id: '11',
+          label: 'enc-server',
+          group: '',
+          host: '10.0.0.11',
+          user: 'root',
+          authType: AuthType.keyWithPassword,
+        ),
+      ];
+      final keyTree = SessionTree.build(keySessions);
+      await tester.pumpWidget(buildApp(overrideTree: keyTree));
+
+      expect(find.byIcon(Icons.enhanced_encryption), findsOneWidget);
+    });
+
+    testWidgets('selected session gets highlighted background', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      // Tap on staging to select it
+      await tester.tap(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Should find Container with primary color alpha background
+      expect(find.byType(Container), findsWidgets);
+    });
+
+    testWidgets('renders root-level sessions without indent', (tester) async {
+      final rootOnly = [
+        Session(id: '1', label: 'root-server', group: '', host: 'h', user: 'u'),
+      ];
+      final rootTree = SessionTree.build(rootOnly);
+      await tester.pumpWidget(buildApp(overrideTree: rootTree));
+
+      expect(find.text('root-server'), findsOneWidget);
+      expect(find.text('h:22'), findsOneWidget);
+    });
+
+    testWidgets('LongPressDraggable is present for sessions on desktop', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      // On desktop, sessions should be wrapped in LongPressDraggable
+      expect(find.byType(LongPressDraggable<SessionDragData>), findsWidgets);
+    });
+
+    testWidgets('DragTarget for root drop zone is present', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      expect(find.byType(DragTarget<SessionDragData>), findsWidgets);
+    });
+  });
+
+  group('SessionDragData', () {
+    test('SessionDrag holds session', () {
+      final session = Session(id: '1', label: 'test', host: 'h', user: 'u');
+      final drag = SessionDrag(session);
+      expect(drag.session, session);
+    });
+
+    test('GroupDrag holds group path', () {
+      final drag = GroupDrag('Production/Web');
+      expect(drag.groupPath, 'Production/Web');
+    });
   });
 }

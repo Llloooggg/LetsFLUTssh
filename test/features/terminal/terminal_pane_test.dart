@@ -170,6 +170,179 @@ void main() {
       await stderrCtrl.close();
     });
 
+    testWidgets('shows error text from exception', (tester) async {
+      final mockSsh = MockSSHConnection();
+      when(mockSsh.isConnected).thenReturn(true);
+      when(mockSsh.openShell(any, any)).thenThrow(Exception('Auth expired'));
+
+      final conn = Connection(
+        id: 'test-err-text',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(connection: conn),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Auth expired'), findsOneWidget);
+    });
+
+    testWidgets('error state uses AppTheme.disconnected color', (tester) async {
+      final conn = Connection(
+        id: 'test-color',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(connection: conn),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline));
+      expect(icon.color, AppTheme.disconnected);
+      expect(icon.size, 48);
+    });
+
+    testWidgets('connected state shows GestureDetector', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      when(mockSsh.isConnected).thenReturn(true);
+
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
+
+      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+
+      final conn = Connection(
+        id: 'test-gesture',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(connection: conn, isFocused: true),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GestureDetector), findsWidgets);
+      expect(find.byType(CallbackShortcuts), findsWidgets);
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
+
+    testWidgets('unfocused pane uses divider color border', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      when(mockSsh.isConnected).thenReturn(true);
+
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
+
+      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+
+      final conn = Connection(
+        id: 'test-unfocused',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(connection: conn, isFocused: false),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Should render without error - unfocused pane has thinner border
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byIcon(Icons.error_outline), findsNothing);
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
+
+    testWidgets('shell done callback sets session closed error', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      when(mockSsh.isConnected).thenReturn(true);
+
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
+
+      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+
+      final conn = Connection(
+        id: 'test-done',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(connection: conn),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Simulate shell done
+      doneCompleter.complete();
+      await tester.pumpAndSettle();
+
+      // Should show error state with "Session closed"
+      expect(find.textContaining('Session closed'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
+
     testWidgets('passes split callbacks to widget', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();

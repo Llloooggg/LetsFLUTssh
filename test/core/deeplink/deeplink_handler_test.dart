@@ -63,5 +63,84 @@ void main() {
       expect(config!.host, 'my server.com');
       expect(config.user, 'my user');
     });
+
+    test('returns null for empty user', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h&user=',
+      ));
+      expect(config, isNull);
+    });
+
+    test('returns null for missing both host and user', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect',
+      ));
+      expect(config, isNull);
+    });
+
+    test('defaults keyPath to empty string when not provided', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h&user=u',
+      ));
+      expect(config, isNotNull);
+      expect(config!.keyPath, '');
+    });
+
+    test('defaults password to empty string when not provided', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h&user=u',
+      ));
+      expect(config, isNotNull);
+      expect(config!.password, '');
+    });
+  });
+
+  group('DeepLinkHandler callbacks', () {
+    late DeepLinkHandler handler;
+
+    setUp(() {
+      handler = DeepLinkHandler();
+    });
+
+    tearDown(() {
+      handler.dispose();
+    });
+
+    test('onConnect callback is initially null', () {
+      expect(handler.onConnect, isNull);
+    });
+
+    test('onKeyFileOpened callback is initially null', () {
+      expect(handler.onKeyFileOpened, isNull);
+    });
+
+    test('onLfsFileOpened callback is initially null', () {
+      expect(handler.onLfsFileOpened, isNull);
+    });
+
+    test('onConnect callback can be set', () {
+      handler.onConnect = (_) {};
+      expect(handler.onConnect, isNotNull);
+    });
+
+    test('onKeyFileOpened callback can be set', () {
+      handler.onKeyFileOpened = (_) {};
+      expect(handler.onKeyFileOpened, isNotNull);
+    });
+
+    test('onLfsFileOpened callback can be set', () {
+      handler.onLfsFileOpened = (_) {};
+      expect(handler.onLfsFileOpened, isNotNull);
+    });
+
+    test('dispose can be called without init', () {
+      // Should not throw
+      handler.dispose();
+    });
+
+    test('dispose can be called multiple times', () {
+      handler.dispose();
+      handler.dispose();
+    });
   });
 }

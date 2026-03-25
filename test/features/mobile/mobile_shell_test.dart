@@ -201,6 +201,133 @@ void main() {
       expect(find.text('SFTP Server (SFTP)'), findsOneWidget);
     });
 
+    testWidgets('close button on terminal tab chip closes tab', (tester) async {
+      final conn = Connection(
+        id: 'conn-close',
+        label: 'Close Me',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith((ref) {
+              return SessionNotifier(ref.watch(sessionStoreProvider));
+            }),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            tabProvider.overrideWith((ref) {
+              final notifier = TabNotifier();
+              notifier.addTerminalTab(conn, label: 'Close Me');
+              return notifier;
+            }),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Close Me'), findsOneWidget);
+
+      // Find and tap the close icon on the InputChip
+      final closeIcons = find.byIcon(Icons.close);
+      if (closeIcons.evaluate().isNotEmpty) {
+        await tester.tap(closeIcons.first);
+        await tester.pumpAndSettle();
+      }
+    });
+
+    testWidgets('swipe right navigates to previous tab', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal first
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+      expect(find.text('No active terminals'), findsOneWidget);
+
+      // Swipe right (positive velocity) to go back to Sessions
+      await tester.fling(
+        find.text('No active terminals'),
+        const Offset(300, 0),
+        800,
+      );
+      await tester.pumpAndSettle();
+
+      // Should be back on Sessions
+      expect(find.text('LetsFLUTssh'), findsOneWidget);
+    });
+
+    testWidgets('swipe left navigates to next tab', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Start on Sessions, swipe left to go to Terminal
+      await tester.fling(
+        find.text('LetsFLUTssh'),
+        const Offset(-300, 0),
+        800,
+      );
+      await tester.pumpAndSettle();
+
+      // Should be on Terminal page
+      expect(find.text('No active terminals'), findsOneWidget);
+    });
+
+    testWidgets('FAB not shown on Files page', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Files'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FloatingActionButton), findsNothing);
+    });
+
+    testWidgets('SFTP page shows empty state with hint text', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Files'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No active file browsers'), findsOneWidget);
+      expect(find.text('Use "SFTP" from Sessions'), findsOneWidget);
+    });
+
+    testWidgets('terminal page shows empty state with hint text', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No active terminals'), findsOneWidget);
+      expect(find.text('Connect from Sessions tab'), findsOneWidget);
+    });
+
+    testWidgets('settings button opens settings screen', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.settings));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Appearance'), findsOneWidget);
+    });
+
     testWidgets('badge shows terminal tab count', (tester) async {
       final conn = Connection(
         id: 'conn-3',

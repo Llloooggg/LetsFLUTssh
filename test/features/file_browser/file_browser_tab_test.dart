@@ -115,6 +115,34 @@ void main() {
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
     });
 
+    testWidgets('error state shows error icon', (tester) async {
+      final conn = Connection(
+        id: 'test-icon',
+        label: 'Error Icon Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: FileBrowserTab(connection: conn),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline));
+      expect(icon.color, AppTheme.disconnected);
+    });
+
     testWidgets('Retry button is a FilledButton.tonal', (tester) async {
       final conn = Connection(
         id: 'test-4',
