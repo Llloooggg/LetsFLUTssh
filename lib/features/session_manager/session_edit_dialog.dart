@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/import/key_file_helper.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../utils/platform.dart';
@@ -375,16 +374,13 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         if (files.isNotEmpty) {
           final path = files.first.path;
           // If the file looks like a PEM key, read its contents into keyData
-          final file = File(path);
-          if (file.existsSync() && file.lengthSync() < 32768) {
-            final content = file.readAsStringSync();
-            if (content.contains('PRIVATE KEY')) {
-              setState(() {
-                _keyDataCtrl.text = content;
-                _showKeyText = true;
-              });
-              return;
-            }
+          final pemContent = KeyFileHelper.tryReadPemKey(path);
+          if (pemContent != null) {
+            setState(() {
+              _keyDataCtrl.text = pemContent;
+              _showKeyText = true;
+            });
+            return;
           }
           // Otherwise just set the path
           setState(() => _keyPathCtrl.text = path);

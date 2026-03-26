@@ -119,6 +119,13 @@ Old beta tags stay in history — they document the path to release.
         - Overall: `curl -s "https://sonarcloud.io/api/measures/component?component=Llloooggg_LetsFLUTssh&metricKeys=coverage,uncovered_lines"`
         - New code: `curl -s "https://sonarcloud.io/api/measures/component?component=Llloooggg_LetsFLUTssh&metricKeys=new_coverage,new_uncovered_lines,new_lines_to_cover"`
         - Per-file: `curl -s "https://sonarcloud.io/api/measures/component_tree?component=Llloooggg_LetsFLUTssh&metricKeys=uncovered_lines,coverage&strategy=leaves&ps=50&s=metric&metricSort=uncovered_lines&asc=false"`
+- **Code must be testable by design** — always extract pure logic from code that depends on real SSH, platform channels, or file I/O so the logic is testable independently:
+    - Extract business logic from UI callbacks into injectable services/handlers (DI over hardcoded `ref.read()`)
+    - Use interfaces for file system operations (`FileSystemService`) — no `File.copy()` / `Directory.create()` directly in widget methods
+    - Separate dialog UI from orchestration logic — dialog returns data, service processes it
+    - No duplicate logic across files — extract shared services (e.g. import logic used in both main.dart and settings_screen.dart)
+    - Pure functions over closures — PEM detection, file filtering, path manipulation should be standalone testable functions
+    - If a method mixes UI state (`setState`), provider access (`ref.read`), and I/O — it needs refactoring
 - **Parallel agents** — multiple agents may work in the same repo simultaneously:
     - Only `git add` files YOU changed — never stage unrelated changes from other agents
     - Before committing, run `git status` and verify every staged file is yours

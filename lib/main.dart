@@ -9,6 +9,7 @@ import 'core/connection/connection.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
+import 'core/import/import_service.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/toast.dart';
@@ -322,7 +323,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         importKnownHosts: true,
       );
 
-      await _applyImportResult(importResult);
+      await _buildImportService().applyResult(importResult);
 
       if (context.mounted) {
         Toast.show(
@@ -439,28 +440,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  Future<void> _applyImportResult(ImportResult importResult) async {
-    final sessionNotifier = ref.read(sessionProvider.notifier);
-
-    if (importResult.mode == ImportMode.replace) {
-      final existing = ref.read(sessionProvider);
-      for (final s in existing) {
-        await sessionNotifier.delete(s.id);
-      }
-    }
-
-    for (final s in importResult.sessions) {
-      try {
-        await sessionNotifier.add(s);
-      } catch (e) {
-        if (importResult.mode == ImportMode.replace) rethrow;
-        debugPrint('Import: skipped session ${s.label}: $e');
-      }
-    }
-
-    if (importResult.config != null) {
-      ref.read(configProvider.notifier).update((_) => importResult.config!);
-    }
+  ImportService _buildImportService() {
+    return ImportService(
+      addSession: (s) => ref.read(sessionProvider.notifier).add(s),
+      deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
+      getSessions: () => ref.read(sessionProvider),
+      applyConfig: (config) => ref.read(configProvider.notifier).update((_) => config),
+    );
   }
 }
 

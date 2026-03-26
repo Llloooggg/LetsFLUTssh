@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/import/import_service.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../widgets/toast.dart';
@@ -429,8 +430,13 @@ class _ExportImportTile extends ConsumerWidget {
         importKnownHosts: true,
       );
 
-      await _applyImportedSessions(ref, importResult);
-      _applyImportedConfig(ref, importResult);
+      final importService = ImportService(
+        addSession: (s) => ref.read(sessionProvider.notifier).add(s),
+        deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
+        getSessions: () => ref.read(sessionProvider),
+        applyConfig: (config) => ref.read(configProvider.notifier).update((_) => config),
+      );
+      await importService.applyResult(importResult);
 
       if (context.mounted) {
         Toast.show(
@@ -446,29 +452,6 @@ class _ExportImportTile extends ConsumerWidget {
     }
   }
 
-  Future<void> _applyImportedSessions(WidgetRef ref, ImportResult importResult) async {
-    final sessionNotifier = ref.read(sessionProvider.notifier);
-    if (importResult.mode == ImportMode.replace) {
-      final existing = ref.read(sessionProvider);
-      for (final s in existing) {
-        await sessionNotifier.delete(s.id);
-      }
-    }
-    for (final s in importResult.sessions) {
-      try {
-        await sessionNotifier.add(s);
-      } catch (e) {
-        if (importResult.mode == ImportMode.replace) rethrow;
-        debugPrint('Import: skipped session ${s.label}: $e');
-      }
-    }
-  }
-
-  void _applyImportedConfig(WidgetRef ref, ImportResult importResult) {
-    if (importResult.config != null) {
-      ref.read(configProvider.notifier).update((_) => importResult.config!);
-    }
-  }
 }
 
 class _AboutSection extends StatelessWidget {
