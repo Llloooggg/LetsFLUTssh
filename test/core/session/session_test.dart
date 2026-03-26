@@ -75,6 +75,75 @@ void main() {
     });
   });
 
+  group('SessionAuth', () {
+    test('copyWith partial fields', () {
+      const auth = SessionAuth(authType: AuthType.password, password: 'pw', keyPath: '/k', keyData: 'kd', passphrase: 'pp');
+      final copy = auth.copyWith(password: 'new');
+      expect(copy.authType, AuthType.password);
+      expect(copy.password, 'new');
+      expect(copy.keyPath, '/k');
+      expect(copy.keyData, 'kd');
+      expect(copy.passphrase, 'pp');
+    });
+
+    test('copyWith all fields', () {
+      const auth = SessionAuth();
+      final copy = auth.copyWith(authType: AuthType.key, password: 'p', keyPath: 'k', keyData: 'd', passphrase: 'pp');
+      expect(copy.authType, AuthType.key);
+      expect(copy.password, 'p');
+      expect(copy.keyPath, 'k');
+      expect(copy.keyData, 'd');
+      expect(copy.passphrase, 'pp');
+    });
+
+    test('copyWith no args returns equal', () {
+      const auth = SessionAuth(authType: AuthType.password, password: 'x');
+      final copy = auth.copyWith();
+      expect(copy, equals(auth));
+    });
+
+    test('equality for same values', () {
+      const a = SessionAuth(authType: AuthType.key, password: 'p', keyPath: 'k', keyData: 'd', passphrase: 'pp');
+      const b = SessionAuth(authType: AuthType.key, password: 'p', keyPath: 'k', keyData: 'd', passphrase: 'pp');
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('inequality for different authType', () {
+      const a = SessionAuth(authType: AuthType.password);
+      const b = SessionAuth(authType: AuthType.key);
+      expect(a, isNot(equals(b)));
+    });
+
+    test('inequality for different keyPath', () {
+      const a = SessionAuth(keyPath: '/a');
+      const b = SessionAuth(keyPath: '/b');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('inequality for different keyData', () {
+      const a = SessionAuth(keyData: 'x');
+      const b = SessionAuth(keyData: 'y');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('inequality for different passphrase', () {
+      const a = SessionAuth(passphrase: 'x');
+      const b = SessionAuth(passphrase: 'y');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('identical returns true', () {
+      const a = SessionAuth();
+      expect(a == a, isTrue);
+    });
+
+    test('not equal to other types', () {
+      const a = SessionAuth();
+      expect(a == Object(), isFalse);
+    });
+  });
+
   group('Session equality', () {
     test('same id and fields are equal', () {
       final a = Session(id: 'x', label: 'a', server: const ServerAddress(host: 'h', user: 'u'));

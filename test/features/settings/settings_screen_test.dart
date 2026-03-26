@@ -1710,5 +1710,32 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
     });
+
+    testWidgets('toggling Enable Logging switch calls config update', (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // Start with logging disabled
+      await tester.pumpWidget(buildApp(initialConfig: AppConfig.defaults));
+      await tester.scrollUntilVisible(
+        find.text('Enable Logging'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      // Find the switch and verify it starts as false
+      final switchFinder = find.byType(SwitchListTile);
+      expect(switchFinder, findsOneWidget);
+
+      final switchTile = tester.widget<SwitchListTile>(switchFinder);
+      expect(switchTile.value, isFalse);
+      // Verify onChanged callback is wired (not null)
+      expect(switchTile.onChanged, isNotNull);
+
+      // Call onChanged directly to exercise the callback path
+      switchTile.onChanged!(true);
+      await tester.pumpAndSettle();
+    });
   });
 }

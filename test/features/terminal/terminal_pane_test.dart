@@ -1699,4 +1699,193 @@ void main() {
       expect(searchContainer, isNotEmpty);
     });
   });
+
+  group('TerminalPane — connecting state waits for connection', () {
+    testWidgets('shows spinner while connection is connecting, then shows terminal', (tester) async {
+      final conn = Connection(
+        id: 'connecting-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: null,
+        state: SSHConnectionState.connecting,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Should show spinner while connecting
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // Transition to connected — _waitForConnection will exit on next poll
+      conn.state = SSHConnectionState.connected;
+      await tester.pumpAndSettle();
+
+      // Now terminal should be visible
+      expect(find.byType(TerminalView), findsOneWidget);
+    });
+
+    testWidgets('shows error when connection transitions to disconnected', (tester) async {
+      final conn = Connection(
+        id: 'connecting-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'fail', user: 'u')),
+        sshConnection: null,
+        state: SSHConnectionState.connecting,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Transition to disconnected with error
+      conn.connectionError = 'Auth failed';
+      conn.state = SSHConnectionState.disconnected;
+      await tester.pumpAndSettle();
+
+      // Should show error
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.textContaining('Auth failed'), findsOneWidget);
+    });
+  });
+
+  group('TerminalPane — _toggleSearch via showSearchNotifier', () {
+    testWidgets('toggling showSearchNotifier twice returns to initial state', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'toggle-search');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              key: key,
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(key.currentState!.showSearchNotifier.value, isFalse);
+
+      // Toggle on
+      key.currentState!.showSearchNotifier.value = true;
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalSearchBar), findsOneWidget);
+
+      // Toggle off
+      key.currentState!.showSearchNotifier.value = false;
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalSearchBar), findsNothing);
+    });
+  });
+
+  group('TerminalPane — Ctrl+Shift+V/C keyboard handler', () {
+    testWidgets('Ctrl+Shift+V pastes from clipboard', (tester) async {
+      final conn = _testConnection(id: 'kbd-paste');
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.getData') {
+            return <String, dynamic>{'text': 'pasted via kbd'};
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Simulate Ctrl+Shift+V
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, null,
+      );
+    });
+
+    testWidgets('Ctrl+Shift+C with no selection does nothing', (tester) async {
+      final conn = _testConnection(id: 'kbd-copy');
+      String? copiedText;
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map;
+            copiedText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Simulate Ctrl+Shift+C — no selection so nothing should be copied
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(copiedText, isNull);
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, null,
+      );
+    });
+  });
 }

@@ -235,6 +235,32 @@ void main() {
     });
   });
 
+  group('SshAuth.copyWith', () {
+    test('copies with partial fields', () {
+      const auth = SshAuth(password: 'secret', keyPath: '/path', keyData: 'data', passphrase: 'pp');
+      final copy = auth.copyWith(password: 'new');
+      expect(copy.password, 'new');
+      expect(copy.keyPath, '/path');
+      expect(copy.keyData, 'data');
+      expect(copy.passphrase, 'pp');
+    });
+
+    test('no args returns equal copy', () {
+      const auth = SshAuth(password: 'p');
+      final copy = auth.copyWith();
+      expect(copy, equals(auth));
+    });
+
+    test('copies all fields', () {
+      const auth = SshAuth();
+      final copy = auth.copyWith(password: 'p', keyPath: 'k', keyData: 'd', passphrase: 'pp');
+      expect(copy.password, 'p');
+      expect(copy.keyPath, 'k');
+      expect(copy.keyData, 'd');
+      expect(copy.passphrase, 'pp');
+    });
+  });
+
   group('SSHConfig.effectivePort — edge cases', () {
     test('effectivePort for port -10 returns 22', () {
       const config = SSHConfig(server: ServerAddress(host: 'h', port: -10, user: 'u'));

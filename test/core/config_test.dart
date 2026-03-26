@@ -147,6 +147,67 @@ void main() {
     });
   });
 
+  group('UiConfig.copyWith', () {
+    test('copies with partial fields', () {
+      const ui = UiConfig(toastDurationMs: 3000, windowWidth: 1000.0, windowHeight: 700.0);
+      final copy = ui.copyWith(toastDurationMs: 5000);
+      expect(copy.toastDurationMs, 5000);
+      expect(copy.windowWidth, 1000.0);
+      expect(copy.windowHeight, 700.0);
+    });
+
+    test('copies all fields', () {
+      const ui = UiConfig.defaults;
+      final copy = ui.copyWith(toastDurationMs: 1000, windowWidth: 800.0, windowHeight: 500.0);
+      expect(copy.toastDurationMs, 1000);
+      expect(copy.windowWidth, 800.0);
+      expect(copy.windowHeight, 500.0);
+    });
+
+    test('no args returns equal copy', () {
+      const ui = UiConfig(toastDurationMs: 2000, windowWidth: 900.0, windowHeight: 600.0);
+      final copy = ui.copyWith();
+      expect(copy, equals(ui));
+    });
+  });
+
+  group('UiConfig.sanitized edge cases', () {
+    test('clamps toastDurationMs below 500', () {
+      const ui = UiConfig(toastDurationMs: 100);
+      final s = ui.sanitized();
+      expect(s.toastDurationMs, UiConfig.defaults.toastDurationMs);
+    });
+
+    test('clamps windowWidth below 200', () {
+      const ui = UiConfig(windowWidth: 50.0);
+      final s = ui.sanitized();
+      expect(s.windowWidth, UiConfig.defaults.windowWidth);
+    });
+
+    test('clamps windowHeight below 200', () {
+      const ui = UiConfig(windowHeight: 100.0);
+      final s = ui.sanitized();
+      expect(s.windowHeight, UiConfig.defaults.windowHeight);
+    });
+  });
+
+  group('AppConfig UI convenience accessors', () {
+    test('toastDurationMs delegates to ui', () {
+      const config = AppConfig(ui: UiConfig(toastDurationMs: 5000));
+      expect(config.toastDurationMs, 5000);
+    });
+
+    test('windowWidth delegates to ui', () {
+      const config = AppConfig(ui: UiConfig(windowWidth: 1200.0));
+      expect(config.windowWidth, 1200.0);
+    });
+
+    test('windowHeight delegates to ui', () {
+      const config = AppConfig(ui: UiConfig(windowHeight: 900.0));
+      expect(config.windowHeight, 900.0);
+    });
+  });
+
   group('AppConfig equality', () {
     test('equal configs are equal', () {
       const a = AppConfig(terminal: TerminalConfig(fontSize: 16, theme: 'light'));

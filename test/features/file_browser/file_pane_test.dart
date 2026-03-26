@@ -1383,6 +1383,39 @@ void main() {
       expect(find.text('a.txt'), findsWidgets);
     });
 
+    testWidgets('Ctrl+marquee preserves existing selection', (tester) async {
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      // Pre-select a.txt
+      ctrl.selectSingle('/home/a.txt');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Hold Ctrl and start marquee from b.txt downward
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+
+      final startPos = tester.getCenter(find.text('b.txt'));
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: startPos);
+      await gesture.down(startPos);
+      await tester.pump();
+      await gesture.moveTo(startPos + const Offset(0, 40));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+      // a.txt should still be selected (pre-marquee preserved)
+      expect(ctrl.selected.contains('/home/a.txt'), isTrue);
+      // b.txt should also be selected (from marquee)
+      expect(ctrl.selected.contains('/home/b.txt'), isTrue);
+    });
+
     testWidgets('single tap selects file', (tester) async {
       final entries = manyEntries();
       final fs = _MockFS({'/home': entries});
