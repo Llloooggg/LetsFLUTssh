@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/logger.dart';
 import '../../widgets/toast.dart';
 import 'file_browser_controller.dart';
 
@@ -40,6 +41,7 @@ class FilePaneDialogs {
           await ctrl.fs.mkdir(path);
           await ctrl.refresh();
         } catch (e) {
+          AppLogger.instance.log('mkdir failed: $path: $e', name: 'FilePane', error: e);
           if (context.mounted) {
             Toast.show(context, message: 'Failed to create folder: $e', level: ToastLevel.error);
           }
@@ -81,6 +83,7 @@ class FilePaneDialogs {
           await ctrl.fs.rename(entry.path, newPath);
           await ctrl.refresh();
         } catch (e) {
+          AppLogger.instance.log('Rename failed: ${entry.path} → $newPath: $e', name: 'FilePane', error: e);
           if (context.mounted) {
             Toast.show(context, message: 'Failed to rename: $e', level: ToastLevel.error);
           }
@@ -134,6 +137,7 @@ class FilePaneDialogs {
         await _deleteSingleEntry(ctrl, entry);
         deleted++;
       } catch (e) {
+        AppLogger.instance.log('Delete failed: ${entry.path}: $e', name: 'FilePane', error: e);
         errors.add('Failed to delete ${entry.name}: $e');
       }
     }

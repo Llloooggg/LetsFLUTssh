@@ -9,6 +9,7 @@ import '../../core/transfer/transfer_task.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../../utils/logger.dart';
 import '../file_browser/file_browser_controller.dart';
 import '../file_browser/file_pane_dialogs.dart';
 import '../file_browser/sftp_initializer.dart';
@@ -70,6 +71,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
       _sftp = await SFTPInitializer.init(conn);
       if (mounted) setState(() => _initializing = false);
     } catch (e) {
+      AppLogger.instance.log('SFTP init failed: $e', name: 'MobileFileBrowser', error: e);
       if (mounted) setState(() { _error = 'Failed to init SFTP: $e'; _initializing = false; });
     }
   }

@@ -52,7 +52,7 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 
 **No version bump needed for:** tests, docs, CI configs, linter fixes — anything that does NOT affect the shipped app. These are `test:`/`docs:`/`chore:`/`ci:` commits without a version bump.
 
-**Patch bump IS needed for:** any change that affects the shipped application — Dart code in `lib/`, platform configs (`AndroidManifest.xml`, `Info.plist`, `.desktop`, etc.), native code, assets, or build settings that alter app behavior.
+**Patch bump IS needed for:** any change that affects the shipped application — Dart code in `lib/` (including logging/diagnostics changes), platform configs (`AndroidManifest.xml`, `Info.plist`, `.desktop`, etc.), native code, assets, or build settings that alter app behavior. Adding or changing `AppLogger` calls counts — the log file output is part of the shipped app.
 
 **Tagging workflow:**
 

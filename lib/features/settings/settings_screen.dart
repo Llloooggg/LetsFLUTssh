@@ -15,7 +15,7 @@ import '../../widgets/toast.dart';
 import 'export_import.dart';
 
 /// App version — kept in sync with pubspec.yaml.
-const _appVersion = '1.0.2';
+const _appVersion = '1.0.3';
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
@@ -292,6 +292,7 @@ class _ExportImportTile extends ConsumerWidget {
         Toast.show(context, message: 'Exported to: $outputPath', level: ToastLevel.success);
       }
     } catch (e) {
+      AppLogger.instance.log('Export failed: $e', name: 'Settings', error: e);
       if (context.mounted) {
         Toast.show(context, message: 'Export failed: $e', level: ToastLevel.error);
       }
@@ -453,6 +454,7 @@ class _ExportImportTile extends ConsumerWidget {
         );
       }
     } catch (e) {
+      AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);
       if (context.mounted) {
         Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
       }

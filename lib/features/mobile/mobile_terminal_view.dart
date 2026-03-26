@@ -5,6 +5,7 @@ import 'package:xterm/xterm.dart';
 import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/logger.dart';
 import 'ssh_keyboard_bar.dart';
 
 /// Full-screen mobile terminal with SSH keyboard bar.
@@ -71,6 +72,7 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
       );
       if (mounted) setState(() => _connected = true);
     } catch (e) {
+      AppLogger.instance.log('Shell open failed: $e', name: 'MobileTerminal', error: e);
       if (mounted) setState(() => _error = e.toString());
     }
   }

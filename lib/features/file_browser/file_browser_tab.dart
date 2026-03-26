@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../theme/app_theme.dart';
+import '../../utils/logger.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/sftp/sftp_client.dart';
@@ -83,6 +84,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         setState(() => _initializing = false);
       }
     } catch (e) {
+      AppLogger.instance.log('SFTP init failed: $e', name: 'FileBrowser', error: e);
       if (mounted) {
         setState(() {
           _error = 'Failed to initialize SFTP: $e';

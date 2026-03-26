@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/connection/connection.dart';
 import '../../core/ssh/ssh_client.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/logger.dart';
 import 'split_node.dart';
 import 'tiling_view.dart';
 
@@ -106,6 +107,7 @@ class TerminalTabState extends State<TerminalTab> {
         }
       }
     } catch (e) {
+      AppLogger.instance.log('Reconnect failed: $e', name: 'TerminalTab', error: e);
       setState(() => _connectionError = 'Reconnect failed: $e');
       return;
     }
