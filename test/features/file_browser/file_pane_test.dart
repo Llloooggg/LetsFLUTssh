@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1632,6 +1633,418 @@ void main() {
       await tester.pump();
 
       expect(find.text('/tmp'), findsWidgets);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // OS drag & drop — DropTarget callbacks
+  // ---------------------------------------------------------------------------
+  group('FilePane — DropTarget onDragEntered/onDragExited/onDragDone', () {
+    testWidgets('onDragEntered sets _osDragging true and shows border',
+        (tester) async {
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onOsDropReceived: (_) {},
+      ));
+      await tester.pump();
+
+      // Find the DropTarget and invoke onDragEntered
+      final dropTarget =
+          tester.widget<DropTarget>(find.byType(DropTarget).first);
+      dropTarget.onDragEntered!(DropEventDetails(
+        localPosition: Offset.zero,
+        globalPosition: Offset.zero,
+      ));
+      await tester.pump();
+
+      // The Container should now have a border decoration (primary color)
+      final theme = AppTheme.dark();
+      // Find Container with BoxDecoration that has a border
+      final containers = find.byType(Container);
+      bool foundBorder = false;
+      for (final element in containers.evaluate()) {
+        final container = element.widget as Container;
+        final dec = container.decoration;
+        if (dec is BoxDecoration && dec.border != null) {
+          final border = dec.border as Border;
+          if (border.top.color == theme.colorScheme.primary &&
+              border.top.width == 2) {
+            foundBorder = true;
+            break;
+          }
+        }
+      }
+      expect(foundBorder, isTrue, reason: 'Should show primary border on OS drag enter');
+    });
+
+    testWidgets('onDragExited reverts border decoration', (tester) async {
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onOsDropReceived: (_) {},
+      ));
+      await tester.pump();
+
+      final dropTarget =
+          tester.widget<DropTarget>(find.byType(DropTarget).first);
+
+      // Enter drag
+      dropTarget.onDragEntered!(DropEventDetails(
+        localPosition: Offset.zero,
+        globalPosition: Offset.zero,
+      ));
+      await tester.pump();
+
+      // Exit drag
+      dropTarget.onDragExited!(DropEventDetails(
+        localPosition: Offset.zero,
+        globalPosition: Offset.zero,
+      ));
+      await tester.pump();
+
+      // Verify no primary-colored border remains
+      final theme = AppTheme.dark();
+      final containers = find.byType(Container);
+      bool foundOsBorder = false;
+      for (final element in containers.evaluate()) {
+        final container = element.widget as Container;
+        final dec = container.decoration;
+        if (dec is BoxDecoration && dec.border != null) {
+          final border = dec.border as Border;
+          if (border.top.color == theme.colorScheme.primary &&
+              border.top.width == 2) {
+            foundOsBorder = true;
+            break;
+          }
+        }
+      }
+      expect(foundOsBorder, isFalse,
+          reason: 'Border should be gone after drag exit');
+    });
+
+    testWidgets('onDragDone resets _osDragging and calls onOsDropReceived',
+        (tester) async {
+      List<String>? receivedPaths;
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onOsDropReceived: (paths) => receivedPaths = paths,
+      ));
+      await tester.pump();
+
+      final dropTarget =
+          tester.widget<DropTarget>(find.byType(DropTarget).first);
+
+      // Enter drag first
+      dropTarget.onDragEntered!(DropEventDetails(
+        localPosition: Offset.zero,
+        globalPosition: Offset.zero,
+      ));
+      await tester.pump();
+
+      // Now complete the drag with files
+      dropTarget.onDragDone!(DropDoneDetails(
+        files: [
+          DropItemFile('/tmp/file1.txt'),
+          DropItemFile('/tmp/file2.txt'),
+        ],
+        localPosition: Offset.zero,
+        globalPosition: Offset.zero,
+      ));
+      await tester.pump();
+
+      // Verify callback was called with correct paths
+      expect(receivedPaths, isNotNull);
+      expect(receivedPaths!.length, 2);
+      expect(receivedPaths![0], '/tmp/file1.txt');
+      expect(receivedPaths![1], '/tmp/file2.txt');
+
+      // Verify border is gone (osDragging reset to false)
+      final theme = AppTheme.dark();
+      final containers = find.byType(Container);
+      bool foundOsBorder = false;
+      for (final element in containers.evaluate()) {
+        final container = element.widget as Container;
+        final dec = container.decoration;
+        if (dec is BoxDecoration && dec.border != null) {
+          final border = dec.border as Border;
+          if (border.top.color == theme.colorScheme.primary &&
+              border.top.width == 2) {
+            foundOsBorder = true;
+            break;
+          }
+        }
+      }
+      expect(foundOsBorder, isFalse,
+          reason: 'Border should be gone after drag done');
+    });
+
+    testWidgets('onDragDone with empty files does not call onOsDropReceived',
+        (tester) async {
+      List<String>? receivedPaths;
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onOsDropReceived: (paths) => receivedPaths = paths,
+      ));
+      await tester.pump();
+
+      final dropTarget =
+          tester.widget<DropTarget>(find.byType(DropTarget).first);
+      dropTarget.onDragDone!(const DropDoneDetails(
+        files: [],
+        localPosition: Offset.zero,
+        globalPosition: Offset.zero,
+      ));
+      await tester.pump();
+
+      expect(receivedPaths, isNull);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // DragTarget — onWillAcceptWithDetails returns false when no onDropReceived
+  // ---------------------------------------------------------------------------
+  group('FilePane — DragTarget onWillAcceptWithDetails', () {
+    testWidgets('rejects drag when onDropReceived is null', (tester) async {
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100,
+            mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        paneId: 'target-pane',
+        onDropReceived: null,
+      ));
+      await tester.pump();
+
+      // Find the inner DragTarget<PaneDragData>
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
+        find.byType(DragTarget<PaneDragData>),
+      );
+
+      // Call onWillAcceptWithDetails directly
+      final result = dragTarget.onWillAcceptWithDetails!(
+        DragTargetDetails<PaneDragData>(
+          data: PaneDragData(
+            sourcePaneId: 'other-pane',
+            entries: [entries.first],
+          ),
+          offset: Offset.zero,
+        ),
+      );
+      expect(result, isFalse);
+    });
+
+    testWidgets('rejects drag from same pane', (tester) async {
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100,
+            mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        paneId: 'same-pane',
+        onDropReceived: (_) {},
+      ));
+      await tester.pump();
+
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
+        find.byType(DragTarget<PaneDragData>),
+      );
+
+      final result = dragTarget.onWillAcceptWithDetails!(
+        DragTargetDetails<PaneDragData>(
+          data: PaneDragData(
+            sourcePaneId: 'same-pane',
+            entries: [entries.first],
+          ),
+          offset: Offset.zero,
+        ),
+      );
+      expect(result, isFalse);
+    });
+
+    testWidgets('accepts drag from different pane with onDropReceived',
+        (tester) async {
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100,
+            mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        paneId: 'target-pane',
+        onDropReceived: (_) {},
+      ));
+      await tester.pump();
+
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
+        find.byType(DragTarget<PaneDragData>),
+      );
+
+      final result = dragTarget.onWillAcceptWithDetails!(
+        DragTargetDetails<PaneDragData>(
+          data: PaneDragData(
+            sourcePaneId: 'source-pane',
+            entries: [entries.first],
+          ),
+          offset: Offset.zero,
+        ),
+      );
+      expect(result, isTrue);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // DragTarget — onAcceptWithDetails calls onDropReceived
+  // ---------------------------------------------------------------------------
+  group('FilePane — DragTarget onAcceptWithDetails', () {
+    testWidgets('onAcceptWithDetails calls onDropReceived with entries',
+        (tester) async {
+      List<FileEntry>? droppedEntries;
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100,
+            mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        paneId: 'target-pane',
+        onDropReceived: (e) => droppedEntries = e,
+      ));
+      await tester.pump();
+
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
+        find.byType(DragTarget<PaneDragData>),
+      );
+
+      final sourceEntries = [
+        FileEntry(name: 'remote.txt', path: '/remote/remote.txt', size: 200,
+            mode: 0x81A4, modTime: now, isDir: false),
+      ];
+
+      dragTarget.onAcceptWithDetails!(
+        DragTargetDetails<PaneDragData>(
+          data: PaneDragData(
+            sourcePaneId: 'source-pane',
+            entries: sourceEntries,
+          ),
+          offset: Offset.zero,
+        ),
+      );
+      await tester.pump();
+
+      expect(droppedEntries, isNotNull);
+      expect(droppedEntries!.length, 1);
+      expect(droppedEntries!.first.name, 'remote.txt');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // DragTarget — hover state decoration (isHovering)
+  // ---------------------------------------------------------------------------
+  group('FilePane — DragTarget hover decoration', () {
+    testWidgets('builder shows border when candidateData is non-empty',
+        (tester) async {
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100,
+            mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        paneId: 'target-pane',
+        onDropReceived: (_) {},
+      ));
+      await tester.pump();
+
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
+        find.byType(DragTarget<PaneDragData>),
+      );
+
+      // Call the builder with non-empty candidateData to simulate hover
+      final hoverWidget = dragTarget.builder(
+        tester.element(find.byType(DragTarget<PaneDragData>)),
+        [
+          PaneDragData(
+            sourcePaneId: 'source-pane',
+            entries: [entries.first],
+          ),
+        ],
+        [],
+      );
+
+      // The returned widget should be a Container with a BoxDecoration border
+      expect(hoverWidget, isA<Container>());
+      final container = hoverWidget as Container;
+      expect(container.decoration, isA<BoxDecoration>());
+      final decoration = container.decoration! as BoxDecoration;
+      expect(decoration.border, isNotNull);
+      final border = decoration.border! as Border;
+      expect(border.top.width, 2);
+    });
+
+    testWidgets('builder shows no border when candidateData is empty',
+        (tester) async {
+      final entries = [
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100,
+            mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        paneId: 'target-pane',
+        onDropReceived: (_) {},
+      ));
+      await tester.pump();
+
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
+        find.byType(DragTarget<PaneDragData>),
+      );
+
+      // Call the builder with empty candidateData (no hover)
+      final noHoverWidget = dragTarget.builder(
+        tester.element(find.byType(DragTarget<PaneDragData>)),
+        [],
+        [],
+      );
+
+      expect(noHoverWidget, isA<Container>());
+      final container = noHoverWidget as Container;
+      expect(container.decoration, isNull);
     });
   });
 }

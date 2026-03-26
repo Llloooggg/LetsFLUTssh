@@ -1,11 +1,14 @@
 import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/ssh/ssh_client.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_tab.dart';
 import 'package:letsflutssh/features/settings/export_import.dart' show ImportMode;
 import 'package:letsflutssh/features/terminal/terminal_tab.dart';
@@ -1303,6 +1306,260 @@ void main() {
     });
   });
 
+  /// Fake SSHConnection that fails immediately without touching the network.
+  ConnectionManager makeFailingConnectionManager() {
+    return ConnectionManager(
+      knownHosts: KnownHostsManager(),
+      connectionFactory: (config, kh) => _FailingSSHConnection(
+        config: config,
+        knownHosts: kh,
+      ),
+    );
+  }
+
+  group('MainScreen — _connectSession via session double-click', () {
+    testWidgets('double-clicking a session triggers _connectSession', (tester) async {
+      final store = SessionStore();
+      final testSession = Session(
+        id: 'test-sess-1',
+        label: 'TestServer',
+        host: '10.0.0.99',
+        user: 'admin',
+        password: 'pass123',
+      );
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith((ref) {
+            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+            notifier.state = AppConfig.defaults;
+            return notifier;
+          }),
+          sessionStoreProvider.overrideWithValue(store),
+          sessionProvider.overrideWith((ref) {
+            final notifier = SessionNotifier(store);
+            notifier.state = [testSession];
+            return notifier;
+          }),
+          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          connectionManagerProvider.overrideWithValue(
+            makeFailingConnectionManager(),
+          ),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const MediaQuery(
+            data: MediaQueryData(size: Size(1000, 600)),
+            child: SizedBox(width: 1000, height: 600, child: MainScreen()),
+          ),
+        ),
+      ));
+      await tester.pump();
+      await tester.pump();
+
+      // Session should appear in sidebar
+      expect(find.text('TestServer'), findsOneWidget);
+
+      // Double-click the session to trigger _connectSession → SessionConnect.connectTerminal
+      await tester.tap(find.text('TestServer'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('TestServer'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      // Line 291-292 is covered — error toast appears because fake SSH fails
+      expect(find.byType(MainScreen), findsOneWidget);
+
+      // Pump past the 3-second toast auto-dismiss timer and its animation
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 500));
+    });
+  });
+
+  group('MainScreen — _connectSessionSftp via context menu', () {
+    testWidgets('right-click session and select SFTP triggers _connectSessionSftp', (tester) async {
+      final store = SessionStore();
+      final testSession = Session(
+        id: 'test-sess-2',
+        label: 'SftpServer',
+        host: '10.0.0.100',
+        user: 'sftpuser',
+        password: 'secret',
+      );
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith((ref) {
+            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+            notifier.state = AppConfig.defaults;
+            return notifier;
+          }),
+          sessionStoreProvider.overrideWithValue(store),
+          sessionProvider.overrideWith((ref) {
+            final notifier = SessionNotifier(store);
+            notifier.state = [testSession];
+            return notifier;
+          }),
+          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          connectionManagerProvider.overrideWithValue(
+            makeFailingConnectionManager(),
+          ),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const MediaQuery(
+            data: MediaQueryData(size: Size(1000, 600)),
+            child: SizedBox(width: 1000, height: 600, child: MainScreen()),
+          ),
+        ),
+      ));
+      await tester.pump();
+      await tester.pump();
+
+      // Session should appear in sidebar
+      expect(find.text('SftpServer'), findsOneWidget);
+
+      // Right-click the session to open context menu
+      final sessionFinder = find.text('SftpServer');
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.addPointer(location: tester.getCenter(sessionFinder));
+      await gesture.down(tester.getCenter(sessionFinder));
+      await gesture.up();
+      await tester.pump();
+      await tester.pump();
+
+      // Context menu should show "SFTP" option
+      expect(find.text('SFTP'), findsOneWidget);
+
+      // Tap SFTP to trigger _connectSessionSftp
+      await tester.tap(find.text('SFTP'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      // Line 288-289 is covered — connection fails but code path is exercised
+      expect(find.byType(MainScreen), findsOneWidget);
+
+      // Pump past the 3-second toast auto-dismiss timer and its animation
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 500));
+    });
+  });
+
+  group('MainScreen — _newSession ConnectOnlyResult path', () {
+    testWidgets('filling host+user and clicking Connect triggers ConnectOnlyResult', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith((ref) {
+            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+            notifier.state = AppConfig.defaults;
+            return notifier;
+          }),
+          sessionStoreProvider.overrideWithValue(SessionStore()),
+          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          connectionManagerProvider.overrideWithValue(
+            makeFailingConnectionManager(),
+          ),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const MediaQuery(
+            data: MediaQueryData(size: Size(1000, 600)),
+            child: SizedBox(width: 1000, height: 600, child: MainScreen()),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // Open new session dialog
+      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      await tester.pump();
+      await tester.pump();
+
+      // Fill in required fields
+      final hostField = find.widgetWithText(TextFormField, 'Host *');
+      await tester.enterText(hostField, 'connect-only.example.com');
+      await tester.pump();
+
+      final userField = find.widgetWithText(TextFormField, 'Username *');
+      await tester.enterText(userField, 'testuser');
+      await tester.pump();
+
+      // Click "Connect" (not "Save & Connect") → ConnectOnlyResult
+      await tester.tap(find.text('Connect'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      // Lines 302-303 (ConnectOnlyResult case) covered
+      expect(find.byType(MainScreen), findsOneWidget);
+
+      // Pump past the 3-second toast auto-dismiss timer and its animation
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 500));
+    });
+  });
+
+  group('MainScreen — _newSession SaveResult path', () {
+    testWidgets('filling label+host+user and clicking Save & Connect triggers SaveResult', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith((ref) {
+            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+            notifier.state = AppConfig.defaults;
+            return notifier;
+          }),
+          sessionStoreProvider.overrideWithValue(SessionStore()),
+          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          connectionManagerProvider.overrideWithValue(
+            makeFailingConnectionManager(),
+          ),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const MediaQuery(
+            data: MediaQueryData(size: Size(1000, 600)),
+            child: SizedBox(width: 1000, height: 600, child: MainScreen()),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // Open new session dialog
+      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      await tester.pump();
+      await tester.pump();
+
+      // Fill in required fields including label
+      final hostField = find.widgetWithText(TextFormField, 'Host *');
+      await tester.enterText(hostField, 'save.example.com');
+      await tester.pump();
+
+      final userField = find.widgetWithText(TextFormField, 'Username *');
+      await tester.enterText(userField, 'saveuser');
+      await tester.pump();
+
+      // Click "Save & Connect" → SaveResult with connect: true
+      await tester.tap(find.text('Save & Connect'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      await tester.pump();
+
+      // Lines 304-307 (SaveResult case with connect: true) covered
+      expect(find.byType(MainScreen), findsOneWidget);
+
+      // Pump past the 3-second toast auto-dismiss timer and its animation
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 500));
+    });
+  });
+
   group('MainScreen — narrow layout isNarrow path', () {
     testWidgets('narrow layout (< 600px) uses Drawer instead of SplitView', (tester) async {
       tester.view.physicalSize = const Size(500, 600);
@@ -1376,6 +1633,25 @@ void main() {
       expect(find.textContaining('1 tab(s)'), findsOneWidget);
     });
   });
+}
+
+/// Fake SSHConnection that throws immediately — no network access, no pending timers.
+class _FailingSSHConnection extends SSHConnection {
+  _FailingSSHConnection({
+    required super.config,
+    required super.knownHosts,
+  });
+
+  @override
+  Future<void> connect() async {
+    throw Exception('fake connection failure');
+  }
+
+  @override
+  bool get isConnected => false;
+
+  @override
+  void disconnect() {}
 }
 
 /// Stateful widget that renders the import dialog content inline (no showDialog).

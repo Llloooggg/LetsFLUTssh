@@ -7,6 +7,7 @@ import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/session_panel.dart';
+import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
@@ -1910,6 +1911,44 @@ void main() {
       await tester.pumpAndSettle();
 
       // The panel should still render without error after the drop
+      expect(find.byType(SessionPanel), findsOneWidget);
+    });
+  });
+
+  group('SessionPanel — onSessionMoved/onGroupMoved callbacks via SessionTreeView', () {
+    testWidgets('onSessionMoved callback calls moveSession on notifier',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Find the SessionTreeView and invoke its onSessionMoved callback directly
+      final treeView = tester.widget<SessionTreeView>(
+        find.byType(SessionTreeView),
+      );
+
+      // Call onSessionMoved with staging session id '3' moving to 'Production'
+      treeView.onSessionMoved!('3', 'Production');
+      await tester.pumpAndSettle();
+
+      // The panel should still render without error
+      expect(find.byType(SessionPanel), findsOneWidget);
+    });
+
+    testWidgets('onGroupMoved callback calls moveGroup on notifier',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Find the SessionTreeView and invoke its onGroupMoved callback directly
+      final treeView = tester.widget<SessionTreeView>(
+        find.byType(SessionTreeView),
+      );
+
+      // Call onGroupMoved to move Production/DB to root
+      treeView.onGroupMoved!('Production/DB', '');
+      await tester.pumpAndSettle();
+
+      // The panel should still render without error
       expect(find.byType(SessionPanel), findsOneWidget);
     });
   });

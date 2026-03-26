@@ -16,6 +16,7 @@ import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_tab.dart';
+import 'package:letsflutssh/features/file_browser/file_pane.dart';
 import 'package:letsflutssh/features/file_browser/file_row.dart';
 import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
@@ -1759,6 +1760,528 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(manager.history.first.sizeBytes, 200);
+    });
+  });
+
+  group('FileBrowserTab — onDropReceived direct callback invocation', () {
+    testWidgets('onDropReceived on local pane triggers _download for each dropped entry', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'drop-cb-local',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the local FilePane (paneId: 'local') and invoke its onDropReceived directly.
+      // The local pane's onDropReceived calls _download for each entry.
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      expect(filePanes, hasLength(2));
+      // First FilePane is local (paneId: 'local')
+      final localPane = filePanes.firstWhere((p) => p.paneId == 'local');
+      expect(localPane.onDropReceived, isNotNull);
+
+      // Simulate dropping remote entries onto the local pane
+      localPane.onDropReceived!(_remoteEntries());
+
+      // Let the async run callback execute
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      // Should have enqueued 2 download tasks (one file, one dir)
+      expect(manager.history, hasLength(2));
+      expect(manager.history.every((h) => h.direction == TransferDirection.download), isTrue);
+
+      // Tracking service should have recorded download + downloadDir
+      expect(tracking.calls, hasLength(2));
+      final methods = tracking.calls.map((c) => c.method).toSet();
+      expect(methods, containsAll(['download', 'downloadDir']));
+    });
+
+    testWidgets('onDropReceived on remote pane triggers _upload for each dropped entry', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'drop-cb-remote',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the remote FilePane (paneId: 'remote') and invoke its onDropReceived directly.
+      // The remote pane's onDropReceived calls _upload for each entry.
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final remotePane = filePanes.firstWhere((p) => p.paneId == 'remote');
+      expect(remotePane.onDropReceived, isNotNull);
+
+      // Simulate dropping local entries onto the remote pane
+      remotePane.onDropReceived!(_localEntries());
+
+      // Let the async run callback execute
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      // Should have enqueued 2 upload tasks (one file, one dir)
+      expect(manager.history, hasLength(2));
+      expect(manager.history.every((h) => h.direction == TransferDirection.upload), isTrue);
+
+      // Tracking service should have recorded upload + uploadDir
+      expect(tracking.calls, hasLength(2));
+      final methods = tracking.calls.map((c) => c.method).toSet();
+      expect(methods, containsAll(['upload', 'uploadDir']));
+    });
+  });
+
+  group('FileBrowserTab — onTransferMultiple direct callback invocation', () {
+    testWidgets('onTransferMultiple on local pane triggers _upload for each entry', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'multi-cb-local',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the local FilePane and invoke onTransferMultiple directly
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final localPane = filePanes.firstWhere((p) => p.paneId == 'local');
+      expect(localPane.onTransferMultiple, isNotNull);
+
+      // Call with both local entries — triggers _upload for each
+      localPane.onTransferMultiple!(_localEntries());
+
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      expect(manager.history, hasLength(2));
+      expect(manager.history.every((h) => h.direction == TransferDirection.upload), isTrue);
+      expect(tracking.calls, hasLength(2));
+      final methods = tracking.calls.map((c) => c.method).toSet();
+      expect(methods, containsAll(['upload', 'uploadDir']));
+    });
+
+    testWidgets('onTransferMultiple on remote pane triggers _download for each entry', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'multi-cb-remote',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the remote FilePane and invoke onTransferMultiple directly
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final remotePane = filePanes.firstWhere((p) => p.paneId == 'remote');
+      expect(remotePane.onTransferMultiple, isNotNull);
+
+      // Call with both remote entries — triggers _download for each
+      remotePane.onTransferMultiple!(_remoteEntries());
+
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      expect(manager.history, hasLength(2));
+      expect(manager.history.every((h) => h.direction == TransferDirection.download), isTrue);
+      expect(tracking.calls, hasLength(2));
+      final methods = tracking.calls.map((c) => c.method).toSet();
+      expect(methods, containsAll(['download', 'downloadDir']));
+    });
+  });
+
+  group('FileBrowserTab — _upload/_download run callback verification', () {
+    testWidgets('upload run callback calls sftp.upload and refreshes remote', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'run-upload',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Double-click local.txt to trigger _upload
+      await tester.tap(find.text('local.txt'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('local.txt'));
+
+      // Ensure async run callback completes
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      // Verify the run callback executed: sftp.upload was called
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'upload');
+      expect(tracking.calls.first.src, '/test/local.txt');
+      expect(tracking.calls.first.dst, '/remote/local.txt');
+
+      // Verify the task completed successfully
+      expect(manager.history, hasLength(1));
+      expect(manager.history.first.status, TransferStatus.completed);
+      expect(manager.history.first.lastPercent, 100);
+    });
+
+    testWidgets('download run callback calls sftp.download and refreshes local', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'run-download',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Double-click remote.txt to trigger _download
+      await tester.tap(find.text('remote.txt'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('remote.txt'));
+
+      // Ensure async run callback completes
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      // Verify the run callback executed: sftp.download was called
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'download');
+      expect(tracking.calls.first.src, '/remote/remote.txt');
+      expect(tracking.calls.first.dst, '/local/remote.txt');
+
+      // Verify the task completed successfully
+      expect(manager.history, hasLength(1));
+      expect(manager.history.first.status, TransferStatus.completed);
+      expect(manager.history.first.lastPercent, 100);
+    });
+
+    testWidgets('upload run callback calls sftp.uploadDir for directory entries', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'run-upload-dir',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      final dirEntries = [
+        FileEntry(name: 'mydir', path: '/local/mydir', size: 4096, mode: 0x1ED, modTime: DateTime(2024), isDir: true),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: dirEntries,
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Use onTransferMultiple on local pane to trigger _upload for a directory
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final localPane = filePanes.firstWhere((p) => p.paneId == 'local');
+      localPane.onTransferMultiple!(dirEntries);
+
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'uploadDir');
+      expect(tracking.calls.first.src, '/local/mydir');
+      expect(tracking.calls.first.dst, '/remote/mydir');
+      expect(manager.history.first.name, 'mydir/');
+    });
+
+    testWidgets('download run callback calls sftp.downloadDir for directory entries', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'run-download-dir',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      final dirEntries = [
+        FileEntry(name: 'rdir', path: '/remote/rdir', size: 4096, mode: 0x1ED, modTime: DateTime(2024), isDir: true),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: dirEntries,
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Use onTransferMultiple on remote pane to trigger _download for a directory
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final remotePane = filePanes.firstWhere((p) => p.paneId == 'remote');
+      remotePane.onTransferMultiple!(dirEntries);
+
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'downloadDir');
+      expect(tracking.calls.first.src, '/remote/rdir');
+      expect(tracking.calls.first.dst, '/local/rdir');
+      expect(manager.history.first.name, 'rdir/');
     });
   });
 }
