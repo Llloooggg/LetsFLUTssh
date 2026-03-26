@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../ssh/ssh_client.dart';
 import '../ssh/ssh_config.dart';
 
@@ -18,6 +20,10 @@ class Connection {
   /// Error message from last connection attempt, null if no error.
   String? connectionError;
 
+  /// Completes when the connection leaves the `connecting` state
+  /// (either connected or failed). Callers use [ready] instead of polling.
+  final Completer<void> _readyCompleter = Completer<void>();
+
   Connection({
     required this.id,
     required this.label,
@@ -29,4 +35,13 @@ class Connection {
 
   bool get isConnected => state == SSHConnectionState.connected;
   bool get isConnecting => state == SSHConnectionState.connecting;
+
+  /// Future that completes when connection attempt finishes
+  /// (success or failure). Safe to await multiple times.
+  Future<void> get ready => _readyCompleter.future;
+
+  /// Mark connection attempt as resolved. Called by [ConnectionManager].
+  void completeReady() {
+    if (!_readyCompleter.isCompleted) _readyCompleter.complete();
+  }
 }

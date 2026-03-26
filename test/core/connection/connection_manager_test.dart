@@ -438,5 +438,62 @@ void main() {
       );
       expect(conn.sshConnection, isNull);
     });
+
+    test('ready completes on successful connect', () async {
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) =>
+            FakeSSHConnection(config: config, knownHosts: kh),
+      );
+
+      final conn = mgr.connectAsync(
+        const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+      );
+      await conn.ready;
+      expect(conn.isConnected, isTrue);
+      mgr.dispose();
+    });
+
+    test('ready completes on failed connect', () async {
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) =>
+            FakeSSHConnection(config: config, knownHosts: kh, shouldFail: true),
+      );
+
+      final conn = mgr.connectAsync(
+        const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+      );
+      await conn.ready;
+      expect(conn.state, SSHConnectionState.disconnected);
+      expect(conn.connectionError, isNotNull);
+      mgr.dispose();
+    });
+
+    test('ready is safe to await multiple times', () async {
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) =>
+            FakeSSHConnection(config: config, knownHosts: kh),
+      );
+
+      final conn = mgr.connectAsync(
+        const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+      );
+      await conn.ready;
+      await conn.ready; // second await should not throw
+      expect(conn.isConnected, isTrue);
+      mgr.dispose();
+    });
+
+    test('completeReady is idempotent', () {
+      final conn = Connection(
+        id: 'c1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+      );
+      conn.completeReady();
+      conn.completeReady(); // should not throw
+    });
   });
 }

@@ -75,11 +75,13 @@ class ConnectionManager {
       conn.sshConnection = sshConn;
       conn.state = SSHConnectionState.connected;
       AppLogger.instance.log('Connected: ${conn.label}', name: 'Connection');
+      conn.completeReady();
       _notify();
     } catch (e) {
       AppLogger.instance.log('Connection failed: $e', name: 'Connection', error: e);
       conn.state = SSHConnectionState.disconnected;
       conn.connectionError = e.toString();
+      conn.completeReady();
       _notify();
     }
   }

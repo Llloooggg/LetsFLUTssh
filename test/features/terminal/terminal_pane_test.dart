@@ -1726,8 +1726,9 @@ void main() {
       // Should show spinner while connecting
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-      // Transition to connected — _waitForConnection will exit on next poll
+      // Transition to connected — ready completer fires
       conn.state = SSHConnectionState.connected;
+      conn.completeReady();
       await tester.pumpAndSettle();
 
       // Now terminal should be visible
@@ -1759,6 +1760,7 @@ void main() {
       // Transition to disconnected with error
       conn.connectionError = 'Auth failed';
       conn.state = SSHConnectionState.disconnected;
+      conn.completeReady();
       await tester.pumpAndSettle();
 
       // Should show error
