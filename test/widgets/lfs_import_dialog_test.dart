@@ -16,33 +16,27 @@ void main() {
     tempDir.deleteSync(recursive: true);
   });
 
-  /// Render the dialog proxy directly in the tree (no showDialog) to avoid
-  /// animation hangs from cursor blink (TextField) + SegmentedButton transitions.
-  /// Uses _LfsImportDialogProxy which mirrors the real widget's logic but
-  /// replaces animated widgets with plain equivalents.
-  Widget buildDialogDirect({
-    required String filePath,
-    ValueChanged<LfsImportDialogResult?>? onResult,
-  }) {
+  /// Render the real LfsImportDialog directly in the widget tree
+  /// (bypassing showDialog to avoid overlay/animation issues).
+  /// Uses SingleChildScrollView to prevent overflow from AlertDialog content.
+  Widget buildRealDialog(String filePath) {
     return MaterialApp(
       theme: AppTheme.dark(),
       home: Scaffold(
         body: SingleChildScrollView(
-          child: _LfsImportDialogProxy(
-            filePath: filePath,
-            onResult: onResult,
-          ),
+          child: LfsImportDialog(filePath: filePath),
         ),
       ),
     );
   }
 
-  group('LfsImportDialog', () {
-    testWidgets('shows file name, password label, and mode selector', (tester) async {
+  group('LfsImportDialog — real widget', () {
+    testWidgets('renders title, file name, password field, and mode selector',
+        (tester) async {
       final lfsFile = File('${tempDir.path}/backup.lfs');
       lfsFile.writeAsBytesSync([0]);
 
-      await tester.pumpWidget(buildDialogDirect(filePath: lfsFile.path));
+      await tester.pumpWidget(buildRealDialog(lfsFile.path));
       await tester.pump();
 
       expect(find.text('Import Data'), findsOneWidget);
@@ -59,10 +53,11 @@ void main() {
       final lfsFile = File('${tempDir.path}/data.lfs');
       lfsFile.writeAsBytesSync([0]);
 
-      await tester.pumpWidget(buildDialogDirect(filePath: lfsFile.path));
+      await tester.pumpWidget(buildRealDialog(lfsFile.path));
       await tester.pump();
 
       await tester.tap(find.text('Replace'));
+      await tester.pump();
       await tester.pump();
 
       expect(find.text('Replace all sessions with imported'), findsOneWidget);
@@ -72,117 +67,85 @@ void main() {
       final lfsFile = File('${tempDir.path}/toggle.lfs');
       lfsFile.writeAsBytesSync([0]);
 
-      await tester.pumpWidget(buildDialogDirect(filePath: lfsFile.path));
+      await tester.pumpWidget(buildRealDialog(lfsFile.path));
       await tester.pump();
 
       await tester.tap(find.text('Replace'));
       await tester.pump();
+      await tester.pump();
 
       await tester.tap(find.text('Merge'));
+      await tester.pump();
       await tester.pump();
 
       expect(find.text('Add new sessions, keep existing'), findsOneWidget);
     });
 
-    testWidgets('Import button with empty password does nothing', (tester) async {
+    testWidgets('empty password: Import button triggers _submit guard',
+        (tester) async {
       final lfsFile = File('${tempDir.path}/empty.lfs');
       lfsFile.writeAsBytesSync([0]);
 
-      var resultCallbackCalled = false;
-
-      await tester.pumpWidget(buildDialogDirect(
-        filePath: lfsFile.path,
-        onResult: (r) => resultCallbackCalled = true,
-      ));
+      await tester.pumpWidget(buildRealDialog(lfsFile.path));
       await tester.pump();
 
-      await tester.tap(find.text('Import'));
+      // Tap Import without entering password — _submit checks isEmpty
+      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
       await tester.pump();
 
-      // _submit guards against empty password — callback should not fire
-      expect(resultCallbackCalled, isFalse);
+      // Dialog should still be visible (no Navigator.pop happened)
       expect(find.text('Import Data'), findsOneWidget);
     });
 
-    testWidgets('Cancel returns null', (tester) async {
-      final lfsFile = File('${tempDir.path}/cancel.lfs');
+    testWidgets('SegmentedButton has correct initial selection', (tester) async {
+      final lfsFile = File('${tempDir.path}/init.lfs');
       lfsFile.writeAsBytesSync([0]);
 
-      LfsImportDialogResult? capturedResult =
-          (password: 'sentinel', mode: ImportMode.merge);
-      var called = false;
-
-      await tester.pumpWidget(buildDialogDirect(
-        filePath: lfsFile.path,
-        onResult: (r) {
-          called = true;
-          capturedResult = r;
-        },
-      ));
+      await tester.pumpWidget(buildRealDialog(lfsFile.path));
       await tester.pump();
 
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-
-      expect(called, isTrue);
-      expect(capturedResult, isNull);
+      // Default mode is merge
+      final segmented = tester.widget<SegmentedButton<ImportMode>>(
+        find.byType(SegmentedButton<ImportMode>),
+      );
+      expect(segmented.selected, {ImportMode.merge});
     });
 
-    testWidgets('entering password and tapping Import returns result', (tester) async {
-      final lfsFile = File('${tempDir.path}/submit.lfs');
+    testWidgets('TextField is obscured for password', (tester) async {
+      final lfsFile = File('${tempDir.path}/obscure.lfs');
       lfsFile.writeAsBytesSync([0]);
 
-      LfsImportDialogResult? capturedResult;
-
-      await tester.pumpWidget(buildDialogDirect(
-        filePath: lfsFile.path,
-        onResult: (r) => capturedResult = r,
-      ));
+      await tester.pumpWidget(buildRealDialog(lfsFile.path));
       await tester.pump();
 
-      // Enter password and submit
-      final state = tester.state<_LfsImportDialogProxyState>(
-          find.byType(_LfsImportDialogProxy));
-      state.setPassword('secret123');
-      await tester.pump();
-
-      await tester.tap(find.text('Import'));
-      await tester.pump();
-
-      expect(capturedResult, isNotNull);
-      expect(capturedResult!.password, 'secret123');
-      expect(capturedResult!.mode, ImportMode.merge);
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.obscureText, isTrue);
     });
 
-    testWidgets('selecting Replace mode before Import returns correct mode', (tester) async {
-      final lfsFile = File('${tempDir.path}/mode.lfs');
+    testWidgets('TextField has autofocus', (tester) async {
+      final lfsFile = File('${tempDir.path}/focus.lfs');
       lfsFile.writeAsBytesSync([0]);
 
-      LfsImportDialogResult? capturedResult;
-
-      await tester.pumpWidget(buildDialogDirect(
-        filePath: lfsFile.path,
-        onResult: (r) => capturedResult = r,
-      ));
+      await tester.pumpWidget(buildRealDialog(lfsFile.path));
       await tester.pump();
 
-      await tester.tap(find.text('Replace'));
-      await tester.pump();
-
-      // Set password via state access (avoids TextField cursor blink)
-      final state = tester.state<_LfsImportDialogProxyState>(
-          find.byType(_LfsImportDialogProxy));
-      state.setPassword('pw');
-      await tester.pump();
-
-      await tester.tap(find.text('Import'));
-      await tester.pump();
-
-      expect(capturedResult, isNotNull);
-      expect(capturedResult!.mode, ImportMode.replace);
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.autofocus, isTrue);
     });
 
-    testWidgets('LfsImportDialog.show static method exists', (tester) async {
+    testWidgets('file name extracted from path correctly', (tester) async {
+      final lfsFile = File('${tempDir.path}/my_archive_2024.lfs');
+      lfsFile.writeAsBytesSync([0]);
+
+      await tester.pumpWidget(buildRealDialog(lfsFile.path));
+      await tester.pump();
+
+      expect(find.text('my_archive_2024.lfs'), findsOneWidget);
+    });
+  });
+
+  group('LfsImportDialog — static API', () {
+    testWidgets('show() static method exists and is callable', (tester) async {
       expect(LfsImportDialog.show, isA<Function>());
     });
 
@@ -191,84 +154,4 @@ void main() {
       expect(widget.filePath, '/tmp/test.lfs');
     });
   });
-}
-
-/// Proxy that mirrors LfsImportDialog's logic but avoids SegmentedButton
-/// (its animations hang tests) and TextField (cursor blink hangs tests).
-/// Uses plain TextButtons for mode selection and direct password state,
-/// matching the pattern from main_screen_test.dart's _ImportDialogTestWidget.
-class _LfsImportDialogProxy extends StatefulWidget {
-  final String filePath;
-  final ValueChanged<LfsImportDialogResult?>? onResult;
-
-  const _LfsImportDialogProxy({required this.filePath, this.onResult});
-
-  @override
-  State<_LfsImportDialogProxy> createState() => _LfsImportDialogProxyState();
-}
-
-class _LfsImportDialogProxyState extends State<_LfsImportDialogProxy> {
-  String _password = '';
-  var _mode = ImportMode.merge;
-
-  void setPassword(String value) => setState(() => _password = value);
-
-  void _submit() {
-    if (_password.isEmpty) return;
-    widget.onResult?.call((password: _password, mode: _mode));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final subtleStyle = TextStyle(
-      fontSize: 12,
-      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-    );
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Import Data', style: TextStyle(fontSize: 18)),
-        const SizedBox(height: 8),
-        Text(File(widget.filePath).uri.pathSegments.last, style: subtleStyle),
-        const SizedBox(height: 12),
-        // Plain text label instead of TextField to avoid cursor blink hang
-        const Text('Master Password'),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            TextButton(
-              onPressed: () => setState(() => _mode = ImportMode.merge),
-              child: const Text('Merge'),
-            ),
-            TextButton(
-              onPressed: () => setState(() => _mode = ImportMode.replace),
-              child: const Text('Replace'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          _mode == ImportMode.merge
-              ? 'Add new sessions, keep existing'
-              : 'Replace all sessions with imported',
-          style: subtleStyle,
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            TextButton(
-              onPressed: () => widget.onResult?.call(null),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: _submit,
-              child: const Text('Import'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 }

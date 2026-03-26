@@ -43,11 +43,13 @@ No `rc` stage — unnecessary overhead for a small team. Can be introduced later
 
 | Change type                                                | Bump      | Example                                       |
 | ---------------------------------------------------------- | --------- | --------------------------------------------- |
-| Bug fix                                                    | **patch** | 1.0.0-beta.1 → 1.0.1-beta.1, or 1.0.2 → 1.0.3 |
-| New feature                                                | **minor** | 1.0.x → 1.1.0-beta.1, or 1.1.0 → 1.2.0        |
+| Bug fix, refactoring, any production code change           | **patch** | 1.0.0-beta.1 → 1.0.1-beta.1, or 1.0.2 → 1.0.3 |
+| New feature (small/medium)                                 | **minor** | 1.0.x → 1.1.0-beta.1, or 1.1.0 → 1.2.0        |
 | Major rework or breaking change (file format, API, crypto) | **major** | 1.x.y → 2.0.0-beta.1                          |
 
-**No version bump needed for:** tests, refactoring (no behavior change), docs, CI configs, linter fixes. These are `test:`/`refactor:`/`docs:`/`chore:` commits without a version bump.
+**No version bump needed for:** tests (no production code changes), docs, CI configs, linter fixes. These are `test:`/`docs:`/`chore:` commits without a version bump.
+
+**Patch bump IS needed for:** `fix:` and `refactor:` commits that touch `lib/` — any change to production code must bump patch.
 
 Stage suffix (`-beta.N`) tracks maturity, not content changes. When a bugfix lands during beta, bump patch AND reset stage counter to 1:
 
