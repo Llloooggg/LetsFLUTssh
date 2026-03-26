@@ -135,7 +135,10 @@ class TerminalPaneState extends State<TerminalPane> {
     super.dispose();
   }
 
-  void _toggleSearch() {
+  /// Toggle search bar visibility. Exposed for testing — in production
+  /// triggered by Ctrl+Shift+F shortcut.
+  @visibleForTesting
+  void toggleSearch() {
     _showSearch.value = !_showSearch.value;
   }
 
@@ -164,7 +167,7 @@ class TerminalPaneState extends State<TerminalPane> {
         decoration: BoxDecoration(border: border),
         child: CallbackShortcuts(
           bindings: {
-            const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): _toggleSearch,
+            const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): toggleSearch,
             const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
           },
           child: Column(

@@ -45,9 +45,10 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Let stream start
-      container.read(connectionsProvider);
-      await Future.delayed(const Duration(milliseconds: 50));
+      // Listen to the provider to start the stream generator
+      container.listen(connectionsProvider, (_, _) {});
+      // Let the stream start and emit initial value
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // Add a connection via manager — triggers onChange stream
       final manager = container.read(connectionManagerProvider);
@@ -56,10 +57,8 @@ void main() {
         label: 'Test',
       );
 
-      // Let stream event propagate
-      await Future.delayed(const Duration(milliseconds: 50));
-      container.invalidate(connectionsProvider);
-      await Future.delayed(const Duration(milliseconds: 50));
+      // Wait for onChange event to propagate through the await-for loop
+      await Future.delayed(const Duration(milliseconds: 200));
 
       final value = container.read(connectionsProvider);
       value.whenData((connections) {

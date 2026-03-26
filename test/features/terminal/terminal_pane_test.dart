@@ -1767,8 +1767,8 @@ void main() {
     });
   });
 
-  group('TerminalPane — _toggleSearch via showSearchNotifier', () {
-    testWidgets('toggling showSearchNotifier twice returns to initial state', (tester) async {
+  group('TerminalPane — toggleSearch', () {
+    testWidgets('toggleSearch() toggles search bar on and off', (tester) async {
       final key = GlobalKey<TerminalPaneState>();
       final conn = _testConnection(id: 'toggle-search');
 
@@ -1789,13 +1789,13 @@ void main() {
 
       expect(key.currentState!.showSearchNotifier.value, isFalse);
 
-      // Toggle on
-      key.currentState!.showSearchNotifier.value = true;
+      // Toggle on via method
+      key.currentState!.toggleSearch();
       await tester.pumpAndSettle();
       expect(find.byType(TerminalSearchBar), findsOneWidget);
 
-      // Toggle off
-      key.currentState!.showSearchNotifier.value = false;
+      // Toggle off via method
+      key.currentState!.toggleSearch();
       await tester.pumpAndSettle();
       expect(find.byType(TerminalSearchBar), findsNothing);
     });
