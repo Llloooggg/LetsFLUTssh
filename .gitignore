@@ -57,5 +57,8 @@ coverage/
 # pubspec.lock — committed for apps (not packages)
 # pubspec.lock
 
+# Logs
+*.log
+
 # Claude
-.claudetest.log
+.claude
