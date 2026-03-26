@@ -54,6 +54,10 @@ class TerminalPaneState extends State<TerminalPane> {
   // Search visibility — ValueNotifier so toggling doesn't rebuild TerminalView
   final _showSearch = ValueNotifier<bool>(false);
 
+  /// Exposed for testing — toggle search bar visibility.
+  @visibleForTesting
+  ValueNotifier<bool> get showSearchNotifier => _showSearch;
+
   @override
   void initState() {
     super.initState();
@@ -168,7 +172,7 @@ class TerminalPaneState extends State<TerminalPane> {
                 valueListenable: _showSearch,
                 builder: (context, show, _) {
                   if (!show) return const SizedBox.shrink();
-                  return _TerminalSearchBar(
+                  return TerminalSearchBar(
                     terminal: _terminal,
                     terminalController: _terminalController,
                     onClose: _closeSearch,
@@ -292,22 +296,23 @@ class TerminalPaneState extends State<TerminalPane> {
 
 /// Self-contained search bar widget — manages its own state so that
 /// search interactions (typing, next/prev) don't rebuild the TerminalView.
-class _TerminalSearchBar extends StatefulWidget {
+class TerminalSearchBar extends StatefulWidget {
   final Terminal terminal;
   final TerminalController terminalController;
   final VoidCallback onClose;
 
-  const _TerminalSearchBar({
+  const TerminalSearchBar({
+    super.key,
     required this.terminal,
     required this.terminalController,
     required this.onClose,
   });
 
   @override
-  State<_TerminalSearchBar> createState() => _TerminalSearchBarState();
+  State<TerminalSearchBar> createState() => TerminalSearchBarState();
 }
 
-class _TerminalSearchBarState extends State<_TerminalSearchBar> {
+class TerminalSearchBarState extends State<TerminalSearchBar> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
   List<TerminalHighlight> _searchHighlights = [];

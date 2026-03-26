@@ -751,33 +751,17 @@ void main() {
     });
   });
 
-  group('TerminalTab — error state from _reconnect', () {
-    // The error state in TerminalTab (_buildErrorState) is only reachable
-    // after _reconnect() is called and fails. Since _reconnect() is triggered
-    // by the "Reconnect" button which only appears in the error state,
-    // we can only reach it programmatically or through the default reconnect
-    // path (null sshConnection → null pointer → error).
-    //
-    // We test the error state UI by verifying the _buildErrorState method
-    // renders correctly when _connectionError is set. We do this by
-    // calling _reconnect through a reconnectFactory that first fails
-    // (setting _connectionError), then verifying the error UI.
+  group('TerminalTab — reconnect() via GlobalKey', () {
+    // Now that TerminalTabState is public and reconnect() is @visibleForTesting,
+    // we can use a GlobalKey<TerminalTabState> to call reconnect() directly
+    // and reach the error state / loading state / success reset.
 
     testWidgets(
-        'error state after reconnect failure shows icon, message, and buttons',
+        'reconnect failure shows error state with icon, message, and buttons',
         (tester) async {
-      // We can't directly trigger _reconnect from the initial TilingView state
-      // because there's no Reconnect button visible. But the default reconnect
-      // path (when sshConnection is null) will throw a null pointer, and the
-      // error handler catches it. However, _reconnect is only called from the
-      // error state's Reconnect button.
-      //
-      // This is a design gap — the error state is only reachable from itself.
-      // But we can still test that TilingView renders correctly for both
-      // connected and disconnected states.
-
+      final key = GlobalKey<TerminalTabState>();
       final conn = Connection(
-        id: 'test-no-err-init',
+        id: 'key-err',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
         sshConnection: null,
@@ -792,8 +776,12 @@ void main() {
               width: 800,
               height: 600,
               child: TerminalTab(
-                tabId: 'tab-no-err',
+                key: key,
+                tabId: 'tab-key-err',
                 connection: conn,
+                reconnectFactory: (_) async {
+                  throw Exception('Auth failed');
+                },
               ),
             ),
           ),
@@ -801,17 +789,28 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // TerminalTab always shows TilingView — no error state at init
+      // Initially shows TilingView
       expect(find.byType(TilingView), findsOneWidget);
-      expect(find.byType(TerminalPane), findsOneWidget);
-      // TerminalPane handles the disconnected state internally
-      // (writes to terminal, shows its own error UI)
+
+      // Trigger reconnect programmatically — it will fail
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
+
+      // Now error state should be visible
+      expect(find.byType(TilingView), findsNothing);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(
+        find.text('Reconnect failed: Exception: Auth failed'),
+        findsOneWidget,
+      );
+      expect(find.text('Reconnect'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
     });
 
-    testWidgets('TerminalPane shows error state for disconnected connection',
-        (tester) async {
+    testWidgets('error state icon has correct size and color', (tester) async {
+      final key = GlobalKey<TerminalTabState>();
       final conn = Connection(
-        id: 'pane-err',
+        id: 'key-icon',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
         sshConnection: null,
@@ -826,33 +825,32 @@ void main() {
               width: 800,
               height: 600,
               child: TerminalTab(
-                tabId: 'tab-pane-err',
+                key: key,
+                tabId: 'tab-key-icon',
                 connection: conn,
+                reconnectFactory: (_) async {
+                  throw Exception('fail');
+                },
               ),
             ),
           ),
         ),
       );
-      // Let TerminalPane's _connectAndOpenShell() complete
       await tester.pumpAndSettle();
 
-      // TerminalTab renders TilingView which renders TerminalPane
-      expect(find.byType(TilingView), findsOneWidget);
-      expect(find.byType(TerminalPane), findsOneWidget);
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
 
-      // TerminalPane detects disconnected state and shows its own error
-      // (error_outline icon with disconnected color)
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-
-      // Verify the error icon uses AppTheme.disconnected color
       final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline));
+      expect(icon.size, 48);
       expect(icon.color, AppTheme.disconnected);
     });
 
-    testWidgets('TerminalPane error text is styled with disconnected color',
+    testWidgets('error state text is styled with disconnected color',
         (tester) async {
+      final key = GlobalKey<TerminalTabState>();
       final conn = Connection(
-        id: 'pane-style',
+        id: 'key-text-style',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
         sshConnection: null,
@@ -867,8 +865,12 @@ void main() {
               width: 800,
               height: 600,
               child: TerminalTab(
-                tabId: 'tab-pane-style',
+                key: key,
+                tabId: 'tab-key-text-style',
                 connection: conn,
+                reconnectFactory: (_) async {
+                  throw Exception('timeout');
+                },
               ),
             ),
           ),
@@ -876,11 +878,262 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // TerminalPane shows error text styled with disconnected color
-      final errorTexts = tester
-          .widgetList<Text>(find.byType(Text))
-          .where((t) => t.style?.color == AppTheme.disconnected);
-      expect(errorTexts.isNotEmpty, isTrue);
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
+
+      final errorText = tester.widget<Text>(
+        find.text('Reconnect failed: Exception: timeout'),
+      );
+      expect(errorText.style?.color, AppTheme.disconnected);
+      expect(errorText.textAlign, TextAlign.center);
+    });
+
+    testWidgets('reconnect shows loading spinner during attempt',
+        (tester) async {
+      final key = GlobalKey<TerminalTabState>();
+      final completer = Completer<void>();
+      final conn = Connection(
+        id: 'key-loading',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: TerminalTab(
+                key: key,
+                tabId: 'tab-key-loading',
+                connection: conn,
+                reconnectFactory: (_) => completer.future,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Trigger reconnect — factory blocks on completer
+      key.currentState!.reconnect();
+      await tester.pump(); // single pump to see loading state
+
+      // Should show loading spinner, not TilingView or error
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(TilingView), findsNothing);
+      expect(find.byIcon(Icons.error_outline), findsNothing);
+
+      // Complete and clean up
+      completer.complete();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('reconnect success resets to TilingView with single pane',
+        (tester) async {
+      final key = GlobalKey<TerminalTabState>();
+      final conn = Connection(
+        id: 'key-success',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: TerminalTab(
+                key: key,
+                tabId: 'tab-key-success',
+                connection: conn,
+                reconnectFactory: (_) async {
+                  // Success — do nothing
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Trigger reconnect — factory succeeds
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
+
+      // Should reset to TilingView with a single TerminalPane
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.byType(TerminalPane), findsOneWidget);
+      // No TerminalTab error message — TerminalPane may show its own error icon
+      expect(find.textContaining('Reconnect failed'), findsNothing);
+    });
+
+    testWidgets('Close button in error state calls onDisconnected',
+        (tester) async {
+      final key = GlobalKey<TerminalTabState>();
+      var disconnectedCalled = false;
+      final conn = Connection(
+        id: 'key-close',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: TerminalTab(
+                key: key,
+                tabId: 'tab-key-close',
+                connection: conn,
+                onDisconnected: () => disconnectedCalled = true,
+                reconnectFactory: (_) async {
+                  throw Exception('fail');
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Get into error state
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Close'), findsOneWidget);
+
+      // Tap the Close button
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      expect(disconnectedCalled, isTrue);
+    });
+
+    testWidgets(
+        'Reconnect button in error state retries — fail then succeed',
+        (tester) async {
+      final key = GlobalKey<TerminalTabState>();
+      var callCount = 0;
+      final conn = Connection(
+        id: 'key-retry',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: TerminalTab(
+                key: key,
+                tabId: 'tab-key-retry',
+                connection: conn,
+                reconnectFactory: (_) async {
+                  callCount++;
+                  if (callCount <= 1) {
+                    throw Exception('Attempt $callCount failed');
+                  }
+                  // Second call succeeds
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // First reconnect — fails, shows error state
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
+      expect(find.text('Reconnect failed: Exception: Attempt 1 failed'),
+          findsOneWidget);
+
+      // Tap Reconnect button in error state — second attempt succeeds
+      await tester.tap(find.text('Reconnect'));
+      await tester.pumpAndSettle();
+
+      // Should be back to TilingView — no TerminalTab error message
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.textContaining('Reconnect failed'), findsNothing);
+      expect(callCount, 2);
+    });
+
+    testWidgets('reconnect clears previous error before retrying',
+        (tester) async {
+      final key = GlobalKey<TerminalTabState>();
+      final completer = Completer<void>();
+      var callCount = 0;
+      final conn = Connection(
+        id: 'key-clear-err',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: TerminalTab(
+                key: key,
+                tabId: 'tab-key-clear',
+                connection: conn,
+                reconnectFactory: (_) async {
+                  callCount++;
+                  if (callCount == 1) {
+                    throw Exception('first error');
+                  }
+                  // Second call blocks on completer
+                  return completer.future;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // First call fails — error state
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
+      expect(find.text('Reconnect failed: Exception: first error'),
+          findsOneWidget);
+
+      // Second reconnect attempt — should clear error and show spinner
+      key.currentState!.reconnect();
+      await tester.pump();
+
+      // Error should be gone, loading spinner visible
+      expect(find.text('Reconnect failed: Exception: first error'),
+          findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // Clean up
+      completer.complete();
+      await tester.pumpAndSettle();
     });
   });
 }

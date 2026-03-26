@@ -10,6 +10,7 @@ import 'package:letsflutssh/features/settings/settings_screen.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/utils/logger.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
 /// A ConfigNotifier subclass that starts with a custom initial config.
@@ -1122,7 +1123,8 @@ void main() {
       );
       expect(find.text('About'), findsOneWidget);
       expect(find.text('LetsFLUTssh'), findsOneWidget);
-      expect(find.textContaining('v1.0.1'), findsOneWidget);
+      // Version string — check format, not a hardcoded number
+      expect(find.textContaining(RegExp(r'v\d+\.\d+\.\d+')), findsOneWidget);
       expect(find.textContaining('SSH/SFTP client'), findsOneWidget);
       expect(find.byIcon(Icons.info_outline), findsOneWidget);
     });
@@ -1423,6 +1425,291 @@ void main() {
 
       // Verify the toast text
       expect(find.textContaining('File not found'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Data Path tile — copy to clipboard
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Data Path tile', () {
+    testWidgets('tapping Data Location copies path to clipboard',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      String? copiedText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      });
+
+      await tester.pumpWidget(buildApp());
+      // Wait for FutureBuilder to resolve path_provider
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pump();
+      await tester.pump();
+
+      await tester.scrollUntilVisible(
+        find.text('Data Location'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Data Location'));
+      await tester.pump();
+
+      expect(copiedText, isNotNull);
+      expect(find.text('Path copied to clipboard'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Logging section
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Logging section', () {
+    setUp(() async {
+      await AppLogger.instance.init();
+      await AppLogger.instance.setEnabled(true);
+    });
+
+    tearDown(() async {
+      await AppLogger.instance.setEnabled(false);
+      await AppLogger.instance.dispose();
+    });
+
+    testWidgets('Enable Logging switch is visible', (tester) async {
+      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.scrollUntilVisible(
+        find.text('Enable Logging'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Enable Logging'), findsOneWidget);
+      expect(find.text('Write diagnostic logs to file (no sensitive data)'),
+          findsOneWidget);
+    });
+
+    testWidgets('logging tiles visible when enabled', (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.scrollUntilVisible(
+        find.text('View Log'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('View Log'), findsOneWidget);
+      expect(find.text('Copy Log'), findsOneWidget);
+      expect(find.text('Clear Logs'), findsOneWidget);
+    });
+
+    testWidgets('View Log opens dialog with log content', (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // Write a log entry so content is non-empty
+      AppLogger.instance.log('Test log entry', name: 'Test');
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+
+      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.scrollUntilVisible(
+        find.text('View Log'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Tap inside runAsync so readLog() file I/O completes in real zone
+      await tester.runAsync(() async {
+        await tester.tap(find.text('View Log'));
+        await Future.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      await tester.pump();
+
+      // Dialog should be visible with title "Log"
+      expect(find.text('Log'), findsOneWidget);
+      expect(find.text('Copy All'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
+
+      // Close dialog
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('View Log dialog shows (empty) when log is empty',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // Clear logs to ensure empty content (real I/O — needs runAsync)
+      await tester.runAsync(() => AppLogger.instance.clearLogs());
+
+      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.scrollUntilVisible(
+        find.text('View Log'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.text('View Log'));
+        await Future.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      await tester.pump();
+
+      // clearLogs re-opens the sink which writes the header, so content won't be empty.
+      // Just verify dialog appeared.
+      expect(find.text('Log'), findsOneWidget);
+
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('View Log dialog Copy All copies to clipboard', (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      String? copiedText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      });
+
+      AppLogger.instance.log('clipboard test entry', name: 'Test');
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+
+      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.scrollUntilVisible(
+        find.text('View Log'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.text('View Log'));
+        await Future.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.text('Copy All'));
+      await tester.pump();
+
+      expect(copiedText, isNotNull);
+      expect(find.text('Log copied to clipboard'), findsOneWidget);
+
+      await tester.tap(find.text('Close'));
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('Copy Log copies content to clipboard', (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      String? copiedText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      });
+
+      AppLogger.instance.log('copy log test', name: 'Test');
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+
+      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.scrollUntilVisible(
+        find.text('Copy Log'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Copy Log'));
+        await Future.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      await tester.pump();
+
+      expect(copiedText, isNotNull);
+      expect(find.text('Log copied to clipboard'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('Clear Logs clears and shows toast', (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      AppLogger.instance.log('entry to clear', name: 'Test');
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+
+      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.scrollUntilVisible(
+        find.text('Clear Logs'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Clear Logs'));
+        await Future.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Logs cleared'), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();

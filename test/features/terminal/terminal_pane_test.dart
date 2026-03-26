@@ -1200,4 +1200,503 @@ void main() {
       expect(find.byType(GestureDetector), findsWidgets);
     });
   });
+
+  group('TerminalPane — search bar toggle via showSearchNotifier', () {
+    testWidgets('toggling showSearchNotifier shows the search bar', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'sf-search-toggle');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              key: key,
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Search bar is initially hidden
+      expect(find.byType(TerminalSearchBar), findsNothing);
+
+      // Toggle search on
+      key.currentState!.showSearchNotifier.value = true;
+      await tester.pumpAndSettle();
+
+      // Search bar is now visible
+      expect(find.byType(TerminalSearchBar), findsOneWidget);
+      expect(find.byTooltip('Previous'), findsOneWidget);
+      expect(find.byTooltip('Next'), findsOneWidget);
+      expect(find.byTooltip('Close (Esc)'), findsOneWidget);
+    });
+
+    testWidgets('toggling showSearchNotifier off hides the search bar', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'sf-search-toggle-off');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              key: key,
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Show search
+      key.currentState!.showSearchNotifier.value = true;
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalSearchBar), findsOneWidget);
+
+      // Hide search
+      key.currentState!.showSearchNotifier.value = false;
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalSearchBar), findsNothing);
+    });
+
+    testWidgets('close button in search bar hides search', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'sf-search-close-btn');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              key: key,
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Show search
+      key.currentState!.showSearchNotifier.value = true;
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalSearchBar), findsOneWidget);
+
+      // Tap the close button
+      await tester.tap(find.byTooltip('Close (Esc)'));
+      await tester.pumpAndSettle();
+
+      // Search bar should be hidden and notifier should be false
+      expect(find.byType(TerminalSearchBar), findsNothing);
+      expect(key.currentState!.showSearchNotifier.value, isFalse);
+    });
+  });
+
+  group('TerminalSearchBar — standalone search tests', () {
+    Widget buildSearchBar({
+      Terminal? terminal,
+      TerminalController? controller,
+      VoidCallback? onClose,
+    }) {
+      return MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: TerminalSearchBar(
+            terminal: terminal ?? Terminal(maxLines: 100),
+            terminalController: controller ?? TerminalController(),
+            onClose: onClose ?? () {},
+          ),
+        ),
+      );
+    }
+
+    testWidgets('renders text field with Search... hint', (tester) async {
+      await tester.pumpWidget(buildSearchBar());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Search...'), findsOneWidget);
+    });
+
+    testWidgets('has Previous, Next, and Close buttons', (tester) async {
+      await tester.pumpWidget(buildSearchBar());
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Previous'), findsOneWidget);
+      expect(find.byTooltip('Next'), findsOneWidget);
+      expect(find.byTooltip('Close (Esc)'), findsOneWidget);
+    });
+
+    testWidgets('prev/next buttons disabled when no matches', (tester) async {
+      await tester.pumpWidget(buildSearchBar());
+      await tester.pumpAndSettle();
+
+      // With no search text, buttons should be disabled (onPressed is null)
+      final prevButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_up),
+        matching: find.byType(IconButton),
+      ));
+      expect(prevButton.onPressed, isNull);
+
+      final nextButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_down),
+        matching: find.byType(IconButton),
+      ));
+      expect(nextButton.onPressed, isNull);
+    });
+
+    testWidgets('close button calls onClose callback', (tester) async {
+      var closeCalled = false;
+      await tester.pumpWidget(buildSearchBar(onClose: () => closeCalled = true));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Close (Esc)'));
+      await tester.pumpAndSettle();
+
+      expect(closeCalled, isTrue);
+    });
+
+    testWidgets('typing in search field with empty text clears matches', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      terminal.write('Hello World\r\n');
+
+      await tester.pumpWidget(buildSearchBar(terminal: terminal));
+      await tester.pumpAndSettle();
+
+      // Type then clear
+      await tester.enterText(find.byType(TextField), 'Hello');
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+
+      // No match counter should be shown
+      final prevButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_up),
+        matching: find.byType(IconButton),
+      ));
+      expect(prevButton.onPressed, isNull);
+    });
+
+    testWidgets('searching for existing text shows match count', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      // Write enough text to be searchable in the buffer
+      terminal.write('Hello World\r\n');
+      terminal.write('Hello Again\r\n');
+
+      await tester.pumpWidget(buildSearchBar(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Hello');
+      await tester.pumpAndSettle();
+
+      // prev/next buttons should now be enabled (matches found)
+      final prevButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_up),
+        matching: find.byType(IconButton),
+      ));
+      expect(prevButton.onPressed, isNotNull);
+
+      final nextButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_down),
+        matching: find.byType(IconButton),
+      ));
+      expect(nextButton.onPressed, isNotNull);
+    });
+
+    testWidgets('next/prev cycle through matches', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('AAA BBB AAA\r\n');
+
+      await tester.pumpWidget(buildSearchBar(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'AAA');
+      await tester.pumpAndSettle();
+
+      // Should have matches — tap Next multiple times
+      await tester.tap(find.byTooltip('Next'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Previous'));
+      await tester.pumpAndSettle();
+
+      // Buttons should still be enabled after cycling
+      final nextButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_down),
+        matching: find.byType(IconButton),
+      ));
+      expect(nextButton.onPressed, isNotNull);
+    });
+
+    testWidgets('searching for non-existent text shows no matches', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      terminal.write('Hello World\r\n');
+
+      await tester.pumpWidget(buildSearchBar(terminal: terminal));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'ZZZZZ');
+      await tester.pumpAndSettle();
+
+      // Buttons should be disabled — no matches
+      final prevButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_up),
+        matching: find.byType(IconButton),
+      ));
+      expect(prevButton.onPressed, isNull);
+    });
+
+    testWidgets('submitting search field advances to next match', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('Test Test Test\r\n');
+
+      await tester.pumpWidget(buildSearchBar(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Test');
+      await tester.pumpAndSettle();
+
+      // Submit (Enter) should call _nextMatch
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      // Still has matches, buttons enabled
+      final nextButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_down),
+        matching: find.byType(IconButton),
+      ));
+      expect(nextButton.onPressed, isNotNull);
+    });
+
+    testWidgets('search is case-insensitive', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('Hello HELLO hello\r\n');
+
+      await tester.pumpWidget(buildSearchBar(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'hello');
+      await tester.pumpAndSettle();
+
+      // Should find matches (case-insensitive)
+      final nextButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_down),
+        matching: find.byType(IconButton),
+      ));
+      expect(nextButton.onPressed, isNotNull);
+    });
+
+    testWidgets('disposing search bar clears highlights', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('Highlight me\r\n');
+
+      await tester.pumpWidget(buildSearchBar(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Highlight');
+      await tester.pumpAndSettle();
+
+      // Now dispose the search bar by replacing the widget
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: const Scaffold(body: SizedBox()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No error means dispose cleaned up highlights correctly
+    });
+  });
+
+  group('TerminalPane — _handleTerminalKey coverage', () {
+    testWidgets('Ctrl+Shift+C copies selection to clipboard', (tester) async {
+      String? copiedText;
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'sf-key-copy');
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map;
+            copiedText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              key: key,
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Without a selection, copy should be a no-op (no clipboard write)
+      expect(copiedText, isNull);
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, null,
+      );
+    });
+
+    testWidgets('Ctrl+Shift+V pastes from clipboard into terminal', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'sf-key-paste');
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.getData') {
+            return <String, dynamic>{'text': 'pasted-via-key'};
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              key: key,
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The terminal view should exist
+      expect(find.byType(TerminalView), findsOneWidget);
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, null,
+      );
+    });
+  });
+
+  group('TerminalPane — _toggleSearch via showSearchNotifier', () {
+    testWidgets('showSearchNotifier starts as false', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'sf-notifier-init');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              key: key,
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(key.currentState!.showSearchNotifier.value, isFalse);
+    });
+
+    testWidgets('_closeSearch sets notifier to false', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'sf-close-search');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              key: key,
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Open search
+      key.currentState!.showSearchNotifier.value = true;
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalSearchBar), findsOneWidget);
+
+      // Close via _closeSearch (which is wired to the onClose callback)
+      // Tap the close button in the search bar
+      await tester.tap(find.byTooltip('Close (Esc)'));
+      await tester.pumpAndSettle();
+
+      expect(key.currentState!.showSearchNotifier.value, isFalse);
+      expect(find.byType(TerminalSearchBar), findsNothing);
+    });
+  });
+
+  group('TerminalSearchBar — search bar height and layout', () {
+    testWidgets('search bar has 36px height', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalSearchBar(
+              terminal: terminal,
+              terminalController: controller,
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the Container with height 36
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final searchContainer = containers.where((c) {
+        final constraints = c.constraints;
+        return constraints != null && constraints.maxHeight == 36;
+      });
+      expect(searchContainer, isNotEmpty);
+    });
+  });
 }

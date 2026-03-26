@@ -30,10 +30,10 @@ class TerminalTab extends StatefulWidget {
   });
 
   @override
-  State<TerminalTab> createState() => _TerminalTabState();
+  TerminalTabState createState() => TerminalTabState();
 }
 
-class _TerminalTabState extends State<TerminalTab> {
+class TerminalTabState extends State<TerminalTab> {
   late SplitNode _root;
   late String _focusedPaneId;
   final Map<String, Connection> _paneConnections = {};
@@ -83,7 +83,8 @@ class _TerminalTabState extends State<TerminalTab> {
     setState(() => _root = newRoot);
   }
 
-  Future<void> _reconnect() async {
+  @visibleForTesting
+  Future<void> reconnect() async {
     setState(() {
       _connectionError = null;
       _connectionReady = false;
@@ -158,7 +159,7 @@ class _TerminalTabState extends State<TerminalTab> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ElevatedButton.icon(
-                onPressed: _reconnect,
+                onPressed: reconnect,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reconnect'),
               ),

@@ -154,4 +154,150 @@ void main() {
       expect(widget.filePath, '/tmp/test.lfs');
     });
   });
+
+  group('LfsImportDialog — dialog route (Navigator.pop coverage)', () {
+    testWidgets('Import with password returns result with password and mode',
+        (tester) async {
+      final lfsFile = File('${tempDir.path}/test.lfs');
+      lfsFile.writeAsBytesSync([0]);
+
+      LfsImportDialogResult? result;
+      bool dialogCompleted = false;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Builder(
+            builder: (context) => Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () async {
+                      result = await LfsImportDialog.show(context,
+                          filePath: lfsFile.path);
+                      dialogCompleted = true;
+                    },
+                    child: const Text('Open'),
+                  ),
+                )),
+      ));
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Dialog is visible
+      expect(find.text('Import Data'), findsOneWidget);
+
+      // Enter password and tap Import
+      await tester.enterText(find.byType(TextField), 'secret123');
+      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      await tester.pumpAndSettle();
+
+      expect(dialogCompleted, isTrue);
+      expect(result, isNotNull);
+      expect(result!.password, 'secret123');
+      expect(result!.mode, ImportMode.merge);
+    });
+
+    testWidgets('onSubmitted with non-empty password returns result',
+        (tester) async {
+      final lfsFile = File('${tempDir.path}/submit.lfs');
+      lfsFile.writeAsBytesSync([0]);
+
+      LfsImportDialogResult? result;
+      bool dialogCompleted = false;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Builder(
+            builder: (context) => Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () async {
+                      result = await LfsImportDialog.show(context,
+                          filePath: lfsFile.path);
+                      dialogCompleted = true;
+                    },
+                    child: const Text('Open'),
+                  ),
+                )),
+      ));
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Enter password and press Enter (onSubmitted)
+      await tester.enterText(find.byType(TextField), 'mypass');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(dialogCompleted, isTrue);
+      expect(result, isNotNull);
+      expect(result!.password, 'mypass');
+      expect(result!.mode, ImportMode.merge);
+    });
+
+    testWidgets('onSubmitted with empty password keeps dialog open',
+        (tester) async {
+      final lfsFile = File('${tempDir.path}/empty_submit.lfs');
+      lfsFile.writeAsBytesSync([0]);
+
+      bool dialogCompleted = false;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Builder(
+            builder: (context) => Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () async {
+                      await LfsImportDialog.show(context,
+                          filePath: lfsFile.path);
+                      dialogCompleted = true;
+                    },
+                    child: const Text('Open'),
+                  ),
+                )),
+      ));
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Press Enter without entering password (onSubmitted with empty string)
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open
+      expect(dialogCompleted, isFalse);
+      expect(find.text('Import Data'), findsOneWidget);
+    });
+
+    testWidgets('Cancel button returns null', (tester) async {
+      final lfsFile = File('${tempDir.path}/cancel.lfs');
+      lfsFile.writeAsBytesSync([0]);
+
+      LfsImportDialogResult? result;
+      bool dialogCompleted = false;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Builder(
+            builder: (context) => Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () async {
+                      result = await LfsImportDialog.show(context,
+                          filePath: lfsFile.path);
+                      dialogCompleted = true;
+                    },
+                    child: const Text('Open'),
+                  ),
+                )),
+      ));
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Tap Cancel
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(dialogCompleted, isTrue);
+      expect(result, isNull);
+    });
+  });
 }
