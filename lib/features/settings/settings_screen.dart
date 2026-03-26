@@ -15,7 +15,7 @@ import '../../widgets/toast.dart';
 import 'export_import.dart';
 
 /// App version — kept in sync with pubspec.yaml.
-const _appVersion = '1.0.3';
+const _appVersion = '1.0.4';
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
@@ -100,7 +100,7 @@ class _AppearanceSection extends ConsumerWidget {
       children: [
         _ThemeTile(
           value: theme,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(theme: v)),
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(terminal: c.terminal.copyWith(theme: v))),
         ),
         _SliderTile(
           title: 'Font Size',
@@ -109,7 +109,7 @@ class _AppearanceSection extends ConsumerWidget {
           max: 24,
           divisions: 16,
           format: (v) => '${v.round()}',
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(fontSize: v)),
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: v))),
         ),
       ],
     );
@@ -127,7 +127,7 @@ class _TerminalSection extends ConsumerWidget {
       value: scrollback,
       min: 100,
       max: 100000,
-      onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(scrollback: v)),
+      onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(terminal: c.terminal.copyWith(scrollback: v))),
     );
   }
 }
@@ -147,21 +147,21 @@ class _ConnectionSection extends ConsumerWidget {
           value: keepAlive,
           min: 0,
           max: 300,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(keepAliveSec: v)),
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ssh: c.ssh.copyWith(keepAliveSec: v))),
         ),
         _IntTile(
           title: 'SSH Timeout (sec)',
           value: timeout,
           min: 1,
           max: 60,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(sshTimeoutSec: v)),
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ssh: c.ssh.copyWith(sshTimeoutSec: v))),
         ),
         _IntTile(
           title: 'Default Port',
           value: port,
           min: 1,
           max: 65535,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(defaultPort: v)),
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ssh: c.ssh.copyWith(defaultPort: v))),
         ),
       ],
     );

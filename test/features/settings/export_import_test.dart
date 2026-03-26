@@ -86,7 +86,9 @@ void main() {
     });
 
     test('export then import restores config', () async {
-      final config = AppConfig.defaults.copyWith(fontSize: 18, scrollback: 10000);
+      final config = AppConfig.defaults.copyWith(
+        terminal: AppConfig.defaults.terminal.copyWith(fontSize: 18, scrollback: 10000),
+      );
       final outputPath = '${tempDir.path}/config.lfs';
 
       await ExportImport.export(

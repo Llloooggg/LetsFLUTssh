@@ -165,7 +165,7 @@ void main() {
 
     testWidgets('theme shows correct selection for light', (tester) async {
       await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(theme: 'light')));
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'light'))));
       final seg = tester.widget<SegmentedButton<String>>(
           find.byType(SegmentedButton<String>));
       expect(seg.selected, {'light'});
@@ -173,7 +173,7 @@ void main() {
 
     testWidgets('theme shows correct selection for system', (tester) async {
       await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(theme: 'system')));
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'system'))));
       final seg = tester.widget<SegmentedButton<String>>(
           find.byType(SegmentedButton<String>));
       expect(seg.selected, {'system'});
@@ -232,13 +232,13 @@ void main() {
 
     testWidgets('slider with custom font size', (tester) async {
       await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 18.0)));
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 18.0))));
       expect(find.text('18'), findsOneWidget);
     });
 
     testWidgets('slider label shows formatted value', (tester) async {
       await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 16.0)));
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 16.0))));
       final slider = tester.widget<Slider>(find.byType(Slider));
       expect(slider.label, '16');
       expect(slider.value, 16.0);
@@ -246,19 +246,19 @@ void main() {
 
     testWidgets('slider with min value 8', (tester) async {
       await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 8.0)));
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 8.0))));
       expect(find.text('8'), findsOneWidget);
     });
 
     testWidgets('slider with max value 24', (tester) async {
       await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 24.0)));
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 24.0))));
       expect(find.text('24'), findsOneWidget);
     });
 
     testWidgets('value out of range is clamped', (tester) async {
       await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 4.0)));
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 4.0))));
       final slider = tester.widget<Slider>(find.byType(Slider));
       expect(slider.value, 8.0);
     });
@@ -285,7 +285,7 @@ void main() {
     testWidgets('slider with custom font size 20 shows correct value',
         (tester) async {
       await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 20.0)));
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 20.0))));
       final slider = tester.widget<Slider>(find.byType(Slider));
       expect(slider.value, 20.0);
     });
@@ -304,7 +304,7 @@ void main() {
 
     testWidgets('scrollback field with custom value', (tester) async {
       await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(scrollback: 10000)));
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(scrollback: 10000))));
       expect(find.text('10000'), findsOneWidget);
     });
 
@@ -390,7 +390,7 @@ void main() {
 
     testWidgets('custom connection values display correctly', (tester) async {
       final config = AppConfig.defaults.copyWith(
-        keepAliveSec: 60, sshTimeoutSec: 30, defaultPort: 2222,
+        ssh: AppConfig.defaults.ssh.copyWith(keepAliveSec: 60, sshTimeoutSec: 30, defaultPort: 2222),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       expect(find.text('60'), findsOneWidget);
@@ -474,7 +474,7 @@ void main() {
 
     testWidgets('SSH timeout with custom config accepts valid value',
         (tester) async {
-      final config = AppConfig.defaults.copyWith(sshTimeoutSec: 15);
+      final config = AppConfig.defaults.copyWith(ssh: AppConfig.defaults.ssh.copyWith(sshTimeoutSec: 15));
       await tester.pumpWidget(buildFullApp(initialConfig: config));
       final field = find.widgetWithText(TextFormField, '15');
       await tester.tap(field);
@@ -1206,9 +1206,8 @@ void main() {
 
     testWidgets('reset with custom config updates fields', (tester) async {
       final custom = AppConfig.defaults.copyWith(
-        fontSize: 20.0,
-        scrollback: 10000,
-        keepAliveSec: 60,
+        terminal: AppConfig.defaults.terminal.copyWith(fontSize: 20.0, scrollback: 10000),
+        ssh: AppConfig.defaults.ssh.copyWith(keepAliveSec: 60),
       );
       await tester.pumpWidget(buildApp(initialConfig: custom));
       await tester.scrollUntilVisible(
@@ -1223,14 +1222,10 @@ void main() {
     testWidgets('reset with highly custom config does not crash',
         (tester) async {
       final custom = AppConfig.defaults.copyWith(
-        fontSize: 22.0,
-        scrollback: 20000,
-        keepAliveSec: 120,
-        sshTimeoutSec: 45,
-        defaultPort: 3333,
+        terminal: AppConfig.defaults.terminal.copyWith(fontSize: 22.0, scrollback: 20000, theme: 'light'),
+        ssh: AppConfig.defaults.ssh.copyWith(keepAliveSec: 120, sshTimeoutSec: 45, defaultPort: 3333),
         transferWorkers: 8,
         maxHistory: 2000,
-        theme: 'light',
       );
       await tester.pumpWidget(buildApp(initialConfig: custom));
       await tester.scrollUntilVisible(
@@ -1249,7 +1244,8 @@ void main() {
   group('SettingsScreen — custom config values', () {
     testWidgets('renders with custom config values', (tester) async {
       final customConfig = AppConfig.defaults.copyWith(
-        fontSize: 18.0, theme: 'light', scrollback: 10000, keepAliveSec: 60,
+        terminal: AppConfig.defaults.terminal.copyWith(fontSize: 18.0, theme: 'light', scrollback: 10000),
+        ssh: AppConfig.defaults.ssh.copyWith(keepAliveSec: 60),
       );
       await tester.pumpWidget(buildApp(initialConfig: customConfig));
       expect(find.text('10000'), findsOneWidget);

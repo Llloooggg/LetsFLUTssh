@@ -101,7 +101,7 @@ void main() {
     });
 
     test('applies config when not null', () async {
-      const config = AppConfig(fontSize: 18.0);
+      const config = AppConfig(terminal: TerminalConfig(fontSize: 18.0));
 
       await service.applyResult(const ImportResult(
         sessions: [],
