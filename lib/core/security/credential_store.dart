@@ -7,6 +7,7 @@ import 'package:pointycastle/export.dart';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
 /// Encrypted credential store — file-based AES-256-GCM.
@@ -84,8 +85,7 @@ class CredentialStore {
       credentials.map((k, v) => MapEntry(k, v.toJson())),
     );
     final encData = _encrypt(json, keyBytes);
-    await credFile.writeAsBytes(encData);
-    _restrictFilePermissions(credFile.path);
+    await writeBytesAtomic(credFile.path, encData);
   }
 
   /// Load existing key or generate a new one with concurrency guard.
@@ -112,9 +112,7 @@ class CredentialStore {
         return await keyFile.readAsBytes();
       }
       final keyBytes = _generateKey();
-      await keyFile.parent.create(recursive: true);
-      await keyFile.writeAsBytes(keyBytes);
-      _restrictFilePermissions(keyFile.path);
+      await writeBytesAtomic(keyFile.path, keyBytes);
       return keyBytes;
     } finally {
       _keyGenInProgress = false;
@@ -139,20 +137,6 @@ class CredentialStore {
     final all = await loadAll();
     all.remove(sessionId);
     await saveAll(all);
-  }
-
-  /// Set file permissions to owner-only (0600) on Unix systems.
-  void _restrictFilePermissions(String path) {
-    if (Platform.isLinux || Platform.isMacOS) {
-      try {
-        final result = Process.runSync('chmod', ['600', path]);
-        if (result.exitCode != 0) {
-          AppLogger.instance.log('chmod 600 failed: ${result.stderr}', name: 'CredentialStore');
-        }
-      } catch (e) {
-        AppLogger.instance.log('Failed to restrict permissions: $e', name: 'CredentialStore');
-      }
-    }
   }
 
   Uint8List _generateKey() {

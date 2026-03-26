@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import '../security/credential_store.dart';
 import 'session.dart';
@@ -132,11 +133,9 @@ class SessionStore {
   /// Save session metadata (no secrets) to JSON file.
   Future<void> _saveSessionFile() async {
     await init();
-    final file = File(_filePath);
-    await file.parent.create(recursive: true);
     final content = const JsonEncoder.withIndent('  ')
         .convert(_sessions.map((s) => s.toJson()).toList());
-    await file.writeAsString(content);
+    await writeFileAtomic(_filePath, content);
   }
 
   /// Save session metadata + credentials to their respective stores.
@@ -187,9 +186,7 @@ class SessionStore {
 
   Future<void> _saveEmptyGroups() async {
     await init();
-    final file = File(_groupsFilePath);
-    await file.parent.create(recursive: true);
-    await file.writeAsString(jsonEncode(_emptyGroups.toList()));
+    await writeFileAtomic(_groupsFilePath, jsonEncode(_emptyGroups.toList()));
   }
 
   /// Add an empty group folder (persists even without sessions).

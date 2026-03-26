@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import 'app_config.dart';
 
@@ -56,10 +57,8 @@ class ConfigStore {
   Future<void> save(AppConfig config) async {
     await init();
     _config = config;
-    final file = File(_filePath);
-    await file.parent.create(recursive: true);
     final content = const JsonEncoder.withIndent('  ').convert(config.toJson());
-    await file.writeAsString(content);
+    await writeFileAtomic(_filePath, content);
   }
 
   Future<void> update(AppConfig Function(AppConfig) updater) async {

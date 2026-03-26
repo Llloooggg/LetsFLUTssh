@@ -6,7 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pointycastle/digests/sha256.dart';
 
-import '../../utils/logger.dart';
+import '../../utils/file_utils.dart';
 
 /// TOFU (Trust On First Use) host key verification + persistent storage.
 ///
@@ -108,7 +108,7 @@ class KnownHostsManager {
       '$hostPort $keyString\n',
       mode: FileMode.append,
     );
-    _restrictFilePermissions(file.path);
+    restrictFilePermissions(file.path);
   }
 
   Future<void> _updateHost(String hostPort, String keyString) async {
@@ -117,28 +117,11 @@ class KnownHostsManager {
   }
 
   Future<void> _saveAll() async {
-    final file = File(_filePath);
-    await file.parent.create(recursive: true);
     final sb = StringBuffer();
     for (final entry in _hosts.entries) {
       sb.writeln('${entry.key} ${entry.value}');
     }
-    await file.writeAsString(sb.toString());
-    _restrictFilePermissions(file.path);
-  }
-
-  /// Set file permissions to owner-only (0600) on Unix systems.
-  void _restrictFilePermissions(String path) {
-    if (Platform.isLinux || Platform.isMacOS) {
-      try {
-        final result = Process.runSync('chmod', ['600', path]);
-        if (result.exitCode != 0) {
-          AppLogger.instance.log('chmod 600 failed: ${result.stderr}', name: 'KnownHosts');
-        }
-      } catch (e) {
-        AppLogger.instance.log('Failed to restrict permissions: $e', name: 'KnownHosts');
-      }
-    }
+    await writeFileAtomic(_filePath, sb.toString());
   }
 
   String _fingerprint(List<int> keyBytes) {
