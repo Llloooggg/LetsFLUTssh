@@ -57,8 +57,8 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 **Tagging workflow:**
 
 1. Bump version in `pubspec.yaml` + update `_appVersion` in `settings_screen.dart` — include in the same commit that changes the app
-2. Tag only the commit that contains the bump: `git tag vX.Y.Z`
-3. Push tag: `git push origin vX.Y.Z` — CI creates GitHub Release with auto-generated changelog
+2. Tag the bump commit immediately: `git tag vX.Y.Z` — version bump and tag always go together
+3. Push commit + tag: `git push && git push origin vX.Y.Z` — tag triggers `build.yml` (build + release)
 4. Do NOT tag commits without a version bump (tests, docs, CI)
 
 **Release notes (auto-changelog):**
