@@ -182,6 +182,23 @@ void main() {
       final result = await service.stat('/test/dir');
       expect(result.isDir, isTrue);
     });
+
+    test('uses DateTime.now() fallback when modifyTime is null', () async {
+      when(mockSftp.stat('/test/notime.txt'))
+          .thenAnswer((_) async => SftpFileAttrs(
+                size: 42,
+                mode: const SftpFileMode.value(0x81A4),
+              ));
+
+      final before = DateTime.now();
+      final result = await service.stat('/test/notime.txt');
+      final after = DateTime.now();
+
+      expect(result.name, 'notime.txt');
+      expect(result.size, 42);
+      expect(result.modTime.isAfter(before.subtract(const Duration(seconds: 1))), isTrue);
+      expect(result.modTime.isBefore(after.add(const Duration(seconds: 1))), isTrue);
+    });
   });
 
   group('SFTPService.mkdir', () {

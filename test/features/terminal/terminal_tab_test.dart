@@ -608,6 +608,53 @@ void main() {
       expect(find.byType(TerminalPane), findsOneWidget);
     });
 
+    testWidgets('closing focused pane resets focusedPaneId to remaining leaf',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = makeConnected(mockSsh, mockSession, 'close-focused');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: TerminalTab(
+                tabId: 'tab-close-focused',
+                connection: conn,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Split to get two panes — the new pane becomes focused.
+      final pane1 =
+          tester.widget<TerminalPane>(find.byType(TerminalPane).first);
+      pane1.onSplitVertical!();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TerminalPane), findsNWidgets(2));
+
+      // Find the focused pane and close it.
+      final panes = tester
+          .widgetList<TerminalPane>(find.byType(TerminalPane))
+          .toList();
+      final focused = panes.firstWhere((p) => p.isFocused);
+      expect(focused.onClose, isNotNull);
+      focused.onClose!();
+      await tester.pumpAndSettle();
+
+      // Should be back to one pane, and it should be focused.
+      expect(find.byType(TerminalPane), findsOneWidget);
+      final remaining =
+          tester.widget<TerminalPane>(find.byType(TerminalPane).first);
+      expect(remaining.isFocused, isTrue);
+    });
+
     testWidgets('close pane on root leaf does nothing', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();

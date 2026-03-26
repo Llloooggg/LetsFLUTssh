@@ -115,6 +115,10 @@ Old beta tags stay in history — they document the path to release.
     - After writing code: run `make test`, check uncovered lines, keep writing tests until all testable lines are covered
     - Only skip lines that physically cannot be tested (real SSH server, native file I/O with path_provider)
     - Before suggesting commit: `make analyze` + `make test`
+    - **SonarCloud verification** — when working on test coverage, always check SonarCloud API for real numbers (both overall and new code coverage). Local `lcov.info` may lag behind. Use:
+        - Overall: `curl -s "https://sonarcloud.io/api/measures/component?component=Llloooggg_LetsFLUTssh&metricKeys=coverage,uncovered_lines"`
+        - New code: `curl -s "https://sonarcloud.io/api/measures/component?component=Llloooggg_LetsFLUTssh&metricKeys=new_coverage,new_uncovered_lines,new_lines_to_cover"`
+        - Per-file: `curl -s "https://sonarcloud.io/api/measures/component_tree?component=Llloooggg_LetsFLUTssh&metricKeys=uncovered_lines,coverage&strategy=leaves&ps=50&s=metric&metricSort=uncovered_lines&asc=false"`
 - **Parallel agents** — multiple agents may work in the same repo simultaneously:
     - Only `git add` files YOU changed — never stage unrelated changes from other agents
     - Before committing, run `git status` and verify every staged file is yours
