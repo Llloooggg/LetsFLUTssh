@@ -664,4 +664,50 @@ void main() {
       expect(sessions.first.password, isEmpty);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Session JSON serialization (covers toJson, toJsonWithCredentials, fromJson)
+  // ---------------------------------------------------------------------------
+  group('Session JSON serialization', () {
+    test('toJson does not include password, keyData, passphrase', () {
+      final s = Session(
+        label: 'test', host: 'host', user: 'user',
+        password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass',
+      );
+      final json = s.toJson();
+      expect(json.containsKey('password'), isFalse);
+      expect(json.containsKey('key_data'), isFalse);
+      expect(json.containsKey('passphrase'), isFalse);
+    });
+
+    test('toJsonWithCredentials includes secrets', () {
+      final s = Session(
+        label: 'test', host: 'host', user: 'user',
+        password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass',
+      );
+      final json = s.toJsonWithCredentials();
+      expect(json['password'], 'secret');
+      expect(json['key_data'], 'PEM-DATA');
+      expect(json['passphrase'], 'pass');
+    });
+
+    test('fromJson reads password from JSON (legacy format)', () {
+      final s = Session.fromJson({
+        'id': 'test-id', 'host': 'h', 'user': 'u',
+        'password': 'pw', 'key_data': 'kd', 'passphrase': 'pp',
+      });
+      expect(s.password, 'pw');
+      expect(s.keyData, 'kd');
+      expect(s.passphrase, 'pp');
+    });
+
+    test('fromJson defaults missing credentials to empty', () {
+      final s = Session.fromJson({
+        'id': 'test-id', 'host': 'h', 'user': 'u',
+      });
+      expect(s.password, '');
+      expect(s.keyData, '');
+      expect(s.passphrase, '');
+    });
+  });
 }

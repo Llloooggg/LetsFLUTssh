@@ -285,4 +285,90 @@ void main() {
       expect(drag.groupPath, 'Production/Web');
     });
   });
+
+  group('SessionTreeView — deep nesting', () {
+    testWidgets('renders 3-level nested groups', (tester) async {
+      final s = Session(label: 's', host: 'h', user: 'u', group: 'A/B/C');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(tree: tree),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.text('A'), findsOneWidget);
+      expect(find.text('B'), findsOneWidget);
+      expect(find.text('C'), findsOneWidget);
+      expect(find.text('s'), findsOneWidget);
+    });
+
+    testWidgets('depth 4 item renders without overflow', (tester) async {
+      final s = Session(label: 'deep', host: 'h', user: 'u', group: 'A/B/C/D');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(tree: tree),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.text('A'), findsOneWidget);
+      expect(find.text('D'), findsOneWidget);
+      expect(find.text('deep'), findsOneWidget);
+    });
+  });
+
+  group('SessionTreeView — empty groups', () {
+    testWidgets('empty group renders as folder with 0 count', (tester) async {
+      final tree = SessionTree.build([], emptyGroups: {'EmptyFolder'});
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(tree: tree),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.text('EmptyFolder'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+    });
+  });
+
+  group('SessionTreeView — collapse and re-expand', () {
+    testWidgets('collapse then re-expand group shows children again',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Initially all expanded
+      expect(find.text('nginx1'), findsOneWidget);
+
+      // Collapse Production
+      await tester.tap(find.text('Production'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('nginx1'), findsNothing);
+
+      // Re-expand
+      await tester.tap(find.text('Production'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('nginx1'), findsOneWidget);
+    });
+  });
 }

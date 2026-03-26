@@ -365,4 +365,152 @@ void main() {
       handler.dispose();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Extended URI handling and lifecycle
+  // ---------------------------------------------------------------------------
+  group('DeepLinkHandler — URI classification', () {
+    test('parseConnectUri returns null for empty user', () {
+      final config = DeepLinkHandler.parseConnectUri(
+          Uri.parse('letsflutssh://connect?host=myhost&user='));
+      expect(config, isNull);
+    });
+
+    test('parseConnectUri with no params returns null', () {
+      final config = DeepLinkHandler.parseConnectUri(
+          Uri.parse('letsflutssh://connect'));
+      expect(config, isNull);
+    });
+
+    test('parseConnectUri preserves all fields', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+          'letsflutssh://connect?host=h&user=u&port=8022&password=pass&key=/path'));
+      expect(config, isNotNull);
+      expect(config!.host, 'h');
+      expect(config.user, 'u');
+      expect(config.port, 8022);
+      expect(config.password, 'pass');
+      expect(config.keyPath, '/path');
+    });
+
+    test('parseConnectUri with whitespace-only host returns null', () {
+      final config = DeepLinkHandler.parseConnectUri(
+          Uri.parse('letsflutssh://connect?host=%20%20%20&user=u'));
+      expect(config, isNull);
+    });
+
+    test('parseConnectUri with whitespace-only user returns null', () {
+      final config = DeepLinkHandler.parseConnectUri(
+          Uri.parse('letsflutssh://connect?host=h&user=%20%20'));
+      expect(config, isNull);
+    });
+
+    test('file URI classification - .lfs', () {
+      final uri = Uri.parse('file:///path/to/archive.lfs');
+      expect(uri.path.toLowerCase().endsWith('.lfs'), isTrue);
+    });
+
+    test('file URI classification - .pem', () {
+      final uri = Uri.parse('file:///path/to/key.pem');
+      expect(uri.path.toLowerCase().endsWith('.pem'), isTrue);
+    });
+
+    test('file URI classification - .key', () {
+      final uri = Uri.parse('file:///path/to/id.key');
+      expect(uri.path.toLowerCase().endsWith('.key'), isTrue);
+    });
+
+    test('file URI classification - .pub', () {
+      final uri = Uri.parse('file:///path/to/id.pub');
+      expect(uri.path.toLowerCase().endsWith('.pub'), isTrue);
+    });
+
+    test('content URI scheme recognized', () {
+      final uri =
+          Uri.parse('content://com.android.providers/document/file.lfs');
+      expect(uri.scheme, 'content');
+    });
+
+    test('custom scheme connect host recognized', () {
+      final uri = Uri.parse('letsflutssh://connect?host=h&user=u');
+      expect(uri.scheme, 'letsflutssh');
+      expect(uri.host, 'connect');
+    });
+
+    test('custom scheme unknown action', () {
+      final uri = Uri.parse('letsflutssh://unknown');
+      expect(uri.host, 'unknown');
+    });
+  });
+
+  group('DeepLinkHandler — lifecycle and callbacks', () {
+    test('callbacks are initially null', () {
+      final h = DeepLinkHandler();
+      expect(h.onConnect, isNull);
+      expect(h.onKeyFileOpened, isNull);
+      expect(h.onLfsFileOpened, isNull);
+      h.dispose();
+    });
+
+    test('callbacks can be set', () {
+      final h = DeepLinkHandler();
+      h.onConnect = (_) {};
+      h.onKeyFileOpened = (_) {};
+      h.onLfsFileOpened = (_) {};
+      expect(h.onConnect, isNotNull);
+      expect(h.onKeyFileOpened, isNotNull);
+      expect(h.onLfsFileOpened, isNotNull);
+      h.dispose();
+    });
+  });
+
+  group('DeepLinkHandler — handleFileUri and handleCustomScheme', () {
+    late DeepLinkHandler handler;
+
+    setUp(() {
+      handler = DeepLinkHandler();
+    });
+
+    tearDown(() {
+      handler.dispose();
+    });
+
+    test('handleFileUri .lfs invokes onLfsFileOpened', () {
+      String? received;
+      handler.onLfsFileOpened = (p) => received = p;
+      handler.handleFileUri(Uri.parse('file:///android/data/archive.lfs'));
+      expect(received, isNotNull);
+      expect(received, contains('archive.lfs'));
+    });
+
+    test('handleUri routes file .lfs to onLfsFileOpened', () {
+      bool handled = false;
+      handler.onLfsFileOpened = (p) => handled = true;
+      handler.handleUri(Uri.parse('file:///data/user/0/export.lfs'));
+      expect(handled, isTrue);
+    });
+
+    test('handleCustomScheme with null onConnect does not crash', () {
+      handler.onConnect = null;
+      handler.handleCustomScheme(
+          Uri.parse('letsflutssh://connect?host=h&user=u'));
+    });
+
+    test('handleFileUri .key with null callback does not crash', () {
+      handler.onKeyFileOpened = null;
+      handler.handleFileUri(Uri.parse('file:///tmp/id_rsa.key'));
+    });
+
+    test('handleFileUri .pub calls onKeyFileOpened', () {
+      String? received;
+      handler.onKeyFileOpened = (p) => received = p;
+      handler.handleFileUri(Uri.parse('file:///tmp/id_ed25519.pub'));
+      expect(received, isNotNull);
+      expect(received, contains('id_ed25519.pub'));
+    });
+
+    test('handleUri with empty URI does not crash', () {
+      handler.handleUri(Uri());
+    });
+  });
 }

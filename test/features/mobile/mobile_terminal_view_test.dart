@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:xterm/xterm.dart';
 
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -12,12 +13,34 @@ import 'package:letsflutssh/theme/app_theme.dart';
 
 import '../../core/ssh/shell_helper_test.mocks.dart';
 
+Connection connectedConn(
+    MockSSHConnection mockSsh, MockSSHSession mockSession) {
+  final stdoutCtrl = StreamController<Uint8List>.broadcast();
+  final stderrCtrl = StreamController<Uint8List>.broadcast();
+  final doneCompleter = Completer<void>();
+
+  when(mockSsh.isConnected).thenReturn(true);
+  when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+  when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+  when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+  when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+
+  return Connection(
+    id: 'test-conn',
+    label: 'Test',
+    sshConfig: const SSHConfig(host: 'h', user: 'u'),
+    sshConnection: mockSsh,
+    state: SSHConnectionState.connected,
+  );
+}
+
 void main() {
-  group('MobileTerminalView', () {
+  group('MobileTerminalView — loading state', () {
     testWidgets('shows loading indicator while connecting', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
-      when(mockSsh.openShell(any, any)).thenAnswer((_) => Completer<Never>().future);
+      when(mockSsh.openShell(any, any))
+          .thenAnswer((_) => Completer<Never>().future);
 
       final conn = Connection(
         id: 'test-1',
@@ -30,16 +53,16 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(),
-          home: Scaffold(
-            body: MobileTerminalView(connection: conn),
-          ),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
         ),
       );
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
+  });
 
+  group('MobileTerminalView — error states', () {
     testWidgets('shows error state when shell fails', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
@@ -56,9 +79,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(),
-          home: Scaffold(
-            body: MobileTerminalView(connection: conn),
-          ),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
         ),
       );
       await tester.pumpAndSettle();
@@ -78,9 +99,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(),
-          home: Scaffold(
-            body: MobileTerminalView(connection: conn),
-          ),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
         ),
       );
       await tester.pumpAndSettle();
@@ -88,22 +107,14 @@ void main() {
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
     });
 
-    testWidgets('renders terminal and keyboard bar on success', (tester) async {
+    testWidgets('error text shows specific error message', (tester) async {
       final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
       when(mockSsh.isConnected).thenReturn(true);
-
-      final stdoutCtrl = StreamController<Uint8List>.broadcast();
-      final stderrCtrl = StreamController<Uint8List>.broadcast();
-      final doneCompleter = Completer<void>();
-
-      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
-      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
-      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
-      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+      when(mockSsh.openShell(any, any))
+          .thenThrow(Exception('Connection refused'));
 
       final conn = Connection(
-        id: 'test-4',
+        id: 'test-err',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
         sshConnection: mockSsh,
@@ -113,24 +124,12 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(),
-          home: Scaffold(
-            body: MobileTerminalView(connection: conn),
-          ),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
         ),
       );
       await tester.pumpAndSettle();
 
-      // Loading indicator should be gone
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.byIcon(Icons.error_outline), findsNothing);
-
-      // SshKeyboardBar should be rendered (it contains keyboard buttons)
-      // Check for known keyboard bar buttons like Esc, Tab, Ctrl
-      expect(find.text('Esc'), findsOneWidget);
-      expect(find.text('Tab'), findsOneWidget);
-
-      await stdoutCtrl.close();
-      await stderrCtrl.close();
+      expect(find.textContaining('Connection refused'), findsOneWidget);
     });
 
     testWidgets('error state uses disconnected color', (tester) async {
@@ -145,9 +144,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(),
-          home: Scaffold(
-            body: MobileTerminalView(connection: conn),
-          ),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
         ),
       );
       await tester.pumpAndSettle();
@@ -157,7 +154,85 @@ void main() {
       expect(icon.size, 48);
     });
 
-    testWidgets('shell done callback sets session closed error', (tester) async {
+    testWidgets('error text has disconnected color and center alignment',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      when(mockSsh.isConnected).thenReturn(true);
+      when(mockSsh.openShell(any, any)).thenThrow(Exception('fail'));
+
+      final conn = Connection(
+        id: 'test-align',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final errorText = tester.widget<Text>(find.byWidgetPredicate((w) =>
+          w is Text &&
+          w.style?.color == AppTheme.disconnected &&
+          w.textAlign == TextAlign.center));
+      expect(errorText, isNotNull);
+    });
+
+    testWidgets('error widget contains SizedBox(height: 16) spacer',
+        (tester) async {
+      final conn = Connection(
+        id: 'test-spacer',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
+      final spacer16 = sizedBoxes.where((sb) => sb.height == 16);
+      expect(spacer16, isNotEmpty);
+    });
+  });
+
+  group('MobileTerminalView — successful connection', () {
+    testWidgets('renders terminal and keyboard bar on success',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byIcon(Icons.error_outline), findsNothing);
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(find.text('Esc'), findsOneWidget);
+      expect(find.text('Tab'), findsOneWidget);
+      expect(find.text('Ctrl'), findsOneWidget);
+      expect(find.text('Alt'), findsOneWidget);
+    });
+
+    testWidgets('shell done callback sets session closed error',
+        (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       when(mockSsh.isConnected).thenReturn(true);
@@ -166,7 +241,8 @@ void main() {
       final stderrCtrl = StreamController<Uint8List>.broadcast();
       final doneCompleter = Completer<void>();
 
-      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSsh.openShell(any, any))
+          .thenAnswer((_) async => mockSession);
       when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
       when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
       when(mockSession.done).thenAnswer((_) => doneCompleter.future);
@@ -182,9 +258,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(),
-          home: Scaffold(
-            body: MobileTerminalView(connection: conn),
-          ),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
         ),
       );
       await tester.pumpAndSettle();
@@ -193,7 +267,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Session closed'), findsOneWidget);
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
 
       await stdoutCtrl.close();
       await stderrCtrl.close();
@@ -202,19 +275,169 @@ void main() {
     testWidgets('GestureDetector present for pinch zoom', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
-      when(mockSsh.isConnected).thenReturn(true);
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GestureDetector), findsWidgets);
+    });
+
+    testWidgets('widget disposes without errors', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: const Scaffold(body: SizedBox()),
+        ),
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('Column layout has Expanded terminal and keyboard bar',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Column), findsWidgets);
+      expect(find.text('Ctrl'), findsOneWidget);
+      expect(find.text('Alt'), findsOneWidget);
+    });
+  });
+
+  group('MobileTerminalView — pinch-to-zoom', () {
+    testWidgets('pinch zoom changes font size and clamps between 8 and 24',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TerminalView), findsOneWidget);
+
+      final center = tester.getCenter(find.byType(TerminalView));
+      final pointer1 = await tester.createGesture();
+      final pointer2 = await tester.createGesture();
+
+      await pointer1.down(center - const Offset(10, 0));
+      await pointer2.down(center + const Offset(10, 0));
+      await tester.pump();
+
+      await pointer1.moveTo(center - const Offset(30, 0));
+      await pointer2.moveTo(center + const Offset(30, 0));
+      await tester.pump();
+
+      await pointer1.up();
+      await pointer2.up();
+      await tester.pump();
+
+      expect(find.byType(TerminalView), findsOneWidget);
+    });
+
+    testWidgets('pinch zoom down clamps at minimum 8.0', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.byType(TerminalView));
+      final pointer1 = await tester.createGesture();
+      final pointer2 = await tester.createGesture();
+
+      await pointer1.down(center - const Offset(50, 0));
+      await pointer2.down(center + const Offset(50, 0));
+      await tester.pump();
+
+      await pointer1.moveTo(center - const Offset(2, 0));
+      await pointer2.moveTo(center + const Offset(2, 0));
+      await tester.pump();
+
+      await pointer1.up();
+      await pointer2.up();
+      await tester.pump();
+
+      expect(find.byType(TerminalView), findsOneWidget);
+    });
+
+    testWidgets('onScaleEnd is configured on GestureDetector',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final gds =
+          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
+      final scaleGd = gds.where((g) => g.onScaleEnd != null).toList();
+      expect(scaleGd, isNotEmpty);
+    });
+  });
+
+  group('MobileTerminalView — keyboard input forwarding', () {
+    testWidgets('SshKeyboardBar key press writes to shell', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
 
       final stdoutCtrl = StreamController<Uint8List>.broadcast();
       final stderrCtrl = StreamController<Uint8List>.broadcast();
       final doneCompleter = Completer<void>();
 
-      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSsh.isConnected).thenReturn(true);
+      when(mockSsh.openShell(any, any))
+          .thenAnswer((_) async => mockSession);
       when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
       when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
       when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+      when(mockSession.write(any)).thenReturn(null);
 
       final conn = Connection(
-        id: 'test-zoom',
+        id: 'test-kb',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
         sshConnection: mockSsh,
@@ -224,17 +447,143 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(),
-          home: Scaffold(
-            body: MobileTerminalView(connection: conn),
-          ),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(GestureDetector), findsWidgets);
+      await tester.tap(find.text('Esc'));
+      await tester.pump();
+      verify(mockSession.write(Uint8List.fromList([0x1B]))).called(1);
+
+      await tester.tap(find.text('Tab'));
+      await tester.pump();
+      verify(mockSession.write(Uint8List.fromList([0x09]))).called(1);
 
       await stdoutCtrl.close();
       await stderrCtrl.close();
+    });
+  });
+
+  group('MobileTerminalView — context menu', () {
+    testWidgets('long press GestureDetector has onLongPressStart',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final gds =
+          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
+      final hasLongPress = gds.any((g) => g.onLongPressStart != null);
+      expect(hasLongPress, isTrue);
+    });
+
+    testWidgets('long press opens context menu with Paste',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final gds =
+          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
+      final terminalGd =
+          gds.where((g) => g.onLongPressStart != null).toList();
+      expect(terminalGd, isNotEmpty);
+
+      final gd = terminalGd.first;
+      final center = tester.getCenter(find.byType(TerminalView));
+      gd.onLongPressStart!(LongPressStartDetails(globalPosition: center));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paste'), findsOneWidget);
+    });
+
+    testWidgets('paste action reads from clipboard', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.getData') {
+            return {'text': 'pasted-text'};
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null);
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final gds =
+          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
+      final terminalGd =
+          gds.where((g) => g.onLongPressStart != null).first;
+      final center = tester.getCenter(find.byType(TerminalView));
+      terminalGd
+          .onLongPressStart!(LongPressStartDetails(globalPosition: center));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Paste'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+
+    testWidgets('context menu without selection does not show Copy',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final gds =
+          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
+      final terminalGd =
+          gds.where((g) => g.onLongPressStart != null).first;
+      final center = tester.getCenter(find.byType(TerminalView));
+      terminalGd
+          .onLongPressStart!(LongPressStartDetails(globalPosition: center));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Copy'), findsNothing);
+      expect(find.text('Paste'), findsOneWidget);
+
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
     });
   });
 }

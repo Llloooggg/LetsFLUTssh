@@ -575,4 +575,359 @@ void main() {
       expect(find.byType(DragTarget<TabEntry>), findsOneWidget);
     });
   });
+
+  group('AppTabBar — context menu dismiss', () {
+    testWidgets('dismissing context menu without selection does nothing',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Tab A',
+            connection: conn,
+            kind: TabKind.terminal),
+        TabEntry(
+            id: 't2',
+            label: 'Tab B',
+            connection: conn,
+            kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      final tabA = find.text('Tab A').first;
+      final center = tester.getCenter(tabA);
+      final gesture = await tester.startGesture(
+        center,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Close'), findsOneWidget);
+
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tab A'), findsWidgets);
+      expect(find.text('Tab B'), findsWidgets);
+    });
+  });
+
+  group('AppTabBar — middle tab shows all context menu options', () {
+    testWidgets('middle tab shows Close Left, Close Right, Close Others',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Tab A',
+            connection: conn,
+            kind: TabKind.terminal),
+        TabEntry(
+            id: 't2',
+            label: 'Tab B',
+            connection: conn,
+            kind: TabKind.terminal),
+        TabEntry(
+            id: 't3',
+            label: 'Tab C',
+            connection: conn,
+            kind: TabKind.terminal),
+      ], activeIndex: 1));
+      await tester.pumpAndSettle();
+
+      final tabB = find.text('Tab B').first;
+      final center = tester.getCenter(tabB);
+      final gesture = await tester.startGesture(
+        center,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Close'), findsOneWidget);
+      expect(find.text('Close Others'), findsOneWidget);
+      expect(find.text('Close Tabs to the Left'), findsOneWidget);
+      expect(find.text('Close Tabs to the Right'), findsOneWidget);
+
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('AppTabBar — SizedBox.shrink when empty', () {
+    testWidgets('empty tabs renders SizedBox.shrink', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const Scaffold(body: AppTabBar()),
+          ),
+        ),
+      );
+
+      expect(find.byType(ListView), findsNothing);
+    });
+  });
+
+  group('AppTabBar — DragTarget reorder', () {
+    testWidgets('dragging a tab onto another triggers swapTabs',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Tab A',
+            connection: conn,
+            kind: TabKind.terminal),
+        TabEntry(
+            id: 't2',
+            label: 'Tab B',
+            connection: conn,
+            kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      final tabACenter = tester.getCenter(find.text('Tab A').first);
+      final gesture = await tester.startGesture(tabACenter);
+      await tester.pump();
+
+      final tabBCenter = tester.getCenter(find.text('Tab B').first);
+      await gesture.moveTo(tabBCenter);
+      await tester.pump();
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tab A'), findsWidgets);
+      expect(find.text('Tab B'), findsWidgets);
+    });
+
+    testWidgets('onWillAcceptWithDetails rejects same tab drop',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Only Tab',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('Only Tab').first);
+      final gesture = await tester.startGesture(center);
+      await tester.pump();
+      await gesture.moveTo(center + const Offset(5, 0));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Only Tab'), findsWidgets);
+    });
+
+    testWidgets('three tabs: drag first to third position triggers swap',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Tab 1',
+            connection: conn,
+            kind: TabKind.terminal),
+        TabEntry(
+            id: 't2',
+            label: 'Tab 2',
+            connection: conn,
+            kind: TabKind.sftp),
+        TabEntry(
+            id: 't3',
+            label: 'Tab 3',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final tab1Center = tester.getCenter(find.text('Tab 1').first);
+      final gesture = await tester.startGesture(tab1Center);
+      await tester.pump();
+
+      final tab3Center = tester.getCenter(find.text('Tab 3').first);
+      await gesture.moveTo(tab3Center);
+      await tester.pump();
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tab 1'), findsWidgets);
+      expect(find.text('Tab 2'), findsWidgets);
+      expect(find.text('Tab 3'), findsWidgets);
+    });
+  });
+
+  group('AppTabBar — drag feedback', () {
+    testWidgets('drag feedback shows terminal icon and label',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'DragMe',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('DragMe').first);
+      final gesture = await tester.startGesture(center);
+      await tester.pump();
+      await gesture.moveBy(const Offset(20, 20));
+      await tester.pump();
+
+      expect(find.text('DragMe'), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('drag feedback for SFTP tab shows folder icon',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'SFTP Tab',
+            connection: conn,
+            kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('SFTP Tab').first);
+      final gesture = await tester.startGesture(center);
+      await tester.pump();
+      await gesture.moveBy(const Offset(20, 20));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.folder), findsWidgets);
+      expect(find.text('SFTP Tab'), findsWidgets);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('drag feedback container has correct elevation and opacity',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'StyledDrag',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final draggable = tester.widget<Draggable<TabEntry>>(
+        find.byType(Draggable<TabEntry>),
+      );
+
+      expect(draggable.feedback, isA<Material>());
+      final material = draggable.feedback as Material;
+      expect(material.elevation, 4);
+
+      expect(material.child, isA<Opacity>());
+      final opacity = material.child! as Opacity;
+      expect(opacity.opacity, 0.85);
+    });
+
+    testWidgets('childWhenDragging has 0.4 opacity', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'FadeTab',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final draggable = tester.widget<Draggable<TabEntry>>(
+        find.byType(Draggable<TabEntry>),
+      );
+      expect(draggable.childWhenDragging, isA<Opacity>());
+      final opacity = draggable.childWhenDragging! as Opacity;
+      expect(opacity.opacity, 0.4);
+    });
+  });
+
+  group('AppTabBar — state color verification', () {
+    testWidgets('connected state uses connectedColor', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Tab',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final containers =
+          tester.widgetList<Container>(find.byType(Container));
+      final dots = containers.where((c) {
+        final d = c.decoration;
+        return d is BoxDecoration &&
+            d.shape == BoxShape.circle &&
+            d.color == AppTheme.connectedColor(Brightness.dark);
+      });
+      expect(dots, isNotEmpty);
+    });
+
+    testWidgets('connecting state uses connectingColor', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connecting);
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Tab',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final containers =
+          tester.widgetList<Container>(find.byType(Container));
+      final dots = containers.where((c) {
+        final d = c.decoration;
+        return d is BoxDecoration &&
+            d.shape == BoxShape.circle &&
+            d.color == AppTheme.connectingColor(Brightness.dark);
+      });
+      expect(dots, isNotEmpty);
+    });
+
+    testWidgets('disconnected state uses disconnectedColor', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.disconnected);
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Tab',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      final containers =
+          tester.widgetList<Container>(find.byType(Container));
+      final dots = containers.where((c) {
+        final d = c.decoration;
+        return d is BoxDecoration &&
+            d.shape == BoxShape.circle &&
+            d.color == AppTheme.disconnectedColor(Brightness.dark);
+      });
+      expect(dots, isNotEmpty);
+    });
+  });
 }

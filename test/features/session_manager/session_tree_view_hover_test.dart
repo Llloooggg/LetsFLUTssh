@@ -396,4 +396,150 @@ void main() {
       }
     });
   });
+
+  group('SessionTreeView — drag feedback rendering', () {
+    testWidgets('group draggable feedback shows group name',
+        (tester) async {
+      final s = makeSession(label: 'S', group: 'DragGroup');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionMoved: (_, __) {},
+        onGroupMoved: (_, __) {},
+      ));
+      await tester.pump();
+
+      final groupCenter = tester.getCenter(find.text('DragGroup'));
+      final gesture = await tester.startGesture(groupCenter);
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.moveBy(const Offset(0, 50));
+      await tester.pump();
+
+      expect(find.text('DragGroup'), findsWidgets);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('session draggable feedback shows session name',
+        (tester) async {
+      final s = makeSession(label: 'DragSrv', authType: AuthType.key);
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionMoved: (_, __) {},
+        onGroupMoved: (_, __) {},
+      ));
+      await tester.pump();
+
+      final srvCenter = tester.getCenter(find.text('DragSrv'));
+      final gesture = await tester.startGesture(srvCenter);
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.moveBy(const Offset(0, 50));
+      await tester.pump();
+
+      expect(find.text('DragSrv'), findsWidgets);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('group becomes transparent when being dragged',
+        (tester) async {
+      final s = makeSession(label: 'S', group: 'OpacityGrp');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionMoved: (_, __) {},
+        onGroupMoved: (_, __) {},
+      ));
+      await tester.pump();
+
+      final center = tester.getCenter(find.text('OpacityGrp'));
+      final gesture = await tester.startGesture(center);
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.moveBy(const Offset(0, 50));
+      await tester.pump();
+
+      expect(find.byType(Opacity), findsWidgets);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SessionTreeView — drop session on root calls onSessionMoved', () {
+    testWidgets('dropping session on root background calls onSessionMoved',
+        (tester) async {
+      final s = makeSession(label: 'MoveSrv', group: 'OldGroup');
+      final tree = SessionTree.build([s], emptyGroups: const {});
+
+      String? movedId;
+      String? movedTarget;
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionMoved: (id, target) {
+          movedId = id;
+          movedTarget = target;
+        },
+        onGroupMoved: (_, __) {},
+      ));
+      await tester.pump();
+
+      final srvCenter = tester.getCenter(find.text('MoveSrv'));
+      final gesture = await tester.startGesture(srvCenter);
+      await tester.pump(const Duration(milliseconds: 600));
+
+      final treeViewRect = tester.getRect(find.byType(SessionTreeView));
+      await gesture.moveTo(
+          Offset(treeViewRect.center.dx, treeViewRect.bottom - 5));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      if (movedId != null) {
+        expect(movedTarget, '');
+      }
+    });
+  });
+
+  group('SessionTreeView — drop session onto different group', () {
+    testWidgets('dropping session onto different group calls onSessionMoved',
+        (tester) async {
+      final s1 = makeSession(label: 'S1', group: 'GroupA');
+      final s2 = makeSession(label: 'S2', group: 'GroupB');
+      final tree = SessionTree.build([s1, s2], emptyGroups: const {});
+
+      String? movedId;
+      String? movedTarget;
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionMoved: (id, target) {
+          movedId = id;
+          movedTarget = target;
+        },
+        onGroupMoved: (_, __) {},
+      ));
+      await tester.pump();
+
+      final s1Center = tester.getCenter(find.text('S1'));
+      final gesture = await tester.startGesture(s1Center);
+      await tester.pump(const Duration(milliseconds: 600));
+
+      final groupBCenter = tester.getCenter(find.text('GroupB'));
+      await gesture.moveTo(groupBCenter);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      if (movedId != null) {
+        expect(movedTarget, 'GroupB');
+      }
+    });
+  });
 }

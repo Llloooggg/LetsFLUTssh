@@ -1482,4 +1482,371 @@ void main() {
       }
     });
   });
+
+  group('SessionPanel — delete dialog with empty label', () {
+    testWidgets('delete dialog uses displayName when label is empty',
+        (tester) async {
+      final noLabelSession = Session(
+        id: '10',
+        label: '',
+        group: '',
+        host: '10.0.0.10',
+        user: 'admin',
+      );
+      await tester.pumpWidget(buildApp(
+        sessions: [noLabelSession],
+        onSftpConnect: (_) {},
+      ));
+      await tester.pumpAndSettle();
+
+      final hostText = find.text('10.0.0.10:22');
+      expect(hostText, findsWidgets);
+
+      final center = tester.getCenter(hostText.first);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Delete "admin@10.0.0.10'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SessionPanel — delete empty folder no count warning', () {
+    testWidgets('delete folder dialog for empty group hides session count',
+        (tester) async {
+      await tester.pumpWidget(
+        buildApp(emptyGroups: {'EmptyGroup'}),
+      );
+      await tester.pumpAndSettle();
+
+      final emptyGroupFinder = find.text('EmptyGroup');
+      if (emptyGroupFinder.evaluate().isNotEmpty) {
+        final center = tester.getCenter(emptyGroupFinder);
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+          buttons: kSecondaryMouseButton,
+        );
+        await gesture.addPointer(location: center);
+        await gesture.down(center);
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Delete Folder'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Delete Folder'), findsOneWidget);
+        expect(find.textContaining('session(s) inside'), findsNothing);
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      }
+    });
+  });
+
+  group('SessionPanel — rename nested folder pre-fills leaf name', () {
+    testWidgets('renaming DB (nested) shows correct pre-filled name',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('DB'));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Rename'));
+      await tester.pumpAndSettle();
+
+      final textField =
+          tester.widget<TextField>(find.byType(TextField).last);
+      expect(textField.controller?.text, 'DB');
+
+      await tester.enterText(find.byType(TextField).last, 'Database');
+      await tester.pump();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rename Folder'), findsNothing);
+    });
+  });
+
+  group('SessionPanel — edit mode Save does not call onConnect', () {
+    testWidgets('Save without connect from edit does not call onConnect',
+        (tester) async {
+      Session? connected;
+      await tester.pumpWidget(buildApp(
+        onConnect: (s) => connected = s,
+        onSftpConnect: (_) {},
+      ));
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('staging'));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(connected, isNull);
+    });
+  });
+
+  group('SessionPanel — empty groups in folder validation', () {
+    testWidgets('empty groups are included in folder name validation',
+        (tester) async {
+      await tester.pumpWidget(
+        buildApp(emptyGroups: {'Archive', 'Archive/Old'}),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('New Folder'));
+      await tester.pumpAndSettle();
+
+      final textField = find.byType(TextField).last;
+      await tester.enterText(textField, 'Archive');
+      await tester.pump();
+
+      expect(
+          find.text('Folder "Archive" already exists'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SessionPanel — context menu dismiss', () {
+    testWidgets('dismissing session context menu does nothing',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('staging'));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+
+      expect(find.text('staging'), findsWidgets);
+    });
+
+    testWidgets('dismissing group context menu does nothing',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('Production'));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Production'), findsWidgets);
+    });
+  });
+
+  group('SessionPanel — folder name Enter on empty is no-op', () {
+    testWidgets('pressing Enter on empty name does not submit',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('New Folder'));
+      await tester.pumpAndSettle();
+
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Folder name'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SessionPanel — rename with empty result is no-op', () {
+    testWidgets('rename dialog with empty name is ignored', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('Production'));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Rename'));
+      await tester.pumpAndSettle();
+
+      final textField = find.byType(TextField).last;
+      await tester.enterText(textField, '');
+      await tester.pump();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SessionPanel — rename to existing name shows error then clears', () {
+    testWidgets('renaming to existing name shows error, fixing clears it',
+        (tester) async {
+      await tester.pumpWidget(
+        buildApp(emptyGroups: {'Staging'}),
+      );
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('Staging'));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Rename'));
+      await tester.pumpAndSettle();
+
+      final textField = find.byType(TextField).last;
+      await tester.enterText(textField, 'Production');
+      await tester.pump();
+
+      expect(
+          find.text('Folder "Production" already exists'), findsOneWidget);
+
+      await tester.enterText(textField, 'StagingNew');
+      await tester.pump();
+
+      expect(
+          find.text('Folder "Production" already exists'), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('SessionPanel — cancel dialogs', () {
+    testWidgets('cancel on Delete All does not delete', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panel = find.byType(SessionPanel);
+      final panelBox = tester.getRect(panel);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(
+          location: Offset(panelBox.center.dx, panelBox.bottom - 10));
+      await gesture.down(
+          Offset(panelBox.center.dx, panelBox.bottom - 10));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      final deleteAll = find.text('Delete All Sessions');
+      if (deleteAll.evaluate().isNotEmpty) {
+        await tester.tap(deleteAll);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('web1'), findsWidgets);
+      }
+    });
+
+    testWidgets('cancel delete folder keeps folder', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.text('Production'));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Delete Folder'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Folder'), findsNothing);
+    });
+
+    testWidgets('Add Session from empty state cancel does nothing',
+        (tester) async {
+      await tester.pumpWidget(buildApp(sessions: []));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Add Session'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No saved sessions'), findsOneWidget);
+    });
+
+    testWidgets('New Folder dialog cancel does nothing', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('New Folder'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Folder name'), findsNothing);
+    });
+  });
 }

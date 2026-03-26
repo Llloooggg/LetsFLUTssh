@@ -33,6 +33,20 @@ void main() {
     test('scaffold background matches surface', () {
       expect(theme.scaffoldBackgroundColor, theme.colorScheme.surface);
     });
+
+    test('segmented button resolves selected background', () {
+      final style = theme.segmentedButtonTheme.style!;
+      final bg = style.backgroundColor!;
+      expect(bg.resolve({WidgetState.selected}), const Color(0xFF61AFEF));
+      expect(bg.resolve({}), const Color(0xFF21252B));
+    });
+
+    test('segmented button resolves selected foreground', () {
+      final style = theme.segmentedButtonTheme.style!;
+      final fg = style.foregroundColor!;
+      expect(fg.resolve({WidgetState.selected}), const Color(0xFF282C34));
+      expect(fg.resolve({}), const Color(0xFFABB2BF));
+    });
   });
 
   group('AppTheme.light()', () {
@@ -40,6 +54,10 @@ void main() {
 
     setUp(() {
       theme = AppTheme.light();
+    });
+
+    test('uses Material 3', () {
+      expect(theme.useMaterial3, isTrue);
     });
 
     test('brightness is light', () {
@@ -52,6 +70,49 @@ void main() {
 
     test('surface is One Light bg', () {
       expect(theme.colorScheme.surface, const Color(0xFFFAFAFA));
+    });
+
+    test('scaffold background is light bg', () {
+      expect(theme.scaffoldBackgroundColor, const Color(0xFFFAFAFA));
+    });
+
+    test('divider color is light border', () {
+      expect(theme.dividerColor, const Color(0xFFD3D3D3));
+    });
+
+    test('error color is light red', () {
+      expect(theme.colorScheme.error, const Color(0xFFE45649));
+    });
+
+    test('appBar background is light surface', () {
+      expect(theme.appBarTheme.backgroundColor, const Color(0xFFF0F0F0));
+    });
+
+    test('splashFactory is NoSplash', () {
+      expect(theme.splashFactory, NoSplash.splashFactory);
+    });
+
+    test('tooltip has wait duration', () {
+      expect(theme.tooltipTheme.waitDuration,
+          const Duration(milliseconds: 400));
+    });
+
+    test('progress indicator uses light blue', () {
+      expect(theme.progressIndicatorTheme.color, const Color(0xFF4078F2));
+    });
+
+    test('segmented button resolves selected background', () {
+      final style = theme.segmentedButtonTheme.style!;
+      final bg = style.backgroundColor!;
+      expect(bg.resolve({WidgetState.selected}), const Color(0xFF4078F2));
+      expect(bg.resolve({}), Colors.white);
+    });
+
+    test('segmented button resolves selected foreground', () {
+      final style = theme.segmentedButtonTheme.style!;
+      final fg = style.foregroundColor!;
+      expect(fg.resolve({WidgetState.selected}), Colors.white);
+      expect(fg.resolve({}), const Color(0xFF383A42));
     });
   });
 
@@ -75,31 +136,63 @@ void main() {
     test('folderIcon is yellow', () {
       expect(AppTheme.folderIcon, const Color(0xFFE5C07B));
     });
+
+    test('connectedLight is light green', () {
+      expect(AppTheme.connectedLight, const Color(0xFF50A14F));
+    });
+
+    test('connectingLight is light yellow', () {
+      expect(AppTheme.connectingLight, const Color(0xFFC18401));
+    });
+
+    test('disconnectedLight is light red', () {
+      expect(AppTheme.disconnectedLight, const Color(0xFFE45649));
+    });
+
+    test('searchHighlight is defined', () {
+      expect(AppTheme.searchHighlight, const Color(0xFFFFFF2B));
+    });
+
+    test('searchHighlightLight is defined', () {
+      expect(AppTheme.searchHighlightLight, const Color(0xFFFFD700));
+    });
   });
 
   group('brightness-aware color resolvers', () {
-    test('connectedColor returns dark variant for dark', () {
+    test('connectedColor dark', () {
       expect(AppTheme.connectedColor(Brightness.dark), AppTheme.connected);
     });
 
-    test('connectedColor returns light variant for light', () {
-      expect(AppTheme.connectedColor(Brightness.light), AppTheme.connectedLight);
+    test('connectedColor light', () {
+      expect(
+          AppTheme.connectedColor(Brightness.light), AppTheme.connectedLight);
     });
 
-    test('disconnectedColor returns dark variant for dark', () {
-      expect(AppTheme.disconnectedColor(Brightness.dark), AppTheme.disconnected);
+    test('disconnectedColor dark', () {
+      expect(
+          AppTheme.disconnectedColor(Brightness.dark), AppTheme.disconnected);
     });
 
-    test('disconnectedColor returns light variant for light', () {
-      expect(AppTheme.disconnectedColor(Brightness.light), AppTheme.disconnectedLight);
+    test('disconnectedColor light', () {
+      expect(AppTheme.disconnectedColor(Brightness.light),
+          AppTheme.disconnectedLight);
     });
 
-    test('connectingColor returns dark variant for dark', () {
+    test('connectingColor dark', () {
       expect(AppTheme.connectingColor(Brightness.dark), AppTheme.connecting);
     });
 
-    test('connectingColor returns light variant for light', () {
-      expect(AppTheme.connectingColor(Brightness.light), AppTheme.connectingLight);
+    test('connectingColor light', () {
+      expect(AppTheme.connectingColor(Brightness.light),
+          AppTheme.connectingLight);
+    });
+
+    test('folderColor dark', () {
+      expect(AppTheme.folderColor(Brightness.dark), const Color(0xFFE5C07B));
+    });
+
+    test('folderColor light', () {
+      expect(AppTheme.folderColor(Brightness.light), const Color(0xFFC18401));
     });
   });
 }

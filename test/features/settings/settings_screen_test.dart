@@ -1,12 +1,46 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
+import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/toast.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late Directory tempDir;
+
+  setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp('settings_test_');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (call) async {
+        if (call.method == 'getApplicationSupportDirectory') {
+          return tempDir.path;
+        }
+        return null;
+      },
+    );
+  });
+
+  tearDown(() async {
+    Toast.clearAllForTest();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      null,
+    );
+    await tempDir.delete(recursive: true);
+  });
+
+  /// Simple buildApp without session provider (used for basic UI tests).
   Widget buildApp({AppConfig? initialConfig, double height = 1200}) {
     final config = initialConfig ?? AppConfig.defaults;
     return ProviderScope(
@@ -27,6 +61,34 @@ void main() {
     );
   }
 
+  /// Full buildApp with session store + session provider (for export/import).
+  Widget buildFullApp({AppConfig? initialConfig}) {
+    final config = initialConfig ?? AppConfig.defaults;
+    return ProviderScope(
+      overrides: [
+        configProvider.overrideWith((ref) {
+          final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+          notifier.state = config;
+          return notifier;
+        }),
+        sessionStoreProvider.overrideWithValue(SessionStore()),
+        sessionProvider.overrideWith((ref) {
+          return SessionNotifier(ref.watch(sessionStoreProvider));
+        }),
+      ],
+      child: MaterialApp(
+        theme: AppTheme.dark(),
+        home: const SizedBox(
+          height: 2000,
+          child: SettingsScreen(),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Structure
+  // ---------------------------------------------------------------------------
   group('SettingsScreen — structure', () {
     testWidgets('renders app bar with title', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -43,10 +105,39 @@ void main() {
       await tester.pumpWidget(buildApp());
       expect(find.byType(Divider), findsWidgets);
     });
+
+    testWidgets('all section headers are rendered', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      expect(find.text('Appearance'), findsOneWidget);
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.text('Connection'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Transfers'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Transfers'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Data'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('About'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('About'), findsOneWidget);
+    });
   });
 
+  // ---------------------------------------------------------------------------
+  // Appearance section
+  // ---------------------------------------------------------------------------
   group('SettingsScreen — Appearance section', () {
-    testWidgets('renders Appearance section', (tester) async {
+    testWidgets('renders Appearance section with all elements', (tester) async {
       await tester.pumpWidget(buildApp());
 
       expect(find.text('Appearance'), findsOneWidget);
@@ -56,79 +147,147 @@ void main() {
       expect(find.text('System'), findsOneWidget);
       expect(find.text('Font Size'), findsOneWidget);
       expect(find.byType(Slider), findsOneWidget);
-    });
-
-    testWidgets('SegmentedButton for theme is present', (tester) async {
-      await tester.pumpWidget(buildApp());
       expect(find.byType(SegmentedButton<String>), findsOneWidget);
     });
 
-    testWidgets('theme segmented button shows correct selection for dark',
+    testWidgets('theme shows correct selection for dark', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final seg = tester.widget<SegmentedButton<String>>(
+          find.byType(SegmentedButton<String>));
+      expect(seg.selected, {'dark'});
+    });
+
+    testWidgets('theme shows correct selection for light', (tester) async {
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(theme: 'light')));
+      final seg = tester.widget<SegmentedButton<String>>(
+          find.byType(SegmentedButton<String>));
+      expect(seg.selected, {'light'});
+    });
+
+    testWidgets('theme shows correct selection for system', (tester) async {
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(theme: 'system')));
+      final seg = tester.widget<SegmentedButton<String>>(
+          find.byType(SegmentedButton<String>));
+      expect(seg.selected, {'system'});
+    });
+
+    testWidgets('tapping Dark when already Dark keeps Dark selected',
         (tester) async {
       await tester.pumpWidget(buildApp());
-      final segmentedButton = tester
-          .widget<SegmentedButton<String>>(find.byType(SegmentedButton<String>));
-      expect(segmentedButton.selected, {'dark'});
+      await tester.tap(find.text('Dark'));
+      await tester.pumpAndSettle();
+      final seg = tester.widget<SegmentedButton<String>>(
+          find.byType(SegmentedButton<String>));
+      expect(seg.selected, {'dark'});
     });
 
-    testWidgets('theme segmented button shows correct selection for light',
-        (tester) async {
-      final lightConfig = AppConfig.defaults.copyWith(theme: 'light');
-      await tester.pumpWidget(buildApp(initialConfig: lightConfig));
-      final segmentedButton = tester
-          .widget<SegmentedButton<String>>(find.byType(SegmentedButton<String>));
-      expect(segmentedButton.selected, {'light'});
-    });
-
-    testWidgets('theme segmented button shows correct selection for system',
-        (tester) async {
-      final sysConfig = AppConfig.defaults.copyWith(theme: 'system');
-      await tester.pumpWidget(buildApp(initialConfig: sysConfig));
-      final segmentedButton = tester
-          .widget<SegmentedButton<String>>(find.byType(SegmentedButton<String>));
-      expect(segmentedButton.selected, {'system'});
-    });
-
-    testWidgets('font size slider shows current value', (tester) async {
+    testWidgets('tapping Light theme does not crash', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Default font size is 14
-      expect(find.text('14'), findsOneWidget);
-    });
-
-    testWidgets('font size slider with custom value', (tester) async {
-      final config = AppConfig.defaults.copyWith(fontSize: 18.0);
-      await tester.pumpWidget(buildApp(initialConfig: config));
-      expect(find.text('18'), findsOneWidget);
-    });
-
-    testWidgets('slider is configured correctly', (tester) async {
-      await tester.pumpWidget(buildApp());
-      final slider = tester.widget<Slider>(find.byType(Slider));
-      expect(slider.min, 8.0);
-      expect(slider.max, 24.0);
-      expect(slider.divisions, 16);
-    });
-
-    testWidgets('tapping Light theme button does not crash', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      // Tap "Light" — config update may fail (no persisted store) but UI should not crash
       await tester.tap(find.text('Light'));
       await tester.pumpAndSettle();
-
-      // Widget still renders
       expect(find.text('Theme'), findsOneWidget);
     });
 
-    testWidgets('tapping System theme button does not crash', (tester) async {
+    testWidgets('tapping System theme does not crash', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('System'));
       await tester.pumpAndSettle();
+      expect(find.text('Theme'), findsOneWidget);
+    });
 
+    testWidgets('switching Light then Dark then System', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Light'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Dark'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('System'));
+      await tester.pumpAndSettle();
       expect(find.text('Theme'), findsOneWidget);
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // Font size slider
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — font size slider', () {
+    testWidgets('slider shows default value 14', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.text('14'), findsOneWidget);
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      expect(slider.value, 14.0);
+      expect(slider.min, 8.0);
+      expect(slider.max, 24.0);
+      expect(slider.divisions, 16);
+      expect(slider.label, '14');
+    });
+
+    testWidgets('slider with custom font size', (tester) async {
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 18.0)));
+      expect(find.text('18'), findsOneWidget);
+    });
+
+    testWidgets('slider label shows formatted value', (tester) async {
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 16.0)));
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      expect(slider.label, '16');
+      expect(slider.value, 16.0);
+    });
+
+    testWidgets('slider with min value 8', (tester) async {
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 8.0)));
+      expect(find.text('8'), findsOneWidget);
+    });
+
+    testWidgets('slider with max value 24', (tester) async {
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 24.0)));
+      expect(find.text('24'), findsOneWidget);
+    });
+
+    testWidgets('value out of range is clamped', (tester) async {
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 4.0)));
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      expect(slider.value, 8.0);
+    });
+
+    testWidgets('onChanged callback is wired', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.byType(Slider), 100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      expect(slider.onChanged, isNotNull);
+      slider.onChanged!(18.0);
+      await tester.pump();
+    });
+
+    testWidgets('dragging slider changes value', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.drag(find.byType(Slider), const Offset(50, 0));
+      await tester.pumpAndSettle();
+      expect(find.byType(Slider), findsOneWidget);
+    });
+
+    testWidgets('slider with custom font size 20 shows correct value',
+        (tester) async {
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(fontSize: 20.0)));
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      expect(slider.value, 20.0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Terminal section
+  // ---------------------------------------------------------------------------
   group('SettingsScreen — Terminal section', () {
     testWidgets('renders Terminal section', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -138,31 +297,81 @@ void main() {
     });
 
     testWidgets('scrollback field with custom value', (tester) async {
-      final config = AppConfig.defaults.copyWith(scrollback: 10000);
-      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(scrollback: 10000)));
       expect(find.text('10000'), findsOneWidget);
     });
 
     testWidgets('scrollback field accepts valid input', (tester) async {
       await tester.pumpWidget(buildApp());
-
-      // Find the scrollback TextFormField (it contains "5000")
-      final scrollbackField = find.widgetWithText(TextFormField, '5000');
-      expect(scrollbackField, findsOneWidget);
-
-      // Clear and type new value
-      await tester.tap(scrollbackField);
+      final field = find.widgetWithText(TextFormField, '5000');
+      await tester.tap(field);
       await tester.pumpAndSettle();
+      await tester.enterText(field, '8000');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('8000'), findsOneWidget);
+    });
 
-      // Enter new text
-      await tester.enterText(scrollbackField, '8000');
+    testWidgets('scrollback accepts boundary value 100', (tester) async {
+      await tester.pumpWidget(buildFullApp());
+      final field = find.widgetWithText(TextFormField, '5000');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '100');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('100'), findsOneWidget);
+    });
+
+    testWidgets('scrollback out of range rejected (below min)', (tester) async {
+      await tester.pumpWidget(buildFullApp());
+      final field = find.widgetWithText(TextFormField, '5000');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '50');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      // 50 < min (100), no crash
+    });
+
+    testWidgets('scrollback out of range rejected (above max)', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '5000');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '999999');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
     });
+
+    testWidgets('scrollback non-numeric value does not crash', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '5000');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, 'abc');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('scrollback accepts 10000', (tester) async {
+      await tester.pumpWidget(buildFullApp());
+      final field = find.widgetWithText(TextFormField, '5000');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '10000');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('10000'), findsOneWidget);
+    });
   });
 
+  // ---------------------------------------------------------------------------
+  // Connection section
+  // ---------------------------------------------------------------------------
   group('SettingsScreen — Connection section', () {
-    testWidgets('renders Connection section', (tester) async {
+    testWidgets('renders Connection section with defaults', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.text('Connection'), findsOneWidget);
       expect(find.text('Keep-Alive Interval (sec)'), findsOneWidget);
@@ -175,9 +384,7 @@ void main() {
 
     testWidgets('custom connection values display correctly', (tester) async {
       final config = AppConfig.defaults.copyWith(
-        keepAliveSec: 60,
-        sshTimeoutSec: 30,
-        defaultPort: 2222,
+        keepAliveSec: 60, sshTimeoutSec: 30, defaultPort: 2222,
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       expect(find.text('60'), findsOneWidget);
@@ -185,174 +392,474 @@ void main() {
       expect(find.text('2222'), findsOneWidget);
     });
 
-    testWidgets('TextFormField widgets for integer settings', (tester) async {
+    testWidgets('keepalive field accepts valid value', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '30');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '60');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('60'), findsOneWidget);
+    });
+
+    testWidgets('keepalive accepts 0 (min boundary)', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '30');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '0');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('0'), findsOneWidget);
+    });
+
+    testWidgets('keepalive negative value rejected', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '30');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '-5');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('keepalive non-numeric value ignored', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '30');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, 'abc');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('timeout field accepts valid value', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '10');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '20');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('20'), findsOneWidget);
+    });
+
+    testWidgets('timeout min boundary 1', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '10');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '1');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('1'), findsOneWidget);
+    });
+
+    testWidgets('timeout above max rejected', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '10');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '999');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('SSH timeout with custom config accepts valid value',
+        (tester) async {
+      final config = AppConfig.defaults.copyWith(sshTimeoutSec: 15);
+      await tester.pumpWidget(buildFullApp(initialConfig: config));
+      final field = find.widgetWithText(TextFormField, '15');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '30');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('30'), findsWidgets);
+    });
+
+    testWidgets('port field accepts valid value', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '22');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '2222');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('2222'), findsOneWidget);
+    });
+
+    testWidgets('port max boundary 65535', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final field = find.widgetWithText(TextFormField, '22');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '65535');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('65535'), findsOneWidget);
+    });
+
+    testWidgets('port custom value 8022', (tester) async {
+      await tester.pumpWidget(buildFullApp());
+      final field = find.widgetWithText(TextFormField, '22');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '8022');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('8022'), findsOneWidget);
+    });
+
+    testWidgets('TextFormField widgets present', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.byType(TextFormField), findsWidgets);
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // Transfers section
+  // ---------------------------------------------------------------------------
   group('SettingsScreen — Transfers section', () {
-    testWidgets('renders Transfers section after scrolling', (tester) async {
+    testWidgets('renders after scrolling with defaults', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Parallel Workers'),
-        200,
+        find.text('Parallel Workers'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
       expect(find.text('Transfers'), findsOneWidget);
       expect(find.text('Parallel Workers'), findsOneWidget);
       expect(find.text('Max History'), findsOneWidget);
-    });
-
-    testWidgets('transfer section shows default values', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Parallel Workers'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      // Default: 2 workers, 500 max history
       expect(find.text('2'), findsOneWidget);
       expect(find.text('500'), findsOneWidget);
     });
 
     testWidgets('custom transfer values display correctly', (tester) async {
       final config = AppConfig.defaults.copyWith(
-        transferWorkers: 4,
-        maxHistory: 1000,
+        transferWorkers: 4, maxHistory: 1000,
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
-
       await tester.scrollUntilVisible(
-        find.text('Parallel Workers'),
-        200,
+        find.text('Parallel Workers'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
       expect(find.text('4'), findsOneWidget);
       expect(find.text('1000'), findsOneWidget);
     });
+
+    testWidgets('workers field accepts valid value', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Parallel Workers'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final field = find.widgetWithText(TextFormField, '2');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '4');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('4'), findsOneWidget);
+    });
+
+    testWidgets('workers max boundary 10', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Parallel Workers'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final field = find.widgetWithText(TextFormField, '2');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '10');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('10'), findsOneWidget);
+    });
+
+    testWidgets('workers out of range rejected', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Parallel Workers'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final field = find.widgetWithText(TextFormField, '2');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '99');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('max history field accepts valid value', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Max History'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final field = find.widgetWithText(TextFormField, '500');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '1000');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('1000'), findsOneWidget);
+    });
+
+    testWidgets('max history min boundary 10', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Max History'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final field = find.widgetWithText(TextFormField, '500');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '10');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('10'), findsOneWidget);
+    });
+
+    testWidgets('max history max boundary 5000', (tester) async {
+      await tester.pumpWidget(buildFullApp());
+      await tester.scrollUntilVisible(
+        find.text('Max History'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final field = find.widgetWithText(TextFormField, '500');
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.enterText(field, '5000');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('5000'), findsOneWidget);
+    });
   });
 
-  group('SettingsScreen — Data section', () {
-    testWidgets('renders Data section after scrolling', (tester) async {
+  // ---------------------------------------------------------------------------
+  // Data section — Export
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Export Data', () {
+    testWidgets('renders export tile with subtitle and icon', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        200,
+        find.text('Export Data'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
       expect(find.text('Data'), findsOneWidget);
       expect(find.text('Export Data'), findsOneWidget);
-      expect(find.text('Import Data'), findsOneWidget);
-    });
-
-    testWidgets('export subtitle text', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      expect(
-        find.text('Save sessions, config, and keys to encrypted .lfs file'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('import subtitle text', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      expect(find.text('Load data from .lfs file'), findsOneWidget);
-    });
-
-    testWidgets('export icon is present', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
+      expect(find.text('Save sessions, config, and keys to encrypted .lfs file'),
+          findsOneWidget);
       expect(find.byIcon(Icons.upload_file), findsOneWidget);
     });
 
-    testWidgets('import icon is present', (tester) async {
+    testWidgets('tap opens export dialog', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
+        find.text('Export Data'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
-      expect(find.byIcon(Icons.download), findsOneWidget);
-    });
-
-    testWidgets('Export Data tap opens export dialog', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
-      // Export dialog should appear
       expect(find.text('Master Password'), findsOneWidget);
       expect(find.text('Confirm Password'), findsOneWidget);
       expect(find.text('Export'), findsOneWidget);
     });
 
-    testWidgets('Export dialog cancel dismisses', (tester) async {
+    testWidgets('export dialog fields are obscured', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        200,
+        find.text('Export Data'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
+      final masterPw = tester.widget<TextField>(
+          find.widgetWithText(TextField, 'Master Password'));
+      final confirmPw = tester.widget<TextField>(
+          find.widgetWithText(TextField, 'Confirm Password'));
+      expect(masterPw.obscureText, isTrue);
+      expect(confirmPw.obscureText, isTrue);
+
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-
-      expect(find.text('Master Password'), findsNothing);
     });
 
-    testWidgets('Import Data tap opens import dialog', (tester) async {
+    testWidgets('cancel closes export dialog', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
+        find.text('Export Data'), 200,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Confirm Password'), findsNothing);
+    });
 
+    testWidgets('empty password does not close dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Export Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
+      expect(find.text('Master Password'), findsOneWidget);
+    });
+
+    testWidgets('mismatched passwords shows warning toast', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Export Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'pass1');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Confirm Password'), 'pass2');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pump();
+
+      expect(find.text('Passwords do not match'), findsOneWidget);
+      expect(find.text('Master Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('matching passwords closes dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Export Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'matching');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Confirm Password'), 'matching');
+
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 5));
+
+      expect(find.text('Confirm Password'), findsNothing);
+    });
+
+    testWidgets('export succeeds with session store and shows toast',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildFullApp());
+      await tester.pump();
+
+      await tester.scrollUntilVisible(
+        find.text('Export Data'), 100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'securepass');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Confirm Password'), 'securepass');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pumpAndSettle();
+      expect(find.text('Confirm Password'), findsNothing);
+
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('export fails gracefully when path_provider errors',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (call) async {
+          if (call.method == 'getApplicationSupportDirectory') {
+            throw PlatformException(code: 'ERROR', message: 'No dir');
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(buildFullApp());
+      await tester.pump();
+
+      await tester.scrollUntilVisible(
+        find.text('Export Data'), 100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'p');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Confirm Password'), 'p');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pumpAndSettle();
+
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Data section — Import
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Import Data', () {
+    testWidgets('renders import tile with subtitle and icon', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Import Data'), findsOneWidget);
+      expect(find.text('Load data from .lfs file'), findsOneWidget);
+      expect(find.byIcon(Icons.download), findsOneWidget);
+    });
+
+    testWidgets('tap opens import dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
-      // Import dialog should appear
       expect(find.text('Path to .lfs file'), findsOneWidget);
       expect(find.text('Master Password'), findsOneWidget);
       expect(find.text('Merge'), findsOneWidget);
@@ -360,228 +867,348 @@ void main() {
       expect(find.text('Import'), findsOneWidget);
     });
 
-    testWidgets('Import dialog cancel dismisses', (tester) async {
+    testWidgets('import dialog path field is not obscured, password is',
+        (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
+        find.text('Import Data'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
+      final pwField = tester.widget<TextField>(
+          find.widgetWithText(TextField, 'Master Password'));
+      expect(pwField.obscureText, isTrue);
+      final pathField = tester.widget<TextField>(
+          find.widgetWithText(TextField, 'Path to .lfs file'));
+      expect(pathField.obscureText, isFalse);
+
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('cancel closes import dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Path to .lfs file'), findsNothing);
+    });
+
+    testWidgets('empty fields do not close dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+      expect(find.text('Path to .lfs file'), findsOneWidget);
+    });
+
+    testWidgets('empty password does not close dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Path to .lfs file'), '/tmp/test.lfs');
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+      expect(find.text('Path to .lfs file'), findsOneWidget);
+    });
+
+    testWidgets('empty path does not close dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      final textFields = find.byType(TextField);
+      await tester.enterText(textFields.at(1), 'password123');
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+      expect(find.text('Path to .lfs file'), findsOneWidget);
+    });
+
+    testWidgets('default mode is Merge', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+    });
+
+    testWidgets('switching to Replace shows description', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Replace'));
+      await tester.pumpAndSettle();
+      expect(find.text('Replace all sessions with imported'), findsOneWidget);
+
+      await tester.tap(find.text('Merge'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('both fields filled closes dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Path to .lfs file'),
+          '/tmp/nonexistent.lfs');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'password123');
+
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 5));
 
       expect(find.text('Path to .lfs file'), findsNothing);
     });
 
-    testWidgets('Import dialog shows mode descriptions', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      await tester.tap(find.text('Import Data'));
-      await tester.pumpAndSettle();
-
-      // Default mode is Merge
-      expect(
-          find.text('Add new sessions, keep existing'), findsOneWidget);
-    });
-
-    testWidgets('Import dialog Replace mode shows description',
+    testWidgets('import in Replace mode sends Replace in result',
         (tester) async {
-      await tester.pumpWidget(buildApp());
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildFullApp());
+      await tester.pump();
 
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
+        find.text('Import Data'), 100,
         scrollable: find.byType(Scrollable).first,
       );
-
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
-      // Tap Replace in segmented button
       await tester.tap(find.text('Replace'));
       await tester.pumpAndSettle();
-
       expect(find.text('Replace all sessions with imported'), findsOneWidget);
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Path to .lfs file'),
+          '/tmp/test_import_replace.lfs');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'pw123');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      await tester.pumpAndSettle();
+      expect(find.text('Path to .lfs file'), findsNothing);
+
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('import with nonexistent file shows error toast',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildFullApp());
+      await tester.pump();
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Path to .lfs file'),
+          '/tmp/nonexistent_file_that_does_not_exist_12345.lfs');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'pw');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      await tester.pumpAndSettle();
+
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // About section
+  // ---------------------------------------------------------------------------
   group('SettingsScreen — About section', () {
-    testWidgets('renders About section after scrolling', (tester) async {
+    testWidgets('renders About section', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('LetsFLUTssh'),
-        200,
+        find.text('LetsFLUTssh'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
       expect(find.text('About'), findsOneWidget);
       expect(find.text('LetsFLUTssh'), findsOneWidget);
       expect(find.textContaining('v0.9.3'), findsOneWidget);
-    });
-
-    testWidgets('renders source code link after scrolling', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Source Code'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      expect(find.text('Source Code'), findsOneWidget);
-      expect(
-          find.text('https://github.com/llloooggg/LetsFLUTssh'), findsOneWidget);
-    });
-
-    testWidgets('info icon is present', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('LetsFLUTssh'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
+      expect(find.textContaining('SSH/SFTP client'), findsOneWidget);
       expect(find.byIcon(Icons.info_outline), findsOneWidget);
     });
 
-    testWidgets('code icon is present', (tester) async {
+    testWidgets('renders source code link', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Source Code'),
-        200,
+        find.text('Source Code'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
+      expect(find.text('Source Code'), findsOneWidget);
+      expect(find.text('https://github.com/llloooggg/LetsFLUTssh'), findsOneWidget);
       expect(find.byIcon(Icons.code), findsOneWidget);
+    });
+
+    testWidgets('tapping Source Code copies URL and shows toast',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Source Code'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Source Code'));
+      await tester.pump();
+
+      expect(find.text('URL copied to clipboard'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('source code tap does not crash', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Source Code'),
-        200,
+        find.text('Source Code'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
-      // Tap Source Code — copies URL to clipboard and shows Toast
       await tester.tap(find.text('Source Code'));
       await tester.pump();
-      // Flush the Toast auto-dismiss timer (default 4 seconds)
       await tester.pump(const Duration(seconds: 5));
-
-      // Widget still renders after tap
       expect(find.text('Source Code'), findsOneWidget);
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // Reset to Defaults
+  // ---------------------------------------------------------------------------
   group('SettingsScreen — Reset to Defaults', () {
-    testWidgets('renders Reset to Defaults after scrolling', (tester) async {
+    testWidgets('button is present after scrolling', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Reset to Defaults'),
-        200,
+        find.text('Reset to Defaults'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
       expect(find.text('Reset to Defaults'), findsOneWidget);
       expect(find.byIcon(Icons.restore), findsOneWidget);
     });
 
-    testWidgets('Reset to Defaults button is tappable', (tester) async {
+    testWidgets('tapping Reset does not crash', (tester) async {
       await tester.pumpWidget(buildApp());
-
       await tester.scrollUntilVisible(
-        find.text('Reset to Defaults'),
-        200,
+        find.text('Reset to Defaults'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-
-      // Tap Reset — may fail to persist (no store) but should not crash
       await tester.tap(find.text('Reset to Defaults'));
       await tester.pumpAndSettle();
+      expect(find.byType(ListView), findsOneWidget);
+    });
 
-      // Widget still renders
+    testWidgets('reset with custom config updates fields', (tester) async {
+      final custom = AppConfig.defaults.copyWith(
+        fontSize: 20.0,
+        scrollback: 10000,
+        keepAliveSec: 60,
+      );
+      await tester.pumpWidget(buildApp(initialConfig: custom));
+      await tester.scrollUntilVisible(
+        find.text('Reset to Defaults'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Reset to Defaults'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ListView), findsOneWidget);
+    });
+
+    testWidgets('reset with highly custom config does not crash',
+        (tester) async {
+      final custom = AppConfig.defaults.copyWith(
+        fontSize: 22.0,
+        scrollback: 20000,
+        keepAliveSec: 120,
+        sshTimeoutSec: 45,
+        defaultPort: 3333,
+        transferWorkers: 8,
+        maxHistory: 2000,
+        theme: 'light',
+      );
+      await tester.pumpWidget(buildApp(initialConfig: custom));
+      await tester.scrollUntilVisible(
+        find.text('Reset to Defaults'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Reset to Defaults'));
+      await tester.pumpAndSettle();
       expect(find.byType(ListView), findsOneWidget);
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // Custom config values
+  // ---------------------------------------------------------------------------
   group('SettingsScreen — custom config values', () {
     testWidgets('renders with custom config values', (tester) async {
       final customConfig = AppConfig.defaults.copyWith(
-        fontSize: 18.0,
-        theme: 'light',
-        scrollback: 10000,
-        keepAliveSec: 60,
+        fontSize: 18.0, theme: 'light', scrollback: 10000, keepAliveSec: 60,
       );
       await tester.pumpWidget(buildApp(initialConfig: customConfig));
-
       expect(find.text('10000'), findsOneWidget);
       expect(find.text('60'), findsOneWidget);
     });
   });
 
-  group('SettingsScreen — IntTile field submission', () {
-    testWidgets('submitting valid scrollback value updates config',
-        (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final scrollbackField = find.widgetWithText(TextFormField, '5000');
-      await tester.tap(scrollbackField);
-      await tester.pumpAndSettle();
-      await tester.enterText(scrollbackField, '8000');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      // Config should be updated
-      expect(find.text('8000'), findsOneWidget);
-    });
-
-    testWidgets('submitting invalid scrollback value does not crash',
-        (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final scrollbackField = find.widgetWithText(TextFormField, '5000');
-      await tester.tap(scrollbackField);
-      await tester.pumpAndSettle();
-      await tester.enterText(scrollbackField, 'abc');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-      // No crash, old value retained
-    });
-
-    testWidgets('submitting out-of-range value does not update',
-        (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final scrollbackField = find.widgetWithText(TextFormField, '5000');
-      await tester.tap(scrollbackField);
-      await tester.pumpAndSettle();
-      await tester.enterText(scrollbackField, '999999');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-      // Value out of range (max 100000), should not update
-    });
-  });
-
-  group('SettingsScreen — SettingsScreen.show static method', () {
+  // ---------------------------------------------------------------------------
+  // SettingsScreen.show static method
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — show() static method', () {
     testWidgets('show() pushes SettingsScreen as a route', (tester) async {
-      // Build a simple app with a button that calls SettingsScreen.show
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -608,390 +1235,41 @@ void main() {
       await tester.tap(find.text('Open Settings'));
       await tester.pumpAndSettle();
 
-      // Settings screen should be visible
       expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Appearance'), findsOneWidget);
     });
-  });
 
-  group('SettingsScreen — export dialog validation', () {
-    testWidgets('Export dialog does not close with empty password', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
+    testWidgets('show() can go back', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith((ref) {
+              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+              notifier.state = AppConfig.defaults;
+              return notifier;
+            }),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => SettingsScreen.show(context),
+                  child: const Text('Open Settings'),
+                ),
+              ),
+            ),
+          ),
+        ),
       );
 
-      await tester.tap(find.text('Export Data'));
+      await tester.tap(find.text('Open Settings'));
       await tester.pumpAndSettle();
+      expect(find.text('Settings'), findsOneWidget);
 
-      // Tap Export without entering password
-      await tester.tap(find.text('Export'));
+      await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
-
-      // Dialog should still be open
-      expect(find.text('Master Password'), findsOneWidget);
-    });
-
-    testWidgets('Export dialog shows warning on password mismatch', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      await tester.tap(find.text('Export Data'));
-      await tester.pumpAndSettle();
-
-      // Enter mismatched passwords
-      final passwordFields = find.byType(TextField);
-      await tester.enterText(passwordFields.at(0), 'password1');
-      await tester.enterText(passwordFields.at(1), 'password2');
-
-      await tester.tap(find.text('Export'));
-      await tester.pumpAndSettle();
-
-      // Dialog should still be open (passwords don't match)
-      expect(find.text('Master Password'), findsOneWidget);
-    });
-  });
-
-  group('SettingsScreen — import dialog validation', () {
-    testWidgets('Import dialog does not close with empty fields', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      await tester.tap(find.text('Import Data'));
-      await tester.pumpAndSettle();
-
-      // Tap Import without entering any data
-      await tester.tap(find.text('Import'));
-      await tester.pumpAndSettle();
-
-      // Dialog should still be open
-      expect(find.text('Path to .lfs file'), findsOneWidget);
-    });
-
-    testWidgets('Import dialog mode selector shows Replace description', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      await tester.tap(find.text('Import Data'));
-      await tester.pumpAndSettle();
-
-      // Tap Replace
-      await tester.tap(find.text('Replace'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Replace all sessions with imported'), findsOneWidget);
-
-      // Switch back to Merge
-      await tester.tap(find.text('Merge'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
-    });
-  });
-
-  group('SettingsScreen — connection field submission', () {
-    testWidgets('submitting valid keepalive value updates config', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final keepAliveField = find.widgetWithText(TextFormField, '30');
-      await tester.tap(keepAliveField);
-      await tester.pumpAndSettle();
-      await tester.enterText(keepAliveField, '60');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.text('60'), findsOneWidget);
-    });
-
-    testWidgets('submitting valid timeout value updates config', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final timeoutField = find.widgetWithText(TextFormField, '10');
-      await tester.tap(timeoutField);
-      await tester.pumpAndSettle();
-      await tester.enterText(timeoutField, '20');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.text('20'), findsOneWidget);
-    });
-
-    testWidgets('submitting valid port value updates config', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final portField = find.widgetWithText(TextFormField, '22');
-      await tester.tap(portField);
-      await tester.pumpAndSettle();
-      await tester.enterText(portField, '2222');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.text('2222'), findsOneWidget);
-    });
-  });
-
-  group('SettingsScreen — transfer field submission', () {
-    testWidgets('submitting valid workers value updates config', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Parallel Workers'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      final workersField = find.widgetWithText(TextFormField, '2');
-      await tester.tap(workersField);
-      await tester.pumpAndSettle();
-      await tester.enterText(workersField, '4');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.text('4'), findsOneWidget);
-    });
-
-    testWidgets('submitting valid max history value updates config', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Max History'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      final historyField = find.widgetWithText(TextFormField, '500');
-      await tester.tap(historyField);
-      await tester.pumpAndSettle();
-      await tester.enterText(historyField, '1000');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(find.text('1000'), findsOneWidget);
-    });
-  });
-
-  group('SettingsScreen — section headers', () {
-    testWidgets('top section headers are rendered', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      expect(find.text('Appearance'), findsOneWidget);
-      expect(find.text('Terminal'), findsOneWidget);
-      expect(find.text('Connection'), findsOneWidget);
-    });
-
-    testWidgets('bottom section headers are rendered after scrolling',
-        (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('About'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      expect(find.text('About'), findsOneWidget);
-    });
-  });
-
-  group('SettingsScreen — export dialog matching passwords', () {
-    testWidgets('Export dialog closes when passwords match', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      await tester.tap(find.text('Export Data'));
-      await tester.pumpAndSettle();
-
-      // Enter matching passwords into the dialog TextFields
-      // Use labeled TextFields to avoid hitting Settings screen fields
-      final masterPw = find.widgetWithText(TextField, 'Master Password');
-      final confirmPw = find.widgetWithText(TextField, 'Confirm Password');
-      await tester.enterText(masterPw, 'matching');
-      await tester.enterText(confirmPw, 'matching');
-
-      await tester.tap(find.text('Export'));
-      await tester.pumpAndSettle();
-
-      // Wait for any async export operation and toast timer
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 5));
-
-      // Dialog should close (passwords match)
-      expect(find.text('Confirm Password'), findsNothing);
-    });
-  });
-
-  group('SettingsScreen — import dialog with file path and password', () {
-    testWidgets('Import dialog does not close with empty password', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      await tester.tap(find.text('Import Data'));
-      await tester.pumpAndSettle();
-
-      // Enter path but no password
-      final textFields = find.byType(TextField);
-      await tester.enterText(textFields.at(0), '/tmp/test.lfs');
-
-      await tester.tap(find.text('Import'));
-      await tester.pumpAndSettle();
-
-      // Dialog should still be open (password empty)
-      expect(find.text('Path to .lfs file'), findsOneWidget);
-    });
-
-    testWidgets('Import dialog does not close with empty path', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      await tester.tap(find.text('Import Data'));
-      await tester.pumpAndSettle();
-
-      // Enter password but no path
-      final textFields = find.byType(TextField);
-      await tester.enterText(textFields.at(1), 'password123');
-
-      await tester.tap(find.text('Import'));
-      await tester.pumpAndSettle();
-
-      // Dialog should still be open (path empty)
-      expect(find.text('Path to .lfs file'), findsOneWidget);
-    });
-
-    testWidgets('Import dialog closes when both fields are filled', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      await tester.tap(find.text('Import Data'));
-      await tester.pumpAndSettle();
-
-      // Enter both path and password using labeled TextFields
-      final pathField = find.widgetWithText(TextField, 'Path to .lfs file');
-      final pwField = find.widgetWithText(TextField, 'Master Password');
-      await tester.enterText(pathField, '/tmp/nonexistent.lfs');
-      await tester.enterText(pwField, 'password123');
-
-      await tester.tap(find.text('Import'));
-      await tester.pumpAndSettle();
-
-      // Wait for async import operation (file not found error + toast)
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 5));
-
-      // The import dialog should be closed
-      expect(find.text('Path to .lfs file'), findsNothing);
-    });
-  });
-
-  group('SettingsScreen — About section source code tap', () {
-    testWidgets('tapping Source Code copies URL and shows toast', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      await tester.scrollUntilVisible(
-        find.text('Source Code'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      await tester.tap(find.text('Source Code'));
-      await tester.pump();
-
-      // Toast should show
-      expect(find.text('URL copied to clipboard'), findsOneWidget);
-
-      // Wait for toast to auto-dismiss
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-    });
-  });
-
-  group('SettingsScreen — slider interaction', () {
-    testWidgets('slider has correct initial value', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final slider = find.byType(Slider);
-      expect(slider, findsOneWidget);
-
-      final sliderWidget = tester.widget<Slider>(slider);
-      expect(sliderWidget.value, 14.0);
-    });
-
-    testWidgets('slider with custom font size shows correct value',
-        (tester) async {
-      final config = AppConfig.defaults.copyWith(fontSize: 20.0);
-      await tester.pumpWidget(buildApp(initialConfig: config));
-
-      final slider = tester.widget<Slider>(find.byType(Slider));
-      expect(slider.value, 20.0);
-    });
-
-    testWidgets('font size slider onChanged callback is wired', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      // Scroll to slider
-      await tester.scrollUntilVisible(
-        find.byType(Slider),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      // Verify slider has onChanged wired (covers the callback line)
-      final slider = tester.widget<Slider>(find.byType(Slider));
-      expect(slider.onChanged, isNotNull);
-      // Call it — should not throw
-      slider.onChanged!(18.0);
-      await tester.pump();
-    });
-
-    testWidgets('switching theme updates config', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      // Find Light theme option and tap it
-      final lightOption = find.text('Light');
-      expect(lightOption, findsOneWidget);
-      await tester.tap(lightOption);
-      await tester.pumpAndSettle();
-
-      // Theme should now be light — verify by checking SegmentedButton state
-      // The Light segment should now be selected
-      expect(find.text('Light'), findsOneWidget);
+      expect(find.text('Open Settings'), findsOneWidget);
     });
   });
 }

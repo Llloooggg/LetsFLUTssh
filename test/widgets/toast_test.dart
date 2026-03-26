@@ -16,6 +16,10 @@ void main() {
     );
   }
 
+  tearDown(() {
+    Toast.clearAllForTest();
+  });
+
   group('Toast — basic display', () {
     testWidgets('shows info toast with message', (tester) async {
       await tester.pumpWidget(buildApp(
@@ -29,14 +33,14 @@ void main() {
       expect(find.text('Hello info'), findsOneWidget);
       expect(find.byIcon(Icons.info_outline), findsOneWidget);
 
-      // Wait for auto-dismiss
       await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
     });
 
     testWidgets('shows success toast', (tester) async {
       await tester.pumpWidget(buildApp(
-        onPressed: (ctx) => Toast.show(ctx, message: 'Done!', level: ToastLevel.success),
+        onPressed: (ctx) =>
+            Toast.show(ctx, message: 'Done!', level: ToastLevel.success),
       ));
 
       await tester.tap(find.text('Show Toast'));
@@ -52,7 +56,8 @@ void main() {
 
     testWidgets('shows warning toast', (tester) async {
       await tester.pumpWidget(buildApp(
-        onPressed: (ctx) => Toast.show(ctx, message: 'Watch out', level: ToastLevel.warning),
+        onPressed: (ctx) =>
+            Toast.show(ctx, message: 'Watch out', level: ToastLevel.warning),
       ));
 
       await tester.tap(find.text('Show Toast'));
@@ -68,7 +73,8 @@ void main() {
 
     testWidgets('shows error toast', (tester) async {
       await tester.pumpWidget(buildApp(
-        onPressed: (ctx) => Toast.show(ctx, message: 'Oops', level: ToastLevel.error),
+        onPressed: (ctx) =>
+            Toast.show(ctx, message: 'Oops', level: ToastLevel.error),
       ));
 
       await tester.tap(find.text('Show Toast'));
@@ -99,11 +105,32 @@ void main() {
 
       expect(find.text('Temp'), findsOneWidget);
 
-      // Wait for the duration + animation
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
 
       expect(find.text('Temp'), findsNothing);
+    });
+
+    testWidgets('auto-dismiss triggers reverse animation', (tester) async {
+      await tester.pumpWidget(buildApp(
+        onPressed: (ctx) => Toast.show(
+          ctx,
+          message: 'Auto Close',
+          duration: const Duration(milliseconds: 500),
+        ),
+      ));
+
+      await tester.tap(find.text('Show Toast'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('Auto Close'), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Auto Close'), findsNothing);
     });
   });
 
@@ -113,7 +140,7 @@ void main() {
         onPressed: (ctx) => Toast.show(
           ctx,
           message: 'Closeable',
-          duration: const Duration(seconds: 30), // long so auto-dismiss won't interfere
+          duration: const Duration(seconds: 30),
         ),
       ));
 
@@ -123,15 +150,38 @@ void main() {
 
       expect(find.text('Closeable'), findsOneWidget);
 
-      // Tap the close icon
       await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
 
       expect(find.text('Closeable'), findsNothing);
     });
+
+    testWidgets('reverse animation completes on dismiss', (tester) async {
+      await tester.pumpWidget(buildApp(
+        onPressed: (ctx) => Toast.show(
+          ctx,
+          message: 'Dismiss Me',
+          duration: const Duration(seconds: 30),
+        ),
+      ));
+
+      await tester.tap(find.text('Show Toast'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('Dismiss Me'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dismiss Me'), findsNothing);
+    });
   });
 
-  group('Toast — stacking multiple toasts', () {
+  group('Toast — stacking and clearing', () {
     testWidgets('multiple toasts stack vertically', (tester) async {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
@@ -160,25 +210,131 @@ void main() {
         ),
       ));
 
-      // Show first toast
       await tester.tap(find.text('Toast 1'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
-      expect(find.text('Toast 1'), findsWidgets); // button + toast
+      expect(find.text('Toast 1'), findsWidgets);
 
-      // Show second toast
       await tester.tap(find.text('Toast 2 btn'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
-      // Both toasts should be visible
       expect(find.text('Toast 1'), findsWidgets);
       expect(find.text('Toast 2'), findsOneWidget);
 
-      // Clean up - wait for auto-dismiss
       await tester.pump(const Duration(seconds: 11));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('dismissing first toast updates remaining positions',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => Column(
+              children: [
+                ElevatedButton(
+                  onPressed: () => Toast.show(
+                    context,
+                    message: 'First',
+                    duration: const Duration(seconds: 5),
+                  ),
+                  child: const Text('Show First'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Toast.show(
+                    context,
+                    message: 'Second',
+                    duration: const Duration(seconds: 5),
+                  ),
+                  child: const Text('Show Second'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ));
+
+      await tester.tap(find.text('Show First'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      await tester.tap(find.text('Show Second'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('First'), findsOneWidget);
+      expect(find.text('Second'), findsOneWidget);
+
+      final closeIcons = find.byIcon(Icons.close);
+      expect(closeIcons, findsNWidgets(2));
+
+      await tester.tap(closeIcons.first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('First'), findsNothing);
+      expect(find.text('Second'), findsOneWidget);
+
+      // Wait for remaining timer to expire
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('three stacked toasts are all visible', (tester) async {
+      await tester.pumpWidget(buildApp(
+        onPressed: (ctx) {
+          Toast.show(ctx, message: 'Stack1',
+              duration: const Duration(seconds: 2));
+          Toast.show(ctx, message: 'Stack2',
+              duration: const Duration(seconds: 2));
+          Toast.show(ctx, message: 'Stack3',
+              duration: const Duration(seconds: 2));
+        },
+      ));
+
+      await tester.tap(find.text('Show Toast'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('Stack1'), findsOneWidget);
+      expect(find.text('Stack2'), findsOneWidget);
+      expect(find.text('Stack3'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('Toast — clearAllForTest', () {
+    testWidgets('removes all pending toasts', (tester) async {
+      await tester.pumpWidget(buildApp(
+        onPressed: (ctx) {
+          Toast.show(ctx, message: 'A',
+              duration: const Duration(seconds: 2));
+          Toast.show(ctx, message: 'B',
+              duration: const Duration(seconds: 2));
+          Toast.show(ctx, message: 'C',
+              duration: const Duration(seconds: 2));
+        },
+      ));
+
+      await tester.tap(find.text('Show Toast'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('A'), findsOneWidget);
+      expect(find.text('B'), findsOneWidget);
+      expect(find.text('C'), findsOneWidget);
+
+      Toast.clearAllForTest();
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('on empty list does not crash', (tester) async {
+      await tester.pumpWidget(buildApp(onPressed: (_) {}));
+      Toast.clearAllForTest();
     });
   });
 }
