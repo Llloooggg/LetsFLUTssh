@@ -156,6 +156,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: linux-x64
+          retention-days: 7
           path: |
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
@@ -193,6 +194,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: windows-x64
+          retention-days: 7
           path: |
             letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
             letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
@@ -225,6 +227,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: macos-universal
+          retention-days: 7
           path: |
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
@@ -260,6 +263,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: android-apk
+          retention-days: 7
           path: build/app/outputs/flutter-apk/letsflutssh-*.apk
 
   release:
