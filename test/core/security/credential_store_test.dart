@@ -244,6 +244,12 @@ void main() {
       expect(a, isNot(equals(b)));
     });
 
+    test('different passphrase not equal', () {
+      const a = CredentialData(password: 'p', keyData: 'k', passphrase: 'pp1');
+      const b = CredentialData(password: 'p', keyData: 'k', passphrase: 'pp2');
+      expect(a, isNot(equals(b)));
+    });
+
     test('empty credentials are equal', () {
       const a = CredentialData();
       const b = CredentialData();

@@ -209,6 +209,29 @@ void main() {
       // If all required fields are filled, dialog closes
     });
 
+    testWidgets('host field onFieldSubmitted triggers _submit with valid fields', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Fill required fields
+      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'admin');
+      await tester.pumpAndSettle();
+
+      // Now enter text in host field (this gives it focus)
+      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'submit.host');
+      await tester.pumpAndSettle();
+
+      // Submit via Enter on host field (onFieldSubmitted)
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      // Should close dialog and return config
+      expect(dialogResult, isNotNull);
+      expect(dialogResult!.host, 'submit.host');
+      expect(dialogResult!.user, 'admin');
+    });
+
     testWidgets('Connect with PEM key data', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));

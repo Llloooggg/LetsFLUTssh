@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/features/file_browser/file_row.dart';
@@ -126,6 +127,36 @@ void main() {
       )));
       // No owner text rendered
       expect(find.text('root'), findsNothing);
+    });
+
+    testWidgets('onCtrlTap callback fires when Ctrl is held', (tester) async {
+      var ctrlTapped = false;
+      var normalTapped = false;
+      await tester.pumpWidget(buildApp(FileRow(
+        entry: FileEntry(
+          name: 'ctrl.txt',
+          path: '/ctrl.txt',
+          size: 0,
+          modTime: now,
+          isDir: false,
+        ),
+        isSelected: false,
+        onTap: () => normalTapped = true,
+        onCtrlTap: () => ctrlTapped = true,
+        onDoubleTap: () {},
+        onContextMenu: (_) {},
+      )));
+
+      // Hold Ctrl, then tap
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlRight);
+      await tester.tap(find.byType(InkWell));
+      // InkWell with onDoubleTap delays onTap until double-tap timeout expires
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlRight);
+
+      expect(ctrlTapped, isTrue);
+      expect(normalTapped, isFalse);
     });
 
     testWidgets('onTap callback fires', (tester) async {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +18,55 @@ Widget _buildTestWidget({
     overrides: [
       transferManagerProvider.overrideWithValue(manager),
       transferHistoryProvider.overrideWith((ref) => Stream.value(history)),
+      transferStatusProvider.overrideWith((ref) => Stream.value(status)),
+    ],
+    child: const MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            Expanded(child: SizedBox()),
+            TransferPanel(),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildTestWidgetWithHistoryError({
+  required TransferManager manager,
+  ActiveTransferState status = const ActiveTransferState(),
+}) {
+  return ProviderScope(
+    overrides: [
+      transferManagerProvider.overrideWithValue(manager),
+      transferHistoryProvider.overrideWith(
+          (ref) => Stream<List<HistoryEntry>>.error(Exception('load failed'))),
+      transferStatusProvider.overrideWith((ref) => Stream.value(status)),
+    ],
+    child: const MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            Expanded(child: SizedBox()),
+            TransferPanel(),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildTestWidgetWithHistoryLoading({
+  required TransferManager manager,
+  ActiveTransferState status = const ActiveTransferState(),
+}) {
+  // A stream that never emits keeps the AsyncValue in loading state.
+  return ProviderScope(
+    overrides: [
+      transferManagerProvider.overrideWithValue(manager),
+      transferHistoryProvider.overrideWith(
+          (ref) => StreamController<List<HistoryEntry>>().stream),
       transferStatusProvider.overrideWith((ref) => Stream.value(status)),
     ],
     child: const MaterialApp(
@@ -497,6 +548,41 @@ void main() {
 
       // Collapsed: no clear button
       expect(find.byIcon(Icons.delete_sweep), findsNothing);
+    });
+
+    testWidgets('shows error text when history stream errors (expanded)', (tester) async {
+      await tester.pumpWidget(_buildTestWidgetWithHistoryError(manager: manager));
+      await tester.pumpAndSettle();
+
+      // Expand panel
+      await tester.tap(find.text('Transfers'));
+      await tester.pumpAndSettle();
+
+      // Should show error text
+      expect(find.textContaining('Error:'), findsOneWidget);
+    });
+
+    testWidgets('shows SizedBox.shrink in header when history stream errors', (tester) async {
+      await tester.pumpWidget(_buildTestWidgetWithHistoryError(manager: manager));
+      await tester.pumpAndSettle();
+
+      // Header should not show "in history" count — the error callback returns SizedBox.shrink
+      expect(find.textContaining('in history'), findsNothing);
+    });
+
+    testWidgets('shows loading spinner when history stream is pending (expanded)', (tester) async {
+      await tester.pumpWidget(_buildTestWidgetWithHistoryLoading(manager: manager));
+      // Don't settle — stream never emits, so we stay in loading state
+      await tester.pump();
+      await tester.pump();
+
+      // Expand panel
+      await tester.tap(find.text('Transfers'));
+      await tester.pump();
+      await tester.pump();
+
+      // Should show CircularProgressIndicator in the expanded history area
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
     testWidgets('shows active transfer status in header', (tester) async {

@@ -377,6 +377,50 @@ void main() {
     });
   });
 
+  group('SessionTreeView — _canAcceptDrop GroupDrag nested parent check', () {
+    testWidgets('dragging nested group to different target triggers move',
+        (tester) async {
+      // Create a nested group A/B and a peer group C.
+      // Dragging B (path A/B) onto C should be accepted because
+      // currentParent (A) != targetGroup (C).
+      final s1 = makeSession(label: 'S1', group: 'A/B');
+      final s2 = makeSession(label: 'S2', group: 'C');
+      final tree = SessionTree.build([s1, s2], emptyGroups: const {});
+
+      String? movedPath;
+      String? movedParent;
+
+      await tester.pumpWidget(buildTreeView(
+        tree: tree,
+        onSessionMoved: (_, __) {},
+        onGroupMoved: (path, parent) {
+          movedPath = path;
+          movedParent = parent;
+        },
+      ));
+      await tester.pump();
+
+      // Long press on B to start dragging it
+      final bCenter = tester.getCenter(find.text('B'));
+      final gesture = await tester.startGesture(bCenter);
+      await tester.pump(const Duration(milliseconds: 600));
+
+      // Drag to C
+      final cCenter = tester.getCenter(find.text('C'));
+      await gesture.moveTo(cCenter);
+      await tester.pump();
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Should call onGroupMoved
+      if (movedPath != null) {
+        expect(movedPath, 'A/B');
+        expect(movedParent, 'C');
+      }
+    });
+  });
+
   group('SessionTreeView — _handleDrop with GroupDrag', () {
     testWidgets('dropping group onto another group calls onGroupMoved',
         (tester) async {

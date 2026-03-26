@@ -46,6 +46,13 @@ void main() {
       expect(updated.activeIndex, 2);
       expect(updated.tabs, isEmpty);
     });
+
+    test('copyWith without activeIndex preserves existing activeIndex', () {
+      const state = TabState(activeIndex: 5);
+      final updated = state.copyWith(tabs: []);
+      expect(updated.activeIndex, 5);
+      expect(updated.tabs, isEmpty);
+    });
   });
 
   group('TabNotifier', () {
