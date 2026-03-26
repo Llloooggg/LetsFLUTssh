@@ -5,6 +5,7 @@ import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 /// Covers session_tree_view.dart uncovered lines:
 /// - Line 137: mobile long-press background context menu
@@ -25,12 +26,7 @@ void main() {
     String host = 'h',
     String user = 'u',
   }) {
-    return Session(
-        label: label,
-        host: host,
-        user: user,
-        group: group,
-        authType: authType);
+    return Session(label: label, group: group, server: ServerAddress(host: host, user: user), auth: SessionAuth(authType: authType));
   }
 
   Widget buildTreeView({

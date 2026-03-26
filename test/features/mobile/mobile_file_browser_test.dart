@@ -100,7 +100,7 @@ void main() {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         state: SSHConnectionState.connecting,
       );
 
@@ -129,7 +129,7 @@ void main() {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
       );
 
       await tester.pumpWidget(
@@ -154,7 +154,7 @@ void main() {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
       );
 
       await tester.pumpWidget(
@@ -823,7 +823,7 @@ void main() {
       final conn = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
       );
       expect(conn.state, SSHConnectionState.disconnected);
       expect(conn.isConnected, isFalse);
@@ -833,14 +833,14 @@ void main() {
       final conn = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         state: SSHConnectionState.connected,
       );
       expect(conn.isConnected, isTrue);
     });
 
     test('stores ssh config', () {
-      const config = SSHConfig(host: 'example.com', user: 'admin', port: 2222);
+      const config = SSHConfig(server: ServerAddress(host: 'example.com', port: 2222, user: 'admin'));
       final conn = Connection(
         id: 'test-1',
         label: 'My Server',
@@ -856,7 +856,7 @@ void main() {
       final conn = Connection(
         id: 'test-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connecting,
       );
       expect(conn.isConnected, isFalse);

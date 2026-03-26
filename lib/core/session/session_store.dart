@@ -88,10 +88,12 @@ class SessionStore {
   /// Merge encrypted credential data into a session object.
   Session _mergeCredential(Session session, CredentialData cred) {
     return session.copyWith(
-      password: cred.password.isNotEmpty ? cred.password : session.password,
-      keyData: cred.keyData.isNotEmpty ? cred.keyData : session.keyData,
-      passphrase:
-          cred.passphrase.isNotEmpty ? cred.passphrase : session.passphrase,
+      auth: session.auth.copyWith(
+        password: cred.password.isNotEmpty ? cred.password : session.password,
+        keyData: cred.keyData.isNotEmpty ? cred.keyData : session.keyData,
+        passphrase:
+            cred.passphrase.isNotEmpty ? cred.passphrase : session.passphrase,
+      ),
     );
   }
 

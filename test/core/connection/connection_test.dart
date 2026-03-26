@@ -19,7 +19,7 @@ void main() {
       conn = Connection(
         id: 'test-id',
         label: 'My Server',
-        sshConfig: const SSHConfig(host: '10.0.0.1', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: '10.0.0.1', user: 'root')),
       );
     });
 

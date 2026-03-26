@@ -57,7 +57,7 @@ Connection _testConnection({String id = 'test'}) {
   return Connection(
     id: id,
     label: 'Test $id',
-    sshConfig: const SSHConfig(host: 'h', user: 'u'),
+    sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
     sshConnection: null,
     state: SSHConnectionState.connected,
   );
@@ -69,7 +69,7 @@ void main() {
       final conn = Connection(
         id: 'err-1',
         label: 'ErrorTest',
-        sshConfig: const SSHConfig(host: 'fail.host', user: 'user'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'fail.host', user: 'user')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -98,7 +98,7 @@ void main() {
       final conn = Connection(
         id: 'err-2',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
@@ -135,7 +135,7 @@ void main() {
       final conn = Connection(
         id: 'ctx-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
@@ -184,7 +184,7 @@ void main() {
       final conn = Connection(
         id: 'split-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
@@ -223,7 +223,7 @@ void main() {
       final conn = Connection(
         id: 'load-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
@@ -260,7 +260,7 @@ void main() {
       final conn = Connection(
         id: 'done-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
@@ -304,7 +304,7 @@ void main() {
       final conn = Connection(
         id: 'border-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
@@ -342,7 +342,7 @@ void main() {
       final conn = Connection(
         id: 'border-2',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );

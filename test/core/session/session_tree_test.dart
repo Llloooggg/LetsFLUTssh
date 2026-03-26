@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {
   group('SessionTree', () {
@@ -11,8 +12,8 @@ void main() {
 
     test('sessions without groups appear at root', () {
       final sessions = [
-        Session(label: 'B', host: 'b.com', user: 'r'),
-        Session(label: 'A', host: 'a.com', user: 'r'),
+        Session(label: 'B', server: ServerAddress(host: 'b.com', user: 'r')),
+        Session(label: 'A', server: ServerAddress(host: 'a.com', user: 'r')),
       ];
       final tree = SessionTree.build(sessions);
       expect(tree.length, 2);
@@ -23,8 +24,8 @@ void main() {
 
     test('sessions with groups create nested folders', () {
       final sessions = [
-        Session(label: 'nginx', group: 'Production/Web', host: 'x', user: 'r'),
-        Session(label: 'db', group: 'Production/DB', host: 'y', user: 'r'),
+        Session(label: 'nginx', group: 'Production/Web', server: ServerAddress(host: 'x', user: 'r')),
+        Session(label: 'db', group: 'Production/DB', server: ServerAddress(host: 'y', user: 'r')),
       ];
       final tree = SessionTree.build(sessions);
       expect(tree.length, 1); // "Production" folder
@@ -39,8 +40,8 @@ void main() {
 
     test('groups appear before sessions at same level', () {
       final sessions = [
-        Session(label: 'standalone', host: 'x', user: 'r'),
-        Session(label: 'grouped', group: 'Servers', host: 'y', user: 'r'),
+        Session(label: 'standalone', server: ServerAddress(host: 'x', user: 'r')),
+        Session(label: 'grouped', group: 'Servers', server: ServerAddress(host: 'y', user: 'r')),
       ];
       final tree = SessionTree.build(sessions);
       expect(tree.length, 2);
@@ -51,8 +52,8 @@ void main() {
 
     test('same group shared across sessions', () {
       final sessions = [
-        Session(label: 'web1', group: 'Prod', host: 'w1', user: 'r'),
-        Session(label: 'web2', group: 'Prod', host: 'w2', user: 'r'),
+        Session(label: 'web1', group: 'Prod', server: ServerAddress(host: 'w1', user: 'r')),
+        Session(label: 'web2', group: 'Prod', server: ServerAddress(host: 'w2', user: 'r')),
       ];
       final tree = SessionTree.build(sessions);
       expect(tree.length, 1);
@@ -63,7 +64,7 @@ void main() {
 
     test('deeply nested groups', () {
       final sessions = [
-        Session(label: 'server', group: 'A/B/C', host: 'x', user: 'r'),
+        Session(label: 'server', group: 'A/B/C', server: ServerAddress(host: 'x', user: 'r')),
       ];
       final tree = SessionTree.build(sessions);
       expect(tree[0].name, 'A');
@@ -74,7 +75,7 @@ void main() {
 
     test('session with empty label uses displayName', () {
       final sessions = [
-        Session(label: '', host: '10.0.0.1', user: 'root'),
+        Session(label: '', server: ServerAddress(host: '10.0.0.1', user: 'root')),
       ];
       final tree = SessionTree.build(sessions);
       expect(tree[0].name, 'root@10.0.0.1:22');

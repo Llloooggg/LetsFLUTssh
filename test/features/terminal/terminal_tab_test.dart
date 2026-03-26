@@ -21,7 +21,7 @@ void main() {
       final conn = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -59,7 +59,7 @@ void main() {
       final conn = Connection(
         id: 'test-2',
         label: 'Test Server',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         sshConnection: mockSsh,
         state: SSHConnectionState.disconnected,
       );
@@ -102,7 +102,7 @@ void main() {
       final conn = Connection(
         id: 'connected',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
@@ -137,7 +137,7 @@ void main() {
       final conn = Connection(
         id: 'test-err',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -172,7 +172,7 @@ void main() {
       final conn = Connection(
         id: 'test-btns',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -212,7 +212,7 @@ void main() {
       final conn = Connection(
         id: 'rf-fail',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -267,7 +267,7 @@ void main() {
       final conn = Connection(
         id: 'rf-ok',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -325,7 +325,7 @@ void main() {
       final conn = Connection(
         id: 'rf-load',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -369,7 +369,7 @@ void main() {
       final conn = Connection(
         id: 'rf-retry',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -420,7 +420,7 @@ void main() {
       return Connection(
         id: id,
         label: 'Test $id',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
@@ -697,7 +697,7 @@ void main() {
       final conn = Connection(
         id: 'reconn-success',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -763,7 +763,7 @@ void main() {
       final conn = Connection(
         id: 'key-err',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -812,7 +812,7 @@ void main() {
       final conn = Connection(
         id: 'key-icon',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -852,7 +852,7 @@ void main() {
       final conn = Connection(
         id: 'key-text-style',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -895,7 +895,7 @@ void main() {
       final conn = Connection(
         id: 'key-loading',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -939,7 +939,7 @@ void main() {
       final conn = Connection(
         id: 'key-success',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -983,7 +983,7 @@ void main() {
       final conn = Connection(
         id: 'key-close',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -1031,7 +1031,7 @@ void main() {
       final conn = Connection(
         id: 'key-retry',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -1085,7 +1085,7 @@ void main() {
       final conn = Connection(
         id: 'key-clear-err',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );

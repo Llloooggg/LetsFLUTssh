@@ -61,13 +61,7 @@ class _FakeStore extends SessionStore {
   @override
   Future<Session> duplicateSession(String id) async {
     final o = _s.firstWhere((s) => s.id == id);
-    final c = Session(
-        label: '${o.label} (copy)',
-        group: o.group,
-        host: o.host,
-        port: o.port,
-        user: o.user,
-        authType: o.authType);
+    final c = Session(label: '${o.label} (copy)', group: o.group, server: ServerAddress(host: o.host, port: o.port, user: o.user), auth: SessionAuth(authType: o.authType));
     _s.add(c);
     return c;
   }
@@ -92,13 +86,7 @@ class _FakeStore extends SessionStore {
   Future<void> renameGroup(String old, String newP) async {
     for (var i = 0; i < _s.length; i++) {
       if (_s[i].group == old) {
-        _s[i] = Session(
-            id: _s[i].id,
-            label: _s[i].label,
-            group: newP,
-            host: _s[i].host,
-            port: _s[i].port,
-            user: _s[i].user);
+        _s[i] = Session(id: _s[i].id, label: _s[i].label, group: newP, server: ServerAddress(host: _s[i].host, port: _s[i].port, user: _s[i].user));
       }
     }
   }
@@ -120,13 +108,7 @@ class _FakeStore extends SessionStore {
     final idx = _s.indexWhere((s) => s.id == id);
     if (idx >= 0) {
       final s = _s[idx];
-      _s[idx] = Session(
-          id: s.id,
-          label: s.label,
-          group: newGroup,
-          host: s.host,
-          port: s.port,
-          user: s.user);
+      _s[idx] = Session(id: s.id, label: s.label, group: newGroup, server: ServerAddress(host: s.host, port: s.port, user: s.user));
     }
   }
 
@@ -139,24 +121,9 @@ void main() {
 
   setUp(() {
     testSessions = [
-      Session(
-          id: '1',
-          label: 'web1',
-          group: 'Production',
-          host: '10.0.0.1',
-          user: 'root'),
-      Session(
-          id: '2',
-          label: 'db1',
-          group: 'Production/DB',
-          host: '10.0.1.1',
-          user: 'admin'),
-      Session(
-          id: '3',
-          label: 'staging',
-          group: '',
-          host: '192.168.1.1',
-          user: 'deploy'),
+      Session(id: '1', label: 'web1', group: 'Production', server: ServerAddress(host: '10.0.0.1', user: 'root')),
+      Session(id: '2', label: 'db1', group: 'Production/DB', server: ServerAddress(host: '10.0.1.1', user: 'admin')),
+      Session(id: '3', label: 'staging', group: '', server: ServerAddress(host: '192.168.1.1', user: 'deploy')),
     ];
   });
 

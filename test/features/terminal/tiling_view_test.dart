@@ -33,7 +33,7 @@ Connection _buildConnectedConnection({
   return Connection(
     id: id,
     label: 'Test $id',
-    sshConfig: const SSHConfig(host: 'h', user: 'u'),
+    sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
     sshConnection: mockSsh,
     state: SSHConnectionState.connected,
   );

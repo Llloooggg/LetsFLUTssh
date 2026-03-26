@@ -3,6 +3,7 @@ import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/import/import_service.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {
   group('ImportService', () {
@@ -25,12 +26,7 @@ void main() {
       );
     });
 
-    Session makeSession(String id, String label) => Session(
-          id: id,
-          label: label,
-          host: 'host',
-          user: 'user',
-        );
+    Session makeSession(String id, String label) => Session(id: id, label: label, server: ServerAddress(host: 'host', user: 'user'));
 
     test('merge mode adds sessions', () async {
       final s1 = makeSession('1', 'A');

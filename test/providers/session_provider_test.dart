@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 /// Fake SessionStore that works in-memory without path_provider.
 class FakeSessionStore extends SessionStore {
@@ -37,14 +38,7 @@ class FakeSessionStore extends SessionStore {
   @override
   Future<Session> duplicateSession(String id) async {
     final original = _fakeSessions.firstWhere((s) => s.id == id);
-    final copy = Session(
-      id: '${original.id}-copy',
-      label: '${original.label} (Copy)',
-      group: original.group,
-      host: original.host,
-      port: original.port,
-      user: original.user,
-    );
+    final copy = Session(id: '${original.id}-copy', label: '${original.label} (Copy)', group: original.group, server: ServerAddress(host: original.host, port: original.port, user: original.user));
     _fakeSessions.add(copy);
     return copy;
   }
@@ -107,13 +101,7 @@ void main() {
     String host = '10.0.0.1',
     String user = 'root',
   }) {
-    return Session(
-      id: id,
-      label: label,
-      group: group,
-      host: host,
-      user: user,
-    );
+    return Session(id: id, label: label, group: group, server: ServerAddress(host: host, user: user));
   }
 
   group('SessionNotifier', () {

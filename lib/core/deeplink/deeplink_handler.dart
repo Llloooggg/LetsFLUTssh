@@ -114,11 +114,11 @@ class DeepLinkHandler {
     }
 
     return SSHConfig(
-      host: host,
-      port: port,
-      user: user,
-      password: params['password'] ?? '',
-      keyPath: keyPath,
+      server: ServerAddress(host: host, port: port, user: user),
+      auth: SshAuth(
+        password: params['password'] ?? '',
+        keyPath: keyPath,
+      ),
     );
   }
 

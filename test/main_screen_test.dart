@@ -527,7 +527,7 @@ void main() {
     return Connection(
       id: 'conn-1',
       label: label,
-      sshConfig: const SSHConfig(host: '10.0.0.1', user: 'root'),
+      sshConfig: const SSHConfig(server: ServerAddress(host: '10.0.0.1', user: 'root')),
       state: state,
     );
   }
@@ -1314,13 +1314,7 @@ void main() {
   group('MainScreen — _connectSession via session double-click', () {
     testWidgets('double-clicking a session triggers _connectSession', (tester) async {
       final store = SessionStore();
-      final testSession = Session(
-        id: 'test-sess-1',
-        label: 'TestServer',
-        host: '10.0.0.99',
-        user: 'admin',
-        password: 'pass123',
-      );
+      final testSession = Session(id: 'test-sess-1', label: 'TestServer', server: ServerAddress(host: '10.0.0.99', user: 'admin'), auth: SessionAuth(password: 'pass123'));
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
@@ -1368,13 +1362,7 @@ void main() {
   group('MainScreen — _connectSessionSftp via context menu', () {
     testWidgets('right-click session and select SFTP triggers _connectSessionSftp', (tester) async {
       final store = SessionStore();
-      final testSession = Session(
-        id: 'test-sess-2',
-        label: 'SftpServer',
-        host: '10.0.0.100',
-        user: 'sftpuser',
-        password: 'secret',
-      );
+      final testSession = Session(id: 'test-sess-2', label: 'SftpServer', server: ServerAddress(host: '10.0.0.100', user: 'sftpuser'), auth: SessionAuth(password: 'secret'));
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
@@ -1685,13 +1673,7 @@ void main() {
   group('MainScreen — onSftpConnect callback', () {
     testWidgets('SessionPanel receives onSftpConnect callback', (tester) async {
       final store = SessionStore();
-      final testSession = Session(
-        id: 'sftp-test-1',
-        label: 'SftpTarget',
-        host: '10.0.0.77',
-        user: 'sftpuser',
-        password: 'pw',
-      );
+      final testSession = Session(id: 'sftp-test-1', label: 'SftpTarget', server: ServerAddress(host: '10.0.0.77', user: 'sftpuser'), auth: SessionAuth(password: 'pw'));
 
       await tester.pumpWidget(ProviderScope(
         overrides: [

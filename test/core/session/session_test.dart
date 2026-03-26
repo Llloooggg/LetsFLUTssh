@@ -1,50 +1,51 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {
   group('Session', () {
     test('validate requires host', () {
-      final s = Session(label: 'test', host: '', user: 'root');
+      final s = Session(label: 'test', server: ServerAddress(host: '', user: 'root'));
       expect(s.validate(), 'Host is required');
     });
 
     test('validate requires user', () {
-      final s = Session(label: 'test', host: 'example.com', user: '');
+      final s = Session(label: 'test', server: ServerAddress(host: 'example.com', user: ''));
       expect(s.validate(), 'Username is required');
     });
 
     test('validate checks port range', () {
-      final s = Session(label: 'test', host: 'x', user: 'r', port: 0);
+      final s = Session(label: 'test', server: ServerAddress(host: 'x', port: 0, user: 'r'));
       expect(s.validate(), 'Port must be 1-65535');
     });
 
     test('validate passes with valid data', () {
-      final s = Session(label: 'test', host: 'example.com', user: 'root');
+      final s = Session(label: 'test', server: ServerAddress(host: 'example.com', user: 'root'));
       expect(s.validate(), isNull);
     });
 
     test('displayName with label', () {
-      final s = Session(label: 'prod', host: 'example.com', user: 'root');
+      final s = Session(label: 'prod', server: ServerAddress(host: 'example.com', user: 'root'));
       expect(s.displayName, 'prod (root@example.com)');
     });
 
     test('displayName without label', () {
-      final s = Session(label: '', host: 'example.com', user: 'root', port: 2222);
+      final s = Session(label: '', server: ServerAddress(host: 'example.com', port: 2222, user: 'root'));
       expect(s.displayName, 'root@example.com:2222');
     });
 
     test('fullPath with group', () {
-      final s = Session(label: 'nginx', group: 'Production/Web', host: 'x', user: 'r');
+      final s = Session(label: 'nginx', group: 'Production/Web', server: ServerAddress(host: 'x', user: 'r'));
       expect(s.fullPath, 'Production/Web/nginx');
     });
 
     test('fullPath without group', () {
-      final s = Session(label: 'nginx', host: 'x', user: 'r');
+      final s = Session(label: 'nginx', server: ServerAddress(host: 'x', user: 'r'));
       expect(s.fullPath, 'nginx');
     });
 
     test('duplicate creates copy with new id', () {
-      final s = Session(label: 'test', host: 'x', user: 'r');
+      final s = Session(label: 'test', server: ServerAddress(host: 'x', user: 'r'));
       final copy = s.duplicate();
       expect(copy.id, isNot(s.id));
       expect(copy.label, 'test (copy)');
@@ -52,15 +53,7 @@ void main() {
     });
 
     test('JSON roundtrip', () {
-      final s = Session(
-        label: 'prod',
-        group: 'Servers/Web',
-        host: 'example.com',
-        port: 2222,
-        user: 'admin',
-        authType: AuthType.key,
-        keyPath: '/home/.ssh/id_rsa',
-      );
+      final s = Session(label: 'prod', group: 'Servers/Web', server: ServerAddress(host: 'example.com', port: 2222, user: 'admin'), auth: SessionAuth(authType: AuthType.key, keyPath: '/home/.ssh/id_rsa'));
       final json = s.toJson();
       final restored = Session.fromJson(json);
       expect(restored.label, 'prod');
@@ -73,8 +66,8 @@ void main() {
     });
 
     test('copyWith updates fields', () {
-      final s = Session(label: 'a', host: 'b', user: 'c');
-      final updated = s.copyWith(label: 'new', port: 3333);
+      final s = Session(label: 'a', server: ServerAddress(host: 'b', user: 'c'));
+      final updated = s.copyWith(label: 'new', server: s.server.copyWith(port: 3333));
       expect(updated.id, s.id);
       expect(updated.label, 'new');
       expect(updated.port, 3333);
@@ -84,43 +77,43 @@ void main() {
 
   group('Session equality', () {
     test('same id and fields are equal', () {
-      final a = Session(id: 'x', label: 'a', host: 'h', user: 'u');
-      final b = Session(id: 'x', label: 'a', host: 'h', user: 'u');
+      final a = Session(id: 'x', label: 'a', server: ServerAddress(host: 'h', user: 'u'));
+      final b = Session(id: 'x', label: 'a', server: ServerAddress(host: 'h', user: 'u'));
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
     });
 
     test('different id makes not equal', () {
-      final a = Session(id: 'x', label: 'a', host: 'h', user: 'u');
-      final b = Session(id: 'y', label: 'a', host: 'h', user: 'u');
+      final a = Session(id: 'x', label: 'a', server: ServerAddress(host: 'h', user: 'u'));
+      final b = Session(id: 'y', label: 'a', server: ServerAddress(host: 'h', user: 'u'));
       expect(a, isNot(equals(b)));
     });
 
     test('different host makes not equal', () {
-      final a = Session(id: 'x', label: 'a', host: 'h1', user: 'u');
-      final b = Session(id: 'x', label: 'a', host: 'h2', user: 'u');
+      final a = Session(id: 'x', label: 'a', server: ServerAddress(host: 'h1', user: 'u'));
+      final b = Session(id: 'x', label: 'a', server: ServerAddress(host: 'h2', user: 'u'));
       expect(a, isNot(equals(b)));
     });
 
     test('different password makes not equal', () {
-      final a = Session(id: 'x', label: 'a', host: 'h', user: 'u', password: 'a');
-      final b = Session(id: 'x', label: 'a', host: 'h', user: 'u', password: 'b');
+      final a = Session(id: 'x', label: 'a', server: ServerAddress(host: 'h', user: 'u'), auth: SessionAuth(password: 'a'));
+      final b = Session(id: 'x', label: 'a', server: ServerAddress(host: 'h', user: 'u'), auth: SessionAuth(password: 'b'));
       expect(a, isNot(equals(b)));
     });
 
     test('different group makes not equal', () {
-      final a = Session(id: 'x', label: 'a', host: 'h', user: 'u', group: 'A');
-      final b = Session(id: 'x', label: 'a', host: 'h', user: 'u', group: 'B');
+      final a = Session(id: 'x', label: 'a', group: 'A', server: ServerAddress(host: 'h', user: 'u'));
+      final b = Session(id: 'x', label: 'a', group: 'B', server: ServerAddress(host: 'h', user: 'u'));
       expect(a, isNot(equals(b)));
     });
 
     test('identical returns true', () {
-      final a = Session(label: 'a', host: 'h', user: 'u');
+      final a = Session(label: 'a', server: ServerAddress(host: 'h', user: 'u'));
       expect(a == a, isTrue);
     });
 
     test('not equal to other types', () {
-      final a = Session(label: 'a', host: 'h', user: 'u');
+      final a = Session(label: 'a', server: ServerAddress(host: 'h', user: 'u'));
       expect(a == Object(), isFalse);
     });
   });

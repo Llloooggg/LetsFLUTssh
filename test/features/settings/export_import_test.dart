@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 /// Tests for ExportImport — exercises the refactored constant names
 /// (_sessionsFile, _configFile, _knownHostsFile) through full roundtrips.
@@ -42,13 +43,7 @@ void main() {
     String user = 'root',
     String password = '',
   }) {
-    return Session(
-      id: id,
-      label: label,
-      host: host,
-      user: user,
-      password: password,
-    );
+    return Session(id: id, label: label, server: ServerAddress(host: host, user: user), auth: SessionAuth(password: password));
   }
 
   group('ExportImport — export and import roundtrip', () {

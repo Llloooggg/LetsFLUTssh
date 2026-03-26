@@ -205,7 +205,7 @@ void main() {
       final conn = Connection(
         id: 'conn-1',
         label: 'My Server',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -243,7 +243,7 @@ void main() {
       final conn = Connection(
         id: 'conn-2',
         label: 'SFTP Server',
-        sshConfig: const SSHConfig(host: 'sftp.example.com', user: 'admin'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'sftp.example.com', user: 'admin')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -281,7 +281,7 @@ void main() {
       final conn = Connection(
         id: 'conn-close',
         label: 'Close Me',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -404,7 +404,7 @@ void main() {
       final conn = Connection(
         id: 'conn-sftp-close',
         label: 'SFTP Close Me',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -451,14 +451,14 @@ void main() {
       final conn1 = Connection(
         id: 'sftp-1',
         label: 'SFTP A',
-        sshConfig: const SSHConfig(host: 'a.com', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'a.com', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
         id: 'sftp-2',
         label: 'SFTP B',
-        sshConfig: const SSHConfig(host: 'b.com', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'b.com', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -504,14 +504,14 @@ void main() {
       final conn1 = Connection(
         id: 'term-1',
         label: 'Term A',
-        sshConfig: const SSHConfig(host: 'a.com', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'a.com', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
         id: 'term-2',
         label: 'Term B',
-        sshConfig: const SSHConfig(host: 'b.com', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'b.com', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -557,14 +557,14 @@ void main() {
       final termConn = Connection(
         id: 'term-x',
         label: 'Terminal',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final sftpConn = Connection(
         id: 'sftp-x',
         label: 'SFTP Tab',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -605,14 +605,14 @@ void main() {
       final termConn = Connection(
         id: 'term-y',
         label: 'Term Tab',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final sftpConn = Connection(
         id: 'sftp-y',
         label: 'SFTP',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -742,9 +742,7 @@ void main() {
     }
 
     testWidgets('connect session adds tab and navigates to terminal', (tester) async {
-      final session = Session(
-        id: 'sess-1', label: 'Test Server', host: 'example.com', user: 'root',
-      );
+      final session = Session(id: 'sess-1', label: 'Test Server', server: ServerAddress(host: 'example.com', user: 'root'));
       await tester.pumpWidget(buildWithSession(
         session: session,
         manager: _SuccessConnectionManager(),
@@ -757,9 +755,7 @@ void main() {
     });
 
     testWidgets('connect session with failed connection still adds tab', (tester) async {
-      final session = Session(
-        id: 'sess-fail', label: 'Fail Server', host: 'fail.com', user: 'root',
-      );
+      final session = Session(id: 'sess-fail', label: 'Fail Server', server: ServerAddress(host: 'fail.com', user: 'root'));
       await tester.pumpWidget(buildWithSession(
         session: session,
         manager: _FailingConnectionManager(Exception('bad password')),
@@ -774,7 +770,7 @@ void main() {
       final conn = Connection(
         id: 'conn-3',
         label: 'Server',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );

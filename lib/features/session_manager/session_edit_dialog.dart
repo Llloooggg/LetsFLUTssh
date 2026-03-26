@@ -113,13 +113,17 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   SSHConfig _buildConfig() {
     final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
     return SSHConfig(
-      host: _hostCtrl.text.trim(),
-      port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-      user: _userCtrl.text.trim(),
-      password: _passwordCtrl.text,
-      keyPath: keyPath,
-      keyData: _keyDataCtrl.text.trim(),
-      passphrase: _passphraseCtrl.text,
+      server: ServerAddress(
+        host: _hostCtrl.text.trim(),
+        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+        user: _userCtrl.text.trim(),
+      ),
+      auth: SshAuth(
+        password: _passwordCtrl.text,
+        keyPath: keyPath,
+        keyData: _keyDataCtrl.text.trim(),
+        passphrase: _passphraseCtrl.text,
+      ),
     );
   }
 
@@ -129,27 +133,35 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       return widget.session!.copyWith(
         label: _labelCtrl.text.trim(),
         group: _groupCtrl.text.trim(),
-        host: _hostCtrl.text.trim(),
-        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-        user: _userCtrl.text.trim(),
-        authType: _authType,
-        password: _passwordCtrl.text,
-        keyPath: keyPath,
-        keyData: _keyDataCtrl.text.trim(),
-        passphrase: _passphraseCtrl.text,
+        server: widget.session!.server.copyWith(
+          host: _hostCtrl.text.trim(),
+          port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+          user: _userCtrl.text.trim(),
+        ),
+        auth: widget.session!.auth.copyWith(
+          authType: _authType,
+          password: _passwordCtrl.text,
+          keyPath: keyPath,
+          keyData: _keyDataCtrl.text.trim(),
+          passphrase: _passphraseCtrl.text,
+        ),
       );
     }
     return Session(
       label: _labelCtrl.text.trim(),
       group: _groupCtrl.text.trim(),
-      host: _hostCtrl.text.trim(),
-      port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-      user: _userCtrl.text.trim(),
-      authType: _authType,
-      password: _passwordCtrl.text,
-      keyPath: keyPath,
-      keyData: _keyDataCtrl.text.trim(),
-      passphrase: _passphraseCtrl.text,
+      server: ServerAddress(
+        host: _hostCtrl.text.trim(),
+        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+        user: _userCtrl.text.trim(),
+      ),
+      auth: SessionAuth(
+        authType: _authType,
+        password: _passwordCtrl.text,
+        keyPath: keyPath,
+        keyData: _keyDataCtrl.text.trim(),
+        passphrase: _passphraseCtrl.text,
+      ),
     );
   }
 

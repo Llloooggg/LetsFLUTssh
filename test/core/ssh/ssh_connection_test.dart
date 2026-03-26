@@ -42,7 +42,7 @@ void main() {
   group('SSHConnection — construction and state', () {
     test('isConnected is false before connect', () {
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'example.com', user: 'root'),
+        config: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         knownHosts: KnownHostsManager(),
       );
       expect(conn.isConnected, isFalse);
@@ -50,15 +50,7 @@ void main() {
     });
 
     test('config is accessible', () {
-      const config = SSHConfig(
-        host: 'test.server',
-        port: 2222,
-        user: 'admin',
-        password: 'secret',
-        keyPath: '/home/user/.ssh/id_rsa',
-        keyData: 'PEM-DATA',
-        passphrase: 'phrase',
-      );
+      const config = SSHConfig(server: ServerAddress(host: 'test.server', port: 2222, user: 'admin'), auth: SshAuth(password: 'secret', keyPath: '/home/user/.ssh/id_rsa', keyData: 'PEM-DATA', passphrase: 'phrase'));
       final conn = SSHConnection(
         config: config,
         knownHosts: KnownHostsManager(),
@@ -71,7 +63,7 @@ void main() {
 
     test('disconnect on fresh connection does not throw', () {
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'example.com', user: 'root'),
+        config: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         knownHosts: KnownHostsManager(),
       );
       conn.disconnect();
@@ -80,7 +72,7 @@ void main() {
 
     test('connect to disposed connection throws ConnectError', () async {
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'example.com', user: 'root'),
+        config: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         knownHosts: KnownHostsManager(),
       );
       conn.disconnect(); // sets _disposed = true
@@ -96,7 +88,7 @@ void main() {
 
     test('openShell throws when not connected', () async {
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'example.com', user: 'root'),
+        config: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         knownHosts: KnownHostsManager(),
       );
       expect(
@@ -111,7 +103,7 @@ void main() {
 
     test('resizeTerminal on null shell does not throw', () {
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'example.com', user: 'root'),
+        config: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         knownHosts: KnownHostsManager(),
       );
       conn.resizeTerminal(120, 40);
@@ -119,7 +111,7 @@ void main() {
 
     test('onDisconnect callback can be set', () {
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'example.com', user: 'root'),
+        config: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         knownHosts: KnownHostsManager(),
       );
       bool called = false;
@@ -129,7 +121,7 @@ void main() {
 
     test('multiple disconnect calls do not throw', () {
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'example.com', user: 'root'),
+        config: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         knownHosts: KnownHostsManager(),
       );
       conn.disconnect();
@@ -140,7 +132,7 @@ void main() {
 
     test('isConnected is false after disconnect', () {
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'example.com', user: 'root'),
+        config: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         knownHosts: KnownHostsManager(),
       );
       conn.disconnect();
@@ -162,11 +154,7 @@ void main() {
 
     /// Helper: creates SSHConnection with mock factories.
     SSHConnection buildConnection({
-      SSHConfig config = const SSHConfig(
-        host: 'test.host',
-        user: 'testuser',
-        password: 'testpass',
-      ),
+      SSHConfig config = const SSHConfig(server: ServerAddress(host: 'test.host', user: 'testuser'), auth: SshAuth(password: 'testpass')),
       Future<SSHSocket> Function(String, int, {Duration? timeout})?
           socketFactory,
       SSHClient Function(
@@ -215,12 +203,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = buildConnection(
-        config: const SSHConfig(
-          host: 'myhost.com',
-          port: 3333,
-          user: 'admin',
-          timeoutSec: 15,
-        ),
+        config: const SSHConfig(server: ServerAddress(host: 'myhost.com', port: 3333, user: 'admin'), timeoutSec: 15),
         socketFactory: (host, port, {timeout}) async {
           capturedHost = host;
           capturedPort = port;
@@ -243,7 +226,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = buildConnection(
-        config: const SSHConfig(host: 'h', user: 'myuser', password: 'p'),
+        config: const SSHConfig(server: ServerAddress(host: 'h', user: 'myuser'), auth: SshAuth(password: 'p')),
         clientFactory: (socket, {
           required username,
           onPasswordRequest,
@@ -267,11 +250,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = buildConnection(
-        config: const SSHConfig(
-          host: 'h',
-          user: 'u',
-          password: 'secretpass',
-        ),
+        config: const SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(password: 'secretpass')),
         clientFactory: (socket, {
           required username,
           onPasswordRequest,
@@ -297,7 +276,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = buildConnection(
-        config: const SSHConfig(host: 'h', user: 'u', password: ''),
+        config: const SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(password: '')),
         clientFactory: (socket, {
           required username,
           onPasswordRequest,
@@ -321,7 +300,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = buildConnection(
-        config: const SSHConfig(host: 'h', user: 'u', keepAliveSec: 45),
+        config: const SSHConfig(server: ServerAddress(host: 'h', user: 'u'), keepAliveSec: 45),
         clientFactory: (socket, {
           required username,
           onPasswordRequest,
@@ -346,7 +325,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = buildConnection(
-        config: const SSHConfig(host: 'h', user: 'u', keepAliveSec: 0),
+        config: const SSHConfig(server: ServerAddress(host: 'h', user: 'u'), keepAliveSec: 0),
         clientFactory: (socket, {
           required username,
           onPasswordRequest,
@@ -561,7 +540,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = buildConnection(
-        config: const SSHConfig(host: 'myhost', port: 2222, user: 'u'),
+        config: const SSHConfig(server: ServerAddress(host: 'myhost', port: 2222, user: 'u')),
         clientFactory: (socket, {
           required username,
           onPasswordRequest,
@@ -645,7 +624,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'h', user: 'u', password: 'p'),
+        config: const SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(password: 'p')),
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory: (socket, {
@@ -667,11 +646,7 @@ void main() {
     test('connect with invalid keyData throws ConnectError wrapping AuthError',
         () async {
       final conn = SSHConnection(
-        config: const SSHConfig(
-          host: 'h',
-          user: 'u',
-          keyData: 'INVALID-NOT-PEM',
-        ),
+        config: const SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyData: 'INVALID-NOT-PEM')),
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory: (socket, {
@@ -699,11 +674,7 @@ void main() {
     test('connect with nonexistent key file throws ConnectError wrapping AuthError',
         () async {
       final conn = SSHConnection(
-        config: const SSHConfig(
-          host: 'h',
-          user: 'u',
-          keyPath: '/nonexistent/path/to/key_file_that_does_not_exist',
-        ),
+        config: const SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyPath: '/nonexistent/path/to/key_file_that_does_not_exist')),
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory: (socket, {
@@ -738,7 +709,7 @@ void main() {
 
       try {
         final conn = SSHConnection(
-          config: SSHConfig(host: 'h', user: 'u', keyPath: keyFile.path),
+          config: SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyPath: keyFile.path)),
           knownHosts: mockKnownHosts,
           socketFactory: (h, p, {timeout}) async => mockSocket,
           clientFactory: (socket, {
@@ -768,11 +739,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = SSHConnection(
-        config: SSHConfig(
-          host: 'h',
-          user: 'u',
-          keyData: _testEd25519PrivateKey,
-        ),
+        config: SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyData: _testEd25519PrivateKey)),
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory: (socket, {
@@ -795,12 +762,7 @@ void main() {
     test('keyData with passphrase on unencrypted key throws error', () async {
       // dartssh2 rejects passphrase for unencrypted keys
       final conn = SSHConnection(
-        config: SSHConfig(
-          host: 'h',
-          user: 'u',
-          keyData: _testEd25519PrivateKey,
-          passphrase: 'unused-but-set',
-        ),
+        config: SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyData: _testEd25519PrivateKey, passphrase: 'unused-but-set')),
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory: (socket, {
@@ -838,12 +800,7 @@ void main() {
 
       try {
         final conn = SSHConnection(
-          config: SSHConfig(
-            host: 'h',
-            user: 'u',
-            keyPath: keyFile.path,
-            keyData: _testEd25519PrivateKey,
-          ),
+          config: SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyPath: keyFile.path, keyData: _testEd25519PrivateKey)),
           knownHosts: mockKnownHosts,
           socketFactory: (h, p, {timeout}) async => mockSocket,
           clientFactory: (socket, {
@@ -886,7 +843,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = SSHConnection(
-        config: const SSHConfig(host: 'h', user: 'u', password: 'p'),
+        config: const SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(password: 'p')),
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory: (socket, {

@@ -119,7 +119,7 @@ void main() {
 
   group('ConnectionManager.connectAsync', () {
     test('connectAsync returns connection in connecting state immediately', () {
-      const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
+      const config = SSHConfig(server: ServerAddress(host: '127.0.0.1', port: 1, user: 'test'), timeoutSec: 1);
       final conn = manager.connectAsync(config);
       // Returns immediately — connection is in connecting state
       expect(conn.state, SSHConnectionState.connecting);
@@ -127,7 +127,7 @@ void main() {
     });
 
     test('connect fails in background and sets connectionError', () async {
-      const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
+      const config = SSHConfig(server: ServerAddress(host: '127.0.0.1', port: 1, user: 'test'), timeoutSec: 1);
       final conn = manager.connectAsync(config);
 
       // Wait for background connection to fail
@@ -138,13 +138,13 @@ void main() {
     });
 
     test('connect uses label when provided', () {
-      const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
+      const config = SSHConfig(server: ServerAddress(host: '127.0.0.1', port: 1, user: 'test'), timeoutSec: 1);
       final conn = manager.connectAsync(config, label: 'My Server');
       expect(conn.label, 'My Server');
     });
 
     test('connect uses displayName when no label', () {
-      const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'admin', timeoutSec: 1);
+      const config = SSHConfig(server: ServerAddress(host: '127.0.0.1', port: 1, user: 'admin'), timeoutSec: 1);
       final conn = manager.connectAsync(config);
       expect(conn.label, config.displayName);
     });
@@ -153,7 +153,7 @@ void main() {
       var emitCount = 0;
       final sub = manager.onChange.listen((_) => emitCount++);
 
-      const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
+      const config = SSHConfig(server: ServerAddress(host: '127.0.0.1', port: 1, user: 'test'), timeoutSec: 1);
       final conn = manager.connectAsync(config);
 
       // At least 1 emit immediately (connecting)
@@ -223,7 +223,7 @@ void main() {
         },
       );
 
-      const config = SSHConfig(host: 'test.com', user: 'admin');
+      const config = SSHConfig(server: ServerAddress(host: 'test.com', user: 'admin'));
       final conn = mgr.connectAsync(config, label: 'Test Server');
 
       // Initially connecting
@@ -249,7 +249,7 @@ void main() {
             FakeSSHConnection(config: config, knownHosts: kh),
       );
 
-      const config = SSHConfig(host: 'server.com', port: 2222, user: 'root');
+      const config = SSHConfig(server: ServerAddress(host: 'server.com', port: 2222, user: 'root'));
       final conn = mgr.connectAsync(config);
 
       expect(conn.label, 'root@server.com:2222');
@@ -268,7 +268,7 @@ void main() {
       var emitCount = 0;
       final sub = mgr.onChange.listen((_) => emitCount++);
 
-      const config = SSHConfig(host: 'h', user: 'u');
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
       final conn = mgr.connectAsync(config);
       await waitForConnection(conn);
       await Future.delayed(Duration.zero);
@@ -289,7 +289,7 @@ void main() {
         },
       );
 
-      const config = SSHConfig(host: 'h', user: 'u');
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
       final conn = mgr.connectAsync(config);
       await waitForConnection(conn);
       mgr.disconnect(conn.id);
@@ -310,7 +310,7 @@ void main() {
         },
       );
 
-      const config = SSHConfig(host: 'h', user: 'u');
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
       final conn = mgr.connectAsync(config);
       await waitForConnection(conn);
 
@@ -331,7 +331,7 @@ void main() {
             FakeSSHConnection(config: config, knownHosts: kh, shouldFail: true),
       );
 
-      const config = SSHConfig(host: 'h', user: 'u');
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
       final conn = mgr.connectAsync(config);
       await waitForConnection(conn);
 
@@ -348,8 +348,8 @@ void main() {
             FakeSSHConnection(config: config, knownHosts: kh),
       );
 
-      final connA = mgr.connectAsync(const SSHConfig(host: 'a', user: 'u'), label: 'A');
-      final connB = mgr.connectAsync(const SSHConfig(host: 'b', user: 'u'), label: 'B');
+      final connA = mgr.connectAsync(const SSHConfig(server: ServerAddress(host: 'a', user: 'u')), label: 'A');
+      final connB = mgr.connectAsync(const SSHConfig(server: ServerAddress(host: 'b', user: 'u')), label: 'B');
       await waitForConnection(connA);
       await waitForConnection(connB);
 
@@ -365,7 +365,7 @@ void main() {
             FakeSSHConnection(config: config, knownHosts: kh),
       );
 
-      final conn = mgr.connectAsync(const SSHConfig(host: 'h', user: 'u'));
+      final conn = mgr.connectAsync(const SSHConfig(server: ServerAddress(host: 'h', user: 'u')));
       await waitForConnection(conn);
       expect(mgr.get(conn.id), conn);
 
@@ -383,8 +383,8 @@ void main() {
         },
       );
 
-      final connA = mgr.connectAsync(const SSHConfig(host: 'a', user: 'u'));
-      final connB = mgr.connectAsync(const SSHConfig(host: 'b', user: 'u'));
+      final connA = mgr.connectAsync(const SSHConfig(server: ServerAddress(host: 'a', user: 'u')));
+      final connB = mgr.connectAsync(const SSHConfig(server: ServerAddress(host: 'b', user: 'u')));
       await waitForConnection(connA);
       await waitForConnection(connB);
 
@@ -404,7 +404,7 @@ void main() {
       final conn = Connection(
         id: 'c1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
       expect(conn.isConnected, isTrue);
@@ -414,7 +414,7 @@ void main() {
       final conn = Connection(
         id: 'c1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.disconnected,
       );
       expect(conn.isConnected, isFalse);
@@ -424,7 +424,7 @@ void main() {
       final conn = Connection(
         id: 'c1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connecting,
       );
       expect(conn.isConnected, isFalse);
@@ -434,7 +434,7 @@ void main() {
       final conn = Connection(
         id: 'c1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
       );
       expect(conn.sshConnection, isNull);
     });

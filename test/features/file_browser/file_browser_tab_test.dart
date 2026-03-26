@@ -215,7 +215,7 @@ void main() {
       final conn = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'SSH connection not available',
@@ -246,7 +246,7 @@ void main() {
       final conn = Connection(
         id: 'test-2',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'SSH connection not available',
@@ -275,7 +275,7 @@ void main() {
       final conn = Connection(
         id: 'test-3',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'Connection failed',
@@ -312,7 +312,7 @@ void main() {
       final conn = Connection(
         id: 'test-icon',
         label: 'Error Icon Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'Connection failed',
@@ -344,7 +344,7 @@ void main() {
       final conn = Connection(
         id: 'test-loading',
         label: 'Loading Test',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'Connection failed',
@@ -377,7 +377,7 @@ void main() {
       final conn = Connection(
         id: 'test-transition',
         label: 'Transition Test',
-        sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'Connection refused',
@@ -409,7 +409,7 @@ void main() {
       final conn = Connection(
         id: 'test-4',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'Connection failed',
@@ -439,7 +439,7 @@ void main() {
       final conn = Connection(
         id: 'success-2',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -475,7 +475,7 @@ void main() {
       final conn = Connection(
         id: 'success-4',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -512,7 +512,7 @@ void main() {
       final conn = Connection(
         id: 'loading-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -548,7 +548,7 @@ void main() {
       final conn = Connection(
         id: 'loading-2',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -589,7 +589,7 @@ void main() {
       final conn = Connection(
         id: 'loading-3',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -634,7 +634,7 @@ void main() {
       final conn = Connection(
         id: 'drag-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -682,7 +682,7 @@ void main() {
       final conn = Connection(
         id: 'drag-2',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -727,7 +727,7 @@ void main() {
       final conn = Connection(
         id: 'upload-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -766,7 +766,7 @@ void main() {
       final conn = Connection(
         id: 'retry-success',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -815,7 +815,7 @@ void main() {
       final conn = Connection(
         id: 'xfer-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -863,7 +863,7 @@ void main() {
       final conn = Connection(
         id: 'xfer-2',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -905,7 +905,7 @@ void main() {
       final conn = Connection(
         id: 'xfer-3',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -952,7 +952,7 @@ void main() {
       final conn = Connection(
         id: 'xfer-ctx',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1005,7 +1005,7 @@ void main() {
       final conn = Connection(
         id: 'dispose-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1054,7 +1054,7 @@ void main() {
       final conn = Connection(
         id: 'dispose-2',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1110,7 +1110,7 @@ void main() {
       final conn = Connection(
         id: 'upload-file-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1178,7 +1178,7 @@ void main() {
       final conn = Connection(
         id: 'upload-dir-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1254,7 +1254,7 @@ void main() {
       final conn = Connection(
         id: 'download-file-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1321,7 +1321,7 @@ void main() {
       final conn = Connection(
         id: 'download-dir-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1393,7 +1393,7 @@ void main() {
       final conn = Connection(
         id: 'multi-upload-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1466,7 +1466,7 @@ void main() {
       final conn = Connection(
         id: 'multi-download-1',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1539,7 +1539,7 @@ void main() {
       final conn = Connection(
         id: 'drop-local-to-remote',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1626,7 +1626,7 @@ void main() {
       final conn = Connection(
         id: 'drop-remote-to-local',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1701,7 +1701,7 @@ void main() {
       final conn = Connection(
         id: 'size-check',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1753,7 +1753,7 @@ void main() {
       final conn = Connection(
         id: 'size-check-dl',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1808,7 +1808,7 @@ void main() {
       final conn = Connection(
         id: 'drop-cb-local',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1878,7 +1878,7 @@ void main() {
       final conn = Connection(
         id: 'drop-cb-remote',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -1948,7 +1948,7 @@ void main() {
       final conn = Connection(
         id: 'multi-cb-local',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -2011,7 +2011,7 @@ void main() {
       final conn = Connection(
         id: 'multi-cb-remote',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -2076,7 +2076,7 @@ void main() {
       final conn = Connection(
         id: 'run-upload',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -2142,7 +2142,7 @@ void main() {
       final conn = Connection(
         id: 'run-download',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -2208,7 +2208,7 @@ void main() {
       final conn = Connection(
         id: 'run-upload-dir',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 
@@ -2272,7 +2272,7 @@ void main() {
       final conn = Connection(
         id: 'run-download-dir',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
       );
 

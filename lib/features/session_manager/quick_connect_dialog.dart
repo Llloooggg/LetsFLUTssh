@@ -57,13 +57,17 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
     );
 
     final config = SSHConfig(
-      host: _hostCtrl.text.trim(),
-      port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-      user: _userCtrl.text.trim(),
-      password: _passwordCtrl.text,
-      keyPath: keyPath,
-      keyData: _keyDataCtrl.text.trim(),
-      passphrase: _passphraseCtrl.text,
+      server: ServerAddress(
+        host: _hostCtrl.text.trim(),
+        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+        user: _userCtrl.text.trim(),
+      ),
+      auth: SshAuth(
+        password: _passwordCtrl.text,
+        keyPath: keyPath,
+        keyData: _keyDataCtrl.text.trim(),
+        passphrase: _passphraseCtrl.text,
+      ),
     );
 
     Navigator.of(context).pop(config);

@@ -36,7 +36,7 @@ void main() {
       final conn = Connection(
         id: 'test',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'localhost', user: 'user'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'localhost', user: 'user')),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -51,7 +51,7 @@ void main() {
       final conn = Connection(
         id: 'test',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'localhost', user: 'user'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'localhost', user: 'user')),
         sshConnection: null,  // null is OK — factory bypasses SSH
         state: SSHConnectionState.disconnected,
       );
@@ -77,7 +77,7 @@ void main() {
       final conn = Connection(
         id: 'test',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
       );
 
       final mockSftp = MockSftpClient();
@@ -101,7 +101,7 @@ void main() {
       final conn = Connection(
         id: 'test',
         label: 'Test',
-        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
       );
 
       final mockSftp = MockSftpClient();

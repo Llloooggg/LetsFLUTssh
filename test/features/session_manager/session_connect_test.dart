@@ -103,13 +103,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(
-                        id: 's1',
-                        label: 'Test Server',
-                        host: '10.0.0.1',
-                        port: 22,
-                        user: 'root',
-                      );
+                      final session = Session(id: 's1', label: 'Test Server', server: ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -145,13 +139,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(
-                        id: 's1',
-                        label: 'My Server',
-                        host: '10.0.0.1',
-                        port: 22,
-                        user: 'root',
-                      );
+                      final session = Session(id: 's1', label: 'My Server', server: ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -188,13 +176,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(
-                        id: 's1',
-                        label: '',
-                        host: '10.0.0.1',
-                        port: 22,
-                        user: 'root',
-                      );
+                      final session = Session(id: 's1', label: '', server: ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -233,12 +215,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(
-                        id: 's1',
-                        label: 'Test',
-                        host: '10.0.0.1',
-                        user: 'root',
-                      );
+                      final session = Session(id: 's1', label: 'Test', server: ServerAddress(host: '10.0.0.1', user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -280,12 +257,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(
-                        id: 's2',
-                        label: 'SFTP Server',
-                        host: '10.0.0.1',
-                        user: 'test',
-                      );
+                      final session = Session(id: 's2', label: 'SFTP Server', server: ServerAddress(host: '10.0.0.1', user: 'test'));
                       SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('SFTP'),
@@ -323,12 +295,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(
-                        id: 's2',
-                        label: '',
-                        host: '10.0.0.1',
-                        user: 'admin',
-                      );
+                      final session = Session(id: 's2', label: '', server: ServerAddress(host: '10.0.0.1', user: 'admin'));
                       SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('SFTP'),
@@ -368,12 +335,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(
-                        id: 's1',
-                        label: 'Test',
-                        host: '10.0.0.1',
-                        user: 'root',
-                      );
+                      final session = Session(id: 's1', label: 'Test', server: ServerAddress(host: '10.0.0.1', user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -414,12 +376,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(
-                        id: 's1',
-                        label: 'Test',
-                        host: '10.0.0.1',
-                        user: 'root',
-                      );
+                      final session = Session(id: 's1', label: 'Test', server: ServerAddress(host: '10.0.0.1', user: 'root'));
                       SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('SFTP'),
@@ -459,7 +416,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      const config = SSHConfig(host: '10.0.0.1', user: 'root');
+                      const config = SSHConfig(server: ServerAddress(host: '10.0.0.1', user: 'root'));
                       SessionConnect.connectConfig(context, ref, config);
                     },
                     child: const Text('Quick'),
@@ -501,11 +458,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      const config = SSHConfig(
-                        host: '10.0.0.1',
-                        port: 22,
-                        user: 'test',
-                      );
+                      const config = SSHConfig(server: ServerAddress(host: '10.0.0.1', port: 22, user: 'test'));
                       SessionConnect.connectConfig(context, ref, config);
                     },
                     child: const Text('Quick'),
@@ -543,11 +496,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      const config = SSHConfig(
-                        host: '10.0.0.1',
-                        port: 2222,
-                        user: 'admin',
-                      );
+                      const config = SSHConfig(server: ServerAddress(host: '10.0.0.1', port: 2222, user: 'admin'));
                       SessionConnect.connectConfig(context, ref, config);
                     },
                     child: const Text('Quick'),
