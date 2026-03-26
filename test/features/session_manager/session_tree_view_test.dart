@@ -237,6 +237,56 @@ void main() {
       expect(find.byIcon(Icons.enhanced_encryption), findsOneWidget);
     });
 
+    testWidgets('session tap calls onSessionTap callback', (tester) async {
+      Session? tappedSession;
+      await tester.pumpWidget(buildApp(
+        onSessionTap: (s) => tappedSession = s,
+      ));
+
+      await tester.tap(find.text('staging'));
+      // Wait for double-tap detection timeout (300ms) + settle
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+
+      expect(tappedSession?.label, 'staging');
+    });
+
+    testWidgets('session tap sets selected state and highlights', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      // Tap on staging to select it
+      await tester.tap(find.text('staging'));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+
+      // The session row container should have a highlighted background
+      // Find the specific Container for the selected row
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final hasHighlight = containers.any(
+        (c) => c.color != null,
+      );
+      expect(hasHighlight, isTrue);
+    });
+
+    testWidgets('tapping different session changes selection', (tester) async {
+      Session? tappedSession;
+      await tester.pumpWidget(buildApp(
+        onSessionTap: (s) => tappedSession = s,
+      ));
+
+      // Tap first session
+      await tester.tap(find.text('staging'));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      expect(tappedSession?.label, 'staging');
+
+      // Tap a different session
+      await tester.tap(find.text('nginx1'));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      expect(tappedSession?.label, 'nginx1');
+    });
+
     testWidgets('selected session gets highlighted background', (tester) async {
       await tester.pumpWidget(buildApp());
 

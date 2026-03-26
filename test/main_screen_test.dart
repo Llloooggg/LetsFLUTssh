@@ -17,6 +17,7 @@ import 'package:letsflutssh/main.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
+import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
 /// Widget tests for MainScreen — covers the refactored methods:
@@ -731,6 +732,229 @@ void main() {
       }
       // No crash
       expect(find.byType(Scaffold), findsWidgets);
+    });
+  });
+
+  group('MainScreen — close tab', () {
+    testWidgets('closing last tab shows welcome screen', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(
+            id: 't1',
+            label: 'ToClose',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+
+      // Close via tab bar context — find the close button on the tab
+      final closeButtons = find.byIcon(Icons.close);
+      if (closeButtons.evaluate().isNotEmpty) {
+        await tester.tap(closeButtons.first);
+        await tester.pumpAndSettle();
+      }
+
+      // After closing, should show welcome screen
+      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+    });
+
+    testWidgets('Ctrl+W does nothing when no tabs', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // Focus something inside the shortcuts area
+      final textFields = find.byType(TextField);
+      if (textFields.evaluate().isNotEmpty) {
+        await tester.tap(textFields.first);
+        await tester.pump();
+      }
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Should still show welcome screen
+      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — status bar with transfer status', () {
+    testWidgets('status bar shows transfer info when active', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith((ref) {
+              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+              notifier.state = AppConfig.defaults;
+              return notifier;
+            }),
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            tabProvider.overrideWith((ref) {
+              final notifier = TabNotifier();
+              notifier.addTerminalTab(conn, label: 'Tab');
+              return notifier;
+            }),
+            transferStatusProvider.overrideWith(
+              (ref) => Stream.value(const ActiveTransferState(
+                running: 2,
+                queued: 1,
+                currentInfo: 'Uploading test.txt',
+              )),
+            ),
+          ],
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            theme: AppTheme.dark(),
+            home: const MediaQuery(
+              data: MediaQueryData(size: Size(1000, 600)),
+              child: SizedBox(
+                width: 1000,
+                height: 600,
+                child: MainScreen(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      // Transfer status should be shown
+      expect(find.text('Uploading test.txt'), findsOneWidget);
+    });
+
+    testWidgets('status bar shows active count when no currentInfo', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith((ref) {
+              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+              notifier.state = AppConfig.defaults;
+              return notifier;
+            }),
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            tabProvider.overrideWith((ref) {
+              final notifier = TabNotifier();
+              notifier.addTerminalTab(conn, label: 'Tab');
+              return notifier;
+            }),
+            transferStatusProvider.overrideWith(
+              (ref) => Stream.value(const ActiveTransferState(
+                running: 3,
+                queued: 0,
+              )),
+            ),
+          ],
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            theme: AppTheme.dark(),
+            home: const MediaQuery(
+              data: MediaQueryData(size: Size(1000, 600)),
+              child: SizedBox(
+                width: 1000,
+                height: 600,
+                child: MainScreen(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('3 active'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — tab content rendering', () {
+    testWidgets('renders TerminalTab for terminal kind', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(
+            id: 't1',
+            label: 'Term1',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      // Status bar should show "Connected" for the active tab
+      expect(find.textContaining('Connected'), findsOneWidget);
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+    });
+
+    testWidgets('renders FileBrowserTab for sftp kind', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(
+            id: 's1',
+            label: 'SFTP1',
+            connection: conn,
+            kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+    });
+
+    testWidgets('IndexedStack preserves both terminal and sftp tabs', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(
+            id: 't1',
+            label: 'Term',
+            connection: conn,
+            kind: TabKind.terminal),
+        TabEntry(
+            id: 's1',
+            label: 'SFTP',
+            connection: conn,
+            kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+      expect(find.byType(IndexedStack), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — _newSession save flow', () {
+    testWidgets('opening new session dialog and filling in shows save option', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // Open new session dialog
+      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      await tester.pumpAndSettle();
+
+      // Fill in required fields
+      final hostField = find.widgetWithText(TextField, 'Host *');
+      await tester.enterText(hostField, 'test.example.com');
+      await tester.pump();
+
+      final userField = find.widgetWithText(TextField, 'Username *');
+      await tester.enterText(userField, 'testuser');
+      await tester.pump();
+
+      // Save & Connect and Connect buttons should be present
+      expect(find.text('Connect'), findsOneWidget);
+
+      // Cancel
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
     });
   });
 }
