@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +10,7 @@ import 'features/session_manager/session_edit_dialog.dart';
 import 'core/import/import_service.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/host_key_dialog.dart';
+import 'widgets/lfs_import_dialog.dart';
 import 'widgets/toast.dart';
 import 'features/file_browser/file_browser_tab.dart';
 import 'features/settings/settings_screen.dart';
@@ -311,7 +310,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Future<void> _showLfsImportDialog(BuildContext context, String filePath) async {
-    final result = await _showImportPasswordDialog(context, filePath);
+    final result = await LfsImportDialog.show(context, filePath: filePath);
     if (result == null || !context.mounted) return;
 
     try {
@@ -337,107 +336,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
       }
     }
-  }
-
-  Future<({String password, ImportMode mode})?> _showImportPasswordDialog(
-      BuildContext context, String filePath) async {
-    final passwordCtrl = TextEditingController();
-
-    try {
-      return await showDialog<({String password, ImportMode mode})>(
-        context: context,
-        animationStyle: AnimationStyle.noAnimation,
-        builder: (ctx) {
-          var mode = ImportMode.merge;
-          return StatefulBuilder(
-            builder: (ctx, setState) => AlertDialog(
-              title: const Text('Import Data'),
-              content: _buildImportDialogContent(
-                ctx, passwordCtrl, mode,
-                onModeChanged: (newMode) => setState(() => mode = newMode),
-                onSubmitted: (v) {
-                  if (v.isNotEmpty) {
-                    Navigator.pop(ctx, (password: v, mode: mode));
-                  }
-                },
-                filePath: filePath,
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    if (passwordCtrl.text.isEmpty) return;
-                    Navigator.pop(ctx, (password: passwordCtrl.text, mode: mode));
-                  },
-                  child: const Text('Import'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    } finally {
-      passwordCtrl.dispose();
-    }
-  }
-
-  Column _buildImportDialogContent(
-    BuildContext ctx,
-    TextEditingController passwordCtrl,
-    ImportMode mode, {
-    required ValueChanged<ImportMode> onModeChanged,
-    required ValueChanged<String> onSubmitted,
-    required String filePath,
-  }) {
-    final subtleStyle = TextStyle(
-      fontSize: 12,
-      color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
-    );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(File(filePath).uri.pathSegments.last, style: subtleStyle),
-        const SizedBox(height: 12),
-        TextField(
-          controller: passwordCtrl,
-          obscureText: true,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Master Password',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: onSubmitted,
-        ),
-        const SizedBox(height: 12),
-        SegmentedButton<ImportMode>(
-          segments: const [
-            ButtonSegment(
-              value: ImportMode.merge,
-              label: Text('Merge'),
-              icon: Icon(Icons.merge, size: 16),
-            ),
-            ButtonSegment(
-              value: ImportMode.replace,
-              label: Text('Replace'),
-              icon: Icon(Icons.swap_horiz, size: 16),
-            ),
-          ],
-          selected: {mode},
-          onSelectionChanged: (s) => onModeChanged(s.first),
-          style: const ButtonStyle(visualDensity: VisualDensity.compact),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          mode == ImportMode.merge
-              ? 'Add new sessions, keep existing'
-              : 'Replace all sessions with imported',
-          style: subtleStyle,
-        ),
-      ],
-    );
   }
 
   ImportService _buildImportService() {
