@@ -12,10 +12,10 @@ void main() {
 
   setUp(() {
     sessions = [
-      Session(id: '1', label: 'nginx1', group: 'Production/Web', server: ServerAddress(host: '10.0.0.1', user: 'root')),
-      Session(id: '2', label: 'nginx2', group: 'Production/Web', server: ServerAddress(host: '10.0.0.2', user: 'root')),
-      Session(id: '3', label: 'db-master', group: 'Production/DB', server: ServerAddress(host: '10.0.1.1', user: 'admin')),
-      Session(id: '4', label: 'staging', group: '', server: ServerAddress(host: '192.168.1.1', user: 'deploy')),
+      Session(id: '1', label: 'nginx1', group: 'Production/Web', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
+      Session(id: '2', label: 'nginx2', group: 'Production/Web', server: const ServerAddress(host: '10.0.0.2', user: 'root')),
+      Session(id: '3', label: 'db-master', group: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin')),
+      Session(id: '4', label: 'staging', group: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy')),
     ];
     tree = SessionTree.build(sessions);
   });
@@ -206,7 +206,7 @@ void main() {
 
     testWidgets('shows key icon for key auth type', (tester) async {
       final keySessions = [
-        Session(id: '10', label: 'key-server', group: '', server: ServerAddress(host: '10.0.0.10', user: 'root'), auth: SessionAuth(authType: AuthType.key)),
+        Session(id: '10', label: 'key-server', group: '', server: const ServerAddress(host: '10.0.0.10', user: 'root'), auth: const SessionAuth(authType: AuthType.key)),
       ];
       final keyTree = SessionTree.build(keySessions);
       await tester.pumpWidget(buildApp(overrideTree: keyTree));
@@ -216,7 +216,7 @@ void main() {
 
     testWidgets('shows enhanced_encryption icon for keyWithPassword auth', (tester) async {
       final keySessions = [
-        Session(id: '11', label: 'enc-server', group: '', server: ServerAddress(host: '10.0.0.11', user: 'root'), auth: SessionAuth(authType: AuthType.keyWithPassword)),
+        Session(id: '11', label: 'enc-server', group: '', server: const ServerAddress(host: '10.0.0.11', user: 'root'), auth: const SessionAuth(authType: AuthType.keyWithPassword)),
       ];
       final keyTree = SessionTree.build(keySessions);
       await tester.pumpWidget(buildApp(overrideTree: keyTree));
@@ -287,7 +287,7 @@ void main() {
 
     testWidgets('renders root-level sessions without indent', (tester) async {
       final rootOnly = [
-        Session(id: '1', label: 'root-server', group: '', server: ServerAddress(host: 'h', user: 'u')),
+        Session(id: '1', label: 'root-server', group: '', server: const ServerAddress(host: 'h', user: 'u')),
       ];
       final rootTree = SessionTree.build(rootOnly);
       await tester.pumpWidget(buildApp(overrideTree: rootTree));
@@ -312,7 +312,7 @@ void main() {
 
   group('SessionDragData', () {
     test('SessionDrag holds session', () {
-      final session = Session(id: '1', label: 'test', server: ServerAddress(host: 'h', user: 'u'));
+      final session = Session(id: '1', label: 'test', server: const ServerAddress(host: 'h', user: 'u'));
       final drag = SessionDrag(session);
       expect(drag.session, session);
     });
@@ -325,7 +325,7 @@ void main() {
 
   group('SessionTreeView — deep nesting', () {
     testWidgets('renders 3-level nested groups', (tester) async {
-      final s = Session(label: 's', group: 'A/B/C', server: ServerAddress(host: 'h', user: 'u'));
+      final s = Session(label: 's', group: 'A/B/C', server: const ServerAddress(host: 'h', user: 'u'));
       final tree = SessionTree.build([s], emptyGroups: const {});
       await tester.pumpWidget(MaterialApp(
         theme: AppTheme.dark(),
@@ -346,7 +346,7 @@ void main() {
     });
 
     testWidgets('depth 4 item renders without overflow', (tester) async {
-      final s = Session(label: 'deep', group: 'A/B/C/D', server: ServerAddress(host: 'h', user: 'u'));
+      final s = Session(label: 'deep', group: 'A/B/C/D', server: const ServerAddress(host: 'h', user: 'u'));
       final tree = SessionTree.build([s], emptyGroups: const {});
       await tester.pumpWidget(MaterialApp(
         theme: AppTheme.dark(),

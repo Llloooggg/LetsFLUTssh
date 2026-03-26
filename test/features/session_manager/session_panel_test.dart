@@ -145,9 +145,9 @@ void main() {
 
   setUp(() {
     testSessions = [
-      Session(id: '1', label: 'web1', group: 'Production', server: ServerAddress(host: '10.0.0.1', user: 'root')),
-      Session(id: '2', label: 'db1', group: 'Production/DB', server: ServerAddress(host: '10.0.1.1', user: 'admin')),
-      Session(id: '3', label: 'staging', group: '', server: ServerAddress(host: '192.168.1.1', user: 'deploy')),
+      Session(id: '1', label: 'web1', group: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
+      Session(id: '2', label: 'db1', group: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin')),
+      Session(id: '3', label: 'staging', group: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy')),
     ];
   });
 
@@ -262,14 +262,14 @@ void main() {
     });
 
     testWidgets('renders sessions with key auth icon', (tester) async {
-      final keySession = Session(id: '4', label: 'key-server', group: '', server: ServerAddress(host: '10.0.0.5', user: 'ubuntu'), auth: SessionAuth(authType: AuthType.key));
+      final keySession = Session(id: '4', label: 'key-server', group: '', server: const ServerAddress(host: '10.0.0.5', user: 'ubuntu'), auth: const SessionAuth(authType: AuthType.key));
       await tester.pumpWidget(buildApp(sessions: [keySession]));
       expect(find.byIcon(Icons.vpn_key), findsOneWidget);
     });
 
     testWidgets('renders sessions with keyWithPassword auth icon',
         (tester) async {
-      final keyPassSession = Session(id: '5', label: 'key-pass-server', group: '', server: ServerAddress(host: '10.0.0.6', user: 'user'), auth: SessionAuth(authType: AuthType.keyWithPassword));
+      final keyPassSession = Session(id: '5', label: 'key-pass-server', group: '', server: const ServerAddress(host: '10.0.0.6', user: 'user'), auth: const SessionAuth(authType: AuthType.keyWithPassword));
       await tester.pumpWidget(buildApp(sessions: [keyPassSession]));
       expect(find.byIcon(Icons.enhanced_encryption), findsOneWidget);
     });
@@ -646,7 +646,7 @@ void main() {
 
     testWidgets('renders empty group alongside sessions', (tester) async {
       final sessions = [
-        Session(id: '1', label: 'web1', group: '', server: ServerAddress(host: '10.0.0.1', user: 'root')),
+        Session(id: '1', label: 'web1', group: '', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
       ];
       await tester.pumpWidget(buildApp(
         sessions: sessions,
@@ -1433,7 +1433,7 @@ void main() {
   group('SessionPanel — delete dialog with empty label', () {
     testWidgets('delete dialog uses displayName when label is empty',
         (tester) async {
-      final noLabelSession = Session(id: '10', label: '', group: '', server: ServerAddress(host: '10.0.0.10', user: 'admin'));
+      final noLabelSession = Session(id: '10', label: '', group: '', server: const ServerAddress(host: '10.0.0.10', user: 'admin'));
       await tester.pumpWidget(buildApp(
         sessions: [noLabelSession],
         onSftpConnect: (_) {},

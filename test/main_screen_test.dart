@@ -1314,7 +1314,7 @@ void main() {
   group('MainScreen — _connectSession via session double-click', () {
     testWidgets('double-clicking a session triggers _connectSession', (tester) async {
       final store = SessionStore();
-      final testSession = Session(id: 'test-sess-1', label: 'TestServer', server: ServerAddress(host: '10.0.0.99', user: 'admin'), auth: SessionAuth(password: 'pass123'));
+      final testSession = Session(id: 'test-sess-1', label: 'TestServer', server: const ServerAddress(host: '10.0.0.99', user: 'admin'), auth: const SessionAuth(password: 'pass123'));
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
@@ -1362,7 +1362,7 @@ void main() {
   group('MainScreen — _connectSessionSftp via context menu', () {
     testWidgets('right-click session and select SFTP triggers _connectSessionSftp', (tester) async {
       final store = SessionStore();
-      final testSession = Session(id: 'test-sess-2', label: 'SftpServer', server: ServerAddress(host: '10.0.0.100', user: 'sftpuser'), auth: SessionAuth(password: 'secret'));
+      final testSession = Session(id: 'test-sess-2', label: 'SftpServer', server: const ServerAddress(host: '10.0.0.100', user: 'sftpuser'), auth: const SessionAuth(password: 'secret'));
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
@@ -1673,7 +1673,7 @@ void main() {
   group('MainScreen — onSftpConnect callback', () {
     testWidgets('SessionPanel receives onSftpConnect callback', (tester) async {
       final store = SessionStore();
-      final testSession = Session(id: 'sftp-test-1', label: 'SftpTarget', server: ServerAddress(host: '10.0.0.77', user: 'sftpuser'), auth: SessionAuth(password: 'pw'));
+      final testSession = Session(id: 'sftp-test-1', label: 'SftpTarget', server: const ServerAddress(host: '10.0.0.77', user: 'sftpuser'), auth: const SessionAuth(password: 'pw'));
 
       await tester.pumpWidget(ProviderScope(
         overrides: [

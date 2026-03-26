@@ -26,7 +26,7 @@ void main() {
       );
     });
 
-    Session makeSession(String id, String label) => Session(id: id, label: label, server: ServerAddress(host: 'host', user: 'user'));
+    Session makeSession(String id, String label) => Session(id: id, label: label, server: const ServerAddress(host: 'host', user: 'user'));
 
     test('merge mode adds sessions', () async {
       final s1 = makeSession('1', 'A');

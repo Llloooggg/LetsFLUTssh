@@ -121,9 +121,9 @@ void main() {
 
   setUp(() {
     testSessions = [
-      Session(id: '1', label: 'web1', group: 'Production', server: ServerAddress(host: '10.0.0.1', user: 'root')),
-      Session(id: '2', label: 'db1', group: 'Production/DB', server: ServerAddress(host: '10.0.1.1', user: 'admin')),
-      Session(id: '3', label: 'staging', group: '', server: ServerAddress(host: '192.168.1.1', user: 'deploy')),
+      Session(id: '1', label: 'web1', group: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
+      Session(id: '2', label: 'db1', group: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin')),
+      Session(id: '3', label: 'staging', group: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy')),
     ];
   });
 

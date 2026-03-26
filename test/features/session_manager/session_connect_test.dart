@@ -103,7 +103,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'Test Server', server: ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
+                      final session = Session(id: 's1', label: 'Test Server', server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -139,7 +139,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'My Server', server: ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
+                      final session = Session(id: 's1', label: 'My Server', server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -176,7 +176,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: '', server: ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
+                      final session = Session(id: 's1', label: '', server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -215,7 +215,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'Test', server: ServerAddress(host: '10.0.0.1', user: 'root'));
+                      final session = Session(id: 's1', label: 'Test', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -257,7 +257,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's2', label: 'SFTP Server', server: ServerAddress(host: '10.0.0.1', user: 'test'));
+                      final session = Session(id: 's2', label: 'SFTP Server', server: const ServerAddress(host: '10.0.0.1', user: 'test'));
                       SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('SFTP'),
@@ -295,7 +295,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's2', label: '', server: ServerAddress(host: '10.0.0.1', user: 'admin'));
+                      final session = Session(id: 's2', label: '', server: const ServerAddress(host: '10.0.0.1', user: 'admin'));
                       SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('SFTP'),
@@ -335,7 +335,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'Test', server: ServerAddress(host: '10.0.0.1', user: 'root'));
+                      final session = Session(id: 's1', label: 'Test', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -376,7 +376,7 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'Test', server: ServerAddress(host: '10.0.0.1', user: 'root'));
+                      final session = Session(id: 's1', label: 'Test', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
                       SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('SFTP'),

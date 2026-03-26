@@ -221,7 +221,7 @@ void main() {
 
   group('SessionEditDialog — edit session submit', () {
     testWidgets('Save returns SaveResult with connect=false', (tester) async {
-      final session = Session(label: 'test-server', server: ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -237,7 +237,7 @@ void main() {
     });
 
     testWidgets('Save preserves edited fields', (tester) async {
-      final session = Session(label: 'old-label', server: ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(label: 'old-label', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -494,7 +494,7 @@ void main() {
 
   group('SessionEditDialog — edit with key auth', () {
     testWidgets('editing session with key auth shows key fields pre-filled', (tester) async {
-      final session = Session(label: 'key-server', server: ServerAddress(host: '10.0.0.1', user: 'ubuntu'), auth: SessionAuth(authType: AuthType.key, keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'pass123'));
+      final session = Session(label: 'key-server', server: const ServerAddress(host: '10.0.0.1', user: 'ubuntu'), auth: const SessionAuth(authType: AuthType.key, keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'pass123'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -563,7 +563,7 @@ void main() {
 
   group('SessionEditDialog — edit session', () {
     testWidgets('shows Edit Session title', (tester) async {
-      final session = Session(label: 'test-server', server: ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -572,7 +572,7 @@ void main() {
     });
 
     testWidgets('Save button present for edit mode', (tester) async {
-      final session = Session(label: 'test', server: ServerAddress(host: 'h', user: 'u'));
+      final session = Session(label: 'test', server: const ServerAddress(host: 'h', user: 'u'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -581,7 +581,7 @@ void main() {
     });
 
     testWidgets('fields pre-populated from session', (tester) async {
-      final session = Session(label: 'my-server', group: 'Production', server: ServerAddress(host: '192.168.1.1', port: 2222, user: 'admin'));
+      final session = Session(label: 'my-server', group: 'Production', server: const ServerAddress(host: '192.168.1.1', port: 2222, user: 'admin'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -607,7 +607,7 @@ void main() {
     });
 
     testWidgets('cancel in edit mode returns null', (tester) async {
-      final session = Session(label: 'srv', server: ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(label: 'srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -622,7 +622,7 @@ void main() {
   group('SessionEditDialog — edit mode validation and id preservation', () {
     testWidgets('Save in edit mode fails validation if host cleared',
         (tester) async {
-      final session = Session(label: 'srv', server: ServerAddress(host: '10.0.0.1', user: 'root'), auth: SessionAuth(authType: AuthType.password));
+      final session = Session(label: 'srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -640,7 +640,7 @@ void main() {
 
     testWidgets('editing session preserves original session id',
         (tester) async {
-      final session = Session(id: 'original-id-123', label: 'edit-me', server: ServerAddress(host: '10.0.0.1', user: 'root'), auth: SessionAuth(authType: AuthType.password));
+      final session = Session(id: 'original-id-123', label: 'edit-me', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -660,7 +660,7 @@ void main() {
     });
 
     testWidgets('edit mode has Save and Cancel buttons only', (tester) async {
-      final session = Session(label: 'edit-me', server: ServerAddress(host: '10.0.0.1', user: 'root'), auth: SessionAuth(authType: AuthType.password));
+      final session = Session(label: 'edit-me', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -676,7 +676,7 @@ void main() {
   group('SessionEditDialog — edit key session preserves all key fields', () {
     testWidgets('editing key session and saving preserves key data',
         (tester) async {
-      final session = Session(id: 'key-edit-1', label: 'key-srv', server: ServerAddress(host: '10.0.0.1', user: 'root'), auth: SessionAuth(authType: AuthType.key, keyPath: '/path/to/key', keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'phrase123'));
+      final session = Session(id: 'key-edit-1', label: 'key-srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.key, keyPath: '/path/to/key', keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'phrase123'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -866,7 +866,7 @@ void main() {
   group('SessionEditDialog — editing keyWithPassword session', () {
     testWidgets('editing Key+Pass session shows both password and key fields',
         (tester) async {
-      final session = Session(label: 'kp-server', server: ServerAddress(host: '10.0.0.1', user: 'root'), auth: SessionAuth(authType: AuthType.keyWithPassword, password: 'secret', keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'kp123'));
+      final session = Session(label: 'kp-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.keyWithPassword, password: 'secret', keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'kp123'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1237,14 +1237,14 @@ void main() {
     });
 
     test('SaveResult holds Session with connect flag', () {
-      final session = Session(label: 'test', server: ServerAddress(host: 'h', user: 'u'));
+      final session = Session(label: 'test', server: const ServerAddress(host: 'h', user: 'u'));
       final result = SaveResult(session, connect: true);
       expect(result.session.label, 'test');
       expect(result.connect, isTrue);
     });
 
     test('SaveResult defaults connect to false', () {
-      final session = Session(label: 'test', server: ServerAddress(host: 'h', user: 'u'));
+      final session = Session(label: 'test', server: const ServerAddress(host: 'h', user: 'u'));
       final result = SaveResult(session);
       expect(result.connect, isFalse);
     });
@@ -1328,7 +1328,7 @@ void main() {
   group('SessionEditDialog — editing session with keyData starts with PEM visible', () {
     testWidgets('editing session with keyData shows PEM text and Hide PEM text toggle',
         (tester) async {
-      final session = Session(label: 'key-srv', server: ServerAddress(host: '10.0.0.1', user: 'root'), auth: SessionAuth(authType: AuthType.key, keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----'));
+      final session = Session(label: 'key-srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.key, keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1355,7 +1355,7 @@ void main() {
 
     testWidgets('toggling PEM off then on preserves keyData content',
         (tester) async {
-      final session = Session(label: 'key-srv', server: ServerAddress(host: '10.0.0.1', user: 'root'), auth: SessionAuth(authType: AuthType.key, keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----'));
+      final session = Session(label: 'key-srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.key, keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();

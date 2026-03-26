@@ -135,7 +135,7 @@ void main() {
       final store = SessionStore();
       await store.load();
 
-      final invalid = Session(id: 'bad', label: 'bad', server: ServerAddress(host: '', user: 'root'));
+      final invalid = Session(id: 'bad', label: 'bad', server: const ServerAddress(host: '', user: 'root'));
       expect(() => store.add(invalid), throwsA(isA<ArgumentError>()));
     });
   });
@@ -407,7 +407,7 @@ void main() {
       await store.add(session);
 
       // Update with invalid data (empty host)
-      final invalid = Session(id: 'upd-1', label: 'bad', server: ServerAddress(host: '', user: 'root'));
+      final invalid = Session(id: 'upd-1', label: 'bad', server: const ServerAddress(host: '', user: 'root'));
       expect(() => store.update(invalid), throwsA(isA<ArgumentError>()));
     });
 
@@ -417,7 +417,7 @@ void main() {
       final session = makeSession(id: 'upd-2', label: 'exists', host: 'h.com');
       await store.add(session);
 
-      final notFound = Session(id: 'nonexistent', label: 'x', server: ServerAddress(host: 'h', user: 'u'));
+      final notFound = Session(id: 'nonexistent', label: 'x', server: const ServerAddress(host: 'h', user: 'u'));
       expect(() => store.update(notFound), throwsA(isA<ArgumentError>()));
     });
   });
@@ -657,7 +657,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group('Session JSON serialization', () {
     test('toJson does not include password, keyData, passphrase', () {
-      final s = Session(label: 'test', server: ServerAddress(host: 'host', user: 'user'), auth: SessionAuth(password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass'));
+      final s = Session(label: 'test', server: const ServerAddress(host: 'host', user: 'user'), auth: const SessionAuth(password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass'));
       final json = s.toJson();
       expect(json.containsKey('password'), isFalse);
       expect(json.containsKey('key_data'), isFalse);
@@ -665,7 +665,7 @@ void main() {
     });
 
     test('toJsonWithCredentials includes secrets', () {
-      final s = Session(label: 'test', server: ServerAddress(host: 'host', user: 'user'), auth: SessionAuth(password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass'));
+      final s = Session(label: 'test', server: const ServerAddress(host: 'host', user: 'user'), auth: const SessionAuth(password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass'));
       final json = s.toJsonWithCredentials();
       expect(json['password'], 'secret');
       expect(json['key_data'], 'PEM-DATA');

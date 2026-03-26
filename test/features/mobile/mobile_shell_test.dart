@@ -742,7 +742,7 @@ void main() {
     }
 
     testWidgets('connect session adds tab and navigates to terminal', (tester) async {
-      final session = Session(id: 'sess-1', label: 'Test Server', server: ServerAddress(host: 'example.com', user: 'root'));
+      final session = Session(id: 'sess-1', label: 'Test Server', server: const ServerAddress(host: 'example.com', user: 'root'));
       await tester.pumpWidget(buildWithSession(
         session: session,
         manager: _SuccessConnectionManager(),
@@ -755,7 +755,7 @@ void main() {
     });
 
     testWidgets('connect session with failed connection still adds tab', (tester) async {
-      final session = Session(id: 'sess-fail', label: 'Fail Server', server: ServerAddress(host: 'fail.com', user: 'root'));
+      final session = Session(id: 'sess-fail', label: 'Fail Server', server: const ServerAddress(host: 'fail.com', user: 'root'));
       await tester.pumpWidget(buildWithSession(
         session: session,
         manager: _FailingConnectionManager(Exception('bad password')),

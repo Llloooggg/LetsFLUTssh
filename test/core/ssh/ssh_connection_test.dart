@@ -709,7 +709,7 @@ void main() {
 
       try {
         final conn = SSHConnection(
-          config: SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyPath: keyFile.path)),
+          config: SSHConfig(server: const ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyPath: keyFile.path)),
           knownHosts: mockKnownHosts,
           socketFactory: (h, p, {timeout}) async => mockSocket,
           clientFactory: (socket, {
@@ -739,7 +739,7 @@ void main() {
       when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
       final conn = SSHConnection(
-        config: SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyData: _testEd25519PrivateKey)),
+        config: SSHConfig(server: const ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyData: _testEd25519PrivateKey)),
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory: (socket, {
@@ -762,7 +762,7 @@ void main() {
     test('keyData with passphrase on unencrypted key throws error', () async {
       // dartssh2 rejects passphrase for unencrypted keys
       final conn = SSHConnection(
-        config: SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyData: _testEd25519PrivateKey, passphrase: 'unused-but-set')),
+        config: SSHConfig(server: const ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyData: _testEd25519PrivateKey, passphrase: 'unused-but-set')),
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory: (socket, {
@@ -800,7 +800,7 @@ void main() {
 
       try {
         final conn = SSHConnection(
-          config: SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyPath: keyFile.path, keyData: _testEd25519PrivateKey)),
+          config: SSHConfig(server: const ServerAddress(host: 'h', user: 'u'), auth: SshAuth(keyPath: keyFile.path, keyData: _testEd25519PrivateKey)),
           knownHosts: mockKnownHosts,
           socketFactory: (h, p, {timeout}) async => mockSocket,
           clientFactory: (socket, {
