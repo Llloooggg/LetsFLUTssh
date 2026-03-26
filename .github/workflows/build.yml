@@ -272,6 +272,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -280,6 +282,15 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            artifacts/linux-x64/*
+            artifacts/windows-x64/*
+            artifacts/macos-universal/*
+            artifacts/android-apk/*
 
       - name: Resolve release tag
         id: tag
