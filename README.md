@@ -210,21 +210,6 @@ Requires Xcode on macOS.
 make build-ios
 ```
 
-## Current Status
-
-**v0.10.0** — All core features implemented. File logger for debug builds, data path visibility in settings.
-
-| Phase | What                                                                       |
-| ----- | -------------------------------------------------------------------------- |
-| 1-3   | SSH terminal, session manager, SFTP file browser (MVP)                     |
-| 4     | Polish — tab reorder, toast notifications, settings, responsive layout     |
-| 5     | Security — AES-256-GCM credential encryption, .lfs export/import           |
-| 6     | Terminal search, auto-detect SSH keys, session folders                     |
-| 7     | Tiling terminal layout — recursive split, drag-to-resize, focus tracking   |
-| 8     | Mobile UI — bottom nav, SSH virtual keyboard, deep links, swipe navigation |
-| 9     | Tests, security audit, performance profiling, packaging, user docs         |
-| 10    | Code quality — testable architecture, file logger, 90%+ coverage           |
-
 ## Development
 
 ```bash

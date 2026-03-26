@@ -25,8 +25,8 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 
 ### Work Style
 
-- Documentation is maintained in English (PLAN.md, README.md, CLAUDE.md, SECURITY.md)
-- PLAN.md, CLAUDE.md, README.md **updated on every significant change**
+- Documentation is maintained in English (README.md, CLAUDE.md, SECURITY.md)
+- CLAUDE.md, README.md **updated on every significant change**
 - All architectural/UX patterns documented in CLAUDE.md at the time of implementation
 - SSH keys accepted **both as file and text** (paste PEM) — key requirement
 - Easy data transfer between devices — priority feature (`.lfs` archive format)
@@ -76,8 +76,7 @@ v1.1.0 → major rework → v2.0.0
 1. **Version bump** — bump version in `pubspec.yaml` (see Versioning Strategy above)
 2. **CLAUDE.md** — update Current State and module descriptions; document **why** a decision was made
 3. **README.md** — update if the change is user-visible
-4. **PLAN.md** — update phase checkmarks and current status if applicable
-5. **SECURITY.md** — update if security scope changes (new crypto, auth methods, etc.)
+4. **SECURITY.md** — update if security scope changes (new crypto, auth methods, etc.)
 6. **Commit** — suggest a one-line message in `type: short description` format (user commits manually)
 
 ### Dependencies
@@ -242,7 +241,7 @@ LetsFLUTssh/
 ├── analysis_options.yaml            # Lint rules
 ├── CLAUDE.md                        # This file
 ├── README.md
-└── PLAN.md                          # Step-by-step dev plan
+└── PLAN.md                          # Development history (phases 1-9)
 ```
 
 ## Key Design Principles
@@ -255,7 +254,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 doesn't support SCP; SFTP covers all use cases
 7. **Tree-based sessions** — nested groups via `/` separator, stored as flat list with group path
 
-## Current State (v0.10.0)
+## Current State (v1.0.0)
 
 ### Features by category
 

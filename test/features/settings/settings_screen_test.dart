@@ -1122,7 +1122,7 @@ void main() {
       );
       expect(find.text('About'), findsOneWidget);
       expect(find.text('LetsFLUTssh'), findsOneWidget);
-      expect(find.textContaining('v0.11.0'), findsOneWidget);
+      expect(find.textContaining('v1.0.0'), findsOneWidget);
       expect(find.textContaining('SSH/SFTP client'), findsOneWidget);
       expect(find.byIcon(Icons.info_outline), findsOneWidget);
     });
@@ -1134,7 +1134,7 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Source Code'), findsOneWidget);
-      expect(find.text('https://github.com/llloooggg/LetsFLUTssh'), findsOneWidget);
+      expect(find.text('https://github.com/Llloooggg/LetsFLUTssh'), findsOneWidget);
       expect(find.byIcon(Icons.code), findsOneWidget);
     });
 
