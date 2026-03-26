@@ -2047,4 +2047,43 @@ void main() {
       expect(container.decoration, isNull);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Ctrl+tap selection
+  // ---------------------------------------------------------------------------
+  group('FilePane — Ctrl+tap toggles selection', () {
+    testWidgets('Ctrl+tap on file row calls toggleSelect via onCtrlTap',
+        (tester) async {
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Select first file programmatically (InkWell onTap is unreliable
+      // in widget tests when onDoubleTap is also registered).
+      ctrl.selectSingle('/home/a.txt');
+      await tester.pump();
+      expect(ctrl.selected, {'/home/a.txt'});
+
+      // Ctrl+tap on second file — adds it to selection.
+      // Hold Ctrl so FileRow's InkWell.onTap calls onCtrlTap instead of onTap.
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.tap(find.text('b.txt'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      expect(ctrl.selected, {'/home/a.txt', '/home/b.txt'});
+
+      // Ctrl+tap on first file again — deselects it.
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.tap(find.text('a.txt'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      expect(ctrl.selected, {'/home/b.txt'});
+    });
+  });
 }

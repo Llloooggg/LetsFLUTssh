@@ -76,7 +76,7 @@ void main() {
       expect(result, isTrue);
     });
 
-    testWidgets('Reject returns false', (tester) async {
+    testWidgets('Reject new host returns false', (tester) async {
       bool? result;
       await tester.pumpWidget(buildApp(
         onPressed: (ctx) {
@@ -206,7 +206,7 @@ void main() {
       expect(result, isTrue);
     });
 
-    testWidgets('Reject returns false', (tester) async {
+    testWidgets('Reject changed key returns false', (tester) async {
       bool? result;
       await tester.pumpWidget(buildApp(
         onPressed: (ctx) {
