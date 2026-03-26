@@ -1,5 +1,5 @@
 APP_NAME := letsflutssh
-VERSION := 0.9.0
+VERSION := $(shell grep '^version:' pubspec.yaml | head -1 | sed 's/version: *//;s/+.*//')
 BUILD_DIR := build
 FLUTTER := flutter
 UNAME := $(shell uname)
