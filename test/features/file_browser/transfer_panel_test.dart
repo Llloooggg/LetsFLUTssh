@@ -294,15 +294,14 @@ void main() {
       await tester.tap(find.text('Transfers'));
       await tester.pumpAndSettle();
 
-      // Find resize handle — it's a MouseRegion wrapping a GestureDetector
-      // wrapping a Container(height: 4). Find it by looking for the
-      // GestureDetector that handles vertical drag inside the panel.
-      final resizeHandles = find.byType(MouseRegion);
-      // There may be multiple MouseRegions; drag the first one visible in the panel
-      expect(resizeHandles, findsWidgets);
+      // Find the resize handle by the resizeRow cursor
+      final resizeHandle = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
+      );
+      expect(resizeHandle, findsOneWidget);
 
-      // Drag the first MouseRegion (resize handle)
-      await tester.drag(resizeHandles.first, const Offset(0, -50));
+      // Drag the resize handle up
+      await tester.drag(resizeHandle, const Offset(0, -50));
       await tester.pumpAndSettle();
 
       // Panel should still be rendered (no crash)
