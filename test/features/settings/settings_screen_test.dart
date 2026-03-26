@@ -1308,4 +1308,117 @@ void main() {
       expect(find.text('Open Settings'), findsOneWidget);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Export — password mismatch toast verification
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Export password mismatch toast', () {
+    testWidgets('mismatch toast shows warning level', (tester) async {
+      await tester.pumpWidget(buildFullApp());
+      await tester.pump();
+
+      await tester.scrollUntilVisible(
+        find.text('Export Data'), 100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'alpha');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Confirm Password'), 'beta');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pump();
+
+      // Toast text is visible
+      expect(find.text('Passwords do not match'), findsOneWidget);
+
+      // Dialog remains open (not closed)
+      expect(find.text('Master Password'), findsOneWidget);
+      expect(find.text('Confirm Password'), findsOneWidget);
+
+      // Clean up
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('mismatch does not close dialog even with non-empty fields',
+        (tester) async {
+      await tester.pumpWidget(buildFullApp());
+      await tester.pump();
+
+      await tester.scrollUntilVisible(
+        find.text('Export Data'), 100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Export Data'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'longpassword1');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Confirm Password'), 'longpassword2');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pump();
+
+      // Dialog still visible
+      expect(find.widgetWithText(FilledButton, 'Export'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Import file not found toast verification
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen - Import file not found toast', () {
+    testWidgets('nonexistent file shows File not found toast text',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildFullApp());
+      await tester.pump();
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      const fakePath = '/tmp/absolutely_nonexistent_file_9999.lfs';
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Path to .lfs file'), fakePath);
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Master Password'), 'pw');
+
+      // Tap Import — dialog closes, then _executeImport runs with real I/O
+      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      // Pump to process dialog close animation
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      // Let real async I/O (File.exists) complete
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 200)));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      // Verify the toast text
+      expect(find.textContaining('File not found'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    });
+  });
 }

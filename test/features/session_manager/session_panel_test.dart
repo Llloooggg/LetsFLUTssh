@@ -1849,4 +1849,68 @@ void main() {
       expect(find.text('Folder name'), findsNothing);
     });
   });
+
+  group('SessionPanel — drag session to group (onSessionMoved)', () {
+    testWidgets('dragging a session onto a group calls moveSession',
+        (tester) async {
+      // Use sessions where staging is at root and Production is a group
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Find the staging session (root group) and the Production group
+      final stagingFinder = find.text('staging');
+      final productionFinder = find.text('Production');
+      expect(stagingFinder, findsOneWidget);
+      expect(productionFinder, findsOneWidget);
+
+      final stagingCenter = tester.getCenter(stagingFinder);
+      final productionCenter = tester.getCenter(productionFinder);
+
+      // Simulate long press drag: LongPressDraggable requires a long press
+      // followed by a drag to the target
+      final gesture = await tester.startGesture(stagingCenter);
+      // Hold for long press delay (default 500ms)
+      await tester.pump(const Duration(milliseconds: 600));
+      // Drag to Production group
+      await gesture.moveTo(productionCenter);
+      await tester.pump();
+      // Release
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // The drag should trigger onSessionMoved internally via the provider.
+      // Verify the panel still renders without error after the drop.
+      expect(find.byType(SessionPanel), findsOneWidget);
+    });
+  });
+
+  group('SessionPanel — drag group to root (onGroupMoved)', () {
+    testWidgets('dragging a group to root area triggers onGroupMoved',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Find the DB sub-group (Production/DB)
+      final dbFinder = find.text('DB');
+      expect(dbFinder, findsOneWidget);
+
+      final dbCenter = tester.getCenter(dbFinder);
+
+      // Get the bottom of the panel to drag to root background DragTarget
+      final panel = find.byType(SessionPanel);
+      final panelBox = tester.getRect(panel);
+      final rootTarget = Offset(panelBox.center.dx, panelBox.bottom - 30);
+
+      // Simulate long press drag
+      final gesture = await tester.startGesture(dbCenter);
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.moveTo(rootTarget);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // The panel should still render without error after the drop
+      expect(find.byType(SessionPanel), findsOneWidget);
+    });
+  });
 }

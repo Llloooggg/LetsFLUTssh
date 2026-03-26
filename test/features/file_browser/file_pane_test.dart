@@ -1499,6 +1499,102 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Background context menu on non-empty file list
+  // ---------------------------------------------------------------------------
+  group('FilePane — background context menu on non-empty list', () {
+    testWidgets('right-click in empty area of non-empty list shows menu',
+        (tester) async {
+      // Use entries that don't fill the viewport — empty area below
+      final entries = [
+        FileEntry(name: 'only.txt', path: '/home/only.txt', size: 100,
+            mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Find the file list area and right-click below the last row
+      // The list is inside a GestureDetector with onSecondaryTapUp
+      // Right-click in an area that is part of the list but not on a row
+      final listFinder = find.byType(ListView);
+      final listBox = tester.getRect(listFinder);
+      // Click in lower area of list (below the single 28px row)
+      final emptyAreaPos = Offset(listBox.center.dx, listBox.top + 80);
+
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.addPointer(location: emptyAreaPos);
+      await gesture.down(emptyAreaPos);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Folder'), findsOneWidget);
+      expect(find.text('Refresh'), findsOneWidget);
+
+      // Dismiss menu
+      await tester.tapAt(const Offset(1, 1));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Path bar onTapOutside restores path
+  // ---------------------------------------------------------------------------
+  group('FilePane — path bar onTapOutside', () {
+    testWidgets('tapping outside path bar restores original path text',
+        (tester) async {
+      final fs = _MockFS({'/home': [], '/': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Enter edit mode
+      await tester.tap(find.text('/home').first);
+      await tester.pump();
+
+      // Type something different
+      final textField = find.byType(TextField).first;
+      await tester.enterText(textField, '/some/other/path');
+      await tester.pump();
+
+      // Tap outside to trigger onTapOutside
+      await tester.tapAt(const Offset(10, 300));
+      await tester.pump();
+
+      // Path should be restored to /home (original)
+      expect(ctrl.currentPath, '/home');
+      // Path bar should show /home, not the typed text
+      expect(find.text('/home'), findsWidgets);
+    });
+
+    testWidgets('submitting edited path navigates and updates bar',
+        (tester) async {
+      final fs = _MockFS({'/home': [], '/var': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Enter edit mode
+      await tester.tap(find.text('/home').first);
+      await tester.pump();
+
+      // Submit a new path
+      await tester.enterText(find.byType(TextField).first, '/var');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(ctrl.currentPath, '/var');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Controller lifecycle
   // ---------------------------------------------------------------------------
   group('FilePane — controller listener lifecycle', () {

@@ -1,3 +1,4 @@
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
@@ -1314,6 +1315,182 @@ void main() {
       final session = Session(label: 'test', host: 'h', user: 'u');
       final result = SaveResult(session);
       expect(result.connect, isFalse);
+    });
+  });
+
+  group('SessionEditDialog — PEM toggle icon and text changes', () {
+    testWidgets('PEM toggle shows down arrow icon initially', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      final scrollable = find.byType(Scrollable).last;
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: scrollable,
+      );
+
+      // Down arrow icon when PEM text is hidden
+      expect(find.byIcon(Icons.keyboard_arrow_down), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_up), findsNothing);
+    });
+
+    testWidgets('PEM toggle shows up arrow icon when expanded', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      final scrollable = find.byType(Scrollable).last;
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      // Up arrow icon when PEM text is shown
+      await tester.scrollUntilVisible(
+        find.text('Hide PEM text'),
+        100,
+        scrollable: scrollable,
+      );
+      expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
+    });
+
+    testWidgets('PEM text field has monospace font and maxLines', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      final scrollable = find.byType(Scrollable).last;
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        100,
+        scrollable: scrollable,
+      );
+
+      // Verify the PEM text field has the expected hint
+      expect(find.text('-----BEGIN OPENSSH PRIVATE KEY-----'), findsOneWidget);
+    });
+  });
+
+  group('SessionEditDialog — editing session with keyData starts with PEM visible', () {
+    testWidgets('editing session with keyData shows PEM text and Hide PEM text toggle',
+        (tester) async {
+      final session = Session(
+        label: 'key-srv',
+        host: '10.0.0.1',
+        user: 'root',
+        authType: AuthType.key,
+        keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
+      );
+      await tester.pumpWidget(buildApp(session: session));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Since keyData is not empty, _showKeyText starts as true
+      // PEM toggle should say "Hide PEM text"
+      final scrollable = find.byType(Scrollable).last;
+      await tester.scrollUntilVisible(
+        find.text('Hide PEM text'),
+        100,
+        scrollable: scrollable,
+      );
+      expect(find.text('Hide PEM text'), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
+
+      // The PEM text field should be visible with the keyData
+      await tester.scrollUntilVisible(
+        find.text('Key Text (PEM)'),
+        100,
+        scrollable: scrollable,
+      );
+      expect(find.text('Key Text (PEM)'), findsOneWidget);
+    });
+
+    testWidgets('toggling PEM off then on preserves keyData content',
+        (tester) async {
+      final session = Session(
+        label: 'key-srv',
+        host: '10.0.0.1',
+        user: 'root',
+        authType: AuthType.key,
+        keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
+      );
+      await tester.pumpWidget(buildApp(session: session));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      final scrollable = find.byType(Scrollable).last;
+
+      // Hide PEM text
+      await tester.scrollUntilVisible(
+        find.text('Hide PEM text'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Hide PEM text'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paste PEM key text'), findsOneWidget);
+      expect(find.text('Key Text (PEM)'), findsNothing);
+
+      // Show PEM text again
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      // Save and verify keyData is preserved
+      await tester.scrollUntilVisible(
+        find.text('Save'),
+        -100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.keyData, contains('PRIVATE KEY'));
+    });
+  });
+
+  group('SessionEditDialog — desktop key path DropTarget rendering', () {
+    testWidgets('key auth on desktop wraps key field in DropTarget',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      // On desktop, the key path field is wrapped in a DropTarget
+      // Verify the DropTarget widget exists
+      expect(find.byType(DropTarget), findsOneWidget);
     });
   });
 }

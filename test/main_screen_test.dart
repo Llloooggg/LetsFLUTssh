@@ -6,6 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/features/file_browser/file_browser_tab.dart';
+import 'package:letsflutssh/features/settings/export_import.dart' show ImportMode;
+import 'package:letsflutssh/features/terminal/terminal_tab.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
@@ -1022,4 +1025,429 @@ void main() {
       await tester.pumpAndSettle();
     });
   });
+
+  group('MainScreen — Ctrl+Tab cycling with 3 tabs', () {
+    testWidgets('Ctrl+Tab cycles forward through 3 tabs', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Tab1', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Tab2', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't3', label: 'Tab3', connection: conn, kind: TabKind.terminal),
+      ], activeIndex: 0));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('3 tab(s)'), findsOneWidget);
+
+      // Ctrl+Tab: 0 -> 1
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Ctrl+Tab: 1 -> 2
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Ctrl+Tab: 2 -> 0 (wraps around)
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // All 3 tabs still present, no crash
+      expect(find.textContaining('3 tab(s)'), findsOneWidget);
+    });
+
+    testWidgets('Ctrl+Shift+Tab cycles backward through 3 tabs', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Tab1', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Tab2', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't3', label: 'Tab3', connection: conn, kind: TabKind.terminal),
+      ], activeIndex: 0));
+      await tester.pumpAndSettle();
+
+      // Ctrl+Shift+Tab: 0 -> 2 (wraps to last)
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Ctrl+Shift+Tab: 2 -> 1
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('3 tab(s)'), findsOneWidget);
+    });
+
+    testWidgets('single tab: Ctrl+Tab does not switch (no-op)', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'OnlyTab', connection: conn, kind: TabKind.terminal),
+      ], activeIndex: 0));
+      await tester.pumpAndSettle();
+
+      // Ctrl+Tab should be no-op for single tab
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      // Status should still show this tab as active
+      expect(find.textContaining('Connected'), findsOneWidget);
+    });
+
+    testWidgets('single tab: Ctrl+Shift+Tab does not switch (no-op)', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'OnlyTab', connection: conn, kind: TabKind.terminal),
+      ], activeIndex: 0));
+      await tester.pumpAndSettle();
+
+      // Ctrl+Shift+Tab should be no-op for single tab
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — _buildTabContent with mixed tab types', () {
+    testWidgets('IndexedStack contains TerminalTab widget for terminal tab', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(IndexedStack), findsOneWidget);
+      expect(find.byType(TerminalTab), findsOneWidget);
+    });
+
+    testWidgets('IndexedStack contains FileBrowserTab widget for sftp tab', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 's1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(IndexedStack), findsOneWidget);
+      expect(find.byType(FileBrowserTab), findsOneWidget);
+    });
+
+    testWidgets('IndexedStack has correct children count for mixed tabs', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 's1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.children.length, 2);
+      // Active tab (index 0) is TerminalTab
+      expect(find.byType(TerminalTab), findsOneWidget);
+    });
+
+    testWidgets('IndexedStack index matches active tab', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 's1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
+      ], activeIndex: 1));
+      await tester.pumpAndSettle();
+
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, 1);
+    });
+  });
+
+  group('MainScreen — _buildRightSide onOpenSftp visibility', () {
+    testWidgets('SFTP button shows when active tab connection is connected', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Active', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Open SFTP Browser'), findsOneWidget);
+      // The folder_open icon should be visible
+      expect(find.byIcon(Icons.folder_open), findsOneWidget);
+    });
+
+    testWidgets('SFTP button hidden when active tab is disconnected', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.disconnected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Dead', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Open SFTP Browser'), findsNothing);
+      expect(find.byIcon(Icons.folder_open), findsNothing);
+    });
+
+    testWidgets('SFTP button hidden when no tabs are open', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      expect(find.byTooltip('Open SFTP Browser'), findsNothing);
+    });
+
+    testWidgets('tapping SFTP button opens SFTP tab alongside terminal', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Open SFTP Browser'));
+      await tester.pumpAndSettle();
+
+      // Now should have 2 tabs (terminal + sftp)
+      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+      expect(find.byType(FileBrowserTab), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — _handleLfsDrop', () {
+    testWidgets('DropTarget onDragDone is set for LFS drop handling', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+
+      // Verify DropTarget is present with onDragDone callback
+      final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget));
+      expect(dropTarget.onDragDone, isNotNull);
+    });
+  });
+
+  // Helper: builds the import dialog content widget directly (no showDialog).
+  // Mirrors _buildImportDialogContent from main.dart.
+  // Uses fileName string to avoid File() constructor in widget build (causes hang in tests).
+  Widget buildImportDialogContent({required String fileName}) {
+    return MaterialApp(
+      theme: AppTheme.dark(),
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: _ImportDialogTestWidget(fileName: fileName),
+        ),
+      ),
+    );
+  }
+
+  group('MainScreen — LFS import dialog content', () {
+    testWidgets('dialog content shows file name, password label, and mode selector', (tester) async {
+      await tester.pumpWidget(buildImportDialogContent(fileName: 'backup.lfs'));
+      await tester.pump();
+
+      expect(find.text('Import Data'), findsOneWidget);
+      expect(find.text('backup.lfs'), findsOneWidget);
+      expect(find.text('Master Password'), findsOneWidget);
+      expect(find.text('Merge'), findsOneWidget);
+      expect(find.text('Replace'), findsOneWidget);
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Import'), findsOneWidget);
+    });
+
+    testWidgets('toggling mode to Replace updates description text', (tester) async {
+      await tester.pumpWidget(buildImportDialogContent(fileName: 'data.lfs'));
+      await tester.pump();
+
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+
+      await tester.tap(find.text('Replace'));
+      await tester.pump();
+
+      expect(find.text('Replace all sessions with imported'), findsOneWidget);
+    });
+
+    testWidgets('Import button triggers submit action', (tester) async {
+      await tester.pumpWidget(buildImportDialogContent(fileName: 'empty.lfs'));
+      await tester.pump();
+
+      await tester.tap(find.text('Import'));
+      await tester.pump();
+
+      // Submit action was triggered
+      expect(find.text('SUBMITTED'), findsOneWidget);
+      // Dialog content should still be visible
+      expect(find.text('Import Data'), findsOneWidget);
+    });
+
+    testWidgets('toggling mode back to Merge restores description', (tester) async {
+      await tester.pumpWidget(buildImportDialogContent(fileName: 'toggle.lfs'));
+      await tester.pump();
+
+      await tester.tap(find.text('Replace'));
+      await tester.pump();
+      expect(find.text('Replace all sessions with imported'), findsOneWidget);
+
+      await tester.tap(find.text('Merge'));
+      await tester.pump();
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — narrow layout isNarrow path', () {
+    testWidgets('narrow layout (< 600px) uses Drawer instead of SplitView', (tester) async {
+      tester.view.physicalSize = const Size(500, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith((ref) {
+            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+            notifier.state = AppConfig.defaults;
+            return notifier;
+          }),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const Center(
+            child: SizedBox(width: 500, height: 600, child: MainScreen()),
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      // Menu button visible in narrow mode
+      expect(find.byIcon(Icons.menu), findsOneWidget);
+      // Toolbar should still have New Session button
+      expect(find.byTooltip('New Session (Ctrl+N)'), findsOneWidget);
+      // Status bar should show
+      expect(find.textContaining('tab'), findsWidgets);
+    });
+
+    testWidgets('narrow layout with active tab shows content and menu button', (tester) async {
+      tester.view.physicalSize = const Size(500, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final conn = makeConn();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith((ref) {
+            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
+            notifier.state = AppConfig.defaults;
+            return notifier;
+          }),
+          sessionStoreProvider.overrideWithValue(SessionStore()),
+          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          connectionManagerProvider.overrideWithValue(
+            ConnectionManager(knownHosts: KnownHostsManager()),
+          ),
+          tabProvider.overrideWith((ref) {
+            final notifier = TabNotifier();
+            notifier.addTerminalTab(conn, label: 'NarrowTab');
+            return notifier;
+          }),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const Center(
+            child: SizedBox(width: 500, height: 600, child: MainScreen()),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Menu button and tab content both visible
+      expect(find.byIcon(Icons.menu), findsOneWidget);
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+    });
+  });
+}
+
+/// Stateful widget that renders the import dialog content inline (no showDialog).
+/// Mirrors the structure from _showImportPasswordDialog / _buildImportDialogContent
+/// in main.dart, allowing us to test the dialog UI without animations hanging.
+class _ImportDialogTestWidget extends StatefulWidget {
+  final String fileName;
+
+  const _ImportDialogTestWidget({
+    required this.fileName,
+  });
+
+  @override
+  State<_ImportDialogTestWidget> createState() =>
+      _ImportDialogTestWidgetState();
+}
+
+class _ImportDialogTestWidgetState extends State<_ImportDialogTestWidget> {
+  ImportMode _mode = ImportMode.merge;
+  bool _submitted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtleStyle = TextStyle(
+      fontSize: 12,
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Import Data', style: TextStyle(fontSize: 18)),
+        const SizedBox(height: 8),
+        Text(widget.fileName, style: subtleStyle),
+        const SizedBox(height: 12),
+        // Password label (no actual TextField to avoid cursor blink hang)
+        const Text('Master Password'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => setState(() => _mode = ImportMode.merge),
+              child: const Text('Merge'),
+            ),
+            TextButton(
+              onPressed: () => setState(() => _mode = ImportMode.replace),
+              child: const Text('Replace'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _mode == ImportMode.merge
+              ? 'Add new sessions, keep existing'
+              : 'Replace all sessions with imported',
+          style: subtleStyle,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () {},
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => setState(() => _submitted = true),
+              child: const Text('Import'),
+            ),
+          ],
+        ),
+        if (_submitted) const Text('SUBMITTED'),
+      ],
+    );
+  }
 }

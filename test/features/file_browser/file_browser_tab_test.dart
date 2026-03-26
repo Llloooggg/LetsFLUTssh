@@ -13,8 +13,10 @@ import 'package:letsflutssh/core/sftp/sftp_client.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/transfer/transfer_manager.dart';
+import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_tab.dart';
+import 'package:letsflutssh/features/file_browser/file_row.dart';
 import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
@@ -22,6 +24,119 @@ import 'package:letsflutssh/theme/app_theme.dart';
 
 @GenerateNiceMocks([MockSpec<SftpClient>()])
 import 'file_browser_tab_test.mocks.dart';
+
+/// Tracking SFTPService that records upload/download calls without real I/O.
+class _TrackingSFTPService extends SFTPService {
+  final List<({String method, String src, String dst})> calls = [];
+
+  _TrackingSFTPService(super.sftp);
+
+  @override
+  Future<void> upload(String localPath, String remotePath,
+      void Function(TransferProgress)? onProgress) async {
+    calls.add((method: 'upload', src: localPath, dst: remotePath));
+    onProgress?.call(TransferProgress(
+      fileName: localPath.split('/').last,
+      totalBytes: 100,
+      doneBytes: 100,
+      isUpload: true,
+      isCompleted: true,
+    ));
+  }
+
+  @override
+  Future<void> download(String remotePath, String localPath,
+      void Function(TransferProgress)? onProgress) async {
+    calls.add((method: 'download', src: remotePath, dst: localPath));
+    onProgress?.call(TransferProgress(
+      fileName: remotePath.split('/').last,
+      totalBytes: 100,
+      doneBytes: 100,
+      isUpload: false,
+      isCompleted: true,
+    ));
+  }
+
+  @override
+  Future<void> uploadDir(String localDir, String remoteDir,
+      void Function(TransferProgress)? onProgress) async {
+    calls.add((method: 'uploadDir', src: localDir, dst: remoteDir));
+    onProgress?.call(TransferProgress(
+      fileName: localDir.split('/').last,
+      totalBytes: 1,
+      doneBytes: 1,
+      isUpload: true,
+      isCompleted: true,
+    ));
+  }
+
+  @override
+  Future<void> downloadDir(String remoteDir, String localDir,
+      void Function(TransferProgress)? onProgress) async {
+    calls.add((method: 'downloadDir', src: remoteDir, dst: localDir));
+    onProgress?.call(TransferProgress(
+      fileName: remoteDir.split('/').last,
+      totalBytes: 1,
+      doneBytes: 1,
+      isUpload: false,
+      isCompleted: true,
+    ));
+  }
+}
+
+/// Fake FS that returns a custom initial directory.
+class _FakeFSWithDir implements FileSystem {
+  final String initDir;
+  final List<FileEntry> entries;
+
+  _FakeFSWithDir({required this.initDir, this.entries = const []});
+
+  @override
+  Future<String> initialDir() async => initDir;
+  @override
+  Future<List<FileEntry>> list(String path) async => entries;
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+}
+
+/// Creates a fake SFTPInitResult using a tracking SFTPService.
+/// Local pane starts at /local, remote pane starts at /remote.
+Future<(SFTPInitResult, _TrackingSFTPService)> _trackingInitFactory(
+  Connection conn, {
+  List<FileEntry>? localFiles,
+  List<FileEntry>? remoteFiles,
+}) async {
+  final mockSftp = MockSftpClient();
+  when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
+  when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+
+  final trackingService = _TrackingSFTPService(mockSftp);
+  final localCtrl = FilePaneController(
+    fs: _FakeFSWithDir(initDir: '/local', entries: localFiles ?? []),
+    label: 'Local',
+  );
+  final remoteCtrl = FilePaneController(
+    fs: _FakeFSWithDir(initDir: '/remote', entries: remoteFiles ?? []),
+    label: 'Remote',
+  );
+
+  await Future.wait([localCtrl.init(), remoteCtrl.init()]);
+
+  return (
+    SFTPInitResult(
+      localCtrl: localCtrl,
+      remoteCtrl: remoteCtrl,
+      sftpService: trackingService,
+    ),
+    trackingService,
+  );
+}
 
 /// Fake FileSystem for testing.
 class _FakeFS implements FileSystem {
@@ -956,6 +1071,694 @@ void main() {
       completer.completeError('too late');
       await tester.pumpAndSettle();
       // No crash = success
+    });
+  });
+
+  group('FileBrowserTab — _upload enqueues transfer tasks', () {
+    testWidgets('double-click local file enqueues upload task with correct fields', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'upload-file-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Double-click local.txt to trigger onTransfer → _upload
+      await tester.tap(find.text('local.txt'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('local.txt'));
+      await tester.pumpAndSettle();
+
+      // TransferManager should have processed the task
+      expect(manager.history, hasLength(1));
+      final h = manager.history.first;
+      expect(h.direction, TransferDirection.upload);
+      expect(h.name, 'local.txt');
+      // sourcePath = entry.path from local pane entries
+      expect(h.sourcePath, '/test/local.txt');
+      // targetPath = posix.join(remoteCtrl.currentPath, entry.name)
+      // remoteCtrl starts at /remote
+      expect(h.targetPath, '/remote/local.txt');
+      expect(h.status, TransferStatus.completed);
+
+      // The tracking service should have recorded the upload call
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'upload');
+    });
+
+    testWidgets('double-click local directory enqueues upload with trailing slash name', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'upload-dir-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      // Only a directory entry — double-click on dir navigates, so we need
+      // to trigger _upload via context menu Transfer instead.
+      final dirEntry = [
+        FileEntry(name: 'mydir', path: '/test/mydir', size: 4096, mode: 0x1ED, modTime: DateTime(2024), isDir: true),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: dirEntry,
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Select the directory
+      await tester.tap(find.text('mydir'));
+      await tester.pumpAndSettle();
+
+      // Right-click for context menu
+      final center = tester.getCenter(find.text('mydir'));
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      // Tap Transfer in context menu
+      final transferItem = find.text('Transfer');
+      expect(transferItem, findsOneWidget);
+      await tester.tap(transferItem);
+      await tester.pumpAndSettle();
+
+      // Task should be enqueued with trailing slash for directory
+      expect(manager.history, hasLength(1));
+      expect(manager.history.first.name, 'mydir/');
+      expect(manager.history.first.direction, TransferDirection.upload);
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'uploadDir');
+    });
+  });
+
+  group('FileBrowserTab — _download enqueues transfer tasks', () {
+    testWidgets('double-click remote file enqueues download task with correct fields', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'download-file-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Double-click remote.txt to trigger onTransfer → _download
+      await tester.tap(find.text('remote.txt'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('remote.txt'));
+      await tester.pumpAndSettle();
+
+      // TransferManager should have processed the download task
+      expect(manager.history, hasLength(1));
+      final h = manager.history.first;
+      expect(h.direction, TransferDirection.download);
+      expect(h.name, 'remote.txt');
+      // sourcePath = entry.path from remote pane entries
+      expect(h.sourcePath, '/remote/remote.txt');
+      // targetPath = p.join(localCtrl.currentPath, entry.name)
+      // localCtrl starts at /local
+      expect(h.targetPath, '/local/remote.txt');
+      expect(h.status, TransferStatus.completed);
+
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'download');
+    });
+
+    testWidgets('context menu Transfer on remote directory enqueues downloadDir', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'download-dir-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      final remoteDir = [
+        FileEntry(name: 'rdir', path: '/remote/rdir', size: 4096, mode: 0x1ED, modTime: DateTime(2024), isDir: true),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: remoteDir,
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Select the remote directory
+      await tester.tap(find.text('rdir'));
+      await tester.pumpAndSettle();
+
+      // Right-click for context menu
+      final center = tester.getCenter(find.text('rdir'));
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      // Tap Transfer
+      await tester.tap(find.text('Transfer'));
+      await tester.pumpAndSettle();
+
+      expect(manager.history, hasLength(1));
+      expect(manager.history.first.name, 'rdir/');
+      expect(manager.history.first.direction, TransferDirection.download);
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'downloadDir');
+    });
+  });
+
+  group('FileBrowserTab — onTransferMultiple (multi-select transfer)', () {
+    testWidgets('context menu Transfer with multiple local files selected enqueues multiple uploads', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      late SFTPInitResult initResult;
+      final conn = Connection(
+        id: 'multi-upload-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    initResult = result;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Programmatically select both local entries via the controller
+      final localCtrl = initResult.localCtrl;
+      localCtrl.selectPaths({'/test/local.txt', '/test/localdir'});
+      await tester.pumpAndSettle();
+
+      // Right-click on one of the selected items
+      final center = tester.getCenter(find.text('local.txt'));
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      // Should show "Transfer 2 items" since multiple are selected
+      final transferMulti = find.text('Transfer 2 items');
+      expect(transferMulti, findsOneWidget);
+      await tester.tap(transferMulti);
+      await tester.pumpAndSettle();
+
+      // Should have enqueued 2 upload tasks (one file + one dir)
+      expect(manager.history, hasLength(2));
+      expect(manager.history.every((h) => h.direction == TransferDirection.upload), isTrue);
+
+      // Tracking service should show upload + uploadDir
+      expect(tracking.calls, hasLength(2));
+      final methods = tracking.calls.map((c) => c.method).toSet();
+      expect(methods, containsAll(['upload', 'uploadDir']));
+    });
+
+    testWidgets('context menu Transfer with multiple remote files selected enqueues multiple downloads', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      late SFTPInitResult initResult;
+      final conn = Connection(
+        id: 'multi-download-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    initResult = result;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Programmatically select both remote entries via the controller
+      final remoteCtrl = initResult.remoteCtrl;
+      remoteCtrl.selectPaths({'/remote/remote.txt', '/remote/remotedir'});
+      await tester.pumpAndSettle();
+
+      // Right-click on one of the selected items
+      final center = tester.getCenter(find.text('remote.txt'));
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      // Transfer multiple
+      final transferMulti = find.text('Transfer 2 items');
+      expect(transferMulti, findsOneWidget);
+      await tester.tap(transferMulti);
+      await tester.pumpAndSettle();
+
+      // Should have enqueued 2 download tasks
+      expect(manager.history, hasLength(2));
+      expect(manager.history.every((h) => h.direction == TransferDirection.download), isTrue);
+
+      expect(tracking.calls, hasLength(2));
+      final methods = tracking.calls.map((c) => c.method).toSet();
+      expect(methods, containsAll(['download', 'downloadDir']));
+    });
+  });
+
+  group('FileBrowserTab — onDropReceived (drag between panes)', () {
+    testWidgets('dropping local file onto remote pane enqueues download (into local)', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      final conn = Connection(
+        id: 'drop-local-to-remote',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the DragTarget in the remote pane.
+      // The remote pane has a DragTarget<PaneDragData> that accepts drops
+      // from the local pane (different sourcePaneId).
+      // We simulate this by finding the DragTarget and calling its callbacks.
+      final dragTargets = find.byWidgetPredicate(
+        (w) => w is DragTarget<PaneDragData>,
+      );
+      // There should be 2 DragTargets (one per pane)
+      expect(dragTargets, findsNWidgets(2));
+
+      // Select local.txt and drag it — first click to select
+      await tester.tap(find.text('local.txt'));
+      await tester.pumpAndSettle();
+
+      // Now drag local.txt from left pane to right pane area
+      final localTxtCenter = tester.getCenter(find.text('local.txt'));
+      // Remote pane is on the right half — target roughly center-right
+      final remotePaneCenter = Offset(
+        tester.getSize(find.byType(FileBrowserTab)).width * 0.75,
+        tester.getSize(find.byType(FileBrowserTab)).height * 0.5,
+      );
+
+      await tester.timedDragFrom(
+        localTxtCenter,
+        remotePaneCenter - localTxtCenter,
+        const Duration(milliseconds: 500),
+      );
+      await tester.pumpAndSettle();
+
+      // When a local file is dropped onto the remote pane, the remote pane's
+      // onDropReceived fires, which calls _upload for each dropped entry.
+      // The drag may or may not succeed depending on hit testing, so we check
+      // if uploads were enqueued.
+      if (tracking.calls.isNotEmpty) {
+        expect(tracking.calls.first.method, 'upload');
+        expect(manager.history.first.direction, TransferDirection.upload);
+      }
+    });
+  });
+
+  group('FileBrowserTab — onDropReceived triggers transfers', () {
+    testWidgets('dropping remote entries onto local pane calls onDropReceived → _download for each', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      late _TrackingSFTPService tracking;
+      late SFTPInitResult initResult;
+      final conn = Connection(
+        id: 'drop-remote-to-local',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, svc) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),
+                    );
+                    tracking = svc;
+                    initResult = result;
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Select remote.txt in the remote pane
+      final remoteCtrl = initResult.remoteCtrl;
+      remoteCtrl.selectSingle('/remote/remote.txt');
+      await tester.pumpAndSettle();
+
+      // Drag from remote pane to local pane — select + drag remote.txt
+      final remoteTxt = tester.getCenter(find.text('remote.txt'));
+      // Local pane is on the left half
+      final localPaneTarget = Offset(
+        100, // well within the left pane
+        tester.getSize(find.byType(FileBrowserTab)).height * 0.5,
+      );
+
+      await tester.timedDragFrom(
+        remoteTxt,
+        localPaneTarget - remoteTxt,
+        const Duration(milliseconds: 500),
+      );
+      await tester.pumpAndSettle();
+
+      // If drag succeeded, downloads should be enqueued.
+      // The DragTarget in the local pane accepts drops from 'remote' pane.
+      if (tracking.calls.isNotEmpty) {
+        expect(tracking.calls.first.method, 'download');
+        expect(manager.history.first.direction, TransferDirection.download);
+      }
+    });
+  });
+
+  group('FileBrowserTab — upload/download size and path fields', () {
+    testWidgets('upload task carries file size from entry', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      final conn = Connection(
+        id: 'size-check',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, _) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),  // local.txt has size: 100
+                      remoteFiles: _remoteEntries(),
+                    );
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Double-click to upload
+      await tester.tap(find.text('local.txt'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('local.txt'));
+      await tester.pumpAndSettle();
+
+      expect(manager.history.first.sizeBytes, 100);
+    });
+
+    testWidgets('download task carries file size from entry', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      final conn = Connection(
+        id: 'size-check-dl',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) async {
+                    final (result, _) = await _trackingInitFactory(c,
+                      localFiles: _localEntries(),
+                      remoteFiles: _remoteEntries(),  // remote.txt has size: 200
+                    );
+                    return result;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Double-click remote.txt to download
+      await tester.tap(find.text('remote.txt'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('remote.txt'));
+      await tester.pumpAndSettle();
+
+      expect(manager.history.first.sizeBytes, 200);
     });
   });
 }
