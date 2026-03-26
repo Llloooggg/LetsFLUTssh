@@ -1,13 +1,15 @@
 # LetsFLUTssh
 
-[![CI & Build](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml)
+[![CI](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml)
+[![Build](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/Llloooggg/LetsFLUTssh?include_prereleases)](https://github.com/Llloooggg/LetsFLUTssh/releases)
+[![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-blue)](https://github.com/Llloooggg/LetsFLUTssh)
+
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
-[![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/Llloooggg/LetsFLUTssh?include_prereleases)](https://github.com/Llloooggg/LetsFLUTssh/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-blue)](https://github.com/Llloooggg/LetsFLUTssh)
 
 > **Disclaimer:** This is a functional neuroslop pet project — built entirely with AI assistance for personal use, self-education, and fun. Use at your own risk.
 
