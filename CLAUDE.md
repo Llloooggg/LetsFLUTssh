@@ -49,13 +49,13 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 | New feature                                                | **minor** | 1.0.3 → 1.1.0    |
 | Major rework or breaking change (file format, API, crypto) | **major** | 1.1.0 → 2.0.0    |
 
-**No version bump needed for:** tests (no production code changes), docs, CI configs, linter fixes. These are `test:`/`docs:`/`chore:` commits without a version bump.
+**No version bump needed for:** tests, docs, CI configs, linter fixes — anything that does NOT affect the shipped app. These are `test:`/`docs:`/`chore:`/`ci:` commits without a version bump.
 
-**Patch bump IS needed for:** `fix:` and `refactor:` commits that touch `lib/` — any change to production code must bump patch.
+**Patch bump IS needed for:** any change that affects the shipped application — Dart code in `lib/`, platform configs (`AndroidManifest.xml`, `Info.plist`, `.desktop`, etc.), native code, assets, or build settings that alter app behavior.
 
 **Tagging workflow:**
 
-1. Bump version in `pubspec.yaml` + update `_appVersion` in `settings_screen.dart` — include in the same commit that changes `lib/`
+1. Bump version in `pubspec.yaml` + update `_appVersion` in `settings_screen.dart` — include in the same commit that changes the app
 2. Tag only the commit that contains the bump: `git tag vX.Y.Z`
 3. Push tag: `git push origin vX.Y.Z` — CI creates GitHub Release with auto-generated changelog
 4. Do NOT tag commits without a version bump (tests, docs, CI)

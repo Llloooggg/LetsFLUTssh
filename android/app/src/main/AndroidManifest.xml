@@ -44,16 +44,36 @@
             </intent-filter>
 
             <!-- Open SSH key files (.pem, .key, .pub) and .lfs export archives -->
+            <!-- Note: mimeType="*/*" would match ALL files (Android ORs data attributes).
+                 Use application/octet-stream — most file managers send this for unknown extensions. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
                 <data android:scheme="file" />
-                <data android:mimeType="*/*" />
+                <data android:host="*" />
+                <data android:mimeType="application/octet-stream" />
                 <data android:pathPattern=".*\\.pem" />
                 <data android:pathPattern=".*\\.key" />
                 <data android:pathPattern=".*\\.pub" />
                 <data android:pathPattern=".*\\.lfs" />
+            </intent-filter>
+            <!-- Some file managers send PEM-specific MIME types -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="application/x-pem-file" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="application/x-x509-ca-cert" />
             </intent-filter>
         </activity>
 
