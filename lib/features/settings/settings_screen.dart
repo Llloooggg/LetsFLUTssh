@@ -15,7 +15,7 @@ import '../../widgets/toast.dart';
 import 'export_import.dart';
 
 /// App version — kept in sync with pubspec.yaml.
-const _appVersion = '1.0.0';
+const _appVersion = '1.0.1';
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
@@ -664,29 +664,88 @@ class _LoggingSection extends ConsumerWidget {
             (c) => c.copyWith(enableLogging: v),
           ),
         ),
-        if (enabled && logPath != null)
+        if (enabled && logPath != null) ...[
           ListTile(
-            leading: const Icon(Icons.description, size: 20),
-            title: const Text('Log File'),
-            subtitle: Text(logPath, style: const TextStyle(fontSize: 12)),
+            leading: const Icon(Icons.visibility, size: 20),
+            title: const Text('View Log'),
             contentPadding: EdgeInsets.zero,
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: logPath));
-              Toast.show(context, message: 'Log path copied', level: ToastLevel.info);
-            },
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline, size: 20),
-              tooltip: 'Clear Logs',
-              onPressed: () async {
-                await AppLogger.instance.clearLogs();
-                if (context.mounted) {
-                  Toast.show(context, message: 'Logs cleared', level: ToastLevel.info);
-                }
-              },
-            ),
+            onTap: () => _showLogDialog(context),
           ),
+          Row(
+            children: [
+              Expanded(
+                child: ListTile(
+                  leading: const Icon(Icons.copy, size: 20),
+                  title: const Text('Copy Log'),
+                  contentPadding: EdgeInsets.zero,
+                  onTap: () => _copyLog(context),
+                ),
+              ),
+              Expanded(
+                child: ListTile(
+                  leading: const Icon(Icons.delete_outline, size: 20),
+                  title: const Text('Clear Logs'),
+                  contentPadding: EdgeInsets.zero,
+                  onTap: () => _clearLogs(context),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
+  }
+
+  Future<void> _showLogDialog(BuildContext context) async {
+    final content = await AppLogger.instance.readLog();
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: SingleChildScrollView(
+            reverse: true,
+            child: SelectableText(
+              content.isEmpty ? '(empty)' : content,
+              style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: content));
+              Toast.show(ctx, message: 'Log copied to clipboard', level: ToastLevel.info);
+            },
+            child: const Text('Copy All'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _copyLog(BuildContext context) async {
+    final content = await AppLogger.instance.readLog();
+    if (!context.mounted) return;
+    Clipboard.setData(ClipboardData(text: content));
+    Toast.show(context,
+      message: content.isEmpty ? 'Log is empty' : 'Log copied to clipboard',
+      level: ToastLevel.info,
+    );
+  }
+
+  Future<void> _clearLogs(BuildContext context) async {
+    await AppLogger.instance.clearLogs();
+    if (!context.mounted) return;
+    Toast.show(context, message: 'Logs cleared', level: ToastLevel.info);
   }
 }
 

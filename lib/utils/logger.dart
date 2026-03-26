@@ -95,6 +95,20 @@ class AppLogger {
     }
   }
 
+  /// Read the current log file content. Flushes before reading.
+  /// Returns empty string if no log file exists.
+  Future<String> readLog() async {
+    if (_logPath == null) return '';
+    try {
+      await _sink?.flush();
+      final file = File(_logPath!);
+      if (!await file.exists()) return '';
+      return await file.readAsString();
+    } catch (_) {
+      return '';
+    }
+  }
+
   /// Flush and close the log file.
   Future<void> dispose() async {
     try {

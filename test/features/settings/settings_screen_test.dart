@@ -1122,7 +1122,7 @@ void main() {
       );
       expect(find.text('About'), findsOneWidget);
       expect(find.text('LetsFLUTssh'), findsOneWidget);
-      expect(find.textContaining('v1.0.0'), findsOneWidget);
+      expect(find.textContaining('v1.0.1'), findsOneWidget);
       expect(find.textContaining('SSH/SFTP client'), findsOneWidget);
       expect(find.byIcon(Icons.info_outline), findsOneWidget);
     });

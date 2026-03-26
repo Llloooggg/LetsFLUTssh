@@ -51,5 +51,10 @@ void main() {
     test('clearLogs does not crash when logPath is null', () async {
       await AppLogger.instance.clearLogs();
     });
+
+    test('readLog returns empty string when logPath is null', () async {
+      final content = await AppLogger.instance.readLog();
+      expect(content, isEmpty);
+    });
   });
 }
