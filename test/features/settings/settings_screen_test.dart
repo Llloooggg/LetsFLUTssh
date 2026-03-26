@@ -1067,6 +1067,42 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
     });
+
+    testWidgets('import dialog mode toggle shows Replace description',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildFullApp());
+      await tester.pump();
+
+      await tester.scrollUntilVisible(
+        find.text('Import Data'), 100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      // Default is Merge
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+
+      // Switch to Replace
+      await tester.tap(find.text('Replace'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Replace all sessions with imported'), findsOneWidget);
+
+      // Switch back to Merge
+      await tester.tap(find.text('Merge'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
   });
 
   // ---------------------------------------------------------------------------

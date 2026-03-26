@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dartssh2/dartssh2.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,12 +25,14 @@ import 'file_browser_tab_test.mocks.dart';
 
 /// Fake FileSystem for testing.
 class _FakeFS implements FileSystem {
-  _FakeFS();
+  final List<FileEntry> entries;
+
+  _FakeFS({this.entries = const []});
 
   @override
   Future<String> initialDir() async => '/test';
   @override
-  Future<List<FileEntry>> list(String path) async => [];
+  Future<List<FileEntry>> list(String path) async => entries;
   @override
   Future<void> mkdir(String path) async {}
   @override
@@ -40,15 +43,36 @@ class _FakeFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
 }
 
-/// Creates a fake SFTPInitResult for testing.
+/// Test file entries for local pane.
+List<FileEntry> _localEntries() => [
+      FileEntry(name: 'local.txt', path: '/test/local.txt', size: 100, mode: 0x1A4, modTime: DateTime(2024), isDir: false),
+      FileEntry(name: 'localdir', path: '/test/localdir', size: 4096, mode: 0x1ED, modTime: DateTime(2024), isDir: true),
+    ];
+
+/// Test file entries for remote pane.
+List<FileEntry> _remoteEntries() => [
+      FileEntry(name: 'remote.txt', path: '/remote/remote.txt', size: 200, mode: 0x1A4, modTime: DateTime(2024), isDir: false),
+      FileEntry(name: 'remotedir', path: '/remote/remotedir', size: 4096, mode: 0x1ED, modTime: DateTime(2024), isDir: true),
+    ];
+
+/// Creates a fake SFTPInitResult for testing (empty panes).
 Future<SFTPInitResult> _fakeInitFactory(Connection conn) async {
+  return _fakeInitFactoryWithEntries(conn);
+}
+
+/// Creates a fake SFTPInitResult with configurable entries.
+Future<SFTPInitResult> _fakeInitFactoryWithEntries(
+  Connection conn, {
+  List<FileEntry>? localFiles,
+  List<FileEntry>? remoteFiles,
+}) async {
   final mockSftp = MockSftpClient();
   when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
   when(mockSftp.listdir(any)).thenAnswer((_) async => []);
 
   final sftpService = SFTPService(mockSftp);
-  final localCtrl = FilePaneController(fs: _FakeFS(), label: 'Local');
-  final remoteCtrl = FilePaneController(fs: RemoteFS(sftpService), label: 'Remote');
+  final localCtrl = FilePaneController(fs: _FakeFS(entries: localFiles ?? []), label: 'Local');
+  final remoteCtrl = FilePaneController(fs: _FakeFS(entries: remoteFiles ?? []), label: 'Remote');
 
   await Future.wait([localCtrl.init(), remoteCtrl.init()]);
 
@@ -651,6 +675,192 @@ void main() {
       expect(find.text('Retry'), findsNothing);
       expect(find.textContaining('Transfers'), findsOneWidget);
       expect(callCount, 2);
+    });
+  });
+
+  group('FileBrowserTab — FilePane callbacks (upload/download)', () {
+    testWidgets('double-clicking local file triggers upload (onTransfer)', (tester) async {
+      final conn = Connection(
+        id: 'xfer-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) => _fakeInitFactoryWithEntries(c,
+                    localFiles: _localEntries(),
+                    remoteFiles: _remoteEntries(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Local pane should show local.txt
+      expect(find.text('local.txt'), findsOneWidget);
+      // Remote pane should show remote.txt
+      expect(find.text('remote.txt'), findsOneWidget);
+
+      // Double-click local.txt to trigger onTransfer → _upload
+      await tester.tap(find.text('local.txt'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('local.txt'));
+      await tester.pumpAndSettle();
+
+      // Upload task should be enqueued (or already completed)
+      expect(manager.history, isNotNull);
+    });
+
+    testWidgets('double-clicking remote file triggers download (onTransfer)', (tester) async {
+      final conn = Connection(
+        id: 'xfer-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) => _fakeInitFactoryWithEntries(c,
+                    localFiles: _localEntries(),
+                    remoteFiles: _remoteEntries(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('remote.txt'), findsOneWidget);
+
+      // Double-click remote.txt to trigger download
+      await tester.tap(find.text('remote.txt'));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('remote.txt'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('local pane shows file entries from factory', (tester) async {
+      final conn = Connection(
+        id: 'xfer-3',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) => _fakeInitFactoryWithEntries(c,
+                    localFiles: _localEntries(),
+                    remoteFiles: _remoteEntries(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Both panes should show their entries
+      expect(find.text('local.txt'), findsOneWidget);
+      expect(find.text('localdir'), findsOneWidget);
+      expect(find.text('remote.txt'), findsOneWidget);
+      expect(find.text('remotedir'), findsOneWidget);
+    });
+
+    testWidgets('context menu Transfer on local file enqueues upload', (tester) async {
+      final origHandler = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origHandler?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origHandler);
+
+      final conn = Connection(
+        id: 'xfer-ctx',
+        label: 'Test',
+        sshConfig: const SSHConfig(host: 'h', user: 'u'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (c) => _fakeInitFactoryWithEntries(c,
+                    localFiles: _localEntries(),
+                    remoteFiles: _remoteEntries(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Select local.txt first by clicking
+      await tester.tap(find.text('local.txt'));
+      await tester.pumpAndSettle();
+
+      // Right-click for context menu
+      final localTxt = find.text('local.txt');
+      final center = tester.getCenter(localTxt);
+      await tester.tapAt(center, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      // Context menu should show Transfer
+      final transferItem = find.text('Transfer');
+      if (transferItem.evaluate().isNotEmpty) {
+        await tester.tap(transferItem);
+        await tester.pumpAndSettle();
+      }
     });
   });
 

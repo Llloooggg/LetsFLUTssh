@@ -931,6 +931,71 @@ void main() {
     });
   });
 
+  group('MainScreen — Ctrl+W closes active tab', () {
+    testWidgets('Ctrl+W with active tab closes it', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(
+            id: 't1',
+            label: 'ToClose',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+
+      // Focus inside the shortcuts area
+      final textFields = find.byType(TextField);
+      if (textFields.evaluate().isNotEmpty) {
+        await tester.tap(textFields.first);
+        await tester.pump();
+      }
+
+      // Send Ctrl+W
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Tab should be closed → welcome screen
+      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+      expect(find.textContaining('0 tab(s)'), findsOneWidget);
+    });
+
+    testWidgets('Ctrl+W with two tabs closes active and keeps other', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(
+            id: 't1',
+            label: 'First',
+            connection: conn,
+            kind: TabKind.terminal),
+        TabEntry(
+            id: 't2',
+            label: 'Second',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+
+      final textFields = find.byType(TextField);
+      if (textFields.evaluate().isNotEmpty) {
+        await tester.tap(textFields.first);
+        await tester.pump();
+      }
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+    });
+  });
+
   group('MainScreen — _newSession save flow', () {
     testWidgets('opening new session dialog and filling in shows save option', (tester) async {
       await tester.pumpWidget(buildApp());
