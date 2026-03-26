@@ -33,6 +33,15 @@ class FakeSSHConnection extends SSHConnection {
   }
 }
 
+/// Wait for background connection to complete (polling).
+Future<void> waitForConnection(Connection conn, {int maxMs = 2000}) async {
+  final deadline = DateTime.now().add(Duration(milliseconds: maxMs));
+  while (conn.state == SSHConnectionState.connecting &&
+      DateTime.now().isBefore(deadline)) {
+    await Future.delayed(const Duration(milliseconds: 10));
+  }
+}
+
 void main() {
   late ConnectionManager manager;
   late KnownHostsManager knownHosts;
@@ -108,68 +117,36 @@ void main() {
     });
   });
 
-  group('ConnectionManager.connect', () {
-    test('connect fails and removes connection on error', () async {
-      final events = <void>[];
-      final sub = manager.onChange.listen((_) => events.add(null));
-
-      // connect() will fail (no real SSH server), but we verify error handling
+  group('ConnectionManager.connectAsync', () {
+    test('connectAsync returns connection in connecting state immediately', () {
       const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
-
-      try {
-        await manager.connect(config);
-      } catch (_) {
-        // Expected: connection fails
-      }
-
-      await Future.delayed(Duration.zero);
-
-      // Should have emitted events: connecting (add) + failed (remove)
-      expect(events.length, greaterThanOrEqualTo(2));
-      // After failure, connection should be removed
-      expect(manager.connections, isEmpty);
-
-      await sub.cancel();
+      final conn = manager.connectAsync(config);
+      // Returns immediately — connection is in connecting state
+      expect(conn.state, SSHConnectionState.connecting);
+      expect(manager.connections, hasLength(1));
     });
 
-    test('connect uses label when provided', () async {
-      final events = <void>[];
-      final sub = manager.onChange.listen((_) => events.add(null));
-
+    test('connect fails in background and sets connectionError', () async {
       const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
+      final conn = manager.connectAsync(config);
 
-      try {
-        await manager.connect(config, label: 'My Server');
-      } catch (_) {
-        // Expected
-      }
+      // Wait for background connection to fail
+      await waitForConnection(conn);
 
-      await Future.delayed(Duration.zero);
-      // After failure, no connections remain
-      expect(manager.connections, isEmpty);
-
-      await sub.cancel();
+      expect(conn.state, SSHConnectionState.disconnected);
+      expect(conn.connectionError, isNotNull);
     });
 
-    test('connect uses displayName when no label', () async {
+    test('connect uses label when provided', () {
+      const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
+      final conn = manager.connectAsync(config, label: 'My Server');
+      expect(conn.label, 'My Server');
+    });
+
+    test('connect uses displayName when no label', () {
       const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'admin', timeoutSec: 1);
-
-      try {
-        await manager.connect(config);
-      } catch (_) {
-        // Expected
-      }
-
-      expect(manager.connections, isEmpty);
-    });
-
-    test('connect rethrows on failure and removes connection', () async {
-      const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
-
-      expect(
-        () => manager.connect(config),
-        throwsA(anything),
-      );
+      final conn = manager.connectAsync(config);
+      expect(conn.label, config.displayName);
     });
 
     test('onChange emits during connect lifecycle', () async {
@@ -177,11 +154,14 @@ void main() {
       final sub = manager.onChange.listen((_) => emitCount++);
 
       const config = SSHConfig(host: '127.0.0.1', port: 1, user: 'test', timeoutSec: 1);
+      final conn = manager.connectAsync(config);
 
-      try {
-        await manager.connect(config);
-      } catch (_) {}
+      // At least 1 emit immediately (connecting)
+      await Future.delayed(Duration.zero);
+      expect(emitCount, greaterThanOrEqualTo(1));
 
+      // Wait for background failure
+      await waitForConnection(conn);
       await Future.delayed(Duration.zero);
 
       // At least 2 emits: connecting + failed
@@ -232,8 +212,8 @@ void main() {
     });
   });
 
-  group('ConnectionManager.connect — success path (injectable factory)', () {
-    test('successful connect returns connected Connection', () async {
+  group('ConnectionManager.connectAsync — success path (injectable factory)', () {
+    test('successful connect transitions to connected state', () async {
       late FakeSSHConnection fakeConn;
       final mgr = ConnectionManager(
         knownHosts: knownHosts,
@@ -244,11 +224,17 @@ void main() {
       );
 
       const config = SSHConfig(host: 'test.com', user: 'admin');
-      final conn = await mgr.connect(config, label: 'Test Server');
+      final conn = mgr.connectAsync(config, label: 'Test Server');
+
+      // Initially connecting
+      expect(conn.state, SSHConnectionState.connecting);
+      expect(conn.label, 'Test Server');
+
+      // Wait for background connection
+      await waitForConnection(conn);
 
       expect(conn.isConnected, isTrue);
       expect(conn.state, SSHConnectionState.connected);
-      expect(conn.label, 'Test Server');
       expect(conn.sshConnection, fakeConn);
       expect(fakeConn.connectCalled, isTrue);
       expect(mgr.connections, hasLength(1));
@@ -264,10 +250,11 @@ void main() {
       );
 
       const config = SSHConfig(host: 'server.com', port: 2222, user: 'root');
-      final conn = await mgr.connect(config);
+      final conn = mgr.connectAsync(config);
 
       expect(conn.label, 'root@server.com:2222');
 
+      await waitForConnection(conn);
       mgr.dispose();
     });
 
@@ -282,7 +269,8 @@ void main() {
       final sub = mgr.onChange.listen((_) => emitCount++);
 
       const config = SSHConfig(host: 'h', user: 'u');
-      await mgr.connect(config);
+      final conn = mgr.connectAsync(config);
+      await waitForConnection(conn);
       await Future.delayed(Duration.zero);
 
       expect(emitCount, greaterThanOrEqualTo(2));
@@ -302,7 +290,8 @@ void main() {
       );
 
       const config = SSHConfig(host: 'h', user: 'u');
-      final conn = await mgr.connect(config);
+      final conn = mgr.connectAsync(config);
+      await waitForConnection(conn);
       mgr.disconnect(conn.id);
 
       expect(fakeConn.disconnectCalled, isTrue);
@@ -322,7 +311,8 @@ void main() {
       );
 
       const config = SSHConfig(host: 'h', user: 'u');
-      final conn = await mgr.connect(config);
+      final conn = mgr.connectAsync(config);
+      await waitForConnection(conn);
 
       // Simulate remote disconnect
       fakeConn.onDisconnect?.call();
@@ -334,7 +324,7 @@ void main() {
       mgr.dispose();
     });
 
-    test('failed connect with factory removes connection and rethrows', () async {
+    test('failed connect with factory sets connectionError', () async {
       final mgr = ConnectionManager(
         knownHosts: knownHosts,
         connectionFactory: (config, kh) =>
@@ -342,9 +332,11 @@ void main() {
       );
 
       const config = SSHConfig(host: 'h', user: 'u');
-      expect(() => mgr.connect(config), throwsA(isA<Exception>()));
-      await Future.delayed(Duration.zero);
-      expect(mgr.connections, isEmpty);
+      final conn = mgr.connectAsync(config);
+      await waitForConnection(conn);
+
+      expect(conn.state, SSHConnectionState.disconnected);
+      expect(conn.connectionError, isNotNull);
 
       mgr.dispose();
     });
@@ -356,8 +348,10 @@ void main() {
             FakeSSHConnection(config: config, knownHosts: kh),
       );
 
-      await mgr.connect(const SSHConfig(host: 'a', user: 'u'), label: 'A');
-      await mgr.connect(const SSHConfig(host: 'b', user: 'u'), label: 'B');
+      final connA = mgr.connectAsync(const SSHConfig(host: 'a', user: 'u'), label: 'A');
+      final connB = mgr.connectAsync(const SSHConfig(host: 'b', user: 'u'), label: 'B');
+      await waitForConnection(connA);
+      await waitForConnection(connB);
 
       expect(mgr.connections, hasLength(2));
 
@@ -371,7 +365,8 @@ void main() {
             FakeSSHConnection(config: config, knownHosts: kh),
       );
 
-      final conn = await mgr.connect(const SSHConfig(host: 'h', user: 'u'));
+      final conn = mgr.connectAsync(const SSHConfig(host: 'h', user: 'u'));
+      await waitForConnection(conn);
       expect(mgr.get(conn.id), conn);
 
       mgr.dispose();
@@ -388,8 +383,10 @@ void main() {
         },
       );
 
-      await mgr.connect(const SSHConfig(host: 'a', user: 'u'));
-      await mgr.connect(const SSHConfig(host: 'b', user: 'u'));
+      final connA = mgr.connectAsync(const SSHConfig(host: 'a', user: 'u'));
+      final connB = mgr.connectAsync(const SSHConfig(host: 'b', user: 'u'));
+      await waitForConnection(connA);
+      await waitForConnection(connB);
 
       mgr.disconnectAll();
 

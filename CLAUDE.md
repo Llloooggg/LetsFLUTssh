@@ -106,6 +106,7 @@ v1.1.0 → major rework → v2.0.0
     - Only `git add` files YOU changed — never stage unrelated changes from other agents
     - Before committing, run `git status` and verify every staged file is yours
     - If you see untracked/modified files you didn't touch — leave them alone
+    - **Agents must run only their own test file** — `flutter test test/path/to/file_test.dart`, never `make test`. Full test suite runs only in the main context after all agents finish
 - **Version gatekeeper** — before suggesting a commit, check if the change requires a version bump per Versioning Strategy above. If it does (bugfix → patch, feature → minor, breaking → major), remind the user to bump. If it doesn't (tests, docs, refactor, CI), explicitly say no bump needed
 
 ## Tech Stack

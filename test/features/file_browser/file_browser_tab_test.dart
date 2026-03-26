@@ -218,6 +218,7 @@ void main() {
         sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
+        connectionError: 'SSH connection not available',
       );
 
       await tester.pumpWidget(
@@ -235,9 +236,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Should show error state since sshConnection is null
+      // Should show error state since connection is disconnected
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.textContaining('Failed to initialize SFTP'), findsOneWidget);
+      expect(find.textContaining('SSH connection not available'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
 
@@ -248,6 +249,7 @@ void main() {
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
+        connectionError: 'SSH connection not available',
       );
 
       await tester.pumpWidget(
@@ -276,6 +278,7 @@ void main() {
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
+        connectionError: 'Connection failed',
       );
 
       await tester.pumpWidget(
@@ -312,6 +315,7 @@ void main() {
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
+        connectionError: 'Connection failed',
       );
 
       await tester.pumpWidget(
@@ -335,7 +339,7 @@ void main() {
 
     testWidgets('initializing state shows loading UI before async init resolves', (tester) async {
       // The FileBrowserTab starts with _initializing = true, but _initSftp runs
-      // immediately in initState. Since it fails synchronously (null sshConnection),
+      // immediately in initState. Since connection is disconnected,
       // we verify the widget builds and transitions properly.
       final conn = Connection(
         id: 'test-loading',
@@ -343,6 +347,7 @@ void main() {
         sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
+        connectionError: 'Connection failed',
       );
 
       await tester.pumpWidget(
@@ -368,13 +373,14 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
-    testWidgets('error state shows error text with SFTP context', (tester) async {
+    testWidgets('error state shows error text with connection context', (tester) async {
       final conn = Connection(
         id: 'test-transition',
         label: 'Transition Test',
         sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
+        connectionError: 'Connection refused',
       );
 
       await tester.pumpWidget(
@@ -392,8 +398,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Should show the SFTP initialization failure message
-      expect(find.textContaining('Failed to initialize SFTP'), findsOneWidget);
+      // Should show the connection error message
+      expect(find.textContaining('Connection refused'), findsOneWidget);
       // Should have both error icon and retry button
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
@@ -406,6 +412,7 @@ void main() {
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
+        connectionError: 'Connection failed',
       );
 
       await tester.pumpWidget(
@@ -433,6 +440,7 @@ void main() {
         id: 'success-2',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -468,6 +476,7 @@ void main() {
         id: 'success-4',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -504,6 +513,7 @@ void main() {
         id: 'loading-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -539,6 +549,7 @@ void main() {
         id: 'loading-2',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -579,6 +590,7 @@ void main() {
         id: 'loading-3',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -623,6 +635,7 @@ void main() {
         id: 'drag-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -670,6 +683,7 @@ void main() {
         id: 'drag-2',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -714,6 +728,7 @@ void main() {
         id: 'upload-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -752,6 +767,7 @@ void main() {
         id: 'retry-success',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -800,6 +816,7 @@ void main() {
         id: 'xfer-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -847,6 +864,7 @@ void main() {
         id: 'xfer-2',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -888,6 +906,7 @@ void main() {
         id: 'xfer-3',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -934,6 +953,7 @@ void main() {
         id: 'xfer-ctx',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -986,6 +1006,7 @@ void main() {
         id: 'dispose-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       final key = GlobalKey();
@@ -1034,6 +1055,7 @@ void main() {
         id: 'dispose-2',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1089,6 +1111,7 @@ void main() {
         id: 'upload-file-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1156,6 +1179,7 @@ void main() {
         id: 'upload-dir-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       // Only a directory entry — double-click on dir navigates, so we need
@@ -1231,6 +1255,7 @@ void main() {
         id: 'download-file-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1297,6 +1322,7 @@ void main() {
         id: 'download-dir-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       final remoteDir = [
@@ -1368,6 +1394,7 @@ void main() {
         id: 'multi-upload-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1440,6 +1467,7 @@ void main() {
         id: 'multi-download-1',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1512,6 +1540,7 @@ void main() {
         id: 'drop-local-to-remote',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1598,6 +1627,7 @@ void main() {
         id: 'drop-remote-to-local',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1672,6 +1702,7 @@ void main() {
         id: 'size-check',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1723,6 +1754,7 @@ void main() {
         id: 'size-check-dl',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1777,6 +1809,7 @@ void main() {
         id: 'drop-cb-local',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1846,6 +1879,7 @@ void main() {
         id: 'drop-cb-remote',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1915,6 +1949,7 @@ void main() {
         id: 'multi-cb-local',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -1977,6 +2012,7 @@ void main() {
         id: 'multi-cb-remote',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -2041,6 +2077,7 @@ void main() {
         id: 'run-upload',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -2106,6 +2143,7 @@ void main() {
         id: 'run-download',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
@@ -2171,6 +2209,7 @@ void main() {
         id: 'run-upload-dir',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       final dirEntries = [
@@ -2234,6 +2273,7 @@ void main() {
         id: 'run-download-dir',
         label: 'Test',
         sshConfig: const SSHConfig(host: 'h', user: 'u'),
+        state: SSHConnectionState.connected,
       );
 
       final dirEntries = [

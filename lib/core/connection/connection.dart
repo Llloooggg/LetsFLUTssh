@@ -15,13 +15,18 @@ class Connection {
   SSHConnection? sshConnection;
   SSHConnectionState state;
 
+  /// Error message from last connection attempt, null if no error.
+  String? connectionError;
+
   Connection({
     required this.id,
     required this.label,
     required this.sshConfig,
     this.sshConnection,
     this.state = SSHConnectionState.disconnected,
+    this.connectionError,
   });
 
   bool get isConnected => state == SSHConnectionState.connected;
+  bool get isConnecting => state == SSHConnectionState.connecting;
 }

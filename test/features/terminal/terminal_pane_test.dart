@@ -52,13 +52,14 @@ Future<ShellConnection> _errorShellFactory({
 }
 
 /// Helper to build a Connection for tests (sshConnection can be null for factory tests).
+/// State defaults to connected so _connectAndOpenShell() proceeds to shellFactory.
 Connection _testConnection({String id = 'test'}) {
   return Connection(
     id: id,
     label: 'Test $id',
     sshConfig: const SSHConfig(host: 'h', user: 'u'),
     sshConnection: null,
-    state: SSHConnectionState.disconnected,
+    state: SSHConnectionState.connected,
   );
 }
 

@@ -38,8 +38,10 @@ class ConnectionManager {
 
   Connection? get(String id) => _connections[id];
 
-  /// Connect to an SSH server. Returns the connection.
-  Future<Connection> connect(SSHConfig config, {String? label}) async {
+  /// Create a connection and start connecting in the background.
+  /// Returns the Connection immediately (in `connecting` state).
+  /// The connection transitions to `connected` or `disconnected` asynchronously.
+  Connection connectAsync(SSHConfig config, {String? label}) {
     final id = _uuid.v4();
     final conn = Connection(
       id: id,
@@ -54,6 +56,13 @@ class ConnectionManager {
       name: 'Connection',
     );
 
+    // Start connection in background
+    _doConnect(conn, config);
+    return conn;
+  }
+
+  /// Background connection logic.
+  Future<void> _doConnect(Connection conn, SSHConfig config) async {
     final sshConn = _connectionFactory(config, knownHosts);
     sshConn.onDisconnect = () {
       conn.state = SSHConnectionState.disconnected;
@@ -67,13 +76,11 @@ class ConnectionManager {
       conn.state = SSHConnectionState.connected;
       AppLogger.instance.log('Connected: ${conn.label}', name: 'Connection');
       _notify();
-      return conn;
     } catch (e) {
       AppLogger.instance.log('Connection failed: $e', name: 'Connection', error: e);
       conn.state = SSHConnectionState.disconnected;
-      _connections.remove(id);
+      conn.connectionError = e.toString();
       _notify();
-      rethrow;
     }
   }
 

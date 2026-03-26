@@ -3,10 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
-import '../../core/ssh/errors.dart';
-import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
-import '../../widgets/toast.dart';
 import '../session_manager/session_connect.dart';
 import '../session_manager/session_edit_dialog.dart';
 import '../session_manager/session_panel.dart';
@@ -51,8 +48,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               _MobileSessionsPage(
                 onConnect: (session) => _connectSession(context, ref, session),
                 onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-                onQuickConnect: (config) async {
-                  await SessionConnect.connectConfig(context, ref, config);
+                onQuickConnect: (config) {
+                  SessionConnect.connectConfig(context, ref, config);
                   setState(() => _navIndex = 1);
                 },
               ),
@@ -117,68 +114,14 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   int _sftpTabCount(TabState s) =>
       s.tabs.where((t) => t.kind == TabKind.sftp).length;
 
-  Future<void> _connectSession(BuildContext ctx, WidgetRef ref, Session session) async {
-    final label = session.label.isNotEmpty ? session.label : session.displayName;
-    _showConnecting(ctx, label);
-    try {
-      final manager = ref.read(connectionManagerProvider);
-      final conn = await manager.connect(session.toSSHConfig(), label: label);
-      if (ctx.mounted) Navigator.of(ctx).pop(); // dismiss connecting dialog
-      ref.read(tabProvider.notifier).addTerminalTab(conn);
-      setState(() => _navIndex = 1);
-    } catch (e) {
-      if (ctx.mounted) Navigator.of(ctx).pop();
-      if (ctx.mounted) _showConnectError(ctx, e);
-    }
+  void _connectSession(BuildContext ctx, WidgetRef ref, Session session) {
+    SessionConnect.connectTerminal(ctx, ref, session);
+    setState(() => _navIndex = 1);
   }
 
-  Future<void> _connectSessionSftp(BuildContext ctx, WidgetRef ref, Session session) async {
-    final label = session.label.isNotEmpty ? session.label : session.displayName;
-    _showConnecting(ctx, label);
-    try {
-      final manager = ref.read(connectionManagerProvider);
-      final conn = await manager.connect(session.toSSHConfig(), label: label);
-      if (ctx.mounted) Navigator.of(ctx).pop();
-      ref.read(tabProvider.notifier).addSftpTab(conn);
-      setState(() => _navIndex = 2);
-    } catch (e) {
-      if (ctx.mounted) Navigator.of(ctx).pop();
-      if (ctx.mounted) _showConnectError(ctx, e);
-    }
-  }
-
-  void _showConnectError(BuildContext ctx, Object error) {
-    final String msg;
-    if (error is HostKeyError) {
-      msg = error.userMessage;
-    } else if (error is AuthError) {
-      msg = 'Auth failed: ${error.userMessage}';
-    } else if (error is ConnectError) {
-      msg = error.userMessage;
-    } else {
-      msg = 'Connection error: $error';
-    }
-    Toast.show(ctx, message: msg, level: ToastLevel.error);
-  }
-
-  void _showConnecting(BuildContext ctx, String label) {
-    showDialog(
-      context: ctx,
-      barrierDismissible: false,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            children: [
-              const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5)),
-              const SizedBox(width: 16),
-              Expanded(child: Text('Connecting to $label...', overflow: TextOverflow.ellipsis)),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _connectSessionSftp(BuildContext ctx, WidgetRef ref, Session session) {
+    SessionConnect.connectSftp(ctx, ref, session);
+    setState(() => _navIndex = 2);
   }
 
   Future<void> _newSession(BuildContext ctx, WidgetRef ref) async {
@@ -186,12 +129,12 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (result == null || !ctx.mounted) return;
     switch (result) {
       case ConnectOnlyResult(:final config):
-        await SessionConnect.connectConfig(ctx, ref, config);
+        SessionConnect.connectConfig(ctx, ref, config);
         setState(() => _navIndex = 1);
       case SaveResult(:final session, :final connect):
         await ref.read(sessionProvider.notifier).add(session);
         if (connect && ctx.mounted) {
-          await SessionConnect.connectTerminal(ctx, ref, session);
+          SessionConnect.connectTerminal(ctx, ref, session);
           setState(() => _navIndex = 1);
         }
     }

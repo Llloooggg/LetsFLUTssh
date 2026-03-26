@@ -15,7 +15,7 @@ import '../../widgets/toast.dart';
 import 'export_import.dart';
 
 /// App version — kept in sync with pubspec.yaml.
-const _appVersion = '0.10.0';
+const _appVersion = '0.11.0';
 const _githubUrl = 'https://github.com/llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.

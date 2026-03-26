@@ -129,14 +129,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       final ctx = navigatorKey.currentContext;
       if (ctx == null) return;
       final manager = ref.read(connectionManagerProvider);
-      manager.connect(config, label: config.displayName).then((conn) {
-        ref.read(tabProvider.notifier).addTerminalTab(conn);
-      }).catchError((e) {
-        final c = navigatorKey.currentContext;
-        if (c != null && c.mounted) {
-          Toast.show(c, message: 'Deep link connect failed: $e', level: ToastLevel.error);
-        }
-      });
+      final conn = manager.connectAsync(config, label: config.displayName);
+      ref.read(tabProvider.notifier).addTerminalTab(conn);
     };
     _deepLinkHandler.onLfsFileOpened = (filePath) {
       final ctx = navigatorKey.currentContext;
@@ -288,10 +282,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     ref.read(tabProvider.notifier).addSftpTab(connection);
   }
 
-  Future<void> _connectSessionSftp(BuildContext context, WidgetRef ref, session) =>
+  void _connectSessionSftp(BuildContext context, WidgetRef ref, session) =>
       SessionConnect.connectSftp(context, ref, session);
 
-  Future<void> _connectSession(BuildContext context, WidgetRef ref, session) =>
+  void _connectSession(BuildContext context, WidgetRef ref, session) =>
       SessionConnect.connectTerminal(context, ref, session);
 
   Future<void> _newSession(BuildContext context, WidgetRef ref) async {

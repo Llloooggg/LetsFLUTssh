@@ -13,19 +13,25 @@ import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
-/// A fake ConnectionManager that always throws the given error on connect.
+/// A fake ConnectionManager that returns a disconnected connection with error.
 class _FailingConnectionManager extends ConnectionManager {
   final Object error;
 
   _FailingConnectionManager(this.error) : super(knownHosts: KnownHostsManager());
 
   @override
-  Future<Connection> connect(SSHConfig config, {String? label}) async {
-    throw error;
+  Connection connectAsync(SSHConfig config, {String? label}) {
+    return Connection(
+      id: 'conn-fail',
+      label: label ?? config.displayName,
+      sshConfig: config,
+      state: SSHConnectionState.disconnected,
+      connectionError: error.toString(),
+    );
   }
 }
 
-/// A fake ConnectionManager that simulates connect success or failure
+/// A fake ConnectionManager that simulates connect success
 /// without real network calls.
 class _FakeConnectionManager extends ConnectionManager {
   String? lastLabel;
@@ -33,15 +39,14 @@ class _FakeConnectionManager extends ConnectionManager {
   _FakeConnectionManager() : super(knownHosts: KnownHostsManager());
 
   @override
-  Future<Connection> connect(SSHConfig config, {String? label}) async {
+  Connection connectAsync(SSHConfig config, {String? label}) {
     lastLabel = label;
-    final conn = Connection(
+    return Connection(
       id: 'fake-conn-1',
       label: label ?? config.displayName,
       sshConfig: config,
       state: SSHConnectionState.connected,
     );
-    return conn;
   }
 }
 
@@ -345,9 +350,10 @@ void main() {
     });
   });
 
-  group('SessionConnect — error handling', () {
-    testWidgets('connectTerminal shows toast on AuthError', (tester) async {
-      final failManager = _FailingConnectionManager(const AuthError('Wrong password'));
+  group('SessionConnect — failed connection still adds tab', () {
+    testWidgets('connectTerminal adds tab even when connection fails', (tester) async {
+      final failManager = _FailingConnectionManager(Exception('Wrong password'));
+      late WidgetRef capturedRef;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -358,6 +364,7 @@ void main() {
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
+                capturedRef = ref;
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
@@ -382,18 +389,17 @@ void main() {
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      // Should show error toast
-      expect(find.textContaining('Auth failed'), findsOneWidget);
-
-      // Wait for toast auto-dismiss
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
+      // Tab should still be added (connection status shown inside tab)
+      final tabState = capturedRef.read(tabProvider);
+      expect(tabState.tabs.length, 1);
+      expect(tabState.tabs.first.kind, TabKind.terminal);
 
       failManager.dispose();
     });
 
-    testWidgets('connectTerminal shows toast on HostKeyError', (tester) async {
-      final failManager = _FailingConnectionManager(const HostKeyError('Host key changed'));
+    testWidgets('connectSftp adds tab even when connection fails', (tester) async {
+      final failManager = _FailingConnectionManager(Exception('Auth failed'));
+      late WidgetRef capturedRef;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -404,138 +410,7 @@ void main() {
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
-                return Scaffold(
-                  body: ElevatedButton(
-                    onPressed: () {
-                      final session = Session(
-                        id: 's1',
-                        label: 'Test',
-                        host: '10.0.0.1',
-                        user: 'root',
-                      );
-                      SessionConnect.connectTerminal(context, ref, session);
-                    },
-                    child: const Text('Connect'),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Host key changed'), findsOneWidget);
-
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-
-      failManager.dispose();
-    });
-
-    testWidgets('connectTerminal shows toast on ConnectError', (tester) async {
-      final failManager = _FailingConnectionManager(const ConnectError('Connection timed out'));
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(failManager),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: Consumer(
-              builder: (context, ref, _) {
-                return Scaffold(
-                  body: ElevatedButton(
-                    onPressed: () {
-                      final session = Session(
-                        id: 's1',
-                        label: 'Test',
-                        host: '10.0.0.1',
-                        user: 'root',
-                      );
-                      SessionConnect.connectTerminal(context, ref, session);
-                    },
-                    child: const Text('Connect'),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Connection timed out'), findsOneWidget);
-
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-
-      failManager.dispose();
-    });
-
-    testWidgets('connectTerminal shows toast on generic error', (tester) async {
-      final failManager = _FailingConnectionManager(Exception('Something went wrong'));
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(failManager),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: Consumer(
-              builder: (context, ref, _) {
-                return Scaffold(
-                  body: ElevatedButton(
-                    onPressed: () {
-                      final session = Session(
-                        id: 's1',
-                        label: 'Test',
-                        host: '10.0.0.1',
-                        user: 'root',
-                      );
-                      SessionConnect.connectTerminal(context, ref, session);
-                    },
-                    child: const Text('Connect'),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Connection error'), findsOneWidget);
-
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-
-      failManager.dispose();
-    });
-
-    testWidgets('connectSftp shows toast on error', (tester) async {
-      final failManager = _FailingConnectionManager(const AuthError('Auth failed'));
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(failManager),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: Consumer(
-              builder: (context, ref, _) {
+                capturedRef = ref;
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
@@ -560,16 +435,16 @@ void main() {
       await tester.tap(find.text('SFTP'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Auth failed'), findsOneWidget);
-
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
+      final tabState = capturedRef.read(tabProvider);
+      expect(tabState.tabs.length, 1);
+      expect(tabState.tabs.first.kind, TabKind.sftp);
 
       failManager.dispose();
     });
 
-    testWidgets('connectConfig shows toast on error', (tester) async {
-      final failManager = _FailingConnectionManager(const ConnectError('Refused'));
+    testWidgets('connectConfig adds tab even when connection fails', (tester) async {
+      final failManager = _FailingConnectionManager(Exception('Refused'));
+      late WidgetRef capturedRef;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -580,6 +455,7 @@ void main() {
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
+                capturedRef = ref;
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
@@ -599,10 +475,9 @@ void main() {
       await tester.tap(find.text('Quick'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Refused'), findsOneWidget);
-
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
+      final tabState = capturedRef.read(tabProvider);
+      expect(tabState.tabs.length, 1);
+      expect(tabState.tabs.first.kind, TabKind.terminal);
 
       failManager.dispose();
     });

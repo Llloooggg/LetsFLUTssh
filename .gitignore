@@ -58,4 +58,4 @@ coverage/
 # pubspec.lock
 
 # Claude
-.claude
+.claudetest.log

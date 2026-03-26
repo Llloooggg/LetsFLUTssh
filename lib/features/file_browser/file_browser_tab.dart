@@ -59,10 +59,26 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   Future<void> _initSftp() async {
+    // Wait for connection if still connecting
+    final conn = widget.connection;
+    while (conn.isConnecting && mounted) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    if (!conn.isConnected) {
+      if (mounted) {
+        setState(() {
+          _error = conn.connectionError ?? 'Connection failed';
+          _initializing = false;
+        });
+      }
+      return;
+    }
+
     try {
       _sftp = widget.sftpInitFactory != null
-          ? await widget.sftpInitFactory!(widget.connection)
-          : await SFTPInitializer.init(widget.connection);
+          ? await widget.sftpInitFactory!(conn)
+          : await SFTPInitializer.init(conn);
       if (mounted) {
         setState(() => _initializing = false);
       }

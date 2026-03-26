@@ -6,7 +6,6 @@ import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
-import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_shell.dart';
@@ -15,7 +14,6 @@ import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/toast.dart';
 
 /// A TabNotifier subclass that starts with a pre-built TabState.
 class _PrePopulatedTabNotifier extends TabNotifier {
@@ -72,24 +70,31 @@ class _PrePopulatedSessionNotifier extends SessionNotifier {
   }
 }
 
-/// A ConnectionManager that always throws a specified error on connect.
+/// A ConnectionManager that simulates a connection that fails in background.
 class _FailingConnectionManager extends ConnectionManager {
   final Object error;
   _FailingConnectionManager(this.error)
       : super(knownHosts: KnownHostsManager());
 
   @override
-  Future<Connection> connect(SSHConfig config, {String? label}) async {
-    throw error;
+  Connection connectAsync(SSHConfig config, {String? label}) {
+    final conn = Connection(
+      id: 'conn-fail',
+      label: label ?? config.displayName,
+      sshConfig: config,
+      state: SSHConnectionState.disconnected,
+      connectionError: error.toString(),
+    );
+    return conn;
   }
 }
 
-/// A ConnectionManager that returns a disconnected connection (simulates success).
+/// A ConnectionManager that returns a connected connection (simulates success).
 class _SuccessConnectionManager extends ConnectionManager {
   _SuccessConnectionManager() : super(knownHosts: KnownHostsManager());
 
   @override
-  Future<Connection> connect(SSHConfig config, {String? label}) async {
+  Connection connectAsync(SSHConfig config, {String? label}) {
     return Connection(
       id: 'conn-success',
       label: label ?? config.displayName,
@@ -736,7 +741,7 @@ void main() {
       }
     }
 
-    testWidgets('connect session success opens connecting dialog then adds tab', (tester) async {
+    testWidgets('connect session adds tab and navigates to terminal', (tester) async {
       final session = Session(
         id: 'sess-1', label: 'Test Server', host: 'example.com', user: 'root',
       );
@@ -751,68 +756,18 @@ void main() {
       await doubleTapSession(tester, 'Test Server');
     });
 
-    testWidgets('connect session with AuthError shows error toast', (tester) async {
+    testWidgets('connect session with failed connection still adds tab', (tester) async {
       final session = Session(
-        id: 'sess-auth', label: 'Auth Fail', host: 'fail.com', user: 'root',
+        id: 'sess-fail', label: 'Fail Server', host: 'fail.com', user: 'root',
       );
       await tester.pumpWidget(buildWithSession(
         session: session,
-        manager: _FailingConnectionManager(const AuthError('bad password')),
+        manager: _FailingConnectionManager(Exception('bad password')),
       ));
       await tester.pumpAndSettle();
 
-      await doubleTapSession(tester, 'Auth Fail');
-
-      expect(find.textContaining('Auth failed'), findsOneWidget);
-      Toast.clearAllForTest();
-    });
-
-    testWidgets('connect session with ConnectError shows error toast', (tester) async {
-      final session = Session(
-        id: 'sess-conn', label: 'Conn Fail', host: 'fail.com', user: 'root',
-      );
-      await tester.pumpWidget(buildWithSession(
-        session: session,
-        manager: _FailingConnectionManager(const ConnectError('timeout')),
-      ));
-      await tester.pumpAndSettle();
-
-      await doubleTapSession(tester, 'Conn Fail');
-
-      expect(find.textContaining('timeout'), findsOneWidget);
-      Toast.clearAllForTest();
-    });
-
-    testWidgets('connect session with HostKeyError shows error toast', (tester) async {
-      final session = Session(
-        id: 'sess-hk', label: 'HK Fail', host: 'fail.com', user: 'root',
-      );
-      await tester.pumpWidget(buildWithSession(
-        session: session,
-        manager: _FailingConnectionManager(const HostKeyError('key mismatch')),
-      ));
-      await tester.pumpAndSettle();
-
-      await doubleTapSession(tester, 'HK Fail');
-
-      expect(find.textContaining('key mismatch'), findsOneWidget);
-      Toast.clearAllForTest();
-    });
-
-    testWidgets('connect session with generic error shows error toast', (tester) async {
-      final session = Session(
-        id: 'sess-gen', label: 'Gen Fail', host: 'fail.com', user: 'root',
-      );
-      await tester.pumpWidget(buildWithSession(
-        session: session,
-        manager: _FailingConnectionManager(Exception('something broke')),
-      ));
-      await tester.pumpAndSettle();
-
-      await doubleTapSession(tester, 'Gen Fail');
-
-      expect(find.textContaining('Connection error'), findsOneWidget);
-      Toast.clearAllForTest();
+      // Double-tap triggers connect + nav switch — tab is added even if disconnected
+      await doubleTapSession(tester, 'Fail Server');
     });
 
     testWidgets('badge shows terminal tab count', (tester) async {

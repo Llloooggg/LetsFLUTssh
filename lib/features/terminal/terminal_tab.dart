@@ -47,12 +47,7 @@ class _TerminalTabState extends State<TerminalTab> {
     _root = leaf;
     _focusedPaneId = leaf.id;
     _paneConnections[leaf.id] = widget.connection;
-
-    final sshConn = widget.connection.sshConnection;
-    if (sshConn == null || !sshConn.isConnected) {
-      _connectionReady = false;
-      _connectionError = 'Not connected';
-    }
+    // Always ready — TerminalPane handles waiting for connection internally
   }
 
   /// Split a pane via context menu (new pane gets same connection as source).

@@ -63,6 +63,28 @@ class TerminalPaneState extends State<TerminalPane> {
   }
 
   Future<void> _connectAndOpenShell() async {
+    final conn = widget.connection;
+    final config = conn.sshConfig;
+
+    // Show connection info in terminal
+    _terminal.write('Connecting to ${config.user}@${config.host}:${config.effectivePort}...\r\n');
+
+    // Wait for connection if still connecting
+    if (conn.isConnecting) {
+      await _waitForConnection(conn);
+    }
+
+    // Check connection result
+    if (!conn.isConnected) {
+      final error = conn.connectionError ?? 'Connection failed';
+      _terminal.write('\r\n\x1B[31m$error\x1B[0m\r\n'); // red text
+      _terminal.write('\r\nPress any key to close this tab.\r\n');
+      if (mounted) setState(() => _error = error);
+      return;
+    }
+
+    _terminal.write('Connected.\r\n\r\n');
+
     void onDone() {
       if (mounted) {
         setState(() {
@@ -75,20 +97,28 @@ class TerminalPaneState extends State<TerminalPane> {
     try {
       if (widget.shellFactory != null) {
         _shellConn = await widget.shellFactory!(
-          connection: widget.connection,
+          connection: conn,
           terminal: _terminal,
           onDone: onDone,
         );
       } else {
         _shellConn = await ShellHelper.openShell(
-          connection: widget.connection,
+          connection: conn,
           terminal: _terminal,
           onDone: onDone,
         );
       }
       if (mounted) setState(() => _connected = true);
     } catch (e) {
+      _terminal.write('\r\n\x1B[31mShell error: $e\x1B[0m\r\n');
       if (mounted) setState(() => _error = e.toString());
+    }
+  }
+
+  /// Poll connection state until it's no longer connecting.
+  Future<void> _waitForConnection(Connection conn) async {
+    while (conn.isConnecting && mounted) {
+      await Future.delayed(const Duration(milliseconds: 100));
     }
   }
 
