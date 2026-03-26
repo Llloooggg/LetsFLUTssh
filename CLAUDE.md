@@ -15,7 +15,7 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 - **User commits manually** — Claude only suggests commit messages
 - Format: `type: short description` (e.g. `feat: phase 1 — SSH terminal with xterm.dart`)
 - Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `ci`
-    - `feat:`, `fix:`, `refactor:` — **only for changes in `lib/`** (the app itself)
+    - `feat:`, `fix:`, `refactor:` — for changes that affect the shipped app (`lib/`, platform configs, assets, etc.)
     - `test:` — test changes only
     - `docs:` — documentation only
     - `chore:` — deps, version bumps, gitignore, etc.
@@ -26,6 +26,7 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
     - `refactor:` → Improvements section (user-visible)
     - `test:`, `docs:`, `chore:`, `ci:` → skipped in changelog (not user-facing)
     - Keep messages clear and user-readable — they appear in GitHub Release notes
+    - **Commit message = what matters to the user.** If a commit includes both app changes and docs/CLAUDE.md updates, the prefix and message should describe the app change only (e.g. `fix: restrict intent-filter`, not `fix: restrict intent-filter + update CLAUDE.md`). Docs ride along silently — no need for separate commits
 - Repository is **public** on GitHub
 
 ### Work Style
