@@ -306,7 +306,8 @@ jobs:
         id: changelog
         run: |
           TAG="${{ steps.tag.outputs.name }}"
-          PREV_TAG=$(git tag --sort=-v:refname | grep -v "$TAG" | head -1)
+          # Get the tag immediately before this one (by version order)
+          PREV_TAG=$(git tag -l 'v*' --sort=-v:refname | awk "found{print;exit} /^${TAG}\$/{found=1}")
           if [ -z "$PREV_TAG" ]; then
             RANGE="$TAG"
           else
