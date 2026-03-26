@@ -275,20 +275,48 @@ jobs:
         with:
           path: artifacts
 
-      - name: Detect pre-release
-        id: meta
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
         run: |
           TAG="${{ github.ref_name }}"
-          if [[ "$TAG" == *-beta* ]] || [[ "$TAG" == *-rc* ]] || [[ "$TAG" == *-alpha* ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "$TAG" | head -1)
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="$TAG"
           else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            RANGE="$PREV_TAG..$TAG"
           fi
+
+          FEATURES=""
+          FIXES=""
+          IMPROVEMENTS=""
+
+          while IFS= read -r line; do
+            MSG="${line#* }"
+            case "$MSG" in
+              feat:*) FEATURES="$FEATURES- ${MSG#feat: }\n" ;;
+              fix:*)  FIXES="$FIXES- ${MSG#fix: }\n" ;;
+              refactor:*) IMPROVEMENTS="$IMPROVEMENTS- ${MSG#refactor: }\n" ;;
+            esac
+          done <<< "$(git log "$RANGE" --oneline --no-merges)"
+
+          BODY=""
+          [ -n "$FEATURES" ] && BODY="$BODY### Features\n$FEATURES\n"
+          [ -n "$FIXES" ] && BODY="$BODY### Fixes\n$FIXES\n"
+          [ -n "$IMPROVEMENTS" ] && BODY="$BODY### Improvements\n$IMPROVEMENTS\n"
+          [ -z "$BODY" ] && BODY="Maintenance release.\n"
+
+          echo "body<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$BODY" >> "$GITHUB_OUTPUT"
+          echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
+          body: ${{ steps.changelog.outputs.body }}
           files: |
             artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-x64.tar.gz
             artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-x64.AppImage

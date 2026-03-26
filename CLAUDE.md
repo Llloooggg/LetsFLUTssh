@@ -46,8 +46,16 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 
 1. Bump version in `pubspec.yaml` + update `_appVersion` in `settings_screen.dart` — include in the same commit that changes `lib/`
 2. Tag only the commit that contains the bump: `git tag vX.Y.Z`
-3. Push tag: `git push origin vX.Y.Z` — CI creates GitHub Release
+3. Push tag: `git push origin vX.Y.Z` — CI creates GitHub Release with auto-generated changelog
 4. Do NOT tag commits without a version bump (tests, docs, CI)
+
+**Release notes (auto-changelog):**
+
+- Generated from commit messages between previous and current tag
+- Group by prefix: `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements
+- Skip `test:`, `docs:`, `chore:` — not user-facing
+- Format: `git log vPREV..vCURR --oneline` → parse prefixes → markdown sections
+- CI should auto-attach to GitHub Release body
 
 **Example lifecycle:**
 
