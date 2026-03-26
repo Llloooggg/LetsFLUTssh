@@ -14,12 +14,17 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 
 - **User commits manually** — Claude only suggests commit messages
 - Format: `type: short description` (e.g. `feat: phase 1 — SSH terminal with xterm.dart`)
-- Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`
+- Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `ci`
+    - `feat:`, `fix:`, `refactor:` — **only for changes in `lib/`** (the app itself)
+    - `test:` — test changes only
+    - `docs:` — documentation only
+    - `chore:` — deps, version bumps, gitignore, etc.
+    - `ci:` — CI/CD workflow changes
 - **Commit messages drive auto-changelog** — CI generates release notes from prefixes:
     - `feat:` → Features section (user-visible)
     - `fix:` → Fixes section (user-visible)
     - `refactor:` → Improvements section (user-visible)
-    - `test:`, `docs:`, `chore:` → skipped in changelog (not user-facing)
+    - `test:`, `docs:`, `chore:`, `ci:` → skipped in changelog (not user-facing)
     - Keep messages clear and user-readable — they appear in GitHub Release notes
 - Repository is **public** on GitHub
 
