@@ -5,39 +5,49 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  analyze-and-test:
+  preflight:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Analyze
-        run: flutter analyze --fatal-infos
-
-      - name: Run tests
-        run: flutter test
-
-  version:
-    needs: analyze-and-test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+      checks: read
     outputs:
       version: ${{ steps.get.outputs.version }}
     steps:
+      - name: Verify CI passed on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA="${{ github.sha }}"
+          REPO="${{ github.repository }}"
+          echo "Checking CI status for commit ${SHA}..."
+
+          # Find the latest CI workflow run for this commit
+          STATUS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
+            --jq '.check_runs[] | select(.name == "analyze-and-test" and (.app.slug == "github-actions")) | .conclusion' \
+            | head -1)
+
+          if [ "$STATUS" = "success" ]; then
+            echo "CI passed ✓"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "::warning::CI status is '${STATUS:-not found}' — proceeding anyway (manual dispatch)"
+          else
+            echo "::error::CI has not passed on this commit (status: '${STATUS:-not found}'). Push to main first and wait for CI to pass before tagging."
+            exit 1
+          fi
+
       - uses: actions/checkout@v6
+        with:
+          sparse-checkout: pubspec.yaml
+          sparse-checkout-cone-mode: false
+
       - name: Extract version from pubspec.yaml
         id: get
         run: |
@@ -46,7 +56,7 @@ jobs:
           echo "Version: ${VER}"
 
   build-linux-x64:
-    needs: version
+    needs: preflight
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -56,6 +66,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Install Linux build dependencies
         run: |
@@ -68,7 +79,7 @@ jobs:
       - name: Package tar.gz
         run: |
           cd build/linux/x64/release/bundle
-          tar czf ${{ github.workspace }}/letsflutssh-${{ needs.version.outputs.version }}-linux-x64.tar.gz .
+          tar czf ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz .
 
       - name: Package AppImage
         run: |
@@ -90,11 +101,11 @@ jobs:
           # Download appimagetool and build
           wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
-          ARCH=x86_64 ./appimagetool --no-appstream $APPDIR letsflutssh-${{ needs.version.outputs.version }}-linux-x64.AppImage
+          ARCH=x86_64 ./appimagetool --no-appstream $APPDIR letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
 
       - name: Package deb
         run: |
-          VER=${{ needs.version.outputs.version }}
+          VER=${{ needs.preflight.outputs.version }}
           PKG=letsflutssh_${VER}_amd64
           mkdir -p $PKG/DEBIAN
           mkdir -p $PKG/usr/bin
@@ -126,12 +137,12 @@ jobs:
         with:
           name: linux-x64
           path: |
-            letsflutssh-${{ needs.version.outputs.version }}-linux-x64.tar.gz
-            letsflutssh-${{ needs.version.outputs.version }}-linux-x64.AppImage
-            letsflutssh-${{ needs.version.outputs.version }}-linux-amd64.deb
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
 
   build-windows:
-    needs: version
+    needs: preflight
     runs-on: windows-latest
     permissions:
       contents: read
@@ -141,32 +152,33 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Build Windows x64
         run: flutter build windows --release
 
       - name: Package zip
-        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
 
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
       - name: Package EXE installer
         run: |
-          $env:APP_VERSION = "${{ needs.version.outputs.version }}"
+          $env:APP_VERSION = "${{ needs.preflight.outputs.version }}"
           $env:BUILD_DIR = "${{ github.workspace }}\build\windows\x64\runner\Release"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
-          Move-Item "windows\packaging\Output\letsflutssh-${{ needs.version.outputs.version }}-windows-x64-setup.exe" .
+          Move-Item "windows\packaging\Output\letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe" .
 
       - uses: actions/upload-artifact@v7
         with:
           name: windows-x64
           path: |
-            letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
-            letsflutssh-${{ needs.version.outputs.version }}-windows-x64-setup.exe
+            letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
+            letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
 
   build-macos:
-    needs: version
+    needs: preflight
     runs-on: macos-latest
     permissions:
       contents: read
@@ -176,6 +188,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Build macOS (universal — x64 + arm64)
         run: flutter build macos --release
@@ -183,21 +196,21 @@ jobs:
       - name: Package tar.gz
         run: |
           cd build/macos/Build/Products/Release
-          tar czf ${{ github.workspace }}/letsflutssh-${{ needs.version.outputs.version }}-macos-universal.tar.gz *.app
+          tar czf ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz *.app
 
       - name: Package dmg
         run: |
-          hdiutil create -volname "LetsFLUTssh" -srcfolder build/macos/Build/Products/Release/letsflutssh.app -ov -format UDZO letsflutssh-${{ needs.version.outputs.version }}-macos-universal.dmg
+          hdiutil create -volname "LetsFLUTssh" -srcfolder build/macos/Build/Products/Release/letsflutssh.app -ov -format UDZO letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
 
       - uses: actions/upload-artifact@v7
         with:
           name: macos-universal
           path: |
-            letsflutssh-${{ needs.version.outputs.version }}-macos-universal.tar.gz
-            letsflutssh-${{ needs.version.outputs.version }}-macos-universal.dmg
+            letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
+            letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
 
   build-android:
-    needs: version
+    needs: preflight
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -212,6 +225,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Build APKs (per-ABI)
         run: flutter build apk --release --split-per-abi
@@ -219,9 +233,9 @@ jobs:
       - name: Rename APKs
         run: |
           cd build/app/outputs/flutter-apk
-          mv app-arm64-v8a-release.apk letsflutssh-${{ needs.version.outputs.version }}-android-arm64.apk
-          mv app-armeabi-v7a-release.apk letsflutssh-${{ needs.version.outputs.version }}-android-arm.apk
-          mv app-x86_64-release.apk letsflutssh-${{ needs.version.outputs.version }}-android-x64.apk
+          mv app-arm64-v8a-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
+          mv app-armeabi-v7a-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
+          mv app-x86_64-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
 
       - uses: actions/upload-artifact@v7
         with:
@@ -230,7 +244,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [version, build-linux-x64, build-windows, build-macos, build-android]
+    needs: [preflight, build-linux-x64, build-windows, build-macos, build-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -282,13 +296,13 @@ jobs:
         with:
           body: ${{ steps.changelog.outputs.body }}
           files: |
-            artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-x64.tar.gz
-            artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-x64.AppImage
-            artifacts/linux-x64/letsflutssh-${{ needs.version.outputs.version }}-linux-amd64.deb
-            artifacts/windows-x64/letsflutssh-${{ needs.version.outputs.version }}-windows-x64.zip
-            artifacts/windows-x64/letsflutssh-${{ needs.version.outputs.version }}-windows-x64-setup.exe
-            artifacts/macos-universal/letsflutssh-${{ needs.version.outputs.version }}-macos-universal.tar.gz
-            artifacts/macos-universal/letsflutssh-${{ needs.version.outputs.version }}-macos-universal.dmg
-            artifacts/android-apk/letsflutssh-${{ needs.version.outputs.version }}-android-arm64.apk
-            artifacts/android-apk/letsflutssh-${{ needs.version.outputs.version }}-android-arm.apk
-            artifacts/android-apk/letsflutssh-${{ needs.version.outputs.version }}-android-x64.apk
+            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
+            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
+            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
+            artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
+            artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
+            artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
+            artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
+            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
+            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
+            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
