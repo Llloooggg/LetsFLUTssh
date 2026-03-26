@@ -1,10 +1,11 @@
 import 'dart:io';
 
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_client.dart';
+import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
 /// Result of SFTP initialization — controllers + service.
@@ -30,18 +31,26 @@ class SFTPInitResult {
 class SFTPInitializer {
   SFTPInitializer._();
 
-  /// Initialize SFTP service and file pane controllers from a [Connection].
-  ///
-  /// Throws if SSH connection is not available or SFTP init fails.
-  /// Request MANAGE_EXTERNAL_STORAGE on Android for local file browsing.
-  /// Falls back to READ/WRITE_EXTERNAL_STORAGE on API < 30.
+  /// Request storage permission on Android via platform channel.
+  /// No external plugin needed — avoids GPS/location side-effects from permission_handler.
   static Future<void> _requestStoragePermission() async {
-    final status = await Permission.manageExternalStorage.status;
-    if (status.isGranted) return;
-    final result = await Permission.manageExternalStorage.request();
-    if (!result.isGranted) {
-      // Fall back to legacy storage permission (API < 30)
-      await Permission.storage.request();
+    try {
+      // Check if we can already access shared storage
+      final testDir = Directory('/storage/emulated/0');
+      if (await testDir.exists()) {
+        try {
+          await testDir.list().first;
+          return; // Access works, no permission needed
+        } catch (_) {
+          // Can't list — need permission
+        }
+      }
+
+      // Request via platform channel — native Android side shows the dialog
+      const channel = MethodChannel('com.letsflutssh/permissions');
+      await channel.invokeMethod('requestStoragePermission');
+    } catch (e) {
+      AppLogger.instance.log('Storage permission request failed: $e', name: 'Permission');
     }
   }
 

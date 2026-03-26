@@ -40,7 +40,6 @@ dependencies:
 
   # Deep links / file open intents
   app_links: ^7.0.0
-  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:
