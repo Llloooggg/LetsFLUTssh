@@ -47,8 +47,27 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   }
 
   Future<void> _initSftp() async {
+    final conn = widget.connection;
+
+    // Wait for connection if still connecting (connectAsync returns immediately)
+    if (conn.isConnecting) {
+      while (conn.isConnecting && mounted) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+    }
+
+    if (!conn.isConnected) {
+      if (mounted) {
+        setState(() {
+          _error = conn.connectionError ?? 'Connection failed';
+          _initializing = false;
+        });
+      }
+      return;
+    }
+
     try {
-      _sftp = await SFTPInitializer.init(widget.connection);
+      _sftp = await SFTPInitializer.init(conn);
       if (mounted) setState(() => _initializing = false);
     } catch (e) {
       if (mounted) setState(() { _error = 'Failed to init SFTP: $e'; _initializing = false; });

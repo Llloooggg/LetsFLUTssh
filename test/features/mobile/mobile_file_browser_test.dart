@@ -96,11 +96,12 @@ List<FileEntry> testEntries() => [
 
 void main() {
   group('MobileFileBrowser — widget rendering', () {
-    testWidgets('shows loading state initially', (tester) async {
+    testWidgets('shows loading state while connection is connecting', (tester) async {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
         sshConfig: const SSHConfig(host: 'example.com', user: 'root'),
+        state: SSHConnectionState.connecting,
       );
 
       await tester.pumpWidget(
@@ -114,12 +115,16 @@ void main() {
         ),
       );
 
-      // Should show loading initially
+      // Should show loading while waiting for connection
       expect(find.text('Initializing SFTP...'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // Stop the connection-wait polling loop before test teardown
+      connection.state = SSHConnectionState.disconnected;
+      await tester.pumpAndSettle();
     });
 
-    testWidgets('shows error state when SSH connection is null',
+    testWidgets('shows error state when connection is disconnected',
         (tester) async {
       final connection = Connection(
         id: 'test-1',
@@ -141,7 +146,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.textContaining('Failed to init SFTP'), findsOneWidget);
+      expect(find.textContaining('Connection failed'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
 

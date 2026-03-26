@@ -42,9 +42,23 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
   }
 
   Future<void> _connectAndOpenShell() async {
+    final conn = widget.connection;
+
+    // Wait for connection if still connecting (connectAsync returns immediately)
+    if (conn.isConnecting) {
+      await _waitForConnection(conn);
+    }
+
+    if (!conn.isConnected) {
+      if (mounted) {
+        setState(() => _error = conn.connectionError ?? 'Connection failed');
+      }
+      return;
+    }
+
     try {
       _shellConn = await ShellHelper.openShell(
-        connection: widget.connection,
+        connection: conn,
         terminal: _terminal,
         onDone: () {
           if (mounted) {
@@ -58,6 +72,13 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
       if (mounted) setState(() => _connected = true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
+    }
+  }
+
+  /// Poll connection state until it's no longer connecting.
+  Future<void> _waitForConnection(Connection conn) async {
+    while (conn.isConnecting && mounted) {
+      await Future.delayed(const Duration(milliseconds: 100));
     }
   }
 
