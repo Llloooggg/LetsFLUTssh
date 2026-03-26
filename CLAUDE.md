@@ -85,6 +85,7 @@ v1.1.0 → major rework → v2.0.0
 ### What Not To Do
 
 - Do not commit automatically, do not push
+- **Never amend after push** — after a commit is pushed, only create new commits. `--amend` + `--force-push` re-triggers CI builds and wastes resources. Amend is OK only before the first push
 - Do not install packages without asking (user approves)
 - **All code must have tests** — target 100% coverage on new code AND overall; 80% is the hard minimum (SonarCloud Quality Gate), never the goal; write tests for every testable line
     - After writing code: run `make test`, check uncovered lines, keep writing tests until all testable lines are covered
