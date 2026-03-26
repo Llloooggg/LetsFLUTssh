@@ -476,7 +476,7 @@ class _FilePaneState extends State<FilePane> {
       ),
       onDragStarted: () => _dragActive = true,
       onDragEnd: (_) => _dragActive = false,
-      onDraggableCanceled: (_, __) => _dragActive = false,
+      onDraggableCanceled: (_, _) => _dragActive = false,
       feedback: _buildDragFeedback(theme, entry, dragEntries),
       child: row,
     );

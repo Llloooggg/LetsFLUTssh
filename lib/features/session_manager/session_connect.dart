@@ -5,6 +5,7 @@ import '../../core/session/session.dart';
 import '../../core/ssh/errors.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
+import '../../utils/logger.dart';
 import '../../widgets/toast.dart';
 import '../tabs/tab_controller.dart';
 
@@ -14,6 +15,7 @@ class SessionConnect {
 
   /// Connect to a session via SSH and open a terminal tab.
   static Future<void> connectTerminal(BuildContext context, WidgetRef ref, Session session) async {
+    AppLogger.instance.log('Opening terminal for ${session.label}', name: 'Session');
     final config = session.toSSHConfig();
     try {
       final manager = ref.read(connectionManagerProvider);
@@ -29,6 +31,7 @@ class SessionConnect {
 
   /// Connect to a session via SSH and open an SFTP tab.
   static Future<void> connectSftp(BuildContext context, WidgetRef ref, Session session) async {
+    AppLogger.instance.log('Opening SFTP for ${session.label}', name: 'Session');
     final config = session.toSSHConfig();
     try {
       final manager = ref.read(connectionManagerProvider);
@@ -44,6 +47,7 @@ class SessionConnect {
 
   /// Connect with SSHConfig directly (without saving a session).
   static Future<void> connectConfig(BuildContext context, WidgetRef ref, SSHConfig config) async {
+    AppLogger.instance.log('Quick connect to ${config.host}', name: 'Session');
     try {
       final manager = ref.read(connectionManagerProvider);
       final conn = await manager.connect(config);

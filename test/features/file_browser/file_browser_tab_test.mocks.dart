@@ -116,6 +116,35 @@ class MockSftpClient extends _i1.Mock implements _i2.SftpClient {
           as _i5.Future<_i2.SftpFile>);
 
   @override
+  _i5.Future<int> download(
+    String? path,
+    _i5.StreamSink<List<int>>? destination, {
+    int? length,
+    int? offset = 0,
+    void Function(int)? onProgress,
+    int? chunkSize = 65536,
+    int? maxPendingRequests = 128,
+    bool? closeDestination = false,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #download,
+              [path, destination],
+              {
+                #length: length,
+                #offset: offset,
+                #onProgress: onProgress,
+                #chunkSize: chunkSize,
+                #maxPendingRequests: maxPendingRequests,
+                #closeDestination: closeDestination,
+              },
+            ),
+            returnValue: _i5.Future<int>.value(0),
+            returnValueForMissingStub: _i5.Future<int>.value(0),
+          )
+          as _i5.Future<int>);
+
+  @override
   _i5.Stream<List<_i7.SftpName>> readdir(String? path) =>
       (super.noSuchMethod(
             Invocation.method(#readdir, [path]),

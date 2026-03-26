@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../core/session/session.dart';
 import '../core/session/session_store.dart';
@@ -11,14 +12,13 @@ final sessionStoreProvider = Provider<SessionStore>((ref) {
 
 /// Session list state — loaded async, notifies on changes.
 final sessionProvider =
-    StateNotifierProvider<SessionNotifier, List<Session>>((ref) {
-  return SessionNotifier(ref.watch(sessionStoreProvider));
-});
+    NotifierProvider<SessionNotifier, List<Session>>(SessionNotifier.new);
 
-class SessionNotifier extends StateNotifier<List<Session>> {
-  final SessionStore _store;
+class SessionNotifier extends Notifier<List<Session>> {
+  @override
+  List<Session> build() => [];
 
-  SessionNotifier(this._store) : super([]);
+  SessionStore get _store => ref.read(sessionStoreProvider);
 
   Future<void> load() async {
     state = await _store.load();

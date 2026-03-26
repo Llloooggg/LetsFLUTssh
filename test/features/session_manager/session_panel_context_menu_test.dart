@@ -10,6 +10,19 @@ import 'package:letsflutssh/features/session_manager/session_panel.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
+/// A SessionNotifier subclass that starts with pre-populated sessions.
+class _PrePopulatedSessionNotifier extends SessionNotifier {
+  final List<Session> _initialSessions;
+  _PrePopulatedSessionNotifier(this._initialSessions);
+
+  @override
+  List<Session> build() {
+    super.build();
+    state = _initialSessions;
+    return state;
+  }
+}
+
 /// Covers session_panel.dart lines 60-196:
 /// - onSessionMoved / onGroupMoved callbacks (lines 60-65)
 /// - _handleDialogResult (lines 72-80)
@@ -162,11 +175,8 @@ void main() {
     return ProviderScope(
       overrides: [
         sessionStoreProvider.overrideWithValue(store),
-        sessionProvider.overrideWith((ref) {
-          final notifier = SessionNotifier(store);
-          notifier.state = sessionList;
-          return notifier;
-        }),
+        sessionProvider.overrideWith(() =>
+            _PrePopulatedSessionNotifier(sessionList)),
         sessionSearchProvider.overrideWith((ref) => ''),
         filteredSessionTreeProvider.overrideWithValue(tree),
       ],

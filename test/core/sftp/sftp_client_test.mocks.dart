@@ -124,6 +124,35 @@ class MockSftpClient extends _i1.Mock implements _i2.SftpClient {
           as _i6.Future<_i2.SftpFile>);
 
   @override
+  _i6.Future<int> download(
+    String? path,
+    _i6.StreamSink<List<int>>? destination, {
+    int? length,
+    int? offset = 0,
+    void Function(int)? onProgress,
+    int? chunkSize = 65536,
+    int? maxPendingRequests = 128,
+    bool? closeDestination = false,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #download,
+              [path, destination],
+              {
+                #length: length,
+                #offset: offset,
+                #onProgress: onProgress,
+                #chunkSize: chunkSize,
+                #maxPendingRequests: maxPendingRequests,
+                #closeDestination: closeDestination,
+              },
+            ),
+            returnValue: _i6.Future<int>.value(0),
+            returnValueForMissingStub: _i6.Future<int>.value(0),
+          )
+          as _i6.Future<int>);
+
+  @override
   _i6.Stream<List<_i8.SftpName>> readdir(String? path) =>
       (super.noSuchMethod(
             Invocation.method(#readdir, [path]),
@@ -295,17 +324,49 @@ class MockSftpFile extends _i1.Mock implements _i2.SftpFile {
     int? length,
     int? offset = 0,
     void Function(int)? onProgress,
+    int? chunkSize = 16384,
+    int? maxPendingRequests = 64,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#read, [], {
               #length: length,
               #offset: offset,
               #onProgress: onProgress,
+              #chunkSize: chunkSize,
+              #maxPendingRequests: maxPendingRequests,
             }),
             returnValue: _i6.Stream<_i10.Uint8List>.empty(),
             returnValueForMissingStub: _i6.Stream<_i10.Uint8List>.empty(),
           )
           as _i6.Stream<_i10.Uint8List>);
+
+  @override
+  _i6.Future<int> downloadTo(
+    _i6.StreamSink<List<int>>? destination, {
+    int? length,
+    int? offset = 0,
+    void Function(int)? onProgress,
+    int? chunkSize = 65536,
+    int? maxPendingRequests = 128,
+    bool? closeDestination = false,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #downloadTo,
+              [destination],
+              {
+                #length: length,
+                #offset: offset,
+                #onProgress: onProgress,
+                #chunkSize: chunkSize,
+                #maxPendingRequests: maxPendingRequests,
+                #closeDestination: closeDestination,
+              },
+            ),
+            returnValue: _i6.Future<int>.value(0),
+            returnValueForMissingStub: _i6.Future<int>.value(0),
+          )
+          as _i6.Future<int>);
 
   @override
   _i6.Future<_i10.Uint8List> readBytes({int? length, int? offset = 0}) =>

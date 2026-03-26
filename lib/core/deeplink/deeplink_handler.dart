@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:developer' as dev;
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
+import '../../utils/logger.dart';
 import '../ssh/ssh_config.dart';
 
 /// Handles deep links and file open intents:
@@ -33,26 +33,26 @@ class DeepLinkHandler {
         handleUri(initialUri);
       }
     } catch (e) {
-      dev.log('DeepLink: no initial link ($e)');
+      AppLogger.instance.log('No initial link ($e)', name: 'DeepLink');
     }
 
     // Listen for links while app is running (warm start)
     _sub = _appLinks.uriLinkStream.listen(
       handleUri,
-      onError: (e) => dev.log('DeepLink stream error: $e'),
+      onError: (e) => AppLogger.instance.log('Stream error: $e', name: 'DeepLink'),
     );
   }
 
   @visibleForTesting
   void handleUri(Uri uri) {
-    dev.log('DeepLink received: $uri');
+    AppLogger.instance.log('Received: $uri', name: 'DeepLink');
 
     if (uri.scheme == 'letsflutssh') {
       handleCustomScheme(uri);
     } else if (uri.scheme == 'file' || uri.scheme == 'content') {
       handleFileUri(uri);
     } else {
-      dev.log('DeepLink: unhandled scheme "${uri.scheme}"');
+      AppLogger.instance.log('Unhandled scheme "${uri.scheme}"', name: 'DeepLink');
     }
   }
 
@@ -63,10 +63,10 @@ class DeepLinkHandler {
       if (config != null) {
         onConnect?.call(config);
       } else {
-        dev.log('DeepLink: invalid connect params — host and user required');
+        AppLogger.instance.log('Invalid connect params — host and user required', name: 'DeepLink');
       }
     } else {
-      dev.log('DeepLink: unknown action "${uri.host}"');
+      AppLogger.instance.log('Unknown action "${uri.host}"', name: 'DeepLink');
     }
   }
 
@@ -78,7 +78,7 @@ class DeepLinkHandler {
     } else if (path.endsWith('.pem') || path.endsWith('.key') || path.endsWith('.pub')) {
       onKeyFileOpened?.call(uri.toFilePath());
     } else {
-      dev.log('DeepLink: unsupported file type "$path"');
+      AppLogger.instance.log('Unsupported file type "$path"', name: 'DeepLink');
     }
   }
 
@@ -95,21 +95,21 @@ class DeepLinkHandler {
 
     // Validate host: no path separators, reasonable length
     if (host.length > 253 || host.contains('/') || host.contains('\\')) {
-      dev.log('DeepLink: invalid host "$host"');
+      AppLogger.instance.log('Invalid host "$host"', name: 'DeepLink');
       return null;
     }
 
     // Validate port range
     final port = int.tryParse(params['port'] ?? '') ?? 22;
     if (port < 1 || port > 65535) {
-      dev.log('DeepLink: invalid port $port');
+      AppLogger.instance.log('Invalid port $port', name: 'DeepLink');
       return null;
     }
 
     // Sanitize keyPath: reject path traversal
     final keyPath = params['key'] ?? '';
     if (keyPath.contains('..')) {
-      dev.log('DeepLink: rejected key path with traversal');
+      AppLogger.instance.log('Rejected key path with traversal', name: 'DeepLink');
       return null;
     }
 

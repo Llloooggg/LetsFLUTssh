@@ -9,12 +9,13 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
 import '../../providers/config_provider.dart';
+import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../widgets/toast.dart';
 import 'export_import.dart';
 
 /// App version — kept in sync with pubspec.yaml.
-const _appVersion = '0.9.3';
+const _appVersion = '0.10.0';
 const _githubUrl = 'https://github.com/llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
@@ -61,6 +62,12 @@ class SettingsScreen extends ConsumerWidget {
 
           const _SectionHeader(title: 'Data'),
           _ExportImportTile(),
+          const _DataPathTile(),
+
+          const Divider(height: 32),
+
+          const _SectionHeader(title: 'Logging'),
+          const _LoggingSection(),
 
           const Divider(height: 32),
 
@@ -610,6 +617,75 @@ class _IntTile extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+class _DataPathTile extends StatelessWidget {
+  const _DataPathTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Directory>(
+      future: getApplicationSupportDirectory(),
+      builder: (context, snapshot) {
+        final path = snapshot.data?.path ?? '...';
+        return ListTile(
+          leading: const Icon(Icons.folder_special, size: 20),
+          title: const Text('Data Location'),
+          subtitle: Text(path, style: const TextStyle(fontSize: 12)),
+          contentPadding: EdgeInsets.zero,
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: path));
+            Toast.show(context, message: 'Path copied to clipboard', level: ToastLevel.info);
+          },
+        );
+      },
+    );
+  }
+}
+
+class _LoggingSection extends ConsumerWidget {
+  const _LoggingSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(configProvider.select((c) => c.enableLogging));
+    final logPath = AppLogger.instance.logPath;
+
+    return Column(
+      children: [
+        SwitchListTile(
+          title: const Text('Enable Logging'),
+          subtitle: const Text('Write diagnostic logs to file (no sensitive data)'),
+          value: enabled,
+          contentPadding: EdgeInsets.zero,
+          onChanged: (v) => ref.read(configProvider.notifier).update(
+            (c) => c.copyWith(enableLogging: v),
+          ),
+        ),
+        if (enabled && logPath != null)
+          ListTile(
+            leading: const Icon(Icons.description, size: 20),
+            title: const Text('Log File'),
+            subtitle: Text(logPath, style: const TextStyle(fontSize: 12)),
+            contentPadding: EdgeInsets.zero,
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: logPath));
+              Toast.show(context, message: 'Log path copied', level: ToastLevel.info);
+            },
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline, size: 20),
+              tooltip: 'Clear Logs',
+              onPressed: () async {
+                await AppLogger.instance.clearLogs();
+                if (context.mounted) {
+                  Toast.show(context, message: 'Logs cleared', level: ToastLevel.info);
+                }
+              },
+            ),
+          ),
+      ],
     );
   }
 }

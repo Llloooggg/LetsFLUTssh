@@ -28,66 +28,34 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 
 ### Versioning Strategy
 
-SemVer with two maturity stages: `MAJOR.MINOR.PATCH[-beta.N]`
+Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 
-**Stages:**
+**Version bump rules:**
 
-| Stage         | When to use                                         | Meaning                  |
-| ------------- | --------------------------------------------------- | ------------------------ |
-| `beta.N`      | Feature works but not battle-tested on real servers | "Can try, bugs expected" |
-| _(no suffix)_ | Beta survived 1-2 weeks without critical bugs       | "Production-ready"       |
-
-No `rc` stage — unnecessary overhead for a small team. Can be introduced later if external testers or contributors need a "feature freeze" signal.
-
-**Version bump rules — always bump MAJOR.MINOR.PATCH, regardless of stage:**
-
-| Change type                                                | Bump      | Example                                       |
-| ---------------------------------------------------------- | --------- | --------------------------------------------- |
-| Bug fix, refactoring, any production code change           | **patch** | 1.0.0-beta.1 → 1.0.1-beta.1, or 1.0.2 → 1.0.3 |
-| New feature (small/medium)                                 | **minor** | 1.0.x → 1.1.0-beta.1, or 1.1.0 → 1.2.0        |
-| Major rework or breaking change (file format, API, crypto) | **major** | 1.x.y → 2.0.0-beta.1                          |
+| Change type                                                | Bump      | Example           |
+| ---------------------------------------------------------- | --------- | ----------------- |
+| Bug fix, refactoring, any production code change           | **patch** | 1.0.2 → 1.0.3    |
+| New feature                                                | **minor** | 1.0.3 → 1.1.0    |
+| Major rework or breaking change (file format, API, crypto) | **major** | 1.1.0 → 2.0.0    |
 
 **No version bump needed for:** tests (no production code changes), docs, CI configs, linter fixes. These are `test:`/`docs:`/`chore:` commits without a version bump.
 
 **Patch bump IS needed for:** `fix:` and `refactor:` commits that touch `lib/` — any change to production code must bump patch.
 
-Stage suffix (`-beta.N`) tracks maturity, not content changes. When a bugfix lands during beta, bump patch AND reset stage counter to 1:
-
-```
-v1.0.0-beta.1 → bugfix → v1.0.1-beta.1 → bugfix → v1.0.2-beta.1 → stable 2 weeks → v1.0.2
-```
-
-**Transition criteria:**
-
-- **beta → stable:** all tests green (analyze + test), coverage ≥80% (SonarCloud QG), manual testing on 2+ platforms with real SSH servers, no known crashes or data loss, beta lives 1-2 weeks with no critical bugs; critical bug found → fix → bump patch → new beta.1 → timer resets
-- **stable → next beta:** new feature (port forwarding, multi-exec, etc.) is functional enough to demo
-
 **Tagging workflow:**
 
-1. Bump version in `pubspec.yaml` (change MAJOR.MINOR.PATCH and/or stage suffix)
-2. Commit: `chore: bump version to X.Y.Z[-beta.N]`
-3. Tag: `git tag vX.Y.Z[-beta.N]` on HEAD
-4. Push tag: `git push origin vX.Y.Z[-beta.N]`
-5. CI creates GitHub Release (pre-release for beta, Latest for stable)
+1. Bump version in `pubspec.yaml` + update `_appVersion` in `settings_screen.dart` — include in the same commit that changes `lib/`
+2. Tag only the commit that contains the bump: `git tag vX.Y.Z`
+3. Push tag: `git push origin vX.Y.Z` — CI creates GitHub Release
+4. Do NOT tag commits without a version bump (tests, docs, CI)
 
-**Stable release from beta (no changes needed):**
-
-```bash
-# Update pubspec.yaml: remove -beta.N suffix (keep same MAJOR.MINOR.PATCH) → commit
-git tag v1.0.2        # same version, just without stage
-git push origin v1.0.2
-```
-
-**Example full lifecycle:**
+**Example lifecycle:**
 
 ```
-v1.0.0-beta.1 → bugfix → v1.0.1-beta.1 → 2 weeks stable → v1.0.1
-v1.0.1 → bugfix → v1.0.2
-v1.0.2 → new feature → v1.1.0-beta.1 → 2 weeks stable → v1.1.0
-v1.1.0 → major rework → v2.0.0-beta.1
+v1.0.0 → bugfix → v1.0.1 → refactor → v1.0.2
+v1.0.2 → new feature → v1.1.0
+v1.1.0 → major rework → v2.0.0
 ```
-
-Old beta tags stay in history — they document the path to release.
 
 ### Post-change workflow (mandatory after every significant change)
 
@@ -106,8 +74,13 @@ Old beta tags stay in history — they document the path to release.
 
 ### Building
 
+- **Only stable package versions** — never add beta/dev/pre-release dependencies. If a package has no stable release, skip it or find an alternative
 - **Always build via Makefile** — `make run`, `make build-linux`, `make test`, `make analyze`, etc.
 - Do not call `flutter build` / `flutter run` directly — Makefile wraps them with correct flags and environment
+
+### Documentation & APIs
+
+- **Always use Context7 MCP** for library/API docs, code generation, setup, and configuration — don't guess APIs from memory, look them up via `resolve-library-id` + `query-docs`
 
 ### What Not To Do
 
@@ -266,7 +239,7 @@ LetsFLUTssh/
 6. **No SCP** — dartssh2 doesn't support SCP; SFTP covers all use cases
 7. **Tree-based sessions** — nested groups via `/` separator, stored as flat list with group path
 
-## Current State (v0.9.5)
+## Current State (v0.10.0)
 
 ### Features by category
 
@@ -281,7 +254,8 @@ LetsFLUTssh/
 | **Mobile**        | Bottom nav, SSH virtual keyboard (sticky modifiers), pinch-to-zoom, single-pane SFTP, long-press selection, swipe navigation, deep links (`letsflutssh://`), file open intents (.pem/.key/.lfs)                                        |
 | **UI**            | OneDark/One Light themes, responsive layout (sidebar→drawer <600px), toast notifications, settings screen, no animations (instant UX)                                                                                                  |
 | **CI/CD**         | GitHub Actions (analyze+test+build), SonarCloud (coverage QG ≥80%), CodeQL weekly scan, packaging (AppImage/deb/tar.gz, EXE/zip, dmg, per-ABI APK)                                                                                     |
-| **Code quality**  | Injectable factories for testability, mockito mocks, consistent error handling (no silent catch), proper dispose() chains, immutable tiling tree updates, model equality (==/hashCode)                                                 |
+| **Code quality**  | Injectable factories for testability, mockito mocks, consistent error handling (no silent catch), proper dispose() chains, immutable tiling tree updates, model equality (==/hashCode), extracted ImportService/KeyFileHelper/LfsImportDialog for testability |
+| **Logging**       | File-based logger (`AppLogger`) — writes to `<appSupportDir>/logs/` in debug/profile mode, no-op in release, 5MB rotation with 3 rotated files                                                                                        |
 
 ### Decisions and Why
 
@@ -342,7 +316,12 @@ LetsFLUTssh/
 
 ## Conventions
 
-- Use `dart:developer` `log()` for structured logging
+- **Logging** — use `AppLogger.instance.log(message, name: 'Tag')` everywhere, never `print()`/`debugPrint()`/`dev.log()` directly
+    - AppLogger forwards to `dev.log()` (DevTools) + writes to file when enabled by user
+    - File location: `<appSupportDir>/logs/letsflutssh.log` (Linux: `~/.local/share/letsflutssh/logs/`, Windows: `%APPDATA%\letsflutssh\logs\`, macOS: `~/Library/Application Support/letsflutssh/logs/`)
+    - Disabled by default — user enables in Settings → Logging → Enable Logging
+    - **Never log sensitive data** — no passwords, keys, keyData, passphrase, credentials. Only host, port, user, file names, operation statuses
+    - Rotation: 5 MB per file, 3 rotated files (`.log`, `.log.1`, `.log.2`, `.log.3`)
 - Error wrapping: custom exception classes with `cause` field
 - No global mutable state — all state via Riverpod providers
 - UI updates automatic via Riverpod (no manual setState except in leaf widgets)

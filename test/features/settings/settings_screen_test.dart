@@ -12,6 +12,19 @@ import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
+/// A ConfigNotifier subclass that starts with a custom initial config.
+class _PrePopulatedConfigNotifier extends ConfigNotifier {
+  final AppConfig _initialConfig;
+  _PrePopulatedConfigNotifier(this._initialConfig);
+
+  @override
+  AppConfig build() {
+    super.build();
+    state = _initialConfig;
+    return state;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory tempDir;
@@ -45,11 +58,8 @@ void main() {
     final config = initialConfig ?? AppConfig.defaults;
     return ProviderScope(
       overrides: [
-        configProvider.overrideWith((ref) {
-          final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-          notifier.state = config;
-          return notifier;
-        }),
+        configProvider.overrideWith(() =>
+            _PrePopulatedConfigNotifier(config)),
       ],
       child: MaterialApp(
         theme: AppTheme.dark(),
@@ -66,15 +76,10 @@ void main() {
     final config = initialConfig ?? AppConfig.defaults;
     return ProviderScope(
       overrides: [
-        configProvider.overrideWith((ref) {
-          final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-          notifier.state = config;
-          return notifier;
-        }),
+        configProvider.overrideWith(() =>
+            _PrePopulatedConfigNotifier(config)),
         sessionStoreProvider.overrideWithValue(SessionStore()),
-        sessionProvider.overrideWith((ref) {
-          return SessionNotifier(ref.watch(sessionStoreProvider));
-        }),
+        sessionProvider.overrideWith(SessionNotifier.new),
       ],
       child: MaterialApp(
         theme: AppTheme.dark(),
@@ -1117,7 +1122,7 @@ void main() {
       );
       expect(find.text('About'), findsOneWidget);
       expect(find.text('LetsFLUTssh'), findsOneWidget);
-      expect(find.textContaining('v0.9.3'), findsOneWidget);
+      expect(find.textContaining('v0.10.0'), findsOneWidget);
       expect(find.textContaining('SSH/SFTP client'), findsOneWidget);
       expect(find.byIcon(Icons.info_outline), findsOneWidget);
     });
@@ -1135,6 +1140,11 @@ void main() {
 
     testWidgets('tapping Source Code copies URL and shows toast',
         (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
         find.text('Source Code'), 200,
@@ -1150,6 +1160,11 @@ void main() {
     });
 
     testWidgets('source code tap does not crash', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
         find.text('Source Code'), 200,
@@ -1248,11 +1263,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configProvider.overrideWith((ref) {
-              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-              notifier.state = AppConfig.defaults;
-              return notifier;
-            }),
+            configProvider.overrideWith(ConfigNotifier.new),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),
@@ -1279,11 +1290,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configProvider.overrideWith((ref) {
-              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-              notifier.state = AppConfig.defaults;
-              return notifier;
-            }),
+            configProvider.overrideWith(ConfigNotifier.new),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),

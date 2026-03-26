@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -7,6 +6,8 @@ import 'dart:typed_data';
 import 'package:pointycastle/export.dart';
 
 import 'package:path_provider/path_provider.dart';
+
+import '../../utils/logger.dart';
 
 /// Encrypted credential store — file-based AES-256-GCM.
 ///
@@ -50,7 +51,7 @@ class CredentialStore {
       return map.map((k, v) =>
           MapEntry(k, CredentialData.fromJson(v as Map<String, dynamic>)));
     } catch (e) {
-      dev.log('CredentialStore: failed to load credentials: $e');
+      AppLogger.instance.log('Failed to load credentials: $e', name: 'CredentialStore');
       throw CredentialStoreException(
         'Failed to decrypt credentials. Key file may be corrupted.',
         cause: e,
@@ -146,10 +147,10 @@ class CredentialStore {
       try {
         final result = Process.runSync('chmod', ['600', path]);
         if (result.exitCode != 0) {
-          dev.log('CredentialStore: chmod 600 failed on $path: ${result.stderr}');
+          AppLogger.instance.log('chmod 600 failed: ${result.stderr}', name: 'CredentialStore');
         }
       } catch (e) {
-        dev.log('CredentialStore: failed to restrict permissions on $path: $e');
+        AppLogger.instance.log('Failed to restrict permissions: $e', name: 'CredentialStore');
       }
     }
   }

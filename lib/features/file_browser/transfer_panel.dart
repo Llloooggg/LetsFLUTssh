@@ -27,7 +27,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     final statusAsync = ref.watch(transferStatusProvider);
 
     // Auto-expand when transfers start
-    final status = statusAsync.valueOrNull;
+    final status = statusAsync.value;
     final isRunning = status?.hasActive ?? false;
     if (isRunning && !_wasRunning && !_expanded) {
       _expanded = true;
@@ -80,7 +80,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                     style: const TextStyle(fontSize: 12),
                   ),
                   loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
                 const SizedBox(width: 4),
                 if (_expanded)

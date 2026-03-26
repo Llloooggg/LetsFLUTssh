@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_client.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_tab.dart';
@@ -25,6 +24,65 @@ import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+
+/// A SessionNotifier subclass that starts with pre-populated sessions.
+class _PrePopulatedSessionNotifier extends SessionNotifier {
+  final List<Session> _initialSessions;
+  _PrePopulatedSessionNotifier(this._initialSessions);
+
+  @override
+  List<Session> build() {
+    super.build();
+    state = _initialSessions;
+    return state;
+  }
+}
+
+/// A TabNotifier subclass that starts with a pre-built TabState.
+class _PrePopulatedTabNotifier extends TabNotifier {
+  final TabState _initialState;
+  _PrePopulatedTabNotifier(this._initialState);
+
+  @override
+  TabState build() => _initialState;
+}
+
+/// Helper to build a TabState with tabs added via a setup callback.
+TabState _buildTabState(void Function(_TabStateBuilder) setup) {
+  final builder = _TabStateBuilder();
+  setup(builder);
+  return TabState(
+    tabs: builder._tabs,
+    activeIndex: builder._tabs.isEmpty ? -1 : builder._tabs.length - 1,
+  );
+}
+
+class _TabStateBuilder {
+  final List<TabEntry> _tabs = [];
+  int _counter = 0;
+
+  void addTerminalTab(Connection conn, {String? label}) {
+    _tabs.add(TabEntry(
+      id: 'tab-${_counter++}',
+      label: label ?? conn.label,
+      connection: conn,
+      kind: TabKind.terminal,
+    ));
+  }
+
+  void addSftpTab(Connection conn, {String? label}) {
+    _tabs.add(TabEntry(
+      id: 'tab-${_counter++}',
+      label: label ?? '${conn.label} (SFTP)',
+      connection: conn,
+      kind: TabKind.sftp,
+    ));
+  }
+
+  void selectTab(int index) {
+    // No-op for builder; activeIndex is set in _buildTabState
+  }
+}
 
 /// Widget tests for MainScreen — covers the refactored methods:
 /// _buildDesktopLayout, _buildRightSide, _buildKeyBindings, _switchTab.
@@ -58,11 +116,7 @@ void main() {
   Widget buildApp({double width = 1000, double height = 600}) {
     return ProviderScope(
       overrides: [
-        configProvider.overrideWith((ref) {
-          final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-          notifier.state = AppConfig.defaults;
-          return notifier;
-        }),
+        configProvider.overrideWith(ConfigNotifier.new),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
@@ -84,11 +138,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configProvider.overrideWith((ref) {
-              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-              notifier.state = AppConfig.defaults;
-              return notifier;
-            }),
+            configProvider.overrideWith(ConfigNotifier.new),
           ],
           child: const LetsFLUTsshApp(),
         ),
@@ -110,11 +160,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configProvider.overrideWith((ref) {
-              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-              notifier.state = AppConfig.defaults;
-              return notifier;
-            }),
+            configProvider.overrideWith(ConfigNotifier.new),
           ],
           child: const LetsFLUTsshApp(),
         ),
@@ -130,11 +176,7 @@ void main() {
     Widget buildNarrowApp() {
       return ProviderScope(
         overrides: [
-          configProvider.overrideWith((ref) {
-            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-            notifier.state = AppConfig.defaults;
-            return notifier;
-          }),
+          configProvider.overrideWith(ConfigNotifier.new),
         ],
         child: MaterialApp(
           navigatorKey: navigatorKey,
@@ -498,31 +540,21 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
-        configProvider.overrideWith((ref) {
-          final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-          notifier.state = AppConfig.defaults;
-          return notifier;
-        }),
+        configProvider.overrideWith(ConfigNotifier.new),
         sessionStoreProvider.overrideWithValue(SessionStore()),
         knownHostsProvider.overrideWithValue(KnownHostsManager()),
         connectionManagerProvider.overrideWithValue(
           ConnectionManager(knownHosts: KnownHostsManager()),
         ),
         if (tabs != null)
-          tabProvider.overrideWith((ref) {
-            final notifier = TabNotifier();
-            for (final tab in tabs) {
-              if (tab.kind == TabKind.terminal) {
-                notifier.addTerminalTab(tab.connection, label: tab.label);
-              } else {
-                notifier.addSftpTab(tab.connection, label: tab.label);
-              }
-            }
-            if (activeIndex >= 0 && activeIndex < tabs.length) {
-              notifier.selectTab(activeIndex);
-            }
-            return notifier;
-          }),
+          tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+            TabState(
+              tabs: tabs,
+              activeIndex: activeIndex >= 0 && activeIndex < tabs.length
+                  ? activeIndex
+                  : (tabs.isEmpty ? -1 : 0),
+            ),
+          )),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
@@ -767,21 +799,15 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configProvider.overrideWith((ref) {
-              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-              notifier.state = AppConfig.defaults;
-              return notifier;
-            }),
+            configProvider.overrideWith(ConfigNotifier.new),
             sessionStoreProvider.overrideWithValue(SessionStore()),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              notifier.addTerminalTab(conn, label: 'Tab');
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) => b.addTerminalTab(conn, label: 'Tab')),
+            )),
             transferStatusProvider.overrideWith(
               (ref) => Stream.value(const ActiveTransferState(
                 running: 2,
@@ -816,21 +842,15 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configProvider.overrideWith((ref) {
-              final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-              notifier.state = AppConfig.defaults;
-              return notifier;
-            }),
+            configProvider.overrideWith(ConfigNotifier.new),
             sessionStoreProvider.overrideWithValue(SessionStore()),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              notifier.addTerminalTab(conn, label: 'Tab');
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) => b.addTerminalTab(conn, label: 'Tab')),
+            )),
             transferStatusProvider.overrideWith(
               (ref) => Stream.value(const ActiveTransferState(
                 running: 3,
@@ -1304,17 +1324,10 @@ void main() {
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          configProvider.overrideWith((ref) {
-            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-            notifier.state = AppConfig.defaults;
-            return notifier;
-          }),
+          configProvider.overrideWith(ConfigNotifier.new),
           sessionStoreProvider.overrideWithValue(store),
-          sessionProvider.overrideWith((ref) {
-            final notifier = SessionNotifier(store);
-            notifier.state = [testSession];
-            return notifier;
-          }),
+          sessionProvider.overrideWith(() =>
+              _PrePopulatedSessionNotifier([testSession])),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(
             makeFailingConnectionManager(),
@@ -1365,17 +1378,10 @@ void main() {
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          configProvider.overrideWith((ref) {
-            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-            notifier.state = AppConfig.defaults;
-            return notifier;
-          }),
+          configProvider.overrideWith(ConfigNotifier.new),
           sessionStoreProvider.overrideWithValue(store),
-          sessionProvider.overrideWith((ref) {
-            final notifier = SessionNotifier(store);
-            notifier.state = [testSession];
-            return notifier;
-          }),
+          sessionProvider.overrideWith(() =>
+              _PrePopulatedSessionNotifier([testSession])),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(
             makeFailingConnectionManager(),
@@ -1427,11 +1433,7 @@ void main() {
     testWidgets('filling host+user and clicking Connect triggers ConnectOnlyResult', (tester) async {
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          configProvider.overrideWith((ref) {
-            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-            notifier.state = AppConfig.defaults;
-            return notifier;
-          }),
+          configProvider.overrideWith(ConfigNotifier.new),
           sessionStoreProvider.overrideWithValue(SessionStore()),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(
@@ -1482,11 +1484,7 @@ void main() {
     testWidgets('filling label+host+user and clicking Save & Connect triggers SaveResult', (tester) async {
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          configProvider.overrideWith((ref) {
-            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-            notifier.state = AppConfig.defaults;
-            return notifier;
-          }),
+          configProvider.overrideWith(ConfigNotifier.new),
           sessionStoreProvider.overrideWithValue(SessionStore()),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(
@@ -1697,17 +1695,10 @@ void main() {
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          configProvider.overrideWith((ref) {
-            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-            notifier.state = AppConfig.defaults;
-            return notifier;
-          }),
+          configProvider.overrideWith(ConfigNotifier.new),
           sessionStoreProvider.overrideWithValue(store),
-          sessionProvider.overrideWith((ref) {
-            final notifier = SessionNotifier(store);
-            notifier.state = [testSession];
-            return notifier;
-          }),
+          sessionProvider.overrideWith(() =>
+              _PrePopulatedSessionNotifier([testSession])),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(
             makeFailingConnectionManager(),
@@ -1777,11 +1768,7 @@ void main() {
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          configProvider.overrideWith((ref) {
-            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-            notifier.state = AppConfig.defaults;
-            return notifier;
-          }),
+          configProvider.overrideWith(ConfigNotifier.new),
         ],
         child: MaterialApp(
           navigatorKey: navigatorKey,
@@ -1810,21 +1797,15 @@ void main() {
       final conn = makeConn();
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          configProvider.overrideWith((ref) {
-            final notifier = ConfigNotifier(ref.watch(configStoreProvider));
-            notifier.state = AppConfig.defaults;
-            return notifier;
-          }),
+          configProvider.overrideWith(ConfigNotifier.new),
           sessionStoreProvider.overrideWithValue(SessionStore()),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(
             ConnectionManager(knownHosts: KnownHostsManager()),
           ),
-          tabProvider.overrideWith((ref) {
-            final notifier = TabNotifier();
-            notifier.addTerminalTab(conn, label: 'NarrowTab');
-            return notifier;
-          }),
+          tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+            _buildTabState((b) => b.addTerminalTab(conn, label: 'NarrowTab')),
+          )),
         ],
         child: MaterialApp(
           navigatorKey: navigatorKey,

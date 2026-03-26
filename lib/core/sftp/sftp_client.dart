@@ -1,10 +1,10 @@
-import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:path/path.dart' as p;
 
+import '../../utils/logger.dart';
 import 'file_system.dart';
 import 'sftp_models.dart';
 
@@ -191,7 +191,7 @@ class SFTPService {
       await _sftp.mkdir(remoteDir);
     } catch (e) {
       // Directory may already exist — log but don't fail
-      dev.log('SFTP: mkdir $remoteDir: $e');
+      AppLogger.instance.log('mkdir $remoteDir: $e', name: 'SFTP');
     }
 
     final dir = Directory(localDir);

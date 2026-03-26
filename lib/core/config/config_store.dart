@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/logger.dart';
 import 'app_config.dart';
 
 /// Loads/saves AppConfig as JSON in the app support directory.
@@ -47,7 +47,7 @@ class ConfigStore {
       loadedFromFile = true;
     } catch (e) {
       loadError = 'Failed to load config: $e';
-      dev.log('ConfigStore: $loadError');
+      AppLogger.instance.log(loadError!, name: 'ConfigStore');
       _config = AppConfig.defaults;
     }
     return _config;

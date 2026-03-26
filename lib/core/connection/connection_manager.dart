@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:uuid/uuid.dart';
 
+import '../../utils/logger.dart';
 import '../ssh/known_hosts.dart';
 import '../ssh/ssh_client.dart';
 import '../ssh/ssh_config.dart';
@@ -48,6 +49,10 @@ class ConnectionManager {
     );
     _connections[id] = conn;
     _notify();
+    AppLogger.instance.log(
+      'Connecting to ${config.host}:${config.port} as ${config.user}',
+      name: 'Connection',
+    );
 
     final sshConn = _connectionFactory(config, knownHosts);
     sshConn.onDisconnect = () {
@@ -60,9 +65,11 @@ class ConnectionManager {
       await sshConn.connect();
       conn.sshConnection = sshConn;
       conn.state = SSHConnectionState.connected;
+      AppLogger.instance.log('Connected: ${conn.label}', name: 'Connection');
       _notify();
       return conn;
     } catch (e) {
+      AppLogger.instance.log('Connection failed: $e', name: 'Connection', error: e);
       conn.state = SSHConnectionState.disconnected;
       _connections.remove(id);
       _notify();
@@ -74,6 +81,7 @@ class ConnectionManager {
   void disconnect(String id) {
     final conn = _connections[id];
     if (conn == null) return;
+    AppLogger.instance.log('Disconnected: ${conn.label}', name: 'Connection');
     conn.sshConnection?.disconnect();
     conn.state = SSHConnectionState.disconnected;
     conn.sshConnection = null;

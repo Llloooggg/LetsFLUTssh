@@ -5,10 +5,11 @@ import '../../core/connection/connection.dart';
 import 'tab_model.dart';
 
 /// State notifier for managing open tabs.
-class TabNotifier extends StateNotifier<TabState> {
+class TabNotifier extends Notifier<TabState> {
   static const _uuid = Uuid();
 
-  TabNotifier() : super(const TabState());
+  @override
+  TabState build() => const TabState();
 
   /// Open a new terminal tab for a connection.
   String addTerminalTab(Connection connection, {String? label}) {
@@ -146,6 +147,4 @@ class TabState {
 }
 
 /// Riverpod provider for tab state.
-final tabProvider = StateNotifierProvider<TabNotifier, TabState>((ref) {
-  return TabNotifier();
-});
+final tabProvider = NotifierProvider<TabNotifier, TabState>(TabNotifier.new);

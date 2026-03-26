@@ -13,6 +13,7 @@ class AppConfig {
   final int maxHistory;
   final double windowWidth;
   final double windowHeight;
+  final bool enableLogging;
 
   const AppConfig({
     this.fontSize = 14.0,
@@ -26,6 +27,7 @@ class AppConfig {
     this.maxHistory = 500,
     this.windowWidth = 1100,
     this.windowHeight = 650,
+    this.enableLogging = false,
   });
 
   static const AppConfig defaults = AppConfig();
@@ -63,6 +65,7 @@ class AppConfig {
       maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
       windowWidth: windowWidth < 200 ? d.windowWidth : windowWidth,
       windowHeight: windowHeight < 200 ? d.windowHeight : windowHeight,
+      enableLogging: enableLogging,
     );
   }
 
@@ -78,6 +81,7 @@ class AppConfig {
     int? maxHistory,
     double? windowWidth,
     double? windowHeight,
+    bool? enableLogging,
   }) {
     return AppConfig(
       fontSize: fontSize ?? this.fontSize,
@@ -91,6 +95,7 @@ class AppConfig {
       maxHistory: maxHistory ?? this.maxHistory,
       windowWidth: windowWidth ?? this.windowWidth,
       windowHeight: windowHeight ?? this.windowHeight,
+      enableLogging: enableLogging ?? this.enableLogging,
     );
   }
 
@@ -108,13 +113,14 @@ class AppConfig {
           transferWorkers == other.transferWorkers &&
           maxHistory == other.maxHistory &&
           windowWidth == other.windowWidth &&
-          windowHeight == other.windowHeight;
+          windowHeight == other.windowHeight &&
+          enableLogging == other.enableLogging;
 
   @override
   int get hashCode => Object.hash(
         fontSize, theme, scrollback, keepAliveSec, defaultPort,
         sshTimeoutSec, toastDurationMs, transferWorkers, maxHistory,
-        windowWidth, windowHeight,
+        windowWidth, windowHeight, enableLogging,
       );
 
   Map<String, dynamic> toJson() => {
@@ -129,6 +135,7 @@ class AppConfig {
     'max_history': maxHistory,
     'window_width': windowWidth,
     'window_height': windowHeight,
+    'enable_logging': enableLogging,
   };
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
@@ -149,6 +156,7 @@ class AppConfig {
           (json['window_width'] as num?)?.toDouble() ?? d.windowWidth,
       windowHeight:
           (json['window_height'] as num?)?.toDouble() ?? d.windowHeight,
+      enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
     ).sanitized();
   }
 }

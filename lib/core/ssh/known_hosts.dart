@@ -1,11 +1,12 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pointycastle/digests/sha256.dart';
+
+import '../../utils/logger.dart';
 
 /// TOFU (Trust On First Use) host key verification + persistent storage.
 ///
@@ -132,10 +133,10 @@ class KnownHostsManager {
       try {
         final result = Process.runSync('chmod', ['600', path]);
         if (result.exitCode != 0) {
-          dev.log('KnownHosts: chmod 600 failed on $path: ${result.stderr}');
+          AppLogger.instance.log('chmod 600 failed: ${result.stderr}', name: 'KnownHosts');
         }
       } catch (e) {
-        dev.log('KnownHosts: failed to restrict permissions: $e');
+        AppLogger.instance.log('Failed to restrict permissions: $e', name: 'KnownHosts');
       }
     }
   }

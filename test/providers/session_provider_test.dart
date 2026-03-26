@@ -118,15 +118,19 @@ void main() {
 
   group('SessionNotifier', () {
     late FakeSessionStore store;
+    late ProviderContainer container;
     late SessionNotifier notifier;
 
     setUp(() {
       store = FakeSessionStore();
-      notifier = SessionNotifier(store);
+      container = ProviderContainer(overrides: [
+        sessionStoreProvider.overrideWithValue(store),
+      ]);
+      notifier = container.read(sessionProvider.notifier);
     });
 
     tearDown(() {
-      notifier.dispose();
+      container.dispose();
     });
 
     test('initial state is empty list', () {

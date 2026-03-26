@@ -9,6 +9,15 @@ import 'package:letsflutssh/features/tabs/tab_controller.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
+/// A TabNotifier subclass that starts with a pre-built TabState.
+class _PrePopulatedTabNotifier extends TabNotifier {
+  final TabState _initialState;
+  _PrePopulatedTabNotifier(this._initialState);
+
+  @override
+  TabState build() => _initialState;
+}
+
 void main() {
   Connection makeConn({
     String label = 'Server',
@@ -24,22 +33,16 @@ void main() {
 
   /// Build app with pre-populated tabs via the notifier.
   Widget buildAppWithTabs(List<TabEntry> tabs, {int activeIndex = 0}) {
+    final initialState = TabState(
+      tabs: tabs,
+      activeIndex: activeIndex >= 0 && activeIndex < tabs.length
+          ? activeIndex
+          : (tabs.isEmpty ? -1 : 0),
+    );
     return ProviderScope(
       overrides: [
-        tabProvider.overrideWith((ref) {
-          final notifier = TabNotifier();
-          // Add tabs by calling the notifier methods
-          for (final tab in tabs) {
-            if (tab.kind == TabKind.terminal) {
-              notifier.addTerminalTab(tab.connection, label: tab.label);
-            } else {
-              notifier.addSftpTab(tab.connection, label: tab.label);
-            }
-          }
-          if (activeIndex >= 0 && activeIndex < tabs.length) {
-            notifier.selectTab(activeIndex);
-          }
-          return notifier;
+        tabProvider.overrideWith(() {
+          return _PrePopulatedTabNotifier(initialState);
         }),
       ],
       child: MaterialApp(

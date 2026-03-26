@@ -212,7 +212,7 @@ make build-ios
 
 ## Current Status
 
-**v0.9.5** — All core features implemented across 9 development phases:
+**v0.10.0** — All core features implemented. File logger for debug builds, data path visibility in settings.
 
 | Phase | What                                                                       |
 | ----- | -------------------------------------------------------------------------- |
@@ -223,6 +223,7 @@ make build-ios
 | 7     | Tiling terminal layout — recursive split, drag-to-resize, focus tracking   |
 | 8     | Mobile UI — bottom nav, SSH virtual keyboard, deep links, swipe navigation |
 | 9     | Tests, security audit, performance profiling, packaging, user docs         |
+| 10    | Code quality — testable architecture, file logger, 90%+ coverage           |
 
 ## Development
 

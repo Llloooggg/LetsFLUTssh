@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show VoidCallback;
 
 import 'package:dartssh2/dartssh2.dart';
 
+import '../../utils/logger.dart';
 import '../../utils/platform.dart';
 import 'errors.dart';
 import 'known_hosts.dart';
@@ -229,7 +229,7 @@ class SSHConnection {
       final keyData = await keyFile.readAsString();
       identities.addAll(SSHKeyPair.fromPem(keyData, passphrase));
     } catch (e) {
-      dev.log('SSH: failed to load key file: $e');
+      AppLogger.instance.log('Failed to load key file: $e', name: 'SSH');
       throw AuthError('Failed to load SSH key file', e);
     }
   }
@@ -258,7 +258,7 @@ class SSHConnection {
           final keyData = await keyFile.readAsString();
           identities.addAll(SSHKeyPair.fromPem(keyData, null));
         } catch (e) {
-          dev.log('SSH: skipped key $name (${e.runtimeType})');
+          AppLogger.instance.log('Skipped key $name (${e.runtimeType})', name: 'SSH');
         }
       }
     }

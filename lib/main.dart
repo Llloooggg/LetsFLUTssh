@@ -27,6 +27,7 @@ import 'providers/theme_provider.dart';
 import 'providers/transfer_provider.dart';
 import 'features/mobile/mobile_shell.dart';
 import 'theme/app_theme.dart';
+import 'utils/logger.dart';
 import 'utils/platform.dart' as plat;
 import 'widgets/split_view.dart';
 
@@ -36,6 +37,8 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  AppLogger.instance.init();
+  AppLogger.instance.log('App starting v0.10.0', name: 'App');
   runApp(const ProviderScope(child: LetsFLUTsshApp()));
 }
 
@@ -310,6 +313,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Future<void> _showLfsImportDialog(BuildContext context, String filePath) async {
+    AppLogger.instance.log('LFS import started: ${filePath.split('/').last}', name: 'App');
     final result = await LfsImportDialog.show(context, filePath: filePath);
     if (result == null || !context.mounted) return;
 
@@ -324,6 +328,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
       await _buildImportService().applyResult(importResult);
 
+      AppLogger.instance.log(
+        'LFS import success: ${importResult.sessions.length} session(s)',
+        name: 'App',
+      );
       if (context.mounted) {
         Toast.show(
           context,
@@ -332,6 +340,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         );
       }
     } catch (e) {
+      AppLogger.instance.log('LFS import failed: $e', name: 'App', error: e);
       if (context.mounted) {
         Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
       }
@@ -415,7 +424,7 @@ class _StatusBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final active = tabState.activeTab;
-    final transferStatus = ref.watch(transferStatusProvider).valueOrNull;
+    final transferStatus = ref.watch(transferStatusProvider).value;
 
     return Container(
       height: 24,

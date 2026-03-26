@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -56,14 +57,16 @@ void main() {
   });
 
   group('TabNotifier', () {
+    late ProviderContainer container;
     late TabNotifier notifier;
 
     setUp(() {
-      notifier = TabNotifier();
+      container = ProviderContainer();
+      notifier = container.read(tabProvider.notifier);
     });
 
     tearDown(() {
-      notifier.dispose();
+      container.dispose();
     });
 
     test('initial state is empty', () {

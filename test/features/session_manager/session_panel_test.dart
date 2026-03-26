@@ -11,6 +11,19 @@ import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
+/// A SessionNotifier subclass that starts with pre-populated sessions.
+class _PrePopulatedSessionNotifier extends SessionNotifier {
+  final List<Session> _initialSessions;
+  _PrePopulatedSessionNotifier(this._initialSessions);
+
+  @override
+  List<Session> build() {
+    super.build();
+    state = _initialSessions;
+    return state;
+  }
+}
+
 /// A fake SessionStore that doesn't use path_provider.
 class FakeSessionStore extends SessionStore {
   final List<Session> _fakeSessions;
@@ -197,12 +210,8 @@ void main() {
     return ProviderScope(
       overrides: [
         sessionStoreProvider.overrideWithValue(store),
-        sessionProvider.overrideWith((ref) {
-          final notifier = SessionNotifier(store);
-          // Set state directly to avoid async load
-          notifier.state = sessionList;
-          return notifier;
-        }),
+        sessionProvider.overrideWith(() =>
+            _PrePopulatedSessionNotifier(sessionList)),
         sessionSearchProvider.overrideWith((ref) => ''),
         filteredSessionTreeProvider.overrideWithValue(tree),
       ],

@@ -1,5 +1,3 @@
-import 'dart:developer' as dev;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
@@ -7,6 +5,7 @@ import 'package:xterm/xterm.dart';
 import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/logger.dart';
 import '../../utils/platform.dart' as plat;
 
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
@@ -326,7 +325,7 @@ class _TerminalSearchBarState extends State<_TerminalSearchBar> {
           final p2 = buffer.createAnchor(pos + query.length, y);
           highlights.add(widget.terminalController.highlight(p1: p1, p2: p2, color: AppTheme.searchHighlight));
         } catch (e) {
-          dev.log('Search highlight failed at ($pos, $y): $e');
+          AppLogger.instance.log('Highlight failed at ($pos, $y): $e', name: 'TerminalSearch');
         }
         startIndex = pos + 1;
       }

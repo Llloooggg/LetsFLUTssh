@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../utils/logger.dart';
 import 'transfer_task.dart';
 
 /// Transfer queue manager with configurable parallel workers.
@@ -39,6 +40,7 @@ class TransferManager {
     final id = 'tr-$_counter';
     final entry = _QueueEntry(id: id, task: task, createdAt: DateTime.now());
     _queue.add(entry);
+    AppLogger.instance.log('Enqueued: ${task.name} (${task.direction.name})', name: 'Transfer');
     _notify();
     _processQueue();
     return id;
@@ -67,6 +69,7 @@ class TransferManager {
     final startedAt = DateTime.now();
     var lastPercent = 0.0;
     var lastMessage = '';
+    AppLogger.instance.log('Started: ${entry.task.name}', name: 'Transfer');
 
     try {
       await entry.task.run((percent, message) {
@@ -76,6 +79,7 @@ class TransferManager {
         _notify();
       });
 
+      AppLogger.instance.log('Completed: ${entry.task.name}', name: 'Transfer');
       _addHistory(HistoryEntry(
         id: entry.id,
         name: entry.task.name,
@@ -91,6 +95,7 @@ class TransferManager {
         sizeBytes: entry.task.sizeBytes,
       ));
     } catch (e) {
+      AppLogger.instance.log('Failed: ${entry.task.name}: $e', name: 'Transfer', error: e);
       _addHistory(HistoryEntry(
         id: entry.id,
         name: entry.task.name,

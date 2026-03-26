@@ -47,20 +47,31 @@ void main() {
 
     test('transferHistoryProvider yields empty list initially', () async {
       final container = ProviderContainer();
-      addTearDown(container.dispose);
-      // Let the stream emit first value
+
+      // Subscribe to force stream to start
+      final sub = container.listen(transferHistoryProvider, (_, _) {});
+
+      // Wait for initial emission
       await container.read(transferHistoryProvider.future);
       final history = container.read(transferHistoryProvider).value;
       expect(history, isEmpty);
+
+      sub.close();
+      container.dispose();
     });
 
     test('transferStatusProvider yields idle state initially', () async {
       final container = ProviderContainer();
-      addTearDown(container.dispose);
+
+      final sub = container.listen(transferStatusProvider, (_, _) {});
+
       final status = await container.read(transferStatusProvider.future);
       expect(status.running, 0);
       expect(status.queued, 0);
       expect(status.hasActive, isFalse);
+
+      sub.close();
+      container.dispose();
     });
 
     test('transferManagerProvider disposes on container dispose', () {
@@ -68,18 +79,16 @@ void main() {
       final manager = container.read(transferManagerProvider);
       expect(manager, isNotNull);
       container.dispose();
-      // After dispose, manager.dispose() was called
     });
 
     test('transferStatusProvider updates after enqueue completes', () async {
       final container = ProviderContainer();
-      addTearDown(container.dispose);
 
       final manager = container.read(transferManagerProvider);
 
-      // Subscribe to history stream to force the provider to listen to onChange
-      final historySubscription = container.listen(transferHistoryProvider, (_, __) {});
-      final statusSubscription = container.listen(transferStatusProvider, (_, __) {});
+      // Subscribe to streams to force providers to listen
+      final historySubscription = container.listen(transferHistoryProvider, (_, _) {});
+      final statusSubscription = container.listen(transferStatusProvider, (_, _) {});
 
       // Wait for initial values
       await container.read(transferHistoryProvider.future);
@@ -100,34 +109,33 @@ void main() {
       await Future.delayed(const Duration(milliseconds: 300));
 
       final status = await container.read(transferStatusProvider.future);
-      // After completion, no active transfers
       expect(status.running, 0);
       expect(status.queued, 0);
 
-      // History should have the completed task
       final history = await container.read(transferHistoryProvider.future);
       expect(history, isNotEmpty);
       expect(history.first.name, 'status_test.txt');
 
       historySubscription.close();
       statusSubscription.close();
+      container.dispose();
     });
 
     test('transferHistoryProvider updates after enqueue completes', () async {
       final container = ProviderContainer();
-      addTearDown(container.dispose);
+
+      // Subscribe before enqueue
+      final sub = container.listen(transferHistoryProvider, (_, _) {});
+      await container.read(transferHistoryProvider.future);
 
       final manager = container.read(transferManagerProvider);
 
-      // Enqueue a task that completes immediately
       manager.enqueue(TransferTask(
         name: 'test.txt',
         direction: TransferDirection.upload,
         sourcePath: '/local/test.txt',
         targetPath: '/remote/test.txt',
-        run: (onProgress) async {
-          // Instant completion
-        },
+        run: (onProgress) async {},
       ));
 
       // Wait for task to complete
@@ -137,6 +145,9 @@ void main() {
       expect(history, isNotEmpty);
       expect(history.first.name, 'test.txt');
       expect(history.first.status, TransferStatus.completed);
+
+      sub.close();
+      container.dispose();
     });
   });
 }

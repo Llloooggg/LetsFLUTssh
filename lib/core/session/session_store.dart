@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/logger.dart';
 import '../security/credential_store.dart';
 import 'session.dart';
 
@@ -46,7 +46,7 @@ class SessionStore {
 
       await _mergeAndMigrateCredentials();
     } catch (e) {
-      dev.log('SessionStore: failed to load sessions, starting fresh', error: e);
+      AppLogger.instance.log('Failed to load sessions, starting fresh', name: 'SessionStore', error: e);
     }
 
     // Load empty groups
@@ -64,8 +64,8 @@ class SessionStore {
     } on CredentialStoreException catch (e) {
       // Decryption failed — do NOT overwrite encrypted store.
       // Keep sessions without credentials rather than risk data loss.
-      dev.log('SessionStore: credential decryption failed, '
-          'skipping merge to prevent data loss', error: e);
+      AppLogger.instance.log('Credential decryption failed, '
+          'skipping merge to prevent data loss', name: 'SessionStore', error: e);
       return;
     }
     bool needsMigration = false;
@@ -147,9 +147,9 @@ class SessionStore {
     try {
       await _saveCredentials();
     } catch (e) {
-      dev.log('SessionStore: credential save failed, '
+      AppLogger.instance.log('Credential save failed, '
           'session file was saved — credentials will retry on next save',
-          error: e);
+          name: 'SessionStore', error: e);
     }
   }
 
@@ -179,7 +179,7 @@ class SessionStore {
         ..clear()
         ..addAll(list.cast<String>());
     } catch (e) {
-      dev.log('SessionStore: failed to load empty groups', error: e);
+      AppLogger.instance.log('Failed to load empty groups', name: 'SessionStore', error: e);
     }
   }
 

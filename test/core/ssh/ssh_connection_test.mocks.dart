@@ -3,14 +3,14 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i8;
+import 'dart:async' as _i9;
 import 'dart:typed_data' as _i11;
 
 import 'package:dartssh2/src/http/http_client.dart' as _i7;
 import 'package:dartssh2/src/sftp/sftp_client.dart' as _i6;
 import 'package:dartssh2/src/socket/ssh_socket.dart' as _i2;
 import 'package:dartssh2/src/ssh_algorithm.dart' as _i3;
-import 'package:dartssh2/src/ssh_client.dart' as _i9;
+import 'package:dartssh2/src/ssh_client.dart' as _i8;
 import 'package:dartssh2/src/ssh_forward.dart' as _i4;
 import 'package:dartssh2/src/ssh_session.dart' as _i5;
 import 'package:dartssh2/src/ssh_signal.dart' as _i12;
@@ -64,15 +64,20 @@ class _FakeSSHHttpClient_5 extends _i1.SmartFake implements _i7.SSHHttpClient {
     : super(parent, parentInvocation);
 }
 
-class _FakeStreamSink_6<S> extends _i1.SmartFake implements _i8.StreamSink<S> {
-  _FakeStreamSink_6(Object parent, Invocation parentInvocation)
+class _FakeSSHRunResult_6 extends _i1.SmartFake implements _i8.SSHRunResult {
+  _FakeSSHRunResult_6(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeStreamSink_7<S> extends _i1.SmartFake implements _i9.StreamSink<S> {
+  _FakeStreamSink_7(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
 /// A class which mocks [SSHClient].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
+class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
   @override
   _i2.SSHSocket get socket =>
       (super.noSuchMethod(
@@ -140,13 +145,13 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
           as String);
 
   @override
-  _i8.Future<void> get done =>
+  _i9.Future<void> get done =>
       (super.noSuchMethod(
             Invocation.getter(#done),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i9.Future<void>);
 
   @override
   bool get isClosed =>
@@ -158,19 +163,19 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
           as bool);
 
   @override
-  _i8.Future<void> get authenticated =>
+  _i9.Future<void> get authenticated =>
       (super.noSuchMethod(
             Invocation.getter(#authenticated),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i9.Future<void>);
 
   @override
-  _i8.Future<_i9.SSHRemoteForward?> forwardRemote({
+  _i9.Future<_i8.SSHRemoteForward?> forwardRemote({
     String? host,
     int? port,
-    _i9.SSHRemoteConnectionFilter? filter,
+    _i8.SSHRemoteConnectionFilter? filter,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#forwardRemote, [], {
@@ -178,23 +183,23 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
               #port: port,
               #filter: filter,
             }),
-            returnValue: _i8.Future<_i9.SSHRemoteForward?>.value(),
+            returnValue: _i9.Future<_i8.SSHRemoteForward?>.value(),
             returnValueForMissingStub:
-                _i8.Future<_i9.SSHRemoteForward?>.value(),
+                _i9.Future<_i8.SSHRemoteForward?>.value(),
           )
-          as _i8.Future<_i9.SSHRemoteForward?>);
+          as _i9.Future<_i8.SSHRemoteForward?>);
 
   @override
-  _i8.Future<bool> cancelForwardRemote(_i9.SSHRemoteForward? forward) =>
+  _i9.Future<bool> cancelForwardRemote(_i8.SSHRemoteForward? forward) =>
       (super.noSuchMethod(
             Invocation.method(#cancelForwardRemote, [forward]),
-            returnValue: _i8.Future<bool>.value(false),
-            returnValueForMissingStub: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
+            returnValueForMissingStub: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 
   @override
-  _i8.Future<_i4.SSHForwardChannel> forwardLocal(
+  _i9.Future<_i4.SSHForwardChannel> forwardLocal(
     String? remoteHost,
     int? remotePort, {
     String? localHost = 'localhost',
@@ -206,7 +211,7 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
               [remoteHost, remotePort],
               {#localHost: localHost, #localPort: localPort},
             ),
-            returnValue: _i8.Future<_i4.SSHForwardChannel>.value(
+            returnValue: _i9.Future<_i4.SSHForwardChannel>.value(
               _FakeSSHForwardChannel_2(
                 this,
                 Invocation.method(
@@ -216,7 +221,7 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
                 ),
               ),
             ),
-            returnValueForMissingStub: _i8.Future<_i4.SSHForwardChannel>.value(
+            returnValueForMissingStub: _i9.Future<_i4.SSHForwardChannel>.value(
               _FakeSSHForwardChannel_2(
                 this,
                 Invocation.method(
@@ -227,34 +232,34 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
               ),
             ),
           )
-          as _i8.Future<_i4.SSHForwardChannel>);
+          as _i9.Future<_i4.SSHForwardChannel>);
 
   @override
-  _i8.Future<_i4.SSHForwardChannel> forwardLocalUnix(
+  _i9.Future<_i4.SSHForwardChannel> forwardLocalUnix(
     String? remoteSocketPath,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#forwardLocalUnix, [remoteSocketPath]),
-            returnValue: _i8.Future<_i4.SSHForwardChannel>.value(
+            returnValue: _i9.Future<_i4.SSHForwardChannel>.value(
               _FakeSSHForwardChannel_2(
                 this,
                 Invocation.method(#forwardLocalUnix, [remoteSocketPath]),
               ),
             ),
-            returnValueForMissingStub: _i8.Future<_i4.SSHForwardChannel>.value(
+            returnValueForMissingStub: _i9.Future<_i4.SSHForwardChannel>.value(
               _FakeSSHForwardChannel_2(
                 this,
                 Invocation.method(#forwardLocalUnix, [remoteSocketPath]),
               ),
             ),
           )
-          as _i8.Future<_i4.SSHForwardChannel>);
+          as _i9.Future<_i4.SSHForwardChannel>);
 
   @override
-  _i8.Future<_i5.SSHSession> execute(
+  _i9.Future<_i5.SSHSession> execute(
     String? command, {
-    _i9.SSHPtyConfig? pty,
-    _i9.SSHX11Config? x11,
+    _i8.SSHPtyConfig? pty,
+    _i8.SSHX11Config? x11,
     Map<String, String>? environment,
   }) =>
       (super.noSuchMethod(
@@ -263,7 +268,7 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
               [command],
               {#pty: pty, #x11: x11, #environment: environment},
             ),
-            returnValue: _i8.Future<_i5.SSHSession>.value(
+            returnValue: _i9.Future<_i5.SSHSession>.value(
               _FakeSSHSession_3(
                 this,
                 Invocation.method(
@@ -273,7 +278,7 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
                 ),
               ),
             ),
-            returnValueForMissingStub: _i8.Future<_i5.SSHSession>.value(
+            returnValueForMissingStub: _i9.Future<_i5.SSHSession>.value(
               _FakeSSHSession_3(
                 this,
                 Invocation.method(
@@ -284,12 +289,12 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
               ),
             ),
           )
-          as _i8.Future<_i5.SSHSession>);
+          as _i9.Future<_i5.SSHSession>);
 
   @override
-  _i8.Future<_i5.SSHSession> shell({
-    _i9.SSHPtyConfig? pty = const _i9.SSHPtyConfig(),
-    _i9.SSHX11Config? x11,
+  _i9.Future<_i5.SSHSession> shell({
+    _i8.SSHPtyConfig? pty = const _i8.SSHPtyConfig(),
+    _i8.SSHX11Config? x11,
     Map<String, String>? environment,
   }) =>
       (super.noSuchMethod(
@@ -298,7 +303,7 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
               #x11: x11,
               #environment: environment,
             }),
-            returnValue: _i8.Future<_i5.SSHSession>.value(
+            returnValue: _i9.Future<_i5.SSHSession>.value(
               _FakeSSHSession_3(
                 this,
                 Invocation.method(#shell, [], {
@@ -308,7 +313,7 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
                 }),
               ),
             ),
-            returnValueForMissingStub: _i8.Future<_i5.SSHSession>.value(
+            returnValueForMissingStub: _i9.Future<_i5.SSHSession>.value(
               _FakeSSHSession_3(
                 this,
                 Invocation.method(#shell, [], {
@@ -319,29 +324,29 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
               ),
             ),
           )
-          as _i8.Future<_i5.SSHSession>);
+          as _i9.Future<_i5.SSHSession>);
 
   @override
-  _i8.Future<void> subsystem(String? subsystem) =>
+  _i9.Future<void> subsystem(String? subsystem) =>
       (super.noSuchMethod(
             Invocation.method(#subsystem, [subsystem]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i9.Future<void>);
 
   @override
-  _i8.Future<_i6.SftpClient> sftp() =>
+  _i9.Future<_i6.SftpClient> sftp() =>
       (super.noSuchMethod(
             Invocation.method(#sftp, []),
-            returnValue: _i8.Future<_i6.SftpClient>.value(
+            returnValue: _i9.Future<_i6.SftpClient>.value(
               _FakeSftpClient_4(this, Invocation.method(#sftp, [])),
             ),
-            returnValueForMissingStub: _i8.Future<_i6.SftpClient>.value(
+            returnValueForMissingStub: _i9.Future<_i6.SftpClient>.value(
               _FakeSftpClient_4(this, Invocation.method(#sftp, [])),
             ),
           )
-          as _i8.Future<_i6.SftpClient>);
+          as _i9.Future<_i6.SftpClient>);
 
   @override
   _i7.SSHHttpClient httpClient() =>
@@ -359,7 +364,7 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
           as _i7.SSHHttpClient);
 
   @override
-  _i8.Future<_i11.Uint8List> run(
+  _i9.Future<_i11.Uint8List> run(
     String? command, {
     bool? runInPty = false,
     bool? stdout = true,
@@ -377,21 +382,73 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
                 #environment: environment,
               },
             ),
-            returnValue: _i8.Future<_i11.Uint8List>.value(_i11.Uint8List(0)),
-            returnValueForMissingStub: _i8.Future<_i11.Uint8List>.value(
+            returnValue: _i9.Future<_i11.Uint8List>.value(_i11.Uint8List(0)),
+            returnValueForMissingStub: _i9.Future<_i11.Uint8List>.value(
               _i11.Uint8List(0),
             ),
           )
-          as _i8.Future<_i11.Uint8List>);
+          as _i9.Future<_i11.Uint8List>);
 
   @override
-  _i8.Future<void> ping() =>
+  _i9.Future<_i8.SSHRunResult> runWithResult(
+    String? command, {
+    bool? runInPty = false,
+    bool? stdout = true,
+    bool? stderr = true,
+    Map<String, String>? environment,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #runWithResult,
+              [command],
+              {
+                #runInPty: runInPty,
+                #stdout: stdout,
+                #stderr: stderr,
+                #environment: environment,
+              },
+            ),
+            returnValue: _i9.Future<_i8.SSHRunResult>.value(
+              _FakeSSHRunResult_6(
+                this,
+                Invocation.method(
+                  #runWithResult,
+                  [command],
+                  {
+                    #runInPty: runInPty,
+                    #stdout: stdout,
+                    #stderr: stderr,
+                    #environment: environment,
+                  },
+                ),
+              ),
+            ),
+            returnValueForMissingStub: _i9.Future<_i8.SSHRunResult>.value(
+              _FakeSSHRunResult_6(
+                this,
+                Invocation.method(
+                  #runWithResult,
+                  [command],
+                  {
+                    #runInPty: runInPty,
+                    #stdout: stdout,
+                    #stderr: stderr,
+                    #environment: environment,
+                  },
+                ),
+              ),
+            ),
+          )
+          as _i9.Future<_i8.SSHRunResult>);
+
+  @override
+  _i9.Future<void> ping() =>
       (super.noSuchMethod(
             Invocation.method(#ping, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i9.Future<void>);
 
   @override
   void close() => super.noSuchMethod(
@@ -411,46 +468,46 @@ class MockSSHClient extends _i1.Mock implements _i9.SSHClient {
 /// See the documentation for Mockito's code generation for more information.
 class MockSSHSocket extends _i1.Mock implements _i2.SSHSocket {
   @override
-  _i8.Stream<_i11.Uint8List> get stream =>
+  _i9.Stream<_i11.Uint8List> get stream =>
       (super.noSuchMethod(
             Invocation.getter(#stream),
-            returnValue: _i8.Stream<_i11.Uint8List>.empty(),
-            returnValueForMissingStub: _i8.Stream<_i11.Uint8List>.empty(),
+            returnValue: _i9.Stream<_i11.Uint8List>.empty(),
+            returnValueForMissingStub: _i9.Stream<_i11.Uint8List>.empty(),
           )
-          as _i8.Stream<_i11.Uint8List>);
+          as _i9.Stream<_i11.Uint8List>);
 
   @override
-  _i8.StreamSink<List<int>> get sink =>
+  _i9.StreamSink<List<int>> get sink =>
       (super.noSuchMethod(
             Invocation.getter(#sink),
-            returnValue: _FakeStreamSink_6<List<int>>(
+            returnValue: _FakeStreamSink_7<List<int>>(
               this,
               Invocation.getter(#sink),
             ),
-            returnValueForMissingStub: _FakeStreamSink_6<List<int>>(
+            returnValueForMissingStub: _FakeStreamSink_7<List<int>>(
               this,
               Invocation.getter(#sink),
             ),
           )
-          as _i8.StreamSink<List<int>>);
+          as _i9.StreamSink<List<int>>);
 
   @override
-  _i8.Future<void> get done =>
+  _i9.Future<void> get done =>
       (super.noSuchMethod(
             Invocation.getter(#done),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i9.Future<void>);
 
   @override
-  _i8.Future<void> close() =>
+  _i9.Future<void> close() =>
       (super.noSuchMethod(
             Invocation.method(#close, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i9.Future<void>);
 
   @override
   void destroy() => super.noSuchMethod(
@@ -464,46 +521,46 @@ class MockSSHSocket extends _i1.Mock implements _i2.SSHSocket {
 /// See the documentation for Mockito's code generation for more information.
 class MockSSHSession extends _i1.Mock implements _i5.SSHSession {
   @override
-  _i8.StreamSink<_i11.Uint8List> get stdin =>
+  _i9.StreamSink<_i11.Uint8List> get stdin =>
       (super.noSuchMethod(
             Invocation.getter(#stdin),
-            returnValue: _FakeStreamSink_6<_i11.Uint8List>(
+            returnValue: _FakeStreamSink_7<_i11.Uint8List>(
               this,
               Invocation.getter(#stdin),
             ),
-            returnValueForMissingStub: _FakeStreamSink_6<_i11.Uint8List>(
+            returnValueForMissingStub: _FakeStreamSink_7<_i11.Uint8List>(
               this,
               Invocation.getter(#stdin),
             ),
           )
-          as _i8.StreamSink<_i11.Uint8List>);
+          as _i9.StreamSink<_i11.Uint8List>);
 
   @override
-  _i8.Stream<_i11.Uint8List> get stdout =>
+  _i9.Stream<_i11.Uint8List> get stdout =>
       (super.noSuchMethod(
             Invocation.getter(#stdout),
-            returnValue: _i8.Stream<_i11.Uint8List>.empty(),
-            returnValueForMissingStub: _i8.Stream<_i11.Uint8List>.empty(),
+            returnValue: _i9.Stream<_i11.Uint8List>.empty(),
+            returnValueForMissingStub: _i9.Stream<_i11.Uint8List>.empty(),
           )
-          as _i8.Stream<_i11.Uint8List>);
+          as _i9.Stream<_i11.Uint8List>);
 
   @override
-  _i8.Stream<_i11.Uint8List> get stderr =>
+  _i9.Stream<_i11.Uint8List> get stderr =>
       (super.noSuchMethod(
             Invocation.getter(#stderr),
-            returnValue: _i8.Stream<_i11.Uint8List>.empty(),
-            returnValueForMissingStub: _i8.Stream<_i11.Uint8List>.empty(),
+            returnValue: _i9.Stream<_i11.Uint8List>.empty(),
+            returnValueForMissingStub: _i9.Stream<_i11.Uint8List>.empty(),
           )
-          as _i8.Stream<_i11.Uint8List>);
+          as _i9.Stream<_i11.Uint8List>);
 
   @override
-  _i8.Future<void> get done =>
+  _i9.Future<void> get done =>
       (super.noSuchMethod(
             Invocation.getter(#done),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i9.Future<void>);
 
   @override
   void write(_i11.Uint8List? data) => super.noSuchMethod(
@@ -546,7 +603,7 @@ class MockSSHSession extends _i1.Mock implements _i5.SSHSession {
 class MockKnownHostsManager extends _i1.Mock implements _i13.KnownHostsManager {
   @override
   set onUnknownHost(
-    _i8.Future<bool> Function(String, int, String, String)? value,
+    _i9.Future<bool> Function(String, int, String, String)? value,
   ) => super.noSuchMethod(
     Invocation.setter(#onUnknownHost, value),
     returnValueForMissingStub: null,
@@ -554,23 +611,23 @@ class MockKnownHostsManager extends _i1.Mock implements _i13.KnownHostsManager {
 
   @override
   set onHostKeyChanged(
-    _i8.Future<bool> Function(String, int, String, String)? value,
+    _i9.Future<bool> Function(String, int, String, String)? value,
   ) => super.noSuchMethod(
     Invocation.setter(#onHostKeyChanged, value),
     returnValueForMissingStub: null,
   );
 
   @override
-  _i8.Future<void> load() =>
+  _i9.Future<void> load() =>
       (super.noSuchMethod(
             Invocation.method(#load, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i9.Future<void>);
 
   @override
-  _i8.Future<bool> verify(
+  _i9.Future<bool> verify(
     String? host,
     int? port,
     String? keyType,
@@ -578,8 +635,8 @@ class MockKnownHostsManager extends _i1.Mock implements _i13.KnownHostsManager {
   ) =>
       (super.noSuchMethod(
             Invocation.method(#verify, [host, port, keyType, keyBytes]),
-            returnValue: _i8.Future<bool>.value(false),
-            returnValueForMissingStub: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
+            returnValueForMissingStub: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 }

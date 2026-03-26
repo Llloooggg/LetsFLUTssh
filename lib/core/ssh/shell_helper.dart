@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:developer' as dev;
 import 'dart:typed_data';
 import 'dart:ui' show VoidCallback;
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:xterm/xterm.dart';
 
+import '../../utils/logger.dart';
 import '../connection/connection.dart';
 
 /// Result of opening an SSH shell on a terminal.
@@ -90,7 +90,7 @@ class ShellHelper {
         );
       } catch (e) {
         if (attempt == maxAttempts - 1) rethrow;
-        dev.log('Shell open attempt ${attempt + 1}/$maxAttempts failed: $e');
+        AppLogger.instance.log('Open attempt ${attempt + 1}/$maxAttempts failed: $e', name: 'Shell');
       }
     }
 

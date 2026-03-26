@@ -11,10 +11,66 @@ import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_shell.dart';
 import 'package:letsflutssh/features/tabs/tab_controller.dart';
+import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
+
+/// A TabNotifier subclass that starts with a pre-built TabState.
+class _PrePopulatedTabNotifier extends TabNotifier {
+  final TabState _initialState;
+  _PrePopulatedTabNotifier(this._initialState);
+
+  @override
+  TabState build() => _initialState;
+}
+
+/// Helper to build a TabState with tabs added via a setup callback.
+TabState _buildTabState(void Function(_TabStateBuilder) setup) {
+  final builder = _TabStateBuilder();
+  setup(builder);
+  return TabState(
+    tabs: builder._tabs,
+    activeIndex: builder._tabs.isEmpty ? -1 : builder._tabs.length - 1,
+  );
+}
+
+class _TabStateBuilder {
+  final List<TabEntry> _tabs = [];
+  int _counter = 0;
+
+  void addTerminalTab(Connection conn, {String? label}) {
+    _tabs.add(TabEntry(
+      id: 'tab-${_counter++}',
+      label: label ?? conn.label,
+      connection: conn,
+      kind: TabKind.terminal,
+    ));
+  }
+
+  void addSftpTab(Connection conn, {String? label}) {
+    _tabs.add(TabEntry(
+      id: 'tab-${_counter++}',
+      label: label ?? '${conn.label} (SFTP)',
+      connection: conn,
+      kind: TabKind.sftp,
+    ));
+  }
+}
+
+/// A SessionNotifier subclass that starts with pre-populated sessions.
+class _PrePopulatedSessionNotifier extends SessionNotifier {
+  final List<Session> _initialSessions;
+  _PrePopulatedSessionNotifier(this._initialSessions);
+
+  @override
+  List<Session> build() {
+    super.build();
+    state = _initialSessions;
+    return state;
+  }
+}
 
 /// A ConnectionManager that always throws a specified error on connect.
 class _FailingConnectionManager extends ConnectionManager {
@@ -53,19 +109,13 @@ void main() {
       return ProviderScope(
         overrides: [
           sessionStoreProvider.overrideWithValue(SessionStore()),
-          sessionProvider.overrideWith((ref) {
-            final notifier = SessionNotifier(ref.watch(sessionStoreProvider));
-            return notifier;
-          }),
+          sessionProvider.overrideWith(SessionNotifier.new),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(
             ConnectionManager(knownHosts: KnownHostsManager()),
           ),
           if (tabState != null)
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              return notifier;
-            }),
+            tabProvider.overrideWith(TabNotifier.new),
         ],
         child: MaterialApp(
           theme: AppTheme.dark(),
@@ -159,19 +209,14 @@ void main() {
         ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith((ref) {
-              return SessionNotifier(ref.watch(sessionStoreProvider));
-            }),
+            sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              // Pre-add a terminal tab
-              notifier.addTerminalTab(conn);
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) => b.addTerminalTab(conn)),
+            )),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),
@@ -202,18 +247,14 @@ void main() {
         ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith((ref) {
-              return SessionNotifier(ref.watch(sessionStoreProvider));
-            }),
+            sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              notifier.addSftpTab(conn);
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) => b.addSftpTab(conn)),
+            )),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),
@@ -244,18 +285,14 @@ void main() {
         ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith((ref) {
-              return SessionNotifier(ref.watch(sessionStoreProvider));
-            }),
+            sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              notifier.addTerminalTab(conn, label: 'Close Me');
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) => b.addTerminalTab(conn, label: 'Close Me')),
+            )),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),
@@ -371,18 +408,14 @@ void main() {
         ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith((ref) {
-              return SessionNotifier(ref.watch(sessionStoreProvider));
-            }),
+            sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              notifier.addSftpTab(conn, label: 'SFTP Close Me');
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) => b.addSftpTab(conn, label: 'SFTP Close Me')),
+            )),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),
@@ -429,19 +462,17 @@ void main() {
         ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith((ref) {
-              return SessionNotifier(ref.watch(sessionStoreProvider));
-            }),
+            sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              notifier.addSftpTab(conn1, label: 'SFTP A');
-              notifier.addSftpTab(conn2, label: 'SFTP B');
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) {
+                b.addSftpTab(conn1, label: 'SFTP A');
+                b.addSftpTab(conn2, label: 'SFTP B');
+              }),
+            )),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),
@@ -484,19 +515,17 @@ void main() {
         ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith((ref) {
-              return SessionNotifier(ref.watch(sessionStoreProvider));
-            }),
+            sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              notifier.addTerminalTab(conn1, label: 'Term A');
-              notifier.addTerminalTab(conn2, label: 'Term B');
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) {
+                b.addTerminalTab(conn1, label: 'Term A');
+                b.addTerminalTab(conn2, label: 'Term B');
+              }),
+            )),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),
@@ -539,20 +568,18 @@ void main() {
         ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith((ref) {
-              return SessionNotifier(ref.watch(sessionStoreProvider));
-            }),
+            sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              // Add SFTP tab first, then terminal tab (terminal becomes active)
-              notifier.addSftpTab(sftpConn, label: 'SFTP Tab');
-              notifier.addTerminalTab(termConn, label: 'Terminal');
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) {
+                // Add SFTP tab first, then terminal tab (terminal becomes active)
+                b.addSftpTab(sftpConn, label: 'SFTP Tab');
+                b.addTerminalTab(termConn, label: 'Terminal');
+              }),
+            )),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),
@@ -589,20 +616,18 @@ void main() {
         ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith((ref) {
-              return SessionNotifier(ref.watch(sessionStoreProvider));
-            }),
+            sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              // Add terminal tab first, then SFTP tab (SFTP becomes active)
-              notifier.addTerminalTab(termConn, label: 'Term Tab');
-              notifier.addSftpTab(sftpConn, label: 'SFTP');
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) {
+                // Add terminal tab first, then SFTP tab (SFTP becomes active)
+                b.addTerminalTab(termConn, label: 'Term Tab');
+                b.addSftpTab(sftpConn, label: 'SFTP');
+              }),
+            )),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),
@@ -688,11 +713,8 @@ void main() {
       return ProviderScope(
         overrides: [
           sessionStoreProvider.overrideWithValue(store),
-          sessionProvider.overrideWith((ref) {
-            final notifier = SessionNotifier(ref.watch(sessionStoreProvider));
-            notifier.state = store.sessions;
-            return notifier;
-          }),
+          sessionProvider.overrideWith(() =>
+              _PrePopulatedSessionNotifier(store.sessions)),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(manager),
         ],
@@ -806,19 +828,17 @@ void main() {
         ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith((ref) {
-              return SessionNotifier(ref.watch(sessionStoreProvider));
-            }),
+            sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith((ref) {
-              final notifier = TabNotifier();
-              notifier.addTerminalTab(conn, label: 'Tab 1');
-              notifier.addTerminalTab(conn, label: 'Tab 2');
-              return notifier;
-            }),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) {
+                b.addTerminalTab(conn, label: 'Tab 1');
+                b.addTerminalTab(conn, label: 'Tab 2');
+              }),
+            )),
           ],
           child: MaterialApp(
             theme: AppTheme.dark(),

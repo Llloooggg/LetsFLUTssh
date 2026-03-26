@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
-import '../session/session.dart';
+import '../../utils/logger.dart';
 import '../../features/settings/export_import.dart';
+import '../session/session.dart';
 
 /// Applies import results to session and config state.
 ///
@@ -33,7 +33,7 @@ class ImportService {
         await addSession(s);
       } catch (e) {
         if (result.mode == ImportMode.replace) rethrow;
-        debugPrint('Import: skipped session ${s.label}: $e');
+        AppLogger.instance.log('Skipped session ${s.label}: $e', name: 'Import');
       }
     }
 

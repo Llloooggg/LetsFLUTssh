@@ -80,7 +80,7 @@ void main() {
           movedId = id;
           movedTarget = target;
         },
-        onGroupMoved: (_, __) {},
+        onGroupMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -122,8 +122,8 @@ void main() {
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
-        onSessionMoved: (_, __) {},
-        onGroupMoved: (_, __) {},
+        onSessionMoved: (_, _) {},
+        onGroupMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -159,8 +159,8 @@ void main() {
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
-        onSessionMoved: (_, __) {},
-        onGroupMoved: (_, __) {},
+        onSessionMoved: (_, _) {},
+        onGroupMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -294,7 +294,7 @@ void main() {
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
-        onSessionMoved: (_, __) {},
+        onSessionMoved: (_, _) {},
         onGroupMoved: (path, parent) {
           movedPath = path;
         },
@@ -329,7 +329,7 @@ void main() {
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
-        onSessionMoved: (_, __) {},
+        onSessionMoved: (_, _) {},
         onGroupMoved: (path, parent) {
           movedPath = path;
           movedParent = parent;
@@ -373,7 +373,7 @@ void main() {
           movedId = id;
           movedTarget = target;
         },
-        onGroupMoved: (_, __) {},
+        onGroupMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -405,8 +405,8 @@ void main() {
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
-        onSessionMoved: (_, __) {},
-        onGroupMoved: (_, __) {},
+        onSessionMoved: (_, _) {},
+        onGroupMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -429,8 +429,8 @@ void main() {
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
-        onSessionMoved: (_, __) {},
-        onGroupMoved: (_, __) {},
+        onSessionMoved: (_, _) {},
+        onGroupMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -453,8 +453,8 @@ void main() {
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
-        onSessionMoved: (_, __) {},
-        onGroupMoved: (_, __) {},
+        onSessionMoved: (_, _) {},
+        onGroupMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -486,7 +486,7 @@ void main() {
           movedId = id;
           movedTarget = target;
         },
-        onGroupMoved: (_, __) {},
+        onGroupMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -523,7 +523,7 @@ void main() {
           movedId = id;
           movedTarget = target;
         },
-        onGroupMoved: (_, __) {},
+        onGroupMoved: (_, _) {},
       ));
       await tester.pump();
 
