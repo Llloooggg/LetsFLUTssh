@@ -33,7 +33,7 @@ class FilePaneController extends ChangeNotifier {
   FilePaneController({required this.fs, required this.label});
 
   String get currentPath => _currentPath;
-  List<FileEntry> get entries => _entries;
+  List<FileEntry> get entries => List.unmodifiable(_entries);
   Set<String> get selected => _selected;
   bool get loading => _loading;
   String? get error => _error;

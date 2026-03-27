@@ -41,7 +41,7 @@ class LocalFS implements FileSystem {
       ));
     }
 
-    _sort(entries);
+    sortFileEntries(entries);
     return entries;
   }
 
@@ -73,13 +73,5 @@ class LocalFS implements FileSystem {
     } else {
       await File(oldPath).rename(newPath);
     }
-  }
-
-  void _sort(List<FileEntry> entries) {
-    entries.sort((a, b) {
-      if (a.isDir && !b.isDir) return -1;
-      if (!a.isDir && b.isDir) return 1;
-      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-    });
   }
 }

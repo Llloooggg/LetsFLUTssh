@@ -50,3 +50,12 @@ class TransferProgress {
   double get percent =>
       totalBytes > 0 ? (doneBytes / totalBytes * 100).clamp(0, 100) : 0;
 }
+
+/// Sort file entries: directories first, then alphabetical by name.
+void sortFileEntries(List<FileEntry> entries) {
+  entries.sort((a, b) {
+    if (a.isDir && !b.isDir) return -1;
+    if (!a.isDir && b.isDir) return 1;
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  });
+}
