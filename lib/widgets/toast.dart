@@ -37,17 +37,26 @@ class Toast {
       duration: const Duration(milliseconds: 200),
     );
 
+    late final _ToastOverlayEntry toastEntry;
+
     entry = OverlayEntry(
-      builder: (ctx) => _ToastWidget(
-        message: message,
-        level: level,
-        animation: controller,
-        index: _entries.indexWhere((e) => e.entry == entry),
-        onDismiss: () => _remove(entry, controller),
-      ),
+      builder: (ctx) {
+        // Update cached index while entry is still in the list;
+        // during removal animation indexWhere returns -1, so we
+        // fall back to the last known position instead of jumping to 0.
+        final liveIndex = _entries.indexWhere((e) => e.entry == entry);
+        if (liveIndex >= 0) toastEntry.lastIndex = liveIndex;
+        return _ToastWidget(
+          message: message,
+          level: level,
+          animation: controller,
+          index: toastEntry.lastIndex,
+          onDismiss: () => _remove(entry, controller),
+        );
+      },
     );
 
-    final toastEntry = _ToastOverlayEntry(
+    toastEntry = _ToastOverlayEntry(
       entry: entry,
       controller: controller,
     );
@@ -87,6 +96,7 @@ class _ToastOverlayEntry {
   final OverlayEntry entry;
   final AnimationController controller;
   Timer? timer;
+  int lastIndex = 0;
 
   _ToastOverlayEntry({required this.entry, required this.controller});
 }
@@ -118,7 +128,7 @@ class _ToastWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, icon) = _levelStyle();
-    final bottomOffset = 40.0 + (index < 0 ? 0 : index) * 52.0;
+    final bottomOffset = 40.0 + index * 52.0;
 
     return Positioned(
       right: 16,
