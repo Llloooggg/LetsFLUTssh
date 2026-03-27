@@ -2,12 +2,9 @@
 
 ## Supported Versions
 
-Security updates are applied to the latest version only.
+Security updates are applied to the **latest release** only. Older versions are not supported.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+Check [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases) for the current version.
 
 ## Reporting a Vulnerability
 
