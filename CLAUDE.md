@@ -66,7 +66,7 @@ make tag   # the only way to tag and push a release
 1. `make check` — runs `flutter analyze --fatal-infos` + `flutter test --coverage`. Fails fast if code is broken — no tag, no push
 2. Reads version from `pubspec.yaml` → forms tag `v{VERSION}`
 3. Safety checks: dirty working tree → error; duplicate tag → error
-4. `git tag vX.Y.Z` on HEAD
+4. `git tag -a vX.Y.Z -m vX.Y.Z` on HEAD (annotated — required for `--follow-tags`)
 5. `git push --follow-tags --atomic` — commits and tag land together atomically (both succeed or neither does)
 6. If push fails — local tag is auto-cleaned, nothing lands on remote
 
