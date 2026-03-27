@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -62,8 +63,18 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   Future<void> _initSftp() async {
     // Wait for connection if still connecting
     final conn = widget.connection;
-    while (conn.isConnecting && mounted) {
-      await Future.delayed(const Duration(milliseconds: 100));
+    if (conn.isConnecting) {
+      try {
+        await conn.ready.timeout(const Duration(seconds: 30));
+      } on TimeoutException {
+        if (mounted) {
+          setState(() {
+            _error = 'Connection timed out';
+            _initializing = false;
+          });
+        }
+        return;
+      }
     }
 
     if (!conn.isConnected) {
@@ -133,6 +144,12 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       );
     }
 
+    final local = _localCtrl;
+    final remote = _remoteCtrl;
+    if (local == null || remote == null) {
+      return const Center(child: Text('Controllers not initialized'));
+    }
+
     return Column(
       children: [
         // Dual-pane file browser with resizable split
@@ -149,7 +166,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                   SizedBox(
                     width: leftWidth,
                     child: FilePane(
-                      controller: _localCtrl!,
+                      controller: local,
                       paneId: 'local',
                       onTransfer: (entry) => _upload(entry),
                       onTransferMultiple: (entries) {
@@ -184,7 +201,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                   // Remote pane
                   Expanded(
                     child: FilePane(
-                      controller: _remoteCtrl!,
+                      controller: remote,
                       paneId: 'remote',
                       onTransfer: (entry) => _download(entry),
                       onTransferMultiple: (entries) {
@@ -212,13 +229,14 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   void _upload(FileEntry entry) {
-    if (_sftpService == null) return;
+    final sftp = _sftpService;
+    final remote = _remoteCtrl;
+    if (sftp == null || remote == null) return;
     final manager = ref.read(transferManagerProvider);
     final remotePath = p.posix.join(
-      _remoteCtrl!.currentPath,
+      remote.currentPath,
       entry.name,
     );
-    final sftp = _sftpService!;
 
     manager.enqueue(TransferTask(
       name: entry.isDir ? '${entry.name}/' : entry.name,
@@ -243,13 +261,14 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   void _download(FileEntry entry) {
-    if (_sftpService == null) return;
+    final sftp = _sftpService;
+    final local = _localCtrl;
+    if (sftp == null || local == null) return;
     final manager = ref.read(transferManagerProvider);
     final localPath = p.join(
-      _localCtrl!.currentPath,
+      local.currentPath,
       entry.name,
     );
-    final sftp = _sftpService!;
 
     manager.enqueue(TransferTask(
       name: entry.isDir ? '${entry.name}/' : entry.name,
@@ -275,10 +294,12 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
   /// OS drop onto local pane — copy files into the current local directory.
   void _osDropToLocal(List<String> paths) {
+    final local = _localCtrl;
+    if (local == null) return;
     final manager = ref.read(transferManagerProvider);
     for (final srcPath in paths) {
       final name = p.basename(srcPath);
-      final targetPath = p.join(_localCtrl!.currentPath, name);
+      final targetPath = p.join(local.currentPath, name);
       final isDir = FileSystemEntity.isDirectorySync(srcPath);
 
       manager.enqueue(TransferTask(
@@ -302,13 +323,14 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
   /// OS drop onto remote pane — upload files to the current remote directory.
   void _osDropToRemote(List<String> paths) {
-    if (_sftpService == null) return;
+    final sftp = _sftpService;
+    final remote = _remoteCtrl;
+    if (sftp == null || remote == null) return;
     final manager = ref.read(transferManagerProvider);
-    final sftp = _sftpService!;
 
     for (final srcPath in paths) {
       final name = p.basename(srcPath);
-      final remotePath = p.posix.join(_remoteCtrl!.currentPath, name);
+      final remotePath = p.posix.join(remote.currentPath, name);
       final isDir = FileSystemEntity.isDirectorySync(srcPath);
 
       manager.enqueue(TransferTask(
