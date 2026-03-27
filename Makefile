@@ -150,7 +150,7 @@ release: package-linux ## Build all release packages
 
 ## ─── Release ─────────────────────────────────────────────────
 
-tag: ## Push, wait for CI, tag vX.Y.Z on HEAD, push tag
+tag: ## Tag vX.Y.Z on HEAD and push everything (CI + Build & Release sort themselves out)
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: working tree is dirty — commit or stash first"; exit 1; \
 	fi
@@ -158,21 +158,11 @@ tag: ## Push, wait for CI, tag vX.Y.Z on HEAD, push tag
 	if git rev-parse "$$TAG" >/dev/null 2>&1; then \
 		echo "Error: tag $$TAG already exists"; exit 1; \
 	fi; \
-	echo "==> Pushing commits..."; \
-	git push || exit 1; \
-	echo "==> Waiting for CI on $$(git rev-parse --short HEAD)..."; \
-	RUN_ID=$$(gh run list --branch main --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null); \
-	if [ -z "$$RUN_ID" ]; then \
-		echo "Warning: no CI run found — HEAD may be docs-only (no CI trigger)"; \
-		printf "Tag anyway? [y/N] "; read ans; \
-		case "$$ans" in [yY]*) ;; *) echo "Aborted."; exit 1 ;; esac; \
-	else \
-		echo "==> Watching CI run $$RUN_ID..."; \
-		gh run watch "$$RUN_ID" --exit-status || { echo "Error: CI failed"; exit 1; }; \
-	fi; \
 	echo "==> Tagging $$TAG on HEAD..."; \
-	git tag "$$TAG" && git push origin "$$TAG"; \
-	echo "==> Done: $$TAG pushed — Build & Release will trigger"
+	git tag "$$TAG"; \
+	echo "==> Pushing commits + tag..."; \
+	git push --follow-tags; \
+	echo "==> Done. CI will run, Build & Release will wait for CI, then build + publish $$TAG"
 
 ## ─── Dependencies ─────────────────────────────────────────────
 

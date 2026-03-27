@@ -68,15 +68,15 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 **Safe push order** — automated via `make tag`:
 
 ```
-make tag   # push → wait CI green → tag vX.Y.Z → push tag
+make tag   # tag vX.Y.Z on HEAD → push commits + tag in one go
 ```
 
-The target reads version from `pubspec.yaml`, checks for dirty tree and duplicate tags, waits for CI, and prompts if HEAD is docs-only (no CI trigger). Manual equivalent:
+The target reads version from `pubspec.yaml`, checks for dirty tree and duplicate tags, then pushes everything with `git push --follow-tags`. Build & Release workflow's preflight automatically waits for CI to finish (up to 10 min) before building — no manual waiting needed.
 
-1. `git push` — push all commits to main
-2. Wait for CI to appear and pass (only if HEAD touches CI-triggering paths)
-3. `git tag vX.Y.Z` on the commit where CI ran (must be HEAD or a commit with CI check)
-4. `git push origin vX.Y.Z` — triggers Build & Release → preflight verifies CI on tagged SHA → build → release
+Manual equivalent (if not using `make tag`):
+
+1. `git tag vX.Y.Z` on HEAD
+2. `git push --follow-tags` — pushes commits and tag together; CI triggers on push, Build & Release triggers on tag, preflight waits for CI
 
 **If the last commit is docs-only** (no CI trigger):
 - **Option A:** tag the last code commit before docs, push tag, then push docs separately

@@ -33,7 +33,7 @@ jobs:
           SHA="${{ github.sha }}"
           REPO="${{ github.repository }}"
           MAX_ATTEMPTS=30  # 30 × 20s = 10 min max wait
-          GRACE_ATTEMPTS=3 # wait 60s for CI to appear before declaring it missing
+          GRACE_ATTEMPTS=6 # wait 120s for CI to appear (tag may arrive before CI starts)
           echo "Checking CI status for commit ${SHA}..."
 
           for i in $(seq 1 $MAX_ATTEMPTS); do
