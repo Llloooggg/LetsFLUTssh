@@ -93,7 +93,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 ### Mobile
 
 - Bottom navigation (Sessions / Terminal / Files)
-- **SSH virtual keyboard** — Esc, Tab, Ctrl, Alt, arrows, F1-F12, sticky modifiers
+- SSH virtual keyboard — Esc, Tab, Ctrl, Alt, arrows, F1-F12, sticky modifiers
 - Pinch-to-zoom terminal font size
 - Single-pane SFTP with Local/Remote toggle
 - Long-press context menu for session management (connect, edit, delete, move to folder)
