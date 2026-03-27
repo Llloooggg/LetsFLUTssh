@@ -35,22 +35,20 @@ class TilingView extends StatefulWidget {
 class _TilingViewState extends State<TilingView> {
   @override
   Widget build(BuildContext context) {
-    return _buildNode(widget.root);
+    final hasMultiplePanes = collectLeafIds(widget.root).length > 1;
+    return _buildNode(widget.root, hasMultiplePanes);
   }
 
-  Widget _buildNode(SplitNode node) {
+  Widget _buildNode(SplitNode node, bool hasMultiplePanes) {
     return switch (node) {
-      LeafNode() => _buildLeaf(node),
-      BranchNode() => _buildBranch(node),
+      LeafNode() => _buildLeaf(node, hasMultiplePanes),
+      BranchNode() => _buildBranch(node, hasMultiplePanes),
     };
   }
 
-  Widget _buildLeaf(LeafNode node) {
+  Widget _buildLeaf(LeafNode node, bool hasMultiplePanes) {
     final connection = widget.paneConnections[node.id];
     if (connection == null) return const SizedBox.shrink();
-
-    final leafIds = collectLeafIds(widget.root);
-    final hasMultiplePanes = leafIds.length > 1;
 
     return TerminalPane(
       key: ValueKey(node.id),
@@ -63,7 +61,7 @@ class _TilingViewState extends State<TilingView> {
     );
   }
 
-  Widget _buildBranch(BranchNode node) {
+  Widget _buildBranch(BranchNode node, bool hasMultiplePanes) {
     final isVertical = node.direction == SplitDirection.vertical;
 
     return LayoutBuilder(
@@ -78,13 +76,13 @@ class _TilingViewState extends State<TilingView> {
           SizedBox(
             width: isVertical ? firstSize : null,
             height: isVertical ? null : firstSize,
-            child: _buildNode(node.first),
+            child: _buildNode(node.first, hasMultiplePanes),
           ),
           _buildDivider(node, isVertical, totalSize),
           SizedBox(
             width: isVertical ? secondSize : null,
             height: isVertical ? null : secondSize,
-            child: _buildNode(node.second),
+            child: _buildNode(node.second, hasMultiplePanes),
           ),
         ];
 
