@@ -181,26 +181,7 @@ class TransferManager {
         _notify();
       });
 
-      // When taskTimeout > Duration.zero, race the task against a timer.
-      if (taskTimeout > Duration.zero) {
-        final completer = Completer<void>();
-        final timer = Timer(taskTimeout, () {
-          if (!completer.isCompleted) {
-            completer.completeError(TimeoutException(
-              'Transfer timed out after ${taskTimeout.inMinutes} minutes',
-              taskTimeout,
-            ));
-          }
-        });
-        _timeoutTimers[entry.id] = timer;
-        unawaited(taskFuture.then(
-          (_) { if (!completer.isCompleted) completer.complete(); },
-          onError: (Object e) { if (!completer.isCompleted) completer.completeError(e); },
-        ));
-        await completer.future;
-      } else {
-        await taskFuture;
-      }
+      await _awaitWithTimeout(taskFuture, entry.id);
 
       AppLogger.instance.log('Completed: ${entry.task.name}', name: 'Transfer');
       _addHistory(HistoryEntry(
@@ -259,6 +240,28 @@ class TransferManager {
       _notify();
       _processQueue();
     }
+  }
+
+  Future<void> _awaitWithTimeout(Future<void> taskFuture, String entryId) async {
+    if (taskTimeout <= Duration.zero) {
+      await taskFuture;
+      return;
+    }
+    final completer = Completer<void>();
+    final timer = Timer(taskTimeout, () {
+      if (!completer.isCompleted) {
+        completer.completeError(TimeoutException(
+          'Transfer timed out after ${taskTimeout.inMinutes} minutes',
+          taskTimeout,
+        ));
+      }
+    });
+    _timeoutTimers[entryId] = timer;
+    unawaited(taskFuture.then(
+      (_) { if (!completer.isCompleted) completer.complete(); },
+      onError: (Object e) { if (!completer.isCompleted) completer.completeError(e); },
+    ));
+    await completer.future;
   }
 
   void _addHistory(HistoryEntry entry) {
