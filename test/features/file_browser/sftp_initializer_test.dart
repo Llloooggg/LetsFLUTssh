@@ -117,6 +117,28 @@ void main() {
       result.dispose();
       verify(mockSftp.close()).called(1);
     });
+
+    test('controllers are disposed when init() fails', () async {
+      final conn = Connection(
+        id: 'test',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+      );
+
+      final mockSftp = MockSftpClient();
+      // Remote controller init will fail — absolute('.') throws
+      when(mockSftp.absolute('.')).thenThrow(Exception('SFTP init failure'));
+      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+
+      await expectLater(
+        SFTPInitializer.init(
+          conn,
+          sftpServiceFactory: (_) async => SFTPService(mockSftp),
+          localFsFactory: () => _MockFS(),
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 
   group('SFTPInitResult', () {

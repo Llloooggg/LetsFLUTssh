@@ -86,7 +86,13 @@ class SFTPInitializer {
     );
     final remoteCtrl = FilePaneController(fs: RemoteFS(sftpService), label: 'Remote');
 
-    await Future.wait([localCtrl.init(), remoteCtrl.init()]);
+    try {
+      await Future.wait([localCtrl.init(), remoteCtrl.init()]);
+    } catch (e) {
+      localCtrl.dispose();
+      remoteCtrl.dispose();
+      rethrow;
+    }
 
     return SFTPInitResult(
       localCtrl: localCtrl,
