@@ -1671,6 +1671,374 @@ void main() {
     });
   });
 
+  group('TerminalSearchBar — match counter display', () {
+    Widget buildSearchBarForCounter({
+      required Terminal terminal,
+      required TerminalController controller,
+      VoidCallback? onClose,
+    }) {
+      return MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: TerminalSearchBar(
+            terminal: terminal,
+            terminalController: controller,
+            onClose: onClose ?? () {},
+          ),
+        ),
+      );
+    }
+
+    testWidgets('match counter shows "1/2" when two matches found', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('foo bar foo\r\n');
+
+      await tester.pumpWidget(buildSearchBarForCounter(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'foo');
+      await tester.pumpAndSettle();
+
+      expect(find.text('1/2'), findsOneWidget);
+    });
+
+    testWidgets('next button advances match counter from 1/2 to 2/2', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('foo bar foo\r\n');
+
+      await tester.pumpWidget(buildSearchBarForCounter(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'foo');
+      await tester.pumpAndSettle();
+      expect(find.text('1/2'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Next'));
+      await tester.pumpAndSettle();
+      expect(find.text('2/2'), findsOneWidget);
+    });
+
+    testWidgets('next wraps around from last to first match', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('foo bar foo\r\n');
+
+      await tester.pumpWidget(buildSearchBarForCounter(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'foo');
+      await tester.pumpAndSettle();
+      expect(find.text('1/2'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Next'));
+      await tester.pumpAndSettle();
+      expect(find.text('2/2'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Next'));
+      await tester.pumpAndSettle();
+      expect(find.text('1/2'), findsOneWidget);
+    });
+
+    testWidgets('prev button wraps from first to last match', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('foo bar foo\r\n');
+
+      await tester.pumpWidget(buildSearchBarForCounter(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'foo');
+      await tester.pumpAndSettle();
+      expect(find.text('1/2'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Previous'));
+      await tester.pumpAndSettle();
+      expect(find.text('2/2'), findsOneWidget);
+    });
+
+    testWidgets('prev then next cycling works correctly with 3 matches', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('abc def abc ghi abc\r\n');
+
+      await tester.pumpWidget(buildSearchBarForCounter(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'abc');
+      await tester.pumpAndSettle();
+      expect(find.text('1/3'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Next'));
+      await tester.pumpAndSettle();
+      expect(find.text('2/3'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Next'));
+      await tester.pumpAndSettle();
+      expect(find.text('3/3'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Previous'));
+      await tester.pumpAndSettle();
+      expect(find.text('2/3'), findsOneWidget);
+    });
+
+    testWidgets('no match counter when search has no results', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('Hello World\r\n');
+
+      await tester.pumpWidget(buildSearchBarForCounter(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'ZZZZZ');
+      await tester.pumpAndSettle();
+
+      // suffixText is null when _totalMatches == 0
+      expect(find.text('1/0'), findsNothing);
+      expect(find.text('0/0'), findsNothing);
+    });
+
+    testWidgets('match counter disappears when search text is cleared', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('foo bar foo\r\n');
+
+      await tester.pumpWidget(buildSearchBarForCounter(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'foo');
+      await tester.pumpAndSettle();
+      expect(find.text('1/2'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+      expect(find.text('1/2'), findsNothing);
+    });
+
+    testWidgets('submit (Enter) advances to next match', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('foo bar foo\r\n');
+
+      await tester.pumpWidget(buildSearchBarForCounter(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'foo');
+      await tester.pumpAndSettle();
+      expect(find.text('1/2'), findsOneWidget);
+
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('2/2'), findsOneWidget);
+    });
+
+    testWidgets('single match shows 1/1 and next/prev stay at 1/1', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('unique_string here\r\n');
+
+      await tester.pumpWidget(buildSearchBarForCounter(
+        terminal: terminal,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'unique_string');
+      await tester.pumpAndSettle();
+      expect(find.text('1/1'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Next'));
+      await tester.pumpAndSettle();
+      expect(find.text('1/1'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Previous'));
+      await tester.pumpAndSettle();
+      expect(find.text('1/1'), findsOneWidget);
+    });
+  });
+
+  group('TerminalSearchBar — close clears highlights', () {
+    testWidgets('close button clears highlights and calls onClose', (tester) async {
+      var closeCalled = false;
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+      terminal.write('Hello World\r\n');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalSearchBar(
+              terminal: terminal,
+              terminalController: controller,
+              onClose: () => closeCalled = true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Search to create highlights
+      await tester.enterText(find.byType(TextField), 'Hello');
+      await tester.pumpAndSettle();
+      expect(find.text('1/1'), findsOneWidget);
+
+      // Close — should clear highlights and call onClose
+      await tester.tap(find.byTooltip('Close (Esc)'));
+      await tester.pumpAndSettle();
+
+      expect(closeCalled, isTrue);
+    });
+  });
+
+  group('TerminalSearchBar — build method layout details', () {
+    testWidgets('search bar contains Row with TextField and 3 IconButtons', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalSearchBar(
+              terminal: terminal,
+              terminalController: controller,
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Row), findsWidgets);
+      expect(find.byType(TextField), findsOneWidget);
+
+      // Three IconButtons: up, down, close
+      final iconButtons = find.descendant(
+        of: find.byType(Row),
+        matching: find.byType(IconButton),
+      );
+      expect(iconButtons, findsNWidgets(3));
+
+      expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_down), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+    });
+
+    testWidgets('search bar has bottom border decoration', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalSearchBar(
+              terminal: terminal,
+              terminalController: controller,
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final decoratedContainer = containers.where((c) {
+        final deco = c.decoration;
+        if (deco is BoxDecoration && deco.border is Border) {
+          final border = deco.border as Border;
+          return border.bottom != BorderSide.none;
+        }
+        return false;
+      });
+      expect(decoratedContainer, isNotEmpty);
+    });
+
+    testWidgets('icon buttons have 28x28 size wrapping', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalSearchBar(
+              terminal: terminal,
+              terminalController: controller,
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
+      final buttonWrappers = sizedBoxes.where((sb) =>
+        sb.width == 28 && sb.height == 28,
+      ).toList();
+      expect(buttonWrappers.length, 3);
+    });
+  });
+
+  group('TerminalSearchBar — _nextMatch/_prevMatch with zero matches', () {
+    testWidgets('next/prev are no-op when there are zero matches', (tester) async {
+      final terminal = Terminal(maxLines: 100);
+      final controller = TerminalController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalSearchBar(
+              terminal: terminal,
+              terminalController: controller,
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final prevButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_up),
+        matching: find.byType(IconButton),
+      ));
+      expect(prevButton.onPressed, isNull);
+
+      final nextButton = tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.keyboard_arrow_down),
+        matching: find.byType(IconButton),
+      ));
+      expect(nextButton.onPressed, isNull);
+    });
+  });
+
   group('TerminalSearchBar — search bar height and layout', () {
     testWidgets('search bar has 36px height', (tester) async {
       final terminal = Terminal(maxLines: 100);

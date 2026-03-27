@@ -19,9 +19,14 @@ String get homeDirectory {
 @visibleForTesting
 bool? debugMobilePlatformOverride;
 
+/// Override for testing — when non-null, [isDesktopPlatform] returns this value.
+@visibleForTesting
+bool? debugDesktopPlatformOverride;
+
 /// True on Android or iOS.
 bool get isMobilePlatform =>
     debugMobilePlatformOverride ?? (Platform.isAndroid || Platform.isIOS);
 
 /// True on Linux, macOS, or Windows.
-bool get isDesktopPlatform => Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+bool get isDesktopPlatform =>
+    debugDesktopPlatformOverride ?? (Platform.isLinux || Platform.isMacOS || Platform.isWindows);

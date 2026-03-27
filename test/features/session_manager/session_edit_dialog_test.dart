@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/session_edit_dialog.dart';
+import 'package:letsflutssh/utils/platform.dart';
 
 void main() {
   SessionDialogResult? dialogResult;
@@ -1411,6 +1412,172 @@ void main() {
       // On desktop, the key path field is wrapped in a DropTarget
       // Verify the DropTarget widget exists
       expect(find.byType(DropTarget), findsOneWidget);
+    });
+  });
+
+  group('SessionEditDialog — mobile key path field', () {
+    setUp(() {
+      debugMobilePlatformOverride = true;
+      debugDesktopPlatformOverride = false;
+    });
+
+    tearDown(() {
+      debugMobilePlatformOverride = null;
+      debugDesktopPlatformOverride = null;
+    });
+
+    testWidgets('mobile key path field renders without DropTarget',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Switch to Key auth
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      // On mobile, the key path field should NOT be wrapped in DropTarget
+      expect(find.byType(DropTarget), findsNothing);
+
+      // The mobile key path field should show 'Key File Path' label
+      expect(find.text('Key File Path'), findsOneWidget);
+    });
+
+    testWidgets('mobile key path field has correct hint text',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('/path/to/key'), findsOneWidget);
+    });
+
+    testWidgets('mobile key path field accepts text input',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Key File Path'),
+        '/home/user/.ssh/id_rsa',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('/home/user/.ssh/id_rsa'), findsOneWidget);
+    });
+
+    testWidgets('PEM toggle shows and hides key text area on mobile',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      // PEM toggle should be visible
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(find.text('Paste PEM key text'), findsOneWidget);
+
+      // PEM text field should not be visible yet
+      expect(find.text('Key Text (PEM)'), findsNothing);
+
+      // Tap the PEM toggle
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      // Now PEM text field should be visible
+      await tester.scrollUntilVisible(
+        find.text('Key Text (PEM)'),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(find.text('Key Text (PEM)'), findsOneWidget);
+      expect(find.text('Hide PEM text'), findsOneWidget);
+
+      // Tap toggle again to hide
+      await tester.tap(find.text('Hide PEM text'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Key Text (PEM)'), findsNothing);
+      expect(find.text('Paste PEM key text'), findsOneWidget);
+    });
+
+    testWidgets('PEM text field accepts key text input on mobile',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      // Open PEM text area
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      // Enter PEM text
+      await tester.scrollUntilVisible(
+        find.text('Key Text (PEM)'),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      const pemText = '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----';
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        pemText,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(pemText), findsOneWidget);
+    });
+
+    testWidgets('mobile key path value included in Connect result',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await fillRequiredFields(tester);
+
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      // Enter key path in the mobile field
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Key File Path'),
+        '/home/user/.ssh/id_rsa',
+      );
+      await tester.pumpAndSettle();
+
+      // Scroll back and tap Connect
+      await tester.scrollUntilVisible(
+        find.text('Connect'),
+        -100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(dialogResult, isA<ConnectOnlyResult>());
+      final result = dialogResult as ConnectOnlyResult;
+      expect(result.config.keyPath, '/home/user/.ssh/id_rsa');
     });
   });
 }
