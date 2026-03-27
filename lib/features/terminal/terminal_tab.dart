@@ -99,7 +99,7 @@ class TerminalTabState extends State<TerminalTab> {
         if (sshConn == null || !sshConn.isConnected) {
           final newConn = SSHConnection(
             config: widget.connection.sshConfig,
-            knownHosts: widget.connection.sshConnection!.knownHosts,
+            knownHosts: widget.connection.knownHosts,
           );
           await newConn.connect();
           widget.connection.sshConnection = newConn;

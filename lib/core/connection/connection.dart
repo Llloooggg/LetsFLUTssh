@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../ssh/known_hosts.dart';
 import '../ssh/ssh_client.dart';
 import '../ssh/ssh_config.dart';
 
@@ -13,6 +14,9 @@ class Connection {
   final String id;
   final String label;
   final SSHConfig sshConfig;
+
+  /// Known hosts manager — retained for reconnect after disconnect.
+  final KnownHostsManager knownHosts;
 
   SSHConnection? sshConnection;
   SSHConnectionState state;
@@ -28,10 +32,11 @@ class Connection {
     required this.id,
     required this.label,
     required this.sshConfig,
+    KnownHostsManager? knownHosts,
     this.sshConnection,
     this.state = SSHConnectionState.disconnected,
     this.connectionError,
-  });
+  }) : knownHosts = knownHosts ?? KnownHostsManager();
 
   bool get isConnected => state == SSHConnectionState.connected;
   bool get isConnecting => state == SSHConnectionState.connecting;

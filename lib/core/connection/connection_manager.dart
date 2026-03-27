@@ -47,6 +47,7 @@ class ConnectionManager {
       id: id,
       label: label ?? config.displayName,
       sshConfig: config,
+      knownHosts: knownHosts,
       state: SSHConnectionState.connecting,
     );
     _connections[id] = conn;
