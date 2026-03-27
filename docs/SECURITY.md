@@ -48,6 +48,8 @@ The following areas are in scope:
 - **CodeQL** — static analysis of GitHub Actions workflows (weekly)
 - **SonarCloud** — code quality, coverage, and security hotspot analysis on every CI run
 - **Dependency Review** — checks new dependencies for known vulnerabilities on pull requests
+- **Dependabot** — automated security updates (CVE-triggered) and version updates (weekly) for pub packages and GitHub Actions
+- **Pinned Dependencies** — all GitHub Actions are pinned to commit SHA hashes to prevent supply chain attacks via tag manipulation
 
 ### Out of scope
 

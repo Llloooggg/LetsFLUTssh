@@ -9,9 +9,9 @@
 [![OSV-Scanner](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv-scanner.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv-scanner.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Llloooggg/LetsFLUTssh/badge)](https://scorecard.dev/viewer/?uri=github.com/Llloooggg/LetsFLUTssh)<br>
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 
 > **Disclaimer:** This is a functional neuroslop pet project — built entirely with AI assistance for personal use, self-education, and fun. Use at your own risk.
 
