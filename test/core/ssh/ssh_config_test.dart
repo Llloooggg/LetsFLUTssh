@@ -315,6 +315,7 @@ void main() {
       test('accepts port 1', () {
         const config = SSHConfig(
           server: ServerAddress(host: 'h', user: 'u', port: 1),
+          auth: auth,
         );
         expect(config.validate(), isNull);
       });
@@ -322,6 +323,7 @@ void main() {
       test('accepts port 65535', () {
         const config = SSHConfig(
           server: ServerAddress(host: 'h', user: 'u', port: 65535),
+          auth: auth,
         );
         expect(config.validate(), isNull);
       });
@@ -340,28 +342,33 @@ void main() {
         expect(config.validate(), 'Username is required');
       });
 
+      test('rejects missing auth', () {
+        const config = SSHConfig(server: server);
+        expect(config.validate(), 'Password or SSH key is required');
+      });
+
       test('rejects negative keepAliveSec', () {
-        const config = SSHConfig(server: server, keepAliveSec: -1);
+        const config = SSHConfig(server: server, auth: auth, keepAliveSec: -1);
         expect(config.validate(), 'Keep-alive must be non-negative');
       });
 
       test('accepts keepAliveSec 0', () {
-        const config = SSHConfig(server: server, keepAliveSec: 0);
+        const config = SSHConfig(server: server, auth: auth, keepAliveSec: 0);
         expect(config.validate(), isNull);
       });
 
       test('rejects timeoutSec 0', () {
-        const config = SSHConfig(server: server, timeoutSec: 0);
+        const config = SSHConfig(server: server, auth: auth, timeoutSec: 0);
         expect(config.validate(), 'Timeout must be at least 1 second');
       });
 
       test('rejects negative timeoutSec', () {
-        const config = SSHConfig(server: server, timeoutSec: -5);
+        const config = SSHConfig(server: server, auth: auth, timeoutSec: -5);
         expect(config.validate(), 'Timeout must be at least 1 second');
       });
 
       test('accepts timeoutSec 1', () {
-        const config = SSHConfig(server: server, timeoutSec: 1);
+        const config = SSHConfig(server: server, auth: auth, timeoutSec: 1);
         expect(config.validate(), isNull);
       });
 

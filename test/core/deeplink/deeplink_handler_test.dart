@@ -17,14 +17,14 @@ void main() {
 
     test('extracts all params', () {
       final config = DeepLinkHandler.parseConnectUri(Uri.parse(
-        'letsflutssh://connect?host=myserver.com&port=2222&user=admin&password=secret&key=/home/me/.ssh/id_rsa',
+        'letsflutssh://connect?host=myserver.com&port=2222&user=admin&password=secret&key=id_rsa',
       ));
       expect(config, isNotNull);
       expect(config!.host, 'myserver.com');
       expect(config.port, 2222);
       expect(config.user, 'admin');
       expect(config.password, 'secret');
-      expect(config.keyPath, '/home/me/.ssh/id_rsa');
+      expect(config.keyPath, 'id_rsa');
     });
 
     test('returns null without host', () {
@@ -145,12 +145,19 @@ void main() {
       expect(config, isNull);
     });
 
-    test('accepts valid key path without traversal', () {
+    test('accepts valid relative key path without traversal', () {
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
+        'letsflutssh://connect?host=h&user=u&key=keys%2Fid_rsa',
+      ));
+      expect(config, isNotNull);
+      expect(config!.keyPath, 'keys/id_rsa');
+    });
+
+    test('rejects absolute key path', () {
       final config = DeepLinkHandler.parseConnectUri(Uri.parse(
         'letsflutssh://connect?host=h&user=u&key=/home/user/.ssh/id_rsa',
       ));
-      expect(config, isNotNull);
-      expect(config!.keyPath, '/home/user/.ssh/id_rsa');
+      expect(config, isNull);
     });
 
     test('trims whitespace from host and user', () {
@@ -384,13 +391,13 @@ void main() {
 
     test('parseConnectUri preserves all fields', () {
       final config = DeepLinkHandler.parseConnectUri(Uri.parse(
-          'letsflutssh://connect?host=h&user=u&port=8022&password=pass&key=/path'));
+          'letsflutssh://connect?host=h&user=u&port=8022&password=pass&key=mykey'));
       expect(config, isNotNull);
       expect(config!.host, 'h');
       expect(config.user, 'u');
       expect(config.port, 8022);
       expect(config.password, 'pass');
-      expect(config.keyPath, '/path');
+      expect(config.keyPath, 'mykey');
     });
 
     test('parseConnectUri with whitespace-only host returns null', () {
