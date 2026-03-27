@@ -43,6 +43,10 @@ jobs:
 
             if [ "$CHECK_EXISTS" = "0" ]; then
               if [ "$i" -ge "$GRACE_ATTEMPTS" ]; then
+                if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                  echo "::warning::CI (analyze-and-test) was never triggered for commit ${SHA} — proceeding anyway (manual dispatch)."
+                  exit 0
+                fi
                 echo "::error::CI (analyze-and-test) was never triggered for commit ${SHA}. This usually means the tag points to a commit that didn't change code paths covered by CI."
                 exit 1
               fi

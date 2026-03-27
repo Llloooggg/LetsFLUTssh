@@ -57,11 +57,24 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 **Tagging workflow:**
 
 - Tag goes on **HEAD of main after CI passes** — never on an intermediate commit. Build & Release checks CI on the tagged SHA, so CI must exist there
-- If `test:`/`docs:`/`chore:` commits follow a bump commit — the tag goes on the **last commit in the chain** (it still contains the same version in pubspec.yaml)
 - Tag **after CI passes**: push commits first, wait for CI green, then `git tag vX.Y.Z && git push origin vX.Y.Z`
 - Tag triggers `build.yml` (build + release)
 - **By default Claude only reminds** about tagging and pushing. If the user asked Claude to push — Claude also tags HEAD and pushes both commits and tag
 - **Never tag an intermediate commit** in a batch push — only HEAD, otherwise Build & Release preflight fails (CI check not found)
+
+**CI path filtering caveat:** CI only triggers when commits touch code-related paths (`lib/`, `test/`, `pubspec.*`, `Makefile`, `analysis_options.yaml`, platform dirs, `sonar-project.properties`). Commits that touch **only** docs (`CLAUDE.md`, `README.md`, `SECURITY.md`), assets, or `.github/workflows/` do NOT trigger CI. If HEAD is a docs-only commit, preflight will fail because no CI check exists for that SHA.
+
+**Safe push order:**
+
+1. `git push` — push all commits to main
+2. Wait for CI to appear and pass (only if HEAD touches CI-triggering paths)
+3. `git tag vX.Y.Z` on the commit where CI ran (must be HEAD or a commit with CI check)
+4. `git push origin vX.Y.Z` — triggers Build & Release → preflight verifies CI on tagged SHA → build → release
+
+**If the last commit is docs-only** (no CI trigger):
+- **Option A:** tag the last code commit before docs, push tag, then push docs separately
+- **Option B:** bundle docs changes into the code commit (preferred — simpler)
+- **Option C:** use `workflow_dispatch` with `create_release: true` (bypasses CI timeout with warning)
 
 **Example lifecycle:**
 
@@ -69,8 +82,12 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 v1.0.0 → bugfix(v1.0.1) → refactor(v1.0.2) → push, CI ✓, tag v1.0.2 on HEAD
          ↑ changelog collects both commits ↑
 
-v1.0.2 → new feature(v1.1.0) → test: add tests → push, CI ✓, tag v1.1.0 on HEAD
-                                 ↑ no bump, but tag goes here (HEAD) ↑
+v1.0.2 → feat(v1.1.0) → test: add tests → push, CI ✓, tag v1.1.0 on HEAD
+                          ↑ test/ triggers CI, so tag on HEAD is safe ↑
+
+v1.1.0 → fix(v1.1.1) → docs: update readme → push
+          ↑ CI runs on fix commit (lib/), but NOT on docs commit ↑
+          ↑ tag v1.1.1 on the fix commit, or bundle docs into fix ↑
 ```
 
 ### Post-change workflow (mandatory after every commit that affects the shipped app)
@@ -269,7 +286,7 @@ LetsFLUTssh/
 | **Export/Import** | `.lfs` archive (ZIP + AES-256-GCM), merge/replace import modes, auto-migration from plaintext                                                                                                                                          |
 | **Mobile**        | Bottom nav, SSH virtual keyboard (sticky modifiers), pinch-to-zoom, single-pane SFTP, long-press selection, swipe navigation, deep links (`letsflutssh://`), file open intents (.pem/.key/.lfs)                                        |
 | **UI**            | OneDark/One Light themes, responsive layout (sidebar→drawer <600px), toast notifications, settings screen, no animations (instant UX)                                                                                                  |
-| **CI/CD**         | GitHub Actions: `ci.yml` (CI & Quality) on push/PR/dispatch (analyze+test+SonarCloud), `build.yml` on tag or dispatch (preflight CI wait+build with fail-fast on missing CI, optional release via checkbox or auto on tag); concurrency cancel-in-progress, Flutter SDK caching; SonarCloud (coverage QG ≥80%), CodeQL weekly scan, packaging (AppImage/deb/tar.gz, EXE/zip, dmg, per-ABI APK) |
+| **CI/CD**         | GitHub Actions: `ci.yml` (CI & Quality) on push/PR/dispatch, path-filtered (`lib/`, `test/`, `pubspec.*`, `Makefile`, `analysis_options.yaml`, platform dirs, `sonar-project.properties`) — analyze (`--fatal-infos`) + test (`--coverage`) + SonarCloud + `dart pub outdated` + dependency-review (PR only); `build.yml` on tag `v*` or dispatch — preflight CI wait with grace period (manual dispatch bypasses CI timeout with warning), build provenance attestation (`attest-build-provenance`), optional release via checkbox or auto on tag, auto-creates tag on manual dispatch if missing; concurrency cancel-in-progress, Flutter SDK caching; SonarCloud (coverage QG ≥80%); CodeQL weekly + on workflow file changes (scans `actions` language only — Dart not supported by CodeQL); packaging (AppImage/deb/tar.gz, EXE installer via Inno Setup/zip, dmg/tar.gz, per-ABI APK) |
 | **Code quality**  | Injectable factories for testability, mockito mocks, consistent error handling (no silent catch), proper dispose() chains, immutable tiling tree updates, model equality (==/hashCode), extracted ImportService/KeyFileHelper/LfsImportDialog for testability |
 | **Logging**       | File-based logger (`AppLogger`) — writes to `<appSupportDir>/logs/` in debug/profile mode, no-op in release, 5MB rotation with 3 rotated files                                                                                        |
 

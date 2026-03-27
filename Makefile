@@ -27,19 +27,19 @@ run-release: ## Run the app (release mode)
 
 build: ## Build for current platform (release)
 ifdef IS_LINUX
-	$(FLUTTER) build linux
+	$(FLUTTER) build linux --release
 else ifdef IS_MACOS
-	$(FLUTTER) build macos
+	$(FLUTTER) build macos --release
 else
 	@echo "Error: unsupported platform $(UNAME). Use an explicit target (build-linux, build-windows, etc.)"
 	@exit 1
 endif
 
-test: ## Run all tests
-	$(FLUTTER) test
+test: ## Run all tests with coverage
+	$(FLUTTER) test --coverage
 
-analyze: ## Run Dart analyzer
-	$(FLUTTER) analyze
+analyze: ## Run Dart analyzer (fatal on infos, same as CI)
+	$(FLUTTER) analyze --fatal-infos
 
 check: analyze test ## Run analyzer + tests
 
@@ -58,9 +58,9 @@ macos: build-macos
 apk: build-apk
 ios: build-ios
 
-build-linux: ## Build for Linux
+build-linux: ## Build for Linux (release)
 ifdef IS_LINUX
-	$(FLUTTER) build linux
+	$(FLUTTER) build linux --release
 else
 	@echo "Error: Linux builds require a Linux host (current: $(UNAME))"
 	@exit 1
@@ -71,23 +71,23 @@ build-windows: ## Build for Windows
 	@echo "Use: flutter build windows (on Windows)"
 	@exit 1
 
-build-macos: ## Build for macOS
+build-macos: ## Build for macOS (release)
 ifdef IS_MACOS
-	$(FLUTTER) build macos
+	$(FLUTTER) build macos --release
 else
 	@echo "Error: macOS builds require a macOS host (current: $(UNAME))"
 	@exit 1
 endif
 
-build-apk: ## Build Android APK
-	$(FLUTTER) build apk
+build-apk: ## Build Android APK (release, per-ABI)
+	$(FLUTTER) build apk --release --split-per-abi
 
-build-aab: ## Build Android App Bundle
-	$(FLUTTER) build appbundle
+build-aab: ## Build Android App Bundle (release)
+	$(FLUTTER) build appbundle --release
 
-build-ios: ## Build for iOS
+build-ios: ## Build for iOS (release)
 ifdef IS_MACOS
-	$(FLUTTER) build ios
+	$(FLUTTER) build ios --release
 else
 	@echo "Error: iOS builds require a macOS host (current: $(UNAME))"
 	@exit 1
