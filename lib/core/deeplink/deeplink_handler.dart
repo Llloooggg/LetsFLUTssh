@@ -43,9 +43,19 @@ class DeepLinkHandler {
     );
   }
 
+  /// Sanitize URI for logging — strip sensitive query parameters.
+  static String _sanitizeUri(Uri uri) {
+    if (uri.queryParameters.isEmpty) return uri.toString();
+    final safe = Map<String, String>.from(uri.queryParameters);
+    for (final key in ['password', 'passphrase', 'key_data']) {
+      if (safe.containsKey(key)) safe[key] = '***';
+    }
+    return uri.replace(queryParameters: safe).toString();
+  }
+
   @visibleForTesting
   void handleUri(Uri uri) {
-    AppLogger.instance.log('Received: $uri', name: 'DeepLink');
+    AppLogger.instance.log('Received: ${_sanitizeUri(uri)}', name: 'DeepLink');
 
     if (uri.scheme == 'letsflutssh') {
       handleCustomScheme(uri);
