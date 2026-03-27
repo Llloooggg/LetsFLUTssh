@@ -64,19 +64,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   Future<void> _initSftp() async {
     // Wait for connection if still connecting
     final conn = widget.connection;
-    if (conn.isConnecting) {
-      try {
-        await conn.ready.timeout(const Duration(seconds: 30));
-      } on TimeoutException {
-        if (mounted) {
-          setState(() {
-            _error = 'Connection timed out';
-            _initializing = false;
-          });
-        }
-        return;
-      }
-    }
+    await conn.waitUntilReady();
 
     if (!conn.isConnected) {
       if (mounted) {

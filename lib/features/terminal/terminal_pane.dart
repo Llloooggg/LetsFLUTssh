@@ -78,9 +78,7 @@ class TerminalPaneState extends State<TerminalPane> {
     _terminal.write('Connecting to ${config.user}@${config.host}:${config.effectivePort}...\r\n');
 
     // Wait for connection if still connecting
-    if (conn.isConnecting) {
-      await _waitForConnection(conn);
-    }
+    await conn.waitUntilReady();
 
     // Check connection result
     if (!conn.isConnected) {
@@ -121,15 +119,6 @@ class TerminalPaneState extends State<TerminalPane> {
       AppLogger.instance.log('Shell open failed: $e', name: 'TerminalPane', error: e);
       _terminal.write('\r\n\x1B[31mShell error: $e\x1B[0m\r\n');
       if (mounted) setState(() => _error = e.toString());
-    }
-  }
-
-  /// Wait for connection to leave the `connecting` state (30s timeout).
-  Future<void> _waitForConnection(Connection conn) async {
-    try {
-      await conn.ready.timeout(const Duration(seconds: 30));
-    } on TimeoutException {
-      conn.connectionError = 'Connection timed out after 30 seconds';
     }
   }
 

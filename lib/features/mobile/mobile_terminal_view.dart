@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -50,9 +48,7 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
     final conn = widget.connection;
 
     // Wait for connection if still connecting (connectAsync returns immediately)
-    if (conn.isConnecting) {
-      await _waitForConnection(conn);
-    }
+    await conn.waitUntilReady();
 
     if (!conn.isConnected) {
       if (mounted) {
@@ -78,15 +74,6 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
     } catch (e) {
       AppLogger.instance.log('Shell open failed: $e', name: 'MobileTerminal', error: e);
       if (mounted) setState(() => _error = e.toString());
-    }
-  }
-
-  /// Wait for connection to leave the `connecting` state (30s timeout).
-  Future<void> _waitForConnection(Connection conn) async {
-    try {
-      await conn.ready.timeout(const Duration(seconds: 30));
-    } on TimeoutException {
-      conn.connectionError = 'Connection timed out after 30 seconds';
     }
   }
 
