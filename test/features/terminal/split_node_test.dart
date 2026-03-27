@@ -71,22 +71,29 @@ void main() {
       expect(branch.ratio, 0.5);
     });
 
-    test('fields are mutable', () {
+    test('fields are immutable — new node created for changes', () {
       final branch = BranchNode(
         direction: SplitDirection.horizontal,
         ratio: 0.5,
         first: LeafNode(id: 'a'),
         second: LeafNode(id: 'b'),
       );
-      branch.ratio = 0.7;
-      expect(branch.ratio, 0.7);
 
-      branch.direction = SplitDirection.vertical;
-      expect(branch.direction, SplitDirection.vertical);
-
-      final newFirst = LeafNode(id: 'c');
-      branch.first = newFirst;
-      expect(branch.first.id, 'c');
+      // Update via new BranchNode (immutable pattern)
+      final updated = BranchNode(
+        id: branch.id,
+        direction: SplitDirection.vertical,
+        ratio: 0.7,
+        first: LeafNode(id: 'c'),
+        second: branch.second,
+      );
+      expect(updated.ratio, 0.7);
+      expect(updated.direction, SplitDirection.vertical);
+      expect(updated.first.id, 'c');
+      // Original unchanged
+      expect(branch.ratio, 0.5);
+      expect(branch.direction, SplitDirection.horizontal);
+      expect(branch.first.id, 'a');
     });
   });
 

@@ -20,10 +20,10 @@ class LeafNode extends SplitNode {
 
 /// A branch node — two children split in a direction with a ratio.
 class BranchNode extends SplitNode {
-  SplitDirection direction;
-  double ratio;
-  SplitNode first;
-  SplitNode second;
+  final SplitDirection direction;
+  final double ratio;
+  final SplitNode first;
+  final SplitNode second;
 
   BranchNode({
     super.id,
@@ -57,7 +57,7 @@ SplitNode? removeNode(SplitNode root, String targetId) {
     if (root.first.id == targetId) return root.second;
     if (root.second.id == targetId) return root.first;
     final newFirst = removeNode(root.first, targetId);
-    if (newFirst != null && newFirst.id != root.first.id) {
+    if (newFirst != null && !identical(newFirst, root.first)) {
       return BranchNode(
         id: root.id,
         direction: root.direction,
@@ -67,7 +67,7 @@ SplitNode? removeNode(SplitNode root, String targetId) {
       );
     }
     final newSecond = removeNode(root.second, targetId);
-    if (newSecond != null && newSecond.id != root.second.id) {
+    if (newSecond != null && !identical(newSecond, root.second)) {
       return BranchNode(
         id: root.id,
         direction: root.direction,
