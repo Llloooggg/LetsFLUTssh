@@ -13,6 +13,8 @@ on:
   schedule:
     - cron: '0 6 * * 1'  # weekly Monday 06:00 UTC
 
+permissions: read-all
+
 jobs:
   analyze:
     runs-on: ubuntu-latest
