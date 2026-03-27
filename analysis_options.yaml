@@ -18,4 +18,3 @@ linter:
     - use_key_in_widget_constructors
     - avoid_print
     - prefer_relative_imports
-    - always_use_package_imports: false
