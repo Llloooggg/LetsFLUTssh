@@ -13,7 +13,7 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 ### Commits
 
 - **By default Claude only suggests commit messages** — does NOT commit or push
-- **If the user explicitly asks Claude to commit** — Claude commits, but still does NOT push or tag. All rules below apply equally
+- **If the user explicitly asks Claude to commit/push** — Claude commits, pushes, and tags per the rules below. Scope matches what was asked: "commit" = commit only, "commit and push" = commit + tag last in series + push
 - **Every commit that affects the shipped app MUST include a version bump** in `pubspec.yaml` AND `_appVersion` in `settings_screen.dart`. This includes: Dart code in `lib/`, platform configs (`AndroidManifest.xml`, `Info.plist`, `.desktop`, etc.), native code, assets, build settings. Patch for bugfix/refactor, minor for new feature, major for breaking change. No exceptions — include the bump in the same commit
 - Format: `type: short description` (e.g. `feat: phase 1 — SSH terminal with xterm.dart`)
 - Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `ci`
@@ -59,7 +59,7 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 - Tag only the **last commit in a series** — not every intermediate bump. Changelog collects all commits between tags
 - Tag **before pushing**: `git tag vX.Y.Z && git push && git push origin vX.Y.Z`
 - Tag triggers `build.yml` (build + release)
-- **Claude does NOT tag or push** — only reminds the user after finishing a series of commits
+- **By default Claude only reminds** about tagging and pushing. If the user asked Claude to push — Claude also tags the last commit and pushes both commit and tag
 - Do NOT tag commits without a version bump (tests, docs, CI)
 
 **Example lifecycle:**
