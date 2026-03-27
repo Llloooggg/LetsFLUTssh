@@ -98,6 +98,7 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(8),
           side: const BorderSide(color: _border),
         ),
+        menuPadding: const EdgeInsets.symmetric(vertical: 4),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: _bg,
@@ -175,6 +176,22 @@ abstract final class AppTheme {
       listTileTheme: const ListTileThemeData(
         iconColor: _fg,
         textColor: _fg,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: _darker,
+        indicatorColor: _blue.withValues(alpha: 0.2),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: _blue);
+          }
+          return const IconThemeData(color: _gutter);
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(color: _blue, fontSize: 12);
+          }
+          return const TextStyle(color: _gutter, fontSize: 12);
+        }),
       ),
       sliderTheme: const SliderThemeData(
         activeTrackColor: _blue,
@@ -343,6 +360,22 @@ abstract final class AppTheme {
       listTileTheme: const ListTileThemeData(
         iconColor: _lightFg,
         textColor: _lightFg,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: _lightSurface,
+        indicatorColor: _lightBlue.withValues(alpha: 0.15),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: _lightBlue);
+          }
+          return const IconThemeData(color: _lightGutter);
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(color: _lightBlue, fontSize: 12);
+          }
+          return const TextStyle(color: _lightGutter, fontSize: 12);
+        }),
       ),
       sliderTheme: const SliderThemeData(
         activeTrackColor: _lightBlue,
