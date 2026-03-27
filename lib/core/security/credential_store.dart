@@ -138,8 +138,12 @@ class CredentialStore {
   }
 
   /// Delete credentials for a session.
+  ///
+  /// Uses [loadAllSafe] to avoid failing when the credential file is
+  /// corrupted — deleting a session should never be blocked by a
+  /// decryption error.
   Future<void> delete(String sessionId) async {
-    final all = await loadAll();
+    final all = await loadAllSafe();
     all.remove(sessionId);
     await saveAll(all);
   }
