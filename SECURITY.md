@@ -2,12 +2,12 @@
 
 ## Supported Versions
 
-LetsFLUTssh is currently in active pre-release development. Security updates are applied to the latest version only.
+Security updates are applied to the latest version only.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.9.x   | :white_check_mark: |
-| < 0.9   | :x:                |
+| 1.0.x   | :white_check_mark: |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -37,9 +37,11 @@ The following areas are in scope:
 - Credential storage and encryption (`CredentialStore`, AES-256-GCM) — key generation race guard, `CredentialStoreException` for decryption failures
 - SSH key handling and authentication
 - Known hosts / TOFU verification — `chmod 600` on `known_hosts` file
-- Export/import archive encryption (`.lfs` format, PBKDF2)
+- Export/import archive encryption (`.lfs` format, PBKDF2-SHA256 600k iterations)
 - Deep link URI parsing (`letsflutssh://` scheme) — host/port validation, path traversal rejection
-- File permission handling (`chmod 600` on credentials and known_hosts)
+- File permission handling (`chmod 600` on credentials, known_hosts, config files)
+- Atomic file writes — write-to-temp-then-rename prevents data corruption on crash
+- SFTP recursion depth limit (100 levels) — prevents stack overflow on malicious paths
 - Error message sanitization (file paths stripped from user-facing errors)
 
 Out of scope:
