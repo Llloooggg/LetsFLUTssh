@@ -191,5 +191,135 @@ void main() {
 
       expect(find.textContaining('root@myhost.com'), findsOneWidget);
     });
+
+    testWidgets('re-selecting deselected session updates count', (tester) async {
+      final sessions = [
+        makeSession(label: 'a', host: 'a.com'),
+        makeSession(label: 'b', host: 'b.com'),
+      ];
+      await tester.pumpWidget(buildApp(sessions: sessions));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Deselect 'a'
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('1/2)'), findsOneWidget);
+
+      // Re-select 'a'
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('2/2)'), findsOneWidget);
+    });
+
+    testWidgets('toggling group toggles all sessions in group', (tester) async {
+      final sessions = [
+        makeSession(label: 'web1', host: 'a.com', group: 'Prod'),
+        makeSession(label: 'web2', host: 'b.com', group: 'Prod'),
+        makeSession(label: 'dev1', host: 'c.com', group: 'Dev'),
+      ];
+      await tester.pumpWidget(buildApp(sessions: sessions));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('3/3)'), findsOneWidget);
+
+      // Tap Prod group to deselect it
+      await tester.tap(find.text('Prod'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1/3)'), findsOneWidget);
+
+      // Tap Prod again to re-select
+      await tester.tap(find.text('Prod'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('3/3)'), findsOneWidget);
+    });
+
+    testWidgets('Export All returns deep link when fits', (tester) async {
+      String? result;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                result = await QrExportDialog.show(
+                  context,
+                  sessions: [makeSession()],
+                  emptyGroups: const {},
+                );
+              },
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Deselect first, then Export All re-selects
+      await tester.tap(find.textContaining('Select All'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('0/1)'), findsOneWidget);
+
+      await tester.tap(find.text('Export All'));
+      await tester.pumpAndSettle();
+
+      expect(result, isNotNull);
+      expect(result, startsWith('letsflutssh://import?d='));
+    });
+
+    testWidgets('Export All with empty groups passes all empty groups', (tester) async {
+      String? result;
+      final sessions = [makeSession(label: 'srv', group: 'Prod')];
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                result = await QrExportDialog.show(
+                  context,
+                  sessions: sessions,
+                  emptyGroups: {'EmptyFolder'},
+                );
+              },
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Export All'));
+      await tester.pumpAndSettle();
+
+      expect(result, isNotNull);
+      expect(result, startsWith('letsflutssh://import?d='));
+    });
+
+    testWidgets('Select All deselects all when all selected', (tester) async {
+      final sessions = [
+        makeSession(label: 'a', host: 'a.com'),
+        makeSession(label: 'b', host: 'b.com'),
+      ];
+      await tester.pumpWidget(buildApp(sessions: sessions));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // All selected — checkbox tap via Checkbox
+      final checkboxFinder = find.byType(Checkbox).first;
+      await tester.tap(checkboxFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('0/2)'), findsOneWidget);
+
+      // Tap again to re-select all
+      await tester.tap(checkboxFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('2/2)'), findsOneWidget);
+    });
   });
 }

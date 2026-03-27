@@ -2289,5 +2289,85 @@ void main() {
 
       expect(find.text('Move to Folder'), findsOneWidget);
     });
+
+    testWidgets('Delete confirm deletes sessions and exits select mode', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      // Select sessions
+      await tester.tap(find.text('web1'));
+      await tester.pump();
+      await tester.tap(find.text('staging'));
+      await tester.pump();
+      expect(find.text('2 selected'), findsOneWidget);
+
+      // Tap delete
+      await tester.tap(find.byIcon(Icons.delete));
+      await tester.pumpAndSettle();
+
+      // Confirm deletion
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      // Should exit select mode
+      expect(find.text('Sessions'), findsOneWidget);
+    });
+
+    testWidgets('Move confirm moves sessions and exits select mode', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      await tester.tap(find.text('staging'));
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.drive_file_move));
+      await tester.pumpAndSettle();
+
+      // Select Production folder in the move dialog
+      await tester.tap(find.text('Production').last);
+      await tester.pumpAndSettle();
+
+      // Should exit select mode after move
+      expect(find.text('Sessions'), findsOneWidget);
+    });
+
+    testWidgets('Move cancel keeps select mode', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      await tester.tap(find.text('staging'));
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.drive_file_move));
+      await tester.pumpAndSettle();
+
+      // Cancel move dialog
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Still in select mode
+      expect(find.text('1 selected'), findsOneWidget);
+    });
+
+    testWidgets('visibleForTesting getters expose state', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(state.selectMode, isFalse);
+      expect(state.selectedIds, isEmpty);
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      expect(state.selectMode, isTrue);
+
+      await tester.tap(find.text('web1'));
+      await tester.pump();
+
+      expect(state.selectedIds, contains('1'));
+    });
   });
 }
