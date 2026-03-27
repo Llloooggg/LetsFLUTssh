@@ -53,10 +53,8 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   @override
   void initState() {
     super.initState();
-    // Set up host key callbacks synchronously — they must be ready before
-    // any SSH connection is initiated (which can happen via deep links).
     _setupHostKeyCallbacks();
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(configProvider.notifier).load();
       ref.read(sessionProvider.notifier).load();
     });
