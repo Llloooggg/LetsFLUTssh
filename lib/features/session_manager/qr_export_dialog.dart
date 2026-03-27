@@ -60,6 +60,12 @@ class _QrExportDialogState extends State<QrExportDialog> {
     }).toSet();
   }
 
+  bool? get _tristateValue {
+    if (_allSelected) return true;
+    if (_selectedIds.isEmpty) return false;
+    return null;
+  }
+
   int get _payloadSize => _selectedSessions.isEmpty
       ? 0
       : calculateQrPayloadSize(
@@ -191,7 +197,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
               child: Row(
                 children: [
                   Checkbox(
-                    value: _allSelected ? true : (_selectedIds.isEmpty ? false : null),
+                    value: _tristateValue,
                     tristate: true,
                     onChanged: (v) => _toggleAll(v == true),
                   ),

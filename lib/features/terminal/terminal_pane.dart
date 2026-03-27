@@ -157,11 +157,14 @@ class TerminalPaneState extends State<TerminalPane> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final border = widget.hasMultiplePanes
-        ? (widget.isFocused
-            ? Border.all(color: theme.colorScheme.primary, width: 1.5)
-            : Border.all(color: theme.dividerColor, width: 0.5))
-        : null;
+    final Border? border;
+    if (!widget.hasMultiplePanes) {
+      border = null;
+    } else if (widget.isFocused) {
+      border = Border.all(color: theme.colorScheme.primary, width: 1.5);
+    } else {
+      border = Border.all(color: theme.dividerColor, width: 0.5);
+    }
 
     return GestureDetector(
       onTap: widget.onFocused,

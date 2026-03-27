@@ -327,35 +327,99 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     );
   }
 
+  void _onSessionTap(Session session) {
+    if (widget.selectMode) {
+      widget.onToggleSelected?.call(session.id);
+      return;
+    }
+    setState(() => _selectedSessionId = session.id);
+    if (_mobile) {
+      widget.onSessionDoubleTap?.call(session);
+    } else {
+      widget.onSessionTap?.call(session);
+    }
+  }
+
+  List<Widget> _buildSessionRowChildren(
+    SessionTreeNode node,
+    Session session,
+    int depth,
+    bool isChecked,
+    ThemeData theme,
+  ) {
+    return [
+      if (widget.selectMode)
+        SizedBox(
+          width: 36,
+          child: Checkbox(
+            value: isChecked,
+            onChanged: (_) => widget.onToggleSelected?.call(session.id),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        )
+      else
+        _buildIndentGuides(depth, theme),
+      if (!widget.selectMode) const SizedBox(width: 4),
+      Icon(
+        _authIcon(session.authType),
+        size: _authIconSize,
+        color: session.incomplete
+            ? AppTheme.connectingColor(theme.brightness)
+            : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+      ),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          node.name,
+          style: TextStyle(
+            fontSize: _fontSize,
+            color: session.incomplete
+                ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
+                : null,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      if (session.incomplete)
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Tooltip(
+            message: 'Credentials not set',
+            child: Icon(
+              Icons.warning_amber,
+              size: _authIconSize,
+              color: AppTheme.connectingColor(theme.brightness),
+            ),
+          ),
+        ),
+      Text(
+        '${session.host}:${session.port}',
+        style: TextStyle(
+          fontSize: _subFontSize,
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+        ),
+      ),
+    ];
+  }
+
   Widget _buildSessionTile(SessionTreeNode node, int depth) {
     final session = node.session!;
     final isSelected = session.id == _selectedSessionId;
     final isChecked = widget.selectedIds.contains(session.id);
     final theme = Theme.of(context);
+    final canInteract = !_mobile && !widget.selectMode;
 
     final Widget content = GestureDetector(
-      // Desktop: double-tap to connect, right-click for context menu
-      onDoubleTap: (_mobile || widget.selectMode) ? null : () => widget.onSessionDoubleTap?.call(session),
-      onSecondaryTapUp: widget.selectMode ? null : (details) {
-        widget.onSessionContextMenu?.call(session, details.globalPosition);
-      },
-      // Mobile: long-press for context menu
+      onDoubleTap: canInteract ? () => widget.onSessionDoubleTap?.call(session) : null,
+      onSecondaryTapUp: canInteract
+          ? (details) => widget.onSessionContextMenu?.call(session, details.globalPosition)
+          : null,
       onLongPressStart: (_mobile && !widget.selectMode)
           ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
           : null,
       child: InkWell(
-        onTap: () {
-          if (widget.selectMode) {
-            widget.onToggleSelected?.call(session.id);
-            return;
-          }
-          setState(() => _selectedSessionId = session.id);
-          if (_mobile) {
-            widget.onSessionDoubleTap?.call(session);
-          } else {
-            widget.onSessionTap?.call(session);
-          }
-        },
+        onTap: () => _onSessionTap(session),
         child: Container(
           height: _rowHeight,
           padding: const EdgeInsets.only(right: 8),
@@ -363,60 +427,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
               ? theme.colorScheme.primary.withValues(alpha: 0.15)
               : null,
           child: Row(
-            children: [
-              if (widget.selectMode)
-                SizedBox(
-                  width: 36,
-                  child: Checkbox(
-                    value: isChecked,
-                    onChanged: (_) => widget.onToggleSelected?.call(session.id),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                )
-              else
-                _buildIndentGuides(depth, theme),
-              if (!widget.selectMode) const SizedBox(width: 4),
-              Icon(
-                _authIcon(session.authType),
-                size: _authIconSize,
-                color: session.incomplete
-                    ? AppTheme.connectingColor(theme.brightness)
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  node.name,
-                  style: TextStyle(
-                    fontSize: _fontSize,
-                    color: session.incomplete
-                        ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
-                        : null,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (session.incomplete)
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Tooltip(
-                    message: 'Credentials not set',
-                    child: Icon(
-                      Icons.warning_amber,
-                      size: _authIconSize,
-                      color: AppTheme.connectingColor(theme.brightness),
-                    ),
-                  ),
-                ),
-              Text(
-                '${session.host}:${session.port}',
-                style: TextStyle(
-                  fontSize: _subFontSize,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
-                ),
-              ),
-            ],
+            children: _buildSessionRowChildren(node, session, depth, isChecked, theme),
           ),
         ),
       ),

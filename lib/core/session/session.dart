@@ -101,11 +101,14 @@ class Session {
 
   /// Convert to SSHConfig for connecting.
   SSHConfig toSSHConfig() {
-    final expandedKeyPath = keyPath == '~'
-        ? homeDirectory
-        : keyPath.startsWith('~/')
-            ? '$homeDirectory${keyPath.substring(1)}'
-            : keyPath;
+    final String expandedKeyPath;
+    if (keyPath == '~') {
+      expandedKeyPath = homeDirectory;
+    } else if (keyPath.startsWith('~/')) {
+      expandedKeyPath = '$homeDirectory${keyPath.substring(1)}';
+    } else {
+      expandedKeyPath = keyPath;
+    }
     return SSHConfig(
       server: server,
       auth: SshAuth(
