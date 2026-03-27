@@ -1,4 +1,4 @@
-name: CI
+name: CI & Quality
 
 on:
   workflow_dispatch:

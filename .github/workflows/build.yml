@@ -33,9 +33,24 @@ jobs:
           SHA="${{ github.sha }}"
           REPO="${{ github.repository }}"
           MAX_ATTEMPTS=30  # 30 × 20s = 10 min max wait
+          GRACE_ATTEMPTS=3 # wait 60s for CI to appear before declaring it missing
           echo "Checking CI status for commit ${SHA}..."
 
           for i in $(seq 1 $MAX_ATTEMPTS); do
+            # Check if the check-run exists at all (any status, including in-progress)
+            CHECK_EXISTS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
+              --jq '[.check_runs[] | select(.name == "analyze-and-test" and (.app.slug == "github-actions"))] | length')
+
+            if [ "$CHECK_EXISTS" = "0" ]; then
+              if [ "$i" -ge "$GRACE_ATTEMPTS" ]; then
+                echo "::error::CI (analyze-and-test) was never triggered for commit ${SHA}. This usually means the tag points to a commit that didn't change code paths covered by CI."
+                exit 1
+              fi
+              echo "CI not found yet — waiting 20s (grace ${i}/${GRACE_ATTEMPTS})..."
+              sleep 20
+              continue
+            fi
+
             STATUS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
               --jq '.check_runs[] | select(.name == "analyze-and-test" and (.app.slug == "github-actions")) | .conclusion' \
               | head -1)
@@ -48,9 +63,9 @@ jobs:
               exit 1
             fi
 
-            # CI not found or still running — wait and retry
+            # CI exists but still running — wait and retry
             if [ "$i" -lt "$MAX_ATTEMPTS" ]; then
-              echo "CI status: '${STATUS:-pending}' — waiting 20s (attempt ${i}/${MAX_ATTEMPTS})..."
+              echo "CI status: in_progress — waiting 20s (attempt ${i}/${MAX_ATTEMPTS})..."
               sleep 20
             fi
           done
