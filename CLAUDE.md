@@ -214,7 +214,7 @@ LetsFLUTssh/
 | **Export/Import** | `.lfs` archive (ZIP + AES-256-GCM), merge/replace modes, auto-migration from plaintext                                                                                                    |
 | **Mobile**        | Bottom nav, SSH virtual keyboard (sticky modifiers applied to system keyboard too), pinch-to-zoom, single-pane SFTP, deep links, file open intents                                        |
 | **UI**            | OneDark/One Light themes, responsive layout (sidebar→drawer <600px), toast notifications, no animations                                                                                   |
-| **CI/CD**         | `ci.yml`: analyze + test + SonarCloud + outdated deps + commit-lint. `build.yml`: preflight CI wait, build provenance, packaging (AppImage/deb, EXE/zip, dmg, per-ABI APK). CodeQL weekly |
+| **CI/CD**         | `ci.yml`: analyze + test + SonarCloud (separate job) + outdated deps + commit-lint. `build.yml`: preflight waits for CI + OSV-Scanner, build provenance, packaging (AppImage/deb, EXE/zip, dmg, per-ABI APK). `osv-scanner.yml`: dependency CVE scan (on pubspec change + weekly). `scorecard.yml`: OpenSSF Scorecard (on push + weekly). CodeQL weekly (Actions workflows) |
 
 ### Decisions and Why
 

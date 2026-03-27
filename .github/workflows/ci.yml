@@ -1,4 +1,4 @@
-name: CI & Quality
+name: CI
 
 on:
   workflow_dispatch:
@@ -64,6 +64,30 @@ jobs:
 
       - name: Check outdated dependencies
         run: dart pub outdated
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          retention-days: 1
+
+  sonarcloud:
+    name: SonarCloud
+    needs: analyze-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: coverage
 
       - name: SonarCloud scan
         if: env.SONAR_TOKEN != ''

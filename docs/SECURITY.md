@@ -41,7 +41,15 @@ The following areas are in scope:
 - SFTP recursion depth limit (100 levels) — prevents stack overflow on malicious paths
 - Error message sanitization (file paths stripped from user-facing errors)
 
-Out of scope:
+### Automated Security Checks
+
+- **OSV-Scanner** — scans `pubspec.lock` against the [OSV.dev](https://osv.dev) vulnerability database on every dependency change and weekly. Results appear in the GitHub Security tab. Build releases are blocked if known CVEs are found
+- **OpenSSF Scorecard** — evaluates repository security practices (branch protection, dependency pinning, CI hardening). Results published at [scorecard.dev](https://scorecard.dev/viewer/?uri=github.com/Llloooggg/LetsFLUTssh)
+- **CodeQL** — static analysis of GitHub Actions workflows (weekly)
+- **SonarCloud** — code quality, coverage, and security hotspot analysis on every CI run
+- **Dependency Review** — checks new dependencies for known vulnerabilities on pull requests
+
+### Out of scope
 
 - Vulnerabilities in upstream dependencies (`dartssh2`, `pointycastle`, `xterm`) — please report those to their maintainers directly
 - Denial of service via local access

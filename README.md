@@ -4,8 +4,10 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-blue)](https://github.com/Llloooggg/LetsFLUTssh)
 [![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](LICENSE)
 
-[![CI & Quality](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml)
+[![CI](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml)
 [![Build](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml)<br>
+[![OSV-Scanner](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv-scanner.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv-scanner.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Llloooggg/LetsFLUTssh/badge)](https://scorecard.dev/viewer/?uri=github.com/Llloooggg/LetsFLUTssh)<br>
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)

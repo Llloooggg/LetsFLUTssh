@@ -26,61 +26,69 @@ jobs:
     outputs:
       version: ${{ steps.get.outputs.version }}
     steps:
-      - name: Wait for CI to pass on this commit
+      - name: Wait for CI and OSV-Scanner to pass
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           SHA="${{ github.sha }}"
           REPO="${{ github.repository }}"
+          IS_MANUAL="${{ github.event_name == 'workflow_dispatch' }}"
           MAX_ATTEMPTS=30  # 30 × 20s = 10 min max wait
-          GRACE_ATTEMPTS=6 # wait 120s for CI to appear (tag may arrive before CI starts)
-          echo "Checking CI status for commit ${SHA}..."
+          GRACE_ATTEMPTS=6 # wait 120s for checks to appear (tag may arrive before CI starts)
 
-          for i in $(seq 1 $MAX_ATTEMPTS); do
-            # Check if the check-run exists at all (any status, including in-progress)
-            CHECK_EXISTS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
-              --jq '[.check_runs[] | select(.name == "analyze-and-test" and (.app.slug == "github-actions"))] | length')
+          wait_for_check() {
+            local CHECK_NAME="$1"
+            local LABEL="$2"
+            echo "Checking ${LABEL} status for commit ${SHA}..."
 
-            if [ "$CHECK_EXISTS" = "0" ]; then
-              if [ "$i" -ge "$GRACE_ATTEMPTS" ]; then
-                if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-                  echo "::warning::CI (analyze-and-test) was never triggered for commit ${SHA} — proceeding anyway (manual dispatch)."
-                  exit 0
+            for i in $(seq 1 $MAX_ATTEMPTS); do
+              CHECK_EXISTS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
+                --jq "[.check_runs[] | select(.name == \"${CHECK_NAME}\" and (.app.slug == \"github-actions\"))] | length")
+
+              if [ "$CHECK_EXISTS" = "0" ]; then
+                if [ "$i" -ge "$GRACE_ATTEMPTS" ]; then
+                  if [ "$IS_MANUAL" = "true" ]; then
+                    echo "::warning::${LABEL} was never triggered for commit ${SHA} — proceeding anyway (manual dispatch)."
+                    return 0
+                  fi
+                  echo "::error::${LABEL} was never triggered for commit ${SHA}. This usually means the tag points to a commit that didn't change code paths covered by CI."
+                  return 1
                 fi
-                echo "::error::CI (analyze-and-test) was never triggered for commit ${SHA}. This usually means the tag points to a commit that didn't change code paths covered by CI."
-                exit 1
+                echo "${LABEL} not found yet — waiting 20s (grace ${i}/${GRACE_ATTEMPTS})..."
+                sleep 20
+                continue
               fi
-              echo "CI not found yet — waiting 20s (grace ${i}/${GRACE_ATTEMPTS})..."
-              sleep 20
-              continue
+
+              STATUS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
+                --jq ".check_runs[] | select(.name == \"${CHECK_NAME}\" and (.app.slug == \"github-actions\")) | .conclusion" \
+                | head -1)
+
+              if [ "$STATUS" = "success" ]; then
+                echo "${LABEL} passed ✓"
+                return 0
+              elif [ "$STATUS" = "failure" ] || [ "$STATUS" = "cancelled" ]; then
+                echo "::error::${LABEL} failed on this commit (status: '${STATUS}'). Fix before releasing."
+                return 1
+              fi
+
+              if [ "$i" -lt "$MAX_ATTEMPTS" ]; then
+                echo "${LABEL} status: in_progress — waiting 20s (attempt ${i}/${MAX_ATTEMPTS})..."
+                sleep 20
+              fi
+            done
+
+            # Timed out
+            if [ "$IS_MANUAL" = "true" ]; then
+              echo "::warning::${LABEL} did not complete in time — proceeding anyway (manual dispatch)"
+              return 0
+            else
+              echo "::error::${LABEL} did not complete within 10 minutes. Check status manually."
+              return 1
             fi
+          }
 
-            STATUS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
-              --jq '.check_runs[] | select(.name == "analyze-and-test" and (.app.slug == "github-actions")) | .conclusion' \
-              | head -1)
-
-            if [ "$STATUS" = "success" ]; then
-              echo "CI passed ✓"
-              exit 0
-            elif [ "$STATUS" = "failure" ] || [ "$STATUS" = "cancelled" ]; then
-              echo "::error::CI failed on this commit (status: '${STATUS}'). Fix CI before releasing."
-              exit 1
-            fi
-
-            # CI exists but still running — wait and retry
-            if [ "$i" -lt "$MAX_ATTEMPTS" ]; then
-              echo "CI status: in_progress — waiting 20s (attempt ${i}/${MAX_ATTEMPTS})..."
-              sleep 20
-            fi
-          done
-
-          # Timed out
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "::warning::CI did not complete in time — proceeding anyway (manual dispatch)"
-          else
-            echo "::error::CI did not complete within 10 minutes. Check CI status manually."
-            exit 1
-          fi
+          wait_for_check "analyze-and-test" "CI"
+          wait_for_check "scan" "OSV-Scanner"
 
       - uses: actions/checkout@v6
         with:

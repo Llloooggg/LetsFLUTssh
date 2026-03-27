@@ -1,0 +1,39 @@
+name: OSV-Scanner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pubspec.*'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pubspec.*'
+  schedule:
+    - cron: '0 6 * * 1' # weekly Monday 06:00 UTC
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run OSV-Scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v2
+        with:
+          scan-args: |-
+            --lockfile=pubspec.lock
+            --format=sarif
+            --output=results.sarif
+
+      - name: Upload SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
