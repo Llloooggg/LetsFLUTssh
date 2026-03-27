@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,6 +68,17 @@ class _PrePopulatedSessionNotifier extends SessionNotifier {
     super.build();
     state = _initialSessions;
     return state;
+  }
+}
+
+/// A SessionNotifier that stores in-memory only (no disk I/O).
+class _InMemorySessionNotifier extends SessionNotifier {
+  @override
+  List<Session> build() => [];
+
+  @override
+  Future<void> add(Session session) async {
+    state = [...state, session];
   }
 }
 
@@ -764,6 +776,142 @@ void main() {
 
       // Double-tap triggers connect + nav switch — tab is added even if disconnected
       await doubleTapSession(tester, 'Fail Server');
+    });
+
+    testWidgets('SFTP connect via context menu navigates to Files page',
+        (tester) async {
+      final session = Session(
+        id: 'sess-sftp',
+        label: 'SFTP Target',
+        server: const ServerAddress(host: 'sftp.example.com', user: 'admin'),
+      );
+      await tester.pumpWidget(buildWithSession(
+        session: session,
+        manager: _SuccessConnectionManager(),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('SFTP Target'), findsOneWidget);
+
+      // Right-click (secondary tap) on the session to open context menu
+      await tester.tap(
+        find.text('SFTP Target'),
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pumpAndSettle();
+
+      // Tap 'SFTP' in the context menu
+      expect(find.text('SFTP'), findsOneWidget);
+      await tester.tap(find.text('SFTP'));
+      await tester.pumpAndSettle();
+
+      // Should navigate to Files page (index 2) after _connectSessionSftp
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(navBar.selectedIndex, equals(2));
+    });
+
+    testWidgets('FAB opens New Session dialog', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Tap the FAB
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      // New Session dialog should appear
+      expect(find.text('New Session'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+    });
+
+    testWidgets('FAB new session — Connect Only navigates to Terminal',
+        (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Tap the FAB to open dialog
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      // Fill in required fields (Host and Username)
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Host *'),
+        'quick.example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Username *'),
+        'quickuser',
+      );
+      await tester.pumpAndSettle();
+
+      // Tap "Connect" button (ConnectOnlyResult path)
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      // Should navigate to Terminal page (index 1) via _newSession ConnectOnlyResult
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(navBar.selectedIndex, equals(1));
+    });
+
+    testWidgets('FAB new session — Save & Connect saves and navigates to Terminal',
+        (tester) async {
+      // Use in-memory session notifier to avoid disk I/O in SessionStore.add()
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(_InMemorySessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap the FAB to open dialog
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      // Fill in required fields
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Host *'),
+        'save.example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Username *'),
+        'saveuser',
+      );
+      await tester.pumpAndSettle();
+
+      // Tap "Save & Connect" button (SaveResult with connect=true path)
+      await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+
+      // Should navigate to Terminal page (index 1) via _newSession SaveResult
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(navBar.selectedIndex, equals(1));
+    });
+
+    testWidgets('FAB new session — Cancel does not navigate', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Tap the FAB to open dialog
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      // Tap "Cancel"
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Should still be on Sessions page (index 0)
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(navBar.selectedIndex, equals(0));
     });
 
     testWidgets('badge shows terminal tab count', (tester) async {

@@ -408,4 +408,258 @@ void main() {
       expect(find.text('nginx1'), findsOneWidget);
     });
   });
+
+  group('SessionTreeView — context menus', () {
+    testWidgets('right-click on session triggers onSessionContextMenu',
+        (tester) async {
+      Session? contextSession;
+      Offset? contextPos;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              onSessionContextMenu: (session, pos) {
+                contextSession = session;
+                contextPos = pos;
+              },
+            ),
+          ),
+        ),
+      ));
+
+      final stagingFinder = find.text('staging');
+      expect(stagingFinder, findsOneWidget);
+
+      final center = tester.getCenter(stagingFinder);
+      final gesture = await tester.startGesture(center, buttons: 2);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(contextSession?.label, 'staging');
+      expect(contextPos, isNotNull);
+    });
+
+    testWidgets('right-click on group triggers onGroupContextMenu',
+        (tester) async {
+      String? contextGroup;
+      Offset? contextPos;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              onGroupContextMenu: (group, pos) {
+                contextGroup = group;
+                contextPos = pos;
+              },
+            ),
+          ),
+        ),
+      ));
+
+      final webFinder = find.text('Web');
+      expect(webFinder, findsOneWidget);
+
+      final center = tester.getCenter(webFinder);
+      final gesture = await tester.startGesture(center, buttons: 2);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(contextGroup, 'Production/Web');
+      expect(contextPos, isNotNull);
+    });
+
+    testWidgets('right-click on background triggers onBackgroundContextMenu',
+        (tester) async {
+      Offset? contextPos;
+
+      final singleSession = [
+        Session(
+          id: '1',
+          label: 'only',
+          group: '',
+          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+      ];
+      final singleTree = SessionTree.build(singleSession);
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: singleTree,
+              onBackgroundContextMenu: (pos) {
+                contextPos = pos;
+              },
+            ),
+          ),
+        ),
+      ));
+
+      // Right-click on the GestureDetector wrapping the list
+      final treeViewFinder = find.byType(SessionTreeView);
+      final center = tester.getCenter(treeViewFinder);
+      final bottomArea = Offset(center.dx, center.dy + 200);
+      final gesture = await tester.startGesture(bottomArea, buttons: 2);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(contextPos, isNotNull);
+    });
+  });
+
+  group('SessionTreeView — drag and drop', () {
+    testWidgets('drag session to different group calls onSessionMoved',
+        (tester) async {
+      String? movedSessionId;
+      String? targetGroup;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              onSessionMoved: (sessionId, target) {
+                movedSessionId = sessionId;
+                targetGroup = target;
+              },
+            ),
+          ),
+        ),
+      ));
+
+      final nginx1Finder = find.text('nginx1');
+      final dbFinder = find.text('DB');
+      expect(nginx1Finder, findsOneWidget);
+      expect(dbFinder, findsOneWidget);
+
+      final nginx1Center = tester.getCenter(nginx1Finder);
+      final dbCenter = tester.getCenter(dbFinder);
+
+      // LongPressDraggable requires a long press to initiate drag
+      final gesture = await tester.startGesture(nginx1Center);
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.moveTo(dbCenter);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(movedSessionId, '1');
+      expect(targetGroup, 'Production/DB');
+    });
+
+    testWidgets('drag session to root calls onSessionMoved with empty group',
+        (tester) async {
+      String? movedSessionId;
+      String? targetGroup;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              onSessionMoved: (sessionId, target) {
+                movedSessionId = sessionId;
+                targetGroup = target;
+              },
+            ),
+          ),
+        ),
+      ));
+
+      final nginx1Finder = find.text('nginx1');
+      expect(nginx1Finder, findsOneWidget);
+
+      final nginx1Center = tester.getCenter(nginx1Finder);
+
+      final gesture = await tester.startGesture(nginx1Center);
+      await tester.pump(const Duration(milliseconds: 600));
+      // Move to empty area below all items (root DragTarget)
+      final treeViewFinder = find.byType(SessionTreeView);
+      final treeCenter = tester.getCenter(treeViewFinder);
+      final emptyArea = Offset(treeCenter.dx, treeCenter.dy + 250);
+      await gesture.moveTo(emptyArea);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(movedSessionId, '1');
+      expect(targetGroup, '');
+    });
+
+    testWidgets('drag group to different group calls onGroupMoved',
+        (tester) async {
+      String? movedGroup;
+      String? targetParent;
+
+      final twoGroupSessions = [
+        Session(
+          id: '1',
+          label: 'srv1',
+          group: 'GroupA',
+          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+        Session(
+          id: '2',
+          label: 'srv2',
+          group: 'GroupB',
+          server: const ServerAddress(host: '10.0.0.2', user: 'root'),
+        ),
+      ];
+      final twoGroupTree = SessionTree.build(twoGroupSessions);
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: twoGroupTree,
+              onGroupMoved: (group, target) {
+                movedGroup = group;
+                targetParent = target;
+              },
+            ),
+          ),
+        ),
+      ));
+
+      final groupAFinder = find.text('GroupA');
+      final groupBFinder = find.text('GroupB');
+      expect(groupAFinder, findsOneWidget);
+      expect(groupBFinder, findsOneWidget);
+
+      final groupACenter = tester.getCenter(groupAFinder);
+      final groupBCenter = tester.getCenter(groupBFinder);
+
+      final gesture = await tester.startGesture(groupACenter);
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.moveTo(groupBCenter);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(movedGroup, 'GroupA');
+      expect(targetParent, 'GroupB');
+    });
+  });
 }

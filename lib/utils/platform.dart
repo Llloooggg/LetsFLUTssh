@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 /// Returns the user's home directory path.
 /// Desktop: HOME (Linux/macOS) or USERPROFILE (Windows).
 /// Android: EXTERNAL_STORAGE or /storage/emulated/0 (shared internal storage).
@@ -13,8 +15,13 @@ String get homeDirectory {
       '';
 }
 
+/// Override for testing — when non-null, [isMobilePlatform] returns this value.
+@visibleForTesting
+bool? debugMobilePlatformOverride;
+
 /// True on Android or iOS.
-bool get isMobilePlatform => Platform.isAndroid || Platform.isIOS;
+bool get isMobilePlatform =>
+    debugMobilePlatformOverride ?? (Platform.isAndroid || Platform.isIOS);
 
 /// True on Linux, macOS, or Windows.
 bool get isDesktopPlatform => Platform.isLinux || Platform.isMacOS || Platform.isWindows;

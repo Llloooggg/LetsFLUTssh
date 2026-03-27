@@ -10,6 +10,7 @@ import 'package:letsflutssh/features/session_manager/session_panel.dart';
 import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/utils/platform.dart';
 
 /// A SessionNotifier subclass that starts with pre-populated sessions.
 class _PrePopulatedSessionNotifier extends SessionNotifier {
@@ -1890,6 +1891,267 @@ void main() {
 
       // The panel should still render without error
       expect(find.byType(SessionPanel), findsOneWidget);
+    });
+  });
+
+  group('SessionPanel — Move to... menu item (mobile)', () {
+    setUp(() {
+      debugMobilePlatformOverride = true;
+    });
+
+    tearDown(() {
+      debugMobilePlatformOverride = null;
+    });
+
+    testWidgets('Move to... item appears in context menu on mobile',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on staging session
+      final sessionText = find.text('staging');
+      final center = tester.getCenter(sessionText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Move to... item should appear on mobile
+      expect(find.text('Move to...'), findsOneWidget);
+    });
+
+    testWidgets('Move to... opens move dialog with groups',
+        (tester) async {
+      await tester.pumpWidget(buildApp(
+        onSftpConnect: (_) {},
+        emptyGroups: {'Archive'},
+      ));
+      await tester.pumpAndSettle();
+
+      // Right-click on web1 session (in Production group)
+      final sessionText = find.text('web1');
+      final center = tester.getCenter(sessionText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Tap Move to...
+      await tester.tap(find.text('Move to...'));
+      await tester.pumpAndSettle();
+
+      // Move dialog should appear
+      expect(find.text('Move to Folder'), findsOneWidget);
+      // Should show root option
+      expect(find.text('/ (root)'), findsOneWidget);
+      // Should show Production group (in tree + in dialog)
+      expect(find.text('Production'), findsWidgets);
+      // Should show Archive (empty group) — may appear in tree and dialog
+      expect(find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Archive'),
+      ), findsOneWidget);
+      // Should show Cancel button
+      expect(find.text('Cancel'), findsOneWidget);
+    });
+
+    testWidgets('Move dialog current group tile has check icon and bold text',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on web1 (in Production group)
+      final sessionText = find.text('web1');
+      final center = tester.getCenter(sessionText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Move to...'));
+      await tester.pumpAndSettle();
+
+      // Current group (Production) should have a check icon
+      expect(find.byIcon(Icons.check), findsOneWidget);
+
+      // Root has home icon
+      expect(find.byIcon(Icons.home), findsOneWidget);
+      // Non-root groups have folder icons
+      expect(find.byIcon(Icons.folder), findsWidgets);
+    });
+
+    testWidgets('Move dialog — tapping current group does nothing (disabled)',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on web1 (in Production group)
+      final sessionText = find.text('web1');
+      final center = tester.getCenter(sessionText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Move to...'));
+      await tester.pumpAndSettle();
+
+      // Tap the current group (Production) in the dialog — should be disabled
+      // Find Production inside the dialog (there are multiple 'Production' texts)
+      final dialogProductionTiles = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Production'),
+      );
+      expect(dialogProductionTiles, findsOneWidget);
+      await tester.tap(dialogProductionTiles);
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open (tap on disabled tile is no-op)
+      expect(find.text('Move to Folder'), findsOneWidget);
+    });
+
+    testWidgets('Move dialog — selecting different group moves session',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on web1 (in Production group)
+      final sessionText = find.text('web1');
+      final center = tester.getCenter(sessionText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Move to...'));
+      await tester.pumpAndSettle();
+
+      // Tap "/ (root)" to move session to root
+      await tester.tap(find.text('/ (root)'));
+      await tester.pumpAndSettle();
+
+      // Dialog should close after selection
+      expect(find.text('Move to Folder'), findsNothing);
+    });
+
+    testWidgets('Move dialog — Cancel dismisses without moving',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on web1
+      final sessionText = find.text('web1');
+      final center = tester.getCenter(sessionText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Move to...'));
+      await tester.pumpAndSettle();
+
+      // Tap Cancel
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Dialog should close
+      expect(find.text('Move to Folder'), findsNothing);
+    });
+
+    testWidgets('Move dialog — root session shows root as current group',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on staging (root group, group == '')
+      final sessionText = find.text('staging');
+      final center = tester.getCenter(sessionText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Move to...'));
+      await tester.pumpAndSettle();
+
+      // Root should be current group (has check icon), since staging.group == ''
+      expect(find.byIcon(Icons.check), findsOneWidget);
+
+      // Tapping root should be disabled (current group)
+      await tester.tap(find.text('/ (root)'));
+      await tester.pumpAndSettle();
+
+      // Dialog should still be open
+      expect(find.text('Move to Folder'), findsOneWidget);
+
+      // Tapping a different group should close dialog
+      final dialogProduction = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Production'),
+      );
+      await tester.tap(dialogProduction);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Move to Folder'), findsNothing);
+    });
+
+    testWidgets('Move dialog shows Production/DB as selectable group',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click on staging (root group)
+      final sessionText = find.text('staging');
+      final center = tester.getCenter(sessionText);
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.addPointer(location: center);
+      await gesture.down(center);
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Move to...'));
+      await tester.pumpAndSettle();
+
+      // Should show Production/DB as a selectable group
+      expect(find.text('Production/DB'), findsOneWidget);
+
+      // Tap Production/DB to move there
+      await tester.tap(find.text('Production/DB'));
+      await tester.pumpAndSettle();
+
+      // Dialog should close
+      expect(find.text('Move to Folder'), findsNothing);
     });
   });
 }
