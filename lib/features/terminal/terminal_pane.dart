@@ -8,6 +8,7 @@ import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
+import '../../utils/terminal_clipboard.dart';
 import '../../widgets/error_state.dart';
 import '../../utils/platform.dart' as plat;
 
@@ -274,20 +275,11 @@ class TerminalPaneState extends State<TerminalPane> {
     return KeyEventResult.ignored;
   }
 
-  void _copySelection() {
-    final selection = _terminalController.selection;
-    if (selection == null) return;
-    final text = _terminal.buffer.getText(selection);
-    Clipboard.setData(ClipboardData(text: text));
-    _terminalController.clearSelection();
-  }
+  void _copySelection() =>
+      TerminalClipboard.copy(_terminal, _terminalController);
 
-  Future<void> _pasteClipboard() async {
-    final data = await Clipboard.getData('text/plain');
-    if (data?.text != null && data!.text!.isNotEmpty) {
-      _terminal.textInput(data.text!);
-    }
-  }
+  Future<void> _pasteClipboard() =>
+      TerminalClipboard.paste(_terminal);
 
   Widget _buildErrorState() {
     return ErrorState(message: _error!);

@@ -1,13 +1,15 @@
 import 'dart:async';
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
+import '../../utils/terminal_clipboard.dart';
 import 'ssh_keyboard_bar.dart';
 
 /// Full-screen mobile terminal with SSH keyboard bar.
@@ -152,17 +154,9 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
     ).then((action) {
       switch (action) {
         case 'copy':
-          final sel = _terminalController.selection;
-          if (sel != null) {
-            Clipboard.setData(ClipboardData(text: _terminal.buffer.getText(sel)));
-            _terminalController.clearSelection();
-          }
+          TerminalClipboard.copy(_terminal, _terminalController);
         case 'paste':
-          Clipboard.getData('text/plain').then((data) {
-            if (data?.text != null && data!.text!.isNotEmpty) {
-              _terminal.textInput(data.text!);
-            }
-          });
+          TerminalClipboard.paste(_terminal);
         default:
           break;
       }
