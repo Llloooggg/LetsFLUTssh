@@ -20,16 +20,25 @@ class ConfigNotifier extends Notifier<AppConfig> {
   ConfigStore get _store => ref.read(configStoreProvider);
 
   Future<void> load() async {
-    state = await _store.load();
-    // Sync logger enabled state with config
-    AppLogger.instance.setEnabled(state.enableLogging);
+    try {
+      state = await _store.load();
+      // Sync logger enabled state with config
+      AppLogger.instance.setEnabled(state.enableLogging);
+    } catch (e) {
+      AppLogger.instance.log('Failed to load config, using defaults', name: 'ConfigProvider', error: e);
+    }
   }
 
   Future<void> update(AppConfig Function(AppConfig) updater) async {
-    final updated = updater(state);
-    await _store.save(updated);
-    state = updated;
-    // Apply logging toggle immediately
-    AppLogger.instance.setEnabled(updated.enableLogging);
+    try {
+      final updated = updater(state);
+      await _store.save(updated);
+      state = updated;
+      // Apply logging toggle immediately
+      AppLogger.instance.setEnabled(updated.enableLogging);
+    } catch (e) {
+      AppLogger.instance.log('Failed to save config', name: 'ConfigProvider', error: e);
+      rethrow;
+    }
   }
 }

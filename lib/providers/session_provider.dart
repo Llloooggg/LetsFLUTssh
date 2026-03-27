@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../core/session/session.dart';
 import '../core/session/session_store.dart';
 import '../core/session/session_tree.dart';
+import '../utils/logger.dart';
 
 /// Global session store instance.
 final sessionStoreProvider = Provider<SessionStore>((ref) {
@@ -21,58 +22,112 @@ class SessionNotifier extends Notifier<List<Session>> {
   SessionStore get _store => ref.read(sessionStoreProvider);
 
   Future<void> load() async {
-    state = await _store.load();
+    try {
+      state = await _store.load();
+    } catch (e) {
+      AppLogger.instance.log('Failed to load sessions', name: 'SessionProvider', error: e);
+    }
   }
 
   Future<void> add(Session session) async {
-    await _store.add(session);
-    state = _store.sessions;
+    try {
+      await _store.add(session);
+      state = _store.sessions;
+    } catch (e) {
+      AppLogger.instance.log('Failed to add session', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 
   Future<void> update(Session session) async {
-    await _store.update(session);
-    state = _store.sessions;
+    try {
+      await _store.update(session);
+      state = _store.sessions;
+    } catch (e) {
+      AppLogger.instance.log('Failed to update session', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 
   Future<void> delete(String id) async {
-    await _store.delete(id);
-    state = _store.sessions;
+    try {
+      await _store.delete(id);
+      state = _store.sessions;
+    } catch (e) {
+      AppLogger.instance.log('Failed to delete session', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 
   Future<Session> duplicate(String id) async {
-    final copy = await _store.duplicateSession(id);
-    state = _store.sessions;
-    return copy;
+    try {
+      final copy = await _store.duplicateSession(id);
+      state = _store.sessions;
+      return copy;
+    } catch (e) {
+      AppLogger.instance.log('Failed to duplicate session', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 
   Future<void> addEmptyGroup(String groupPath) async {
-    await _store.addEmptyGroup(groupPath);
-    state = _store.sessions;
+    try {
+      await _store.addEmptyGroup(groupPath);
+      state = _store.sessions;
+    } catch (e) {
+      AppLogger.instance.log('Failed to add group', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 
   Future<void> renameGroup(String oldPath, String newPath) async {
-    await _store.renameGroup(oldPath, newPath);
-    state = _store.sessions;
+    try {
+      await _store.renameGroup(oldPath, newPath);
+      state = _store.sessions;
+    } catch (e) {
+      AppLogger.instance.log('Failed to rename group', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 
   Future<void> deleteGroup(String groupPath) async {
-    await _store.deleteGroup(groupPath);
-    state = _store.sessions;
+    try {
+      await _store.deleteGroup(groupPath);
+      state = _store.sessions;
+    } catch (e) {
+      AppLogger.instance.log('Failed to delete group', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 
   Future<void> deleteAll() async {
-    await _store.deleteAll();
-    state = _store.sessions;
+    try {
+      await _store.deleteAll();
+      state = _store.sessions;
+    } catch (e) {
+      AppLogger.instance.log('Failed to delete all sessions', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 
   Future<void> moveSession(String sessionId, String newGroup) async {
-    await _store.moveSession(sessionId, newGroup);
-    state = _store.sessions;
+    try {
+      await _store.moveSession(sessionId, newGroup);
+      state = _store.sessions;
+    } catch (e) {
+      AppLogger.instance.log('Failed to move session', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 
   Future<void> moveGroup(String groupPath, String newParent) async {
-    await _store.moveGroup(groupPath, newParent);
-    state = _store.sessions;
+    try {
+      await _store.moveGroup(groupPath, newParent);
+      state = _store.sessions;
+    } catch (e) {
+      AppLogger.instance.log('Failed to move group', name: 'SessionProvider', error: e);
+      rethrow;
+    }
   }
 }
 
