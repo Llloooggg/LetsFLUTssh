@@ -243,6 +243,38 @@ void main() {
     });
   });
 
+  group('SFTPService — recursion depth limit', () {
+    test('removeDir throws StateError when depth exceeds limit', () async {
+      // Create a chain: each dir contains one subdir, 101 levels deep
+      for (var i = 0; i <= SFTPService.maxRecursionDepth; i++) {
+        final path = '/deep${List.generate(i, (j) => '/d').join()}';
+        final childPath = '$path/d';
+        when(mockSftp.listdir(path)).thenAnswer((_) async => [
+              ..._dotEntries(),
+              SftpName(
+                filename: 'd',
+                longname: 'drwxr-xr-x 2 root root 4096 d',
+                attr: _dirAttrs(),
+              ),
+            ]);
+        // Last level — mock listdir for the deepest path too
+        if (i == SFTPService.maxRecursionDepth) {
+          when(mockSftp.listdir(childPath))
+              .thenAnswer((_) async => _dotEntries());
+        }
+      }
+
+      expect(
+        () => service.removeDir('/deep'),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('maxRecursionDepth is 100', () {
+      expect(SFTPService.maxRecursionDepth, 100);
+    });
+  });
+
   group('SFTPService.rename', () {
     test('delegates to sftp.rename', () async {
       await service.rename('/old/path', '/new/path');

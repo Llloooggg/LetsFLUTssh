@@ -10,6 +10,8 @@ import 'sftp_models.dart';
 
 /// SFTP service wrapper over dartssh2.
 class SFTPService {
+  static const maxRecursionDepth = 100;
+
   final SftpClient _sftp;
 
   SFTPService(this._sftp);
@@ -77,11 +79,16 @@ class SFTPService {
   }
 
   /// Remove directory recursively.
-  Future<void> removeDir(String path) async {
+  Future<void> removeDir(String path) => _removeDirRecursive(path, 0);
+
+  Future<void> _removeDirRecursive(String path, int depth) async {
+    if (depth >= maxRecursionDepth) {
+      throw StateError('Maximum recursion depth ($maxRecursionDepth) exceeded');
+    }
     final items = await list(path);
     for (final item in items) {
       if (item.isDir) {
-        await removeDir(item.path);
+        await _removeDirRecursive(item.path, depth + 1);
       } else {
         await remove(item.path);
       }
@@ -176,7 +183,7 @@ class SFTPService {
     final totalFiles = allFiles.whereType<File>().length;
     final counter = _Counter();
 
-    await _uploadDirRecursive(localDir, remoteDir, onProgress, totalFiles, counter);
+    await _uploadDirRecursive(localDir, remoteDir, onProgress, totalFiles, counter, 0);
   }
 
   Future<void> _uploadDirRecursive(
@@ -185,7 +192,11 @@ class SFTPService {
     void Function(TransferProgress)? onProgress,
     int totalFiles,
     _Counter counter,
+    int depth,
   ) async {
+    if (depth >= maxRecursionDepth) {
+      throw StateError('Maximum recursion depth ($maxRecursionDepth) exceeded');
+    }
     // Create remote directory
     try {
       await _sftp.mkdir(remoteDir);
@@ -200,7 +211,7 @@ class SFTPService {
       final remotePath = p.posix.join(remoteDir, name);
 
       if (entity is Directory) {
-        await _uploadDirRecursive(entity.path, remotePath, onProgress, totalFiles, counter);
+        await _uploadDirRecursive(entity.path, remotePath, onProgress, totalFiles, counter, depth + 1);
       } else if (entity is File) {
         await upload(entity.path, remotePath, null);
         counter.value++;
@@ -220,7 +231,17 @@ class SFTPService {
     String remoteDir,
     String localDir,
     void Function(TransferProgress)? onProgress,
+  ) => _downloadDirRecursive(remoteDir, localDir, onProgress, 0);
+
+  Future<void> _downloadDirRecursive(
+    String remoteDir,
+    String localDir,
+    void Function(TransferProgress)? onProgress,
+    int depth,
   ) async {
+    if (depth >= maxRecursionDepth) {
+      throw StateError('Maximum recursion depth ($maxRecursionDepth) exceeded');
+    }
     await Directory(localDir).create(recursive: true);
 
     final items = await list(remoteDir);
@@ -231,7 +252,7 @@ class SFTPService {
       final localPath = p.join(localDir, item.name);
 
       if (item.isDir) {
-        await downloadDir(item.path, localPath, onProgress);
+        await _downloadDirRecursive(item.path, localPath, onProgress, depth + 1);
       } else {
         await download(item.path, localPath, null);
         filesDone++;
