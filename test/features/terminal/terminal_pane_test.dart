@@ -408,7 +408,7 @@ void main() {
       expect(find.textContaining('Shell factory error'), findsOneWidget);
     });
 
-    testWidgets('focused pane has primary border color', (tester) async {
+    testWidgets('focused pane has primary border color when hasMultiplePanes', (tester) async {
       final conn = _testConnection(id: 'sf-border-f');
 
       await tester.pumpWidget(
@@ -418,6 +418,7 @@ void main() {
             body: TerminalPane(
               connection: conn,
               isFocused: true,
+              hasMultiplePanes: true,
               shellFactory: _successShellFactory,
             ),
           ),
@@ -436,7 +437,7 @@ void main() {
       expect(border.top.width, 1.5);
     });
 
-    testWidgets('unfocused pane has divider border color', (tester) async {
+    testWidgets('unfocused pane has divider border color when hasMultiplePanes', (tester) async {
       final conn = _testConnection(id: 'sf-border-u');
 
       await tester.pumpWidget(
@@ -446,6 +447,7 @@ void main() {
             body: TerminalPane(
               connection: conn,
               isFocused: false,
+              hasMultiplePanes: true,
               shellFactory: _successShellFactory,
             ),
           ),
@@ -460,6 +462,31 @@ void main() {
       final boxDeco = container.decoration as BoxDecoration;
       final border = boxDeco.border as Border;
       expect(border.top.width, 0.5);
+    });
+
+    testWidgets('single pane (hasMultiplePanes=false) has no border', (tester) async {
+      final conn = _testConnection(id: 'sf-border-none');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              hasMultiplePanes: false,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final containers = tester.widgetList<Container>(find.byType(Container)).where((c) {
+        final deco = c.decoration;
+        return deco is BoxDecoration && deco.border != null;
+      });
+      expect(containers, isEmpty);
     });
   });
 

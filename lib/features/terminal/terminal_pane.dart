@@ -25,6 +25,10 @@ typedef ShellOpenFactory = Future<ShellConnection> Function({
 class TerminalPane extends StatefulWidget {
   final Connection connection;
   final bool isFocused;
+
+  /// Whether there are multiple panes in the tiling layout.
+  /// Focus border is only shown when this is true.
+  final bool hasMultiplePanes;
   final VoidCallback? onFocused;
   final VoidCallback? onSplitVertical;
   final VoidCallback? onSplitHorizontal;
@@ -37,6 +41,7 @@ class TerminalPane extends StatefulWidget {
     super.key,
     required this.connection,
     this.isFocused = false,
+    this.hasMultiplePanes = false,
     this.onFocused,
     this.onSplitVertical,
     this.onSplitHorizontal,
@@ -152,14 +157,16 @@ class TerminalPaneState extends State<TerminalPane> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final border = widget.isFocused
-        ? Border.all(color: theme.colorScheme.primary, width: 1.5)
-        : Border.all(color: theme.dividerColor, width: 0.5);
+    final border = widget.hasMultiplePanes
+        ? (widget.isFocused
+            ? Border.all(color: theme.colorScheme.primary, width: 1.5)
+            : Border.all(color: theme.dividerColor, width: 0.5))
+        : null;
 
     return GestureDetector(
       onTap: widget.onFocused,
       child: Container(
-        decoration: BoxDecoration(border: border),
+        decoration: border != null ? BoxDecoration(border: border) : null,
         child: CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): toggleSearch,

@@ -54,6 +54,7 @@ class _TilingViewState extends State<TilingView> {
       key: ValueKey(node.id),
       connection: connection,
       isFocused: widget.focusedPaneId == node.id,
+      hasMultiplePanes: hasMultiplePanes,
       onFocused: () => widget.onPaneFocused(node.id),
       onSplitVertical: () => widget.onSplit(node.id, SplitDirection.vertical, false),
       onSplitHorizontal: () => widget.onSplit(node.id, SplitDirection.horizontal, false),
