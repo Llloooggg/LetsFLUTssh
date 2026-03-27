@@ -49,8 +49,10 @@ void main() {
   });
 
   group('SSHConfig.validate', () {
+    const validAuth = SshAuth(password: 'secret');
+
     test('returns null for valid config', () {
-      const config = SSHConfig(server: ServerAddress(host: 'example.com', user: 'root'));
+      const config = SSHConfig(server: ServerAddress(host: 'example.com', user: 'root'), auth: validAuth);
       expect(config.validate(), isNull);
     });
 
@@ -84,13 +86,18 @@ void main() {
       expect(config.validate(), contains('Port'));
     });
 
+    test('returns error for missing auth', () {
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
+      expect(config.validate(), contains('Password or SSH key'));
+    });
+
     test('returns error for negative keepAlive', () {
-      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), keepAliveSec: -1);
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: validAuth, keepAliveSec: -1);
       expect(config.validate(), contains('Keep-alive'));
     });
 
     test('returns error for zero timeout', () {
-      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), timeoutSec: 0);
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: validAuth, timeoutSec: 0);
       expect(config.validate(), contains('Timeout'));
     });
   });
@@ -107,13 +114,13 @@ void main() {
     });
 
     test('validate passes with keepAliveSec = 0', () {
-      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), keepAliveSec: 0);
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(password: 'p'), keepAliveSec: 0);
       expect(config.validate(), isNull);
     });
 
     test('validate passes with edge port values', () {
-      expect(const SSHConfig(server: ServerAddress(host: 'h', port: 1, user: 'u')).validate(), isNull);
-      expect(const SSHConfig(server: ServerAddress(host: 'h', port: 65535, user: 'u')).validate(), isNull);
+      expect(const SSHConfig(server: ServerAddress(host: 'h', port: 1, user: 'u'), auth: SshAuth(password: 'p')).validate(), isNull);
+      expect(const SSHConfig(server: ServerAddress(host: 'h', port: 65535, user: 'u'), auth: SshAuth(password: 'p')).validate(), isNull);
     });
   });
 
@@ -203,12 +210,12 @@ void main() {
     });
 
     test('negative timeout returns error', () {
-      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), timeoutSec: -1);
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(password: 'p'), timeoutSec: -1);
       expect(config.validate(), contains('Timeout'));
     });
 
     test('timeout 1 is valid', () {
-      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), timeoutSec: 1);
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'), auth: SshAuth(password: 'p'), timeoutSec: 1);
       expect(config.validate(), isNull);
     });
   });
