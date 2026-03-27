@@ -65,7 +65,13 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 
 **CI path filtering caveat:** CI only triggers when commits touch code-related paths (`lib/`, `test/`, `pubspec.*`, `Makefile`, `analysis_options.yaml`, platform dirs, `sonar-project.properties`). Commits that touch **only** docs (`CLAUDE.md`, `README.md`, `SECURITY.md`), assets, or `.github/workflows/` do NOT trigger CI. If HEAD is a docs-only commit, preflight will fail because no CI check exists for that SHA.
 
-**Safe push order:**
+**Safe push order** — automated via `make tag`:
+
+```
+make tag   # push → wait CI green → tag vX.Y.Z → push tag
+```
+
+The target reads version from `pubspec.yaml`, checks for dirty tree and duplicate tags, waits for CI, and prompts if HEAD is docs-only (no CI trigger). Manual equivalent:
 
 1. `git push` — push all commits to main
 2. Wait for CI to appear and pass (only if HEAD touches CI-triggering paths)
