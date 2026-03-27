@@ -20,6 +20,18 @@ class SessionNotifier extends Notifier<List<Session>> {
 
   SessionStore get _store => ref.read(sessionStoreProvider);
 
+  /// Run a store operation, sync state, and log on failure.
+  Future<T> _run<T>(String op, Future<T> Function() fn) async {
+    try {
+      final result = await fn();
+      state = _store.sessions;
+      return result;
+    } catch (e) {
+      AppLogger.instance.log('Failed to $op', name: 'SessionProvider', error: e);
+      rethrow;
+    }
+  }
+
   Future<void> load() async {
     try {
       state = await _store.load();
@@ -28,106 +40,16 @@ class SessionNotifier extends Notifier<List<Session>> {
     }
   }
 
-  Future<void> add(Session session) async {
-    try {
-      await _store.add(session);
-      state = _store.sessions;
-    } catch (e) {
-      AppLogger.instance.log('Failed to add session', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
-
-  Future<void> update(Session session) async {
-    try {
-      await _store.update(session);
-      state = _store.sessions;
-    } catch (e) {
-      AppLogger.instance.log('Failed to update session', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
-
-  Future<void> delete(String id) async {
-    try {
-      await _store.delete(id);
-      state = _store.sessions;
-    } catch (e) {
-      AppLogger.instance.log('Failed to delete session', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
-
-  Future<Session> duplicate(String id) async {
-    try {
-      final copy = await _store.duplicateSession(id);
-      state = _store.sessions;
-      return copy;
-    } catch (e) {
-      AppLogger.instance.log('Failed to duplicate session', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
-
-  Future<void> addEmptyGroup(String groupPath) async {
-    try {
-      await _store.addEmptyGroup(groupPath);
-      state = _store.sessions;
-    } catch (e) {
-      AppLogger.instance.log('Failed to add group', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
-
-  Future<void> renameGroup(String oldPath, String newPath) async {
-    try {
-      await _store.renameGroup(oldPath, newPath);
-      state = _store.sessions;
-    } catch (e) {
-      AppLogger.instance.log('Failed to rename group', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
-
-  Future<void> deleteGroup(String groupPath) async {
-    try {
-      await _store.deleteGroup(groupPath);
-      state = _store.sessions;
-    } catch (e) {
-      AppLogger.instance.log('Failed to delete group', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
-
-  Future<void> deleteAll() async {
-    try {
-      await _store.deleteAll();
-      state = _store.sessions;
-    } catch (e) {
-      AppLogger.instance.log('Failed to delete all sessions', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
-
-  Future<void> moveSession(String sessionId, String newGroup) async {
-    try {
-      await _store.moveSession(sessionId, newGroup);
-      state = _store.sessions;
-    } catch (e) {
-      AppLogger.instance.log('Failed to move session', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
-
-  Future<void> moveGroup(String groupPath, String newParent) async {
-    try {
-      await _store.moveGroup(groupPath, newParent);
-      state = _store.sessions;
-    } catch (e) {
-      AppLogger.instance.log('Failed to move group', name: 'SessionProvider', error: e);
-      rethrow;
-    }
-  }
+  Future<void> add(Session session) => _run('add session', () => _store.add(session));
+  Future<void> update(Session session) => _run('update session', () => _store.update(session));
+  Future<void> delete(String id) => _run('delete session', () => _store.delete(id));
+  Future<Session> duplicate(String id) => _run('duplicate session', () => _store.duplicateSession(id));
+  Future<void> addEmptyGroup(String groupPath) => _run('add group', () => _store.addEmptyGroup(groupPath));
+  Future<void> renameGroup(String oldPath, String newPath) => _run('rename group', () => _store.renameGroup(oldPath, newPath));
+  Future<void> deleteGroup(String groupPath) => _run('delete group', () => _store.deleteGroup(groupPath));
+  Future<void> deleteAll() => _run('delete all sessions', () => _store.deleteAll());
+  Future<void> moveSession(String sessionId, String newGroup) => _run('move session', () => _store.moveSession(sessionId, newGroup));
+  Future<void> moveGroup(String groupPath, String newParent) => _run('move group', () => _store.moveGroup(groupPath, newParent));
 }
 
 /// Tree built from current session list (includes empty groups).
