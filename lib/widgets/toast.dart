@@ -133,35 +133,39 @@ class _ToastWidget extends StatelessWidget {
             parent: animation,
             curve: Curves.easeOut,
           )),
-          child: Material(
-            elevation: 6,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 360),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(8),
-                border: Border(left: BorderSide(color: color, width: 3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 18, color: color),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      message,
-                      style: const TextStyle(fontSize: 13),
+          child: Semantics(
+            liveRegion: true,
+            label: '${level.name}: $message',
+            child: Material(
+              elevation: 6,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 360),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border(left: BorderSide(color: color, width: 3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 18, color: color),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        message,
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: onDismiss,
-                    borderRadius: BorderRadius.circular(8),
-                    child: const Icon(Icons.close, size: 14),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: onDismiss,
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Icon(Icons.close, size: 14),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

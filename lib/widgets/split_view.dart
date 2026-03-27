@@ -46,18 +46,22 @@ class _SplitViewState extends State<SplitView> {
               width: _leftWidth,
               child: widget.left,
             ),
-            MouseRegion(
-              cursor: SystemMouseCursors.resizeColumn,
-              child: GestureDetector(
-                onHorizontalDragUpdate: (details) {
-                  setState(() {
-                    _leftWidth = (_leftWidth + details.delta.dx)
-                        .clamp(widget.minLeftWidth, maxLeft);
-                  });
-                },
-                child: Container(
-                  width: 4,
-                  color: theme.dividerColor,
+            Semantics(
+              label: 'Resize panel divider',
+              slider: true,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.resizeColumn,
+                child: GestureDetector(
+                  onHorizontalDragUpdate: (details) {
+                    setState(() {
+                      _leftWidth = (_leftWidth + details.delta.dx)
+                          .clamp(widget.minLeftWidth, maxLeft);
+                    });
+                  },
+                  child: Container(
+                    width: 4,
+                    color: theme.dividerColor,
+                  ),
                 ),
               ),
             ),
