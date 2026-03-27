@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -70,8 +71,10 @@ class ExportImport {
     // Encode ZIP
     final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
 
-    // Encrypt with master password
-    final encrypted = _encryptWithPassword(zipBytes, masterPassword);
+    // Encrypt with master password (runs in isolate — PBKDF2 600k is CPU-heavy)
+    final encrypted = await Isolate.run(
+      () => _encryptWithPassword(zipBytes, masterPassword),
+    );
 
     // Write to file
     final file = File(outputPath);
@@ -89,7 +92,10 @@ class ExportImport {
     final file = File(filePath);
     final encData = await file.readAsBytes();
 
-    final zipBytes = _decryptWithPassword(encData, masterPassword);
+    // Decrypt in isolate — PBKDF2 600k iterations is CPU-heavy
+    final zipBytes = await Isolate.run(
+      () => _decryptWithPassword(encData, masterPassword),
+    );
     final archive = ZipDecoder().decodeBytes(zipBytes);
 
     List<Session> sessions = [];

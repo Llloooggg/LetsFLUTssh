@@ -18,7 +18,7 @@ import '../session_manager/qr_export_dialog.dart';
 import 'export_import.dart';
 
 /// App version — kept in sync with pubspec.yaml.
-const _appVersion = '1.2.1';
+const _appVersion = '1.2.2';
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
@@ -279,21 +279,38 @@ class _ExportImportTile extends ConsumerWidget {
 
       if (password == null || !context.mounted) return;
 
-      final sessions = ref.read(sessionProvider);
-      final config = ref.read(configProvider);
-      final dir = await getApplicationSupportDirectory();
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
-      final outputPath = p.join(dir.path, 'export_$timestamp.lfs');
-
-      await ExportImport.export(
-        masterPassword: password,
-        sessions: sessions,
-        config: config,
-        outputPath: outputPath,
+      // Show progress indicator while PBKDF2 + encryption runs in isolate
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        animationStyle: AnimationStyle.noAnimation,
+        builder: (_) => const PopScope(
+          canPop: false,
+          child: Center(child: CircularProgressIndicator()),
+        ),
       );
 
-      if (context.mounted) {
-        Toast.show(context, message: 'Exported to: $outputPath', level: ToastLevel.success);
+      try {
+        final sessions = ref.read(sessionProvider);
+        final config = ref.read(configProvider);
+        final dir = await getApplicationSupportDirectory();
+        final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+        final outputPath = p.join(dir.path, 'export_$timestamp.lfs');
+
+        await ExportImport.export(
+          masterPassword: password,
+          sessions: sessions,
+          config: config,
+          outputPath: outputPath,
+        );
+
+        if (context.mounted) {
+          Navigator.of(context).pop(); // close progress
+          Toast.show(context, message: 'Exported to: $outputPath', level: ToastLevel.success);
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop(); // close progress
+        rethrow;
       }
     } catch (e) {
       AppLogger.instance.log('Export failed: $e', name: 'Settings', error: e);
@@ -442,28 +459,47 @@ class _ExportImportTile extends ConsumerWidget {
         return;
       }
 
-      final importResult = await ExportImport.import_(
-        filePath: result.path,
-        masterPassword: result.password,
-        mode: result.mode,
-        importConfig: true,
-        importKnownHosts: true,
-      );
-
-      final importService = ImportService(
-        addSession: (s) => ref.read(sessionProvider.notifier).add(s),
-        deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
-        getSessions: () => ref.read(sessionProvider),
-        applyConfig: (config) => ref.read(configProvider.notifier).update((_) => config),
-      );
-      await importService.applyResult(importResult);
-
+      // Show progress indicator while PBKDF2 + decryption runs in isolate
       if (context.mounted) {
-        Toast.show(
-          context,
-          message: 'Imported ${importResult.sessions.length} session(s)',
-          level: ToastLevel.success,
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          animationStyle: AnimationStyle.noAnimation,
+          builder: (_) => const PopScope(
+            canPop: false,
+            child: Center(child: CircularProgressIndicator()),
+          ),
         );
+      }
+
+      try {
+        final importResult = await ExportImport.import_(
+          filePath: result.path,
+          masterPassword: result.password,
+          mode: result.mode,
+          importConfig: true,
+          importKnownHosts: true,
+        );
+
+        final importService = ImportService(
+          addSession: (s) => ref.read(sessionProvider.notifier).add(s),
+          deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
+          getSessions: () => ref.read(sessionProvider),
+          applyConfig: (config) => ref.read(configProvider.notifier).update((_) => config),
+        );
+        await importService.applyResult(importResult);
+
+        if (context.mounted) {
+          Navigator.of(context).pop(); // close progress
+          Toast.show(
+            context,
+            message: 'Imported ${importResult.sessions.length} session(s)',
+            level: ToastLevel.success,
+          );
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop(); // close progress
+        rethrow;
       }
     } catch (e) {
       AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);

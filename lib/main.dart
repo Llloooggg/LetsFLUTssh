@@ -335,6 +335,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final result = await LfsImportDialog.show(context, filePath: filePath);
     if (result == null || !context.mounted) return;
 
+    // Show progress while PBKDF2 + decryption runs in isolate
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+
     try {
       final importResult = await ExportImport.import_(
         filePath: filePath,
@@ -351,6 +362,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         name: 'App',
       );
       if (context.mounted) {
+        Navigator.of(context).pop(); // close progress
         Toast.show(
           context,
           message: 'Imported ${importResult.sessions.length} session(s)',
@@ -360,6 +372,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     } catch (e) {
       AppLogger.instance.log('LFS import failed: $e', name: 'App', error: e);
       if (context.mounted) {
+        Navigator.of(context).pop(); // close progress
         Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
       }
     }

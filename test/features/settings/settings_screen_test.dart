@@ -762,10 +762,12 @@ void main() {
           find.widgetWithText(TextField, 'Confirm Password'), 'matching');
 
       await tester.tap(find.text('Export'));
-      await tester.pumpAndSettle();
+      // After tap, a progress dialog with CircularProgressIndicator appears
+      // (can't pumpAndSettle because of infinite animation). Pump frames instead.
+      await tester.pump();
       await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 5));
 
+      // Password dialog should be closed (progress dialog is now showing)
       expect(find.text('Confirm Password'), findsNothing);
     });
 
@@ -792,12 +794,15 @@ void main() {
           find.widgetWithText(TextField, 'Confirm Password'), 'securepass');
 
       await tester.tap(find.widgetWithText(FilledButton, 'Export'));
-      await tester.pumpAndSettle();
+      // Progress dialog with CircularProgressIndicator appears — can't pumpAndSettle.
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('Confirm Password'), findsNothing);
 
-      await tester.pump(const Duration(seconds: 2));
-      await tester.pump(const Duration(seconds: 4));
-      await tester.pumpAndSettle();
+      // Let isolate complete and progress close
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
     });
 
     testWidgets('export fails gracefully when path_provider errors',
