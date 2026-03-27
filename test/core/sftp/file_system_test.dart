@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 
 // Test the sorting logic used by LocalFS without needing real file I/O for sort.
@@ -61,6 +62,37 @@ void main() {
       ];
       sortEntries(entries);
       expect(entries.length, 1);
+    });
+  });
+
+  group('LocalFS.parseAttribOutput', () {
+    test('parses hidden and system files', () {
+      const output = '     A  SH  C:\\Users\\\$Recycle.Bin\n'
+          '     A          C:\\Users\\Documents\n'
+          '     A    H     C:\\Users\\desktop.ini\n'
+          '     A  S       C:\\System Volume Information\n';
+      final result = LocalFS.parseAttribOutput(output);
+      expect(result, contains('\$recycle.bin'));
+      expect(result, contains('desktop.ini'));
+      expect(result, contains('system volume information'));
+      expect(result, isNot(contains('documents')));
+    });
+
+    test('returns empty set for empty output', () {
+      expect(LocalFS.parseAttribOutput(''), isEmpty);
+    });
+
+    test('returns empty set for output with no H/S flags', () {
+      const output = '     A          C:\\file1.txt\n'
+          '     A    R     C:\\file2.txt\n';
+      expect(LocalFS.parseAttribOutput(output), isEmpty);
+    });
+
+    test('handles lines without valid format', () {
+      const output = 'some garbage\n\n     A  SH  C:\\hidden.dat\n';
+      final result = LocalFS.parseAttribOutput(output);
+      expect(result, contains('hidden.dat'));
+      expect(result.length, 1);
     });
   });
 

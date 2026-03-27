@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../../utils/platform.dart';
@@ -55,8 +56,6 @@ class LocalFS implements FileSystem {
   /// Run `attrib` on [dirPath] and return lowercase names of hidden/system files.
   static Future<Set<String>> _windowsHiddenNames(String dirPath) async {
     try {
-      // attrib lists attributes for each entry: "     A  SH  C:\path\file"
-      // Columns before the path contain attribute letters: S=System, H=Hidden.
       final result = await Process.run(
         'cmd',
         ['/c', 'attrib', '*'],
@@ -64,25 +63,31 @@ class LocalFS implements FileSystem {
         stdoutEncoding: const SystemEncoding(),
       );
       if (result.exitCode != 0) return {};
-      final hidden = <String>{};
-      for (final line in (result.stdout as String).split('\n')) {
-        final trimmed = line.trimRight();
-        if (trimmed.isEmpty) continue;
-        // Attributes occupy roughly the first 20 chars before the full path.
-        // Look for S or H flags in the attribute prefix.
-        final attrEnd = trimmed.lastIndexOf(RegExp(r'[A-Z]  '));
-        if (attrEnd < 0) continue;
-        final attrs = trimmed.substring(0, attrEnd + 1).toUpperCase();
-        if (attrs.contains('H') || attrs.contains('S')) {
-          // Extract just the file name from the full path at the end.
-          final fullPath = trimmed.substring(attrEnd + 3).trim();
-          hidden.add(p.basename(fullPath).toLowerCase());
-        }
-      }
-      return hidden;
+      return parseAttribOutput(result.stdout as String);
     } catch (_) {
       return {};
     }
+  }
+
+  /// Parse Windows `attrib` output and return lowercase names of hidden/system files.
+  ///
+  /// Each line has the format: "     A  SH  C:\path\file"
+  /// Attribute letters: S=System, H=Hidden.
+  @visibleForTesting
+  static Set<String> parseAttribOutput(String output) {
+    final hidden = <String>{};
+    for (final line in output.split('\n')) {
+      final trimmed = line.trimRight();
+      if (trimmed.isEmpty) continue;
+      final attrEnd = trimmed.lastIndexOf(RegExp(r'[A-Z]  '));
+      if (attrEnd < 0) continue;
+      final attrs = trimmed.substring(0, attrEnd + 1).toUpperCase();
+      if (attrs.contains('H') || attrs.contains('S')) {
+        final fullPath = trimmed.substring(attrEnd + 3).trim();
+        hidden.add(p.windows.basename(fullPath).toLowerCase());
+      }
+    }
+    return hidden;
   }
 
   @override
