@@ -12,6 +12,7 @@ import 'package:letsflutssh/features/tabs/tab_controller.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/toast.dart';
 
 /// A fake ConnectionManager that returns a disconnected connection with error.
 class _FailingConnectionManager extends ConnectionManager {
@@ -515,6 +516,172 @@ void main() {
       // connectConfig doesn't pass a label
       expect(fakeManager.lastLabel, isNull);
 
+      fakeManager.dispose();
+    });
+  });
+
+  group('SessionConnect — incomplete session blocking', () {
+    testWidgets('connectTerminal returns false for incomplete session', (tester) async {
+      final fakeManager = _FakeConnectionManager();
+      bool? result;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectionManagerProvider.overrideWithValue(fakeManager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        label: 'incomplete',
+                        server: const ServerAddress(host: 'h', user: 'u'),
+                        incomplete: true,
+                      );
+                      result = SessionConnect.connectTerminal(context, ref, session);
+                    },
+                    child: const Text('Go'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      expect(result, isFalse);
+      Toast.clearAllForTest();
+      fakeManager.dispose();
+    });
+
+    testWidgets('connectSftp returns false for incomplete session', (tester) async {
+      final fakeManager = _FakeConnectionManager();
+      bool? result;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectionManagerProvider.overrideWithValue(fakeManager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        label: 'incomplete',
+                        server: const ServerAddress(host: 'h', user: 'u'),
+                        incomplete: true,
+                      );
+                      result = SessionConnect.connectSftp(context, ref, session);
+                    },
+                    child: const Text('Go'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      expect(result, isFalse);
+      Toast.clearAllForTest();
+      fakeManager.dispose();
+    });
+
+    testWidgets('connectTerminal returns true for complete session', (tester) async {
+      final fakeManager = _FakeConnectionManager();
+      bool? result;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectionManagerProvider.overrideWithValue(fakeManager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        label: 'ok',
+                        server: const ServerAddress(host: 'h', user: 'u'),
+                        auth: const SessionAuth(password: 'pass'),
+                      );
+                      result = SessionConnect.connectTerminal(context, ref, session);
+                    },
+                    child: const Text('Go'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      expect(result, isTrue);
+      fakeManager.dispose();
+    });
+
+    testWidgets('incomplete session shows warning toast', (tester) async {
+      final fakeManager = _FakeConnectionManager();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectionManagerProvider.overrideWithValue(fakeManager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        label: 'inc',
+                        server: const ServerAddress(host: 'h', user: 'u'),
+                        incomplete: true,
+                      );
+                      SessionConnect.connectTerminal(context, ref, session);
+                    },
+                    child: const Text('Go'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('no credentials'), findsOneWidget);
+
+      // Clean up toast overlay
+      Toast.clearAllForTest();
       fakeManager.dispose();
     });
   });

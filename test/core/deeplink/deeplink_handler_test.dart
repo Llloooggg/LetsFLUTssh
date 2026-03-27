@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
+import 'package:letsflutssh/core/session/qr_codec.dart';
+import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {
@@ -287,6 +289,61 @@ void main() {
       handler.onConnect = null;
       handler.handleCustomScheme(Uri.parse('letsflutssh://connect?host=h&user=u'));
       // Should not throw
+    });
+
+    test('import action calls onQrImport with valid data', () {
+      QrImportData? received;
+      handler.onQrImport = (d) => received = d;
+
+      final payload = encodeSessionsForQr([
+        Session(
+          label: 'test',
+          server: const ServerAddress(host: 'h', user: 'u'),
+        ),
+      ]);
+      final url = wrapInDeepLink(payload);
+      handler.handleCustomScheme(Uri.parse(url));
+
+      expect(received, isNotNull);
+      expect(received!.sessions.length, 1);
+      expect(received!.sessions[0].label, 'test');
+    });
+
+    test('import action with invalid data does not call onQrImport', () {
+      QrImportData? received;
+      handler.onQrImport = (d) => received = d;
+
+      handler.handleCustomScheme(Uri.parse('letsflutssh://import?d=invalidbase64'));
+      expect(received, isNull);
+    });
+
+    test('import action with missing d param does not call onQrImport', () {
+      QrImportData? received;
+      handler.onQrImport = (d) => received = d;
+
+      handler.handleCustomScheme(Uri.parse('letsflutssh://import'));
+      expect(received, isNull);
+    });
+
+    test('onQrImport null does not crash', () {
+      handler.onQrImport = null;
+      final payload = encodeSessionsForQr([
+        Session(label: 'x', server: const ServerAddress(host: 'h', user: 'u')),
+      ]);
+      handler.handleCustomScheme(Uri.parse(wrapInDeepLink(payload)));
+    });
+
+    test('handleUri routes import deep link to onQrImport', () {
+      QrImportData? received;
+      handler.onQrImport = (d) => received = d;
+
+      final payload = encodeSessionsForQr([
+        Session(label: 'via-uri', server: const ServerAddress(host: 'h', user: 'u')),
+      ]);
+      handler.handleUri(Uri.parse(wrapInDeepLink(payload)));
+
+      expect(received, isNotNull);
+      expect(received!.sessions[0].label, 'via-uri');
     });
   });
 

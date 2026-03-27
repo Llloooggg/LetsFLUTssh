@@ -240,6 +240,80 @@ void main() {
     });
   });
 
+  group('wrapInDeepLink', () {
+    test('produces letsflutssh://import URL', () {
+      final payload = encodeSessionsForQr([makeSession()]);
+      final url = wrapInDeepLink(payload);
+      expect(url, startsWith('letsflutssh://import?d='));
+    });
+
+    test('roundtrip wrap/unwrap preserves data', () {
+      final sessions = [
+        makeSession(label: 'nginx', host: 'prod.com', port: 2222, user: 'deploy', group: 'Prod'),
+      ];
+      final payload = encodeSessionsForQr(sessions, emptyGroups: {'Staging'});
+      final url = wrapInDeepLink(payload);
+      final result = decodeImportUri(Uri.parse(url));
+
+      expect(result, isNotNull);
+      expect(result!.sessions.length, 1);
+      expect(result.sessions[0].label, 'nginx');
+      expect(result.sessions[0].host, 'prod.com');
+      expect(result.sessions[0].port, 2222);
+      expect(result.emptyGroups, {'Staging'});
+    });
+
+    test('base64url encoded — no +/= issues in URL', () {
+      final payload = encodeSessionsForQr([
+        makeSession(label: 'test+special/chars=yes'),
+      ]);
+      final url = wrapInDeepLink(payload);
+      final dPart = url.split('d=').last;
+      // base64url uses - and _ instead of + and /
+      expect(dPart, isNot(contains('+')));
+      expect(dPart, isNot(contains('/')));
+    });
+  });
+
+  group('decodeImportUri', () {
+    test('returns null for wrong scheme', () {
+      expect(decodeImportUri(Uri.parse('https://import?d=abc')), isNull);
+    });
+
+    test('returns null for wrong host', () {
+      expect(decodeImportUri(Uri.parse('letsflutssh://connect?d=abc')), isNull);
+    });
+
+    test('returns null for missing d param', () {
+      expect(decodeImportUri(Uri.parse('letsflutssh://import')), isNull);
+    });
+
+    test('returns null for empty d param', () {
+      expect(decodeImportUri(Uri.parse('letsflutssh://import?d=')), isNull);
+    });
+
+    test('returns null for invalid base64', () {
+      expect(decodeImportUri(Uri.parse('letsflutssh://import?d=!!!notbase64')), isNull);
+    });
+
+    test('returns null for valid base64 but invalid JSON', () {
+      // base64url of "not json"
+      final b64 = Uri.encodeComponent('bm90IGpzb24');
+      expect(decodeImportUri(Uri.parse('letsflutssh://import?d=$b64')), isNull);
+    });
+
+    test('decodes valid import URI', () {
+      final payload = encodeSessionsForQr([makeSession(label: 'test')]);
+      final url = wrapInDeepLink(payload);
+      final result = decodeImportUri(Uri.parse(url));
+
+      expect(result, isNotNull);
+      expect(result!.sessions.length, 1);
+      expect(result.sessions[0].label, 'test');
+      expect(result.sessions[0].incomplete, isTrue);
+    });
+  });
+
   group('Session.incomplete field', () {
     test('defaults to false', () {
       final s = makeSession();
