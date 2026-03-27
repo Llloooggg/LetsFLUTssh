@@ -122,7 +122,7 @@ Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
 - **macOS:** dmg, tar.gz
 - **Android:** APK (arm64, arm, x64)
 
-To build from source, see [CONTRIBUTING.md](CONTRIBUTING.md).
+To build from source, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## License
 
@@ -130,4 +130,4 @@ GPL-3.0 — see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, dev workflow, and PR guidelines.
+Contributions welcome — see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for build instructions, dev workflow, and PR guidelines.
