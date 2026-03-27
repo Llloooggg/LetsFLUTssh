@@ -11,7 +11,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 
 ### Commits
 
-- **By default Claude only suggests commit messages** — does NOT commit or push. Scope matches what was asked: "commit" = commit only, "commit and push" = commit + tag last in series + push
+- **Claude does not commit or push unless the user explicitly asks.** When asked — scope matches what was said: "commit" = commit only, "commit and push" = commit + tag last in series + push. When the user asks to do multiple fixes — commit each fix immediately after finishing it (see below), don't wait for the whole batch
 - **Every commit that affects the shipped app MUST include a version bump** in `pubspec.yaml` AND `_appVersion` in `settings_screen.dart`. Includes: `lib/`, platform configs, native code, assets, build settings. Patch for bugfix/refactor, minor for new feature, major for breaking change. No exceptions
 - Format: `type: short description` — types: `feat`, `fix`, `refactor` (app changes), `test`, `docs`, `chore`, `ci` (non-app)
 - **Commit messages drive auto-changelog** — `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements. Keep messages user-readable. If commit has both app changes and docs — prefix describes the app change only
@@ -34,17 +34,18 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 **No bump needed for:** tests, docs, CI, linter fixes. **Bump IS needed for:** any `lib/` change (including logging), platform configs, native code, assets.
 
 **Tagging — always use `make tag`:**
+
 1. Runs `make check` (analyze + test). Fails fast if broken
 2. Creates annotated tag `v{VERSION}` from `pubspec.yaml` (annotated — required for `--follow-tags`)
 3. `git push --follow-tags --atomic`. If push fails — auto-cleans local tag
 4. CI + Build & Release trigger automatically
 
-| Scenario | When to tag |
-|----------|-------------|
-| Bugfix(es) | `make tag` after last fix commit |
-| Feature | `make tag` after feature commit (or follow-up test/doc commits) |
-| Tests/docs only | **Don't tag.** Push with `git push` |
-| Code + docs | Bundle docs into code commit so HEAD triggers CI |
+| Scenario        | When to tag                                                     |
+| --------------- | --------------------------------------------------------------- |
+| Bugfix(es)      | `make tag` after last fix commit                                |
+| Feature         | `make tag` after feature commit (or follow-up test/doc commits) |
+| Tests/docs only | **Don't tag.** Push with `git push`                             |
+| Code + docs     | Bundle docs into code commit so HEAD triggers CI                |
 
 - **Tag only on HEAD.** Never tag docs-only HEAD (CI won't trigger, preflight timeouts). By default Claude only reminds about tagging — runs `make tag` only if user explicitly asks to push
 
@@ -203,27 +204,29 @@ LetsFLUTssh/
 
 ### Features
 
-| Category | What works |
-|----------|-----------|
-| **SSH** | dartssh2 (password, key file, key text), auth chain, keep-alive, TOFU known hosts, auto-detect ~/.ssh/ keys, tiling split (like tmux), terminal search (Ctrl+Shift+F) |
-| **SFTP** | Dual-pane (local\|remote), upload/download/mkdir/delete/rename/chmod, drag&drop (panes + OS), marquee selection, sortable columns, transfer queue + history |
-| **Sessions** | AES-256-GCM encrypted credentials, CRUD/duplicate, nested tree groups, search/filter, drag&drop reorder, empty folders, bulk select (multi-delete/move) |
-| **Tabs** | Multi-tab (terminal + SFTP), drag-to-reorder, IndexedStack state preservation, context menu |
-| **Security** | AES-256-GCM (pointycastle, pure Dart), chmod 600, PBKDF2 600k iterations, error sanitization, deep link validation, TOFU (no auto-accept) |
-| **Export/Import** | `.lfs` archive (ZIP + AES-256-GCM), merge/replace modes, auto-migration from plaintext |
-| **Mobile** | Bottom nav, SSH virtual keyboard (sticky modifiers applied to system keyboard too), pinch-to-zoom, single-pane SFTP, deep links, file open intents |
-| **UI** | OneDark/One Light themes, responsive layout (sidebar→drawer <600px), toast notifications, no animations |
-| **CI/CD** | `ci.yml`: analyze + test + SonarCloud + outdated deps + commit-lint. `build.yml`: preflight CI wait, build provenance, packaging (AppImage/deb, EXE/zip, dmg, per-ABI APK). CodeQL weekly |
+| Category          | What works                                                                                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **SSH**           | dartssh2 (password, key file, key text), auth chain, keep-alive, TOFU known hosts, auto-detect ~/.ssh/ keys, tiling split (like tmux), terminal search (Ctrl+Shift+F)                     |
+| **SFTP**          | Dual-pane (local\|remote), upload/download/mkdir/delete/rename/chmod, drag&drop (panes + OS), marquee selection, sortable columns, transfer queue + history                               |
+| **Sessions**      | AES-256-GCM encrypted credentials, CRUD/duplicate, nested tree groups, search/filter, drag&drop reorder, empty folders, bulk select (multi-delete/move)                                   |
+| **Tabs**          | Multi-tab (terminal + SFTP), drag-to-reorder, IndexedStack state preservation, context menu                                                                                               |
+| **Security**      | AES-256-GCM (pointycastle, pure Dart), chmod 600, PBKDF2 600k iterations, error sanitization, deep link validation, TOFU (no auto-accept)                                                 |
+| **Export/Import** | `.lfs` archive (ZIP + AES-256-GCM), merge/replace modes, auto-migration from plaintext                                                                                                    |
+| **Mobile**        | Bottom nav, SSH virtual keyboard (sticky modifiers applied to system keyboard too), pinch-to-zoom, single-pane SFTP, deep links, file open intents                                        |
+| **UI**            | OneDark/One Light themes, responsive layout (sidebar→drawer <600px), toast notifications, no animations                                                                                   |
+| **CI/CD**         | `ci.yml`: analyze + test + SonarCloud + outdated deps + commit-lint. `build.yml`: preflight CI wait, build provenance, packaging (AppImage/deb, EXE/zip, dmg, per-ABI APK). CodeQL weekly |
 
 ### Decisions and Why
 
 **API gotchas (dartssh2 / xterm / Flutter):**
+
 - `SSHConnectionState` not `ConnectionState` — name conflict with Flutter's async.dart
 - dartssh2 host key: `FutureOr<bool> Function(String type, Uint8List fingerprint)`, not SSHPublicKey
 - dartssh2 SFTP: `attr.mode?.value`, `remoteFile.writeBytes()` (not `.permissions?.mode`, `.write()`)
 - `hardwareKeyboardOnly: true` on desktop — xterm TextInputClient broken on Windows
 
 **Architecture choices:**
+
 - `pointycastle` instead of `encrypt` — version conflict with dartssh2
 - `CredentialStore` instead of `flutter_secure_storage` — pure Dart, no OS deps
 - `app_links` instead of `uni_links` — desktop support
@@ -236,6 +239,7 @@ LetsFLUTssh/
 - Global `navigatorKey` for host key dialog — callbacks need Flutter context
 
 **Security decisions:**
+
 - PBKDF2 600k iterations (OWASP 2024), chmod 600, TOFU reject without callback
 - Deep link path traversal rejection, error message sanitization (no file paths)
 - `CredentialStoreException` distinguishes "no credentials" from "corrupt key"
@@ -243,6 +247,7 @@ LetsFLUTssh/
 - `RandomAccessFile` for SFTP upload — `try/finally` guarantees file handle cleanup
 
 **Platform-specific:**
+
 - Android: `EXTERNAL_STORAGE` env var + `/storage/emulated/0` fallback, `MANAGE_EXTERNAL_STORAGE`
 - iOS: `NSLocalNetworkUsageDescription` required for local TCP
 - `AnimationStyle.noAnimation` everywhere (Flutter 3.41+)
