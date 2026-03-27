@@ -21,10 +21,6 @@ git clone https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
 make deps
 make build-linux
-
-# Or use the shortcut:
-make deps-linux   # installs system deps
-make build-linux  # builds release binary
 ```
 
 Build output: `build/linux/x64/release/bundle/`
@@ -53,7 +49,7 @@ winget install Microsoft.VisualStudio.2022.Community
 git clone https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
 flutter pub get
-flutter build windows
+flutter build windows --release
 ```
 
 Build output: `build\windows\x64\runner\Release\`
@@ -78,7 +74,7 @@ Build output: `build/macos/Build/Products/Release/`
 Requires Android SDK (via Android Studio or standalone SDK).
 
 ```bash
-make build-apk    # APK
+make build-apk    # APK (per-ABI: arm64, arm, x64)
 make build-aab    # App Bundle (for Play Store)
 ```
 
@@ -94,40 +90,72 @@ make build-ios
 
 ```bash
 make run            # Run in debug mode
-make test           # Run all tests
-make analyze        # Run Dart analyzer
+make test           # Run all tests (with coverage)
+make analyze        # Run Dart analyzer (--fatal-infos)
 make check          # Analyzer + tests
 make gen            # Code generation (freezed, json_serializable)
 make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
 
-See [CLAUDE.md](CLAUDE.md) for architecture details and coding conventions.
+See [CLAUDE.md](../CLAUDE.md) for architecture details and coding conventions.
 
 ## Commit Messages
 
 Format: `type: short description`
 
-| Prefix | Use for |
-|--------|---------|
-| `feat:` | New features |
-| `fix:` | Bug fixes |
-| `refactor:` | Code improvements |
-| `test:` | Test changes only |
-| `docs:` | Documentation only |
-| `chore:` | Dependencies, config |
-| `ci:` | CI/CD changes |
+| Prefix      | Use for                         | Appears in release notes? |
+|-------------|---------------------------------|---------------------------|
+| `feat:`     | New features                    | Yes — under **Features**  |
+| `fix:`      | Bug fixes                       | Yes — under **Fixes**     |
+| `refactor:` | Code improvements (no new behavior) | Yes — under **Improvements** |
+| `test:`     | Test changes only               | No                        |
+| `docs:`     | Documentation only              | No                        |
+| `chore:`    | Dependencies, config, tooling   | No                        |
+| `ci:`       | CI/CD workflow changes          | No                        |
 
-Commit messages appear in auto-generated release notes — keep them clear and user-readable.
+**Examples:**
+
+```
+feat: add port forwarding support
+fix: handle SSH disconnect during file transfer
+refactor: extract shared dialog logic into ConfirmDialog widget
+test: add tests for credential store encryption
+docs: update README with mobile screenshots
+chore: upgrade dartssh2 to 2.16.0
+ci: add commit message linting for PRs
+```
+
+**Important:**
+
+- Commit messages are **auto-generated into release notes** — keep them clear and user-readable.
+- Start with a lowercase verb — no period at the end.
+- If a commit includes both app changes and docs, the prefix describes the **app change** (docs ride along).
+- CI validates commit message format on pull requests — commits that don't match the pattern will fail the check.
+
+## Version Bumps
+
+Changes that affect the shipped app **must** include a version bump in the same commit:
+
+| Change                                  | Bump      |
+|-----------------------------------------|-----------|
+| Bug fix, refactoring, production code   | **patch** |
+| New feature                             | **minor** |
+| Breaking change (file format, API)      | **major** |
+
+Bump both `pubspec.yaml` (`version:` field) and `_appVersion` in `lib/features/settings/settings_screen.dart`.
+
+**No bump needed:** test-only, docs-only, CI-only, or config-only changes (`test:`, `docs:`, `chore:`, `ci:` commits).
 
 ## Pull Requests
 
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feat/my-feature`)
-3. `make analyze` and `make test` must pass
-4. All new code must have tests (80% coverage minimum, 100% target)
-5. One logical change per PR
-6. Open a Pull Request
+1. Fork the repo and create a feature branch (`git checkout -b feat/my-feature`)
+2. Follow commit message format (`type: description`) — CI enforces this on PRs
+3. If your change affects the shipped app, include a version bump (see above)
+4. `make analyze` and `make test` must pass
+5. All new code must have tests (80% coverage minimum, 100% target)
+6. One logical change per PR
+7. Open a Pull Request — fill in the template
 
 ## Security
 

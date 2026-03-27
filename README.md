@@ -124,6 +124,10 @@ Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
 
 To build from source, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
+## Security
+
+See [SECURITY.md](docs/SECURITY.md) for vulnerability reporting and security scope.
+
 ## License
 
 GPL-3.0 — see [LICENSE](LICENSE) for details.

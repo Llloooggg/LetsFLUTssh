@@ -71,6 +71,49 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+  commit-lint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ERRORS=""
+          PATTERN='^(feat|fix|refactor|test|docs|chore|ci): .+'
+
+          # Get all commits in the PR
+          COMMITS=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '.commits[].messageHeadline')
+
+          while IFS= read -r MSG; do
+            [ -z "$MSG" ] && continue
+            if ! echo "$MSG" | grep -qE "$PATTERN"; then
+              ERRORS="$ERRORS  ✗ $MSG\n"
+            fi
+          done <<< "$COMMITS"
+
+          if [ -n "$ERRORS" ]; then
+            echo "::error::Some commit messages don't follow the required format."
+            echo ""
+            echo "Expected format: type: short description"
+            echo "Valid types: feat, fix, refactor, test, docs, chore, ci"
+            echo ""
+            echo "Invalid commits:"
+            echo -e "$ERRORS"
+            echo ""
+            echo "See docs/CONTRIBUTING.md for details."
+            exit 1
+          fi
+
+          echo "All commit messages follow the required format ✓"
+
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
