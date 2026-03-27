@@ -30,6 +30,7 @@ class MobileTerminalView extends StatefulWidget {
 class _MobileTerminalViewState extends State<MobileTerminalView> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
+  final _keyboardKey = GlobalKey<SshKeyboardBarState>();
   ShellConnection? _shellConn;
   bool _connected = false;
   String? _error;
@@ -70,6 +71,14 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
           }
         },
       );
+
+      // Override terminal.onOutput to apply keyboard bar modifiers
+      // (Ctrl/Alt) to system keyboard input before sending to shell.
+      _terminal.onOutput = (data) {
+        final transformed = _keyboardKey.currentState?.applyModifiers(data) ?? data;
+        _shellConn?.shell.write(Uint8List.fromList(transformed.codeUnits));
+      };
+
       if (mounted) setState(() => _connected = true);
     } catch (e) {
       AppLogger.instance.log('Shell open failed: $e', name: 'MobileTerminal', error: e);
@@ -116,7 +125,7 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
             ),
           ),
         ),
-        SshKeyboardBar(onInput: _onKeyboardInput),
+        SshKeyboardBar(key: _keyboardKey, onInput: _onKeyboardInput),
       ],
     );
   }

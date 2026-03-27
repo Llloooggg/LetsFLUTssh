@@ -15,28 +15,37 @@ class SshKeyboardBar extends StatefulWidget {
   const SshKeyboardBar({super.key, required this.onInput});
 
   @override
-  State<SshKeyboardBar> createState() => _SshKeyboardBarState();
+  State<SshKeyboardBar> createState() => SshKeyboardBarState();
 }
 
 enum _ModifierState { off, once, locked }
 
-class _SshKeyboardBarState extends State<SshKeyboardBar> {
+class SshKeyboardBarState extends State<SshKeyboardBar> {
   _ModifierState _ctrl = _ModifierState.off;
   _ModifierState _alt = _ModifierState.off;
   bool _showFnKeys = false;
 
-  void _send(String seq) {
-    String data = seq;
-    if (_alt != _ModifierState.off && seq.length == 1) {
-      data = SshKeySequences.altKey(seq);
+  /// Apply active Ctrl/Alt modifiers to [data] and consume one-shot modifiers.
+  ///
+  /// Used by [MobileTerminalView] to transform system keyboard input before
+  /// sending it to the SSH shell.
+  String applyModifiers(String data) {
+    if (_ctrl == _ModifierState.off && _alt == _ModifierState.off) return data;
+    String result = data;
+    if (_alt != _ModifierState.off && data.length == 1) {
+      result = SshKeySequences.altKey(data);
     }
-    if (_ctrl != _ModifierState.off && seq.length == 1) {
-      data = SshKeySequences.ctrlKey(seq);
+    if (_ctrl != _ModifierState.off && data.length == 1) {
+      result = SshKeySequences.ctrlKey(data);
     }
-    widget.onInput(data);
-    // Deactivate one-shot modifiers
     if (_ctrl == _ModifierState.once) setState(() => _ctrl = _ModifierState.off);
     if (_alt == _ModifierState.once) setState(() => _alt = _ModifierState.off);
+    return result;
+  }
+
+  void _send(String seq) {
+    final data = applyModifiers(seq);
+    widget.onInput(data);
   }
 
   void _toggleModifier(_ModifierState current, void Function(_ModifierState) set) {

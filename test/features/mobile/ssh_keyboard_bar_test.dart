@@ -20,11 +20,14 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
-  Widget buildApp({required void Function(String) onInput}) {
+  Widget buildApp({
+    required void Function(String) onInput,
+    GlobalKey<SshKeyboardBarState>? keyboardKey,
+  }) {
     return MaterialApp(
       theme: AppTheme.dark(),
       home: Scaffold(
-        body: SshKeyboardBar(onInput: onInput),
+        body: SshKeyboardBar(key: keyboardKey, onInput: onInput),
       ),
     );
   }
@@ -243,6 +246,84 @@ void main() {
       await tester.tap(find.text('/'));
       await tester.pump();
       expect(sentData.last, '/');
+    });
+  });
+
+  group('SshKeyboardBar — applyModifiers for system keyboard', () {
+    testWidgets('applyModifiers returns raw data when no modifier active', (tester) async {
+      final key = GlobalKey<SshKeyboardBarState>();
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
+
+      expect(key.currentState!.applyModifiers('c'), 'c');
+      expect(key.currentState!.applyModifiers('hello'), 'hello');
+    });
+
+    testWidgets('applyModifiers applies Ctrl to single char', (tester) async {
+      final key = GlobalKey<SshKeyboardBarState>();
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
+
+      // Activate Ctrl (once)
+      await tester.tap(find.text('Ctrl'));
+      await tester.pump();
+
+      final result = key.currentState!.applyModifiers('c');
+      expect(result, SshKeySequences.ctrlKey('c'));
+      // 0x03 = Ctrl+C (SIGINT)
+      expect(result.codeUnitAt(0), 0x03);
+    });
+
+    testWidgets('applyModifiers consumes one-shot Ctrl', (tester) async {
+      final key = GlobalKey<SshKeyboardBarState>();
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
+
+      // Activate Ctrl (once)
+      await tester.tap(find.text('Ctrl'));
+      await tester.pump();
+
+      // First call applies Ctrl
+      expect(key.currentState!.applyModifiers('c'), SshKeySequences.ctrlKey('c'));
+      await tester.pump(); // process setState
+
+      // Second call — modifier consumed, raw char
+      expect(key.currentState!.applyModifiers('c'), 'c');
+    });
+
+    testWidgets('applyModifiers applies Alt ESC prefix', (tester) async {
+      final key = GlobalKey<SshKeyboardBarState>();
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
+
+      await tester.tap(find.text('Alt'));
+      await tester.pump();
+
+      expect(key.currentState!.applyModifiers('x'), SshKeySequences.altKey('x'));
+    });
+
+    testWidgets('applyModifiers skips multi-char strings', (tester) async {
+      final key = GlobalKey<SshKeyboardBarState>();
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
+
+      await tester.tap(find.text('Ctrl'));
+      await tester.pump();
+
+      // Multi-char string (e.g. paste) — modifiers don't apply
+      expect(key.currentState!.applyModifiers('hello'), 'hello');
+    });
+
+    testWidgets('applyModifiers with locked Ctrl persists across calls', (tester) async {
+      final key = GlobalKey<SshKeyboardBarState>();
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
+
+      // Double-tap Ctrl to lock
+      await tester.tap(find.text('Ctrl'));
+      await tester.pump();
+      await tester.tap(find.text('Ctrl'));
+      await tester.pump();
+
+      expect(key.currentState!.applyModifiers('a'), SshKeySequences.ctrlKey('a'));
+      await tester.pump();
+      expect(key.currentState!.applyModifiers('c'), SshKeySequences.ctrlKey('c'));
+      await tester.pump();
+      expect(key.currentState!.applyModifiers('d'), SshKeySequences.ctrlKey('d'));
     });
   });
 }

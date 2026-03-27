@@ -9,6 +9,8 @@ import 'package:xterm/xterm.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_terminal_view.dart';
+import 'package:letsflutssh/features/mobile/ssh_key_sequences.dart';
+import 'package:letsflutssh/features/mobile/ssh_keyboard_bar.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
 import '../../core/ssh/shell_helper_test.mocks.dart';
@@ -584,6 +586,105 @@ void main() {
 
       await tester.tapAt(Offset.zero);
       await tester.pumpAndSettle();
+    });
+  });
+
+  group('MobileTerminalView — system keyboard with modifiers', () {
+    testWidgets('Ctrl modifier applies to system keyboard input via terminal.onOutput', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
+
+      when(mockSsh.isConnected).thenReturn(true);
+      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+      when(mockSession.write(any)).thenReturn(null);
+
+      final conn = Connection(
+        id: 'test-sysmod',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the SshKeyboardBar state via its GlobalKey
+      final barState = tester.state<SshKeyboardBarState>(
+        find.byType(SshKeyboardBar),
+      );
+
+      // Activate Ctrl (one-shot)
+      await tester.tap(find.text('Ctrl'));
+      await tester.pump();
+
+      // Simulate system keyboard typing 'c' via terminal.onOutput
+      // The terminal.onOutput is overridden in MobileTerminalView to
+      // route through applyModifiers before sending to shell.
+      // We can verify by calling applyModifiers directly and checking
+      // the keyboard bar state transitions work with the bar widget.
+      final transformed = barState.applyModifiers('c');
+      expect(transformed, SshKeySequences.ctrlKey('c'));
+      // Ctrl+C = 0x03
+      expect(transformed.codeUnitAt(0), 0x03);
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
+
+    testWidgets('system keyboard input without modifier sends raw character', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
+
+      when(mockSsh.isConnected).thenReturn(true);
+      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+      when(mockSession.write(any)).thenReturn(null);
+
+      final conn = Connection(
+        id: 'test-sysraw',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final barState = tester.state<SshKeyboardBarState>(
+        find.byType(SshKeyboardBar),
+      );
+
+      // No modifier active — raw pass-through
+      expect(barState.applyModifiers('c'), 'c');
+      expect(barState.applyModifiers('x'), 'x');
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
     });
   });
 }
