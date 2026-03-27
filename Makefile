@@ -167,7 +167,7 @@ tag: check ## Analyze + test, tag vX.Y.Z, push atomically (CI + Build sort thems
 		echo "Error: tag $$TAG already exists"; exit 1; \
 	fi; \
 	echo "==> Tagging $$TAG on HEAD..."; \
-	git tag "$$TAG"; \
+	git tag -a "$$TAG" -m "$$TAG"; \
 	echo "==> Pushing commits + tag (atomic)..."; \
 	git push --follow-tags --atomic || { echo "Push failed, removing local tag"; git tag -d "$$TAG"; exit 1; }; \
 	echo "==> Done. CI will run, Build & Release will wait for CI, then build + publish $$TAG"
