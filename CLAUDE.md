@@ -68,15 +68,16 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 **Safe push order** — automated via `make tag`:
 
 ```
-make tag   # tag vX.Y.Z on HEAD → push commits + tag in one go
+make tag   # analyze + test → tag vX.Y.Z → atomic push commits + tag
 ```
 
-The target reads version from `pubspec.yaml`, checks for dirty tree and duplicate tags, then pushes everything with `git push --follow-tags`. Build & Release workflow's preflight automatically waits for CI to finish (up to 10 min) before building — no manual waiting needed.
+The target: runs `make check` (analyze + test) → reads version from `pubspec.yaml` → checks dirty tree / duplicate tag → tags HEAD → pushes commits + tag atomically (`--atomic` ensures either both land or neither does). If push fails, the local tag is cleaned up. Build & Release workflow's preflight automatically waits for CI to finish (up to 10 min) before building — no manual waiting needed.
 
 Manual equivalent (if not using `make tag`):
 
-1. `git tag vX.Y.Z` on HEAD
-2. `git push --follow-tags` — pushes commits and tag together; CI triggers on push, Build & Release triggers on tag, preflight waits for CI
+1. `make check` — ensure tests pass locally
+2. `git tag vX.Y.Z` on HEAD
+3. `git push --follow-tags --atomic` — pushes commits and tag together; CI triggers on push, Build & Release triggers on tag, preflight waits for CI
 
 **If the last commit is docs-only** (no CI trigger):
 - **Option A:** tag the last code commit before docs, push tag, then push docs separately

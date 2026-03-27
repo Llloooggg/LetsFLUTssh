@@ -150,7 +150,7 @@ release: package-linux ## Build all release packages
 
 ## ─── Release ─────────────────────────────────────────────────
 
-tag: ## Tag vX.Y.Z on HEAD and push everything (CI + Build & Release sort themselves out)
+tag: check ## Analyze + test, tag vX.Y.Z, push atomically (CI + Build sort themselves out)
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: working tree is dirty — commit or stash first"; exit 1; \
 	fi
@@ -160,8 +160,8 @@ tag: ## Tag vX.Y.Z on HEAD and push everything (CI + Build & Release sort themse
 	fi; \
 	echo "==> Tagging $$TAG on HEAD..."; \
 	git tag "$$TAG"; \
-	echo "==> Pushing commits + tag..."; \
-	git push --follow-tags; \
+	echo "==> Pushing commits + tag (atomic)..."; \
+	git push --follow-tags --atomic || { echo "Push failed, removing local tag"; git tag -d "$$TAG"; exit 1; }; \
 	echo "==> Done. CI will run, Build & Release will wait for CI, then build + publish $$TAG"
 
 ## ─── Dependencies ─────────────────────────────────────────────
