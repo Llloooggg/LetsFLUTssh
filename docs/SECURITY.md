@@ -50,6 +50,8 @@ The following areas are in scope:
 - **Dependency Review** — checks new dependencies for known vulnerabilities on pull requests
 - **Dependabot** — automated security updates (CVE-triggered) and version updates (weekly) for pub packages and GitHub Actions
 - **Pinned Dependencies** — all GitHub Actions are pinned to commit SHA hashes to prevent supply chain attacks via tag manipulation
+- **Branch Protection** — main branch requires CI and OSV-Scanner checks to pass, force pushes and branch deletion are blocked
+- **Least Privilege** — all workflows default to read-only token permissions (`permissions: read-all`), jobs explicitly request only what they need
 
 ### Out of scope
 
