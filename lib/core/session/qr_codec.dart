@@ -3,11 +3,12 @@ import 'dart:convert';
 import 'session.dart';
 import '../ssh/ssh_config.dart';
 
-/// Maximum QR payload size in bytes.
+/// Maximum payload size in bytes (before deep link wrapping).
 ///
 /// QR version 40 with error correction L holds 2953 bytes in binary mode.
-/// We use a conservative limit to leave room for encoding overhead.
-const qrMaxPayloadBytes = 2800;
+/// The deep link wrapper `letsflutssh://import?d=` adds ~25 bytes,
+/// plus base64 encoding inflates by ~33%. Conservative limit.
+const qrMaxPayloadBytes = 2000;
 
 /// Encode sessions and empty groups into a compact JSON string for QR codes.
 ///
@@ -54,6 +55,31 @@ QrImportData? decodeSessionsFromQr(String payload) {
 /// Calculate the byte size of the encoded payload for the given sessions.
 int calculateQrPayloadSize(List<Session> sessions, {Set<String> emptyGroups = const {}}) {
   return utf8.encode(encodeSessionsForQr(sessions, emptyGroups: emptyGroups)).length;
+}
+
+/// Wrap encoded sessions into a deep link URI for QR code.
+///
+/// Format: `letsflutssh://import?d=BASE64URL`
+/// The phone's OS camera scans the QR → recognizes the custom scheme →
+/// opens the app → deep link handler imports sessions.
+String wrapInDeepLink(String encodedPayload) {
+  final b64 = base64Url.encode(utf8.encode(encodedPayload));
+  return 'letsflutssh://import?d=$b64';
+}
+
+/// Extract and decode sessions from an import deep link URI.
+///
+/// Returns null if the URI is not a valid import link.
+QrImportData? decodeImportUri(Uri uri) {
+  if (uri.scheme != 'letsflutssh' || uri.host != 'import') return null;
+  final b64 = uri.queryParameters['d'];
+  if (b64 == null || b64.isEmpty) return null;
+  try {
+    final json = utf8.decode(base64Url.decode(b64));
+    return decodeSessionsFromQr(json);
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Result of decoding a QR payload.

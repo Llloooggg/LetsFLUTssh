@@ -8,14 +8,17 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
+import '../../core/session/qr_codec.dart';
 import '../../providers/config_provider.dart';
 import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../widgets/toast.dart';
+import '../session_manager/qr_display_screen.dart';
+import '../session_manager/qr_export_dialog.dart';
 import 'export_import.dart';
 
 /// App version — kept in sync with pubspec.yaml.
-const _appVersion = '1.2.0';
+const _appVersion = '1.2.1';
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
@@ -62,6 +65,7 @@ class SettingsScreen extends ConsumerWidget {
 
           const _SectionHeader(title: 'Data'),
           _ExportImportTile(),
+          const _QrExportTile(),
           const _DataPathTile(),
 
           const Divider(height: 32),
@@ -628,6 +632,40 @@ class _IntTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _QrExportTile extends ConsumerWidget {
+  const _QrExportTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListTile(
+      leading: const Icon(Icons.qr_code, size: 20),
+      title: const Text('Share via QR Code'),
+      subtitle: const Text('Export sessions to QR for scanning by another device'),
+      contentPadding: EdgeInsets.zero,
+      onTap: () => _showQrExport(context, ref),
+    );
+  }
+
+  Future<void> _showQrExport(BuildContext context, WidgetRef ref) async {
+    final sessions = ref.read(sessionProvider);
+    if (sessions.isEmpty) {
+      Toast.show(context, message: 'No sessions to export', level: ToastLevel.warning);
+      return;
+    }
+    final store = ref.read(sessionStoreProvider);
+    final deepLink = await QrExportDialog.show(
+      context,
+      sessions: sessions,
+      emptyGroups: store.emptyGroups,
+    );
+    if (deepLink == null || !context.mounted) return;
+
+    final data = decodeImportUri(Uri.parse(deepLink));
+    final count = data?.sessions.length ?? 0;
+    await QrDisplayScreen.show(context, data: deepLink, sessionCount: count);
   }
 }
 

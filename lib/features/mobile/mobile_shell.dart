@@ -2,16 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
-import '../../core/session/qr_codec.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/session_provider.dart';
-import '../../widgets/toast.dart';
 import '../session_manager/session_connect.dart';
 import '../session_manager/session_edit_dialog.dart';
 import '../session_manager/session_panel.dart';
-import '../session_manager/qr_export_dialog.dart';
-import '../session_manager/qr_display_screen.dart';
-import '../session_manager/qr_scan_screen.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_controller.dart';
 import '../tabs/tab_model.dart';
@@ -57,7 +52,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                   SessionConnect.connectConfig(context, ref, config);
                   setState(() => _navIndex = 1);
                 },
-                onQrExport: () => _showQrExport(context, ref),
               ),
               // Terminal page
               _MobileTerminalPage(tabState: tabState),
@@ -106,21 +100,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         ],
       ),
       floatingActionButton: _navIndex == 0
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton.small(
-                  heroTag: 'qr_scan',
-                  onPressed: () => _scanQr(context, ref),
-                  child: const Icon(Icons.qr_code_scanner),
-                ),
-                const SizedBox(height: 8),
-                FloatingActionButton(
-                  heroTag: 'add_session',
-                  onPressed: () => _newSession(context, ref),
-                  child: const Icon(Icons.add),
-                ),
-              ],
+          ? FloatingActionButton(
+              onPressed: () => _newSession(context, ref),
+              child: const Icon(Icons.add),
             )
           : null,
     );
@@ -140,45 +122,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   void _connectSessionSftp(BuildContext ctx, WidgetRef ref, Session session) {
     SessionConnect.connectSftp(ctx, ref, session);
     setState(() => _navIndex = 2);
-  }
-
-  Future<void> _scanQr(BuildContext ctx, WidgetRef ref) async {
-    final data = await QrScanScreen.show(ctx);
-    if (data == null || !ctx.mounted) return;
-
-    for (final session in data.sessions) {
-      await ref.read(sessionProvider.notifier).add(session);
-    }
-    for (final group in data.emptyGroups) {
-      await ref.read(sessionProvider.notifier).addEmptyGroup(group);
-    }
-
-    if (ctx.mounted) {
-      Toast.show(
-        ctx,
-        message: 'Imported ${data.sessions.length} session(s)',
-        level: ToastLevel.success,
-      );
-    }
-  }
-
-  Future<void> _showQrExport(BuildContext ctx, WidgetRef ref) async {
-    final sessions = ref.read(sessionProvider);
-    if (sessions.isEmpty) {
-      Toast.show(ctx, message: 'No sessions to export', level: ToastLevel.warning);
-      return;
-    }
-    final store = ref.read(sessionStoreProvider);
-    final payload = await QrExportDialog.show(
-      ctx,
-      sessions: sessions,
-      emptyGroups: store.emptyGroups,
-    );
-    if (payload == null || !ctx.mounted) return;
-
-    final decoded = decodeSessionsFromQr(payload);
-    final count = decoded?.sessions.length ?? 0;
-    await QrDisplayScreen.show(ctx, data: payload, sessionCount: count);
   }
 
   Future<void> _newSession(BuildContext ctx, WidgetRef ref) async {
@@ -203,13 +146,10 @@ class _MobileSessionsPage extends ConsumerWidget {
   final void Function(Session) onConnect;
   final void Function(Session) onSftpConnect;
   final void Function(SSHConfig config) onQuickConnect;
-  final VoidCallback? onQrExport;
-
   const _MobileSessionsPage({
     required this.onConnect,
     required this.onSftpConnect,
     required this.onQuickConnect,
-    this.onQrExport,
   });
 
   @override
@@ -226,11 +166,6 @@ class _MobileSessionsPage extends ConsumerWidget {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
-              IconButton(
-                onPressed: onQrExport,
-                icon: const Icon(Icons.qr_code, size: 22),
-                tooltip: 'Export via QR',
-              ),
               IconButton(
                 onPressed: () => SettingsScreen.show(context),
                 icon: const Icon(Icons.settings, size: 22),

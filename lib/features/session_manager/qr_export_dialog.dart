@@ -120,27 +120,20 @@ class _QrExportDialogState extends State<QrExportDialog> {
 
   void _exportAll() {
     _toggleAll(true);
-    final payload = encodeSessionsForQr(
-      _selectedSessions,
-      emptyGroups: _allSelected ? widget.emptyGroups : _relevantEmptyGroups,
-    );
-    final size = calculateQrPayloadSize(
-      _selectedSessions,
-      emptyGroups: _allSelected ? widget.emptyGroups : _relevantEmptyGroups,
-    );
-    if (size > qrMaxPayloadBytes) {
+    if (!_fitsInQr) {
       _showTooLargeSnackbar();
       return;
     }
-    Navigator.of(context).pop(payload);
+    _popWithDeepLink(_allSelected ? widget.emptyGroups : _relevantEmptyGroups);
   }
 
   void _showQr() {
-    final payload = encodeSessionsForQr(
-      _selectedSessions,
-      emptyGroups: _relevantEmptyGroups,
-    );
-    Navigator.of(context).pop(payload);
+    _popWithDeepLink(_relevantEmptyGroups);
+  }
+
+  void _popWithDeepLink(Set<String> groups) {
+    final payload = encodeSessionsForQr(_selectedSessions, emptyGroups: groups);
+    Navigator.of(context).pop(wrapInDeepLink(payload));
   }
 
   void _showTooLargeSnackbar() {

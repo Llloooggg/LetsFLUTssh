@@ -76,8 +76,8 @@ class QrDisplayScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Scan this QR code with LetsFLUTssh on another device\n'
-                'to import these sessions.',
+                'Scan with any camera app on a device\n'
+                'that has LetsFLUTssh installed.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,

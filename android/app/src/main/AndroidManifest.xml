@@ -3,9 +3,6 @@
     <!-- Network: SSH/SFTP connections -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Camera: QR code scanning for session import -->
-    <uses-permission android:name="android.permission.CAMERA" />
-
     <!-- Storage: local file browser for SFTP transfers -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />

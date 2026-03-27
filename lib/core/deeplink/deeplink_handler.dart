@@ -4,6 +4,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../utils/logger.dart';
+import '../session/qr_codec.dart';
 import '../ssh/ssh_config.dart';
 
 /// Handles deep links and file open intents:
@@ -17,6 +18,9 @@ class DeepLinkHandler {
 
   /// Callback invoked when a valid SSH connect link is received.
   void Function(SSHConfig config)? onConnect;
+
+  /// Callback invoked when a QR import link is received.
+  void Function(QrImportData data)? onQrImport;
 
   /// Callback invoked when an SSH key file is opened (.pem, .key).
   void Function(String filePath)? onKeyFileOpened;
@@ -75,6 +79,14 @@ class DeepLinkHandler {
         onConnect?.call(config);
       } else {
         AppLogger.instance.log('Invalid connect params — host and user required', name: 'DeepLink');
+      }
+    } else if (uri.host == 'import') {
+      final data = decodeImportUri(uri);
+      if (data != null) {
+        AppLogger.instance.log('QR import: ${data.sessions.length} session(s)', name: 'DeepLink');
+        onQrImport?.call(data);
+      } else {
+        AppLogger.instance.log('Invalid import data', name: 'DeepLink');
       }
     } else {
       AppLogger.instance.log('Unknown action "${uri.host}"', name: 'DeepLink');
