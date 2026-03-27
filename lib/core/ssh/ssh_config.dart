@@ -116,6 +116,7 @@ class SSHConfig {
     if (host.trim().isEmpty) return 'Host is required';
     if (port < 1 || port > 65535) return 'Port must be 1-65535';
     if (user.trim().isEmpty) return 'Username is required';
+    if (!hasAuth) return 'Password or SSH key is required';
     if (keepAliveSec < 0) return 'Keep-alive must be non-negative';
     if (timeoutSec < 1) return 'Timeout must be at least 1 second';
     return null;
