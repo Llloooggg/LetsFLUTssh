@@ -56,19 +56,21 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 
 **Tagging workflow:**
 
-- Tag the **last commit that has a version bump** — this is the commit the release is built from. If there are docs/test/chore commits after it, the tag still goes on the bump commit, not on the trailing non-bump commits
-- Tag **before pushing**: `git tag vX.Y.Z <commit-hash> && git push && git push origin vX.Y.Z`
+- Tag goes on **HEAD of main after CI passes** — never on an intermediate commit. Build & Release checks CI on the tagged SHA, so CI must exist there
+- If `test:`/`docs:`/`chore:` commits follow a bump commit — the tag goes on the **last commit in the chain** (it still contains the same version in pubspec.yaml)
+- Tag **after CI passes**: push commits first, wait for CI green, then `git tag vX.Y.Z && git push origin vX.Y.Z`
 - Tag triggers `build.yml` (build + release)
-- **By default Claude only reminds** about tagging and pushing. If the user asked Claude to push — Claude also tags the last bump commit and pushes both commits and tag
-- Do NOT tag commits without a version bump (tests, docs, CI)
+- **By default Claude only reminds** about tagging and pushing. If the user asked Claude to push — Claude also tags HEAD and pushes both commits and tag
+- **Never tag an intermediate commit** in a batch push — only HEAD, otherwise Build & Release preflight fails (CI check not found)
 
 **Example lifecycle:**
 
 ```
-v1.0.0 → bugfix(v1.0.1) → refactor(v1.0.2) → tag v1.0.2, push
+v1.0.0 → bugfix(v1.0.1) → refactor(v1.0.2) → push, CI ✓, tag v1.0.2 on HEAD
          ↑ changelog collects both commits ↑
 
-v1.0.2 → new feature → v1.1.0 → tag v1.1.0, push
+v1.0.2 → new feature(v1.1.0) → test: add tests → push, CI ✓, tag v1.1.0 on HEAD
+                                 ↑ no bump, but tag goes here (HEAD) ↑
 ```
 
 ### Post-change workflow (mandatory after every commit that affects the shipped app)
