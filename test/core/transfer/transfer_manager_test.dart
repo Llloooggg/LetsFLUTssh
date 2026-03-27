@@ -10,7 +10,7 @@ void main() {
     late TransferManager manager;
 
     setUp(() {
-      manager = TransferManager(parallelism: 2, maxHistory: 10);
+      manager = TransferManager(parallelism: 2, maxHistory: 10, taskTimeout: Duration.zero);
     });
 
     tearDown(() {

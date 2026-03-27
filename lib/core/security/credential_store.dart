@@ -116,6 +116,8 @@ class CredentialStore {
       return keyBytes;
     } catch (e) {
       completer.completeError(e);
+      // Prevent unhandled error when no concurrent caller awaits the completer.
+      unawaited(completer.future.then<void>((_) {}, onError: (_) {}));
       rethrow;
     } finally {
       _keyGenCompleter = null;
