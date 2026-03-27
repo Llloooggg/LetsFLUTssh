@@ -108,42 +108,8 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_initializing) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Initializing SFTP...'),
-          ],
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
-            const SizedBox(height: 8),
-            Text(_error!),
-            const SizedBox(height: 16),
-            FilledButton.tonal(
-              onPressed: () {
-                setState(() {
-                  _initializing = true;
-                  _error = null;
-                });
-                _initSftp();
-              },
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
+    if (_initializing) return _buildLoading();
+    if (_error != null) return _buildError();
 
     final local = _localCtrl;
     final remote = _remoteCtrl;
@@ -153,79 +119,113 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
     return Column(
       children: [
-        // Dual-pane file browser with resizable split
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final maxWidth = constraints.maxWidth;
-              final leftWidth = (_splitRatio * maxWidth)
-                  .clamp(100.0, maxWidth - 100);
-
-              return Row(
-                children: [
-                  // Local pane
-                  SizedBox(
-                    width: leftWidth,
-                    child: FilePane(
-                      controller: local,
-                      paneId: 'local',
-                      onTransfer: (entry) => _upload(entry),
-                      onTransferMultiple: (entries) {
-                        for (final e in entries) {
-                          _upload(e);
-                        }
-                      },
-                      onDropReceived: (entries) {
-                        for (final e in entries) {
-                          _download(e);
-                        }
-                      },
-                      onOsDropReceived: (paths) => _osDropToLocal(paths),
-                    ),
-                  ),
-                  // Draggable divider
-                  MouseRegion(
-                    cursor: SystemMouseCursors.resizeColumn,
-                    child: GestureDetector(
-                      onHorizontalDragUpdate: (d) {
-                        setState(() {
-                          _splitRatio = ((_splitRatio * maxWidth + d.delta.dx) / maxWidth)
-                              .clamp(0.2, 0.8);
-                        });
-                      },
-                      child: Container(
-                        width: 4,
-                        color: Theme.of(context).dividerColor,
-                      ),
-                    ),
-                  ),
-                  // Remote pane
-                  Expanded(
-                    child: FilePane(
-                      controller: remote,
-                      paneId: 'remote',
-                      onTransfer: (entry) => _download(entry),
-                      onTransferMultiple: (entries) {
-                        for (final e in entries) {
-                          _download(e);
-                        }
-                      },
-                      onDropReceived: (entries) {
-                        for (final e in entries) {
-                          _upload(e);
-                        }
-                      },
-                      onOsDropReceived: (paths) => _osDropToRemote(paths),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        // Transfer panel
+        Expanded(child: _buildDualPane(context, local, remote)),
         const TransferPanel(),
       ],
+    );
+  }
+
+  Widget _buildLoading() {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Initializing SFTP...'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
+          const SizedBox(height: 8),
+          Text(_error!),
+          const SizedBox(height: 16),
+          FilledButton.tonal(
+            onPressed: () {
+              setState(() {
+                _initializing = true;
+                _error = null;
+              });
+              _initSftp();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDualPane(BuildContext context, FilePaneController local, FilePaneController remote) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final leftWidth = (_splitRatio * maxWidth)
+            .clamp(100.0, maxWidth - 100);
+
+        return Row(
+          children: [
+            SizedBox(
+              width: leftWidth,
+              child: FilePane(
+                controller: local,
+                paneId: 'local',
+                onTransfer: (entry) => _upload(entry),
+                onTransferMultiple: (entries) {
+                  for (final e in entries) {
+                    _upload(e);
+                  }
+                },
+                onDropReceived: (entries) {
+                  for (final e in entries) {
+                    _download(e);
+                  }
+                },
+                onOsDropReceived: (paths) => _osDropToLocal(paths),
+              ),
+            ),
+            MouseRegion(
+              cursor: SystemMouseCursors.resizeColumn,
+              child: GestureDetector(
+                onHorizontalDragUpdate: (d) {
+                  setState(() {
+                    _splitRatio = ((_splitRatio * maxWidth + d.delta.dx) / maxWidth)
+                        .clamp(0.2, 0.8);
+                  });
+                },
+                child: Container(
+                  width: 4,
+                  color: Theme.of(context).dividerColor,
+                ),
+              ),
+            ),
+            Expanded(
+              child: FilePane(
+                controller: remote,
+                paneId: 'remote',
+                onTransfer: (entry) => _download(entry),
+                onTransferMultiple: (entries) {
+                  for (final e in entries) {
+                    _download(e);
+                  }
+                },
+                onDropReceived: (entries) {
+                  for (final e in entries) {
+                    _upload(e);
+                  }
+                },
+                onOsDropReceived: (paths) => _osDropToRemote(paths),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
