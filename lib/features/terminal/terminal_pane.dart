@@ -318,6 +318,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
   List<TerminalHighlight> _searchHighlights = [];
   int _currentMatchIndex = -1;
   int _totalMatches = 0;
+  bool _disposed = false;
 
   @override
   void initState() {
@@ -327,6 +328,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
 
   @override
   void dispose() {
+    _disposed = true;
     _clearHighlights();
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -335,6 +337,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
 
   void _performSearch() {
     _clearHighlights();
+    if (_disposed) return;
     final query = _searchController.text;
     if (query.isEmpty) {
       setState(() {
