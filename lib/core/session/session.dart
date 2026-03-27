@@ -96,10 +96,11 @@ class Session {
 
   /// Convert to SSHConfig for connecting.
   SSHConfig toSSHConfig() {
-    final expandedKeyPath = keyPath.replaceFirst(
-      '~',
-      homeDirectory,
-    );
+    final expandedKeyPath = keyPath == '~'
+        ? homeDirectory
+        : keyPath.startsWith('~/')
+            ? '$homeDirectory${keyPath.substring(1)}'
+            : keyPath;
     return SSHConfig(
       server: server,
       auth: SshAuth(
