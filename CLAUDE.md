@@ -55,47 +55,57 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 
 **Patch bump IS needed for:** any change that affects the shipped application — Dart code in `lib/` (including logging/diagnostics changes), platform configs (`AndroidManifest.xml`, `Info.plist`, `.desktop`, etc.), native code, assets, or build settings that alter app behavior. Adding or changing `AppLogger` calls counts — the log file output is part of the shipped app.
 
-**Tagging workflow:**
-
-- Tag goes on **HEAD of main after CI passes** — never on an intermediate commit. Build & Release checks CI on the tagged SHA, so CI must exist there
-- Tag **after CI passes**: push commits first, wait for CI green, then `git tag vX.Y.Z && git push origin vX.Y.Z`
-- Tag triggers `build.yml` (build + release)
-- **By default Claude only reminds** about tagging and pushing. If the user asked Claude to push — Claude also tags HEAD and pushes both commits and tag
-- **Never tag an intermediate commit** in a batch push — only HEAD, otherwise Build & Release preflight fails (CI check not found)
-
-**CI path filtering caveat:** CI only triggers when commits touch code-related paths (`lib/`, `test/`, `pubspec.*`, `Makefile`, `analysis_options.yaml`, platform dirs, `sonar-project.properties`). Commits that touch **only** docs (`CLAUDE.md`, `README.md`, `SECURITY.md`), assets, or `.github/workflows/` do NOT trigger CI. If HEAD is a docs-only commit, preflight will fail because no CI check exists for that SHA.
-
-**Safe push order** — automated via `make tag`:
+**Tagging workflow — always use `make tag`:**
 
 ```
-make tag   # analyze + test → tag vX.Y.Z → atomic push commits + tag
+make tag   # the only way to tag and push a release
 ```
 
-The target: runs `make check` (analyze + test) → reads version from `pubspec.yaml` → checks dirty tree / duplicate tag → tags HEAD → pushes commits + tag atomically (`--atomic` ensures either both land or neither does). If push fails, the local tag is cleaned up. Build & Release workflow's preflight automatically waits for CI to finish (up to 10 min) before building — no manual waiting needed.
+`make tag` is the single entry point for releasing. It does everything in one shot:
 
-Manual equivalent (if not using `make tag`):
+1. `make check` — runs `flutter analyze --fatal-infos` + `flutter test --coverage`. Fails fast if code is broken — no tag, no push
+2. Reads version from `pubspec.yaml` → forms tag `v{VERSION}`
+3. Safety checks: dirty working tree → error; duplicate tag → error
+4. `git tag vX.Y.Z` on HEAD
+5. `git push --follow-tags --atomic` — commits and tag land together atomically (both succeed or neither does)
+6. If push fails — local tag is auto-cleaned, nothing lands on remote
 
-1. `make check` — ensure tests pass locally
-2. `git tag vX.Y.Z` on HEAD
-3. `git push --follow-tags --atomic` — pushes commits and tag together; CI triggers on push, Build & Release triggers on tag, preflight waits for CI
+After `make tag` succeeds, two GitHub Actions workflows kick in:
+- **CI (`ci.yml`)** — triggers on the push (analyze + test + SonarCloud)
+- **Build & Release (`build.yml`)** — triggers on the `v*` tag. Its preflight step waits for CI to finish (polls up to 10 min) before building artifacts. No manual waiting needed
 
-**If the last commit is docs-only** (no CI trigger):
-- **Option A:** tag the last code commit before docs, push tag, then push docs separately
-- **Option B:** bundle docs changes into the code commit (preferred — simpler)
-- **Option C:** use `workflow_dispatch` with `create_release: true` (bypasses CI timeout with warning)
+**When to run `make tag`:**
+
+| Scenario | What happens | When to tag |
+|----------|-------------|-------------|
+| Single bugfix | `fix:` commit with patch bump → `make tag` | Immediately after commit |
+| Batch of fixes | Several `fix:`/`refactor:` commits, each with its own patch bump | `make tag` once after the last commit — tag goes on HEAD, changelog collects all commits since previous tag |
+| New feature | `feat:` commit with minor bump (resets patch to 0) | `make tag` after the feature commit (or after follow-up test/doc commits) |
+| Breaking change | Commit with major bump | `make tag` — same as above |
+| Tests / docs only | `test:`/`docs:`/`chore:`/`ci:` commits — no version bump | **Don't tag.** No release needed. Push normally with `git push` |
+| Mix of code + docs | Code commit(s) + docs commit | **Preferred:** bundle docs into the code commit so HEAD has CI trigger. Or: tag the last code commit, push docs separately after |
+
+**Key rules:**
+
+- **Tag only on HEAD** — never on an intermediate commit. Build & Release preflight checks CI on the tagged SHA; if there's no CI run for that SHA, it will timeout
+- **By default Claude only reminds** about tagging. If the user explicitly asks to push — Claude runs `make tag`
+- **Never tag docs-only HEAD** — CI only triggers on code-related paths (`lib/`, `test/`, `pubspec.*`, `Makefile`, `analysis_options.yaml`, platform dirs, `sonar-project.properties`). Docs-only commits (`CLAUDE.md`, `README.md`, `SECURITY.md`) don't trigger CI, so preflight will timeout. Bundle docs into the code commit instead
+- **Escape hatch:** if you absolutely must release with docs-only HEAD, use `workflow_dispatch` with `create_release: true` — Build & Release will warn about missing CI but proceed
 
 **Example lifecycle:**
 
 ```
-v1.0.0 → bugfix(v1.0.1) → refactor(v1.0.2) → push, CI ✓, tag v1.0.2 on HEAD
-         ↑ changelog collects both commits ↑
+v1.0.0 → fix(v1.0.1) → refactor(v1.0.2) → make tag → v1.0.2
+         ↑ changelog collects both commits since v1.0.0 ↑
 
-v1.0.2 → feat(v1.1.0) → test: add tests → push, CI ✓, tag v1.1.0 on HEAD
-                          ↑ test/ triggers CI, so tag on HEAD is safe ↑
+v1.0.2 → feat(v1.1.0) → test: add tests → make tag → v1.1.0
+         ↑ minor bump   ↑ no bump (tests)   ↑ tag HEAD (test/ triggers CI)
 
-v1.1.0 → fix(v1.1.1) → docs: update readme → push
-          ↑ CI runs on fix commit (lib/), but NOT on docs commit ↑
-          ↑ tag v1.1.1 on the fix commit, or bundle docs into fix ↑
+v1.1.0 → fix(v1.1.1) → docs: readme (bundled into fix) → make tag → v1.1.1
+         ↑ docs ride along in the fix commit, HEAD triggers CI ↑
+
+v1.1.1 → docs: update CLAUDE.md → git push (no tag, no release)
+         ↑ docs-only, no version bump, no release needed ↑
 ```
 
 ### Post-change workflow (mandatory after every commit that affects the shipped app)
