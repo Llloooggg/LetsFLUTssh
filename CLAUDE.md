@@ -27,6 +27,7 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
     - `test:`, `docs:`, `chore:`, `ci:` → skipped (not user-facing)
     - Keep messages clear and user-readable — they appear in GitHub Release notes
     - **Commit message = what matters to the user.** If a commit includes both app changes and docs/CLAUDE.md, the prefix should describe the app change only. Docs ride along silently
+- **One fix / one commit** — each logical change is a separate commit. Do not bundle unrelated fixes into one commit. This keeps git history clean, makes bisect easy, and simplifies reverts
 - Repository is **public** on GitHub
 
 ### Work Style
