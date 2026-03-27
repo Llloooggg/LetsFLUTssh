@@ -44,7 +44,7 @@ class SFTPService {
         owner: owner,
       ));
     }
-    _sort(entries);
+    sortFileEntries(entries);
     return entries;
   }
 
@@ -234,12 +234,33 @@ class SFTPService {
     String remoteDir,
     String localDir,
     void Function(TransferProgress)? onProgress,
-  ) => _downloadDirRecursive(remoteDir, localDir, onProgress, 0);
+  ) async {
+    final totalFiles = await _countRemoteFiles(remoteDir, 0);
+    final counter = _Counter();
+    await _downloadDirRecursive(remoteDir, localDir, onProgress, totalFiles, counter, 0);
+  }
+
+  /// Count total files (non-directory) recursively in a remote directory.
+  Future<int> _countRemoteFiles(String remoteDir, int depth) async {
+    if (depth >= maxRecursionDepth) return 0;
+    final items = await list(remoteDir);
+    var count = 0;
+    for (final item in items) {
+      if (item.isDir) {
+        count += await _countRemoteFiles(item.path, depth + 1);
+      } else {
+        count++;
+      }
+    }
+    return count;
+  }
 
   Future<void> _downloadDirRecursive(
     String remoteDir,
     String localDir,
     void Function(TransferProgress)? onProgress,
+    int totalFiles,
+    _Counter counter,
     int depth,
   ) async {
     if (depth >= maxRecursionDepth) {
@@ -248,23 +269,21 @@ class SFTPService {
     await Directory(localDir).create(recursive: true);
 
     final items = await list(remoteDir);
-    var filesDone = 0;
-    final totalFiles = items.where((e) => !e.isDir).length;
 
     for (final item in items) {
       final localPath = p.join(localDir, item.name);
 
       if (item.isDir) {
-        await _downloadDirRecursive(item.path, localPath, onProgress, depth + 1);
+        await _downloadDirRecursive(item.path, localPath, onProgress, totalFiles, counter, depth + 1);
       } else {
         await download(item.path, localPath, null);
-        filesDone++;
+        counter.value++;
         onProgress?.call(TransferProgress(
           fileName: item.name,
           totalBytes: totalFiles,
-          doneBytes: filesDone,
+          doneBytes: counter.value,
           isUpload: false,
-          isCompleted: filesDone >= totalFiles,
+          isCompleted: counter.value >= totalFiles,
         ));
       }
     }
@@ -282,13 +301,6 @@ class SFTPService {
     return '';
   }
 
-  void _sort(List<FileEntry> entries) {
-    entries.sort((a, b) {
-      if (a.isDir && !b.isDir) return -1;
-      if (!a.isDir && b.isDir) return 1;
-      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-    });
-  }
 }
 
 /// Mutable counter for tracking progress across recursive calls.
