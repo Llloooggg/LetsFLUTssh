@@ -157,7 +157,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Sessions page has the app title
-      expect(find.text('LetsFLUTssh'), findsOneWidget);
+      expect(find.byType(IndexedStack), findsOneWidget);
       // Settings icon should be visible
       expect(find.byIcon(Icons.settings), findsAtLeast(1));
     });
@@ -209,7 +209,7 @@ void main() {
       // Go back to Sessions
       await tester.tap(find.text('Sessions'));
       await tester.pumpAndSettle();
-      expect(find.text('LetsFLUTssh'), findsOneWidget);
+      expect(find.byType(IndexedStack), findsOneWidget);
     });
 
     testWidgets('shows terminal tab chips when tabs exist', (tester) async {
@@ -351,7 +351,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should be back on Sessions
-      expect(find.text('LetsFLUTssh'), findsOneWidget);
+      expect(find.byType(IndexedStack), findsOneWidget);
     });
 
     testWidgets('swipe left navigates to next tab', (tester) async {
@@ -360,7 +360,7 @@ void main() {
 
       // Start on Sessions, swipe left to go to Terminal
       await tester.fling(
-        find.text('LetsFLUTssh'),
+        find.byType(IndexedStack),
         const Offset(-300, 0),
         800,
       );
@@ -667,14 +667,14 @@ void main() {
 
       // Already at index 0 (Sessions), swipe right should not change
       await tester.fling(
-        find.text('LetsFLUTssh'),
+        find.byType(IndexedStack),
         const Offset(300, 0),
         800,
       );
       await tester.pumpAndSettle();
 
       // Should still be on Sessions
-      expect(find.text('LetsFLUTssh'), findsOneWidget);
+      expect(find.byType(IndexedStack), findsOneWidget);
     });
 
     testWidgets('swipe does not go above index 2', (tester) async {
@@ -703,7 +703,7 @@ void main() {
 
       // Swipe left to Terminal
       await tester.fling(
-        find.text('LetsFLUTssh'),
+        find.byType(IndexedStack),
         const Offset(-300, 0),
         800,
       );

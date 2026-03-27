@@ -30,35 +30,72 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   Widget build(BuildContext context) {
     final tabState = ref.watch(tabProvider);
 
-    return Scaffold(
+    final hasActiveTabs = tabState.tabs.isNotEmpty;
+
+    return PopScope(
+      canPop: !hasActiveTabs && _navIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        // If not on sessions tab, go back to sessions
+        if (_navIndex != 0) {
+          setState(() => _navIndex = 0);
+          return;
+        }
+        // On sessions tab with active tabs — confirm exit
+        _confirmExit(context);
+      },
+      child: Scaffold(
       body: SafeArea(
-        child: GestureDetector(
-          onHorizontalDragEnd: (details) {
-            final velocity = details.primaryVelocity ?? 0;
-            if (velocity > 300 && _navIndex > 0) {
-              setState(() => _navIndex--);
-            } else if (velocity < -300 && _navIndex < 2) {
-              setState(() => _navIndex++);
-            }
-          },
-          child: IndexedStack(
-            index: _navIndex,
-            children: [
-              // Sessions page
-              _MobileSessionsPage(
-                onConnect: (session) => _connectSession(context, ref, session),
-                onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-                onQuickConnect: (config) {
-                  SessionConnect.connectConfig(context, ref, config);
-                  setState(() => _navIndex = 1);
-                },
+        child: Column(
+          children: [
+            // Global app bar visible on all tabs
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  const Text(
+                    'LetsFLUTssh',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => SettingsScreen.show(context),
+                    icon: const Icon(Icons.settings, size: 22),
+                  ),
+                ],
               ),
-              // Terminal page
-              _MobileTerminalPage(tabState: tabState),
-              // SFTP page
-              _MobileSftpPage(tabState: tabState),
-            ],
-          ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onHorizontalDragEnd: (details) {
+                  final velocity = details.primaryVelocity ?? 0;
+                  if (velocity > 300 && _navIndex > 0) {
+                    setState(() => _navIndex--);
+                  } else if (velocity < -300 && _navIndex < 2) {
+                    setState(() => _navIndex++);
+                  }
+                },
+                child: IndexedStack(
+                  index: _navIndex,
+                  children: [
+                    // Sessions page
+                    _MobileSessionsPage(
+                      onConnect: (session) => _connectSession(context, ref, session),
+                      onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+                      onQuickConnect: (config) {
+                        SessionConnect.connectConfig(context, ref, config);
+                        setState(() => _navIndex = 1);
+                      },
+                    ),
+                    // Terminal page
+                    _MobileTerminalPage(tabState: tabState),
+                    // SFTP page
+                    _MobileSftpPage(tabState: tabState),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: NavigationBar(
@@ -105,7 +142,32 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               child: const Icon(Icons.add),
             )
           : null,
+    ),
     );
+  }
+
+  Future<void> _confirmExit(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Exit'),
+        content: const Text('Active sessions will be disconnected. Exit?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Exit'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   int _terminalTabCount(TabState s) =>
@@ -154,34 +216,11 @@ class _MobileSessionsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        // App bar
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            children: [
-              const Text(
-                'LetsFLUTssh',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              IconButton(
-                onPressed: () => SettingsScreen.show(context),
-                icon: const Icon(Icons.settings, size: 22),
-              ),
-            ],
-          ),
-        ),
-        // Session panel (reuses existing widget)
-        Expanded(
-          child: SessionPanel(
-            onConnect: onConnect,
-            onSftpConnect: onSftpConnect,
-            onQuickConnect: onQuickConnect,
-          ),
-        ),
-      ],
+    // Header moved to MobileShell — visible on all tabs
+    return SessionPanel(
+      onConnect: onConnect,
+      onSftpConnect: onSftpConnect,
+      onQuickConnect: onQuickConnect,
     );
   }
 }

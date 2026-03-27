@@ -18,7 +18,7 @@ import '../session_manager/qr_export_dialog.dart';
 import 'export_import.dart';
 
 /// App version — kept in sync with pubspec.yaml.
-const _appVersion = '1.2.3';
+const _appVersion = '1.2.4';
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
