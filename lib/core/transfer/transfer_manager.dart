@@ -7,6 +7,7 @@ import 'transfer_task.dart';
 class TransferManager {
   final int parallelism;
   final int maxHistory;
+  final Duration taskTimeout;
 
   final _queue = <_QueueEntry>[];
   final _history = <HistoryEntry>[];
@@ -27,7 +28,11 @@ class TransferManager {
   String? get currentTransferInfo =>
       _activeTransfers.isNotEmpty ? _activeTransfers.values.last : null;
 
-  TransferManager({this.parallelism = 2, this.maxHistory = 500});
+  TransferManager({
+    this.parallelism = 2,
+    this.maxHistory = 500,
+    this.taskTimeout = const Duration(minutes: 30),
+  });
 
   List<HistoryEntry> get history => List.unmodifiable(_history);
 
@@ -77,7 +82,7 @@ class TransferManager {
         lastMessage = message;
         _activeTransfers[entry.id] = '${entry.task.name} ${percent.toStringAsFixed(0)}%';
         _notify();
-      });
+      }).timeout(taskTimeout);
 
       AppLogger.instance.log('Completed: ${entry.task.name}', name: 'Transfer');
       _addHistory(HistoryEntry(
