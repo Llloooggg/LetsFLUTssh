@@ -303,6 +303,52 @@ void main() {
     });
   });
 
+  group('SessionStore — bulk operations', () {
+    test('deleteMultiple removes selected sessions', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'bm-1', label: 's1', group: 'A'));
+      await store.add(makeSession(id: 'bm-2', label: 's2', group: 'A'));
+      await store.add(makeSession(id: 'bm-3', label: 's3', group: 'B'));
+      await store.deleteMultiple({'bm-1', 'bm-3'});
+
+      expect(store.sessions, hasLength(1));
+      expect(store.sessions.first.id, 'bm-2');
+    });
+
+    test('deleteMultiple with empty set is no-op', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'bm-4', label: 's4'));
+      await store.deleteMultiple({});
+
+      expect(store.sessions, hasLength(1));
+    });
+
+    test('moveMultiple moves selected sessions to new group', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'mm-1', label: 's1', group: 'A'));
+      await store.add(makeSession(id: 'mm-2', label: 's2', group: 'A'));
+      await store.add(makeSession(id: 'mm-3', label: 's3', group: 'B'));
+      await store.moveMultiple({'mm-1', 'mm-3'}, 'C');
+
+      final moved = store.sessions.where((s) => s.group == 'C').toList();
+      expect(moved, hasLength(2));
+      expect(moved.map((s) => s.id).toSet(), {'mm-1', 'mm-3'});
+      expect(store.sessions.firstWhere((s) => s.id == 'mm-2').group, 'A');
+    });
+
+    test('moveMultiple with empty set is no-op', () async {
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(id: 'mm-4', label: 's4', group: 'X'));
+      await store.moveMultiple({}, 'Y');
+
+      expect(store.sessions.first.group, 'X');
+    });
+  });
+
   group('SessionStore — deleteGroup and deleteAll', () {
     test('deleteGroup removes sessions in group', () async {
       final store = SessionStore();

@@ -139,6 +139,21 @@ class FakeSessionStore extends SessionStore {
   Future<void> moveGroup(String groupPath, String newParent) async {
     // Simplified stub
   }
+
+  @override
+  Future<void> deleteMultiple(Set<String> ids) async {
+    _fakeSessions.removeWhere((s) => ids.contains(s.id));
+  }
+
+  @override
+  Future<void> moveMultiple(Set<String> ids, String newGroup) async {
+    for (var i = 0; i < _fakeSessions.length; i++) {
+      if (ids.contains(_fakeSessions[i].id)) {
+        final s = _fakeSessions[i];
+        _fakeSessions[i] = Session(id: s.id, label: s.label, group: newGroup, server: ServerAddress(host: s.host, port: s.port, user: s.user));
+      }
+    }
+  }
 }
 
 void main() {
@@ -2152,6 +2167,127 @@ void main() {
 
       // Dialog should close
       expect(find.text('Move to Folder'), findsNothing);
+    });
+  });
+
+  group('SessionPanel — select mode', () {
+    testWidgets('Select button appears in header when sessions exist', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.byIcon(Icons.checklist), findsOneWidget);
+    });
+
+    testWidgets('Select button hidden when no sessions', (tester) async {
+      await tester.pumpWidget(buildApp(sessions: []));
+      expect(find.byIcon(Icons.checklist), findsNothing);
+    });
+
+    testWidgets('tapping Select shows action bar', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      expect(find.text('0 selected'), findsOneWidget);
+      expect(find.byIcon(Icons.select_all), findsOneWidget);
+      expect(find.byIcon(Icons.drive_file_move), findsOneWidget);
+      expect(find.byIcon(Icons.delete), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+    });
+
+    testWidgets('action bar hides search bar and header', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.text('Sessions'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      // Header title should be gone
+      expect(find.text('Sessions'), findsNothing);
+    });
+
+    testWidgets('Cancel exits select mode', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+      expect(find.text('0 selected'), findsOneWidget);
+
+      // Tap close/cancel
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+
+      // Back to normal mode
+      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('0 selected'), findsNothing);
+    });
+
+    testWidgets('checkboxes appear in select mode', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.byType(Checkbox), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      // Should have checkboxes for each session (3 in testSessions)
+      expect(find.byType(Checkbox), findsNWidgets(3));
+    });
+
+    testWidgets('tapping session in select mode toggles checkbox', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      // Tap first session
+      await tester.tap(find.text('web1'));
+      await tester.pump();
+
+      expect(find.text('1 selected'), findsOneWidget);
+
+      // Tap again to deselect
+      await tester.tap(find.text('web1'));
+      await tester.pump();
+
+      expect(find.text('0 selected'), findsOneWidget);
+    });
+
+    testWidgets('Select All selects all sessions', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      expect(find.text('3 selected'), findsOneWidget);
+    });
+
+    testWidgets('Delete shows confirm dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      // Select one session
+      await tester.tap(find.text('web1'));
+      await tester.pump();
+
+      // Tap delete
+      await tester.tap(find.byIcon(Icons.delete));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Sessions'), findsOneWidget);
+      expect(find.textContaining('1 selected session'), findsOneWidget);
+    });
+
+    testWidgets('Move shows folder dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pump();
+
+      await tester.tap(find.text('staging'));
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.drive_file_move));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Move to Folder'), findsOneWidget);
     });
   });
 }

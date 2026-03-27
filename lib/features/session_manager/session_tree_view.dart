@@ -33,6 +33,11 @@ class SessionTreeView extends StatefulWidget {
   /// Called when a group is dropped onto another group (or root).
   final void Function(String groupPath, String targetParent)? onGroupMoved;
 
+  /// Multi-select mode: show checkboxes, tap toggles selection.
+  final bool selectMode;
+  final Set<String> selectedIds;
+  final void Function(String sessionId)? onToggleSelected;
+
   const SessionTreeView({
     super.key,
     required this.tree,
@@ -43,6 +48,9 @@ class SessionTreeView extends StatefulWidget {
     this.onBackgroundContextMenu,
     this.onSessionMoved,
     this.onGroupMoved,
+    this.selectMode = false,
+    this.selectedIds = const {},
+    this.onToggleSelected,
   });
 
   @override
@@ -322,23 +330,27 @@ class _SessionTreeViewState extends State<SessionTreeView> {
   Widget _buildSessionTile(SessionTreeNode node, int depth) {
     final session = node.session!;
     final isSelected = session.id == _selectedSessionId;
+    final isChecked = widget.selectedIds.contains(session.id);
     final theme = Theme.of(context);
 
     final Widget content = GestureDetector(
       // Desktop: double-tap to connect, right-click for context menu
-      onDoubleTap: _mobile ? null : () => widget.onSessionDoubleTap?.call(session),
-      onSecondaryTapUp: (details) {
+      onDoubleTap: (_mobile || widget.selectMode) ? null : () => widget.onSessionDoubleTap?.call(session),
+      onSecondaryTapUp: widget.selectMode ? null : (details) {
         widget.onSessionContextMenu?.call(session, details.globalPosition);
       },
       // Mobile: long-press for context menu
-      onLongPressStart: _mobile
+      onLongPressStart: (_mobile && !widget.selectMode)
           ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
           : null,
       child: InkWell(
         onTap: () {
+          if (widget.selectMode) {
+            widget.onToggleSelected?.call(session.id);
+            return;
+          }
           setState(() => _selectedSessionId = session.id);
           if (_mobile) {
-            // Mobile: single tap connects
             widget.onSessionDoubleTap?.call(session);
           } else {
             widget.onSessionTap?.call(session);
@@ -347,13 +359,24 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         child: Container(
           height: _rowHeight,
           padding: const EdgeInsets.only(right: 8),
-          color: isSelected
+          color: isSelected && !widget.selectMode
               ? theme.colorScheme.primary.withValues(alpha: 0.15)
               : null,
           child: Row(
             children: [
-              _buildIndentGuides(depth, theme),
-              const SizedBox(width: 4),
+              if (widget.selectMode)
+                SizedBox(
+                  width: 36,
+                  child: Checkbox(
+                    value: isChecked,
+                    onChanged: (_) => widget.onToggleSelected?.call(session.id),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                )
+              else
+                _buildIndentGuides(depth, theme),
+              if (!widget.selectMode) const SizedBox(width: 4),
               Icon(
                 _authIcon(session.authType),
                 size: _authIconSize,
@@ -399,8 +422,8 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       ),
     );
 
-    // Mobile: no drag&drop
-    if (_mobile) return content;
+    // Select mode or mobile: no drag&drop
+    if (_mobile || widget.selectMode) return content;
 
     // Desktop: LongPressDraggable
     return LongPressDraggable<SessionDragData>(

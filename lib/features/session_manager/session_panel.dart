@@ -13,7 +13,7 @@ import 'session_tree_view.dart';
 const _kNewFolder = 'New Folder';
 
 /// Session sidebar — tree view + search + actions.
-class SessionPanel extends ConsumerWidget {
+class SessionPanel extends ConsumerStatefulWidget {
   final void Function(Session session) onConnect;
   final void Function(SSHConfig config) onQuickConnect;
   final void Function(Session session)? onSftpConnect;
@@ -26,29 +26,141 @@ class SessionPanel extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SessionPanel> createState() => SessionPanelState();
+}
+
+class SessionPanelState extends ConsumerState<SessionPanel> {
+  bool _selectMode = false;
+  final _selectedIds = <String>{};
+
+  @visibleForTesting
+  bool get selectMode => _selectMode;
+  @visibleForTesting
+  Set<String> get selectedIds => _selectedIds;
+
+  void _enterSelectMode() {
+    setState(() {
+      _selectMode = true;
+      _selectedIds.clear();
+    });
+  }
+
+  void _exitSelectMode() {
+    setState(() {
+      _selectMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelected(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _selectAll() {
+    final sessions = ref.read(filteredSessionsProvider);
+    setState(() {
+      _selectedIds.addAll(sessions.map((s) => s.id));
+    });
+  }
+
+  Future<void> _deleteSelected(BuildContext context) async {
+    if (_selectedIds.isEmpty) return;
+    final count = _selectedIds.length;
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'Delete Sessions',
+      content: Text('Delete $count selected session(s)?\n\nThis cannot be undone.'),
+    );
+    if (confirmed) {
+      await ref.read(sessionProvider.notifier).deleteMultiple(Set.of(_selectedIds));
+      _exitSelectMode();
+    }
+  }
+
+  Future<void> _moveSelected(BuildContext context) async {
+    if (_selectedIds.isEmpty) return;
+    final store = ref.read(sessionStoreProvider);
+    final allGroups = <String>{'', ...store.groups(), ...store.emptyGroups};
+
+    final selected = await showDialog<String>(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Move to Folder'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: allGroups.length,
+            itemBuilder: (ctx, index) {
+              final group = allGroups.elementAt(index);
+              return ListTile(
+                leading: Icon(group.isEmpty ? Icons.home : Icons.folder),
+                title: Text(group.isEmpty ? '/ (root)' : group),
+                onTap: () => Navigator.of(ctx).pop(group),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      await ref.read(sessionProvider.notifier).moveMultiple(Set.of(_selectedIds), selected);
+      _exitSelectMode();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tree = ref.watch(filteredSessionTreeProvider);
     final searchQuery = ref.watch(sessionSearchProvider);
     final isEmpty = ref.watch(sessionProvider.select((s) => s.isEmpty));
 
     return Column(
       children: [
-        // Header with title + add button
-        _PanelHeader(
-          onAddFolder: () => _createFolder(context, ref, ''),
-        ),
-        // Search bar
-        _SearchBar(
-          value: searchQuery,
-          onChanged: (v) => ref.read(sessionSearchProvider.notifier).set(v),
-        ),
+        if (_selectMode)
+          _SelectActionBar(
+            selectedCount: _selectedIds.length,
+            onSelectAll: _selectAll,
+            onDelete: () => _deleteSelected(context),
+            onMove: () => _moveSelected(context),
+            onCancel: _exitSelectMode,
+          )
+        else ...[
+          // Header with title + add/select buttons
+          _PanelHeader(
+            onAddFolder: () => _createFolder(context, ref, ''),
+            onSelect: isEmpty ? null : _enterSelectMode,
+          ),
+          // Search bar
+          _SearchBar(
+            value: searchQuery,
+            onChanged: (v) => ref.read(sessionSearchProvider.notifier).set(v),
+          ),
+        ],
         // Tree view
         Expanded(
           child: isEmpty
               ? _EmptyState(onAdd: () => _addSession(context, ref))
               : SessionTreeView(
                   tree: tree,
-                  onSessionDoubleTap: onConnect,
+                  selectMode: _selectMode,
+                  selectedIds: _selectedIds,
+                  onToggleSelected: _toggleSelected,
+                  onSessionDoubleTap: widget.onConnect,
                   onSessionContextMenu: (session, position) {
                     _showContextMenu(context, ref, session, position);
                   },
@@ -73,10 +185,10 @@ class SessionPanel extends ConsumerWidget {
   Future<void> _handleDialogResult(WidgetRef ref, SessionDialogResult result) async {
     switch (result) {
       case ConnectOnlyResult(:final config):
-        onQuickConnect(config);
+        widget.onQuickConnect(config);
       case SaveResult(:final session, :final connect):
         await ref.read(sessionProvider.notifier).add(session);
-        if (connect) onConnect(session);
+        if (connect) widget.onConnect(session);
     }
   }
 
@@ -115,7 +227,7 @@ class SessionPanel extends ConsumerWidget {
   List<PopupMenuEntry<String>> _sessionMenuItems() {
     return [
       const PopupMenuItem(height: 32, value: 'connect', child: _MenuRow(icon: Icons.terminal, text: 'SSH')),
-      if (onSftpConnect != null)
+      if (widget.onSftpConnect != null)
         const PopupMenuItem(height: 32, value: 'sftp', child: _MenuRow(icon: Icons.folder, text: 'SFTP')),
       const PopupMenuDivider(height: 1),
       const PopupMenuItem(height: 32, value: 'edit', child: _MenuRow(icon: Icons.edit, text: 'Edit')),
@@ -135,9 +247,9 @@ class SessionPanel extends ConsumerWidget {
   ) {
     switch (value) {
       case 'connect':
-        onConnect(session);
+        widget.onConnect(session);
       case 'sftp':
-        onSftpConnect?.call(session);
+        widget.onSftpConnect?.call(session);
       case 'edit':
         _editSession(context, ref, session);
       case 'duplicate':
@@ -475,8 +587,9 @@ class SessionPanel extends ConsumerWidget {
 
 class _PanelHeader extends StatelessWidget {
   final VoidCallback onAddFolder;
+  final VoidCallback? onSelect;
 
-  const _PanelHeader({required this.onAddFolder});
+  const _PanelHeader({required this.onAddFolder, this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -489,10 +602,79 @@ class _PanelHeader extends StatelessWidget {
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
+          if (onSelect != null)
+            IconButton(
+              onPressed: onSelect,
+              icon: const Icon(Icons.checklist, size: 18),
+              tooltip: 'Select',
+              visualDensity: VisualDensity.compact,
+            ),
           IconButton(
             onPressed: onAddFolder,
             icon: const Icon(Icons.create_new_folder, size: 18),
             tooltip: _kNewFolder,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectActionBar extends StatelessWidget {
+  final int selectedCount;
+  final VoidCallback onSelectAll;
+  final VoidCallback onDelete;
+  final VoidCallback onMove;
+  final VoidCallback onCancel;
+
+  const _SelectActionBar({
+    required this.selectedCount,
+    required this.onSelectAll,
+    required this.onDelete,
+    required this.onMove,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 8),
+          Text(
+            '$selectedCount selected',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: onSelectAll,
+            icon: const Icon(Icons.select_all, size: 18),
+            tooltip: 'Select All',
+            visualDensity: VisualDensity.compact,
+          ),
+          IconButton(
+            onPressed: selectedCount > 0 ? onMove : null,
+            icon: const Icon(Icons.drive_file_move, size: 18),
+            tooltip: 'Move to...',
+            visualDensity: VisualDensity.compact,
+          ),
+          IconButton(
+            onPressed: selectedCount > 0 ? onDelete : null,
+            icon: Icon(Icons.delete, size: 18, color: selectedCount > 0 ? AppTheme.disconnected : null),
+            tooltip: 'Delete',
+            visualDensity: VisualDensity.compact,
+          ),
+          IconButton(
+            onPressed: onCancel,
+            icon: const Icon(Icons.close, size: 18),
+            tooltip: 'Cancel',
             visualDensity: VisualDensity.compact,
           ),
         ],

@@ -296,6 +296,27 @@ class SessionStore {
     await _credStore.delete(id);
   }
 
+  /// Delete multiple sessions by IDs in a single save.
+  Future<void> deleteMultiple(Set<String> ids) async {
+    if (ids.isEmpty) return;
+    _sessions.removeWhere((s) => ids.contains(s.id));
+    await _save();
+    for (final id in ids) {
+      await _credStore.delete(id);
+    }
+  }
+
+  /// Move multiple sessions to a new group in a single save.
+  Future<void> moveMultiple(Set<String> ids, String newGroup) async {
+    if (ids.isEmpty) return;
+    for (var i = 0; i < _sessions.length; i++) {
+      if (ids.contains(_sessions[i].id)) {
+        _sessions[i] = _sessions[i].copyWith(group: newGroup);
+      }
+    }
+    await _save();
+  }
+
   Session? get(String id) {
     try {
       return _sessions.firstWhere((s) => s.id == id);

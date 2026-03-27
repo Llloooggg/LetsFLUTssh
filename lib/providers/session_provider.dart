@@ -50,6 +50,8 @@ class SessionNotifier extends Notifier<List<Session>> {
   Future<void> deleteAll() => _run('delete all sessions', () => _store.deleteAll());
   Future<void> moveSession(String sessionId, String newGroup) => _run('move session', () => _store.moveSession(sessionId, newGroup));
   Future<void> moveGroup(String groupPath, String newParent) => _run('move group', () => _store.moveGroup(groupPath, newParent));
+  Future<void> deleteMultiple(Set<String> ids) => _run('delete multiple', () => _store.deleteMultiple(ids));
+  Future<void> moveMultiple(Set<String> ids, String newGroup) => _run('move multiple', () => _store.moveMultiple(ids, newGroup));
 }
 
 /// Tree built from current session list (includes empty groups).
