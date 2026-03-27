@@ -38,7 +38,7 @@ final navigatorKey = GlobalKey<NavigatorState>();
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   AppLogger.instance.init();
-  AppLogger.instance.log('App starting v0.10.0', name: 'App');
+  AppLogger.instance.log('App starting', name: 'App');
   runApp(const ProviderScope(child: LetsFLUTsshApp()));
 }
 
