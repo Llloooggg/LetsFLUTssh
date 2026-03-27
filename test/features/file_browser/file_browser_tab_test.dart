@@ -203,7 +203,7 @@ void main() {
   late TransferManager manager;
 
   setUp(() {
-    manager = TransferManager();
+    manager = TransferManager(taskTimeout: Duration.zero);
   });
 
   tearDown(() {

@@ -23,6 +23,9 @@ class TransferManager {
   /// Per-task active transfer info, keyed by task ID.
   final _activeTransfers = <String, String>{};
 
+  /// Active timeout timers — cancelled on dispose.
+  final _timeoutTimers = <String, Timer>{};
+
   /// Current active transfer info (name + percent) for status bar.
   /// Shows the most recently updated active transfer.
   String? get currentTransferInfo =>
@@ -77,12 +80,33 @@ class TransferManager {
     AppLogger.instance.log('Started: ${entry.task.name}', name: 'Transfer');
 
     try {
-      await entry.task.run((percent, message) {
+      final taskFuture = entry.task.run((percent, message) {
         lastPercent = percent;
         lastMessage = message;
         _activeTransfers[entry.id] = '${entry.task.name} ${percent.toStringAsFixed(0)}%';
         _notify();
-      }).timeout(taskTimeout);
+      });
+
+      // When taskTimeout > Duration.zero, race the task against a timer.
+      if (taskTimeout > Duration.zero) {
+        final completer = Completer<void>();
+        final timer = Timer(taskTimeout, () {
+          if (!completer.isCompleted) {
+            completer.completeError(TimeoutException(
+              'Transfer timed out after ${taskTimeout.inMinutes} minutes',
+              taskTimeout,
+            ));
+          }
+        });
+        _timeoutTimers[entry.id] = timer;
+        unawaited(taskFuture.then(
+          (_) { if (!completer.isCompleted) completer.complete(); },
+          onError: (Object e) { if (!completer.isCompleted) completer.completeError(e); },
+        ));
+        await completer.future;
+      } else {
+        await taskFuture;
+      }
 
       AppLogger.instance.log('Completed: ${entry.task.name}', name: 'Transfer');
       _addHistory(HistoryEntry(
@@ -117,6 +141,7 @@ class TransferManager {
         sizeBytes: entry.task.sizeBytes,
       ));
     } finally {
+      _timeoutTimers.remove(entry.id)?.cancel();
       _running--;
       _activeTransfers.remove(entry.id);
       _notify();
@@ -145,6 +170,10 @@ class TransferManager {
 
   void dispose() {
     _disposed = true;
+    for (final timer in _timeoutTimers.values) {
+      timer.cancel();
+    }
+    _timeoutTimers.clear();
     _controller.close();
   }
 }
