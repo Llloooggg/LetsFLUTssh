@@ -10,87 +10,85 @@ import 'file_browser_controller.dart';
 class FilePaneDialogs {
   FilePaneDialogs._();
 
-  /// Show a dialog to create a new folder in [ctrl]'s current directory.
-  static Future<void> showNewFolder(BuildContext context, FilePaneController ctrl) async {
-    final nameCtrl = TextEditingController();
+  /// Show a text input dialog and return the entered value (or null).
+  static Future<String?> _showTextInputDialog(
+    BuildContext context, {
+    required String title,
+    required String label,
+    required String confirmText,
+    String initialValue = '',
+  }) async {
+    final nameCtrl = TextEditingController(text: initialValue);
     try {
-      final result = await showDialog<String>(
+      return await showDialog<String>(
         context: context,
         animationStyle: AnimationStyle.noAnimation,
         builder: (ctx) => AlertDialog(
-          title: const Text('New Folder'),
+          title: Text(title),
           content: TextField(
             controller: nameCtrl,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Folder name'),
+            decoration: InputDecoration(labelText: label),
             onSubmitted: (v) => Navigator.of(ctx).pop(v),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(nameCtrl.text),
-              child: const Text('Create'),
+              child: Text(confirmText),
             ),
           ],
         ),
       );
-
-      if (result != null && result.isNotEmpty) {
-        final path = '${ctrl.currentPath}/$result';
-        try {
-          await ctrl.fs.mkdir(path);
-          await ctrl.refresh();
-        } catch (e) {
-          AppLogger.instance.log('mkdir failed: $path: $e', name: 'FilePane', error: e);
-          if (context.mounted) {
-            Toast.show(context, message: 'Failed to create folder: $e', level: ToastLevel.error);
-          }
-        }
-      }
     } finally {
       nameCtrl.dispose();
     }
   }
 
-  /// Show a dialog to rename [entry] in [ctrl]'s current directory.
-  static Future<void> showRename(BuildContext context, FilePaneController ctrl, FileEntry entry) async {
-    final nameCtrl = TextEditingController(text: entry.name);
-    try {
-      final result = await showDialog<String>(
-        context: context,
-        animationStyle: AnimationStyle.noAnimation,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Rename'),
-          content: TextField(
-            controller: nameCtrl,
-            autofocus: true,
-            decoration: const InputDecoration(labelText: 'New name'),
-            onSubmitted: (v) => Navigator.of(ctx).pop(v),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(nameCtrl.text),
-              child: const Text('Rename'),
-            ),
-          ],
-        ),
-      );
+  /// Show a dialog to create a new folder in [ctrl]'s current directory.
+  static Future<void> showNewFolder(BuildContext context, FilePaneController ctrl) async {
+    final result = await _showTextInputDialog(
+      context,
+      title: 'New Folder',
+      label: 'Folder name',
+      confirmText: 'Create',
+    );
 
-      if (result != null && result.isNotEmpty && result != entry.name) {
-        final newPath = '${ctrl.currentPath}/$result';
-        try {
-          await ctrl.fs.rename(entry.path, newPath);
-          await ctrl.refresh();
-        } catch (e) {
-          AppLogger.instance.log('Rename failed: ${entry.path} → $newPath: $e', name: 'FilePane', error: e);
-          if (context.mounted) {
-            Toast.show(context, message: 'Failed to rename: $e', level: ToastLevel.error);
-          }
+    if (result != null && result.isNotEmpty) {
+      final path = '${ctrl.currentPath}/$result';
+      try {
+        await ctrl.fs.mkdir(path);
+        await ctrl.refresh();
+      } catch (e) {
+        AppLogger.instance.log('mkdir failed: $path: $e', name: 'FilePane', error: e);
+        if (context.mounted) {
+          Toast.show(context, message: 'Failed to create folder: $e', level: ToastLevel.error);
         }
       }
-    } finally {
-      nameCtrl.dispose();
+    }
+  }
+
+  /// Show a dialog to rename [entry] in [ctrl]'s current directory.
+  static Future<void> showRename(BuildContext context, FilePaneController ctrl, FileEntry entry) async {
+    final result = await _showTextInputDialog(
+      context,
+      title: 'Rename',
+      label: 'New name',
+      confirmText: 'Rename',
+      initialValue: entry.name,
+    );
+
+    if (result != null && result.isNotEmpty && result != entry.name) {
+      final newPath = '${ctrl.currentPath}/$result';
+      try {
+        await ctrl.fs.rename(entry.path, newPath);
+        await ctrl.refresh();
+      } catch (e) {
+        AppLogger.instance.log('Rename failed: ${entry.path} → $newPath: $e', name: 'FilePane', error: e);
+        if (context.mounted) {
+          Toast.show(context, message: 'Failed to rename: $e', level: ToastLevel.error);
+        }
+      }
     }
   }
 

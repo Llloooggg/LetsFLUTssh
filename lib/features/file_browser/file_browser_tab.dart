@@ -16,6 +16,7 @@ import '../../providers/transfer_provider.dart';
 import 'file_browser_controller.dart';
 import 'file_pane.dart';
 import 'sftp_initializer.dart';
+import 'transfer_helpers.dart';
 import 'transfer_panel.dart';
 
 /// Dual-pane SFTP file browser tab.
@@ -232,64 +233,26 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     final sftp = _sftpService;
     final remote = _remoteCtrl;
     if (sftp == null || remote == null) return;
-    final manager = ref.read(transferManagerProvider);
-    final remotePath = p.posix.join(
-      remote.currentPath,
-      entry.name,
+    TransferHelpers.enqueueUpload(
+      manager: ref.read(transferManagerProvider),
+      sftp: sftp,
+      entry: entry,
+      remoteDirPath: remote.currentPath,
+      remoteCtrl: _remoteCtrl,
     );
-
-    manager.enqueue(TransferTask(
-      name: entry.isDir ? '${entry.name}/' : entry.name,
-      direction: TransferDirection.upload,
-      sourcePath: entry.path,
-      targetPath: remotePath,
-      sizeBytes: entry.size,
-      run: (update) async {
-        update(0, 'Starting upload...');
-        if (entry.isDir) {
-          await sftp.uploadDir(entry.path, remotePath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
-          });
-        } else {
-          await sftp.upload(entry.path, remotePath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
-          });
-        }
-        _remoteCtrl?.refresh();
-      },
-    ));
   }
 
   void _download(FileEntry entry) {
     final sftp = _sftpService;
     final local = _localCtrl;
     if (sftp == null || local == null) return;
-    final manager = ref.read(transferManagerProvider);
-    final localPath = p.join(
-      local.currentPath,
-      entry.name,
+    TransferHelpers.enqueueDownload(
+      manager: ref.read(transferManagerProvider),
+      sftp: sftp,
+      entry: entry,
+      localDirPath: local.currentPath,
+      localCtrl: _localCtrl,
     );
-
-    manager.enqueue(TransferTask(
-      name: entry.isDir ? '${entry.name}/' : entry.name,
-      direction: TransferDirection.download,
-      sourcePath: entry.path,
-      targetPath: localPath,
-      sizeBytes: entry.size,
-      run: (update) async {
-        update(0, 'Starting download...');
-        if (entry.isDir) {
-          await sftp.downloadDir(entry.path, localPath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
-          });
-        } else {
-          await sftp.download(entry.path, localPath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
-          });
-        }
-        _localCtrl?.refresh();
-      },
-    ));
   }
 
   /// OS drop onto local pane — copy files into the current local directory.

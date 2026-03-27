@@ -81,19 +81,17 @@ class ExportImport {
     return outputPath;
   }
 
-  /// Preview contents of an .lfs archive without full import.
-  static Future<LfsPreview> preview({
+  /// Decrypt an .lfs file and parse the archive + sessions.
+  static Future<({Archive archive, List<Session> sessions})> _decryptAndParseArchive({
     required String filePath,
     required String masterPassword,
   }) async {
     final file = File(filePath);
     final encData = await file.readAsBytes();
 
-    // Decrypt
     final zipBytes = _decryptWithPassword(encData, masterPassword);
     final archive = ZipDecoder().decodeBytes(zipBytes);
 
-    // Parse sessions
     List<Session> sessions = [];
     final sessionsFile = archive.findFile(_sessionsFile);
     if (sessionsFile != null) {
@@ -104,7 +102,19 @@ class ExportImport {
           .toList();
     }
 
-    // Check what's included
+    return (archive: archive, sessions: sessions);
+  }
+
+  /// Preview contents of an .lfs archive without full import.
+  static Future<LfsPreview> preview({
+    required String filePath,
+    required String masterPassword,
+  }) async {
+    final (:archive, :sessions) = await _decryptAndParseArchive(
+      filePath: filePath,
+      masterPassword: masterPassword,
+    );
+
     final hasConfig = archive.findFile(_configFile) != null;
     final hasKnownHosts = archive.findFile(_knownHostsFile) != null;
 
@@ -127,23 +137,10 @@ class ExportImport {
     required bool importConfig,
     required bool importKnownHosts,
   }) async {
-    final file = File(filePath);
-    final encData = await file.readAsBytes();
-
-    // Decrypt
-    final zipBytes = _decryptWithPassword(encData, masterPassword);
-    final archive = ZipDecoder().decodeBytes(zipBytes);
-
-    // Parse sessions
-    List<Session> sessions = [];
-    final sessionsFile = archive.findFile(_sessionsFile);
-    if (sessionsFile != null) {
-      final json = utf8.decode(sessionsFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      sessions = list
-          .map((e) => Session.fromJson(e as Map<String, dynamic>))
-          .toList();
-    }
+    final (:archive, :sessions) = await _decryptAndParseArchive(
+      filePath: filePath,
+      masterPassword: masterPassword,
+    );
 
     // Parse config
     AppConfig? config;

@@ -187,6 +187,48 @@ class _MobileSessionsPage extends ConsumerWidget {
   }
 }
 
+/// Horizontal chip-based tab selector shared by terminal and SFTP pages.
+class _MobileTabChipBar extends ConsumerWidget {
+  final TabState tabState;
+  final List<TabEntry> filteredTabs;
+  final TabEntry activeTab;
+
+  const _MobileTabChipBar({
+    required this.tabState,
+    required this.filteredTabs,
+    required this.activeTab,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        itemCount: filteredTabs.length,
+        itemBuilder: (context, index) {
+          final tab = filteredTabs[index];
+          final isActive = tab.id == activeTab.id;
+          return Padding(
+            padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
+            child: InputChip(
+              label: Text(tab.label, style: const TextStyle(fontSize: 13)),
+              selected: isActive,
+              onPressed: () {
+                final globalIdx = tabState.tabs.indexOf(tab);
+                ref.read(tabProvider.notifier).selectTab(globalIdx);
+              },
+              deleteIcon: const Icon(Icons.close, size: 16),
+              onDeleted: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 /// Terminal page — shows active terminal tab or empty state.
 class _MobileTerminalPage extends ConsumerWidget {
   final TabState tabState;
@@ -211,40 +253,17 @@ class _MobileTerminalPage extends ConsumerWidget {
       );
     }
 
-    // Tab selector + terminal
     final activeTermTab = termTabs.contains(tabState.activeTab)
         ? tabState.activeTab!
         : termTabs.last;
 
     return Column(
       children: [
-        // Tab selector (horizontal chips) — always shown so user can close the last tab
-        SizedBox(
-          height: 40,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            itemCount: termTabs.length,
-            itemBuilder: (context, index) {
-              final tab = termTabs[index];
-              final isActive = tab.id == activeTermTab.id;
-              return Padding(
-                padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
-                child: InputChip(
-                  label: Text(tab.label, style: const TextStyle(fontSize: 13)),
-                  selected: isActive,
-                  onPressed: () {
-                    final globalIdx = tabState.tabs.indexOf(tab);
-                    ref.read(tabProvider.notifier).selectTab(globalIdx);
-                  },
-                  deleteIcon: const Icon(Icons.close, size: 16),
-                  onDeleted: () => ref.read(tabProvider.notifier).closeTab(tab.id),
-                ),
-              );
-            },
-          ),
+        _MobileTabChipBar(
+          tabState: tabState,
+          filteredTabs: termTabs,
+          activeTab: activeTermTab,
         ),
-        // Terminal view
         Expanded(
           child: MobileTerminalView(
             key: ValueKey(activeTermTab.id),
@@ -286,30 +305,10 @@ class _MobileSftpPage extends ConsumerWidget {
 
     return Column(
       children: [
-        SizedBox(
-          height: 40,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            itemCount: sftpTabs.length,
-            itemBuilder: (context, index) {
-              final tab = sftpTabs[index];
-              final isActive = tab.id == activeSftpTab.id;
-              return Padding(
-                padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
-                child: InputChip(
-                  label: Text(tab.label, style: const TextStyle(fontSize: 13)),
-                  selected: isActive,
-                  onPressed: () {
-                    final globalIdx = tabState.tabs.indexOf(tab);
-                    ref.read(tabProvider.notifier).selectTab(globalIdx);
-                  },
-                  deleteIcon: const Icon(Icons.close, size: 16),
-                  onDeleted: () => ref.read(tabProvider.notifier).closeTab(tab.id),
-                ),
-              );
-            },
-          ),
+        _MobileTabChipBar(
+          tabState: tabState,
+          filteredTabs: sftpTabs,
+          activeTab: activeSftpTab,
         ),
         Expanded(
           child: MobileFileBrowser(

@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-
 import '../../core/connection/connection.dart';
 import '../../core/sftp/sftp_client.dart';
 import '../../core/sftp/sftp_models.dart';
-import '../../core/transfer/transfer_task.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
@@ -13,6 +10,7 @@ import '../../utils/logger.dart';
 import '../file_browser/file_browser_controller.dart';
 import '../file_browser/file_pane_dialogs.dart';
 import '../file_browser/sftp_initializer.dart';
+import '../file_browser/transfer_helpers.dart';
 import '../file_browser/transfer_panel.dart';
 
 /// Single-pane mobile SFTP browser with Local/Remote toggle.
@@ -190,59 +188,29 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   }
 
   void _upload(FileEntry entry) {
-    if (_sftpService == null) return;
-    final manager = ref.read(transferManagerProvider);
-    final remotePath = p.posix.join(_remoteCtrl!.currentPath, entry.name);
-    final sftp = _sftpService!;
-
-    manager.enqueue(TransferTask(
-      name: entry.isDir ? '${entry.name}/' : entry.name,
-      direction: TransferDirection.upload,
-      sourcePath: entry.path,
-      targetPath: remotePath,
-      sizeBytes: entry.size,
-      run: (update) async {
-        update(0, 'Starting upload...');
-        if (entry.isDir) {
-          await sftp.uploadDir(entry.path, remotePath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
-          });
-        } else {
-          await sftp.upload(entry.path, remotePath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
-          });
-        }
-        _remoteCtrl?.refresh();
-      },
-    ));
+    final sftp = _sftpService;
+    final remote = _remoteCtrl;
+    if (sftp == null || remote == null) return;
+    TransferHelpers.enqueueUpload(
+      manager: ref.read(transferManagerProvider),
+      sftp: sftp,
+      entry: entry,
+      remoteDirPath: remote.currentPath,
+      remoteCtrl: _remoteCtrl,
+    );
   }
 
   void _download(FileEntry entry) {
-    if (_sftpService == null) return;
-    final manager = ref.read(transferManagerProvider);
-    final localPath = p.join(_localCtrl!.currentPath, entry.name);
-    final sftp = _sftpService!;
-
-    manager.enqueue(TransferTask(
-      name: entry.isDir ? '${entry.name}/' : entry.name,
-      direction: TransferDirection.download,
-      sourcePath: entry.path,
-      targetPath: localPath,
-      sizeBytes: entry.size,
-      run: (update) async {
-        update(0, 'Starting download...');
-        if (entry.isDir) {
-          await sftp.downloadDir(entry.path, localPath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
-          });
-        } else {
-          await sftp.download(entry.path, localPath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
-          });
-        }
-        _localCtrl?.refresh();
-      },
-    ));
+    final sftp = _sftpService;
+    final local = _localCtrl;
+    if (sftp == null || local == null) return;
+    TransferHelpers.enqueueDownload(
+      manager: ref.read(transferManagerProvider),
+      sftp: sftp,
+      entry: entry,
+      localDirPath: local.currentPath,
+      localCtrl: _localCtrl,
+    );
   }
 }
 
