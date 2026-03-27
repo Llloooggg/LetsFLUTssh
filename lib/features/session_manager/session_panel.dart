@@ -6,6 +6,7 @@ import '../../core/ssh/ssh_config.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform.dart';
+import '../../widgets/confirm_dialog.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
@@ -464,87 +465,49 @@ class SessionPanel extends ConsumerWidget {
     final sessionCount = store.countSessionsInGroup(groupPath);
     final folderName = groupPath.split('/').last;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Folder'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Delete folder "$folderName"?'),
-            if (sessionCount > 0) ...[
-              const SizedBox(height: 8),
-              Text(
-                'This will also delete $sessionCount session(s) inside.',
-                style: const TextStyle(color: AppTheme.disconnected, fontSize: 13),
-              ),
-            ],
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'Delete Folder',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Delete folder "$folderName"?'),
+          if (sessionCount > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'This will also delete $sessionCount session(s) inside.',
+              style: const TextStyle(color: AppTheme.disconnected, fontSize: 13),
+            ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.disconnected),
-            child: const Text('Delete'),
-          ),
         ],
       ),
     );
-    if (confirmed == true) {
+    if (confirmed) {
       await ref.read(sessionProvider.notifier).deleteGroup(groupPath);
     }
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Session session) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Session'),
-        content: Text('Delete "${session.label.isNotEmpty ? session.label : session.displayName}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.disconnected),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'Delete Session',
+      content: Text('Delete "${session.label.isNotEmpty ? session.label : session.displayName}"?'),
     );
-    if (confirmed == true) {
+    if (confirmed) {
       await ref.read(sessionProvider.notifier).delete(session.id);
     }
   }
 
   Future<void> _confirmDeleteAll(BuildContext context, WidgetRef ref) async {
     final count = ref.read(sessionProvider).length;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete All Sessions'),
-        content: Text('Delete all $count session(s) and all folders?\n\nThis cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.disconnected),
-            child: const Text('Delete All'),
-          ),
-        ],
-      ),
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'Delete All Sessions',
+      confirmLabel: 'Delete All',
+      content: Text('Delete all $count session(s) and all folders?\n\nThis cannot be undone.'),
     );
-    if (confirmed == true) {
+    if (confirmed) {
       await ref.read(sessionProvider.notifier).deleteAll();
     }
   }
