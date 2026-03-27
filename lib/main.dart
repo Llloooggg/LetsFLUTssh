@@ -35,9 +35,9 @@ import 'widgets/split_view.dart';
 /// (e.g., host key verification during SSH handshake).
 final navigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AppLogger.instance.init();
+  await AppLogger.instance.init();
   AppLogger.instance.log('App starting', name: 'App');
   runApp(const ProviderScope(child: LetsFLUTsshApp()));
 }
