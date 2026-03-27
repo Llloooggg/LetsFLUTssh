@@ -40,7 +40,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - Scrollback buffer (configurable, default 5000 lines)
 - Text selection, copy/paste
 - Mouse reporting for TUI apps (htop, vim, mc)
-- **Tiling / split panes** — split vertically or horizontally (like tmux), recursive nesting, drag-to-resize
+- Tiling / split panes — split vertically or horizontally (like tmux), recursive nesting, drag-to-resize
 - Terminal search (Ctrl+Shift+F) with match highlighting
 - Right-click context menu (Copy / Paste / Split / Close Pane)
 
@@ -224,7 +224,7 @@ make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
 
-See [CLAUDE.md](CLAUDE.md) for architecture details and [PLAN.md](PLAN.md) for the development roadmap.
+See [CLAUDE.md](CLAUDE.md) for architecture details.
 
 ## License
 

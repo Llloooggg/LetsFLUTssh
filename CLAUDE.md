@@ -240,8 +240,7 @@ LetsFLUTssh/
 ├── pubspec.yaml                     # Dependencies, version
 ├── analysis_options.yaml            # Lint rules
 ├── CLAUDE.md                        # This file
-├── README.md
-└── PLAN.md                          # Development history (phases 1-9)
+└── README.md
 ```
 
 ## Key Design Principles

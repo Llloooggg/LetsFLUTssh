@@ -15,7 +15,7 @@ import '../../widgets/toast.dart';
 import 'export_import.dart';
 
 /// App version — kept in sync with pubspec.yaml.
-const _appVersion = '1.0.13';
+const _appVersion = '1.0.14';
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
@@ -223,58 +223,58 @@ class _ExportImportTile extends ConsumerWidget {
     final passwordCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
 
-    final password = await showDialog<String>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Export Data'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Set a master password to encrypt the archive.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Master Password',
-                border: OutlineInputBorder(),
+    try {
+      final password = await showDialog<String>(
+        context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Export Data'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Set a master password to encrypt the archive.'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Master Password',
+                  border: OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: confirmCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: confirmCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Confirm Password',
-                border: OutlineInputBorder(),
-              ),
+            FilledButton(
+              onPressed: () {
+                if (passwordCtrl.text.isEmpty) return;
+                if (passwordCtrl.text != confirmCtrl.text) {
+                  Toast.show(ctx, message: 'Passwords do not match', level: ToastLevel.warning);
+                  return;
+                }
+                Navigator.pop(ctx, passwordCtrl.text);
+              },
+              child: const Text('Export'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (passwordCtrl.text.isEmpty) return;
-              if (passwordCtrl.text != confirmCtrl.text) {
-                Toast.show(ctx, message: 'Passwords do not match', level: ToastLevel.warning);
-                return;
-              }
-              Navigator.pop(ctx, passwordCtrl.text);
-            },
-            child: const Text('Export'),
-          ),
-        ],
-      ),
-    );
+      );
 
-    if (password == null || !context.mounted) return;
+      if (password == null || !context.mounted) return;
 
-    try {
       final sessions = ref.read(sessionProvider);
       final config = ref.read(configProvider);
       final dir = await getApplicationSupportDirectory();
@@ -296,6 +296,9 @@ class _ExportImportTile extends ConsumerWidget {
       if (context.mounted) {
         Toast.show(context, message: 'Export failed: $e', level: ToastLevel.error);
       }
+    } finally {
+      passwordCtrl.dispose();
+      confirmCtrl.dispose();
     }
   }
 
@@ -304,20 +307,25 @@ class _ExportImportTile extends ConsumerWidget {
     final passwordCtrl = TextEditingController();
     final modeHolder = _ValueHolder(ImportMode.merge);
 
-    final result = await showDialog<({String path, String password, ImportMode mode})>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('Import Data'),
-          content: _buildImportDialogContent(ctx, pathCtrl, passwordCtrl, modeHolder, setState),
-          actions: _buildImportDialogActions(ctx, pathCtrl, passwordCtrl, modeHolder),
+    try {
+      final result = await showDialog<({String path, String password, ImportMode mode})>(
+        context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setState) => AlertDialog(
+            title: const Text('Import Data'),
+            content: _buildImportDialogContent(ctx, pathCtrl, passwordCtrl, modeHolder, setState),
+            actions: _buildImportDialogActions(ctx, pathCtrl, passwordCtrl, modeHolder),
+          ),
         ),
-      ),
-    );
+      );
 
-    if (result == null || !context.mounted) return;
-    await _executeImport(context, ref, result);
+      if (result == null || !context.mounted) return;
+      await _executeImport(context, ref, result);
+    } finally {
+      pathCtrl.dispose();
+      passwordCtrl.dispose();
+    }
   }
 
   Column _buildImportDialogContent(
