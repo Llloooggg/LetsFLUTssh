@@ -8,6 +8,7 @@ import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
+import '../../widgets/error_state.dart';
 import '../../utils/platform.dart' as plat;
 
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
@@ -289,16 +290,7 @@ class TerminalPaneState extends State<TerminalPane> {
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
-          const SizedBox(height: 16),
-          Text(_error!, style: const TextStyle(color: AppTheme.disconnected), textAlign: TextAlign.center),
-        ],
-      ),
-    );
+    return ErrorState(message: _error!);
   }
 }
 

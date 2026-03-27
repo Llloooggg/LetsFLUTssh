@@ -405,7 +405,7 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
     });
 
-    testWidgets('Retry button is a FilledButton.tonal', (tester) async {
+    testWidgets('Retry button is an ElevatedButton', (tester) async {
       final conn = Connection(
         id: 'test-4',
         label: 'Test',
@@ -430,7 +430,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(FilledButton), findsOneWidget);
+      expect(find.byType(ElevatedButton), findsOneWidget);
     });
   });
 

@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
+import '../../widgets/error_state.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/sftp/sftp_client.dart';
@@ -139,26 +139,15 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   Widget _buildError() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
-          const SizedBox(height: 8),
-          Text(_error!),
-          const SizedBox(height: 16),
-          FilledButton.tonal(
-            onPressed: () {
-              setState(() {
-                _initializing = true;
-                _error = null;
-              });
-              _initSftp();
-            },
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
+    return ErrorState(
+      message: _error!,
+      onRetry: () {
+        setState(() {
+          _initializing = true;
+          _error = null;
+        });
+        _initSftp();
+      },
     );
   }
 

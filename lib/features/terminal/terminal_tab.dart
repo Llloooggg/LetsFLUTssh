@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/ssh/ssh_client.dart';
-import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
+import '../../widgets/error_state.dart';
 import 'split_node.dart';
 import 'tiling_view.dart';
 
@@ -145,36 +145,12 @@ class TerminalTabState extends State<TerminalTab> {
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
-          const SizedBox(height: 16),
-          Text(
-            _connectionError!,
-            style: const TextStyle(color: AppTheme.disconnected),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton.icon(
-                onPressed: reconnect,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reconnect'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: widget.onDisconnected,
-                icon: const Icon(Icons.close),
-                label: const Text('Close'),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return ErrorState(
+      message: _connectionError!,
+      onRetry: reconnect,
+      retryLabel: 'Reconnect',
+      onSecondary: widget.onDisconnected ?? () {},
+      secondaryLabel: 'Close',
     );
   }
 }
