@@ -12,7 +12,7 @@ IS_MACOS := $(filter Darwin,$(UNAME))
 .PHONY: all build run clean test analyze check gen watch deps upgrade doctor \
         build-linux build-windows build-macos build-apk build-aab build-ios \
         linux windows macos apk ios \
-        package-linux package-windows release \
+        package-linux package-windows release tag \
         deps-linux deps-macos deps-windows help
 
 all: build
@@ -147,6 +147,32 @@ release: package-linux ## Build all release packages
 	@echo "  Windows: flutter build windows (on Windows)"
 	@echo "  Android: make apk      (any host with Android SDK)"
 	@echo "  iOS:     make ios      (on macOS with Xcode)"
+
+## ─── Release ─────────────────────────────────────────────────
+
+tag: ## Push, wait for CI, tag vX.Y.Z on HEAD, push tag
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: working tree is dirty — commit or stash first"; exit 1; \
+	fi
+	@TAG=v$(VERSION); \
+	if git rev-parse "$$TAG" >/dev/null 2>&1; then \
+		echo "Error: tag $$TAG already exists"; exit 1; \
+	fi; \
+	echo "==> Pushing commits..."; \
+	git push || exit 1; \
+	echo "==> Waiting for CI on $$(git rev-parse --short HEAD)..."; \
+	RUN_ID=$$(gh run list --branch main --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null); \
+	if [ -z "$$RUN_ID" ]; then \
+		echo "Warning: no CI run found — HEAD may be docs-only (no CI trigger)"; \
+		printf "Tag anyway? [y/N] "; read ans; \
+		case "$$ans" in [yY]*) ;; *) echo "Aborted."; exit 1 ;; esac; \
+	else \
+		echo "==> Watching CI run $$RUN_ID..."; \
+		gh run watch "$$RUN_ID" --exit-status || { echo "Error: CI failed"; exit 1; }; \
+	fi; \
+	echo "==> Tagging $$TAG on HEAD..."; \
+	git tag "$$TAG" && git push origin "$$TAG"; \
+	echo "==> Done: $$TAG pushed — Build & Release will trigger"
 
 ## ─── Dependencies ─────────────────────────────────────────────
 
