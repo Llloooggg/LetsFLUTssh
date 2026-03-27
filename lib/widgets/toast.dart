@@ -52,14 +52,14 @@ class Toast {
       controller: controller,
     );
 
-    _entries.add(toastEntry);
-    overlay.insert(entry);
-    controller.forward();
-
-    // Rebuild all to update positions
+    // Rebuild existing entries to update positions before adding new one
     for (final e in _entries) {
       e.entry.markNeedsBuild();
     }
+
+    _entries.add(toastEntry);
+    overlay.insert(entry);
+    controller.forward();
 
     toastEntry.timer = Timer(duration, () {
       _remove(entry, controller);
