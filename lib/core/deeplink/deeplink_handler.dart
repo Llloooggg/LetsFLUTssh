@@ -43,11 +43,12 @@ class DeepLinkHandler {
     );
   }
 
-  /// Sanitize URI for logging — strip sensitive query parameters.
+  /// Sanitize URI for logging — deep links no longer carry credentials,
+  /// but we still strip any unexpected sensitive-looking parameters.
   static String _sanitizeUri(Uri uri) {
     if (uri.queryParameters.isEmpty) return uri.toString();
     final safe = Map<String, String>.from(uri.queryParameters);
-    for (final key in ['password', 'passphrase', 'key_data']) {
+    for (final key in ['password', 'passphrase', 'key_data', 'key']) {
       if (safe.containsKey(key)) safe[key] = '***';
     }
     return uri.replace(queryParameters: safe).toString();
@@ -116,30 +117,11 @@ class DeepLinkHandler {
       return null;
     }
 
-    // Validate password: reject null bytes and excessive length
-    final password = params['password'] ?? '';
-    if (password.length > 1024 || password.contains('\x00')) {
-      AppLogger.instance.log('Rejected invalid password parameter', name: 'DeepLink');
-      return null;
-    }
-
-    // Sanitize keyPath: reject path traversal, null bytes, and absolute paths
-    final keyPath = params['key'] ?? '';
-    if (keyPath.contains('..') ||
-        keyPath.contains('\x00') ||
-        keyPath.startsWith('/') ||
-        keyPath.startsWith('\\') ||
-        keyPath.contains('://')) {
-      AppLogger.instance.log('Rejected unsafe key path', name: 'DeepLink');
-      return null;
-    }
+    // No credentials in deep links — passwords and keys are never transmitted
+    // via URL for security reasons (URLs can be logged by OS, clipboard, etc.)
 
     return SSHConfig(
       server: ServerAddress(host: host, port: port, user: user),
-      auth: SshAuth(
-        password: password,
-        keyPath: keyPath,
-      ),
     );
   }
 

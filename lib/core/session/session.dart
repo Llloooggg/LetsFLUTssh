@@ -57,6 +57,10 @@ class Session {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// True when session was imported without credentials (e.g. via QR code).
+  /// Automatically set to false when auth is filled in via [copyWith].
+  final bool incomplete;
+
   Session({
     String? id,
     required this.label,
@@ -65,6 +69,7 @@ class Session {
     this.auth = const SessionAuth(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    this.incomplete = false,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
@@ -117,15 +122,20 @@ class Session {
     String? group,
     ServerAddress? server,
     SessionAuth? auth,
+    bool? incomplete,
   }) {
+    final newAuth = auth ?? this.auth;
+    // Auto-reset incomplete when credentials are filled in
+    final newIncomplete = incomplete ?? (this.incomplete && !newAuth.hasAuth);
     return Session(
       id: id,
       label: label ?? this.label,
       group: group ?? this.group,
       server: server ?? this.server,
-      auth: auth ?? this.auth,
+      auth: newAuth,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
+      incomplete: newIncomplete,
     );
   }
 
@@ -136,6 +146,7 @@ class Session {
       group: group,
       server: server,
       auth: auth,
+      incomplete: incomplete,
     );
   }
 
@@ -151,6 +162,7 @@ class Session {
     'key_path': keyPath,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
+    if (incomplete) 'incomplete': true,
   };
 
   /// Serialize with secrets — for encrypted export only.
@@ -169,10 +181,11 @@ class Session {
           label == other.label &&
           group == other.group &&
           server == other.server &&
-          auth == other.auth;
+          auth == other.auth &&
+          incomplete == other.incomplete;
 
   @override
-  int get hashCode => Object.hash(id, label, group, server, auth);
+  int get hashCode => Object.hash(id, label, group, server, auth, incomplete);
 
   factory Session.fromJson(Map<String, dynamic> json) {
     return Session(
@@ -198,6 +211,7 @@ class Session {
           DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ??
           DateTime.now(),
+      incomplete: json['incomplete'] as bool? ?? false,
     );
   }
 }

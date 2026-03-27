@@ -77,6 +77,8 @@
 	<true/>
 
 	<!-- Privacy descriptions -->
+	<key>NSCameraUsageDescription</key>
+	<string>LetsFLUTssh needs camera access to scan QR codes for importing sessions.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>LetsFLUTssh needs local network access to connect to SSH servers on your network.</string>
 

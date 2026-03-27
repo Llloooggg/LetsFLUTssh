@@ -166,7 +166,7 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.byType(FloatingActionButton), findsOneWidget);
+      expect(find.byType(FloatingActionButton), findsNWidgets(2));
     });
 
     testWidgets('switches to Terminal page on nav tap', (tester) async {
@@ -815,7 +815,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap the FAB
-      await tester.tap(find.byType(FloatingActionButton));
+      await tester.tap(find.byWidgetPredicate(
+        (w) => w is FloatingActionButton && w.heroTag == 'add_session',
+      ));
       await tester.pumpAndSettle();
 
       // New Session dialog should appear
@@ -829,7 +831,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap the FAB to open dialog
-      await tester.tap(find.byType(FloatingActionButton));
+      await tester.tap(find.byWidgetPredicate(
+        (w) => w is FloatingActionButton && w.heroTag == 'add_session',
+      ));
       await tester.pumpAndSettle();
 
       // Fill in required fields (Host and Username)
@@ -874,7 +878,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap the FAB to open dialog
-      await tester.tap(find.byType(FloatingActionButton));
+      await tester.tap(find.byWidgetPredicate(
+        (w) => w is FloatingActionButton && w.heroTag == 'add_session',
+      ));
       await tester.pumpAndSettle();
 
       // Fill in required fields
@@ -902,7 +908,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap the FAB to open dialog
-      await tester.tap(find.byType(FloatingActionButton));
+      await tester.tap(find.byWidgetPredicate(
+        (w) => w is FloatingActionButton && w.heroTag == 'add_session',
+      ));
       await tester.pumpAndSettle();
 
       // Tap "Cancel"

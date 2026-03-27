@@ -5,8 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/connection/connection.dart';
 import 'core/deeplink/deeplink_handler.dart';
+import 'core/session/qr_codec.dart';
 import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
+import 'features/session_manager/qr_display_screen.dart';
+import 'features/session_manager/qr_export_dialog.dart';
 import 'core/import/import_service.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/host_key_dialog.dart';
@@ -247,6 +250,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   tabState.activeTab!.connection.isConnected
               ? () => _openSftp(ref, tabState.activeTab!.connection)
               : null,
+          onQrExport: () => _showQrExport(context, ref),
           showMenuButton: isNarrow,
         ),
         const AppTabBar(),
@@ -306,6 +310,25 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
   }
 
+  Future<void> _showQrExport(BuildContext context, WidgetRef ref) async {
+    final sessions = ref.read(sessionProvider);
+    if (sessions.isEmpty) {
+      Toast.show(context, message: 'No sessions to export', level: ToastLevel.warning);
+      return;
+    }
+    final store = ref.read(sessionStoreProvider);
+    final payload = await QrExportDialog.show(
+      context,
+      sessions: sessions,
+      emptyGroups: store.emptyGroups,
+    );
+    if (payload == null || !context.mounted) return;
+
+    final data = decodeSessionsFromQr(payload);
+    final count = data?.sessions.length ?? 0;
+    await QrDisplayScreen.show(context, data: payload, sessionCount: count);
+  }
+
   Future<void> _showLfsImportDialog(BuildContext context, String filePath) async {
     AppLogger.instance.log('LFS import started: ${filePath.split('/').last}', name: 'App');
     final result = await LfsImportDialog.show(context, filePath: filePath);
@@ -354,11 +377,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 class _Toolbar extends StatelessWidget {
   final VoidCallback onNewSession;
   final VoidCallback? onOpenSftp;
+  final VoidCallback? onQrExport;
   final bool showMenuButton;
 
   const _Toolbar({
     required this.onNewSession,
     this.onOpenSftp,
+    this.onQrExport,
     this.showMenuButton = false,
   });
 
@@ -397,6 +422,12 @@ class _Toolbar extends StatelessWidget {
               visualDensity: VisualDensity.compact,
             ),
           const Spacer(),
+          IconButton(
+            onPressed: onQrExport,
+            icon: const Icon(Icons.qr_code, size: 18),
+            tooltip: 'Export via QR',
+            visualDensity: VisualDensity.compact,
+          ),
           IconButton(
             onPressed: () => SettingsScreen.show(context),
             icon: const Icon(Icons.settings, size: 18),

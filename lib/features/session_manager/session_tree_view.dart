@@ -357,16 +357,35 @@ class _SessionTreeViewState extends State<SessionTreeView> {
               Icon(
                 _authIcon(session.authType),
                 size: _authIconSize,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                color: session.incomplete
+                    ? AppTheme.connectingColor(theme.brightness)
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   node.name,
-                  style: TextStyle(fontSize: _fontSize),
+                  style: TextStyle(
+                    fontSize: _fontSize,
+                    color: session.incomplete
+                        ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
+                        : null,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (session.incomplete)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Tooltip(
+                    message: 'Credentials not set',
+                    child: Icon(
+                      Icons.warning_amber,
+                      size: _authIconSize,
+                      color: AppTheme.connectingColor(theme.brightness),
+                    ),
+                  ),
+                ),
               Text(
                 '${session.host}:${session.port}',
                 style: TextStyle(

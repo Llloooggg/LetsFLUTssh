@@ -15,7 +15,7 @@ void main() {
       expect(config.password, '');
     });
 
-    test('extracts all params', () {
+    test('extracts host, port, user — ignores credentials in URL', () {
       final config = DeepLinkHandler.parseConnectUri(Uri.parse(
         'letsflutssh://connect?host=myserver.com&port=2222&user=admin&password=secret&key=id_rsa',
       ));
@@ -23,8 +23,9 @@ void main() {
       expect(config!.host, 'myserver.com');
       expect(config.port, 2222);
       expect(config.user, 'admin');
-      expect(config.password, 'secret');
-      expect(config.keyPath, 'id_rsa');
+      // Credentials are never extracted from deep links for security
+      expect(config.password, '');
+      expect(config.keyPath, '');
     });
 
     test('returns null without host', () {
@@ -138,26 +139,21 @@ void main() {
       expect(config, isNull);
     });
 
-    test('rejects key path with path traversal', () {
+    test('ignores key path parameter — credentials not in deep links', () {
       final config = DeepLinkHandler.parseConnectUri(Uri.parse(
         'letsflutssh://connect?host=h&user=u&key=../../etc/passwd',
       ));
-      expect(config, isNull);
+      // Key path is ignored, not rejected — only host/port/user matter
+      expect(config, isNotNull);
+      expect(config!.keyPath, '');
     });
 
-    test('accepts valid relative key path without traversal', () {
+    test('ignores valid key path — credentials not in deep links', () {
       final config = DeepLinkHandler.parseConnectUri(Uri.parse(
         'letsflutssh://connect?host=h&user=u&key=keys%2Fid_rsa',
       ));
       expect(config, isNotNull);
-      expect(config!.keyPath, 'keys/id_rsa');
-    });
-
-    test('rejects absolute key path', () {
-      final config = DeepLinkHandler.parseConnectUri(Uri.parse(
-        'letsflutssh://connect?host=h&user=u&key=/home/user/.ssh/id_rsa',
-      ));
-      expect(config, isNull);
+      expect(config!.keyPath, '');
     });
 
     test('trims whitespace from host and user', () {
@@ -389,15 +385,16 @@ void main() {
       expect(config, isNull);
     });
 
-    test('parseConnectUri preserves all fields', () {
+    test('parseConnectUri preserves host/port/user, ignores credentials', () {
       final config = DeepLinkHandler.parseConnectUri(Uri.parse(
           'letsflutssh://connect?host=h&user=u&port=8022&password=pass&key=mykey'));
       expect(config, isNotNull);
       expect(config!.host, 'h');
       expect(config.user, 'u');
       expect(config.port, 8022);
-      expect(config.password, 'pass');
-      expect(config.keyPath, 'mykey');
+      // Credentials are never extracted from deep links
+      expect(config.password, '');
+      expect(config.keyPath, '');
     });
 
     test('parseConnectUri with whitespace-only host returns null', () {
