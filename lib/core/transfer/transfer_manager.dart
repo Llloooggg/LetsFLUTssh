@@ -23,6 +23,9 @@ class TransferManager {
   /// Per-task active transfer info, keyed by task ID.
   final _activeTransfers = <String, String>{};
 
+  /// Per-task progress data for UI, keyed by task ID.
+  final _activeProgress = <String, _ActiveProgressData>{};
+
   /// Active timeout timers — cancelled on dispose.
   final _timeoutTimers = <String, Timer>{};
 
@@ -45,12 +48,31 @@ class TransferManager {
   int get queueLength => _queue.length;
   int get runningCount => _running;
 
+  /// Active + queued entries for UI display.
+  List<ActiveEntry> get activeEntries {
+    return _activeProgress.entries.map((e) {
+      final d = e.value;
+      final isRunning = _activeTransfers.containsKey(e.key);
+      return ActiveEntry(
+        id: e.key,
+        name: d.task.name,
+        direction: d.task.direction,
+        sourcePath: d.task.sourcePath,
+        targetPath: d.task.targetPath,
+        status: isRunning ? TransferStatus.running : TransferStatus.queued,
+        percent: d.percent,
+        message: d.message,
+      );
+    }).toList();
+  }
+
   /// Enqueue a transfer task. Returns task ID.
   String enqueue(TransferTask task) {
     _counter++;
     final id = 'tr-$_counter';
     final entry = _QueueEntry(id: id, task: task, createdAt: DateTime.now());
     _queue.add(entry);
+    _activeProgress[id] = _ActiveProgressData(task: task, createdAt: DateTime.now());
     AppLogger.instance.log('Enqueued: ${task.name} (${task.direction.name})', name: 'Transfer');
     _notify();
     _processQueue();
@@ -65,6 +87,7 @@ class TransferManager {
     final qIdx = _queue.indexWhere((e) => e.id == id);
     if (qIdx >= 0) {
       final entry = _queue.removeAt(qIdx);
+      _activeProgress.remove(id);
       AppLogger.instance.log('Cancelled (queued): ${entry.task.name}', name: 'Transfer');
       _addHistory(HistoryEntry(
         id: entry.id,
@@ -110,6 +133,9 @@ class TransferManager {
     // Mark all running for cancellation
     _cancelledIds.addAll(_activeTransfers.keys);
 
+    // Clean up queued progress (running ones are cleaned in _executeTask finally)
+    _activeProgress.removeWhere((id, _) => !_activeTransfers.containsKey(id));
+
     _notify();
   }
 
@@ -147,6 +173,11 @@ class TransferManager {
         lastPercent = percent;
         lastMessage = message;
         _activeTransfers[entry.id] = '${entry.task.name} ${percent.toStringAsFixed(0)}%';
+        final progress = _activeProgress[entry.id];
+        if (progress != null) {
+          progress.percent = percent;
+          progress.message = message;
+        }
         _notify();
       });
 
@@ -224,6 +255,7 @@ class TransferManager {
       _timeoutTimers.remove(entry.id)?.cancel();
       _running--;
       _activeTransfers.remove(entry.id);
+      _activeProgress.remove(entry.id);
       _notify();
       _processQueue();
     }
@@ -269,4 +301,14 @@ class _QueueEntry {
 /// Internal exception thrown when a running task detects cancellation.
 class _CancelledException implements Exception {
   const _CancelledException();
+}
+
+/// Progress data for an active transfer, tracked internally.
+class _ActiveProgressData {
+  final TransferTask task;
+  final DateTime createdAt;
+  double percent = 0;
+  String message = 'Queued';
+
+  _ActiveProgressData({required this.task, required this.createdAt});
 }

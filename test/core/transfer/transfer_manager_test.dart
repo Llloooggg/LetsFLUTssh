@@ -403,6 +403,133 @@ void main() {
       expect(manager.history.first.error, contains('timed out'));
     });
 
+    test('activeEntries has queued entry after enqueue', () async {
+      final blocker = Completer<void>();
+      manager = TransferManager(parallelism: 1, maxHistory: 10, taskTimeout: Duration.zero);
+
+      // Block the single slot so the next task stays queued
+      manager.enqueue(TransferTask(
+        name: 'blocker.txt',
+        direction: TransferDirection.upload,
+        sourcePath: '/local/blocker.txt',
+        targetPath: '/remote/blocker.txt',
+        run: (update) async {
+          update(10, 'blocking');
+          await blocker.future;
+        },
+      ));
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      manager.enqueue(TransferTask(
+        name: 'queued.txt',
+        direction: TransferDirection.download,
+        sourcePath: '/remote/queued.txt',
+        targetPath: '/local/queued.txt',
+        run: (update) async {
+          update(100, 'done');
+        },
+      ));
+
+      final entries = manager.activeEntries;
+      // blocker is running, queued.txt is queued
+      expect(entries.length, 2);
+      final queuedEntry = entries.firstWhere((e) => e.name == 'queued.txt');
+      expect(queuedEntry.status, TransferStatus.queued);
+      expect(queuedEntry.direction, TransferDirection.download);
+
+      blocker.complete();
+      await Future.delayed(const Duration(milliseconds: 100));
+    });
+
+    test('activeEntries shows running status during execution', () async {
+      final started = Completer<void>();
+      final finish = Completer<void>();
+
+      manager.enqueue(TransferTask(
+        name: 'running.txt',
+        direction: TransferDirection.upload,
+        sourcePath: '/local/running.txt',
+        targetPath: '/remote/running.txt',
+        run: (update) async {
+          update(50, 'halfway');
+          started.complete();
+          await finish.future;
+        },
+      ));
+
+      await started.future;
+      final entries = manager.activeEntries;
+      expect(entries, hasLength(1));
+      expect(entries.first.name, 'running.txt');
+      expect(entries.first.status, TransferStatus.running);
+      expect(entries.first.percent, 50);
+      expect(entries.first.message, 'halfway');
+
+      finish.complete();
+      await Future.delayed(const Duration(milliseconds: 50));
+    });
+
+    test('activeEntries is empty after task completes', () async {
+      manager.enqueue(_dummyTask('done.txt'));
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      expect(manager.activeEntries, isEmpty);
+      expect(manager.history, hasLength(1));
+    });
+
+    test('activeEntries is empty after cancel of queued task', () async {
+      final blocker = Completer<void>();
+      manager = TransferManager(parallelism: 1, maxHistory: 10, taskTimeout: Duration.zero);
+
+      manager.enqueue(TransferTask(
+        name: 'blocker.txt',
+        direction: TransferDirection.upload,
+        sourcePath: '/local/blocker.txt',
+        targetPath: '/remote/blocker.txt',
+        run: (update) async {
+          update(10, 'blocking');
+          await blocker.future;
+        },
+      ));
+
+      final id = manager.enqueue(_dummyTask('cancel-me.txt'));
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      manager.cancel(id);
+      // Only the blocker should remain in activeEntries
+      final entries = manager.activeEntries;
+      expect(entries.where((e) => e.name == 'cancel-me.txt'), isEmpty);
+
+      blocker.complete();
+      await Future.delayed(const Duration(milliseconds: 100));
+    });
+
+    test('activeEntries is empty after running task is cancelled', () async {
+      final started = Completer<void>();
+
+      final id = manager.enqueue(TransferTask(
+        name: 'cancel-running.txt',
+        direction: TransferDirection.upload,
+        sourcePath: '/local/cancel-running.txt',
+        targetPath: '/remote/cancel-running.txt',
+        run: (update) async {
+          update(30, 'started');
+          started.complete();
+          for (var i = 40; i <= 100; i += 10) {
+            await Future.delayed(const Duration(milliseconds: 20));
+            update(i.toDouble(), 'step $i');
+          }
+        },
+      ));
+
+      await started.future;
+      manager.cancel(id);
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      expect(manager.activeEntries, isEmpty);
+    });
+
     test('finally block cleans up after cancel', () async {
       final started = Completer<void>();
       manager = TransferManager(parallelism: 1, maxHistory: 10, taskTimeout: Duration.zero);

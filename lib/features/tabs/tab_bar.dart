@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
+import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import 'tab_controller.dart';
 import 'tab_model.dart';
@@ -15,6 +16,9 @@ class AppTabBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tabState = ref.watch(tabProvider);
+    // Watch connection state changes so tab indicators update
+    // when SSH connects/disconnects (Connection objects are mutable).
+    ref.watch(connectionsProvider);
     final tabs = tabState.tabs;
 
     if (tabs.isEmpty) return const SizedBox.shrink();

@@ -62,3 +62,28 @@ class HistoryEntry {
 
   String get directionIcon => direction == TransferDirection.upload ? '↑' : '↓';
 }
+
+/// In-progress or queued transfer entry for UI display.
+class ActiveEntry {
+  final String id;
+  final String name;
+  final TransferDirection direction;
+  final String sourcePath;
+  final String targetPath;
+  final TransferStatus status;
+  final double percent;
+  final String message;
+
+  const ActiveEntry({
+    required this.id,
+    required this.name,
+    required this.direction,
+    required this.sourcePath,
+    required this.targetPath,
+    required this.status,
+    this.percent = 0,
+    this.message = '',
+  });
+
+  String get directionIcon => direction == TransferDirection.upload ? '↑' : '↓';
+}

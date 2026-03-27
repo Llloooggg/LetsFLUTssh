@@ -51,14 +51,31 @@ class LetsFLUTsshApp extends ConsumerStatefulWidget {
 }
 
 class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
+  late final AppLifecycleListener _lifecycleListener;
+
   @override
   void initState() {
     super.initState();
     _setupHostKeyCallbacks();
+    _lifecycleListener = AppLifecycleListener(
+      onRestart: _reloadSessions,
+      onResume: _reloadSessions,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(configProvider.notifier).load();
       ref.read(sessionProvider.notifier).load();
     });
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  void _reloadSessions() {
+    AppLogger.instance.log('App resumed — reloading sessions', name: 'App');
+    ref.read(sessionProvider.notifier).load();
   }
 
   void _setupHostKeyCallbacks() {

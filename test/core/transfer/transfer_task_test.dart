@@ -137,4 +137,64 @@ void main() {
       expect(entry.error, 'Permission denied');
     });
   });
+
+  group('ActiveEntry', () {
+    test('construction and field access', () {
+      const entry = ActiveEntry(
+        id: 'tr-1',
+        name: 'upload.txt',
+        direction: TransferDirection.upload,
+        sourcePath: '/local/upload.txt',
+        targetPath: '/remote/upload.txt',
+        status: TransferStatus.queued,
+        percent: 42.5,
+        message: 'Uploading...',
+      );
+      expect(entry.id, 'tr-1');
+      expect(entry.name, 'upload.txt');
+      expect(entry.direction, TransferDirection.upload);
+      expect(entry.sourcePath, '/local/upload.txt');
+      expect(entry.targetPath, '/remote/upload.txt');
+      expect(entry.status, TransferStatus.queued);
+      expect(entry.percent, 42.5);
+      expect(entry.message, 'Uploading...');
+    });
+
+    test('defaults for percent and message', () {
+      const entry = ActiveEntry(
+        id: 'tr-2',
+        name: 'file.txt',
+        direction: TransferDirection.download,
+        sourcePath: '/a',
+        targetPath: '/b',
+        status: TransferStatus.running,
+      );
+      expect(entry.percent, 0);
+      expect(entry.message, '');
+    });
+
+    test('directionIcon returns up arrow for upload', () {
+      const entry = ActiveEntry(
+        id: 'tr-3',
+        name: 'f',
+        direction: TransferDirection.upload,
+        sourcePath: '/a',
+        targetPath: '/b',
+        status: TransferStatus.queued,
+      );
+      expect(entry.directionIcon, '\u2191'); // ↑
+    });
+
+    test('directionIcon returns down arrow for download', () {
+      const entry = ActiveEntry(
+        id: 'tr-4',
+        name: 'f',
+        direction: TransferDirection.download,
+        sourcePath: '/a',
+        targetPath: '/b',
+        status: TransferStatus.running,
+      );
+      expect(entry.directionIcon, '\u2193'); // ↓
+    });
+  });
 }

@@ -315,6 +315,13 @@ void main() {
       await tester.tap(find.text('Key'));
       await tester.pumpAndSettle();
 
+      // Enter key path (required for passphrase validation)
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Key File'),
+        '/tmp/test_key',
+      );
+      await tester.pumpAndSettle();
+
       // Scroll to passphrase field and fill it
       await tester.scrollUntilVisible(
         find.text('Key Passphrase'),
@@ -1396,6 +1403,48 @@ void main() {
       expect(dialogResult, isA<SaveResult>());
       final result = dialogResult as SaveResult;
       expect(result.session.keyData, contains('PRIVATE KEY'));
+    });
+  });
+
+  group('SessionEditDialog — passphrase without key validation', () {
+    testWidgets('passphrase without key file or PEM shows validation error', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await fillRequiredFields(tester);
+
+      // Switch to Key auth
+      await tester.tap(find.text('Key'));
+      await tester.pumpAndSettle();
+
+      // Do NOT enter a key path or PEM text — leave them empty
+
+      // Scroll to passphrase field and fill it
+      final scrollable = find.byType(Scrollable).last;
+      await tester.scrollUntilVisible(
+        find.text('Key Passphrase'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Key Passphrase'),
+        'mypassphrase',
+      );
+      await tester.pumpAndSettle();
+
+      // Scroll back to Connect button and tap
+      await tester.scrollUntilVisible(
+        find.text('Connect'),
+        -100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      // Should show validation error — dialog stays open
+      expect(find.text('Provide a key file or PEM text first'), findsOneWidget);
+      expect(dialogResult, isNull);
     });
   });
 

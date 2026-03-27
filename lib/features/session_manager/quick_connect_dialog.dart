@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/import/key_file_helper.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../utils/platform.dart';
 
@@ -71,6 +73,21 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
     );
 
     Navigator.of(context).pop(config);
+  }
+
+  Future<void> _pickKeyFile() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result == null || result.files.single.path == null) return;
+    final path = result.files.single.path!;
+    final pemContent = KeyFileHelper.tryReadPemKey(path);
+    if (pemContent != null) {
+      setState(() {
+        _keyDataCtrl.text = pemContent;
+        _showKeyText = true;
+      });
+    } else {
+      setState(() => _keyPathCtrl.text = path);
+    }
   }
 
   String? _validateKeyPath(String? value) {
@@ -169,10 +186,15 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                 // Key file
                 TextFormField(
                   controller: _keyPathCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Key File',
                     hintText: '~/.ssh/id_rsa',
-                    prefixIcon: Icon(Icons.vpn_key),
+                    prefixIcon: const Icon(Icons.vpn_key),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.folder_open),
+                      tooltip: 'Browse',
+                      onPressed: _pickKeyFile,
+                    ),
                   ),
                   validator: _validateKeyPath,
                 ),

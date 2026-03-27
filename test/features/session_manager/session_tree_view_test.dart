@@ -296,11 +296,11 @@ void main() {
       expect(find.text('h:22'), findsOneWidget);
     });
 
-    testWidgets('LongPressDraggable is present for sessions on desktop', (tester) async {
+    testWidgets('Draggable is present for sessions on desktop', (tester) async {
       await tester.pumpWidget(buildApp());
 
-      // On desktop, sessions should be wrapped in LongPressDraggable
-      expect(find.byType(LongPressDraggable<SessionDragData>), findsWidgets);
+      // On desktop, sessions should be wrapped in Draggable
+      expect(find.byType(Draggable<SessionDragData>), findsWidgets);
     });
 
     testWidgets('DragTarget for root drop zone is present', (tester) async {

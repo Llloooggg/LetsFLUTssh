@@ -225,17 +225,18 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   List<PopupMenuEntry<String>> _sessionMenuItems() {
+    final h = isMobilePlatform ? 48.0 : 32.0;
     return [
-      const PopupMenuItem(height: 32, value: 'connect', child: _MenuRow(icon: Icons.terminal, text: 'SSH')),
+      PopupMenuItem(height: h, value: 'connect', child: const _MenuRow(icon: Icons.terminal, text: 'SSH')),
       if (widget.onSftpConnect != null)
-        const PopupMenuItem(height: 32, value: 'sftp', child: _MenuRow(icon: Icons.folder, text: 'SFTP')),
+        PopupMenuItem(height: h, value: 'sftp', child: const _MenuRow(icon: Icons.folder, text: 'SFTP')),
       const PopupMenuDivider(height: 1),
-      const PopupMenuItem(height: 32, value: 'edit', child: _MenuRow(icon: Icons.edit, text: 'Edit')),
-      const PopupMenuItem(height: 32, value: 'duplicate', child: _MenuRow(icon: Icons.copy, text: 'Duplicate')),
+      PopupMenuItem(height: h, value: 'edit', child: const _MenuRow(icon: Icons.edit, text: 'Edit')),
+      PopupMenuItem(height: h, value: 'duplicate', child: const _MenuRow(icon: Icons.copy, text: 'Duplicate')),
       if (isMobilePlatform)
-        const PopupMenuItem(height: 32, value: 'move', child: _MenuRow(icon: Icons.drive_file_move, text: 'Move to...')),
+        PopupMenuItem(height: h, value: 'move', child: const _MenuRow(icon: Icons.drive_file_move, text: 'Move to...')),
       const PopupMenuDivider(height: 1),
-      const PopupMenuItem(height: 32, value: 'delete', child: _MenuRow(icon: Icons.delete, text: 'Delete', color: AppTheme.disconnected)),
+      PopupMenuItem(height: h, value: 'delete', child: const _MenuRow(icon: Icons.delete, text: 'Delete', color: AppTheme.disconnected)),
     ];
   }
 
@@ -344,17 +345,18 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   List<PopupMenuEntry<String>> _groupMenuItems(String groupPath, bool hasSessions) {
+    final h = isMobilePlatform ? 48.0 : 32.0;
     return [
-      const PopupMenuItem(height: 32, value: 'new_session', child: _MenuRow(icon: Icons.add, text: 'New Session')),
-      const PopupMenuItem(height: 32, value: 'new_folder', child: _MenuRow(icon: Icons.create_new_folder, text: _kNewFolder)),
+      PopupMenuItem(height: h, value: 'new_session', child: const _MenuRow(icon: Icons.add, text: 'New Session')),
+      PopupMenuItem(height: h, value: 'new_folder', child: const _MenuRow(icon: Icons.create_new_folder, text: _kNewFolder)),
       if (groupPath.isNotEmpty) ...[
         const PopupMenuDivider(height: 1),
-        const PopupMenuItem(height: 32, value: 'rename', child: _MenuRow(icon: Icons.drive_file_rename_outline, text: 'Rename')),
-        const PopupMenuItem(height: 32, value: 'delete', child: _MenuRow(icon: Icons.delete, text: 'Delete Folder', color: AppTheme.disconnected)),
+        PopupMenuItem(height: h, value: 'rename', child: const _MenuRow(icon: Icons.drive_file_rename_outline, text: 'Rename')),
+        PopupMenuItem(height: h, value: 'delete', child: const _MenuRow(icon: Icons.delete, text: 'Delete Folder', color: AppTheme.disconnected)),
       ],
       if (groupPath.isEmpty && hasSessions) ...[
         const PopupMenuDivider(height: 1),
-        const PopupMenuItem(height: 32, value: 'delete_all', child: _MenuRow(icon: Icons.delete_forever, text: 'Delete All Sessions', color: AppTheme.disconnected)),
+        PopupMenuItem(height: h, value: 'delete_all', child: const _MenuRow(icon: Icons.delete_forever, text: 'Delete All Sessions', color: AppTheme.disconnected)),
       ],
     ];
   }
@@ -767,14 +769,15 @@ class _MenuRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = isMobilePlatform;
     return Row(
       children: [
-        Icon(icon, size: 16, color: color),
+        Icon(icon, size: mobile ? 20 : 16, color: color),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
             text,
-            style: TextStyle(fontSize: 13, color: color),
+            style: TextStyle(fontSize: mobile ? 15 : 13, color: color),
             overflow: TextOverflow.ellipsis,
           ),
         ),

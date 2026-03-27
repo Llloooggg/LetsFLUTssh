@@ -574,4 +574,62 @@ void main() {
       handler.handleUri(Uri());
     });
   });
+
+  group('DeepLinkHandler — duplicate URI dedup', () {
+    late DeepLinkHandler handler;
+
+    setUp(() {
+      handler = DeepLinkHandler();
+    });
+
+    tearDown(() {
+      handler.dispose();
+    });
+
+    test('handleUri skips duplicate URI on second call', () {
+      int callCount = 0;
+      handler.onConnect = (_) => callCount++;
+
+      final uri = Uri.parse('letsflutssh://connect?host=h&user=u');
+      handler.handleUri(uri);
+      handler.handleUri(uri);
+
+      expect(callCount, 1);
+    });
+
+    test('handleUri processes different URIs separately', () {
+      int callCount = 0;
+      handler.onConnect = (_) => callCount++;
+
+      handler.handleUri(Uri.parse('letsflutssh://connect?host=h1&user=u'));
+      handler.handleUri(Uri.parse('letsflutssh://connect?host=h2&user=u'));
+
+      expect(callCount, 2);
+    });
+
+    test('handleUri dedup works for file URIs too', () {
+      int callCount = 0;
+      handler.onLfsFileOpened = (_) => callCount++;
+
+      final uri = Uri.parse('file:///tmp/archive.lfs');
+      handler.handleUri(uri);
+      handler.handleUri(uri);
+
+      expect(callCount, 1);
+    });
+
+    test('handleUri allows same URI after a different one in between', () {
+      int callCount = 0;
+      handler.onConnect = (_) => callCount++;
+
+      final uri1 = Uri.parse('letsflutssh://connect?host=h1&user=u');
+      final uri2 = Uri.parse('letsflutssh://connect?host=h2&user=u');
+
+      handler.handleUri(uri1);
+      handler.handleUri(uri2);
+      handler.handleUri(uri1); // different from _lastProcessedUri (uri2)
+
+      expect(callCount, 3);
+    });
+  });
 }

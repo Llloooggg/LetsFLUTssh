@@ -16,6 +16,10 @@ class DeepLinkHandler {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription? _sub;
 
+  /// Tracks the last processed URI to prevent duplicate handling
+  /// (cold start: getInitialLink + uriLinkStream can fire the same URI).
+  Uri? _lastProcessedUri;
+
   /// Callback invoked when a valid SSH connect link is received.
   void Function(SSHConfig config)? onConnect;
 
@@ -60,6 +64,13 @@ class DeepLinkHandler {
 
   @visibleForTesting
   void handleUri(Uri uri) {
+    // Deduplicate: cold start can fire both getInitialLink and uriLinkStream
+    if (_lastProcessedUri == uri) {
+      AppLogger.instance.log('Skipping duplicate: ${_sanitizeUri(uri)}', name: 'DeepLink');
+      return;
+    }
+    _lastProcessedUri = uri;
+
     AppLogger.instance.log('Received: ${_sanitizeUri(uri)}', name: 'DeepLink');
 
     if (uri.scheme == 'letsflutssh') {

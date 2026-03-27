@@ -278,7 +278,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     final theme = Theme.of(context);
 
     // Desktop: Draggable + DragTarget
-    return LongPressDraggable<SessionDragData>(
+    return Draggable<SessionDragData>(
       data: GroupDrag(node.fullPath),
       feedback: Material(
         elevation: 4,
@@ -436,8 +436,8 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     // Select mode or mobile: no drag&drop
     if (_mobile || widget.selectMode) return content;
 
-    // Desktop: LongPressDraggable
-    return LongPressDraggable<SessionDragData>(
+    // Desktop: Draggable (immediate drag start, no long-press needed)
+    return Draggable<SessionDragData>(
       data: SessionDrag(session),
       feedback: Material(
         elevation: 4,

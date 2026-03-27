@@ -1,4 +1,5 @@
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/import/key_file_helper.dart';
@@ -361,17 +362,37 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     ];
   }
 
+  Future<void> _pickKeyFile() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result == null || result.files.single.path == null) return;
+    final path = result.files.single.path!;
+    final pemContent = KeyFileHelper.tryReadPemKey(path);
+    if (pemContent != null) {
+      setState(() {
+        _keyDataCtrl.text = pemContent;
+        _showKeyText = true;
+      });
+    } else {
+      setState(() => _keyPathCtrl.text = path);
+    }
+  }
+
   Widget _buildKeyPathField() {
     if (isDesktopPlatform) {
       return _buildDesktopKeyPathField();
     }
-    // Mobile: key file path field without drag&drop
+    // Mobile: key file path field with browse button
     return TextFormField(
       controller: _keyPathCtrl,
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: 'Key File Path',
         hintText: '/path/to/key',
-        prefixIcon: Icon(Icons.vpn_key),
+        prefixIcon: const Icon(Icons.vpn_key),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.folder_open),
+          tooltip: 'Browse',
+          onPressed: _pickKeyFile,
+        ),
       ),
     );
   }
@@ -411,6 +432,13 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
             labelText: 'Key File',
             hintText: '~/.ssh/id_rsa',
             prefixIcon: const Icon(Icons.vpn_key),
+            suffixIcon: _keyDragging
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.folder_open),
+                    tooltip: 'Browse',
+                    onPressed: _pickKeyFile,
+                  ),
             suffixText: _keyDragging ? 'Drop here' : null,
           ),
         ),
@@ -457,6 +485,14 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         ),
       ),
       obscureText: _obscurePassphrase,
+      validator: (v) {
+        if (v != null && v.isNotEmpty) {
+          final hasKey = _keyPathCtrl.text.trim().isNotEmpty ||
+              _keyDataCtrl.text.trim().isNotEmpty;
+          if (!hasKey) return 'Provide a key file or PEM text first';
+        }
+        return null;
+      },
     );
   }
 

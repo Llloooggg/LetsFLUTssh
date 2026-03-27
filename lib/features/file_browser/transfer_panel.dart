@@ -113,27 +113,43 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         // Column headers
         if (_expanded)
           _buildColumnHeaders(theme),
-        // Expanded history list
+        // Expanded transfer list (active + history)
         if (_expanded)
           SizedBox(
             height: _panelHeight,
-            child: historyAsync.when(
-              data: (history) {
-                if (history.isEmpty) {
-                  return const Center(
-                    child: Text('No transfers yet', style: TextStyle(fontSize: 12)),
-                  );
-                }
-                return ListView.builder(
-                  itemCount: history.length,
-                  itemBuilder: (context, index) => _HistoryRow(entry: history[index]),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-            ),
+            child: _buildTransferList(historyAsync, ref),
           ),
       ],
+    );
+  }
+
+  Widget _buildTransferList(
+    AsyncValue<List<HistoryEntry>> historyAsync,
+    WidgetRef ref,
+  ) {
+    final activeAsync = ref.watch(activeTransfersProvider);
+    final active = activeAsync.value ?? [];
+
+    return historyAsync.when(
+      data: (history) {
+        if (active.isEmpty && history.isEmpty) {
+          return const Center(
+            child: Text('No transfers yet', style: TextStyle(fontSize: 12)),
+          );
+        }
+        final totalCount = active.length + history.length;
+        return ListView.builder(
+          itemCount: totalCount,
+          itemBuilder: (context, index) {
+            if (index < active.length) {
+              return _ActiveRow(entry: active[index]);
+            }
+            return _HistoryRow(entry: history[index - active.length]);
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
     );
   }
 
@@ -299,5 +315,115 @@ class _HistoryRow extends StatelessWidget {
     final parts = normalized.split('/').where((p) => p.isNotEmpty).toList();
     if (parts.length <= 2) return normalized;
     return '.../${parts.sublist(parts.length - 2).join('/')}';
+  }
+}
+
+/// Row for an active or queued transfer.
+class _ActiveRow extends StatelessWidget {
+  final ActiveEntry entry;
+
+  const _ActiveRow({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isUpload = entry.direction == TransferDirection.upload;
+    final isQueued = entry.status == TransferStatus.queued;
+    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
+    final divider = Container(
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 3),
+      color: theme.dividerColor,
+    );
+
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      color: theme.colorScheme.primary.withValues(alpha: 0.06),
+      child: Row(
+        children: [
+          // Direction icon
+          SizedBox(
+            width: 24,
+            child: Text(
+              entry.directionIcon,
+              style: TextStyle(
+                fontSize: 14,
+                color: isUpload ? AppTheme.info : AppTheme.connected,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(width: 4),
+          // Status icon — sync for running, clock for queued
+          SizedBox(
+            width: 24,
+            child: Icon(
+              isQueued ? Icons.schedule : Icons.sync,
+              size: 14,
+              color: isQueued ? dimColor : theme.colorScheme.primary,
+            ),
+          ),
+          divider,
+          // Name
+          Expanded(
+            flex: 2,
+            child: Text(
+              entry.name,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          divider,
+          // Local path
+          Expanded(
+            flex: 2,
+            child: Tooltip(
+              message: isUpload ? entry.sourcePath : entry.targetPath,
+              child: Text(
+                _HistoryRow._shortenPath(isUpload ? entry.sourcePath : entry.targetPath),
+                style: TextStyle(fontSize: 11, color: dimColor),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          divider,
+          // Remote path
+          Expanded(
+            flex: 2,
+            child: Tooltip(
+              message: isUpload ? entry.targetPath : entry.sourcePath,
+              child: Text(
+                _HistoryRow._shortenPath(isUpload ? entry.targetPath : entry.sourcePath),
+                style: TextStyle(fontSize: 11, color: dimColor),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          divider,
+          // Progress
+          SizedBox(
+            width: 60,
+            child: Text(
+              isQueued ? 'Queued' : '${entry.percent.toStringAsFixed(0)}%',
+              style: TextStyle(fontSize: 11, color: theme.colorScheme.primary),
+              textAlign: TextAlign.right,
+            ),
+          ),
+          divider,
+          // Message
+          SizedBox(
+            width: 55,
+            child: Text(
+              entry.message,
+              style: TextStyle(fontSize: 11, color: dimColor),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const SizedBox(width: 16),
+        ],
+      ),
+    );
   }
 }
