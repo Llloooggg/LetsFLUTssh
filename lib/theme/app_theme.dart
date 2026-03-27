@@ -292,6 +292,13 @@ abstract final class AppTheme {
         hintStyle: const TextStyle(color: _lightGutter),
         labelStyle: const TextStyle(color: _lightGutter),
       ),
+      iconTheme: const IconThemeData(color: _lightFg, size: 20),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: _lightFg),
+        bodyMedium: TextStyle(color: _lightFg),
+        bodySmall: TextStyle(color: _lightGutter),
+        titleSmall: TextStyle(color: _lightBlue),
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: _lightBlue,
@@ -348,6 +355,7 @@ abstract final class AppTheme {
         decoration: BoxDecoration(
           color: _lightFg,
           borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: _lightBorder),
         ),
         textStyle: const TextStyle(color: _lightBg, fontSize: 12),
       ),
