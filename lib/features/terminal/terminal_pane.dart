@@ -319,6 +319,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
   int _currentMatchIndex = -1;
   int _totalMatches = 0;
   bool _disposed = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -329,10 +330,16 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
   @override
   void dispose() {
     _disposed = true;
+    _debounce?.cancel();
     _clearHighlights();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  void _debouncedSearch() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 200), _performSearch);
   }
 
   void _performSearch() {
@@ -426,7 +433,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
                     : null,
                 suffixStyle: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
               ),
-              onChanged: (_) => _performSearch(),
+              onChanged: (_) => _debouncedSearch(),
               onSubmitted: (_) => _nextMatch(),
             ),
           ),
