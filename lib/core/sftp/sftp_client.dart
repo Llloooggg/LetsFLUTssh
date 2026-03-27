@@ -153,20 +153,23 @@ class SFTPService {
 
     try {
       final sink = localFile.openWrite();
-      var done = 0;
-      final content = remoteFile.read();
-      await for (final chunk in content) {
-        sink.add(chunk);
-        done += chunk.length;
-        onProgress?.call(TransferProgress(
-          fileName: p.posix.basename(remotePath),
-          totalBytes: fileSize,
-          doneBytes: done,
-          isUpload: false,
-          isCompleted: done >= fileSize,
-        ));
+      try {
+        var done = 0;
+        final content = remoteFile.read();
+        await for (final chunk in content) {
+          sink.add(chunk);
+          done += chunk.length;
+          onProgress?.call(TransferProgress(
+            fileName: p.posix.basename(remotePath),
+            totalBytes: fileSize,
+            doneBytes: done,
+            isUpload: false,
+            isCompleted: done >= fileSize,
+          ));
+        }
+      } finally {
+        await sink.close();
       }
-      await sink.close();
     } finally {
       remoteFile.close();
     }
