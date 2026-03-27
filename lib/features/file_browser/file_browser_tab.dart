@@ -307,14 +307,19 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     }
   }
 
-  Future<void> _copyDirLocal(Directory src, Directory dst) async {
+  static const _maxCopyDepth = 100;
+
+  Future<void> _copyDirLocal(Directory src, Directory dst, [int depth = 0]) async {
+    if (depth >= _maxCopyDepth) {
+      throw StateError('Maximum recursion depth ($_maxCopyDepth) exceeded');
+    }
     await dst.create(recursive: true);
     await for (final entity in src.list()) {
       final name = p.basename(entity.path);
       if (entity is File) {
         await entity.copy(p.join(dst.path, name));
       } else if (entity is Directory) {
-        await _copyDirLocal(entity, Directory(p.join(dst.path, name)));
+        await _copyDirLocal(entity, Directory(p.join(dst.path, name)), depth + 1);
       }
     }
   }
