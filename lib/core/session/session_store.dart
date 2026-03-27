@@ -347,10 +347,14 @@ class SessionStore {
   }
 
   /// Search sessions by label, group, or host.
-  List<Session> search(String query) {
-    if (query.isEmpty) return _sessions;
+  List<Session> search(String query) => filterSessions(_sessions, query);
+
+  /// Filter a session list by query. Static so providers can reuse
+  /// the logic without depending on store instance state.
+  static List<Session> filterSessions(List<Session> sessions, String query) {
+    if (query.isEmpty) return sessions;
     final q = query.toLowerCase();
-    return _sessions.where((s) {
+    return sessions.where((s) {
       return s.label.toLowerCase().contains(q) ||
           s.group.toLowerCase().contains(q) ||
           s.host.toLowerCase().contains(q) ||

@@ -91,6 +91,7 @@ class FakeSessionStore extends SessionStore {
     final newPath = newParent.isEmpty ? name : '$newParent/$name';
     await renameGroup(groupPath, newPath);
   }
+
 }
 
 void main() {

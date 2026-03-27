@@ -71,17 +71,11 @@ class SessionSearchNotifier extends Notifier<String> {
 }
 
 /// Filtered sessions based on search query.
+/// Uses [SessionStore.filterSessions] to avoid duplicated filter logic.
 final filteredSessionsProvider = Provider<List<Session>>((ref) {
   final sessions = ref.watch(sessionProvider);
   final query = ref.watch(sessionSearchProvider);
-  if (query.isEmpty) return sessions;
-  final q = query.toLowerCase();
-  return sessions.where((s) {
-    return s.label.toLowerCase().contains(q) ||
-        s.group.toLowerCase().contains(q) ||
-        s.host.toLowerCase().contains(q) ||
-        s.user.toLowerCase().contains(q);
-  }).toList();
+  return SessionStore.filterSessions(sessions, query);
 });
 
 /// Filtered tree based on search.
