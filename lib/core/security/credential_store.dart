@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -22,7 +23,7 @@ class CredentialStore {
   String? _basePath;
 
   /// Guards concurrent key generation to prevent race conditions.
-  bool _keyGenInProgress = false;
+  Completer<Uint8List>? _keyGenCompleter;
 
   Future<String> _getBasePath() async {
     if (_basePath != null) return _basePath!;
@@ -94,28 +95,30 @@ class CredentialStore {
       return await keyFile.readAsBytes();
     }
 
-    // Guard against concurrent key generation
-    if (_keyGenInProgress) {
-      // Wait for the other generation to complete, then read
-      while (_keyGenInProgress) {
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
-      if (await keyFile.exists()) {
-        return await keyFile.readAsBytes();
-      }
+    // Guard against concurrent key generation using Completer
+    final existing = _keyGenCompleter;
+    if (existing != null) {
+      return existing.future;
     }
 
-    _keyGenInProgress = true;
+    final completer = Completer<Uint8List>();
+    _keyGenCompleter = completer;
     try {
       // Double-check after acquiring guard
       if (await keyFile.exists()) {
-        return await keyFile.readAsBytes();
+        final bytes = await keyFile.readAsBytes();
+        completer.complete(bytes);
+        return bytes;
       }
       final keyBytes = _generateKey();
       await writeBytesAtomic(keyFile.path, keyBytes);
+      completer.complete(keyBytes);
       return keyBytes;
+    } catch (e) {
+      completer.completeError(e);
+      rethrow;
     } finally {
-      _keyGenInProgress = false;
+      _keyGenCompleter = null;
     }
   }
 
