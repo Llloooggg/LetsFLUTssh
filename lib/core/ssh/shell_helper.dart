@@ -71,16 +71,22 @@ class ShellHelper {
           terminal.write(String.fromCharCodes(data));
         });
 
-        terminal.onOutput = (data) {
-          shell.write(Uint8List.fromList(data.codeUnits));
-        };
+        try {
+          terminal.onOutput = (data) {
+            shell.write(Uint8List.fromList(data.codeUnits));
+          };
 
-        terminal.onResize = (width, height, pixelWidth, pixelHeight) {
-          shell.resizeTerminal(width, height);
-        };
+          terminal.onResize = (width, height, pixelWidth, pixelHeight) {
+            shell.resizeTerminal(width, height);
+          };
 
-        if (onDone != null) {
-          shell.done.then((_) => onDone());
+          if (onDone != null) {
+            shell.done.then((_) => onDone());
+          }
+        } catch (e) {
+          stdoutSub.cancel();
+          stderrSub.cancel();
+          rethrow;
         }
 
         return ShellConnection(
