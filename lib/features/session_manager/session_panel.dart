@@ -114,16 +114,16 @@ class SessionPanel extends ConsumerWidget {
 
   List<PopupMenuEntry<String>> _sessionMenuItems() {
     return [
-      const PopupMenuItem(value: 'connect', child: ListTile(leading: Icon(Icons.terminal, size: 18), title: Text('SSH'), dense: true, contentPadding: EdgeInsets.zero)),
+      const PopupMenuItem(height: 32, value: 'connect', child: _MenuRow(icon: Icons.terminal, text: 'SSH')),
       if (onSftpConnect != null)
-        const PopupMenuItem(value: 'sftp', child: ListTile(leading: Icon(Icons.folder, size: 18), title: Text('SFTP'), dense: true, contentPadding: EdgeInsets.zero)),
-      const PopupMenuDivider(),
-      const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit, size: 18), title: Text('Edit'), dense: true, contentPadding: EdgeInsets.zero)),
-      const PopupMenuItem(value: 'duplicate', child: ListTile(leading: Icon(Icons.copy, size: 18), title: Text('Duplicate'), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(height: 32, value: 'sftp', child: _MenuRow(icon: Icons.folder, text: 'SFTP')),
+      const PopupMenuDivider(height: 1),
+      const PopupMenuItem(height: 32, value: 'edit', child: _MenuRow(icon: Icons.edit, text: 'Edit')),
+      const PopupMenuItem(height: 32, value: 'duplicate', child: _MenuRow(icon: Icons.copy, text: 'Duplicate')),
       if (isMobilePlatform)
-        const PopupMenuItem(value: 'move', child: ListTile(leading: Icon(Icons.drive_file_move, size: 18), title: Text('Move to...'), dense: true, contentPadding: EdgeInsets.zero)),
-      const PopupMenuDivider(),
-      const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, size: 18, color: AppTheme.disconnected), title: Text('Delete', style: TextStyle(color: AppTheme.disconnected)), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(height: 32, value: 'move', child: _MenuRow(icon: Icons.drive_file_move, text: 'Move to...')),
+      const PopupMenuDivider(height: 1),
+      const PopupMenuItem(height: 32, value: 'delete', child: _MenuRow(icon: Icons.delete, text: 'Delete', color: AppTheme.disconnected)),
     ];
   }
 
@@ -233,56 +233,16 @@ class SessionPanel extends ConsumerWidget {
 
   List<PopupMenuEntry<String>> _groupMenuItems(String groupPath, bool hasSessions) {
     return [
-      const PopupMenuItem(
-        value: 'new_session',
-        child: ListTile(
-          leading: Icon(Icons.add, size: 18),
-          title: Text('New Session'),
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-        ),
-      ),
-      const PopupMenuItem(
-        value: 'new_folder',
-        child: ListTile(
-          leading: Icon(Icons.create_new_folder, size: 18),
-          title: Text(_kNewFolder),
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-        ),
-      ),
+      const PopupMenuItem(height: 32, value: 'new_session', child: _MenuRow(icon: Icons.add, text: 'New Session')),
+      const PopupMenuItem(height: 32, value: 'new_folder', child: _MenuRow(icon: Icons.create_new_folder, text: _kNewFolder)),
       if (groupPath.isNotEmpty) ...[
-        const PopupMenuDivider(),
-        const PopupMenuItem(
-          value: 'rename',
-          child: ListTile(
-            leading: Icon(Icons.drive_file_rename_outline, size: 18),
-            title: Text('Rename'),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'delete',
-          child: ListTile(
-            leading: Icon(Icons.delete, size: 18, color: AppTheme.disconnected),
-            title: Text('Delete Folder', style: TextStyle(color: AppTheme.disconnected)),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
+        const PopupMenuDivider(height: 1),
+        const PopupMenuItem(height: 32, value: 'rename', child: _MenuRow(icon: Icons.drive_file_rename_outline, text: 'Rename')),
+        const PopupMenuItem(height: 32, value: 'delete', child: _MenuRow(icon: Icons.delete, text: 'Delete Folder', color: AppTheme.disconnected)),
       ],
       if (groupPath.isEmpty && hasSessions) ...[
-        const PopupMenuDivider(),
-        const PopupMenuItem(
-          value: 'delete_all',
-          child: ListTile(
-            leading: Icon(Icons.delete_forever, size: 18, color: AppTheme.disconnected),
-            title: Text('Delete All Sessions', style: TextStyle(color: AppTheme.disconnected)),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
+        const PopupMenuDivider(height: 1),
+        const PopupMenuItem(height: 32, value: 'delete_all', child: _MenuRow(icon: Icons.delete_forever, text: 'Delete All Sessions', color: AppTheme.disconnected)),
       ],
     ];
   }
@@ -612,6 +572,31 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color? color;
+
+  const _MenuRow({required this.icon, required this.text, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 13, color: color),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }
