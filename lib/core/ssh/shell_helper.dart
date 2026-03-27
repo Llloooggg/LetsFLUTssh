@@ -86,6 +86,7 @@ class ShellHelper {
         } catch (e) {
           stdoutSub.cancel();
           stderrSub.cancel();
+          shell.close();
           rethrow;
         }
 
