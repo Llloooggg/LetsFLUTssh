@@ -35,6 +35,8 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   analyze-and-test:
     runs-on: ubuntu-latest
