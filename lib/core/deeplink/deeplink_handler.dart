@@ -113,10 +113,14 @@ class DeepLinkHandler {
       return null;
     }
 
-    // Sanitize keyPath: reject path traversal and null bytes
+    // Sanitize keyPath: reject path traversal, null bytes, and absolute paths
     final keyPath = params['key'] ?? '';
-    if (keyPath.contains('..') || keyPath.contains('\x00')) {
-      AppLogger.instance.log('Rejected key path with traversal', name: 'DeepLink');
+    if (keyPath.contains('..') ||
+        keyPath.contains('\x00') ||
+        keyPath.startsWith('/') ||
+        keyPath.startsWith('\\') ||
+        keyPath.contains('://')) {
+      AppLogger.instance.log('Rejected unsafe key path', name: 'DeepLink');
       return null;
     }
 
