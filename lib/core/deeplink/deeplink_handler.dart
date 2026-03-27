@@ -93,9 +93,9 @@ class DeepLinkHandler {
       return null;
     }
 
-    // Validate host: no path separators, reasonable length
-    if (host.length > 253 || host.contains('/') || host.contains('\\')) {
-      AppLogger.instance.log('Invalid host "$host"', name: 'DeepLink');
+    // Validate host: no path separators, null bytes, reasonable length
+    if (host.length > 253 || host.contains('/') || host.contains('\\') || host.contains('\x00')) {
+      AppLogger.instance.log('Invalid host', name: 'DeepLink');
       return null;
     }
 
@@ -106,9 +106,16 @@ class DeepLinkHandler {
       return null;
     }
 
-    // Sanitize keyPath: reject path traversal
+    // Validate password: reject null bytes and excessive length
+    final password = params['password'] ?? '';
+    if (password.length > 1024 || password.contains('\x00')) {
+      AppLogger.instance.log('Rejected invalid password parameter', name: 'DeepLink');
+      return null;
+    }
+
+    // Sanitize keyPath: reject path traversal and null bytes
     final keyPath = params['key'] ?? '';
-    if (keyPath.contains('..')) {
+    if (keyPath.contains('..') || keyPath.contains('\x00')) {
       AppLogger.instance.log('Rejected key path with traversal', name: 'DeepLink');
       return null;
     }
@@ -116,7 +123,7 @@ class DeepLinkHandler {
     return SSHConfig(
       server: ServerAddress(host: host, port: port, user: user),
       auth: SshAuth(
-        password: params['password'] ?? '',
+        password: password,
         keyPath: keyPath,
       ),
     );
