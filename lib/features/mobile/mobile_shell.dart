@@ -239,15 +239,17 @@ class _MobileTerminalPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final termTabs = tabState.tabs.where((t) => t.kind == TabKind.terminal).toList();
     if (termTabs.isEmpty) {
-      return const Center(
+      final dimColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24);
+      final hintColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38);
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.terminal, size: 64, color: Colors.white24),
-            SizedBox(height: 12),
-            Text('No active terminals', style: TextStyle(fontSize: 14)),
-            SizedBox(height: 4),
-            Text('Connect from Sessions tab', style: TextStyle(fontSize: 12, color: Colors.white38)),
+            Icon(Icons.terminal, size: 64, color: dimColor),
+            const SizedBox(height: 12),
+            const Text('No active terminals', style: TextStyle(fontSize: 14)),
+            const SizedBox(height: 4),
+            Text('Connect from Sessions tab', style: TextStyle(fontSize: 12, color: hintColor)),
           ],
         ),
       );
@@ -285,15 +287,17 @@ class _MobileSftpPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sftpTabs = tabState.tabs.where((t) => t.kind == TabKind.sftp).toList();
     if (sftpTabs.isEmpty) {
-      return const Center(
+      final dimColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24);
+      final hintColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38);
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.folder, size: 64, color: Colors.white24),
-            SizedBox(height: 12),
-            Text('No active file browsers', style: TextStyle(fontSize: 14)),
-            SizedBox(height: 4),
-            Text('Use "SFTP" from Sessions', style: TextStyle(fontSize: 12, color: Colors.white38)),
+            Icon(Icons.folder, size: 64, color: dimColor),
+            const SizedBox(height: 12),
+            const Text('No active file browsers', style: TextStyle(fontSize: 14)),
+            const SizedBox(height: 4),
+            Text('Use "SFTP" from Sessions', style: TextStyle(fontSize: 12, color: hintColor)),
           ],
         ),
       );
