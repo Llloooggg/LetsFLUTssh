@@ -156,12 +156,12 @@ v1.1.0 → fix(v1.1.1) → docs: update readme → push
 - **SSH:** `dartssh2` ^2.15.0 — SSH2 protocol (connect, auth, shell, SFTP, port forwarding)
 - **Terminal:** `xterm` ^4.0.0 — VT100/xterm terminal widget (256-color, RGB, mouse, scrollback)
 - **Secure storage:** `pointycastle` ^4.0.0 — AES-256-GCM encrypted credential file (pure Dart, no OS deps)
-- **File picker:** `file_picker` ^10.3.10 — native file/directory picker
+- **File picker:** `file_picker` — planned, not yet integrated
 - **File drop:** `desktop_drop` ^0.7.0 — OS drag&drop into app (desktop)
 - **Data dir:** `path_provider` ^2.1.5 — platform-specific app data paths
-- **Permissions:** `permission_handler` ^12.0.1 — runtime permission requests (Android storage access)
+- **Permissions:** `permission_handler` — planned, not yet integrated
 - **State management:** `riverpod` ^2.x — reactive state (sessions, connections, transfers)
-- **Serialization:** `json_serializable` + `freezed` — immutable models with JSON
+- **Serialization:** `json_serializable` — hand-written immutable models with JSON (freezed planned)
 
 ## Architecture
 
@@ -275,7 +275,7 @@ LetsFLUTssh/
 1. **Feature-first structure** — each feature (terminal, file_browser, session_manager) is an isolated module with UI + logic
 2. **Core is UI-agnostic** — `core/` does not import Flutter; can be reused in a CLI tool
 3. **Riverpod for state** — single source of truth for all state (sessions, connections, config, transfers)
-4. **Immutable models** — all data classes via `freezed` (copyWith, equality, JSON serialization)
+4. **Immutable models** — hand-written data classes with copyWith, equality, JSON serialization
 5. **FileSystem interface** — abstraction for local/remote file access
 6. **No SCP** — dartssh2 doesn't support SCP; SFTP covers all use cases
 7. **Tree-based sessions** — nested groups via `/` separator, stored as flat list with group path
@@ -366,7 +366,7 @@ LetsFLUTssh/
 - Error wrapping: custom exception classes with `cause` field
 - No global mutable state — all state via Riverpod providers
 - UI updates automatic via Riverpod (no manual setState except in leaf widgets)
-- Models: `freezed` for immutability + `json_serializable` for JSON
+- Models: hand-written immutable classes with copyWith, ==, hashCode, toJson/fromJson
 - Passwords/keys: stored in `CredentialStore` (AES-256-GCM encrypted file), NOT in plain JSON
 - Test files: `*_test.dart` in `test/` mirror tree
 - Lint rules: `flutter_lints` + additional (prefer_const_constructors, etc.)
