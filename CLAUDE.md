@@ -12,7 +12,9 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
 
 ### Commits
 
-- **User commits manually** — Claude only suggests commit messages
+- **By default Claude only suggests commit messages** — does NOT commit or push
+- **If the user explicitly asks Claude to commit** — Claude commits, but still does NOT push or tag. All rules below apply equally
+- **Every commit that affects the shipped app MUST include a version bump** in `pubspec.yaml` AND `_appVersion` in `settings_screen.dart`. This includes: Dart code in `lib/`, platform configs (`AndroidManifest.xml`, `Info.plist`, `.desktop`, etc.), native code, assets, build settings. Patch for bugfix/refactor, minor for new feature, major for breaking change. No exceptions — include the bump in the same commit
 - Format: `type: short description` (e.g. `feat: phase 1 — SSH terminal with xterm.dart`)
 - Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `ci`
     - `feat:`, `fix:`, `refactor:` — for changes that affect the shipped app (`lib/`, platform configs, assets, etc.)
@@ -20,13 +22,11 @@ Target platforms: Windows, Linux, macOS, Android, iOS.
     - `docs:` — documentation only
     - `chore:` — deps, version bumps, gitignore, etc.
     - `ci:` — CI/CD workflow changes
-- **Commit messages drive auto-changelog** — CI generates release notes from prefixes:
-    - `feat:` → Features section (user-visible)
-    - `fix:` → Fixes section (user-visible)
-    - `refactor:` → Improvements section (user-visible)
-    - `test:`, `docs:`, `chore:`, `ci:` → skipped in changelog (not user-facing)
+- **Commit messages drive auto-changelog** — CI generates release notes from commit messages between tags:
+    - `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements
+    - `test:`, `docs:`, `chore:`, `ci:` → skipped (not user-facing)
     - Keep messages clear and user-readable — they appear in GitHub Release notes
-    - **Commit message = what matters to the user.** If a commit includes both app changes and docs/CLAUDE.md updates, the prefix and message should describe the app change only (e.g. `fix: restrict intent-filter`, not `fix: restrict intent-filter + update CLAUDE.md`). Docs ride along silently — no need for separate commits
+    - **Commit message = what matters to the user.** If a commit includes both app changes and docs/CLAUDE.md, the prefix should describe the app change only. Docs ride along silently
 - Repository is **public** on GitHub
 
 ### Work Style
@@ -56,35 +56,28 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 
 **Tagging workflow:**
 
-1. Bump version in `pubspec.yaml` + update `_appVersion` in `settings_screen.dart` — include in the same commit that changes the app
-2. Tag the bump commit immediately **before pushing**: `git tag vX.Y.Z`
-3. Push commit + tag together: `git push && git push origin vX.Y.Z` — tag triggers `build.yml` (build + release)
-4. **Tag before push, not after** — if you push first and tag later, intermediate CI runs see untagged commits; tagging after push also risks forgetting the tag entirely
-5. Do NOT tag commits without a version bump (tests, docs, CI)
-
-**Release notes (auto-changelog):**
-
-- Generated from commit messages between previous and current tag
-- Group by prefix: `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements
-- Skip `test:`, `docs:`, `chore:` — not user-facing
-- Format: `git log vPREV..vCURR --oneline` → parse prefixes → markdown sections
-- CI should auto-attach to GitHub Release body
+- Tag only the **last commit in a series** — not every intermediate bump. Changelog collects all commits between tags
+- Tag **before pushing**: `git tag vX.Y.Z && git push && git push origin vX.Y.Z`
+- Tag triggers `build.yml` (build + release)
+- **Claude does NOT tag or push** — only reminds the user after finishing a series of commits
+- Do NOT tag commits without a version bump (tests, docs, CI)
 
 **Example lifecycle:**
 
 ```
-v1.0.0 → bugfix → v1.0.1 → refactor → v1.0.2
-v1.0.2 → new feature → v1.1.0
-v1.1.0 → major rework → v2.0.0
+v1.0.0 → bugfix(v1.0.1) → refactor(v1.0.2) → tag v1.0.2, push
+         ↑ changelog collects both commits ↑
+
+v1.0.2 → new feature → v1.1.0 → tag v1.1.0, push
 ```
 
-### Post-change workflow (mandatory after every significant change)
+### Post-change workflow (mandatory after every commit that affects the shipped app)
 
-1. **Version bump** — bump version in `pubspec.yaml` (see Versioning Strategy above)
-2. **CLAUDE.md** — update Current State and module descriptions; document **why** a decision was made
+1. **Version bump** — `pubspec.yaml` + `_appVersion` in `settings_screen.dart` (in the same commit)
+2. **CLAUDE.md** — update Current State if architecture changed; document **why**
 3. **README.md** — update if the change is user-visible
-4. **SECURITY.md** — update if security scope changes (new crypto, auth methods, etc.)
-6. **Commit** — suggest a one-line message in `type: short description` format (user commits manually)
+4. **SECURITY.md** — update if security scope changes
+5. **`make analyze` + `make test`** — must pass before committing
 
 ### Dependencies
 
@@ -104,7 +97,7 @@ v1.1.0 → major rework → v2.0.0
 
 ### What Not To Do
 
-- Do not commit automatically, do not push
+- Do not commit or push unless the user explicitly asks — by default only suggest commit messages
 - **Never amend after push** — after a commit is pushed, only create new commits. `--amend` + `--force-push` re-triggers CI builds and wastes resources. Amend is OK only before the first push
 - Do not install packages without asking (user approves)
 - **All code must have tests** — target 100% coverage on new code AND overall; 80% is the hard minimum (SonarCloud Quality Gate), never the goal; write tests for every testable line
