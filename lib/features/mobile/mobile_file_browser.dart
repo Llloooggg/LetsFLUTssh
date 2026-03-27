@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
@@ -50,8 +52,16 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
 
     // Wait for connection if still connecting (connectAsync returns immediately)
     if (conn.isConnecting) {
-      while (conn.isConnecting && mounted) {
-        await Future.delayed(const Duration(milliseconds: 100));
+      try {
+        await conn.ready.timeout(const Duration(seconds: 30));
+      } on TimeoutException {
+        if (mounted) {
+          setState(() {
+            _error = 'Connection timed out';
+            _initializing = false;
+          });
+        }
+        return;
       }
     }
 

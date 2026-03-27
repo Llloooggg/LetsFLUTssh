@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
@@ -77,10 +79,12 @@ class _MobileTerminalViewState extends State<MobileTerminalView> {
     }
   }
 
-  /// Poll connection state until it's no longer connecting.
+  /// Wait for connection to leave the `connecting` state (30s timeout).
   Future<void> _waitForConnection(Connection conn) async {
-    while (conn.isConnecting && mounted) {
-      await Future.delayed(const Duration(milliseconds: 100));
+    try {
+      await conn.ready.timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      conn.connectionError = 'Connection timed out after 30 seconds';
     }
   }
 
