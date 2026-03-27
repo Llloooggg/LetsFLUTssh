@@ -26,5 +26,14 @@ If applicable, add screenshots.
 - App version: [e.g. 1.0.14]
 - Installation method: [e.g. AppImage, deb, exe, APK]
 
+**Logs**
+If possible, attach the log file:
+1. Open **Settings > Logging > Enable Logging**
+2. Reproduce the bug
+3. Find the log at `Settings > Logging > Open Log Directory`
+4. Attach `letsflutssh.log` to this issue
+
+> Logs never contain passwords or SSH keys — only connection metadata and operation statuses.
+
 **Additional context**
-Any other context about the problem. Log files from `Settings > Logging` are helpful.
+Any other context about the problem.
