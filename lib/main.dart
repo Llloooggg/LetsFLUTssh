@@ -159,6 +159,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     final tabState = ref.watch(tabProvider);
+    // Watch connection state changes so SFTP button updates when connect finishes
+    ref.watch(connectionsProvider);
 
     return CallbackShortcuts(
       bindings: _buildKeyBindings(context, tabState),
