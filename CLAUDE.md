@@ -56,10 +56,10 @@ Plain SemVer: `MAJOR.MINOR.PATCH` — no beta/rc suffixes.
 
 **Tagging workflow:**
 
-- Tag only the **last commit in a series** — not every intermediate bump. Changelog collects all commits between tags
-- Tag **before pushing**: `git tag vX.Y.Z && git push && git push origin vX.Y.Z`
+- Tag the **last commit that has a version bump** — this is the commit the release is built from. If there are docs/test/chore commits after it, the tag still goes on the bump commit, not on the trailing non-bump commits
+- Tag **before pushing**: `git tag vX.Y.Z <commit-hash> && git push && git push origin vX.Y.Z`
 - Tag triggers `build.yml` (build + release)
-- **By default Claude only reminds** about tagging and pushing. If the user asked Claude to push — Claude also tags the last commit and pushes both commit and tag
+- **By default Claude only reminds** about tagging and pushing. If the user asked Claude to push — Claude also tags the last bump commit and pushes both commits and tag
 - Do NOT tag commits without a version bump (tests, docs, CI)
 
 **Example lifecycle:**
