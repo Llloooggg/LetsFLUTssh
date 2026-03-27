@@ -40,7 +40,7 @@ class SessionPanel extends ConsumerWidget {
         // Search bar
         _SearchBar(
           value: searchQuery,
-          onChanged: (v) => ref.read(sessionSearchProvider.notifier).state = v,
+          onChanged: (v) => ref.read(sessionSearchProvider.notifier).set(v),
         ),
         // Tree view
         Expanded(

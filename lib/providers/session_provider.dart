@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
 import '../core/session/session.dart';
 import '../core/session/session_store.dart';
@@ -139,7 +138,15 @@ final sessionTreeProvider = Provider<List<SessionTreeNode>>((ref) {
 });
 
 /// Search query state.
-final sessionSearchProvider = StateProvider<String>((ref) => '');
+final sessionSearchProvider =
+    NotifierProvider<SessionSearchNotifier, String>(SessionSearchNotifier.new);
+
+class SessionSearchNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void set(String query) => state = query;
+}
 
 /// Filtered sessions based on search query.
 final filteredSessionsProvider = Provider<List<Session>>((ref) {

@@ -245,7 +245,7 @@ void main() {
       await notifier.add(makeSession(id: 's2', label: 'Staging'));
 
       // Set search query
-      container.read(sessionSearchProvider.notifier).state = 'prod';
+      container.read(sessionSearchProvider.notifier).set('prod');
       final filtered = container.read(filteredSessionsProvider);
       expect(filtered.length, 1);
       expect(filtered.first.label, 'Production');
@@ -262,7 +262,7 @@ void main() {
       await notifier.add(makeSession(id: 's1', host: '10.0.0.1'));
       await notifier.add(makeSession(id: 's2', host: '192.168.1.1'));
 
-      container.read(sessionSearchProvider.notifier).state = '192';
+      container.read(sessionSearchProvider.notifier).set('192');
       final filtered = container.read(filteredSessionsProvider);
       expect(filtered.length, 1);
       expect(filtered.first.host, '192.168.1.1');

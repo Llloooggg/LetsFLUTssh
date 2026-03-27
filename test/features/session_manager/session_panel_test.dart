@@ -170,7 +170,7 @@ void main() {
         sessionStoreProvider.overrideWithValue(store),
         sessionProvider.overrideWith(() =>
             _PrePopulatedSessionNotifier(sessionList)),
-        sessionSearchProvider.overrideWith((ref) => ''),
+        sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
         filteredSessionTreeProvider.overrideWithValue(tree),
       ],
       child: MaterialApp(
