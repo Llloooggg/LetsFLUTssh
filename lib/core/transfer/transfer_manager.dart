@@ -159,7 +159,7 @@ class TransferManager {
   /// Strip absolute file paths from error messages to avoid leaking
   /// directory structure in UI.
   String _sanitizeError(Object e) {
-    return e.toString().replaceAll(RegExp(r'[/\\]\S+'), '<path>');
+    return e.toString().replaceAll(RegExp(r'(?:[/\\][^\s/\\]+)+'), '<path>');
   }
 
   void _notify() {
