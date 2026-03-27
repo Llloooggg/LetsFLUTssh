@@ -6,7 +6,6 @@ import 'dart:ui' show VoidCallback;
 import 'package:dartssh2/dartssh2.dart';
 
 import '../../utils/logger.dart';
-import '../../utils/platform.dart';
 import 'errors.dart';
 import 'known_hosts.dart';
 import 'ssh_config.dart';
@@ -196,26 +195,13 @@ class SSHConnection {
     return null;
   }
 
-  /// Standard SSH key file names, tried in order (same as OpenSSH).
-  static const _defaultKeyNames = [
-    'id_ed25519',
-    'id_ecdsa',
-    'id_rsa',
-    'id_dsa',
-  ];
-
   /// Build identity list for key-based auth.
-  /// Auth chain: key file → key text → default ~/.ssh/ keys (same as OpenSSH).
+  /// Auth chain: key file → key text. Keys must be provided explicitly.
   Future<List<SSHKeyPair>> _buildIdentities() async {
     final identities = <SSHKeyPair>[];
 
     await _tryKeyFileAuth(identities);
     _tryKeyTextAuth(identities);
-
-    // Auto-detect keys from ~/.ssh/ only if no explicit key provided
-    if (identities.isEmpty) {
-      await _tryDefaultKeysAuth(identities);
-    }
 
     return identities;
   }
@@ -245,24 +231,6 @@ class SSHConnection {
     }
   }
 
-  /// Try loading default keys from ~/.ssh/ (like OpenSSH).
-  Future<void> _tryDefaultKeysAuth(List<SSHKeyPair> identities) async {
-    final home = homeDirectory;
-    if (home.isEmpty) return;
-    final sshDir = Directory('$home/.ssh');
-    if (!await sshDir.exists()) return;
-    for (final name in _defaultKeyNames) {
-      final keyFile = File('${sshDir.path}/$name');
-      if (await keyFile.exists()) {
-        try {
-          final keyData = await keyFile.readAsString();
-          identities.addAll(SSHKeyPair.fromPem(keyData, null));
-        } catch (e) {
-          AppLogger.instance.log('Skipped key $name (${e.runtimeType})', name: 'SSH');
-        }
-      }
-    }
-  }
 
   // Host key verification callback for dartssh2.
   Future<bool> _onVerifyHostKey(
