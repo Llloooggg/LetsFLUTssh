@@ -12,11 +12,12 @@ void main() {
 
   group('TransferStatus', () {
     test('has all statuses', () {
-      expect(TransferStatus.values.length, 4);
+      expect(TransferStatus.values.length, 5);
       expect(TransferStatus.values, contains(TransferStatus.queued));
       expect(TransferStatus.values, contains(TransferStatus.running));
       expect(TransferStatus.values, contains(TransferStatus.completed));
       expect(TransferStatus.values, contains(TransferStatus.failed));
+      expect(TransferStatus.values, contains(TransferStatus.cancelled));
     });
   });
 

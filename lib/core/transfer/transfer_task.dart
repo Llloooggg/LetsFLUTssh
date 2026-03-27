@@ -2,7 +2,7 @@
 enum TransferDirection { upload, download }
 
 /// Status of a transfer.
-enum TransferStatus { queued, running, completed, failed }
+enum TransferStatus { queued, running, completed, failed, cancelled }
 
 /// A single transfer task to be executed by the manager.
 class TransferTask {
