@@ -207,7 +207,7 @@ LetsFLUTssh/
 
 | Category          | What works                                                                                                                                                                                |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **SSH**           | dartssh2 (password, key file, key text), auth chain, keep-alive, TOFU known hosts, auto-detect ~/.ssh/ keys, tiling split (like tmux), terminal search (Ctrl+Shift+F)                     |
+| **SSH**           | dartssh2 (password, key file, key text), auth chain, keep-alive, TOFU known hosts, tiling split (like tmux), terminal search (Ctrl+Shift+F)                     |
 | **SFTP**          | Dual-pane (local\|remote), upload/download/mkdir/delete/rename/chmod, drag&drop (panes + OS), marquee selection, sortable columns, transfer queue + history                               |
 | **Sessions**      | AES-256-GCM encrypted credentials, CRUD/duplicate, nested tree groups, search/filter, drag&drop reorder, empty folders, bulk select (multi-delete/move)                                   |
 | **Tabs**          | Multi-tab (terminal + SFTP), drag-to-reorder, IndexedStack state preservation, context menu                                                                                               |
