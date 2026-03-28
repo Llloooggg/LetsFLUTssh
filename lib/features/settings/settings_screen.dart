@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -826,14 +827,19 @@ class _UpdateSection extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(left: 8),
             child: OutlinedButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: info.releaseUrl));
-                Toast.show(context,
-                    message: 'Release URL copied to clipboard',
-                    level: ToastLevel.info);
+              onPressed: () async {
+                final url = Uri.parse(info.releaseUrl);
+                if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                  if (context.mounted) {
+                    Clipboard.setData(ClipboardData(text: info.releaseUrl));
+                    Toast.show(context,
+                        message: 'Could not open browser — URL copied to clipboard',
+                        level: ToastLevel.warning);
+                  }
+                }
               },
               icon: const Icon(Icons.open_in_new, size: 18),
-              label: const Text('Copy Release URL'),
+              label: const Text('Open in Browser'),
             ),
           ),
       ],

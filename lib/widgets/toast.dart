@@ -128,7 +128,8 @@ class _ToastWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, icon) = _levelStyle();
-    final topOffset = 16.0 + index * 52.0;
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+    final topOffset = statusBarHeight + 16.0 + index * 52.0;
 
     return Positioned(
       right: 16,
