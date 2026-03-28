@@ -55,7 +55,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Key File'), findsOneWidget);
+      expect(find.text('Select Key File'), findsOneWidget);
       expect(find.text('Key Passphrase'), findsOneWidget);
     });
 
@@ -158,20 +158,13 @@ void main() {
       expect(find.text('Quick Connect'), findsOneWidget);
     });
 
-    testWidgets('key file path validation shows error for nonexistent file', (tester) async {
+    testWidgets('key file button is OutlinedButton, not TextFormField', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'h');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'u');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Key File'), '/nonexistent/path/key.pem');
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('File not found'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Key File'), findsNothing);
+      expect(find.widgetWithText(OutlinedButton, 'Select Key File'), findsOneWidget);
     });
 
     testWidgets('passphrase visibility toggle works', (tester) async {
