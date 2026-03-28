@@ -1,0 +1,305 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/update/update_service.dart';
+import 'package:letsflutssh/providers/update_provider.dart';
+import 'package:letsflutssh/providers/version_provider.dart';
+
+/// Stub UpdateService that resolves immediately with fixed results.
+class _StubUpdateService extends UpdateService {
+  final UpdateInfo Function(String version) onCheck;
+  final String? downloadedPath;
+  final Object? downloadError;
+
+  _StubUpdateService({
+    required this.onCheck,
+    this.downloadedPath,
+    this.downloadError,
+  });
+
+  @override
+  Future<UpdateInfo> checkForUpdate(String currentVersion) async {
+    return onCheck(currentVersion);
+  }
+
+  @override
+  Future<String> downloadAsset(
+    String url,
+    String targetDir, {
+    String? expectedDigest,
+    void Function(int received, int total)? onProgress,
+  }) async {
+    if (downloadError != null) throw downloadError!;
+    onProgress?.call(50, 100);
+    onProgress?.call(100, 100);
+    return downloadedPath!;
+  }
+}
+
+/// Build a container with an injected stub UpdateService and a fixed version.
+ProviderContainer _makeContainer({
+  required UpdateService service,
+  String version = '1.0.0',
+}) {
+  final container = ProviderContainer(
+    overrides: [
+      updateServiceProvider.overrideWithValue(service),
+    ],
+  );
+  container.read(appVersionProvider.notifier).state = version;
+  return container;
+}
+
+void _mockPathProvider(String path) {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+    const MethodChannel('plugins.flutter.io/path_provider'),
+    (call) async => path,
+  );
+}
+
+void _clearPathProviderMock() {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+    const MethodChannel('plugins.flutter.io/path_provider'),
+    null,
+  );
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('UpdateState', () {
+    test('default status is idle', () {
+      const s = UpdateState();
+      expect(s.status, UpdateStatus.idle);
+      expect(s.info, isNull);
+      expect(s.progress, 0);
+      expect(s.downloadedPath, isNull);
+      expect(s.error, isNull);
+    });
+
+    test('copyWith replaces only given fields', () {
+      const s = UpdateState(status: UpdateStatus.checking, progress: 0.5);
+      final s2 = s.copyWith(status: UpdateStatus.downloaded);
+      expect(s2.status, UpdateStatus.downloaded);
+      expect(s2.progress, 0.5); // preserved
+    });
+  });
+
+  group('UpdateNotifier.check()', () {
+    test('transitions idle → checking → upToDate when no update', () async {
+      final states = <UpdateStatus>[];
+      final service = _StubUpdateService(
+        onCheck: (v) => UpdateInfo(
+          latestVersion: v,
+          currentVersion: v,
+          releaseUrl: 'https://github.com',
+        ),
+      );
+      final container = _makeContainer(service: service, version: '1.2.0');
+      addTearDown(container.dispose);
+
+      container.listen(
+        updateProvider.select((s) => s.status),
+        (_, next) => states.add(next),
+        fireImmediately: true,
+      );
+
+      await container.read(updateProvider.notifier).check();
+
+      expect(states, [
+        UpdateStatus.idle,
+        UpdateStatus.checking,
+        UpdateStatus.upToDate,
+      ]);
+    });
+
+    test('transitions to updateAvailable when newer version exists', () async {
+      final service = _StubUpdateService(
+        onCheck: (_) => const UpdateInfo(
+          latestVersion: '2.0.0',
+          currentVersion: '1.0.0',
+          releaseUrl: 'https://github.com',
+          assetUrl: 'https://example.com/app.AppImage',
+        ),
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      await container.read(updateProvider.notifier).check();
+
+      final state = container.read(updateProvider);
+      expect(state.status, UpdateStatus.updateAvailable);
+      expect(state.info!.hasUpdate, isTrue);
+      expect(state.info!.latestVersion, '2.0.0');
+    });
+
+    test('transitions to error when check throws', () async {
+      final service = _StubUpdateService(
+        onCheck: (_) => throw const HttpException('API error'),
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      await container.read(updateProvider.notifier).check();
+
+      final state = container.read(updateProvider);
+      expect(state.status, UpdateStatus.error);
+      expect(state.error, isNotNull);
+    });
+
+    test('ignores second call while already checking', () async {
+      var callCount = 0;
+      final service = _StubUpdateService(
+        onCheck: (v) {
+          callCount++;
+          return UpdateInfo(
+            latestVersion: v,
+            currentVersion: v,
+            releaseUrl: 'https://github.com',
+          );
+        },
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      // Force checking state, then call check() — should be suppressed
+      container.read(updateProvider.notifier).state =
+          const UpdateState(status: UpdateStatus.checking);
+      await container.read(updateProvider.notifier).check();
+
+      expect(callCount, 0);
+    });
+  });
+
+  group('UpdateNotifier.download()', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      tempDir = await Directory.systemTemp.createTemp('upd_test_');
+      _mockPathProvider(tempDir.path);
+    });
+
+    tearDown(() async {
+      _clearPathProviderMock();
+      await tempDir.delete(recursive: true);
+    });
+
+    test('transitions to downloaded with path on success', () async {
+      final service = _StubUpdateService(
+        onCheck: (_) => const UpdateInfo(
+          latestVersion: '2.0.0',
+          currentVersion: '1.0.0',
+          releaseUrl: 'https://github.com',
+          assetUrl: 'https://example.com/app.AppImage',
+        ),
+        downloadedPath: 'app.AppImage',
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      await container.read(updateProvider.notifier).check();
+      await container.read(updateProvider.notifier).download();
+
+      final state = container.read(updateProvider);
+      expect(state.status, UpdateStatus.downloaded);
+      expect(state.downloadedPath, isNotNull);
+      expect(state.progress, 1.0);
+    });
+
+    test('reports download progress', () async {
+      final progresses = <double>[];
+      final service = _StubUpdateService(
+        onCheck: (_) => const UpdateInfo(
+          latestVersion: '2.0.0',
+          currentVersion: '1.0.0',
+          releaseUrl: 'https://github.com',
+          assetUrl: 'https://example.com/app.AppImage',
+        ),
+        downloadedPath: 'app.AppImage',
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      await container.read(updateProvider.notifier).check();
+
+      container.listen(
+        updateProvider.select((s) => s.progress),
+        (_, next) => progresses.add(next),
+      );
+
+      await container.read(updateProvider.notifier).download();
+
+      expect(progresses, contains(0.5));
+      expect(progresses.last, 1.0);
+    });
+
+    test('transitions to error when download fails', () async {
+      final service = _StubUpdateService(
+        onCheck: (_) => const UpdateInfo(
+          latestVersion: '2.0.0',
+          currentVersion: '1.0.0',
+          releaseUrl: 'https://github.com',
+          assetUrl: 'https://example.com/app.AppImage',
+        ),
+        downloadError: Exception('Network error'),
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      await container.read(updateProvider.notifier).check();
+      await container.read(updateProvider.notifier).download();
+
+      final state = container.read(updateProvider);
+      expect(state.status, UpdateStatus.error);
+      expect(state.error, contains('Download failed'));
+    });
+  });
+
+  group('UpdateNotifier.download() — no platform call', () {
+    test('no-op when info is null', () async {
+      final service = _StubUpdateService(onCheck: (_) => throw Exception());
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      // State is idle — info is null, returns early before path_provider call
+      await container.read(updateProvider.notifier).download();
+
+      expect(container.read(updateProvider).status, UpdateStatus.idle);
+    });
+
+    test('no-op when already downloading', () async {
+      final service = _StubUpdateService(onCheck: (_) => throw Exception());
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      container.read(updateProvider.notifier).state = const UpdateState(
+        status: UpdateStatus.downloading,
+        info: UpdateInfo(
+          latestVersion: '2.0.0',
+          currentVersion: '1.0.0',
+          releaseUrl: 'https://github.com',
+          assetUrl: 'https://example.com/app.AppImage',
+        ),
+      );
+      await container.read(updateProvider.notifier).download();
+
+      // Status unchanged — second call suppressed before path_provider call
+      expect(container.read(updateProvider).status, UpdateStatus.downloading);
+    });
+  });
+
+  group('UpdateNotifier.install()', () {
+    test('returns false when downloadedPath is null', () async {
+      final service = _StubUpdateService(onCheck: (_) => throw Exception());
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      final result = await container.read(updateProvider.notifier).install();
+      expect(result, isFalse);
+    });
+  });
+}
