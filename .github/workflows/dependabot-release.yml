@@ -19,7 +19,11 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write
+      pull-requests: read
     steps:
+      - uses: dependabot/fetch-metadata@ffa630c65fa7e0ecfa0625b5ceda64399aea1b36 # v2
+        id: metadata
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -27,7 +31,9 @@ jobs:
 
       - name: Bump patch version and push
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
+          DEP_NAMES: ${{ steps.metadata.outputs.dependency-names }}
+          DEP_FROM: ${{ steps.metadata.outputs.previous-version }}
+          DEP_TO: ${{ steps.metadata.outputs.new-version }}
         run: |
           # Extract current version
           FULL=$(grep '^version:' pubspec.yaml | sed 's/version: *//')
@@ -48,5 +54,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pubspec.yaml
-          git commit -m "chore(deps): ${PR_TITLE} (${VER} → ${NEW_VER})"
+          git commit -m "chore(deps): bump ${DEP_NAMES} ${DEP_FROM} → ${DEP_TO} (${VER} → ${NEW_VER})"
           git push
