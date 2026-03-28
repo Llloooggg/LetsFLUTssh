@@ -15,6 +15,7 @@ import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/toast.dart';
 
 /// A TabNotifier subclass that starts with a pre-built TabState.
 class _PrePopulatedTabNotifier extends TabNotifier {
@@ -906,6 +907,60 @@ void main() {
       // Should still be on Sessions page (index 0)
       final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
       expect(navBar.selectedIndex, equals(0));
+    });
+
+    testWidgets('incomplete session shows toast and stays on Sessions page', (tester) async {
+      final session = Session(
+        id: 'sess-incomplete',
+        label: 'Incomplete Server',
+        server: const ServerAddress(host: 'example.com', user: 'root'),
+        incomplete: true,
+      );
+      await tester.pumpWidget(buildWithSession(
+        session: session,
+        manager: _SuccessConnectionManager(),
+      ));
+      await tester.pumpAndSettle();
+
+      // Double-tap the incomplete session
+      await doubleTapSession(tester, 'Incomplete Server');
+
+      // Should stay on Sessions page (index 0), not switch to Terminal
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(navBar.selectedIndex, equals(0));
+
+      Toast.clearAllForTest();
+    });
+
+    testWidgets('incomplete session SFTP shows toast and stays on Sessions page', (tester) async {
+      final session = Session(
+        id: 'sess-incomplete-sftp',
+        label: 'Incomplete SFTP',
+        server: const ServerAddress(host: 'example.com', user: 'root'),
+        incomplete: true,
+      );
+      await tester.pumpWidget(buildWithSession(
+        session: session,
+        manager: _SuccessConnectionManager(),
+      ));
+      await tester.pumpAndSettle();
+
+      // Right-click to open context menu
+      await tester.tap(
+        find.text('Incomplete SFTP'),
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pumpAndSettle();
+
+      // Tap 'SFTP' in the context menu
+      await tester.tap(find.text('SFTP'));
+      await tester.pumpAndSettle();
+
+      // Should stay on Sessions page (index 0), not switch to Files
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(navBar.selectedIndex, equals(0));
+
+      Toast.clearAllForTest();
     });
 
     testWidgets('badge shows terminal tab count', (tester) async {
