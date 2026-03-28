@@ -116,6 +116,37 @@ void main() {
     });
   });
 
+  group('chip theme', () {
+    test('dark chip uses OneDark darker background', () {
+      final theme = AppTheme.dark();
+      expect(theme.chipTheme.backgroundColor, const Color(0xFF21252B));
+    });
+
+    test('dark chip selected color uses blue with alpha', () {
+      final theme = AppTheme.dark();
+      expect(theme.chipTheme.selectedColor, isNotNull);
+      // Selected color is blue-tinted
+      expect(theme.chipTheme.selectedColor!.a, lessThan(1.0));
+    });
+
+    test('dark chip border matches OneDark border', () {
+      final theme = AppTheme.dark();
+      final side = theme.chipTheme.side as BorderSide;
+      expect(side.color, const Color(0xFF3B4048));
+    });
+
+    test('light chip uses white background', () {
+      final theme = AppTheme.light();
+      expect(theme.chipTheme.backgroundColor, Colors.white);
+    });
+
+    test('light chip border matches light border', () {
+      final theme = AppTheme.light();
+      final side = theme.chipTheme.side as BorderSide;
+      expect(side.color, const Color(0xFFD3D3D3));
+    });
+  });
+
   group('semantic colors', () {
     test('connected is green', () {
       expect(AppTheme.connected, const Color(0xFF98C379));
