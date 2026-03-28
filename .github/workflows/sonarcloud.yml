@@ -20,11 +20,12 @@ jobs:
     permissions:
       contents: read
     steps:
-      # Scorecard rejects ref: ${{ github.event.workflow_run... }} on checkout (static match).
-      # Resolve SHA in a prior step so checkout ref is only steps.*.outputs (same commit as before).
+      # Scorecard: no github.event.workflow_run in actions/checkout ref or in run: (static/script checks).
       - name: Resolve checkout ref
         id: checkout_ref
-        run: echo "sha=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
+        env:
+          RESOLVED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
