@@ -11,6 +11,7 @@ class UpdateInfo {
   final String currentVersion;
   final String releaseUrl;
   final String? assetUrl;
+  final String? assetDigest;
   final String? changelog;
 
   const UpdateInfo({
@@ -18,6 +19,7 @@ class UpdateInfo {
     required this.currentVersion,
     required this.releaseUrl,
     this.assetUrl,
+    this.assetDigest,
     this.changelog,
   });
 
@@ -52,11 +54,12 @@ class UpdateInfo {
           currentVersion == other.currentVersion &&
           releaseUrl == other.releaseUrl &&
           assetUrl == other.assetUrl &&
+          assetDigest == other.assetDigest &&
           changelog == other.changelog;
 
   @override
   int get hashCode =>
-      Object.hash(latestVersion, currentVersion, releaseUrl, assetUrl, changelog);
+      Object.hash(latestVersion, currentVersion, releaseUrl, assetUrl, assetDigest, changelog);
 }
 
 /// Callback type for fetching a URL body as a string.
