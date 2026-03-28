@@ -26,6 +26,8 @@ import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transfer_provider.dart';
+import 'core/update/update_service.dart';
+import 'providers/update_provider.dart';
 import 'features/mobile/mobile_shell.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
@@ -61,9 +63,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       onRestart: _reloadSessions,
       onResume: _reloadSessions,
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(configProvider.notifier).load();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(configProvider.notifier).load();
       ref.read(sessionProvider.notifier).load();
+      if (ref.read(configProvider).checkUpdatesOnStart) {
+        ref.read(updateProvider.notifier).check();
+      }
     });
   }
 
@@ -129,17 +134,89 @@ class MainScreen extends ConsumerStatefulWidget {
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   final _deepLinkHandler = DeepLinkHandler();
+  bool _updateDialogShown = false;
 
   @override
   void initState() {
     super.initState();
     _setupDeepLinks();
+    _listenForStartupUpdate();
   }
 
   @override
   void dispose() {
     _deepLinkHandler.dispose();
     super.dispose();
+  }
+
+  void _listenForStartupUpdate() {
+    ref.listenManual(updateProvider, (prev, next) {
+      if (_updateDialogShown) return;
+      if (next.status == UpdateStatus.updateAvailable && next.info != null) {
+        _updateDialogShown = true;
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          _showUpdateDialog(ctx, next.info!);
+        }
+      }
+    });
+  }
+
+  void _showUpdateDialog(BuildContext context, UpdateInfo info) {
+    final hasAsset = info.assetUrl != null && plat.isDesktopPlatform;
+    showDialog(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Update Available'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Version ${info.latestVersion} is available (current: v${info.currentVersion}).'),
+            if (info.changelog != null && info.changelog!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Release notes:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: SingleChildScrollView(
+                  child: Text(
+                    info.changelog!,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Later'),
+          ),
+          if (hasAsset)
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                ref.read(updateProvider.notifier).download();
+              },
+              child: const Text('Download & Install'),
+            )
+          else
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Clipboard.setData(ClipboardData(text: info.releaseUrl));
+                Toast.show(context,
+                    message: 'Release URL copied to clipboard',
+                    level: ToastLevel.info);
+              },
+              child: const Text('Copy Release URL'),
+            ),
+        ],
+      ),
+    );
   }
 
   void _setupDeepLinks() {

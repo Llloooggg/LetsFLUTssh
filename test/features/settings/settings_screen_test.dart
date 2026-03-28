@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
+import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
+import 'package:letsflutssh/providers/update_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/logger.dart';
 import 'package:letsflutssh/widgets/toast.dart';
@@ -130,6 +132,12 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Data'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Updates'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Updates'), findsOneWidget);
 
       await tester.scrollUntilVisible(
         find.text('About'), 200,
@@ -1729,8 +1737,8 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
 
-      // Find the switch and verify it starts as false
-      final switchFinder = find.byType(SwitchListTile);
+      // Find the logging switch specifically
+      final switchFinder = find.widgetWithText(SwitchListTile, 'Enable Logging');
       expect(switchFinder, findsOneWidget);
 
       final switchTile = tester.widget<SwitchListTile>(switchFinder);
@@ -1776,7 +1784,7 @@ void main() {
       );
 
       final switchTile = tester.widget<SwitchListTile>(
-          find.byType(SwitchListTile));
+          find.widgetWithText(SwitchListTile, 'Enable Logging'));
       expect(switchTile.value, isTrue);
     });
 
@@ -1857,7 +1865,7 @@ void main() {
       );
 
       final switchTile = tester.widget<SwitchListTile>(
-          find.byType(SwitchListTile));
+          find.widgetWithText(SwitchListTile, 'Enable Logging'));
       expect(switchTile.contentPadding, EdgeInsets.zero);
       expect(switchTile.subtitle, isA<Text>());
     });
@@ -1927,4 +1935,202 @@ void main() {
   // The existing test at line 772 exercises the dialog->export flow but cannot
   // verify the toast due to this limitation.
 
+  // ---------------------------------------------------------------------------
+  // Updates section
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Updates section', () {
+    /// Build app with an overridden update provider for testing.
+    Widget buildUpdateApp({
+      AppConfig? initialConfig,
+      UpdateState? initialUpdateState,
+    }) {
+      final config = initialConfig ?? AppConfig.defaults;
+      return ProviderScope(
+        overrides: [
+          configProvider.overrideWith(
+            () => _PrePopulatedConfigNotifier(config),
+          ),
+          if (initialUpdateState != null)
+            updateProvider.overrideWith(
+              () => _PrePopulatedUpdateNotifier(initialUpdateState),
+            ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const SizedBox(
+            height: 2000,
+            child: SettingsScreen(),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('renders check for updates toggle', (tester) async {
+      await tester.pumpWidget(buildUpdateApp());
+      await tester.scrollUntilVisible(
+        find.text('Check for Updates on Startup'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Check for Updates on Startup'), findsOneWidget);
+      expect(find.byType(SwitchListTile), findsWidgets);
+    });
+
+    testWidgets('toggle defaults to on', (tester) async {
+      await tester.pumpWidget(buildUpdateApp());
+      await tester.scrollUntilVisible(
+        find.text('Check for Updates on Startup'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final switches = tester.widgetList<SwitchListTile>(
+        find.byType(SwitchListTile),
+      );
+      // The updates toggle — find it by title
+      final updateSwitch = switches.firstWhere(
+        (s) => (s.title as Text?)?.data == 'Check for Updates on Startup',
+      );
+      expect(updateSwitch.value, isTrue);
+    });
+
+    testWidgets('renders check button', (tester) async {
+      await tester.pumpWidget(buildUpdateApp());
+      await tester.scrollUntilVisible(
+        find.text('Check for Updates'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Check for Updates'), findsOneWidget);
+    });
+
+    testWidgets('shows up-to-date message', (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.upToDate,
+          info: UpdateInfo(
+            latestVersion: '1.5.0',
+            currentVersion: '1.5.0',
+            releaseUrl: '',
+          ),
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.textContaining('up to date'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('up to date'), findsOneWidget);
+    });
+
+    testWidgets('shows update available with version', (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.updateAvailable,
+          info: UpdateInfo(
+            latestVersion: '2.0.0',
+            currentVersion: '1.5.0',
+            releaseUrl: 'https://github.com/releases',
+            assetUrl: 'https://example.com/file.AppImage',
+          ),
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.text('Version 2.0.0 available'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Version 2.0.0 available'), findsOneWidget);
+      expect(find.text('Current: v1.5.0'), findsOneWidget);
+    });
+
+    testWidgets('shows error state', (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.error,
+          error: 'Network timeout',
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.text('Update check failed'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Update check failed'), findsOneWidget);
+      expect(find.text('Network timeout'), findsOneWidget);
+    });
+
+    testWidgets('shows downloading progress', (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.downloading,
+          progress: 0.42,
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.textContaining('Downloading'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('Downloading... 42%'), findsOneWidget);
+    });
+
+    testWidgets('shows download complete with install button', (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.downloaded,
+          downloadedPath: '/tmp/letsflutssh-2.0.0.AppImage',
+          progress: 1,
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.text('Download complete'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Download complete'), findsOneWidget);
+      expect(find.text('Install Now'), findsOneWidget);
+    });
+
+    testWidgets('shows copy release URL on mobile or when no asset',
+        (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.updateAvailable,
+          info: UpdateInfo(
+            latestVersion: '2.0.0',
+            currentVersion: '1.5.0',
+            releaseUrl: 'https://github.com/releases',
+            // assetUrl is null — no matching asset
+          ),
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.text('Copy Release URL'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Copy Release URL'), findsOneWidget);
+    });
+
+    testWidgets('toggle can be turned off', (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialConfig: AppConfig.defaults.copyWith(checkUpdatesOnStart: false),
+      ));
+      await tester.scrollUntilVisible(
+        find.text('Check for Updates on Startup'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final switches = tester.widgetList<SwitchListTile>(
+        find.byType(SwitchListTile),
+      );
+      final updateSwitch = switches.firstWhere(
+        (s) => (s.title as Text?)?.data == 'Check for Updates on Startup',
+      );
+      expect(updateSwitch.value, isFalse);
+    });
+  });
+}
+
+/// An UpdateNotifier subclass that starts with a custom initial state.
+class _PrePopulatedUpdateNotifier extends UpdateNotifier {
+  final UpdateState _initial;
+  _PrePopulatedUpdateNotifier(this._initial);
+
+  @override
+  UpdateState build() {
+    super.build();
+    state = _initial;
+    return state;
+  }
 }
