@@ -127,6 +127,19 @@ jobs:
           cd build/linux/x64/release/bundle
           tar czf ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz .
 
+      - name: Cache appimagetool
+        id: cache-appimagetool
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: appimagetool
+          key: appimagetool-1.9.1-x86_64-ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+
+      - name: Download appimagetool
+        if: steps.cache-appimagetool.outputs.cache-hit != 'true'
+        run: |
+          wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage -O appimagetool
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum -c
+
       - name: Package AppImage
         run: |
           # Create AppDir structure
@@ -144,9 +157,7 @@ jobs:
           exec "$HERE/usr/bin/letsflutssh" "$@"
           APPRUN
           chmod +x $APPDIR/AppRun
-          # Download appimagetool (pinned version + checksum)
-          wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage -O appimagetool
-          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum -c
+          # Build AppImage
           chmod +x appimagetool
           ARCH=x86_64 ./appimagetool --no-appstream $APPDIR letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
 
@@ -319,6 +330,16 @@ jobs:
             artifacts/macos-universal/*
             artifacts/android-apk/*
 
+      - name: Export provenance for release
+        run: |
+          VER="${{ needs.preflight.outputs.version }}"
+          for f in artifacts/linux-x64/* artifacts/windows-x64/* artifacts/macos-universal/* artifacts/android-apk/*; do
+            NAME=$(basename "$f")
+            gh attestation download "$f" --repo "${{ github.repository }}" --output "artifacts/${NAME}.intoto.jsonl" || true
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Resolve release tag
         id: tag
         run: |
@@ -391,3 +412,4 @@ jobs:
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
+            artifacts/*.intoto.jsonl
