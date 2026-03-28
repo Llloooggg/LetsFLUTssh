@@ -135,10 +135,12 @@ jobs:
           key: appimagetool-1.9.1-x86_64-ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
 
       - name: Package AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Download appimagetool if not cached, then verify hash (even from cache)
           if [ ! -f appimagetool ]; then
-            wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage -O appimagetool
+            gh release download 1.9.1 --repo AppImage/appimagetool --pattern 'appimagetool-x86_64.AppImage' --output appimagetool
           fi
           echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum -c
           chmod +x appimagetool
