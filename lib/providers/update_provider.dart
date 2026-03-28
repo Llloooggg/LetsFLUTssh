@@ -104,6 +104,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
       final path = await _service.downloadAsset(
         info.assetUrl!,
         dir.path,
+        expectedDigest: info.assetDigest,
         onProgress: (received, total) {
           if (total > 0) {
             state = state.copyWith(progress: received / total);

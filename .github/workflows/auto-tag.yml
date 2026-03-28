@@ -1,0 +1,75 @@
+name: Auto-Tag Release
+
+# Triggers after CI completes on main. If the commit bumped the version
+# in pubspec.yaml and no matching tag exists yet, creates an annotated
+# tag so Build & Release can run automatically.
+#
+# This replaces the manual `make tag` step for app-affecting commits.
+# Dependabot commits are handled separately by dependabot-tag.yml.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions: read-all
+
+jobs:
+  auto-tag:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      !contains(github.event.workflow_run.head_commit.message, 'chore(deps):')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: auto-tag-release
+      cancel-in-progress: false
+    steps:
+      - name: Check version and create tag if needed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          REPO="${{ github.repository }}"
+          MSG="${{ github.event.workflow_run.head_commit.message }}"
+
+          # Only tag commits that affect the shipped app (feat/fix/refactor)
+          PREFIX=$(echo "$MSG" | head -1 | sed -n 's/^\([a-z]*\):.*/\1/p')
+          case "$PREFIX" in
+            feat|fix|refactor) ;;
+            *)
+              echo "Commit prefix '$PREFIX' does not require a tag — skipping"
+              exit 0
+              ;;
+          esac
+
+          # Read version from pubspec.yaml at this commit
+          VER=$(gh api "repos/${REPO}/contents/pubspec.yaml?ref=${SHA}" \
+            --jq '.content' | base64 -d | grep '^version:' | sed 's/version: *//;s/+.*//')
+          TAG="v${VER}"
+
+          if [ -z "$VER" ]; then
+            echo "Could not extract version from pubspec.yaml — skipping"
+            exit 0
+          fi
+
+          # Bail out if tag already exists
+          if gh api "repos/${REPO}/git/refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists — skipping"
+            exit 0
+          fi
+
+          echo "Creating tag ${TAG} for commit ${SHA}..."
+
+          # Create annotated tag object
+          TAG_SHA=$(gh api "repos/${REPO}/git/tags" \
+            -f tag="$TAG" -f message="$TAG" -f object="$SHA" -f type="commit" \
+            --jq '.sha')
+
+          # Create tag ref
+          gh api "repos/${REPO}/git/refs" \
+            -f ref="refs/tags/${TAG}" -f sha="$TAG_SHA"
+
+          echo "Created tag ${TAG} -> ${SHA}"
