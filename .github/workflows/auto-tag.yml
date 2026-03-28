@@ -21,15 +21,13 @@ jobs:
       github.event.workflow_run.head_branch == 'main' &&
       !contains(github.event.workflow_run.head_commit.message, 'chore(deps):')
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     concurrency:
       group: auto-tag-release
       cancel-in-progress: false
     steps:
       - name: Check version and create tag if needed
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           SHA="${{ github.event.workflow_run.head_sha }}"
           REPO="${{ github.repository }}"
