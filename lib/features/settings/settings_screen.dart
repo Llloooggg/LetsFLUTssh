@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -422,6 +423,12 @@ class _ExportImportTile extends ConsumerWidget {
 
       if (password == null || !context.mounted) return;
 
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final defaultName = 'export_$timestamp.lfs';
+
+      final outputPath = await _pickSavePath(defaultName, 'lfs');
+      if (outputPath == null || !context.mounted) return;
+
       // Show progress indicator while PBKDF2 + encryption runs in isolate
       showDialog(
         context: context,
@@ -436,9 +443,6 @@ class _ExportImportTile extends ConsumerWidget {
       try {
         final sessions = ref.read(sessionProvider);
         final config = ref.read(configProvider);
-        final dir = await getApplicationSupportDirectory();
-        final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
-        final outputPath = p.join(dir.path, 'export_$timestamp.lfs');
 
         await ExportImport.export(
           masterPassword: password,
@@ -464,6 +468,25 @@ class _ExportImportTile extends ConsumerWidget {
       passwordCtrl.dispose();
       confirmCtrl.dispose();
     }
+  }
+
+  /// Opens a save-file picker. Desktop uses native save dialog,
+  /// mobile uses directory picker + default filename.
+  Future<String?> _pickSavePath(String defaultName, String extension) async {
+    if (plat.isDesktopPlatform) {
+      return FilePicker.platform.saveFile(
+        dialogTitle: 'Save as',
+        fileName: defaultName,
+        type: FileType.custom,
+        allowedExtensions: [extension],
+      );
+    }
+    // Mobile: pick directory, append default filename
+    final dir = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'Choose save location',
+    );
+    if (dir == null) return null;
+    return p.join(dir, defaultName);
   }
 
   Future<void> _showImportDialog(BuildContext context, WidgetRef ref) async {
@@ -704,6 +727,10 @@ class _UpdateSection extends ConsumerWidget {
           Toast.show(context,
               message: 'You\'re running the latest version',
               level: ToastLevel.success);
+        } else if (state.status == UpdateStatus.updateAvailable) {
+          Toast.show(context,
+              message: 'Version ${state.info!.latestVersion} available',
+              level: ToastLevel.info);
         } else if (state.status == UpdateStatus.error) {
           Toast.show(context,
               message: state.error ?? 'Update check failed',
@@ -1100,6 +1127,14 @@ class _LoggingSection extends ConsumerWidget {
             children: [
               Expanded(
                 child: ListTile(
+                  leading: const Icon(Icons.save_alt, size: 20),
+                  title: const Text('Export Log'),
+                  contentPadding: EdgeInsets.zero,
+                  onTap: () => _exportLog(context),
+                ),
+              ),
+              Expanded(
+                child: ListTile(
                   leading: const Icon(Icons.copy, size: 20),
                   title: const Text('Copy Log'),
                   contentPadding: EdgeInsets.zero,
@@ -1155,6 +1190,47 @@ class _LoggingSection extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _exportLog(BuildContext context) async {
+    try {
+      final content = await AppLogger.instance.readLog();
+      if (!context.mounted) return;
+      if (content.isEmpty) {
+        Toast.show(context, message: 'Log is empty', level: ToastLevel.info);
+        return;
+      }
+
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final defaultName = 'letsflutssh_log_$timestamp.txt';
+
+      String? outputPath;
+      if (plat.isDesktopPlatform) {
+        outputPath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Save log as',
+          fileName: defaultName,
+          type: FileType.custom,
+          allowedExtensions: ['txt', 'log'],
+        );
+      } else {
+        final dir = await FilePicker.platform.getDirectoryPath(
+          dialogTitle: 'Choose save location',
+        );
+        if (dir != null) outputPath = p.join(dir, defaultName);
+      }
+
+      if (outputPath == null || !context.mounted) return;
+
+      await File(outputPath).writeAsString(content);
+      if (context.mounted) {
+        Toast.show(context, message: 'Log exported to: $outputPath', level: ToastLevel.success);
+      }
+    } catch (e) {
+      AppLogger.instance.log('Log export failed: $e', name: 'Settings', error: e);
+      if (context.mounted) {
+        Toast.show(context, message: 'Log export failed: $e', level: ToastLevel.error);
+      }
+    }
   }
 
   Future<void> _copyLog(BuildContext context) async {
