@@ -34,6 +34,9 @@ class ShellConnection {
 class ShellHelper {
   ShellHelper._();
 
+  /// Base delay in milliseconds between shell open retry attempts.
+  static const _retryDelayMs = 300;
+
   /// Open an SSH shell and wire it to [terminal].
   ///
   /// Retries up to [maxAttempts] times with incremental delay (SSH servers
@@ -55,7 +58,7 @@ class ShellHelper {
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         if (attempt > 0) {
-          await Future.delayed(Duration(milliseconds: 300 * attempt));
+          await Future.delayed(Duration(milliseconds: _retryDelayMs * attempt));
         }
 
         final shell = await sshConn.openShell(
