@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../session_manager/session_connect.dart';
 import '../session_manager/session_edit_dialog.dart';
@@ -31,6 +33,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   Widget build(BuildContext context) {
     final tabState = ref.watch(tabProvider);
 
+    // Watch connection state changes so SFTP button updates when connect finishes
+    ref.watch(connectionsProvider);
     final hasActiveTabs = tabState.tabs.isNotEmpty;
 
     return PopScope(
@@ -103,7 +107,16 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                       },
                     ),
                     // Terminal page
-                    _MobileTerminalPage(tabState: tabState),
+                    _MobileTerminalPage(
+                      tabState: tabState,
+                      onOpenSftp: _activeTerminalConnection(tabState)?.isConnected == true
+                          ? () {
+                              final conn = _activeTerminalConnection(tabState)!;
+                              ref.read(tabProvider.notifier).addSftpTab(conn);
+                              setState(() => _navIndex = 2);
+                            }
+                          : null,
+                    ),
                     // SFTP page
                     _MobileSftpPage(tabState: tabState),
                   ],
@@ -183,6 +196,13 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (confirmed == true && context.mounted) {
       Navigator.of(context).pop();
     }
+  }
+
+  Connection? _activeTerminalConnection(TabState s) {
+    final termTabs = s.tabs.where((t) => t.kind == TabKind.terminal).toList();
+    if (termTabs.isEmpty) return null;
+    final active = termTabs.contains(s.activeTab) ? s.activeTab! : termTabs.last;
+    return active.connection;
   }
 
   int _terminalTabCount(TabState s) =>
@@ -285,8 +305,12 @@ class _MobileTabChipBar extends ConsumerWidget {
 /// Terminal page — shows active terminal tab or empty state.
 class _MobileTerminalPage extends ConsumerWidget {
   final TabState tabState;
+  final VoidCallback? onOpenSftp;
 
-  const _MobileTerminalPage({required this.tabState});
+  const _MobileTerminalPage({
+    required this.tabState,
+    this.onOpenSftp,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -314,10 +338,26 @@ class _MobileTerminalPage extends ConsumerWidget {
 
     return Column(
       children: [
-        _MobileTabChipBar(
-          tabState: tabState,
-          filteredTabs: termTabs,
-          activeTab: activeTermTab,
+        Row(
+          children: [
+            Expanded(
+              child: _MobileTabChipBar(
+                tabState: tabState,
+                filteredTabs: termTabs,
+                activeTab: activeTermTab,
+              ),
+            ),
+            if (onOpenSftp != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: IconButton(
+                  onPressed: onOpenSftp,
+                  icon: const Icon(Icons.folder_open, size: 20),
+                  tooltip: 'Open SFTP Browser',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+          ],
         ),
         Expanded(
           child: MobileTerminalView(
