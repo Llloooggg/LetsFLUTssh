@@ -696,7 +696,20 @@ class _UpdateSection extends ConsumerWidget {
           : const Icon(Icons.refresh, size: 20),
       title: Text(isChecking ? 'Checking...' : 'Check for Updates'),
       contentPadding: EdgeInsets.zero,
-      onTap: isChecking ? null : () => ref.read(updateProvider.notifier).check(),
+      onTap: isChecking ? null : () async {
+        await ref.read(updateProvider.notifier).check();
+        if (!context.mounted) return;
+        final state = ref.read(updateProvider);
+        if (state.status == UpdateStatus.upToDate) {
+          Toast.show(context,
+              message: 'You\'re running the latest version',
+              level: ToastLevel.success);
+        } else if (state.status == UpdateStatus.error) {
+          Toast.show(context,
+              message: state.error ?? 'Update check failed',
+              level: ToastLevel.error);
+        }
+      },
     );
   }
 
