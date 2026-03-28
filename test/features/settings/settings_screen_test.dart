@@ -2091,7 +2091,8 @@ void main() {
             latestVersion: '2.0.0',
             currentVersion: '1.5.0',
             releaseUrl: 'https://github.com/releases',
-            assetUrl: 'https://example.com/file.AppImage',
+            assetUrl:
+                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
           ),
         ),
       ));
