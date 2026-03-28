@@ -306,6 +306,53 @@ void main() {
     });
   });
 
+  group('Toast — positioning', () {
+    testWidgets('toast is positioned at top-right', (tester) async {
+      await tester.pumpWidget(buildApp(
+        onPressed: (ctx) => Toast.show(
+          ctx,
+          message: 'Top Right',
+          duration: const Duration(seconds: 2),
+        ),
+      ));
+
+      await tester.tap(find.text('Show Toast'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      final positioned = tester.widget<Positioned>(find.byType(Positioned));
+      expect(positioned.right, 16);
+      expect(positioned.top, 16.0);
+      expect(positioned.bottom, isNull);
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('stacked toasts offset by 52px each', (tester) async {
+      await tester.pumpWidget(buildApp(
+        onPressed: (ctx) {
+          Toast.show(ctx, message: 'Pos1',
+              duration: const Duration(seconds: 2));
+          Toast.show(ctx, message: 'Pos2',
+              duration: const Duration(seconds: 2));
+        },
+      ));
+
+      await tester.tap(find.text('Show Toast'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      final positioned = tester.widgetList<Positioned>(find.byType(Positioned)).toList();
+      // First toast at top=16, second at top=68
+      expect(positioned[0].top, 16.0);
+      expect(positioned[1].top, 68.0);
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    });
+  });
+
   group('Toast — clearAllForTest', () {
     testWidgets('removes all pending toasts', (tester) async {
       await tester.pumpWidget(buildApp(
