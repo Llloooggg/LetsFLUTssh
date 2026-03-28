@@ -82,6 +82,7 @@ void main() {
     void Function(List<FileEntry>)? onTransferMultiple,
     void Function(List<FileEntry>)? onDropReceived,
     void Function(List<String>)? onOsDropReceived,
+    VoidCallback? onPaneActivated,
   }) {
     return MaterialApp(
       theme: AppTheme.dark(),
@@ -96,6 +97,7 @@ void main() {
             onTransferMultiple: onTransferMultiple,
             onDropReceived: onDropReceived,
             onOsDropReceived: onOsDropReceived,
+            onPaneActivated: onPaneActivated,
           ),
         ),
       ),
@@ -2117,6 +2119,99 @@ void main() {
       await tester.pumpAndSettle();
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       expect(ctrl.selected, {'/home/b.txt'});
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Click on empty space clears selection
+  // ---------------------------------------------------------------------------
+  group('FilePane — click empty space clears selection', () {
+    testWidgets('clicking empty area below files clears selection',
+        (tester) async {
+      final entries = [
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 10,
+            mode: 0x81A4, modTime: DateTime(2024), isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      ctrl.selectSingle('/home/a.txt');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      expect(ctrl.selected, {'/home/a.txt'});
+
+      // Tap empty area below the single file row (row height is 28)
+      final listFinder = find.byType(ListView);
+      final listBox = tester.getRect(listFinder);
+      // Tap at the bottom of the list (well past the single row)
+      await tester.tapAt(Offset(listBox.center.dx, listBox.center.dy + 100));
+      await tester.pump();
+
+      expect(ctrl.selected, isEmpty);
+    });
+
+    testWidgets('tapping empty state clears selection', (tester) async {
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      await tester.tap(find.text('Empty directory'));
+      await tester.pump();
+
+      expect(ctrl.selected, isEmpty);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // onPaneActivated callback
+  // ---------------------------------------------------------------------------
+  group('FilePane — onPaneActivated', () {
+    testWidgets('fires onPaneActivated when interacting with file list',
+        (tester) async {
+      final entries = [
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 10,
+            mode: 0x81A4, modTime: DateTime(2024), isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      var activated = false;
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onPaneActivated: () => activated = true,
+      ));
+      await tester.pump();
+
+      await tester.tap(find.text('a.txt'));
+      // Flush double-tap timer
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      expect(activated, isTrue);
+    });
+
+    testWidgets('fires onPaneActivated on empty state tap', (tester) async {
+      final fs = _MockFS({'/home': []});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      var activated = false;
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onPaneActivated: () => activated = true,
+      ));
+      await tester.pump();
+
+      await tester.tap(find.text('Empty directory'));
+      await tester.pump();
+
+      expect(activated, isTrue);
     });
   });
 }

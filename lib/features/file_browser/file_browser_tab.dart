@@ -165,6 +165,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                   }
                 },
                 onOsDropReceived: (paths) => _osDropToLocal(paths),
+                onPaneActivated: () => remote.clearSelection(),
               ),
             ),
             MouseRegion(
@@ -198,6 +199,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                   }
                 },
                 onOsDropReceived: (paths) => _osDropToRemote(paths),
+                onPaneActivated: () => local.clearSelection(),
               ),
             ),
           ],
