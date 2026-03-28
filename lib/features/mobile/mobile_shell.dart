@@ -70,12 +70,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               child: Listener(
                 behavior: HitTestBehavior.translucent,
                 onPointerDown: (event) {
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  final x = event.localPosition.dx;
-                  // Only track swipes starting near screen edges
-                  if (x <= 30 || x >= screenWidth - 30) {
-                    _swipeStart = event.localPosition;
-                  }
+                  _swipeStart = event.localPosition;
                 },
                 onPointerUp: (event) {
                   final start = _swipeStart;
@@ -86,7 +81,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                   final dy = (event.localPosition.dy - start.dy).abs();
 
                   // Require primarily horizontal movement with minimum distance
-                  if (dx.abs() < 40 || dy > dx.abs()) return;
+                  if (dx.abs() < 80 || dy > dx.abs()) return;
 
                   if (dx > 0 && _navIndex > 0) {
                     setState(() => _navIndex--);

@@ -333,7 +333,7 @@ void main() {
       }
     });
 
-    testWidgets('swipe right from left edge navigates to previous tab', (tester) async {
+    testWidgets('swipe right navigates to previous tab', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -342,9 +342,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('No active terminals'), findsOneWidget);
 
-      // Swipe right from left edge to go back to Sessions
+      // Swipe right to go back to Sessions
       final rect = tester.getRect(find.byType(IndexedStack));
-      final gesture = await tester.startGesture(Offset(rect.left + 5, rect.center.dy));
+      final gesture = await tester.startGesture(rect.center);
       await gesture.moveBy(const Offset(100, 0));
       await gesture.up();
       await tester.pumpAndSettle();
@@ -353,13 +353,13 @@ void main() {
       expect(find.byType(IndexedStack), findsOneWidget);
     });
 
-    testWidgets('swipe left from right edge navigates to next tab', (tester) async {
+    testWidgets('swipe left navigates to next tab', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Start on Sessions, swipe left from right edge to go to Terminal
+      // Start on Sessions, swipe left to go to Terminal
       final rect = tester.getRect(find.byType(IndexedStack));
-      final gesture = await tester.startGesture(Offset(rect.right - 5, rect.center.dy));
+      final gesture = await tester.startGesture(rect.center);
       await gesture.moveBy(const Offset(-100, 0));
       await gesture.up();
       await tester.pumpAndSettle();
@@ -663,9 +663,9 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Already at index 0 (Sessions), swipe right from left edge should not change
+      // Already at index 0 (Sessions), swipe right should not change
       final rect = tester.getRect(find.byType(IndexedStack));
-      final gesture = await tester.startGesture(Offset(rect.left + 5, rect.center.dy));
+      final gesture = await tester.startGesture(rect.center);
       await gesture.moveBy(const Offset(100, 0));
       await gesture.up();
       await tester.pumpAndSettle();
@@ -682,9 +682,9 @@ void main() {
       await tester.tap(find.text('Files'));
       await tester.pumpAndSettle();
 
-      // Swipe left from right edge should not change (already at max)
+      // Swipe left should not change (already at max)
       final rect = tester.getRect(find.byType(IndexedStack));
-      final gesture = await tester.startGesture(Offset(rect.right - 5, rect.center.dy));
+      final gesture = await tester.startGesture(rect.center);
       await gesture.moveBy(const Offset(-100, 0));
       await gesture.up();
       await tester.pumpAndSettle();
@@ -699,15 +699,15 @@ void main() {
 
       final rect = tester.getRect(find.byType(IndexedStack));
 
-      // Swipe left from right edge to Terminal
-      var gesture = await tester.startGesture(Offset(rect.right - 5, rect.center.dy));
+      // Swipe left to Terminal
+      var gesture = await tester.startGesture(rect.center);
       await gesture.moveBy(const Offset(-100, 0));
       await gesture.up();
       await tester.pumpAndSettle();
       expect(find.text('No active terminals'), findsOneWidget);
 
-      // Swipe left from right edge to Files
-      gesture = await tester.startGesture(Offset(rect.right - 5, rect.center.dy));
+      // Swipe left to Files
+      gesture = await tester.startGesture(rect.center);
       await gesture.moveBy(const Offset(-100, 0));
       await gesture.up();
       await tester.pumpAndSettle();
