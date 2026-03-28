@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -127,6 +129,23 @@ class UpdateNotifier extends Notifier<UpdateState> {
   Future<bool> install() async {
     final path = state.downloadedPath;
     if (path == null) return false;
-    return UpdateService.openFile(path);
+    final ok = await UpdateService.openFile(path);
+    if (ok) {
+      // Clean up after a short delay so the OS has time to read the file
+      Future.delayed(const Duration(seconds: 5), () => _cleanupFile(path));
+    }
+    return ok;
+  }
+
+  Future<void> _cleanupFile(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+        AppLogger.instance.log('Cleaned up: $path', name: 'UpdateProvider');
+      }
+    } catch (e) {
+      AppLogger.instance.log('Cleanup failed: $e', name: 'UpdateProvider');
+    }
   }
 }

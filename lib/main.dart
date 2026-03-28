@@ -26,6 +26,8 @@ import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transfer_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import 'core/update/update_service.dart';
 import 'providers/update_provider.dart';
 import 'providers/version_provider.dart';
@@ -207,14 +209,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             )
           else
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(ctx);
-                Clipboard.setData(ClipboardData(text: info.releaseUrl));
-                Toast.show(context,
-                    message: 'Release URL copied to clipboard',
-                    level: ToastLevel.info);
+                final url = Uri.parse(info.releaseUrl);
+                if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                  if (context.mounted) {
+                    Clipboard.setData(ClipboardData(text: info.releaseUrl));
+                    Toast.show(context,
+                        message: 'Could not open browser — URL copied to clipboard',
+                        level: ToastLevel.warning);
+                  }
+                }
               },
-              child: const Text('Copy Release URL'),
+              child: const Text('Open in Browser'),
             ),
         ],
       ),

@@ -2162,10 +2162,10 @@ void main() {
         ),
       ));
       await tester.scrollUntilVisible(
-        find.text('Copy Release URL'), 200,
+        find.text('Open in Browser'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Copy Release URL'), findsOneWidget);
+      expect(find.text('Open in Browser'), findsOneWidget);
     });
 
     testWidgets('toggle can be turned off', (tester) async {
