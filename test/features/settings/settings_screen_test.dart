@@ -2129,6 +2129,78 @@ void main() {
       );
       expect(updateSwitch.value, isFalse);
     });
+
+    testWidgets('manual check shows toast when up to date', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final mockService = UpdateService(
+        fetch: (_) async => '{"tag_name":"v1.5.0","html_url":"","assets":[]}',
+      );
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith(
+            () => _PrePopulatedConfigNotifier(AppConfig.defaults),
+          ),
+          appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
+          updateServiceProvider.overrideWithValue(mockService),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const SettingsScreen(),
+        ),
+      ));
+
+      await tester.scrollUntilVisible(
+        find.text('Check for Updates'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Check for Updates'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      expect(find.text('You\'re running the latest version'), findsOneWidget);
+      Toast.clearAllForTest();
+    });
+
+    testWidgets('manual check shows toast on error', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final mockService = UpdateService(
+        fetch: (_) async => throw Exception('Network error'),
+      );
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith(
+            () => _PrePopulatedConfigNotifier(AppConfig.defaults),
+          ),
+          appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
+          updateServiceProvider.overrideWithValue(mockService),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const SettingsScreen(),
+        ),
+      ));
+
+      await tester.scrollUntilVisible(
+        find.text('Check for Updates'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Check for Updates'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      expect(find.textContaining('Network error'), findsWidgets);
+      Toast.clearAllForTest();
+    });
   });
 
   // ---------------------------------------------------------------------------
