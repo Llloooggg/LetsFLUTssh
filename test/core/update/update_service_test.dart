@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:letsflutssh/core/update/update_service.dart';
 
 /// Minimal GitHub release JSON for testing.
@@ -21,25 +22,33 @@ Map<String, dynamic> _releaseJson({
             'name': 'letsflutssh-2.0.0-linux-x64.AppImage',
             'browser_download_url':
                 'https://github.com/download/letsflutssh-2.0.0-linux-x64.AppImage',
+            'digest': 'sha256:abcdef1234567890',
           },
           {
             'name': 'letsflutssh-2.0.0-windows-x64-setup.exe',
             'browser_download_url':
                 'https://github.com/download/letsflutssh-2.0.0-windows-x64-setup.exe',
+            'digest': 'sha256:1234567890abcdef',
           },
           {
             'name': 'letsflutssh-2.0.0-macos-universal.dmg',
             'browser_download_url':
                 'https://github.com/download/letsflutssh-2.0.0-macos-universal.dmg',
+            'digest': 'sha256:fedcba0987654321',
           },
           {
             'name': 'letsflutssh-2.0.0-android-arm64.apk',
             'browser_download_url':
                 'https://github.com/download/letsflutssh-2.0.0-android-arm64.apk',
+            'digest': 'sha256:9876543210fedcba',
           },
         ],
   };
 }
+
+/// Wraps a release in an array (GitHub /releases endpoint format).
+String _releasesArray(List<Map<String, dynamic>> releases) =>
+    jsonEncode(releases);
 
 void main() {
   // ===========================================================================
@@ -79,7 +88,6 @@ void main() {
     });
 
     test('handles non-numeric gracefully', () {
-      // non-numeric parts parse as 0
       expect(UpdateInfo.compareVersions('abc', '0.0.0'), 0);
     });
   });
@@ -126,6 +134,7 @@ void main() {
         currentVersion: '1.0.0',
         releaseUrl: 'url',
         assetUrl: 'asset',
+        assetDigest: 'abc123',
         changelog: 'notes',
       );
       const b = UpdateInfo(
@@ -133,6 +142,7 @@ void main() {
         currentVersion: '1.0.0',
         releaseUrl: 'url',
         assetUrl: 'asset',
+        assetDigest: 'abc123',
         changelog: 'notes',
       );
       expect(a, equals(b));
@@ -165,6 +175,22 @@ void main() {
         currentVersion: '1.0.0',
         releaseUrl: 'url',
         assetUrl: 'b',
+      );
+      expect(a, isNot(equals(b)));
+    });
+
+    test('different assetDigest makes unequal', () {
+      const a = UpdateInfo(
+        latestVersion: '2.0.0',
+        currentVersion: '1.0.0',
+        releaseUrl: 'url',
+        assetDigest: 'abc',
+      );
+      const b = UpdateInfo(
+        latestVersion: '2.0.0',
+        currentVersion: '1.0.0',
+        releaseUrl: 'url',
+        assetDigest: 'def',
       );
       expect(a, isNot(equals(b)));
     });
@@ -273,12 +299,116 @@ void main() {
   });
 
   // ===========================================================================
+  // UpdateService.digestForPlatform
+  // ===========================================================================
+  group('UpdateService.digestForPlatform', () {
+    final assets = _releaseJson()['assets'] as List<dynamic>;
+
+    test('extracts sha256 digest for linux', () {
+      final digest = UpdateService.digestForPlatform(
+        assets,
+        platformOverride: 'linux',
+      );
+      expect(digest, 'abcdef1234567890');
+    });
+
+    test('extracts sha256 digest for windows', () {
+      final digest = UpdateService.digestForPlatform(
+        assets,
+        platformOverride: 'windows',
+      );
+      expect(digest, '1234567890abcdef');
+    });
+
+    test('returns null when no digest field', () {
+      final digest = UpdateService.digestForPlatform(
+        [
+          {
+            'name': 'file-linux-x64.AppImage',
+            'browser_download_url': 'https://example.com/file',
+          },
+        ],
+        platformOverride: 'linux',
+      );
+      expect(digest, isNull);
+    });
+
+    test('returns null for unknown platform', () {
+      final digest = UpdateService.digestForPlatform(
+        assets,
+        platformOverride: 'unknown',
+      );
+      expect(digest, isNull);
+    });
+
+    test('ignores non-sha256 digest prefix', () {
+      final digest = UpdateService.digestForPlatform(
+        [
+          {
+            'name': 'file-linux-x64.AppImage',
+            'digest': 'md5:abc123',
+          },
+        ],
+        platformOverride: 'linux',
+      );
+      expect(digest, isNull);
+    });
+  });
+
+  // ===========================================================================
+  // UpdateService.buildCumulativeChangelog
+  // ===========================================================================
+  group('UpdateService.buildCumulativeChangelog', () {
+    test('includes all versions newer than current', () {
+      final releases = [
+        _releaseJson(tagName: 'v3.0.0', body: 'Three'),
+        _releaseJson(tagName: 'v2.0.0', body: 'Two'),
+        _releaseJson(tagName: 'v1.0.0', body: 'One'),
+      ];
+
+      final changelog = UpdateService.buildCumulativeChangelog(releases, '1.0.0');
+      expect(changelog, contains('## v3.0.0'));
+      expect(changelog, contains('Three'));
+      expect(changelog, contains('## v2.0.0'));
+      expect(changelog, contains('Two'));
+      expect(changelog, isNot(contains('## v1.0.0')));
+      expect(changelog, isNot(contains('One')));
+    });
+
+    test('returns null when no newer versions', () {
+      final releases = [
+        _releaseJson(tagName: 'v1.0.0', body: 'One'),
+      ];
+
+      final changelog = UpdateService.buildCumulativeChangelog(releases, '1.0.0');
+      expect(changelog, isNull);
+    });
+
+    test('skips releases with empty body', () {
+      final releases = [
+        _releaseJson(tagName: 'v2.0.0', body: ''),
+        _releaseJson(tagName: 'v1.5.0', body: 'Notes'),
+      ];
+
+      final changelog = UpdateService.buildCumulativeChangelog(releases, '1.0.0');
+      expect(changelog, isNot(contains('v2.0.0')));
+      expect(changelog, contains('v1.5.0'));
+      expect(changelog, contains('Notes'));
+    });
+
+    test('returns null for empty releases', () {
+      final changelog = UpdateService.buildCumulativeChangelog([], '1.0.0');
+      expect(changelog, isNull);
+    });
+  });
+
+  // ===========================================================================
   // UpdateService.checkForUpdate (with injected fetcher)
   // ===========================================================================
   group('UpdateService.checkForUpdate', () {
     test('returns UpdateInfo with hasUpdate true when newer version', () async {
       final service = UpdateService(
-        fetch: (_) async => jsonEncode(_releaseJson(tagName: 'v2.0.0')),
+        fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v2.0.0')]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
@@ -286,12 +416,12 @@ void main() {
       expect(info.latestVersion, '2.0.0');
       expect(info.currentVersion, '1.0.0');
       expect(info.releaseUrl, contains('github.com'));
-      expect(info.changelog, 'Release notes here');
+      expect(info.changelog, contains('Release notes here'));
     });
 
     test('returns hasUpdate false when same version', () async {
       final service = UpdateService(
-        fetch: (_) async => jsonEncode(_releaseJson(tagName: 'v1.0.0')),
+        fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v1.0.0')]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
@@ -300,19 +430,39 @@ void main() {
 
     test('returns hasUpdate false when older remote version', () async {
       final service = UpdateService(
-        fetch: (_) async => jsonEncode(_releaseJson(tagName: 'v0.9.0')),
+        fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v0.9.0')]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
     });
 
+    test('handles single object (legacy /latest format)', () async {
+      final service = UpdateService(
+        fetch: (_) async => jsonEncode(_releaseJson(tagName: 'v2.0.0')),
+      );
+
+      final info = await service.checkForUpdate('1.0.0');
+      expect(info.hasUpdate, isTrue);
+      expect(info.latestVersion, '2.0.0');
+    });
+
+    test('handles empty releases array', () async {
+      final service = UpdateService(
+        fetch: (_) async => '[]',
+      );
+
+      final info = await service.checkForUpdate('1.0.0');
+      expect(info.hasUpdate, isFalse);
+      expect(info.latestVersion, '1.0.0');
+    });
+
     test('handles missing tag_name gracefully', () async {
       final service = UpdateService(
-        fetch: (_) async => jsonEncode({
+        fetch: (_) async => _releasesArray([{
           'html_url': 'https://github.com/releases',
           'assets': <dynamic>[],
-        }),
+        }]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
@@ -322,10 +472,10 @@ void main() {
 
     test('handles missing html_url with fallback', () async {
       final service = UpdateService(
-        fetch: (_) async => jsonEncode({
+        fetch: (_) async => _releasesArray([{
           'tag_name': 'v2.0.0',
           'assets': <dynamic>[],
-        }),
+        }]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
@@ -335,11 +485,39 @@ void main() {
 
     test('handles null changelog', () async {
       final service = UpdateService(
-        fetch: (_) async => jsonEncode(_releaseJson(body: null)),
+        fetch: (_) async => _releasesArray([_releaseJson(body: null)]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.changelog, isNull);
+    });
+
+    test('extracts asset digest', () async {
+      final service = UpdateService(
+        fetch: (_) async => _releasesArray([_releaseJson()]),
+      );
+
+      final info = await service.checkForUpdate('1.0.0');
+      if (Platform.isLinux) {
+        expect(info.assetDigest, 'abcdef1234567890');
+      }
+    });
+
+    test('builds cumulative changelog across multiple releases', () async {
+      final service = UpdateService(
+        fetch: (_) async => _releasesArray([
+          _releaseJson(tagName: 'v3.0.0', body: 'Version three notes'),
+          _releaseJson(tagName: 'v2.0.0', body: 'Version two notes'),
+          _releaseJson(tagName: 'v1.0.0', body: 'Version one notes'),
+        ]),
+      );
+
+      final info = await service.checkForUpdate('1.0.0');
+      expect(info.changelog, contains('v3.0.0'));
+      expect(info.changelog, contains('Version three notes'));
+      expect(info.changelog, contains('v2.0.0'));
+      expect(info.changelog, contains('Version two notes'));
+      expect(info.changelog, isNot(contains('v1.0.0')));
     });
 
     test('propagates fetch errors', () async {
@@ -366,12 +544,10 @@ void main() {
 
     test('selects asset for current platform', () async {
       final service = UpdateService(
-        fetch: (_) async => jsonEncode(_releaseJson()),
+        fetch: (_) async => _releasesArray([_releaseJson()]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
-      // On the test platform (Linux in CI or whatever), we should get a URL
-      // or null if the platform is not in the asset list
       if (Platform.isLinux) {
         expect(info.assetUrl, contains('AppImage'));
       } else if (Platform.isWindows) {
@@ -414,6 +590,90 @@ void main() {
       }
     });
 
+    test('verifies SHA256 digest on success', () async {
+      final tempDir = await Directory.systemTemp.createTemp('update_test_');
+      try {
+        const content = 'test file content';
+        final service = UpdateService(
+          download: (_, savePath, _) async {
+            await File(savePath).writeAsString(content);
+          },
+        );
+
+        // Compute expected hash
+        final expectedHash = await (() async {
+          final tmpFile = File(p.join(tempDir.path, 'tmp'));
+          await tmpFile.writeAsString(content);
+          return UpdateService.computeFileSha256(tmpFile.path);
+        })();
+
+        final path = await service.downloadAsset(
+          'https://example.com/file.AppImage',
+          tempDir.path,
+          expectedDigest: expectedHash,
+        );
+
+        expect(await File(path).exists(), isTrue);
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('throws and deletes file on SHA256 mismatch', () async {
+      final tempDir = await Directory.systemTemp.createTemp('update_test_');
+      try {
+        final service = UpdateService(
+          download: (_, savePath, _) async {
+            final f = File(savePath);
+            await f.parent.create(recursive: true);
+            await f.writeAsString('tampered content');
+          },
+        );
+
+        await expectLater(
+          service.downloadAsset(
+            'https://example.com/file.AppImage',
+            tempDir.path,
+            expectedDigest: 'wrong_hash_value',
+          ),
+          throwsA(isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('SHA256 mismatch'),
+          )),
+        );
+
+        // File should be deleted after mismatch
+        expect(
+          await File(p.join(tempDir.path, 'file.AppImage')).exists(),
+          isFalse,
+        );
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('skips verification when no digest provided', () async {
+      final tempDir = await Directory.systemTemp.createTemp('update_test_');
+      try {
+        final service = UpdateService(
+          download: (_, savePath, _) async {
+            await File(savePath).writeAsString('content');
+          },
+        );
+
+        final path = await service.downloadAsset(
+          'https://example.com/file.AppImage',
+          tempDir.path,
+          // no expectedDigest
+        );
+
+        expect(await File(path).exists(), isTrue);
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
     test('propagates download errors', () async {
       final service = UpdateService(
         download: (_, _, _) async =>
@@ -427,6 +687,24 @@ void main() {
         ),
         throwsA(isA<HttpException>()),
       );
+    });
+  });
+
+  // ===========================================================================
+  // UpdateService.computeFileSha256
+  // ===========================================================================
+  group('UpdateService.computeFileSha256', () {
+    test('computes correct SHA256 for known content', () async {
+      final tempDir = await Directory.systemTemp.createTemp('sha256_test_');
+      try {
+        final file = File(p.join(tempDir.path, 'test.bin'));
+        await file.writeAsString('hello');
+        final hash = await UpdateService.computeFileSha256(file.path);
+        // SHA256 of "hello" = 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+        expect(hash, '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824');
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
     });
   });
 }

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
+import 'package:pointycastle/digests/sha256.dart';
 
 import '../../utils/logger.dart';
 
@@ -79,7 +81,7 @@ typedef FileDownloader = Future<void> Function(
 class UpdateService {
   static const repo = 'Llloooggg/LetsFLUTssh';
   static final apiUri = Uri.parse(
-    'https://api.github.com/repos/$repo/releases/latest',
+    'https://api.github.com/repos/$repo/releases?per_page=30',
   );
 
   final HttpFetcher _fetch;
@@ -90,25 +92,49 @@ class UpdateService {
         _download = download ?? defaultDownload;
 
   /// Query GitHub for the latest release and compare with [currentVersion].
+  ///
+  /// Fetches all recent releases to build a cumulative changelog covering
+  /// every version between [currentVersion] and the latest.
   Future<UpdateInfo> checkForUpdate(String currentVersion) async {
     AppLogger.instance.log('Checking for updates...', name: 'UpdateService');
     final body = await _fetch(apiUri);
-    final json = jsonDecode(body) as Map<String, dynamic>;
+    final releases = jsonDecode(body);
 
-    final tagName = json['tag_name'] as String? ?? '';
+    // Support both array (releases list) and single object (legacy /latest)
+    final List<dynamic> releaseList;
+    if (releases is List) {
+      releaseList = releases;
+    } else if (releases is Map<String, dynamic>) {
+      releaseList = [releases];
+    } else {
+      releaseList = [];
+    }
+
+    if (releaseList.isEmpty) {
+      return UpdateInfo(
+        latestVersion: currentVersion,
+        currentVersion: currentVersion,
+        releaseUrl: 'https://github.com/$repo/releases/latest',
+      );
+    }
+
+    final latest = releaseList.first as Map<String, dynamic>;
+    final tagName = latest['tag_name'] as String? ?? '';
     final version = tagName.startsWith('v') ? tagName.substring(1) : tagName;
-    final releaseUrl = json['html_url'] as String? ??
+    final releaseUrl = latest['html_url'] as String? ??
         'https://github.com/$repo/releases/latest';
-    final changelog = json['body'] as String?;
-    final assets = json['assets'] as List<dynamic>? ?? [];
+    final assets = latest['assets'] as List<dynamic>? ?? [];
 
     final assetUrl = assetUrlForPlatform(assets);
+    final assetDigest = digestForPlatform(assets);
+    final changelog = buildCumulativeChangelog(releaseList, currentVersion);
 
     final info = UpdateInfo(
       latestVersion: version,
       currentVersion: currentVersion,
       releaseUrl: releaseUrl,
       assetUrl: assetUrl,
+      assetDigest: assetDigest,
       changelog: changelog,
     );
 
@@ -119,10 +145,58 @@ class UpdateService {
     return info;
   }
 
+  /// Build changelog from all releases between current version and latest.
+  static String? buildCumulativeChangelog(
+    List<dynamic> releases,
+    String currentVersion,
+  ) {
+    final buf = StringBuffer();
+    for (final release in releases) {
+      if (release is! Map<String, dynamic>) continue;
+      final tag = release['tag_name'] as String? ?? '';
+      final ver = tag.startsWith('v') ? tag.substring(1) : tag;
+      if (UpdateInfo.compareVersions(ver, currentVersion) <= 0) break;
+      final body = release['body'] as String?;
+      if (body != null && body.trim().isNotEmpty) {
+        if (buf.isNotEmpty) buf.writeln();
+        buf.writeln('## $tag');
+        buf.writeln(body.trim());
+      }
+    }
+    final result = buf.toString().trim();
+    return result.isEmpty ? null : result;
+  }
+
+  /// Extract SHA256 digest for the platform-matching asset.
+  static String? digestForPlatform(
+    List<dynamic> assets, {
+    String? platformOverride,
+  }) {
+    final platform = platformOverride ?? _currentPlatform();
+    final suffix = _assetSuffix(platform);
+    if (suffix == null) return null;
+    for (final asset in assets) {
+      if (asset is! Map<String, dynamic>) continue;
+      final name = asset['name'] as String? ?? '';
+      if (name.endsWith(suffix)) {
+        final digest = asset['digest'] as String?;
+        if (digest != null && digest.startsWith('sha256:')) {
+          return digest.substring(7);
+        }
+        return null;
+      }
+    }
+    return null;
+  }
+
   /// Download the asset at [url] into [targetDir], returning the saved path.
+  ///
+  /// If [expectedDigest] is provided, verifies the SHA256 hash of the
+  /// downloaded file and deletes it if verification fails.
   Future<String> downloadAsset(
     String url,
     String targetDir, {
+    String? expectedDigest,
     void Function(int received, int total)? onProgress,
   }) async {
     final uri = Uri.parse(url);
@@ -130,8 +204,28 @@ class UpdateService {
     final savePath = p.join(targetDir, fileName);
     AppLogger.instance.log('Downloading $fileName...', name: 'UpdateService');
     await _download(uri, savePath, onProgress);
+
+    if (expectedDigest != null) {
+      AppLogger.instance.log('Verifying SHA256...', name: 'UpdateService');
+      final actual = await computeFileSha256(savePath);
+      if (actual != expectedDigest) {
+        try { await File(savePath).delete(); } catch (_) {}
+        throw StateError(
+          'SHA256 mismatch: expected $expectedDigest, got $actual',
+        );
+      }
+      AppLogger.instance.log('SHA256 verified', name: 'UpdateService');
+    }
+
     AppLogger.instance.log('Downloaded to $savePath', name: 'UpdateService');
     return savePath;
+  }
+
+  /// Compute SHA256 hex digest of a file.
+  static Future<String> computeFileSha256(String path) async {
+    final bytes = await File(path).readAsBytes();
+    final hash = SHA256Digest().process(Uint8List.fromList(bytes));
+    return hash.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
   /// Pick the right asset for the current platform from the release assets.

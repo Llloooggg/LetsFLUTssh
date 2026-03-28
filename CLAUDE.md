@@ -33,22 +33,19 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 
 **No bump needed for:** tests, docs, CI, linter fixes. **Bump IS needed for:** any `lib/` change (including logging), platform configs, native code, assets.
 
-**Tagging — always use `make tag`:**
+**Tagging — automatic via `auto-tag.yml`:**
 
-1. Runs `make check` (analyze + test). Fails fast if broken
-2. Verifies CI check run passed on HEAD via GitHub API. If HEAD is a ci/docs-only commit (no CI run) — refuses to tag and suggests the last CI-passed commit instead
-3. Creates annotated tag `v{VERSION}` from `pubspec.yaml` (annotated — required for `--follow-tags`)
-4. `git push --follow-tags --atomic`. If push fails — auto-cleans local tag
-5. CI + Build & Release trigger automatically
+Tags are created automatically when CI passes on a `feat:`, `fix:`, or `refactor:` commit on main. The `auto-tag.yml` workflow reads the version from `pubspec.yaml` and creates the tag via GitHub API — no manual step needed.
 
-| Scenario        | When to tag                                                     |
+`make tag` is still available as a manual fallback (runs analyze + test locally, verifies CI, tags, pushes).
+
+| Scenario        | What happens                                                    |
 | --------------- | --------------------------------------------------------------- |
-| Bugfix(es)      | `make tag` after last fix commit                                |
-| Feature         | `make tag` after feature commit (or follow-up test/doc commits) |
-| Tests/docs only | **Don't tag.** Push with `git push`                             |
-| Code + docs     | Bundle docs into code commit so HEAD triggers CI                |
+| Bugfix/Feature  | Push → CI passes → auto-tag → Build & Release                  |
+| Tests/docs only | Push → CI passes → no tag (prefix not feat/fix/refactor)        |
+| Dependabot deps | Merge → CI passes → `dependabot-tag.yml` handles it separately |
 
-- **Tag only on HEAD.** Never tag docs-only HEAD (CI won't trigger, preflight timeouts). By default Claude only reminds about tagging — runs `make tag` only if user explicitly asks to push
+- By default Claude only reminds about tagging — does **not** run `make tag` unless user explicitly asks
 
 ### Post-change checklist
 
