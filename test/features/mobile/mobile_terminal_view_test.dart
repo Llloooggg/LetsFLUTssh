@@ -12,6 +12,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_terminal_view.dart';
 import 'package:letsflutssh/features/mobile/ssh_key_sequences.dart';
 import 'package:letsflutssh/features/mobile/ssh_keyboard_bar.dart';
+import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
 import '../../core/ssh/shell_helper_test.mocks.dart';
@@ -419,6 +420,43 @@ void main() {
           tester.widgetList<GestureDetector>(find.byType(GestureDetector));
       final scaleGd = gds.where((g) => g.onScaleEnd != null).toList();
       expect(scaleGd, isNotEmpty);
+    });
+  });
+
+  group('MobileTerminalView — font size from settings', () {
+    testWidgets('font size updates reactively from configProvider',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        )),
+      );
+      // pump() instead of pumpAndSettle() — terminal cursor blinks forever
+      await tester.pump();
+      await tester.pump();
+
+      // Default font size is 14.0
+      var termView = tester.widget<TerminalView>(find.byType(TerminalView));
+      expect(termView.textStyle.fontSize, 14.0);
+
+      // Update font size via provider — set state directly via overrideWith
+      final element = tester.element(find.byType(MobileTerminalView));
+      final container = ProviderScope.containerOf(element);
+      final config = container.read(configProvider);
+      // Directly replace state to avoid ConfigStore disk I/O
+      container.read(configProvider.notifier).state = config.copyWith(
+        terminal: config.terminal.copyWith(fontSize: 20.0),
+      );
+      await tester.pump();
+
+      // Font size should update reactively
+      termView = tester.widget<TerminalView>(find.byType(TerminalView));
+      expect(termView.textStyle.fontSize, 20.0);
     });
   });
 

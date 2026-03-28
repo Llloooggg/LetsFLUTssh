@@ -36,14 +36,13 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   ShellConnection? _shellConn;
   bool _connected = false;
   String? _error;
-  late double _fontSize;
+  double _fontSize = 14.0;
   double? _baseScaleFontSize;
 
   @override
   void initState() {
     super.initState();
     final config = ref.read(configProvider);
-    _fontSize = config.fontSize;
     _terminal = Terminal(maxLines: config.scrollback);
     _terminalController = TerminalController();
     _connectAndOpenShell();
@@ -103,6 +102,13 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   @override
   Widget build(BuildContext context) {
+    // React to font size changes from settings slider
+    final configFontSize = ref.watch(configProvider.select((c) => c.fontSize));
+    if (_baseScaleFontSize == null) {
+      // Update only when not pinch-zooming
+      _fontSize = configFontSize;
+    }
+
     if (_error != null) return _buildError();
     if (!_connected) return const Center(child: CircularProgressIndicator());
 
@@ -117,7 +123,15 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
                 _fontSize = (_baseScaleFontSize! * details.scale).clamp(8.0, 24.0);
               });
             },
-            onScaleEnd: (_) => _baseScaleFontSize = null,
+            onScaleEnd: (_) {
+              _baseScaleFontSize = null;
+              // Persist pinch-zoomed font size to config
+              ref.read(configProvider.notifier).update(
+                (c) => c.copyWith(
+                  terminal: c.terminal.copyWith(fontSize: _fontSize),
+                ),
+              );
+            },
             onLongPressStart: (details) => _showContextMenu(context, details.globalPosition),
             child: TerminalView(
               _terminal,
