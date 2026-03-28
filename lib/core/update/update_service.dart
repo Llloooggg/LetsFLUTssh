@@ -91,6 +91,15 @@ class UpdateService {
       : _fetch = fetch ?? defaultFetch,
         _download = download ?? defaultDownload;
 
+  /// True if [uri] uses HTTPS and a host GitHub uses for release assets
+  /// (same-origin policy for [browser_download_url] and redirect targets).
+  static bool isTrustedReleaseAssetUri(Uri uri) {
+    if (uri.scheme != 'https') return false;
+    final host = uri.host;
+    if (host.isEmpty) return false;
+    return host == 'github.com' || host.endsWith('.githubusercontent.com');
+  }
+
   /// Query GitHub for the latest release and compare with [currentVersion].
   ///
   /// Fetches all recent releases to build a cumulative changelog covering
@@ -200,6 +209,9 @@ class UpdateService {
     void Function(int received, int total)? onProgress,
   }) async {
     final uri = Uri.parse(url);
+    if (!isTrustedReleaseAssetUri(uri)) {
+      throw StateError('Untrusted update download URL: $uri');
+    }
     final fileName = uri.pathSegments.last;
     final savePath = p.join(targetDir, fileName);
     AppLogger.instance.log('Downloading $fileName...', name: 'UpdateService');
@@ -314,42 +326,54 @@ class UpdateService {
     String savePath,
     void Function(int received, int total)? onProgress,
   ) async {
+    if (!isTrustedReleaseAssetUri(url)) {
+      throw StateError('Untrusted update download URL: $url');
+    }
+
     final client = HttpClient();
     try {
-      final request = await client.getUrl(url);
-      request.headers.set('User-Agent', 'LetsFLUTssh-UpdateChecker');
-      final response = await request.close();
+      var requestUri = url;
 
-      // Follow redirects (GitHub asset URLs redirect to CDN)
-      if (response.statusCode >= 300 && response.statusCode < 400) {
-        final location = response.headers.value('location');
-        if (location != null) {
-          await response.drain<void>();
-          client.close();
-          return defaultDownload(Uri.parse(location), savePath, onProgress);
+      while (true) {
+        final request = await client.getUrl(requestUri);
+        request.headers.set('User-Agent', 'LetsFLUTssh-UpdateChecker');
+        final response = await request.close();
+
+        if (response.statusCode >= 300 && response.statusCode < 400) {
+          final location = response.headers.value('location');
+          if (location != null) {
+            await response.drain<void>();
+            final next = requestUri.resolve(location);
+            if (!isTrustedReleaseAssetUri(next)) {
+              throw StateError('Untrusted update download redirect: $next');
+            }
+            requestUri = next;
+            continue;
+          }
         }
-      }
 
-      if (response.statusCode != 200) {
-        throw HttpException(
-          'Download failed with status ${response.statusCode}',
-          uri: url,
-        );
-      }
-
-      final total = response.contentLength;
-      var received = 0;
-      final file = File(savePath);
-      await file.parent.create(recursive: true);
-      final sink = file.openWrite();
-      try {
-        await for (final chunk in response) {
-          sink.add(chunk);
-          received += chunk.length;
-          onProgress?.call(received, total);
+        if (response.statusCode != 200) {
+          throw HttpException(
+            'Download failed with status ${response.statusCode}',
+            uri: requestUri,
+          );
         }
-      } finally {
-        await sink.close();
+
+        final total = response.contentLength;
+        var received = 0;
+        final file = File(savePath);
+        await file.parent.create(recursive: true);
+        final sink = file.openWrite();
+        try {
+          await for (final chunk in response) {
+            sink.add(chunk);
+            received += chunk.length;
+            onProgress?.call(received, total);
+          }
+        } finally {
+          await sink.close();
+        }
+        return;
       }
     } finally {
       client.close();

@@ -559,6 +559,47 @@ void main() {
   });
 
   // ===========================================================================
+  // UpdateService.isTrustedReleaseAssetUri
+  // ===========================================================================
+  group('UpdateService.isTrustedReleaseAssetUri', () {
+    test('allows https github.com', () {
+      expect(
+        UpdateService.isTrustedReleaseAssetUri(
+          Uri.parse('https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/a.AppImage'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('allows https *.githubusercontent.com', () {
+      expect(
+        UpdateService.isTrustedReleaseAssetUri(
+          Uri.parse('https://objects.githubusercontent.com/abc'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejects http', () {
+      expect(
+        UpdateService.isTrustedReleaseAssetUri(
+          Uri.parse('http://github.com/x'),
+        ),
+        isFalse,
+      );
+    });
+
+    test('rejects non-GitHub host', () {
+      expect(
+        UpdateService.isTrustedReleaseAssetUri(
+          Uri.parse('https://example.com/file'),
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  // ===========================================================================
   // UpdateService.downloadAsset (with injected downloader)
   // ===========================================================================
   group('UpdateService.downloadAsset', () {
@@ -575,7 +616,7 @@ void main() {
         );
 
         final path = await service.downloadAsset(
-          'https://example.com/letsflutssh-2.0.0-linux-x64.AppImage',
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/letsflutssh-2.0.0-linux-x64.AppImage',
           tempDir.path,
           onProgress: (received, total) {
             progressValues.add(received / total);
@@ -608,7 +649,7 @@ void main() {
         })();
 
         final path = await service.downloadAsset(
-          'https://example.com/file.AppImage',
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
           tempDir.path,
           expectedDigest: expectedHash,
         );
@@ -632,7 +673,7 @@ void main() {
 
         await expectLater(
           service.downloadAsset(
-            'https://example.com/file.AppImage',
+            'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
             tempDir.path,
             expectedDigest: 'wrong_hash_value',
           ),
@@ -663,7 +704,7 @@ void main() {
         );
 
         final path = await service.downloadAsset(
-          'https://example.com/file.AppImage',
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
           tempDir.path,
           // no expectedDigest
         );
@@ -682,10 +723,27 @@ void main() {
 
       expect(
         () => service.downloadAsset(
-          'https://example.com/file.AppImage',
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
           '/tmp/test',
         ),
         throwsA(isA<HttpException>()),
+      );
+    });
+
+    test('rejects untrusted download URL before downloader runs', () async {
+      final service = UpdateService(
+        download: (_, _, _) async {},
+      );
+      expect(
+        () => service.downloadAsset(
+          'https://evil.example/asset.AppImage',
+          '/tmp',
+        ),
+        throwsA(isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('Untrusted'),
+        )),
       );
     });
   });
