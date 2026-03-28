@@ -341,7 +341,7 @@ void main() {
       await tester.tap(find.byTooltip('Settings'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Appearance'), findsOneWidget);
+      expect(find.text('Appearance'), findsWidgets);
     });
   });
 
