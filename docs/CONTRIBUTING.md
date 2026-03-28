@@ -111,7 +111,8 @@ Format: `type: short description`
 | `refactor:` | Code improvements (no new behavior) | Yes — under **Improvements** |
 | `test:`     | Test changes only               | No                        |
 | `docs:`     | Documentation only              | No                        |
-| `chore:`    | Dependencies, config, tooling   | No                        |
+| `chore:`    | Config, tooling                 | No                        |
+| `chore(deps):` | Dependency updates (auto-generated) | Yes — under **Dependencies** |
 | `ci:`       | CI/CD workflow changes          | No                        |
 
 **Examples:**
@@ -156,6 +157,18 @@ Bump the `version:` field in `pubspec.yaml` — it is the single source of truth
 5. All new code must have tests (80% coverage minimum, 100% target)
 6. One logical change per PR
 7. Open a Pull Request — fill in the template
+
+## CI/CD Pipeline
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | Push to `main`, PRs | Analyze, test (with coverage), outdated deps, commit-lint |
+| `sonarcloud.yml` | After CI succeeds (`workflow_run`) | Code quality + coverage analysis (separate from CI) |
+| `build.yml` | Tag `v*` push, manual | Preflight (waits for CI + SonarCloud + OSV-Scanner), builds all platforms, creates GitHub Release |
+| `dependabot-release.yml` | Dependabot PR merged | Auto patch-bump + tag + release for pub dependency updates |
+| `osv-scanner.yml` | pubspec changes, weekly | Dependency CVE scanning |
+
+**Dependabot auto-releases:** when Dependabot merges a Dart dependency update (`pub` ecosystem), the pipeline automatically bumps the patch version, creates a tag, and triggers a full build + release. GitHub Actions updates are auto-merged but do not trigger a release (they don't affect the shipped app).
 
 ## Security
 
