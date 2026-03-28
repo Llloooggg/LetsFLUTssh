@@ -38,6 +38,16 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   @visibleForTesting
   Set<String> get selectedIds => _selectedIds;
 
+  /// Simulate marquee selection in tests.
+  @visibleForTesting
+  void setMarqueeSelection(Set<String> ids) {
+    setState(() {
+      _selectedIds
+        ..clear()
+        ..addAll(ids);
+    });
+  }
+
   void _enterSelectMode() {
     setState(() {
       _selectMode = true;
@@ -48,6 +58,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   void _exitSelectMode() {
     setState(() {
       _selectMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _clearDesktopSelection() {
+    setState(() {
       _selectedIds.clear();
     });
   }
@@ -79,7 +95,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
     if (confirmed) {
       await ref.read(sessionProvider.notifier).deleteMultiple(Set.of(_selectedIds));
-      _exitSelectMode();
+      if (_selectMode) {
+        _exitSelectMode();
+      } else {
+        _clearDesktopSelection();
+      }
     }
   }
 
@@ -119,7 +139,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     if (selected != null) {
       await ref.read(sessionProvider.notifier).moveMultiple(Set.of(_selectedIds), selected);
-      _exitSelectMode();
+      if (_selectMode) {
+        _exitSelectMode();
+      } else {
+        _clearDesktopSelection();
+      }
     }
   }
 
@@ -129,9 +153,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final searchQuery = ref.watch(sessionSearchProvider);
     final isEmpty = ref.watch(sessionProvider.select((s) => s.isEmpty));
 
+    final mobile = isMobilePlatform;
+
     return Column(
       children: [
-        if (_selectMode)
+        if (_selectMode && mobile)
           _SelectActionBar(
             selectedCount: _selectedIds.length,
             onSelectAll: _selectAll,
@@ -143,13 +169,22 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           // Header with title + add/select buttons
           _PanelHeader(
             onAddFolder: () => _createFolder(context, ref, ''),
-            onSelect: isEmpty ? null : _enterSelectMode,
+            onSelect: mobile && !isEmpty ? _enterSelectMode : null,
           ),
           // Search bar
           _SearchBar(
             value: searchQuery,
             onChanged: (v) => ref.read(sessionSearchProvider.notifier).set(v),
           ),
+          // Desktop: compact action bar when marquee-selected
+          if (!mobile && _selectedIds.isNotEmpty)
+            _SelectActionBar(
+              selectedCount: _selectedIds.length,
+              onSelectAll: _selectAll,
+              onDelete: () => _deleteSelected(context),
+              onMove: () => _moveSelected(context),
+              onCancel: _clearDesktopSelection,
+            ),
         ],
         // Tree view
         Expanded(
@@ -157,7 +192,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               ? _EmptyState(onAdd: () => _addSession(context, ref))
               : SessionTreeView(
                   tree: tree,
-                  selectMode: _selectMode,
+                  selectMode: mobile && _selectMode,
                   selectedIds: _selectedIds,
                   onToggleSelected: _toggleSelected,
                   onSessionDoubleTap: widget.onConnect,
@@ -178,7 +213,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   },
                   onMarqueeSelect: (ids) {
                     setState(() {
-                      if (!_selectMode) _selectMode = true;
                       _selectedIds
                         ..clear()
                         ..addAll(ids);

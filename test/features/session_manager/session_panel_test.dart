@@ -2170,7 +2170,10 @@ void main() {
     });
   });
 
-  group('SessionPanel — select mode', () {
+  group('SessionPanel — select mode (mobile)', () {
+    setUp(() => debugMobilePlatformOverride = true);
+    tearDown(() => debugMobilePlatformOverride = null);
+
     testWidgets('Select button appears in header when sessions exist', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.byIcon(Icons.checklist), findsOneWidget);
@@ -2368,6 +2371,44 @@ void main() {
       await tester.pump();
 
       expect(state.selectedIds, contains('1'));
+    });
+  });
+
+  group('SessionPanel — desktop marquee selection', () {
+    testWidgets('Select button hidden on desktop', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.byIcon(Icons.checklist), findsNothing);
+    });
+
+    testWidgets('marquee selection shows action bar without hiding header', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.setMarqueeSelection({'1', '2'});
+      await tester.pump();
+
+      // Header should still be visible
+      expect(find.text('Sessions'), findsOneWidget);
+      // Action bar should appear
+      expect(find.text('2 selected'), findsOneWidget);
+      // No checkboxes (not in select mode)
+      expect(find.byType(Checkbox), findsNothing);
+    });
+
+    testWidgets('Cancel clears desktop selection', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.setMarqueeSelection({'1', '2'});
+      await tester.pump();
+      expect(find.text('2 selected'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+
+      // Action bar gone, header still visible
+      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('0 selected'), findsNothing);
     });
   });
 }
