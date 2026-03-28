@@ -922,6 +922,7 @@ class _ThemeTile extends StatelessWidget {
           ButtonSegment(value: 'system', label: Text('System')),
         ],
         selected: {value},
+        showSelectedIcon: false,
         onSelectionChanged: (s) => onChanged(s.first),
         style: const ButtonStyle(
           visualDensity: VisualDensity.compact,

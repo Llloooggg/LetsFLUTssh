@@ -173,6 +173,13 @@ void main() {
       expect(find.byType(SegmentedButton<String>), findsOneWidget);
     });
 
+    testWidgets('theme selector hides selected icon to prevent layout shift', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final seg = tester.widget<SegmentedButton<String>>(
+          find.byType(SegmentedButton<String>));
+      expect(seg.showSelectedIcon, isFalse);
+    });
+
     testWidgets('theme shows correct selection for dark', (tester) async {
       await tester.pumpWidget(buildApp());
       final seg = tester.widget<SegmentedButton<String>>(
