@@ -94,7 +94,17 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                   }
                 },
                 onPointerCancel: (_) => _swipeStart = null,
-                child: IndexedStack(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (notification) {
+                    // Cancel swipe when a child scrollable (e.g. tab chip bar)
+                    // is actively scrolling to prevent accidental page switches.
+                    if (notification is ScrollStartNotification &&
+                        notification.metrics.axis == Axis.horizontal) {
+                      _swipeStart = null;
+                    }
+                    return false;
+                  },
+                  child: IndexedStack(
                   index: _navIndex,
                   children: [
                     // Sessions page
@@ -120,6 +130,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                     // SFTP page
                     _MobileSftpPage(tabState: tabState),
                   ],
+                ),
                 ),
               ),
             ),

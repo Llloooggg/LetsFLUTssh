@@ -1039,6 +1039,58 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsNothing);
     });
 
+    testWidgets('horizontal scroll in tab chips does not trigger page swipe', (tester) async {
+      final conn = Connection(
+        id: 'conn-scroll',
+        label: 'Scroll Server',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) {
+                // Add many tabs to make the chip bar scrollable
+                for (var i = 0; i < 8; i++) {
+                  b.addTerminalTab(conn, label: 'Server $i');
+                }
+              }),
+            )),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Find the chip bar ListView and swipe horizontally within it
+      final chipBar = find.byType(ListView);
+      expect(chipBar, findsOneWidget);
+
+      // Perform a horizontal drag on the chip bar area
+      await tester.drag(chipBar, const Offset(-150, 0));
+      await tester.pumpAndSettle();
+
+      // Should still be on Terminal page (index 1), not switched to Files
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(navBar.selectedIndex, equals(1));
+    });
+
     testWidgets('badge shows terminal tab count', (tester) async {
       final conn = Connection(
         id: 'conn-3',
