@@ -158,13 +158,41 @@ release-linux: package-linux ## Build Linux release packages
 
 ## ─── Release ─────────────────────────────────────────────────
 
-tag: check ## Analyze + test, tag vX.Y.Z, push atomically (CI + Build sort themselves out)
+tag: check ## Analyze + test, verify CI on GitHub, tag vX.Y.Z, push atomically
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: working tree is dirty — commit or stash first"; exit 1; \
 	fi
 	@TAG=v$(VERSION); \
 	if git rev-parse "$$TAG" >/dev/null 2>&1; then \
 		echo "Error: tag $$TAG already exists"; exit 1; \
+	fi; \
+	SHA=$$(git rev-parse HEAD); \
+	REPO=$$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null); \
+	if [ -n "$$REPO" ]; then \
+		STATUS=$$(gh api "repos/$$REPO/commits/$$SHA/check-runs" \
+			--jq '.check_runs[] | select(.name == "analyze-and-test" and .app.slug == "github-actions") | .conclusion' 2>/dev/null | head -1); \
+		if [ -z "$$STATUS" ]; then \
+			LAST_CI=$$(gh api "repos/$$REPO/actions/workflows/ci.yml/runs?per_page=5&status=success" \
+				--jq '.workflow_runs[0] | "\(.head_sha) \(.head_commit.message)"' 2>/dev/null); \
+			LAST_SHA=$${LAST_CI%% *}; \
+			LAST_MSG=$${LAST_CI#* }; \
+			echo ""; \
+			echo "✗ No CI check run found for $$SHA."; \
+			echo "  HEAD is likely a ci/docs-only commit. Tag the last app-change commit instead:"; \
+			echo "    git tag -a $$TAG $$LAST_SHA -m \"$$TAG\""; \
+			echo "    git push origin $$TAG"; \
+			echo ""; \
+			echo "  Last CI-passed commit: $$LAST_SHA ($$LAST_MSG)"; \
+			exit 1; \
+		elif [ "$$STATUS" != "success" ]; then \
+			echo ""; \
+			echo "✗ CI check on $$SHA has not passed yet (status: $$STATUS)."; \
+			echo "  Wait for CI to finish, then retry: make tag"; \
+			exit 1; \
+		fi; \
+		echo "==> CI passed on $$SHA ✓"; \
+	else \
+		echo "==> Warning: gh CLI not available or not in a GitHub repo — skipping CI check"; \
 	fi; \
 	echo "==> Tagging $$TAG on HEAD..."; \
 	git tag -a "$$TAG" -m "$$TAG"; \
