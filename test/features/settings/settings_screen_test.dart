@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,47 @@ import 'package:letsflutssh/utils/logger.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/toast.dart';
 
+/// Mock FilePicker that returns a temp directory for getDirectoryPath
+/// and a temp file path for saveFile, without launching native dialogs.
+class _MockFilePicker extends FilePicker {
+  String? directoryPath;
+  String? savePath;
+
+  @override
+  Future<String?> getDirectoryPath({
+    String? dialogTitle,
+    bool lockParentWindow = false,
+    String? initialDirectory,
+  }) async => directoryPath;
+
+  @override
+  Future<String?> saveFile({
+    String? dialogTitle,
+    String? fileName,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    Uint8List? bytes,
+    bool lockParentWindow = false,
+  }) async => savePath;
+
+  @override
+  Future<FilePickerResult?> pickFiles({
+    String? dialogTitle,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    dynamic Function(FilePickerStatus)? onFileLoading,
+    bool allowCompression = true,
+    int compressionQuality = 30,
+    bool allowMultiple = false,
+    bool withData = false,
+    bool withReadStream = false,
+    bool lockParentWindow = false,
+    bool readSequential = false,
+  }) async => null;
+}
+
 /// A ConfigNotifier subclass that starts with a custom initial config.
 class _PrePopulatedConfigNotifier extends ConfigNotifier {
   final AppConfig _initialConfig;
@@ -33,12 +75,16 @@ class _PrePopulatedConfigNotifier extends ConfigNotifier {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory tempDir;
+  late _MockFilePicker mockFilePicker;
 
   setUp(() async {
     // Force mobile layout so existing tests (written for flat ListView) keep working.
     plat.debugMobilePlatformOverride = true;
     plat.debugDesktopPlatformOverride = false;
     tempDir = await Directory.systemTemp.createTemp('settings_test_');
+    // Mock FilePicker to prevent native dialog launches in tests.
+    mockFilePicker = _MockFilePicker()..directoryPath = tempDir.path;
+    FilePicker.platform = mockFilePicker;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
@@ -1545,6 +1591,7 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('View Log'), findsOneWidget);
+      expect(find.text('Export Log'), findsOneWidget);
       expect(find.text('Copy Log'), findsOneWidget);
       expect(find.text('Clear Logs'), findsOneWidget);
     });
@@ -1781,6 +1828,7 @@ void main() {
       );
       expect(find.text('Enable Logging'), findsOneWidget);
       expect(find.text('View Log'), findsNothing);
+      expect(find.text('Export Log'), findsNothing);
       expect(find.text('Copy Log'), findsNothing);
       expect(find.text('Clear Logs'), findsNothing);
     });
@@ -2170,6 +2218,42 @@ void main() {
       await tester.pump();
 
       expect(find.text('You\'re running the latest version'), findsOneWidget);
+      Toast.clearAllForTest();
+    });
+
+    testWidgets('manual check shows toast when update available', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final mockService = UpdateService(
+        fetch: (_) async => '{"tag_name":"v9.0.0","html_url":"","assets":[]}',
+      );
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          configProvider.overrideWith(
+            () => _PrePopulatedConfigNotifier(AppConfig.defaults),
+          ),
+          appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
+          updateServiceProvider.overrideWithValue(mockService),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const SettingsScreen(),
+        ),
+      ));
+
+      await tester.scrollUntilVisible(
+        find.text('Check for Updates'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Check for Updates'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      expect(find.text('Version 9.0.0 available'), findsWidgets);
       Toast.clearAllForTest();
     });
 
