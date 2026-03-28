@@ -37,7 +37,6 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 - Full xterm/VT100 terminal emulation (256-color, RGB, curses apps)
 - Password, key file, PEM text, and SSH agent authentication
-- Auto-detect SSH keys from `~/.ssh/` (id_ed25519, id_ecdsa, id_rsa)
 - Keep-alive and auto-reconnect
 - Scrollback buffer (configurable, default 5000 lines)
 - Text selection, copy/paste
