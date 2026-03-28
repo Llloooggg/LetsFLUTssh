@@ -134,14 +134,14 @@ jobs:
           path: appimagetool
           key: appimagetool-1.9.1-x86_64-ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
 
-      - name: Download appimagetool
-        if: steps.cache-appimagetool.outputs.cache-hit != 'true'
-        run: |
-          wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage -O appimagetool
-          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum -c
-
       - name: Package AppImage
         run: |
+          # Download appimagetool if not cached, then verify hash (even from cache)
+          if [ ! -f appimagetool ]; then
+            wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage -O appimagetool
+          fi
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum -c
+          chmod +x appimagetool
           # Create AppDir structure
           APPDIR=AppDir
           mkdir -p $APPDIR/usr/bin $APPDIR/usr/lib $APPDIR/usr/share/applications $APPDIR/usr/share/icons/hicolor/256x256/apps
@@ -158,7 +158,6 @@ jobs:
           APPRUN
           chmod +x $APPDIR/AppRun
           # Build AppImage
-          chmod +x appimagetool
           ARCH=x86_64 ./appimagetool --no-appstream $APPDIR letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
 
       - name: Package deb
@@ -332,10 +331,18 @@ jobs:
 
       - name: Export provenance for release
         run: |
-          VER="${{ needs.preflight.outputs.version }}"
           for f in artifacts/linux-x64/* artifacts/windows-x64/* artifacts/macos-universal/* artifacts/android-apk/*; do
             NAME=$(basename "$f")
-            gh attestation download "$f" --repo "${{ github.repository }}" --output "artifacts/${NAME}.intoto.jsonl" || true
+            # gh attestation download saves to CWD as sha256:<digest>.jsonl
+            if gh attestation download "$f" -R "${{ github.repository }}"; then
+              BUNDLE=$(ls -t sha256*.jsonl 2>/dev/null | head -1)
+              if [ -n "$BUNDLE" ]; then
+                mv "$BUNDLE" "artifacts/${NAME}.intoto.jsonl"
+                echo "Exported provenance for ${NAME}"
+              fi
+            else
+              echo "::warning::No attestation found for ${NAME}"
+            fi
           done
         env:
           GH_TOKEN: ${{ github.token }}
