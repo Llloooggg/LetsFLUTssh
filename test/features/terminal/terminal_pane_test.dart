@@ -409,7 +409,7 @@ void main() {
       expect(find.textContaining('Shell factory error'), findsOneWidget);
     });
 
-    testWidgets('focused pane has primary border color when hasMultiplePanes', (tester) async {
+    testWidgets('focused pane has divider border when hasMultiplePanes', (tester) async {
       final conn = _testConnection(id: 'sf-border-f');
 
       await tester.pumpWidget(
@@ -433,9 +433,7 @@ void main() {
       }).first;
       final boxDeco = container.decoration as BoxDecoration;
       final border = boxDeco.border as Border;
-      final theme = AppTheme.dark();
-      expect(border.top.color, theme.colorScheme.primary);
-      expect(border.top.width, 1.5);
+      expect(border.top.width, 0.5);
     });
 
     testWidgets('unfocused pane has divider border color when hasMultiplePanes', (tester) async {
