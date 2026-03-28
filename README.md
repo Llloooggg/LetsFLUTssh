@@ -13,7 +13,7 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 
-> **Disclaimer:** This is a functional neuroslop pet project — built entirely with AI assistance for personal use, self-education, and fun. Use at your own risk.
+> **Disclaimer:** This is a functional neuroslop pet project — built with AI assistance under the supervision and direction of a real developer, for personal use, self-education, and fun. Use at your own risk.
 
 Lightweight cross-platform SSH/SFTP client with GUI, built with Flutter.
 
@@ -105,11 +105,11 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 ### Cross-Platform
 
-- **Windows:** 10+ (x64)
-- **Linux:** x64, GTK 3 (Ubuntu 20.04+, Fedora 33+, Arch, etc.)
-- **macOS:** 10.15 Catalina+ (universal — Intel + Apple Silicon)
-- **Android:** 7.0 Nougat+ (API 24)
-- **iOS:** 13.0+
+- **Windows:** 10+ (x64) — **primary test platform**
+- **Linux:** x64, GTK 3 (Ubuntu 20.04+, Fedora 33+, Arch, etc.) — occasionally tested
+- **macOS:** 10.15 Catalina+ (universal — Intel + Apple Silicon) — occasionally tested
+- **Android:** 7.0 Nougat+ (API 24) — **primary test platform**
+- **iOS:** 13.0+ — **not tested** (builds are provided as-is)
 - Native rendering via Flutter (Skia/Impeller) — no WebView
 
 ## Installation
