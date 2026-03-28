@@ -45,8 +45,8 @@ The following areas are in scope:
 
 - **OSV-Scanner** — scans `pubspec.lock` against the [OSV.dev](https://osv.dev) vulnerability database on every dependency change and weekly. Results appear in the GitHub Security tab. Build releases are blocked if known CVEs are found
 - **OpenSSF Scorecard** — evaluates repository security practices (branch protection, dependency pinning, CI hardening). Results published at [scorecard.dev](https://scorecard.dev/viewer/?uri=github.com/Llloooggg/LetsFLUTssh)
-- **CodeQL** — static analysis of GitHub Actions workflows (weekly)
-- **SonarCloud** — code quality, coverage, and security hotspot analysis on every CI run
+- **CodeQL** — static analysis of GitHub Actions workflows (weekly). Dart is not supported by CodeQL; application code is covered by SonarCloud instead
+- **SonarCloud** — static analysis, code quality, coverage, and security hotspot detection for Dart/Flutter code on every CI run
 - **Dependency Review** — checks new dependencies for known vulnerabilities on pull requests
 - **Dependabot** — automated security updates (CVE-triggered) and version updates (weekly) for pub packages and GitHub Actions
 - **Pinned Dependencies** — all GitHub Actions are pinned to commit SHA hashes to prevent supply chain attacks via tag manipulation
