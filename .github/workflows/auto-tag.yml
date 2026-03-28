@@ -29,13 +29,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
-          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
         run: |
           SHA="$COMMIT_SHA"
           REPO="${{ github.repository }}"
 
+          # Fetch commit message via API (avoids untrusted input in env)
+          MSG=$(gh api "repos/${REPO}/commits/${SHA}" --jq '.commit.message')
+
           # Only tag commits that affect the shipped app (feat/fix/refactor)
-          PREFIX=$(echo "$COMMIT_MSG" | head -1 | sed -n 's/^\([a-z]*\):.*/\1/p')
+          PREFIX=$(echo "$MSG" | head -1 | sed -n 's/^\([a-z]*\):.*/\1/p')
           case "$PREFIX" in
             feat|fix|refactor) ;;
             *)
