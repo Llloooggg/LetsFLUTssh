@@ -144,8 +144,9 @@ jobs:
           exec "$HERE/usr/bin/letsflutssh" "$@"
           APPRUN
           chmod +x $APPDIR/AppRun
-          # Download appimagetool and build
-          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          # Download appimagetool (pinned version + checksum)
+          wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage -O appimagetool
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum -c
           chmod +x appimagetool
           ARCH=x86_64 ./appimagetool --no-appstream $APPDIR letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
 

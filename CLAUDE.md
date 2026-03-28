@@ -60,6 +60,7 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 - Latest **stable** versions only — no beta/dev/pre-release. No OS-level deps (`apt install`/`brew install`)
 - **Always build via Makefile** — `make run`, `make build-linux`, `make test`, `make analyze`. Never call `flutter build`/`flutter run` directly
 - **Always use Context7 MCP** for library/API docs — don't guess APIs, look them up
+- **Pin external downloads in CI** — any `wget`/`curl` in workflows must use a specific release version (not rolling tags like `continuous`) and verify SHA256 checksum after download
 
 ### What Not To Do
 
