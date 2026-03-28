@@ -1,9 +1,12 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform.dart';
+import '../file_browser/file_row.dart';
 
 /// Drag data: either a session or a group path.
 sealed class SessionDragData {}
@@ -38,6 +41,10 @@ class SessionTreeView extends StatefulWidget {
   final Set<String> selectedIds;
   final void Function(String sessionId)? onToggleSelected;
 
+  /// Called when marquee selection starts on desktop — parent should
+  /// enter select mode and provide [selectedIds] + [onToggleSelected].
+  final void Function(Set<String> ids)? onMarqueeSelect;
+
   const SessionTreeView({
     super.key,
     required this.tree,
@@ -51,6 +58,7 @@ class SessionTreeView extends StatefulWidget {
     this.selectMode = false,
     this.selectedIds = const {},
     this.onToggleSelected,
+    this.onMarqueeSelect,
   });
 
   @override
@@ -61,6 +69,22 @@ class _SessionTreeViewState extends State<SessionTreeView> {
   final _expandedGroups = <String>{};
   String? _selectedSessionId;
   String? _dropTargetGroup; // highlight on drag hover
+
+  // ── Marquee state (desktop only) ──
+  Offset? _marqueeAnchor;
+  Offset? _marqueeStart;
+  Offset? _marqueeCurrent;
+  bool _marqueeActive = false;
+  final _scrollController = ScrollController();
+  DateTime _lastMarqueeUpdate = DateTime(0);
+
+  static const _marqueeThreshold = 5.0;
+
+  bool get _isCtrlHeld =>
+      HardwareKeyboard.instance.logicalKeysPressed
+          .contains(LogicalKeyboardKey.controlLeft) ||
+      HardwareKeyboard.instance.logicalKeysPressed
+          .contains(LogicalKeyboardKey.controlRight);
 
   static final bool _mobile = isMobilePlatform;
   double get _rowHeight => _mobile ? 48.0 : 30.0;
@@ -73,6 +97,12 @@ class _SessionTreeViewState extends State<SessionTreeView> {
   void initState() {
     super.initState();
     _expandAllGroups(widget.tree);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _expandAllGroups(List<SessionTreeNode> nodes) {
@@ -122,6 +152,85 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     }
   }
 
+  // ── Marquee pointer handlers (desktop only) ──
+
+  /// Cached flat nodes for marquee hit testing.
+  List<(SessionTreeNode, int)>? _cachedFlatNodes;
+
+  void _onPointerDown(PointerDownEvent e) {
+    if (_mobile || e.buttons != kPrimaryButton) return;
+    setState(() {
+      _marqueeAnchor = e.localPosition;
+    });
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    if (_mobile || _marqueeAnchor == null) return;
+
+    final distance = (e.localPosition - _marqueeAnchor!).distance;
+
+    if (!_marqueeActive) {
+      if (distance < _marqueeThreshold) return;
+      _marqueeActive = true;
+    }
+
+    setState(() {
+      _marqueeStart = _marqueeAnchor;
+      _marqueeCurrent = e.localPosition;
+    });
+    _updateMarqueeSelection();
+  }
+
+  void _onPointerUp(PointerUpEvent _) {
+    if (_marqueeActive) {
+      setState(() {
+        _marqueeAnchor = null;
+        _marqueeStart = null;
+        _marqueeCurrent = null;
+        _marqueeActive = false;
+      });
+    } else {
+      _marqueeAnchor = null;
+    }
+  }
+
+  void _updateMarqueeSelection() {
+    if (_marqueeStart == null || _marqueeCurrent == null) return;
+    final flatNodes = _cachedFlatNodes;
+    if (flatNodes == null) return;
+
+    final now = DateTime.now();
+    if (now.difference(_lastMarqueeUpdate).inMilliseconds < 50) return;
+    _lastMarqueeUpdate = now;
+
+    final scrollOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    const listPaddingTop = 4.0; // matches ListView padding
+
+    final startY = _marqueeStart!.dy + scrollOffset;
+    final endY = _marqueeCurrent!.dy + scrollOffset;
+    final minY = (startY < endY ? startY : endY) - listPaddingTop;
+    final maxY = (startY > endY ? startY : endY) - listPaddingTop;
+
+    final firstIndex =
+        (minY / _rowHeight).floor().clamp(0, flatNodes.length - 1);
+    final lastIndex =
+        (maxY / _rowHeight).floor().clamp(0, flatNodes.length - 1);
+
+    final ids = <String>{};
+    for (var i = firstIndex; i <= lastIndex; i++) {
+      final session = flatNodes[i].$1.session;
+      if (session != null) {
+        ids.add(session.id);
+      }
+    }
+
+    if (_isCtrlHeld) {
+      ids.addAll(widget.selectedIds);
+    }
+    widget.onMarqueeSelect?.call(ids);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.tree.isEmpty) {
@@ -135,47 +244,74 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       );
     }
     final flatNodes = _flattenVisible(widget.tree, 0);
+    _cachedFlatNodes = flatNodes;
     return LayoutBuilder(
       builder: (context, constraints) {
-        return GestureDetector(
-          onSecondaryTapUp: (d) {
-            widget.onBackgroundContextMenu?.call(d.globalPosition);
-          },
-          onLongPressStart: _mobile
-              ? (d) => widget.onBackgroundContextMenu?.call(d.globalPosition)
-              : null,
-          behavior: HitTestBehavior.translucent,
-          child: DragTarget<SessionDragData>(
-            onWillAcceptWithDetails: (details) => _canAcceptDrop(details.data, ''),
-            onAcceptWithDetails: (details) {
-              setState(() => _dropTargetGroup = null);
-              _handleDrop(details.data, '');
+        return Listener(
+          onPointerDown: _onPointerDown,
+          onPointerMove: _onPointerMove,
+          onPointerUp: _onPointerUp,
+          child: GestureDetector(
+            onSecondaryTapUp: (d) {
+              widget.onBackgroundContextMenu?.call(d.globalPosition);
             },
-            onMove: (_) {
-              if (_dropTargetGroup != '') {
-                setState(() => _dropTargetGroup = '');
-              }
-            },
-            onLeave: (_) {
-              if (_dropTargetGroup == '') {
+            onLongPressStart: _mobile
+                ? (d) => widget.onBackgroundContextMenu?.call(d.globalPosition)
+                : null,
+            behavior: HitTestBehavior.translucent,
+            child: DragTarget<SessionDragData>(
+              onWillAcceptWithDetails: (details) => _canAcceptDrop(details.data, ''),
+              onAcceptWithDetails: (details) {
                 setState(() => _dropTargetGroup = null);
-              }
-            },
-            builder: (context, candidateData, rejectedData) {
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                itemCount: flatNodes.length,
-                itemExtent: _rowHeight,
-                itemBuilder: (context, index) {
-                  final (node, depth) = flatNodes[index];
-                  if (node.isGroup) {
-                    return _buildGroupTile(node, depth);
-                  } else {
-                    return _buildSessionTile(node, depth);
-                  }
-                },
-              );
-            },
+                _handleDrop(details.data, '');
+              },
+              onMove: (_) {
+                if (_dropTargetGroup != '') {
+                  setState(() => _dropTargetGroup = '');
+                }
+              },
+              onLeave: (_) {
+                if (_dropTargetGroup == '') {
+                  setState(() => _dropTargetGroup = null);
+                }
+              },
+              builder: (context, candidateData, rejectedData) {
+                return Stack(
+                  children: [
+                    ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: flatNodes.length,
+                      itemExtent: _rowHeight,
+                      itemBuilder: (context, index) {
+                        final (node, depth) = flatNodes[index];
+                        if (node.isGroup) {
+                          return _buildGroupTile(node, depth);
+                        } else {
+                          return _buildSessionTile(node, depth);
+                        }
+                      },
+                    ),
+                    if (_marqueeActive &&
+                        _marqueeStart != null &&
+                        _marqueeCurrent != null)
+                      Positioned.fill(
+                        child: RepaintBoundary(
+                          child: IgnorePointer(
+                            child: CustomPaint(
+                              painter: MarqueePainter(
+                                start: _marqueeStart!,
+                                end: _marqueeCurrent!,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
         );
       },

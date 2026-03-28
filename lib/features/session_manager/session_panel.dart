@@ -176,6 +176,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   onGroupMoved: (groupPath, targetParent) {
                     ref.read(sessionProvider.notifier).moveGroup(groupPath, targetParent);
                   },
+                  onMarqueeSelect: (ids) {
+                    setState(() {
+                      if (!_selectMode) _selectMode = true;
+                      _selectedIds
+                        ..clear()
+                        ..addAll(ids);
+                    });
+                  },
                 ),
         ),
       ],
