@@ -320,20 +320,60 @@ jobs:
         with:
           path: artifacts
 
-      - name: Attest build provenance
+      - name: Attest linux-x64.tar.gz
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
-          subject-path: |
-            artifacts/linux-x64/*
-            artifacts/windows-x64/*
-            artifacts/macos-universal/*
-            artifacts/android-apk/*
+          subject-path: artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
+
+      - name: Attest linux-x64.AppImage
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
+
+      - name: Attest linux-amd64.deb
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
+
+      - name: Attest windows-x64.zip
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
+
+      - name: Attest windows-x64-setup.exe
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
+
+      - name: Attest macos-universal.tar.gz
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
+
+      - name: Attest macos-universal.dmg
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
+
+      - name: Attest android-arm64.apk
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
+
+      - name: Attest android-arm.apk
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
+
+      - name: Attest android-x64.apk
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
 
       - name: Export provenance for release
         run: |
           for f in artifacts/linux-x64/* artifacts/windows-x64/* artifacts/macos-universal/* artifacts/android-apk/*; do
             NAME=$(basename "$f")
-            # gh attestation download saves to CWD as sha256:<digest>.jsonl
             if gh attestation download "$f" -R "${{ github.repository }}"; then
               BUNDLE=$(ls -t sha256*.jsonl 2>/dev/null | head -1)
               if [ -n "$BUNDLE" ]; then
