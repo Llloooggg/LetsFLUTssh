@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:xterm/xterm.dart';
@@ -53,10 +54,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -79,10 +80,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -99,10 +100,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -124,10 +125,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -144,10 +145,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -171,10 +172,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -196,10 +197,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -217,10 +218,10 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -258,10 +259,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -280,10 +281,10 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -296,18 +297,18 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: const Scaffold(body: SizedBox()),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
     });
@@ -319,10 +320,10 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -340,10 +341,10 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -374,10 +375,10 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -407,10 +408,10 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -447,10 +448,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -475,10 +476,10 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -495,10 +496,10 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -537,10 +538,10 @@ void main() {
       });
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -565,10 +566,10 @@ void main() {
       final conn = connectedConn(mockSsh, mockSession);
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -614,10 +615,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -668,10 +669,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(body: MobileTerminalView(connection: conn)),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 

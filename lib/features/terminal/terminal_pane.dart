@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
+import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
@@ -22,7 +24,7 @@ typedef ShellOpenFactory = Future<ShellConnection> Function({
   VoidCallback? onDone,
 });
 
-class TerminalPane extends StatefulWidget {
+class TerminalPane extends ConsumerStatefulWidget {
   final Connection connection;
   final bool isFocused;
 
@@ -50,10 +52,10 @@ class TerminalPane extends StatefulWidget {
   });
 
   @override
-  State<TerminalPane> createState() => TerminalPaneState();
+  ConsumerState<TerminalPane> createState() => TerminalPaneState();
 }
 
-class TerminalPaneState extends State<TerminalPane> {
+class TerminalPaneState extends ConsumerState<TerminalPane> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
   ShellConnection? _shellConn;
@@ -70,7 +72,7 @@ class TerminalPaneState extends State<TerminalPane> {
   @override
   void initState() {
     super.initState();
-    _terminal = Terminal(maxLines: 5000);
+    _terminal = Terminal(maxLines: ref.read(configProvider).scrollback);
     _terminalController = TerminalController();
     _connectAndOpenShell();
   }
@@ -157,6 +159,8 @@ class TerminalPaneState extends State<TerminalPane> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
+
     final Border? border;
     if (!widget.hasMultiplePanes) {
       border = null;
@@ -197,6 +201,7 @@ class TerminalPaneState extends State<TerminalPane> {
                   onKeyEvent: _handleTerminalKey,
                   backgroundOpacity: 1.0,
                   padding: const EdgeInsets.all(4),
+                  textStyle: TerminalStyle(fontSize: fontSize),
                   onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
                 ),
               ),

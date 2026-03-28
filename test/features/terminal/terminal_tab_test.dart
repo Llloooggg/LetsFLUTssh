@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -27,7 +28,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -39,7 +40,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -65,7 +66,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -77,7 +78,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -108,7 +109,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -120,7 +121,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -143,7 +144,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -158,7 +159,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -180,7 +181,7 @@ void main() {
       // Use reconnectFactory: first call fails, putting us into error state
       var firstCall = true;
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -198,7 +199,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -229,7 +230,7 @@ void main() {
       // the first error, then test reconnectFactory on the second attempt.
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -244,7 +245,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -274,7 +275,7 @@ void main() {
 
       var callCount = 0;
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -311,7 +312,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -332,7 +333,7 @@ void main() {
 
       var callCount = 0;
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -351,7 +352,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -375,7 +376,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -394,7 +395,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -432,7 +433,7 @@ void main() {
       final conn = makeConnected(mockSsh, mockSession, 'split-v');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -444,7 +445,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -465,7 +466,7 @@ void main() {
       final conn = makeConnected(mockSsh, mockSession, 'split-h');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -477,7 +478,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -496,7 +497,7 @@ void main() {
       final conn = makeConnected(mockSsh, mockSession, 'close-p');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -508,7 +509,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -536,7 +537,7 @@ void main() {
       final conn = makeConnected(mockSsh, mockSession, 'close-focused');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -548,7 +549,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -582,7 +583,7 @@ void main() {
       final conn = makeConnected(mockSsh, mockSession, 'close-root');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -594,7 +595,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -610,7 +611,7 @@ void main() {
       final conn = makeConnected(mockSsh, mockSession, 'tree-change');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -622,7 +623,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -650,7 +651,7 @@ void main() {
       final conn = makeConnected(mockSsh, mockSession, 'focus-tap');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -662,7 +663,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -704,7 +705,7 @@ void main() {
 
       var callCount = 0;
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -742,7 +743,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -769,7 +770,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -785,7 +786,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -818,7 +819,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -834,7 +835,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -858,7 +859,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -874,7 +875,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -901,7 +902,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -915,7 +916,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -945,7 +946,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -961,7 +962,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -989,7 +990,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -1006,7 +1007,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1037,7 +1038,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -1057,7 +1058,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1091,7 +1092,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -1112,7 +1113,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 

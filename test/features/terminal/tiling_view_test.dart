@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
@@ -53,7 +54,7 @@ void main() {
       final leaf = LeafNode(id: 'leaf-1');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -71,7 +72,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
 
       // After pump, TerminalPane should be connecting (showing loading)
@@ -86,7 +87,7 @@ void main() {
       final leaf = LeafNode(id: 'orphan');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -104,7 +105,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -140,7 +141,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -158,7 +159,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -194,7 +195,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -212,7 +213,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -243,7 +244,7 @@ void main() {
       SplitNode? changedRoot;
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -261,7 +262,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -302,7 +303,7 @@ void main() {
       SplitNode? changedRoot;
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -320,7 +321,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -343,7 +344,7 @@ void main() {
       String? focusedId;
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -361,7 +362,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -384,7 +385,7 @@ void main() {
       String? focusedId;
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -402,7 +403,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -422,7 +423,7 @@ void main() {
       bool? splitInsertBefore;
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -444,7 +445,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -465,7 +466,7 @@ void main() {
       SplitDirection? splitDir;
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -486,7 +487,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -504,7 +505,7 @@ void main() {
       final leaf = LeafNode(id: 'only-leaf');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -522,7 +523,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -550,7 +551,7 @@ void main() {
       String? closedPaneId;
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -568,7 +569,7 @@ void main() {
               ),
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
