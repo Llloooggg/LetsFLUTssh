@@ -143,7 +143,7 @@ Changes that affect the shipped app **must** include a version bump in the same 
 | New feature                             | **minor** |
 | Breaking change (file format, API)      | **major** |
 
-Bump both `pubspec.yaml` (`version:` field) and `_appVersion` in `lib/features/settings/settings_screen.dart`.
+Bump the `version:` field in `pubspec.yaml` — it is the single source of truth (`package_info_plus` reads it at runtime).
 
 **No bump needed:** test-only, docs-only, CI-only, or config-only changes (`test:`, `docs:`, `chore:`, `ci:` commits).
 

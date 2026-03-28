@@ -6,12 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../core/app_version.dart';
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
 import '../../core/session/qr_codec.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/update_provider.dart';
+import '../../providers/version_provider.dart';
 import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
@@ -576,10 +576,11 @@ class _UpdateSection extends ConsumerWidget {
         return const SizedBox.shrink();
 
       case UpdateStatus.upToDate:
+        final version = ref.watch(appVersionProvider);
         return ListTile(
           leading: Icon(Icons.check_circle_outline, size: 20,
               color: theme.colorScheme.primary),
-          title: const Text('You\'re up to date (v$appVersion)'),
+          title: Text('You\'re up to date (v$version)'),
           contentPadding: EdgeInsets.zero,
         );
 
@@ -699,18 +700,19 @@ class _UpdateSection extends ConsumerWidget {
   }
 }
 
-class _AboutSection extends StatelessWidget {
+class _AboutSection extends ConsumerWidget {
   const _AboutSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final version = ref.watch(appVersionProvider);
     return Column(
       children: [
-        const ListTile(
-          leading: Icon(Icons.info_outline, size: 20),
-          title: Text('LetsFLUTssh'),
-          subtitle: Text('v$appVersion — SSH/SFTP client'),
+        ListTile(
+          leading: const Icon(Icons.info_outline, size: 20),
+          title: const Text('LetsFLUTssh'),
+          subtitle: Text('v$version — SSH/SFTP client'),
           contentPadding: EdgeInsets.zero,
         ),
         ListTile(
