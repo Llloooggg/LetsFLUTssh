@@ -12,6 +12,9 @@ import 'sftp_models.dart';
 class SFTPService {
   static const maxRecursionDepth = 100;
 
+  /// Chunk size for streaming file uploads (64 KiB).
+  static const _uploadChunkSize = 65536;
+
   final SftpClient _sftp;
 
   SFTPService(this._sftp);
@@ -119,7 +122,7 @@ class SFTPService {
       final raf = await file.open(mode: FileMode.read);
       try {
         while (true) {
-          final chunk = await raf.read(65536);
+          final chunk = await raf.read(_uploadChunkSize);
           if (chunk.isEmpty) break;
           await remoteFile.writeBytes(Uint8List.fromList(chunk), offset: done);
           done += chunk.length;
