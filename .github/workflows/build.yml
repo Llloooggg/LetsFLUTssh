@@ -88,7 +88,6 @@ jobs:
 
           wait_for_check "analyze-and-test" "CI"
           # SonarCloud is a quality gate, not security-critical — warn only.
-          # workflow_run checkout race may place its check_run on a different SHA.
           wait_for_check "SonarCloud scan" "SonarCloud" || true
           wait_for_check "scan" "OSV-Scanner"
 
