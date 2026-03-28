@@ -272,7 +272,7 @@ class _MobileSessionsPage extends ConsumerWidget {
 }
 
 /// Horizontal chip-based tab selector shared by terminal and SFTP pages.
-class _MobileTabChipBar extends ConsumerWidget {
+class _MobileTabChipBar extends ConsumerStatefulWidget {
   final TabState tabState;
   final List<TabEntry> filteredTabs;
   final TabEntry activeTab;
@@ -284,23 +284,62 @@ class _MobileTabChipBar extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MobileTabChipBar> createState() => _MobileTabChipBarState();
+}
+
+class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
+  final _scrollController = ScrollController();
+  int _previousTabCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _previousTabCount = widget.filteredTabs.length;
+  }
+
+  @override
+  void didUpdateWidget(_MobileTabChipBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Auto-scroll to end when a new tab is added
+    if (widget.filteredTabs.length > _previousTabCount) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
+    _previousTabCount = widget.filteredTabs.length;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       height: 40,
       child: ListView.builder(
+        controller: _scrollController,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        itemCount: filteredTabs.length,
+        itemCount: widget.filteredTabs.length,
         itemBuilder: (context, index) {
-          final tab = filteredTabs[index];
-          final isActive = tab.id == activeTab.id;
+          final tab = widget.filteredTabs[index];
+          final isActive = tab.id == widget.activeTab.id;
           return Padding(
             padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
             child: InputChip(
               label: Text(tab.label, style: const TextStyle(fontSize: 13)),
               selected: isActive,
               onPressed: () {
-                final globalIdx = tabState.tabs.indexOf(tab);
+                final globalIdx = widget.tabState.tabs.indexOf(tab);
                 ref.read(tabProvider.notifier).selectTab(globalIdx);
               },
               deleteIcon: const Icon(Icons.close, size: 16),
