@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
 import '../../utils/format.dart';
+import '../../widgets/cross_marquee_controller.dart';
 import 'file_browser_controller.dart';
 import 'file_pane_dialogs.dart';
 import 'file_row.dart';
@@ -29,6 +30,10 @@ class FilePane extends StatefulWidget {
   /// Used by parent to clear selection in the sibling pane.
   final VoidCallback? onPaneActivated;
 
+  /// Cross-widget marquee controller — receives events when a marquee drag
+  /// starts in the session panel and crosses into this file pane.
+  final CrossMarqueeController? crossMarquee;
+
   const FilePane({
     super.key,
     required this.controller,
@@ -38,6 +43,7 @@ class FilePane extends StatefulWidget {
     this.onDropReceived,
     this.onOsDropReceived,
     this.onPaneActivated,
+    this.crossMarquee,
   });
 
   @override
@@ -47,6 +53,7 @@ class FilePane extends StatefulWidget {
 class _FilePaneState extends State<FilePane> {
   final _pathController = TextEditingController();
   final _focusNode = FocusNode();
+  final _fileListKey = GlobalKey();
   bool _editingPath = false;
   bool _osDragging = false;
 
@@ -62,15 +69,62 @@ class _FilePaneState extends State<FilePane> {
     super.initState();
     ctrl.addListener(_onChanged);
     _pathController.text = ctrl.currentPath;
+    widget.crossMarquee?.addListener(_onCrossMarquee);
+  }
+
+  @override
+  void didUpdateWidget(covariant FilePane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.crossMarquee != widget.crossMarquee) {
+      oldWidget.crossMarquee?.removeListener(_onCrossMarquee);
+      widget.crossMarquee?.addListener(_onCrossMarquee);
+    }
   }
 
   @override
   void dispose() {
+    widget.crossMarquee?.removeListener(_onCrossMarquee);
     ctrl.removeListener(_onChanged);
     _pathController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onCrossMarquee() {
+    final cm = widget.crossMarquee!;
+    if (!cm.active) {
+      // Cross-marquee ended
+      if (_marqueeActive) {
+        setState(() {
+          _marqueeAnchor = null;
+          _marqueeStart = null;
+          _marqueeCurrent = null;
+          _preMarqueeSelection = null;
+          _marqueeActive = false;
+        });
+      }
+      return;
+    }
+
+    // Translate global position to our file list local coordinates
+    final box = _fileListKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return;
+    final local = box.globalToLocal(cm.globalPosition!);
+
+    if (cm.phase == CrossMarqueePhase.start) {
+      // Start cross-marquee: anchor at the entry point
+      _marqueeActive = true;
+      _marqueeAnchor = local;
+      _preMarqueeSelection = _isCtrlHeld ? Set.from(ctrl.selected) : null;
+      if (!_isCtrlHeld) ctrl.clearSelection();
+    }
+
+    setState(() {
+      _marqueeStart = _marqueeAnchor;
+      _marqueeCurrent = local;
+    });
+    _updateMarqueeSelection();
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -385,6 +439,7 @@ class _FilePaneState extends State<FilePane> {
         onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
         behavior: HitTestBehavior.translucent,
         child: Stack(
+          key: _fileListKey,
           children: [
             ListView.builder(
               controller: _scrollController,

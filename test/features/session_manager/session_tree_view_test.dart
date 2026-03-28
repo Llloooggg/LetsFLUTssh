@@ -5,6 +5,7 @@ import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/widgets/cross_marquee_controller.dart';
 
 void main() {
   late List<Session> sessions;
@@ -727,6 +728,120 @@ void main() {
       await tester.pump();
 
       expect(selectedIds, isNull);
+    });
+  });
+
+  group('SessionTreeView — cross-widget marquee', () {
+    testWidgets('drag outside bounds fires crossMarquee.start', (tester) async {
+      final crossMarquee = CrossMarqueeController();
+      addTearDown(crossMarquee.dispose);
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              crossMarquee: crossMarquee,
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Start inside, drag far to the right (outside bounds)
+      final center = tester.getCenter(find.byType(SessionTreeView));
+      final gesture = await tester.startGesture(center);
+      await tester.pump();
+      await gesture.moveBy(const Offset(400, 0));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(crossMarquee.active, isTrue);
+
+      await gesture.up();
+      await tester.pump();
+
+      expect(crossMarquee.active, isFalse);
+    });
+
+    testWidgets('drag back inside cancels cross-marquee and resumes session marquee', (tester) async {
+      final crossMarquee = CrossMarqueeController();
+      addTearDown(crossMarquee.dispose);
+      Set<String>? selectedIds;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              crossMarquee: crossMarquee,
+              onMarqueeSelect: (ids) => selectedIds = ids,
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Start inside, drag outside, then back inside
+      final center = tester.getCenter(find.byType(SessionTreeView));
+      final gesture = await tester.startGesture(Offset(center.dx, 10));
+      await tester.pump();
+
+      // Move outside
+      await gesture.moveBy(const Offset(400, 0));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(crossMarquee.active, isTrue);
+
+      // Move back inside and down
+      await gesture.moveTo(Offset(center.dx, 200));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(crossMarquee.active, isFalse);
+
+      // Session marquee should be active now — check via onMarqueeSelect
+      await gesture.moveBy(const Offset(0, 100));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // selectedIds was called during inside-marquee
+      expect(selectedIds, isNotNull);
+
+      await gesture.up();
+      await tester.pump();
+    });
+
+    testWidgets('cross-marquee not triggered without controller', (tester) async {
+      Set<String>? selectedIds;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              onMarqueeSelect: (ids) => selectedIds = ids,
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Drag outside bounds — without crossMarquee, should still do normal marquee
+      final center = tester.getCenter(find.byType(SessionTreeView));
+      final gesture = await tester.startGesture(Offset(center.dx, 10));
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 200));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.up();
+      await tester.pump();
+
+      expect(selectedIds, isNotNull);
+      expect(selectedIds!, isNotEmpty);
     });
   });
 }

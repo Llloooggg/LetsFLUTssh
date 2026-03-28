@@ -11,6 +11,7 @@ import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/features/file_browser/file_pane.dart';
 import 'package:letsflutssh/features/file_browser/file_row.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/cross_marquee_controller.dart';
 
 /// In-memory file system for testing.
 class _MockFS implements FileSystem {
@@ -83,6 +84,7 @@ void main() {
     void Function(List<FileEntry>)? onDropReceived,
     void Function(List<String>)? onOsDropReceived,
     VoidCallback? onPaneActivated,
+    CrossMarqueeController? crossMarquee,
   }) {
     return MaterialApp(
       theme: AppTheme.dark(),
@@ -98,6 +100,7 @@ void main() {
             onDropReceived: onDropReceived,
             onOsDropReceived: onOsDropReceived,
             onPaneActivated: onPaneActivated,
+            crossMarquee: crossMarquee,
           ),
         ),
       ),
@@ -2212,6 +2215,82 @@ void main() {
       await tester.pump();
 
       expect(activated, isTrue);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cross-widget marquee (from session panel)
+  // ---------------------------------------------------------------------------
+  group('FilePane — cross-widget marquee', () {
+    testWidgets('crossMarquee start+move selects files', (tester) async {
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      final crossMarquee = CrossMarqueeController();
+      addTearDown(crossMarquee.dispose);
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        crossMarquee: crossMarquee,
+      ));
+      await tester.pump();
+
+      // Get the global position of the file list area
+      final pane = find.byType(FilePane);
+      final paneBox = tester.getRect(pane);
+
+      // Simulate cross-marquee: start at top of file list, move to bottom
+      crossMarquee.start(paneBox.topLeft + const Offset(10, 10));
+      await tester.pump();
+      crossMarquee.move(paneBox.topLeft + const Offset(10, 100));
+      await tester.pump();
+
+      // Should have selected some files
+      expect(ctrl.selected, isNotEmpty);
+
+      // End the marquee
+      crossMarquee.end();
+      await tester.pump();
+    });
+
+    testWidgets('crossMarquee end clears marquee state', (tester) async {
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      final crossMarquee = CrossMarqueeController();
+      addTearDown(crossMarquee.dispose);
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        crossMarquee: crossMarquee,
+      ));
+      await tester.pump();
+
+      final pane = find.byType(FilePane);
+      final paneBox = tester.getRect(pane);
+
+      // Start and move
+      crossMarquee.start(paneBox.topLeft + const Offset(10, 10));
+      await tester.pump();
+      crossMarquee.move(paneBox.topLeft + const Offset(10, 100));
+      await tester.pump();
+
+      // MarqueePainter should be visible
+      expect(find.byType(CustomPaint), findsWidgets);
+
+      // End
+      crossMarquee.end();
+      await tester.pump();
+
+      // MarqueePainter should be gone — no marquee overlay
+      // (the selection stays, but the visual overlay is removed)
+      final painters = tester.widgetList<CustomPaint>(find.byType(CustomPaint));
+      final marquee = painters.where((p) => p.painter is MarqueePainter);
+      expect(marquee, isEmpty);
     });
   });
 }

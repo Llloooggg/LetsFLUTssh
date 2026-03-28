@@ -6,6 +6,7 @@ import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform.dart';
+import '../../widgets/cross_marquee_controller.dart';
 import '../file_browser/file_row.dart';
 
 /// Drag data: either a session or a group path.
@@ -45,6 +46,10 @@ class SessionTreeView extends StatefulWidget {
   /// enter select mode and provide [selectedIds] + [onToggleSelected].
   final void Function(Set<String> ids)? onMarqueeSelect;
 
+  /// Cross-widget marquee controller — when the pointer exits session panel
+  /// bounds during a marquee drag, events are forwarded to the file pane.
+  final CrossMarqueeController? crossMarquee;
+
   const SessionTreeView({
     super.key,
     required this.tree,
@@ -59,6 +64,7 @@ class SessionTreeView extends StatefulWidget {
     this.selectedIds = const {},
     this.onToggleSelected,
     this.onMarqueeSelect,
+    this.crossMarquee,
   });
 
   @override
@@ -75,6 +81,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
   Offset? _marqueeStart;
   Offset? _marqueeCurrent;
   bool _marqueeActive = false;
+  bool _crossMarqueeActive = false;
   final _scrollController = ScrollController();
   DateTime _lastMarqueeUpdate = DateTime(0);
 
@@ -169,8 +176,45 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
     final distance = (e.localPosition - _marqueeAnchor!).distance;
 
-    if (!_marqueeActive) {
+    if (!_marqueeActive && !_crossMarqueeActive) {
       if (distance < _marqueeThreshold) return;
+    }
+
+    // Check if pointer is outside our bounds → cross-marquee to file pane
+    final box = context.findRenderObject() as RenderBox?;
+    if (box != null && widget.crossMarquee != null) {
+      final size = box.size;
+      final local = e.localPosition;
+      final outsideBounds = local.dx > size.width || local.dx < 0 ||
+          local.dy < 0 || local.dy > size.height;
+
+      if (outsideBounds) {
+        if (_marqueeActive) {
+          setState(() {
+            _marqueeStart = null;
+            _marqueeCurrent = null;
+            _marqueeActive = false;
+          });
+          widget.onMarqueeSelect?.call({});
+        }
+        if (!_crossMarqueeActive) {
+          _crossMarqueeActive = true;
+          widget.crossMarquee!.start(e.position);
+        } else {
+          widget.crossMarquee!.move(e.position);
+        }
+        return;
+      }
+
+      // Pointer came back inside — cancel cross-marquee
+      if (_crossMarqueeActive) {
+        _crossMarqueeActive = false;
+        widget.crossMarquee!.end();
+        _marqueeAnchor = e.localPosition;
+      }
+    }
+
+    if (!_marqueeActive) {
       _marqueeActive = true;
     }
 
@@ -182,6 +226,12 @@ class _SessionTreeViewState extends State<SessionTreeView> {
   }
 
   void _onPointerUp(PointerUpEvent _) {
+    if (_crossMarqueeActive) {
+      _crossMarqueeActive = false;
+      widget.crossMarquee?.end();
+      _marqueeAnchor = null;
+      return;
+    }
     if (_marqueeActive) {
       setState(() {
         _marqueeAnchor = null;
