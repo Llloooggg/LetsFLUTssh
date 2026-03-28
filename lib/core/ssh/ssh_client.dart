@@ -121,23 +121,11 @@ class SSHConnection {
       throw AuthError('Authentication failed for ${config.user}@${config.host}', e);
     } on SSHAuthAbortError catch (e) {
       _cleanup();
-      if (_hostKeyRejected) {
-        throw HostKeyError(
-          'Host key rejected for ${config.host}:${config.effectivePort} — '
-          'accept the host key or check known_hosts',
-          e,
-        );
-      }
+      if (_hostKeyRejected) throw _hostKeyError(e);
       throw AuthError('Authentication aborted', e);
     } catch (e) {
       _cleanup();
-      if (_hostKeyRejected) {
-        throw HostKeyError(
-          'Host key rejected for ${config.host}:${config.effectivePort} — '
-          'accept the host key or check known_hosts',
-          e,
-        );
-      }
+      if (_hostKeyRejected) throw _hostKeyError(e);
       throw ConnectError('Connection failed to ${config.host}:${config.effectivePort}', e);
     }
 
@@ -231,6 +219,12 @@ class SSHConnection {
     }
   }
 
+
+  HostKeyError _hostKeyError(Object cause) => HostKeyError(
+        'Host key rejected for ${config.host}:${config.effectivePort} — '
+        'accept the host key or check known_hosts',
+        cause,
+      );
 
   // Host key verification callback for dartssh2.
   Future<bool> _onVerifyHostKey(
