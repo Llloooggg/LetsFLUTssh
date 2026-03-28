@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
@@ -18,17 +19,8 @@ class SessionConnect {
   /// Open a terminal tab and connect to session in background.
   /// Returns false if session is incomplete (missing credentials).
   static bool connectTerminal(BuildContext context, WidgetRef ref, Session session) {
-    if (session.incomplete) {
-      _showIncompleteMessage(context);
-      return false;
-    }
-    AppLogger.instance.log('Opening terminal for ${session.label}', name: 'Session');
-    final config = session.toSSHConfig();
-    final manager = ref.read(connectionManagerProvider);
-    final conn = manager.connectAsync(
-      config,
-      label: session.label.isNotEmpty ? session.label : session.displayName,
-    );
+    final conn = _createConnection(context, ref, session, 'terminal');
+    if (conn == null) return false;
     ref.read(tabProvider.notifier).addTerminalTab(conn);
     return true;
   }
@@ -36,19 +28,30 @@ class SessionConnect {
   /// Open an SFTP tab and connect to session in background.
   /// Returns false if session is incomplete (missing credentials).
   static bool connectSftp(BuildContext context, WidgetRef ref, Session session) {
+    final conn = _createConnection(context, ref, session, 'SFTP');
+    if (conn == null) return false;
+    ref.read(tabProvider.notifier).addSftpTab(conn);
+    return true;
+  }
+
+  /// Validate session and create a background connection, or return null on failure.
+  static Connection? _createConnection(
+    BuildContext context,
+    WidgetRef ref,
+    Session session,
+    String logLabel,
+  ) {
     if (session.incomplete) {
       _showIncompleteMessage(context);
-      return false;
+      return null;
     }
-    AppLogger.instance.log('Opening SFTP for ${session.label}', name: 'Session');
+    AppLogger.instance.log('Opening $logLabel for ${session.label}', name: 'Session');
     final config = session.toSSHConfig();
     final manager = ref.read(connectionManagerProvider);
-    final conn = manager.connectAsync(
+    return manager.connectAsync(
       config,
       label: session.label.isNotEmpty ? session.label : session.displayName,
     );
-    ref.read(tabProvider.notifier).addSftpTab(conn);
-    return true;
   }
 
   static void _showIncompleteMessage(BuildContext context) {
