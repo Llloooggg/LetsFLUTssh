@@ -2,8 +2,8 @@
 
 [![Release](https://img.shields.io/github/v/release/Llloooggg/LetsFLUTssh?include_prereleases)](https://github.com/Llloooggg/LetsFLUTssh/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-blue)](https://github.com/Llloooggg/LetsFLUTssh)
-[![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](LICENSE)
-
+[![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](LICENSE)<br>
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12283/badge)](https://www.bestpractices.dev/projects/12283)<br>
 [![CI](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml)
 [![Build](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml)<br>
 [![OSV-Scanner](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv-scanner.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv-scanner.yml)
