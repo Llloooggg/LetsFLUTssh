@@ -12,6 +12,7 @@ import 'core/import/import_service.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
+import 'widgets/cross_marquee_controller.dart';
 import 'widgets/toast.dart';
 import 'features/file_browser/file_browser_tab.dart';
 import 'features/settings/settings_screen.dart';
@@ -138,6 +139,7 @@ class MainScreen extends ConsumerStatefulWidget {
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   final _deepLinkHandler = DeepLinkHandler();
+  final _crossMarquee = CrossMarqueeController();
   bool _updateDialogShown = false;
 
   @override
@@ -150,6 +152,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   void dispose() {
     _deepLinkHandler.dispose();
+    _crossMarquee.dispose();
     super.dispose();
   }
 
@@ -322,6 +325,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       onConnect: (session) => _connectSession(context, ref, session),
       onQuickConnect: (config) => SessionConnect.connectConfig(context, ref, config),
       onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+      crossMarquee: _crossMarquee,
     );
 
     final content = tabState.activeTab != null
@@ -381,6 +385,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             return FileBrowserTab(
               key: ValueKey(tab.id),
               connection: tab.connection,
+              crossMarquee: _crossMarquee,
             );
         }
       }).toList(),

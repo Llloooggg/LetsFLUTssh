@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../utils/logger.dart';
+import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/error_state.dart';
 
 import '../../core/connection/connection.dart';
@@ -29,10 +30,14 @@ class FileBrowserTab extends ConsumerStatefulWidget {
   /// Optional factory for testing — bypasses real SSH/SFTP.
   final SFTPInitFactory? sftpInitFactory;
 
+  /// Cross-widget marquee controller — forwarded to the local file pane.
+  final CrossMarqueeController? crossMarquee;
+
   const FileBrowserTab({
     super.key,
     required this.connection,
     this.sftpInitFactory,
+    this.crossMarquee,
   });
 
   @override
@@ -153,6 +158,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
               child: FilePane(
                 controller: local,
                 paneId: 'local',
+                crossMarquee: widget.crossMarquee,
                 onTransfer: (entry) => _upload(entry),
                 onTransferMultiple: (entries) {
                   for (final e in entries) {

@@ -7,6 +7,7 @@ import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
+import '../../widgets/cross_marquee_controller.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
@@ -17,12 +18,14 @@ class SessionPanel extends ConsumerStatefulWidget {
   final void Function(Session session) onConnect;
   final void Function(SSHConfig config) onQuickConnect;
   final void Function(Session session)? onSftpConnect;
+  final CrossMarqueeController? crossMarquee;
 
   const SessionPanel({
     super.key,
     required this.onConnect,
     required this.onQuickConnect,
     this.onSftpConnect,
+    this.crossMarquee,
   });
 
   @override
@@ -195,6 +198,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   selectMode: mobile && _selectMode,
                   selectedIds: _selectedIds,
                   onToggleSelected: _toggleSelected,
+                  crossMarquee: widget.crossMarquee,
                   onSessionDoubleTap: widget.onConnect,
                   onSessionContextMenu: (session, position) {
                     _showContextMenu(context, ref, session, position);
