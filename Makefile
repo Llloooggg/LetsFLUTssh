@@ -39,7 +39,7 @@ else
 endif
 
 test: ## Run all tests with coverage
-	$(FLUTTER) test --coverage
+	$(FLUTTER) test --coverage --timeout 30s
 
 analyze: ## Run Dart analyzer (fatal on infos, same as CI)
 	$(FLUTTER) analyze --fatal-infos
