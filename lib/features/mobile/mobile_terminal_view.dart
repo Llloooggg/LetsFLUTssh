@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
+import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
@@ -15,7 +17,7 @@ import 'ssh_keyboard_bar.dart';
 /// No tiling/splitting — single pane, full screen.
 /// Long press → context menu (copy/paste).
 /// Pinch to zoom (font size).
-class MobileTerminalView extends StatefulWidget {
+class MobileTerminalView extends ConsumerStatefulWidget {
   final Connection connection;
 
   const MobileTerminalView({
@@ -24,23 +26,25 @@ class MobileTerminalView extends StatefulWidget {
   });
 
   @override
-  State<MobileTerminalView> createState() => _MobileTerminalViewState();
+  ConsumerState<MobileTerminalView> createState() => _MobileTerminalViewState();
 }
 
-class _MobileTerminalViewState extends State<MobileTerminalView> {
+class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
   final _keyboardKey = GlobalKey<SshKeyboardBarState>();
   ShellConnection? _shellConn;
   bool _connected = false;
   String? _error;
-  double _fontSize = 12.0;
+  late double _fontSize;
   double? _baseScaleFontSize;
 
   @override
   void initState() {
     super.initState();
-    _terminal = Terminal(maxLines: 5000);
+    final config = ref.read(configProvider);
+    _fontSize = config.fontSize;
+    _terminal = Terminal(maxLines: config.scrollback);
     _terminalController = TerminalController();
     _connectAndOpenShell();
   }

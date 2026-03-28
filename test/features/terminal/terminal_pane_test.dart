@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:xterm/xterm.dart';
@@ -75,12 +76,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(connection: conn),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -104,12 +105,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(connection: conn),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -141,7 +142,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -152,7 +153,7 @@ void main() {
               onClose: () {},
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -190,7 +191,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -201,7 +202,7 @@ void main() {
               onClose: () {},
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -229,12 +230,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(connection: conn),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -266,12 +267,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(connection: conn),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -310,12 +311,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(connection: conn, isFocused: true),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -348,12 +349,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(connection: conn, isFocused: false),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -370,7 +371,7 @@ void main() {
       final conn = _testConnection(id: 'sf-1');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -379,7 +380,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -392,7 +393,7 @@ void main() {
       final conn = _testConnection(id: 'sf-2');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -400,7 +401,7 @@ void main() {
               shellFactory: _errorShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -412,7 +413,7 @@ void main() {
       final conn = _testConnection(id: 'sf-border-f');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -422,7 +423,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -441,7 +442,7 @@ void main() {
       final conn = _testConnection(id: 'sf-border-u');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -451,7 +452,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -468,7 +469,7 @@ void main() {
       final conn = _testConnection(id: 'sf-border-none');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -478,7 +479,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -495,7 +496,7 @@ void main() {
       final conn = _testConnection(id: 'sf-ctx');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -507,7 +508,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -528,7 +529,7 @@ void main() {
       final conn = _testConnection(id: 'sf-split-v');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -539,7 +540,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -559,7 +560,7 @@ void main() {
       final conn = _testConnection(id: 'sf-split-h');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -570,7 +571,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -590,7 +591,7 @@ void main() {
       final conn = _testConnection(id: 'sf-close');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -602,7 +603,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -621,7 +622,7 @@ void main() {
       final conn = _testConnection(id: 'sf-no-close');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -633,7 +634,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -651,7 +652,7 @@ void main() {
       final conn = _testConnection(id: 'sf-no-split');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -662,7 +663,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -683,7 +684,7 @@ void main() {
       final conn = _testConnection(id: 'sf-focus');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -693,7 +694,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -710,7 +711,7 @@ void main() {
       final conn = _testConnection(id: 'sf-done');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -725,7 +726,7 @@ void main() {
               },
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -754,7 +755,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -763,7 +764,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -796,7 +797,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -805,7 +806,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -838,7 +839,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -847,7 +848,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -872,7 +873,7 @@ void main() {
       final conn = _testConnection(id: 'sf-copy-no-sel');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -883,7 +884,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -918,7 +919,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -927,7 +928,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -970,7 +971,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -984,7 +985,7 @@ void main() {
               },
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1007,7 +1008,7 @@ void main() {
       final conn = _testConnection(id: 'sf-dispose-null');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1015,7 +1016,7 @@ void main() {
               shellFactory: _errorShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1036,7 +1037,7 @@ void main() {
       final conn = _testConnection(id: 'sf-ctx-dismiss');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1047,7 +1048,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1072,7 +1073,7 @@ void main() {
       final conn = _testConnection(id: 'sf-slow');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1084,7 +1085,7 @@ void main() {
               }) => completer.future,
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -1103,7 +1104,7 @@ void main() {
       final conn = _testConnection(id: 'sf-error-layout');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1111,7 +1112,7 @@ void main() {
               shellFactory: _errorShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1130,7 +1131,7 @@ void main() {
       final conn = _testConnection(id: 'sf-error-align');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1138,7 +1139,7 @@ void main() {
               shellFactory: _errorShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1157,7 +1158,7 @@ void main() {
       final conn = _testConnection(id: 'sf-search-hidden');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1166,7 +1167,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1184,7 +1185,7 @@ void main() {
       final conn = _testConnection(id: 'sf-column');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1193,7 +1194,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1209,7 +1210,7 @@ void main() {
       final conn = _testConnection(id: 'sf-gesture');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1219,7 +1220,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1234,7 +1235,7 @@ void main() {
       final conn = _testConnection(id: 'sf-search-toggle');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1244,7 +1245,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1267,7 +1268,7 @@ void main() {
       final conn = _testConnection(id: 'sf-search-toggle-off');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1277,7 +1278,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1297,7 +1298,7 @@ void main() {
       final conn = _testConnection(id: 'sf-search-close-btn');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1307,7 +1308,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1552,10 +1553,10 @@ void main() {
 
       // Now dispose the search bar by replacing the widget
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: const Scaffold(body: SizedBox()),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1581,7 +1582,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1591,7 +1592,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1618,7 +1619,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1628,7 +1629,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1647,7 +1648,7 @@ void main() {
       final conn = _testConnection(id: 'sf-notifier-init');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1657,7 +1658,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1669,7 +1670,7 @@ void main() {
       final conn = _testConnection(id: 'sf-close-search');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -1679,7 +1680,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1917,7 +1918,7 @@ void main() {
       terminal.write('Hello World\r\n');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalSearchBar(
@@ -1926,7 +1927,7 @@ void main() {
               onClose: () => closeCalled = true,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1949,7 +1950,7 @@ void main() {
       final controller = TerminalController();
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalSearchBar(
@@ -1958,7 +1959,7 @@ void main() {
               onClose: () {},
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -1982,7 +1983,7 @@ void main() {
       final controller = TerminalController();
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalSearchBar(
@@ -1991,7 +1992,7 @@ void main() {
               onClose: () {},
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -2012,7 +2013,7 @@ void main() {
       final controller = TerminalController();
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalSearchBar(
@@ -2021,7 +2022,7 @@ void main() {
               onClose: () {},
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -2039,7 +2040,7 @@ void main() {
       final controller = TerminalController();
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalSearchBar(
@@ -2048,7 +2049,7 @@ void main() {
               onClose: () {},
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -2072,7 +2073,7 @@ void main() {
       final controller = TerminalController();
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalSearchBar(
@@ -2081,7 +2082,7 @@ void main() {
               onClose: () {},
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -2106,7 +2107,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -2114,7 +2115,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -2140,7 +2141,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -2148,7 +2149,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pump();
 
@@ -2170,7 +2171,7 @@ void main() {
       final conn = _testConnection(id: 'toggle-search');
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -2180,7 +2181,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -2213,7 +2214,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -2222,7 +2223,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
@@ -2256,7 +2257,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
             body: TerminalPane(
@@ -2265,7 +2266,7 @@ void main() {
               shellFactory: _successShellFactory,
             ),
           ),
-        ),
+        )),
       );
       await tester.pumpAndSettle();
 
