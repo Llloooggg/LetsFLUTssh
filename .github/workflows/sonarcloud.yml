@@ -15,17 +15,24 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.id == github.event.repository.id)
     permissions:
       contents: read
     steps:
+      # Scorecard rejects ref: ${{ github.event.workflow_run... }} on checkout (static match).
+      # Resolve SHA in a prior step so checkout ref is only steps.*.outputs (same commit as before).
+      - name: Resolve checkout ref
+        id: checkout_ref
+        run: echo "sha=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           # Pin to the commit that triggered CI, not to current HEAD.
           # Without this, a concurrent push can shift github.sha so the
           # SonarCloud check-run lands on a different SHA than build.yml expects.
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ steps.checkout_ref.outputs.sha }}
 
       - name: Download coverage artifact
         if: github.event_name != 'workflow_dispatch'
