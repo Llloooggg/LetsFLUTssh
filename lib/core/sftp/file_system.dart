@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../../utils/platform.dart';
@@ -73,7 +72,6 @@ class LocalFS implements FileSystem {
   ///
   /// Each line has the format: "     A  SH  C:\path\file"
   /// Attribute letters: S=System, H=Hidden.
-  @visibleForTesting
   static Set<String> parseAttribOutput(String output) {
     final hidden = <String>{};
     for (final line in output.split('\n')) {
