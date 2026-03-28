@@ -22,8 +22,9 @@ jobs:
       - name: Create tag via API
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          SHA="${{ github.event.workflow_run.head_sha }}"
+          SHA="$COMMIT_SHA"
           REPO="${{ github.repository }}"
 
           # Read pubspec.yaml via API (no checkout — avoids untrusted-checkout alert)
