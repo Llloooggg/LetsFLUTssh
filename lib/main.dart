@@ -28,6 +28,7 @@ import 'providers/theme_provider.dart';
 import 'providers/transfer_provider.dart';
 import 'core/update/update_service.dart';
 import 'providers/update_provider.dart';
+import 'providers/version_provider.dart';
 import 'features/mobile/mobile_shell.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
@@ -64,6 +65,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       onResume: _reloadSessions,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(appVersionProvider.notifier).load();
       await ref.read(configProvider.notifier).load();
       ref.read(sessionProvider.notifier).load();
       if (ref.read(configProvider).checkUpdatesOnStart) {

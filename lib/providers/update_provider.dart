@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../core/app_version.dart';
 import '../core/update/update_service.dart';
+import 'version_provider.dart';
 import '../utils/logger.dart';
 
 /// Possible states of the update workflow.
@@ -72,7 +72,8 @@ class UpdateNotifier extends Notifier<UpdateState> {
     }
     state = const UpdateState(status: UpdateStatus.checking);
     try {
-      final info = await _service.checkForUpdate(appVersion);
+      final version = ref.read(appVersionProvider);
+      final info = await _service.checkForUpdate(version);
       state = UpdateState(
         status: info.hasUpdate
             ? UpdateStatus.updateAvailable

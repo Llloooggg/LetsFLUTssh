@@ -11,6 +11,7 @@ import 'package:letsflutssh/features/settings/settings_screen.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/update_provider.dart';
+import 'package:letsflutssh/providers/version_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/logger.dart';
 import 'package:letsflutssh/widgets/toast.dart';
@@ -63,6 +64,7 @@ void main() {
       overrides: [
         configProvider.overrideWith(() =>
             _PrePopulatedConfigNotifier(config)),
+        appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
       ],
       child: MaterialApp(
         theme: AppTheme.dark(),
@@ -81,6 +83,7 @@ void main() {
       overrides: [
         configProvider.overrideWith(() =>
             _PrePopulatedConfigNotifier(config)),
+        appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
         sessionStoreProvider.overrideWithValue(SessionStore()),
         sessionProvider.overrideWith(SessionNotifier.new),
       ],
@@ -1950,6 +1953,7 @@ void main() {
           configProvider.overrideWith(
             () => _PrePopulatedConfigNotifier(config),
           ),
+          appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
           if (initialUpdateState != null)
             updateProvider.overrideWith(
               () => _PrePopulatedUpdateNotifier(initialUpdateState),
@@ -2133,4 +2137,13 @@ class _PrePopulatedUpdateNotifier extends UpdateNotifier {
     state = _initial;
     return state;
   }
+}
+
+/// An AppVersionNotifier that returns a fixed version string.
+class _FixedVersionNotifier extends AppVersionNotifier {
+  final String _version;
+  _FixedVersionNotifier(this._version);
+
+  @override
+  String build() => _version;
 }
