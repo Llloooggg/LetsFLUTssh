@@ -22,6 +22,10 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          # Pin to the commit that triggered CI, not to current HEAD.
+          # Without this, a concurrent push can shift github.sha so the
+          # SonarCloud check-run lands on a different SHA than build.yml expects.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Download coverage artifact
         if: github.event_name != 'workflow_dispatch'
