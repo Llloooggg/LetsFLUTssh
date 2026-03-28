@@ -167,22 +167,25 @@ tag: check ## Analyze + test, verify CI on GitHub, tag vX.Y.Z, push atomically
 		echo "Error: tag $$TAG already exists"; exit 1; \
 	fi; \
 	SHA=$$(git rev-parse HEAD); \
-	REPO=$$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null); \
+	REPO=$$(git remote get-url origin 2>/dev/null | sed -n 's|.*github\.com[:/]\(.*\)\.git$$|\1|p;s|.*github\.com[:/]\(.*\)$$|\1|p'); \
 	if [ -n "$$REPO" ]; then \
-		STATUS=$$(gh api "repos/$$REPO/commits/$$SHA/check-runs" \
-			--jq '.check_runs[] | select(.name == "analyze-and-test" and .app.slug == "github-actions") | .conclusion' 2>/dev/null | head -1); \
+		API="https://api.github.com/repos/$$REPO"; \
+		STATUS=$$(curl -sf "$$API/commits/$$SHA/check-runs" \
+			| sed -n '/"name".*"analyze-and-test"/,/"conclusion"/{ s/.*"conclusion": *"\([^"]*\)".*/\1/p; }' \
+			| head -1); \
 		if [ -z "$$STATUS" ]; then \
-			LAST_CI=$$(gh api "repos/$$REPO/actions/workflows/ci.yml/runs?per_page=5&status=success" \
-				--jq '.workflow_runs[0] | "\(.head_sha) \(.head_commit.message)"' 2>/dev/null); \
-			LAST_SHA=$${LAST_CI%% *}; \
-			LAST_MSG=$${LAST_CI#* }; \
+			LAST_CI=$$(curl -sf "$$API/actions/workflows/ci.yml/runs?per_page=5&status=success" \
+				| sed -n '/"head_sha"/{ s/.*"head_sha": *"\([^"]*\)".*/\1/p; q; }'); \
 			echo ""; \
 			echo "✗ No CI check run found for $$SHA."; \
 			echo "  HEAD is likely a ci/docs-only commit. Tag the last app-change commit instead:"; \
-			echo "    git tag -a $$TAG $$LAST_SHA -m \"$$TAG\""; \
-			echo "    git push origin $$TAG"; \
-			echo ""; \
-			echo "  Last CI-passed commit: $$LAST_SHA ($$LAST_MSG)"; \
+			if [ -n "$$LAST_CI" ]; then \
+				LAST_MSG=$$(git log --format=%s -1 "$$LAST_CI" 2>/dev/null || echo "unknown"); \
+				echo "    git tag -a $$TAG $$LAST_CI -m \"$$TAG\""; \
+				echo "    git push origin $$TAG"; \
+				echo ""; \
+				echo "  Last CI-passed commit: $$LAST_CI ($$LAST_MSG)"; \
+			fi; \
 			exit 1; \
 		elif [ "$$STATUS" != "success" ]; then \
 			echo ""; \
@@ -192,7 +195,7 @@ tag: check ## Analyze + test, verify CI on GitHub, tag vX.Y.Z, push atomically
 		fi; \
 		echo "==> CI passed on $$SHA ✓"; \
 	else \
-		echo "==> Warning: gh CLI not available or not in a GitHub repo — skipping CI check"; \
+		echo "==> Warning: not a GitHub repo — skipping CI check"; \
 	fi; \
 	echo "==> Tagging $$TAG on HEAD..."; \
 	git tag -a "$$TAG" -m "$$TAG"; \
