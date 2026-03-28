@@ -191,6 +191,10 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       });
     } else {
       _marqueeAnchor = null;
+      // Click without drag — clear marquee selection
+      if (widget.selectedIds.isNotEmpty && !widget.selectMode) {
+        widget.onMarqueeSelect?.call({});
+      }
     }
   }
 
@@ -559,7 +563,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         child: Container(
           height: _rowHeight,
           padding: const EdgeInsets.only(right: 8),
-          color: isSelected && !widget.selectMode
+          color: (isSelected || isChecked) && !widget.selectMode
               ? theme.colorScheme.primary.withValues(alpha: 0.15)
               : null,
           child: Row(
