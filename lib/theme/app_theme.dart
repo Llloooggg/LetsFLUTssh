@@ -208,6 +208,16 @@ abstract final class AppTheme {
         ),
         textStyle: const TextStyle(color: _fg, fontSize: 12),
       ),
+      chipTheme: ChipThemeData(
+        backgroundColor: _darker,
+        selectedColor: _blue.withValues(alpha: 0.25),
+        labelStyle: const TextStyle(color: _fg),
+        secondaryLabelStyle: const TextStyle(color: _blue),
+        side: const BorderSide(color: _border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        deleteIconColor: _gutter,
+        checkmarkColor: _blue,
+      ),
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.all(const Color(0x66636D83)),
         radius: const Radius.circular(4),
@@ -391,6 +401,16 @@ abstract final class AppTheme {
           border: Border.all(color: _lightBorder),
         ),
         textStyle: const TextStyle(color: _lightBg, fontSize: 12),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.white,
+        selectedColor: _lightBlue.withValues(alpha: 0.15),
+        labelStyle: const TextStyle(color: _lightFg),
+        secondaryLabelStyle: const TextStyle(color: _lightBlue),
+        side: const BorderSide(color: _lightBorder),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        deleteIconColor: _lightGutter,
+        checkmarkColor: _lightBlue,
       ),
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.all(const Color(0x669D9D9F)),
