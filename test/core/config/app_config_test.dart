@@ -588,6 +588,7 @@ void main() {
         expect(config.transferWorkers, 2);
         expect(config.maxHistory, 500);
         expect(config.enableLogging, false);
+        expect(config.checkUpdatesOnStart, true);
       });
 
       test('static defaults matches default constructor', () {
@@ -717,6 +718,11 @@ void main() {
         expect(config.sanitized().enableLogging, true);
       });
 
+      test('preserves checkUpdatesOnStart', () {
+        const config = AppConfig(checkUpdatesOnStart: false);
+        expect(config.sanitized().checkUpdatesOnStart, false);
+      });
+
       test('preserves valid values', () {
         const config = AppConfig(
           transferWorkers: 4,
@@ -777,6 +783,12 @@ void main() {
         expect(copy.enableLogging, true);
       });
 
+      test('replaces checkUpdatesOnStart', () {
+        const config = AppConfig();
+        final copy = config.copyWith(checkUpdatesOnStart: false);
+        expect(copy.checkUpdatesOnStart, false);
+      });
+
       test('returns equal object when no arguments given', () {
         const config = AppConfig(
           terminal: TerminalConfig(fontSize: 18),
@@ -831,6 +843,12 @@ void main() {
         expect(a, isNot(equals(b)));
       });
 
+      test('different checkUpdatesOnStart makes unequal', () {
+        const a = AppConfig(checkUpdatesOnStart: true);
+        const b = AppConfig(checkUpdatesOnStart: false);
+        expect(a, isNot(equals(b)));
+      });
+
       test('identical returns true for same instance', () {
         const config = AppConfig();
         expect(config == config, isTrue);
@@ -851,6 +869,7 @@ void main() {
           transferWorkers: 4,
           maxHistory: 1000,
           enableLogging: true,
+          checkUpdatesOnStart: false,
         );
         final json = config.toJson();
         final restored = AppConfig.fromJson(json);
@@ -875,6 +894,7 @@ void main() {
         expect(json, containsPair('transfer_workers', 2));
         expect(json, containsPair('max_history', 500));
         expect(json, containsPair('enable_logging', false));
+        expect(json, containsPair('check_updates_on_start', true));
       });
 
       test('fromJson() with empty map falls back to defaults', () {
@@ -933,6 +953,16 @@ void main() {
       test('fromJson() defaults enableLogging to false', () {
         final config = AppConfig.fromJson({});
         expect(config.enableLogging, false);
+      });
+
+      test('fromJson() preserves checkUpdatesOnStart false', () {
+        final config = AppConfig.fromJson({'check_updates_on_start': false});
+        expect(config.checkUpdatesOnStart, false);
+      });
+
+      test('fromJson() defaults checkUpdatesOnStart to true', () {
+        final config = AppConfig.fromJson({});
+        expect(config.checkUpdatesOnStart, true);
       });
     });
   });

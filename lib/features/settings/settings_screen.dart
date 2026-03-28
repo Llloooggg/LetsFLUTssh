@@ -6,19 +6,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/app_version.dart';
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
 import '../../core/session/qr_codec.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/update_provider.dart';
 import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
+import '../../utils/platform.dart' as plat;
 import '../../widgets/toast.dart';
 import '../session_manager/qr_display_screen.dart';
 import '../session_manager/qr_export_dialog.dart';
 import 'export_import.dart';
 
-/// App version — kept in sync with pubspec.yaml.
-const _appVersion = '1.4.16';
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
 /// Settings screen with config editing.
@@ -72,6 +73,11 @@ class SettingsScreen extends ConsumerWidget {
 
           const _SectionHeader(title: 'Logging'),
           const _LoggingSection(),
+
+          const Divider(height: 32),
+
+          const _SectionHeader(title: 'Updates'),
+          const _UpdateSection(),
 
           const Divider(height: 32),
 
@@ -511,6 +517,188 @@ class _ExportImportTile extends ConsumerWidget {
 
 }
 
+class _UpdateSection extends ConsumerWidget {
+  const _UpdateSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final checkOnStart = ref.watch(
+      configProvider.select((c) => c.checkUpdatesOnStart),
+    );
+    final updateState = ref.watch(updateProvider);
+
+    return Column(
+      children: [
+        SwitchListTile(
+          title: const Text('Check for Updates on Startup'),
+          value: checkOnStart,
+          contentPadding: EdgeInsets.zero,
+          onChanged: (v) => ref.read(configProvider.notifier).update(
+            (c) => c.copyWith(checkUpdatesOnStart: v),
+          ),
+        ),
+        _buildCheckButton(context, ref, updateState),
+        _buildStatusWidget(context, ref, updateState),
+      ],
+    );
+  }
+
+  Widget _buildCheckButton(
+    BuildContext context,
+    WidgetRef ref,
+    UpdateState updateState,
+  ) {
+    final isChecking = updateState.status == UpdateStatus.checking;
+    return ListTile(
+      leading: isChecking
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.refresh, size: 20),
+      title: Text(isChecking ? 'Checking...' : 'Check for Updates'),
+      contentPadding: EdgeInsets.zero,
+      onTap: isChecking ? null : () => ref.read(updateProvider.notifier).check(),
+    );
+  }
+
+  Widget _buildStatusWidget(
+    BuildContext context,
+    WidgetRef ref,
+    UpdateState updateState,
+  ) {
+    final theme = Theme.of(context);
+
+    switch (updateState.status) {
+      case UpdateStatus.idle:
+      case UpdateStatus.checking:
+        return const SizedBox.shrink();
+
+      case UpdateStatus.upToDate:
+        return ListTile(
+          leading: Icon(Icons.check_circle_outline, size: 20,
+              color: theme.colorScheme.primary),
+          title: const Text('You\'re up to date (v$appVersion)'),
+          contentPadding: EdgeInsets.zero,
+        );
+
+      case UpdateStatus.updateAvailable:
+        return _buildUpdateAvailable(context, ref, updateState);
+
+      case UpdateStatus.downloading:
+        return ListTile(
+          leading: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              value: updateState.progress > 0 ? updateState.progress : null,
+              strokeWidth: 2,
+            ),
+          ),
+          title: Text(
+            'Downloading... ${(updateState.progress * 100).toInt()}%',
+          ),
+          contentPadding: EdgeInsets.zero,
+        );
+
+      case UpdateStatus.downloaded:
+        return _buildDownloaded(context, ref, updateState);
+
+      case UpdateStatus.error:
+        return ListTile(
+          leading: Icon(Icons.error_outline, size: 20,
+              color: theme.colorScheme.error),
+          title: const Text('Update check failed'),
+          subtitle: Text(
+            updateState.error ?? 'Unknown error',
+            style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+          ),
+          contentPadding: EdgeInsets.zero,
+        );
+    }
+  }
+
+  Widget _buildUpdateAvailable(
+    BuildContext context,
+    WidgetRef ref,
+    UpdateState updateState,
+  ) {
+    final info = updateState.info!;
+    final hasAsset = info.assetUrl != null;
+
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.system_update, size: 20),
+          title: Text('Version ${info.latestVersion} available'),
+          subtitle: Text('Current: v${info.currentVersion}'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (hasAsset && plat.isDesktopPlatform)
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: FilledButton.icon(
+              onPressed: () => ref.read(updateProvider.notifier).download(),
+              icon: const Icon(Icons.download, size: 18),
+              label: const Text('Download & Install'),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: info.releaseUrl));
+                Toast.show(context,
+                    message: 'Release URL copied to clipboard',
+                    level: ToastLevel.info);
+              },
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: const Text('Copy Release URL'),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDownloaded(
+    BuildContext context,
+    WidgetRef ref,
+    UpdateState updateState,
+  ) {
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.check_circle, size: 20),
+          title: const Text('Download complete'),
+          subtitle: Text(
+            updateState.downloadedPath ?? '',
+            style: const TextStyle(fontSize: 12),
+            overflow: TextOverflow.ellipsis,
+          ),
+          contentPadding: EdgeInsets.zero,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: FilledButton.icon(
+            onPressed: () async {
+              final ok = await ref.read(updateProvider.notifier).install();
+              if (!ok && context.mounted) {
+                Toast.show(context,
+                    message: 'Could not open installer',
+                    level: ToastLevel.error);
+              }
+            },
+            icon: const Icon(Icons.install_desktop, size: 18),
+            label: const Text('Install Now'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _AboutSection extends StatelessWidget {
   const _AboutSection();
 
@@ -522,7 +710,7 @@ class _AboutSection extends StatelessWidget {
         const ListTile(
           leading: Icon(Icons.info_outline, size: 20),
           title: Text('LetsFLUTssh'),
-          subtitle: Text('v$_appVersion — SSH/SFTP client'),
+          subtitle: Text('v$appVersion — SSH/SFTP client'),
           contentPadding: EdgeInsets.zero,
         ),
         ListTile(

@@ -211,6 +211,7 @@ class AppConfig {
   final int transferWorkers;
   final int maxHistory;
   final bool enableLogging;
+  final bool checkUpdatesOnStart;
 
   const AppConfig({
     this.terminal = const TerminalConfig(),
@@ -219,6 +220,7 @@ class AppConfig {
     this.transferWorkers = 2,
     this.maxHistory = 500,
     this.enableLogging = false,
+    this.checkUpdatesOnStart = true,
   });
 
   static const AppConfig defaults = AppConfig();
@@ -253,6 +255,7 @@ class AppConfig {
       transferWorkers: transferWorkers < 1 ? d.transferWorkers : transferWorkers,
       maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
       enableLogging: enableLogging,
+      checkUpdatesOnStart: checkUpdatesOnStart,
     );
   }
 
@@ -263,6 +266,7 @@ class AppConfig {
     int? transferWorkers,
     int? maxHistory,
     bool? enableLogging,
+    bool? checkUpdatesOnStart,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -271,6 +275,7 @@ class AppConfig {
       transferWorkers: transferWorkers ?? this.transferWorkers,
       maxHistory: maxHistory ?? this.maxHistory,
       enableLogging: enableLogging ?? this.enableLogging,
+      checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
     );
   }
 
@@ -283,11 +288,13 @@ class AppConfig {
           ui == other.ui &&
           transferWorkers == other.transferWorkers &&
           maxHistory == other.maxHistory &&
-          enableLogging == other.enableLogging;
+          enableLogging == other.enableLogging &&
+          checkUpdatesOnStart == other.checkUpdatesOnStart;
 
   @override
   int get hashCode => Object.hash(
         terminal, ssh, ui, transferWorkers, maxHistory, enableLogging,
+        checkUpdatesOnStart,
       );
 
   /// JSON stays flat for backward compatibility.
@@ -298,6 +305,7 @@ class AppConfig {
     'transfer_workers': transferWorkers,
     'max_history': maxHistory,
     'enable_logging': enableLogging,
+    'check_updates_on_start': checkUpdatesOnStart,
   };
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
@@ -309,6 +317,7 @@ class AppConfig {
       transferWorkers: json['transfer_workers'] as int? ?? d.transferWorkers,
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
+      checkUpdatesOnStart: json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
     ).sanitized();
   }
 }
