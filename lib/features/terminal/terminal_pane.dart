@@ -164,8 +164,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final Border? border;
     if (!widget.hasMultiplePanes) {
       border = null;
-    } else if (widget.isFocused) {
-      border = Border.all(color: theme.colorScheme.primary, width: 1.5);
     } else {
       border = Border.all(color: theme.dividerColor, width: 0.5);
     }
