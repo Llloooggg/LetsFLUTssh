@@ -11,7 +11,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 
 ### Commits
 
-- **Claude does not commit or push unless the user explicitly asks.** When asked — scope matches what was said: "commit" = commit only, "commit and push" = commit + tag last in series + push. When the user asks to do multiple fixes — commit each fix immediately after finishing it (see below), don't wait for the whole batch
+- **Claude does not commit or push unless the user explicitly asks.** When asked — scope matches what was said: "commit" = commit only, "commit and push" = commit + push (auto-tag handles the rest). When the user asks to do multiple fixes — commit each fix immediately after finishing it (see below), don't wait for the whole batch
 - **Every commit that affects the shipped app MUST include a version bump** in `pubspec.yaml` (the only source of truth — `package_info_plus` reads it at runtime). Includes: `lib/`, platform configs, native code, assets, build settings. Patch for bugfix/refactor, minor for new feature, major for breaking change. No exceptions
 - Format: `type: short description` — types: `feat`, `fix`, `refactor` (app changes), `test`, `docs`, `chore`, `ci` (non-app)
 - **Commit messages drive auto-changelog** — `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements. Keep messages user-readable. If commit has both app changes and docs — prefix describes the app change only
@@ -33,17 +33,26 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 
 **No bump needed for:** tests, docs, CI, linter fixes. **Bump IS needed for:** any `lib/` change (including logging), platform configs, native code, assets.
 
-**Tagging — automatic via `auto-tag.yml`:**
+**Tagging — fully automated via `auto-tag.yml`:**
 
-Tags are created automatically when CI passes on a `feat:`, `fix:`, or `refactor:` commit on main. The `auto-tag.yml` workflow reads the version from `pubspec.yaml` and creates the tag via GitHub API — no manual step needed.
+Just `git push` — everything else is automatic:
 
-`make tag` is still available as a manual fallback (runs analyze + test locally, verifies CI, tags, pushes).
+1. Push triggers CI (analyze + test)
+2. CI passes → `auto-tag.yml` fires
+3. auto-tag checks **HEAD commit prefix** (`feat:` / `fix:` / `refactor:`) and reads version from `pubspec.yaml`
+4. Creates annotated tag `v{VERSION}` via GitHub API using `RELEASE_TOKEN`
+5. Tag triggers Build & Release workflow
 
-| Scenario        | What happens                                                    |
-| --------------- | --------------------------------------------------------------- |
-| Bugfix/Feature  | Push → CI passes → auto-tag → Build & Release                  |
-| Tests/docs only | Push → CI passes → no tag (prefix not feat/fix/refactor)        |
-| Dependabot deps | Merge → CI passes → `dependabot-tag.yml` handles it separately |
+**HEAD must be a taggable commit.** auto-tag only inspects the HEAD commit message. If HEAD is `test:`, `docs:`, `ci:`, or `chore:` — no tag is created even if prior commits have version bumps.
+
+| Scenario                    | What to do                                                          |
+| --------------------------- | ------------------------------------------------------------------- |
+| App change (feat/fix/refac) | `git push` — auto-tag handles it                                   |
+| App change + tests/docs     | Bundle tests/docs into the app commit, OR make sure the app commit is pushed last |
+| Tests/docs/CI only          | `git push` — no tag, no release (correct behavior)                  |
+| Dependabot deps             | Auto: merge → version bump → CI → `dependabot-tag.yml`             |
+
+`make tag` exists as a **manual fallback only** (runs local checks, verifies remote CI, tags, pushes). Normal flow never needs it.
 
 - By default Claude only reminds about tagging — does **not** run `make tag` unless user explicitly asks
 
