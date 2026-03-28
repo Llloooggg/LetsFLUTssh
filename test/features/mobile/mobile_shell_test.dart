@@ -333,7 +333,7 @@ void main() {
       }
     });
 
-    testWidgets('swipe right navigates to previous tab', (tester) async {
+    testWidgets('swipe right from left edge navigates to previous tab', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -342,28 +342,26 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('No active terminals'), findsOneWidget);
 
-      // Swipe right (positive velocity) to go back to Sessions
-      await tester.fling(
-        find.text('No active terminals'),
-        const Offset(300, 0),
-        800,
-      );
+      // Swipe right from left edge to go back to Sessions
+      final rect = tester.getRect(find.byType(IndexedStack));
+      final gesture = await tester.startGesture(Offset(rect.left + 5, rect.center.dy));
+      await gesture.moveBy(const Offset(100, 0));
+      await gesture.up();
       await tester.pumpAndSettle();
 
       // Should be back on Sessions
       expect(find.byType(IndexedStack), findsOneWidget);
     });
 
-    testWidgets('swipe left navigates to next tab', (tester) async {
+    testWidgets('swipe left from right edge navigates to next tab', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Start on Sessions, swipe left to go to Terminal
-      await tester.fling(
-        find.byType(IndexedStack),
-        const Offset(-300, 0),
-        800,
-      );
+      // Start on Sessions, swipe left from right edge to go to Terminal
+      final rect = tester.getRect(find.byType(IndexedStack));
+      final gesture = await tester.startGesture(Offset(rect.right - 5, rect.center.dy));
+      await gesture.moveBy(const Offset(-100, 0));
+      await gesture.up();
       await tester.pumpAndSettle();
 
       // Should be on Terminal page
@@ -665,12 +663,11 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Already at index 0 (Sessions), swipe right should not change
-      await tester.fling(
-        find.byType(IndexedStack),
-        const Offset(300, 0),
-        800,
-      );
+      // Already at index 0 (Sessions), swipe right from left edge should not change
+      final rect = tester.getRect(find.byType(IndexedStack));
+      final gesture = await tester.startGesture(Offset(rect.left + 5, rect.center.dy));
+      await gesture.moveBy(const Offset(100, 0));
+      await gesture.up();
       await tester.pumpAndSettle();
 
       // Should still be on Sessions
@@ -685,12 +682,11 @@ void main() {
       await tester.tap(find.text('Files'));
       await tester.pumpAndSettle();
 
-      // Swipe left should not change (already at max)
-      await tester.fling(
-        find.text('No active file browsers'),
-        const Offset(-300, 0),
-        800,
-      );
+      // Swipe left from right edge should not change (already at max)
+      final rect = tester.getRect(find.byType(IndexedStack));
+      final gesture = await tester.startGesture(Offset(rect.right - 5, rect.center.dy));
+      await gesture.moveBy(const Offset(-100, 0));
+      await gesture.up();
       await tester.pumpAndSettle();
 
       // Should still be on Files
@@ -701,21 +697,19 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Swipe left to Terminal
-      await tester.fling(
-        find.byType(IndexedStack),
-        const Offset(-300, 0),
-        800,
-      );
+      final rect = tester.getRect(find.byType(IndexedStack));
+
+      // Swipe left from right edge to Terminal
+      var gesture = await tester.startGesture(Offset(rect.right - 5, rect.center.dy));
+      await gesture.moveBy(const Offset(-100, 0));
+      await gesture.up();
       await tester.pumpAndSettle();
       expect(find.text('No active terminals'), findsOneWidget);
 
-      // Swipe left to Files
-      await tester.fling(
-        find.text('No active terminals'),
-        const Offset(-300, 0),
-        800,
-      );
+      // Swipe left from right edge to Files
+      gesture = await tester.startGesture(Offset(rect.right - 5, rect.center.dy));
+      await gesture.moveBy(const Offset(-100, 0));
+      await gesture.up();
       await tester.pumpAndSettle();
       expect(find.text('No active file browsers'), findsOneWidget);
     });

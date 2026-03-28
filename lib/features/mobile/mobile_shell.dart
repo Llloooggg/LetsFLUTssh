@@ -25,6 +25,7 @@ class MobileShell extends ConsumerStatefulWidget {
 
 class _MobileShellState extends ConsumerState<MobileShell> {
   int _navIndex = 0; // 0 = sessions, 1 = terminal, 2 = sftp
+  Offset? _swipeStart; // Edge swipe tracking
 
   @override
   Widget build(BuildContext context) {
@@ -66,15 +67,34 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               ),
             ),
             Expanded(
-              child: GestureDetector(
-                onHorizontalDragEnd: (details) {
-                  final velocity = details.primaryVelocity ?? 0;
-                  if (velocity > 300 && _navIndex > 0) {
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (event) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final x = event.localPosition.dx;
+                  // Only track swipes starting near screen edges
+                  if (x <= 30 || x >= screenWidth - 30) {
+                    _swipeStart = event.localPosition;
+                  }
+                },
+                onPointerUp: (event) {
+                  final start = _swipeStart;
+                  _swipeStart = null;
+                  if (start == null) return;
+
+                  final dx = event.localPosition.dx - start.dx;
+                  final dy = (event.localPosition.dy - start.dy).abs();
+
+                  // Require primarily horizontal movement with minimum distance
+                  if (dx.abs() < 40 || dy > dx.abs()) return;
+
+                  if (dx > 0 && _navIndex > 0) {
                     setState(() => _navIndex--);
-                  } else if (velocity < -300 && _navIndex < 2) {
+                  } else if (dx < 0 && _navIndex < 2) {
                     setState(() => _navIndex++);
                   }
                 },
+                onPointerCancel: (_) => _swipeStart = null,
                 child: IndexedStack(
                   index: _navIndex,
                   children: [
