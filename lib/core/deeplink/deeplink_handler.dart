@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../utils/logger.dart';
 import '../session/qr_codec.dart';
@@ -62,7 +61,6 @@ class DeepLinkHandler {
     return uri.replace(queryParameters: safe).toString();
   }
 
-  @visibleForTesting
   void handleUri(Uri uri) {
     // Deduplicate: cold start can fire both getInitialLink and uriLinkStream
     if (_lastProcessedUri == uri) {
@@ -82,7 +80,6 @@ class DeepLinkHandler {
     }
   }
 
-  @visibleForTesting
   void handleCustomScheme(Uri uri) {
     if (uri.host == 'connect') {
       final config = parseConnectUri(uri);
@@ -104,7 +101,6 @@ class DeepLinkHandler {
     }
   }
 
-  @visibleForTesting
   void handleFileUri(Uri uri) {
     final path = uri.path.toLowerCase();
     if (path.endsWith('.lfs')) {
