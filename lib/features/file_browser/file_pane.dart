@@ -25,6 +25,10 @@ class FilePane extends StatefulWidget {
   /// Called when files are dropped from the OS file manager.
   final void Function(List<String> paths)? onOsDropReceived;
 
+  /// Called when the user starts interacting with this pane (pointer down).
+  /// Used by parent to clear selection in the sibling pane.
+  final VoidCallback? onPaneActivated;
+
   const FilePane({
     super.key,
     required this.controller,
@@ -33,6 +37,7 @@ class FilePane extends StatefulWidget {
     this.onTransferMultiple,
     this.onDropReceived,
     this.onOsDropReceived,
+    this.onPaneActivated,
   });
 
   @override
@@ -361,7 +366,12 @@ class _FilePaneState extends State<FilePane> {
 
   Widget _buildEmptyState() {
     return GestureDetector(
+      onTap: () {
+        ctrl.clearSelection();
+        widget.onPaneActivated?.call();
+      },
       onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
+      behavior: HitTestBehavior.translucent,
       child: const Center(child: Text('Empty directory', style: TextStyle(fontSize: 13))),
     );
   }
@@ -395,6 +405,7 @@ class _FilePaneState extends State<FilePane> {
 
   void _onListPointerDown(PointerDownEvent e) {
     _focusNode.requestFocus();
+    widget.onPaneActivated?.call();
     if (e.buttons != kPrimaryButton) return;
 
     final rowIdx = _rowIndexAt(e.localPosition.dy);
@@ -439,6 +450,13 @@ class _FilePaneState extends State<FilePane> {
         _marqueeActive = false;
       });
     } else {
+      // Click (no drag) on empty space below files — clear selection
+      if (_marqueeAnchor != null && !_isCtrlHeld) {
+        final rowIdx = _rowIndexAt(_marqueeAnchor!.dy);
+        if (rowIdx < 0 || rowIdx >= ctrl.entries.length) {
+          ctrl.clearSelection();
+        }
+      }
       _marqueeAnchor = null;
       _preMarqueeSelection = null;
     }
