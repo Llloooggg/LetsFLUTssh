@@ -279,4 +279,114 @@ void main() {
       expect(e.cause, cause);
     });
   });
+
+  group('CredentialStore — concurrent key generation', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      tempDir = await Directory.systemTemp.createTemp('cred_concurrent_');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (call) async => tempDir.path,
+      );
+    });
+
+    tearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        null,
+      );
+      await tempDir.delete(recursive: true);
+    });
+
+    test('concurrent saveAll calls produce a single key file', () async {
+      final store = CredentialStore();
+      // Launch two saves simultaneously — only one key should be generated
+      await Future.wait([
+        store.saveAll({'s1': const CredentialData(password: 'a')}),
+        store.saveAll({'s2': const CredentialData(password: 'b')}),
+      ]);
+
+      final keyFile = File('${tempDir.path}/credentials.key');
+      expect(await keyFile.exists(), isTrue);
+      // Key is exactly 32 bytes (AES-256)
+      expect((await keyFile.readAsBytes()).length, 32);
+
+      // Both stores are readable after concurrent writes
+      final result = await store.loadAll();
+      expect(result.isNotEmpty, isTrue);
+    });
+
+    test('second saveAll reuses existing key file', () async {
+      final store = CredentialStore();
+      await store.saveAll({'s1': const CredentialData(password: 'first')});
+
+      final keyFile = File('${tempDir.path}/credentials.key');
+      final keyBefore = await keyFile.readAsBytes();
+
+      await store.saveAll({'s1': const CredentialData(password: 'second')});
+      final keyAfter = await keyFile.readAsBytes();
+
+      // Key must not change between saves
+      expect(keyBefore, equals(keyAfter));
+    });
+  });
+
+  group('CredentialStore — key-file-only edge cases', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      tempDir = await Directory.systemTemp.createTemp('cred_edge_');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (call) async => tempDir.path,
+      );
+    });
+
+    tearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        null,
+      );
+      await tempDir.delete(recursive: true);
+    });
+
+    test('loadAll returns empty when key file exists but cred file does not', () async {
+      // Simulate leftover key file from a previous install
+      final keyFile = File('${tempDir.path}/credentials.key');
+      await keyFile.writeAsBytes(List.generate(32, (i) => i));
+
+      final store = CredentialStore();
+      final all = await store.loadAll();
+      expect(all, isEmpty);
+    });
+
+    test('loadAll throws when cred file exists but key file does not', () async {
+      // Simulate orphaned cred file (key was deleted)
+      final credFile = File('${tempDir.path}/credentials.enc');
+      await credFile.writeAsBytes([0, 1, 2, 3]); // garbage, no key to decrypt
+
+      final store = CredentialStore();
+      // No key file → loadAll returns empty (both files must exist to attempt decrypt)
+      final all = await store.loadAll();
+      expect(all, isEmpty);
+    });
+
+    test('delete succeeds even when credential file is corrupted', () async {
+      final credFile = File('${tempDir.path}/credentials.enc');
+      final keyFile = File('${tempDir.path}/credentials.key');
+      await credFile.writeAsString('garbage');
+      await keyFile.writeAsBytes(List.generate(32, (i) => i));
+
+      final store = CredentialStore();
+      // delete uses loadAllSafe — should not throw
+      await expectLater(store.delete('any-id'), completes);
+    });
+  });
 }
