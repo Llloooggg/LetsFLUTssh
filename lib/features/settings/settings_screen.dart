@@ -805,43 +805,65 @@ class _UpdateSection extends ConsumerWidget {
   ) {
     final info = updateState.info!;
     final hasAsset = info.assetUrl != null;
+    final skipped = ref.watch(configProvider.select((c) => c.skippedVersion));
+    final isSkipped = skipped == info.latestVersion;
 
     return Column(
       children: [
         ListTile(
           leading: const Icon(Icons.system_update, size: 20),
           title: Text('Version ${info.latestVersion} available'),
-          subtitle: Text('Current: v${info.currentVersion}'),
+          subtitle: Text(
+            isSkipped
+                ? 'Current: v${info.currentVersion} (skipped)'
+                : 'Current: v${info.currentVersion}',
+          ),
           contentPadding: EdgeInsets.zero,
         ),
-        if (hasAsset && plat.isDesktopPlatform)
-          Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: FilledButton.icon(
-              onPressed: () => ref.read(updateProvider.notifier).download(),
-              icon: const Icon(Icons.download, size: 18),
-              label: const Text('Download & Install'),
-            ),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                final url = Uri.parse(info.releaseUrl);
-                if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-                  if (context.mounted) {
-                    Clipboard.setData(ClipboardData(text: info.releaseUrl));
-                    Toast.show(context,
-                        message: 'Could not open browser — URL copied to clipboard',
-                        level: ToastLevel.warning);
-                  }
-                }
-              },
-              icon: const Icon(Icons.open_in_new, size: 18),
-              label: const Text('Open in Browser'),
-            ),
+        Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Wrap(
+            spacing: 8,
+            children: [
+              if (hasAsset && plat.isDesktopPlatform)
+                FilledButton.icon(
+                  onPressed: () => ref.read(updateProvider.notifier).download(),
+                  icon: const Icon(Icons.download, size: 18),
+                  label: const Text('Download & Install'),
+                )
+              else
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final url = Uri.parse(info.releaseUrl);
+                    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                      if (context.mounted) {
+                        Clipboard.setData(ClipboardData(text: info.releaseUrl));
+                        Toast.show(context,
+                            message: 'Could not open browser — URL copied to clipboard',
+                            level: ToastLevel.warning);
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: const Text('Open in Browser'),
+                ),
+              if (!isSkipped)
+                TextButton(
+                  onPressed: () => ref.read(configProvider.notifier).update(
+                    (c) => c.copyWith(skippedVersion: () => info.latestVersion),
+                  ),
+                  child: const Text('Skip This Version'),
+                )
+              else
+                TextButton(
+                  onPressed: () => ref.read(configProvider.notifier).update(
+                    (c) => c.copyWith(skippedVersion: () => null),
+                  ),
+                  child: const Text('Unskip'),
+                ),
+            ],
           ),
+        ),
       ],
     );
   }

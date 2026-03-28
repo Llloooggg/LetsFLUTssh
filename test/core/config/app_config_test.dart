@@ -589,6 +589,7 @@ void main() {
         expect(config.maxHistory, 500);
         expect(config.enableLogging, false);
         expect(config.checkUpdatesOnStart, true);
+        expect(config.skippedVersion, isNull);
       });
 
       test('static defaults matches default constructor', () {
@@ -723,6 +724,16 @@ void main() {
         expect(config.sanitized().checkUpdatesOnStart, false);
       });
 
+      test('preserves skippedVersion', () {
+        const config = AppConfig(skippedVersion: '2.0.0');
+        expect(config.sanitized().skippedVersion, '2.0.0');
+      });
+
+      test('preserves null skippedVersion', () {
+        const config = AppConfig();
+        expect(config.sanitized().skippedVersion, isNull);
+      });
+
       test('preserves valid values', () {
         const config = AppConfig(
           transferWorkers: 4,
@@ -789,6 +800,24 @@ void main() {
         expect(copy.checkUpdatesOnStart, false);
       });
 
+      test('replaces skippedVersion with value', () {
+        const config = AppConfig();
+        final copy = config.copyWith(skippedVersion: () => '2.0.0');
+        expect(copy.skippedVersion, '2.0.0');
+      });
+
+      test('clears skippedVersion with null', () {
+        const config = AppConfig(skippedVersion: '2.0.0');
+        final copy = config.copyWith(skippedVersion: () => null);
+        expect(copy.skippedVersion, isNull);
+      });
+
+      test('preserves skippedVersion when not specified', () {
+        const config = AppConfig(skippedVersion: '2.0.0');
+        final copy = config.copyWith(enableLogging: true);
+        expect(copy.skippedVersion, '2.0.0');
+      });
+
       test('returns equal object when no arguments given', () {
         const config = AppConfig(
           terminal: TerminalConfig(fontSize: 18),
@@ -849,6 +878,18 @@ void main() {
         expect(a, isNot(equals(b)));
       });
 
+      test('different skippedVersion makes unequal', () {
+        const a = AppConfig(skippedVersion: '1.0.0');
+        const b = AppConfig(skippedVersion: '2.0.0');
+        expect(a, isNot(equals(b)));
+      });
+
+      test('null vs non-null skippedVersion makes unequal', () {
+        const a = AppConfig();
+        const b = AppConfig(skippedVersion: '2.0.0');
+        expect(a, isNot(equals(b)));
+      });
+
       test('identical returns true for same instance', () {
         const config = AppConfig();
         expect(config == config, isTrue);
@@ -870,6 +911,7 @@ void main() {
           maxHistory: 1000,
           enableLogging: true,
           checkUpdatesOnStart: false,
+          skippedVersion: '2.0.0',
         );
         final json = config.toJson();
         final restored = AppConfig.fromJson(json);
@@ -963,6 +1005,33 @@ void main() {
       test('fromJson() defaults checkUpdatesOnStart to true', () {
         final config = AppConfig.fromJson({});
         expect(config.checkUpdatesOnStart, true);
+      });
+
+      test('fromJson() preserves skippedVersion', () {
+        final config = AppConfig.fromJson({'skipped_version': '2.0.0'});
+        expect(config.skippedVersion, '2.0.0');
+      });
+
+      test('fromJson() defaults skippedVersion to null', () {
+        final config = AppConfig.fromJson({});
+        expect(config.skippedVersion, isNull);
+      });
+
+      test('toJson() omits skippedVersion when null', () {
+        final json = const AppConfig().toJson();
+        expect(json.containsKey('skipped_version'), isFalse);
+      });
+
+      test('toJson() includes skippedVersion when set', () {
+        final json = const AppConfig(skippedVersion: '2.0.0').toJson();
+        expect(json, containsPair('skipped_version', '2.0.0'));
+      });
+
+      test('roundtrip preserves null skippedVersion', () {
+        const config = AppConfig();
+        final restored = AppConfig.fromJson(config.toJson());
+        expect(restored.skippedVersion, isNull);
+        expect(restored, config);
       });
     });
   });
