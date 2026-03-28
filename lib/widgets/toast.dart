@@ -128,11 +128,11 @@ class _ToastWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, icon) = _levelStyle();
-    final bottomOffset = 40.0 + index * 52.0;
+    final topOffset = 16.0 + index * 52.0;
 
     return Positioned(
       right: 16,
-      bottom: bottomOffset,
+      top: topOffset,
       child: FadeTransition(
         opacity: animation,
         child: SlideTransition(
