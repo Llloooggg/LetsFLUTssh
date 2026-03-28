@@ -1,6 +1,7 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
 import '../../core/session/session.dart';
@@ -378,26 +379,37 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   }
 
   Widget _buildKeyPathField() {
-    if (isDesktopPlatform) {
-      return _buildDesktopKeyPathField();
-    }
-    // Mobile: key file path field with browse button
-    return TextFormField(
-      controller: _keyPathCtrl,
-      decoration: InputDecoration(
-        labelText: 'Key File Path',
-        hintText: '/path/to/key',
-        prefixIcon: const Icon(Icons.vpn_key),
-        suffixIcon: IconButton(
-          icon: const Icon(Icons.folder_open),
-          tooltip: 'Browse',
-          onPressed: _pickKeyFile,
-        ),
+    final hasKey = _keyPathCtrl.text.trim().isNotEmpty;
+    final fileName = hasKey ? p.basename(_keyPathCtrl.text.trim()) : null;
+
+    final button = OutlinedButton.icon(
+      onPressed: _pickKeyFile,
+      icon: Icon(hasKey ? Icons.vpn_key : Icons.folder_open, size: 18),
+      label: Text(
+        fileName ?? 'Select Key File',
+        overflow: TextOverflow.ellipsis,
+      ),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 48),
+        alignment: Alignment.centerLeft,
       ),
     );
-  }
 
-  Widget _buildDesktopKeyPathField() {
+    final row = Row(
+      children: [
+        Expanded(child: button),
+        if (hasKey)
+          IconButton(
+            onPressed: () => setState(() => _keyPathCtrl.clear()),
+            icon: const Icon(Icons.close, size: 18),
+            tooltip: 'Clear key file',
+          ),
+      ],
+    );
+
+    if (!isDesktopPlatform) return row;
+
+    // Desktop: wrap in DropTarget for drag & drop
     return DropTarget(
       onDragEntered: (_) => setState(() => _keyDragging = true),
       onDragExited: (_) => setState(() => _keyDragging = false),
@@ -406,7 +418,6 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         final files = details.files;
         if (files.isNotEmpty) {
           final path = files.first.path;
-          // If the file looks like a PEM key, read its contents into keyData
           final pemContent = KeyFileHelper.tryReadPemKey(path);
           if (pemContent != null) {
             setState(() {
@@ -415,33 +426,25 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
             });
             return;
           }
-          // Otherwise just set the path
           setState(() => _keyPathCtrl.text = path);
         }
       },
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(6),
           border: _keyDragging
               ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
               : null,
         ),
-        child: TextFormField(
-          controller: _keyPathCtrl,
-          decoration: InputDecoration(
-            labelText: 'Key File',
-            hintText: '~/.ssh/id_rsa',
-            prefixIcon: const Icon(Icons.vpn_key),
-            suffixIcon: _keyDragging
-                ? null
-                : IconButton(
-                    icon: const Icon(Icons.folder_open),
-                    tooltip: 'Browse',
-                    onPressed: _pickKeyFile,
-                  ),
-            suffixText: _keyDragging ? 'Drop here' : null,
-          ),
-        ),
+        child: _keyDragging
+            ? SizedBox(
+                height: 48,
+                child: Center(
+                  child: Text('Drop key file here',
+                      style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                ),
+              )
+            : row,
       ),
     );
   }

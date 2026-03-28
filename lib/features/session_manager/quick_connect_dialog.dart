@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
 import '../../core/ssh/ssh_config.dart';
@@ -90,13 +89,34 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
     }
   }
 
-  String? _validateKeyPath(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    final expanded = value.trim().replaceFirst('~', homeDirectory);
-    if (!File(expanded).existsSync()) {
-      return 'File not found';
-    }
-    return null;
+  Widget _buildKeyFileButton() {
+    final hasKey = _keyPathCtrl.text.trim().isNotEmpty;
+    final fileName = hasKey ? p.basename(_keyPathCtrl.text.trim()) : null;
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _pickKeyFile,
+            icon: Icon(hasKey ? Icons.vpn_key : Icons.folder_open, size: 18),
+            label: Text(
+              fileName ?? 'Select Key File',
+              overflow: TextOverflow.ellipsis,
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 48),
+              alignment: Alignment.centerLeft,
+            ),
+          ),
+        ),
+        if (hasKey)
+          IconButton(
+            onPressed: () => setState(() => _keyPathCtrl.clear()),
+            icon: const Icon(Icons.close, size: 18),
+            tooltip: 'Clear key file',
+          ),
+      ],
+    );
   }
 
   @override
@@ -184,20 +204,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                 const SizedBox(height: 12),
 
                 // Key file
-                TextFormField(
-                  controller: _keyPathCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Key File',
-                    hintText: '~/.ssh/id_rsa',
-                    prefixIcon: const Icon(Icons.vpn_key),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.folder_open),
-                      tooltip: 'Browse',
-                      onPressed: _pickKeyFile,
-                    ),
-                  ),
-                  validator: _validateKeyPath,
-                ),
+                _buildKeyFileButton(),
                 const SizedBox(height: 8),
 
                 // Toggle key text
