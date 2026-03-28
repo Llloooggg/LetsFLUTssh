@@ -212,6 +212,7 @@ class AppConfig {
   final int maxHistory;
   final bool enableLogging;
   final bool checkUpdatesOnStart;
+  final String? skippedVersion;
 
   const AppConfig({
     this.terminal = const TerminalConfig(),
@@ -221,6 +222,7 @@ class AppConfig {
     this.maxHistory = 500,
     this.enableLogging = false,
     this.checkUpdatesOnStart = true,
+    this.skippedVersion,
   });
 
   static const AppConfig defaults = AppConfig();
@@ -256,6 +258,7 @@ class AppConfig {
       maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
       enableLogging: enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart,
+      skippedVersion: skippedVersion,
     );
   }
 
@@ -267,6 +270,7 @@ class AppConfig {
     int? maxHistory,
     bool? enableLogging,
     bool? checkUpdatesOnStart,
+    String? Function()? skippedVersion,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -276,6 +280,7 @@ class AppConfig {
       maxHistory: maxHistory ?? this.maxHistory,
       enableLogging: enableLogging ?? this.enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
+      skippedVersion: skippedVersion != null ? skippedVersion() : this.skippedVersion,
     );
   }
 
@@ -289,12 +294,13 @@ class AppConfig {
           transferWorkers == other.transferWorkers &&
           maxHistory == other.maxHistory &&
           enableLogging == other.enableLogging &&
-          checkUpdatesOnStart == other.checkUpdatesOnStart;
+          checkUpdatesOnStart == other.checkUpdatesOnStart &&
+          skippedVersion == other.skippedVersion;
 
   @override
   int get hashCode => Object.hash(
         terminal, ssh, ui, transferWorkers, maxHistory, enableLogging,
-        checkUpdatesOnStart,
+        checkUpdatesOnStart, skippedVersion,
       );
 
   /// JSON stays flat for backward compatibility.
@@ -306,6 +312,7 @@ class AppConfig {
     'max_history': maxHistory,
     'enable_logging': enableLogging,
     'check_updates_on_start': checkUpdatesOnStart,
+    if (skippedVersion != null) 'skipped_version': skippedVersion,
   };
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
@@ -318,6 +325,7 @@ class AppConfig {
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
       checkUpdatesOnStart: json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
+      skippedVersion: json['skipped_version'] as String?,
     ).sanitized();
   }
 }

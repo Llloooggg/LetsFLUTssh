@@ -160,6 +160,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     ref.listenManual(updateProvider, (prev, next) {
       if (_updateDialogShown) return;
       if (next.status == UpdateStatus.updateAvailable && next.info != null) {
+        final skipped = ref.read(configProvider).skippedVersion;
+        if (skipped != null && skipped == next.info!.latestVersion) return;
         _updateDialogShown = true;
         final ctx = navigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
@@ -201,6 +203,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Later'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(configProvider.notifier).update(
+                (c) => c.copyWith(skippedVersion: () => info.latestVersion),
+              );
+            },
+            child: const Text('Skip This Version'),
           ),
           if (hasAsset)
             FilledButton(
