@@ -18,31 +18,32 @@ jobs:
     concurrency:
       group: dependabot-release
       cancel-in-progress: false
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
-          ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 0
-
-      - name: Create tag and push
+      - name: Create tag via API
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           SHA="${{ github.event.workflow_run.head_sha }}"
+          REPO="${{ github.repository }}"
 
-          # Extract version from the commit that was tested
-          FULL=$(grep '^version:' pubspec.yaml | sed 's/version: *//')
-          VER="${FULL%%+*}"
+          # Read pubspec.yaml via API (no checkout — avoids untrusted-checkout alert)
+          VER=$(gh api "repos/${REPO}/contents/pubspec.yaml?ref=${SHA}" \
+            --jq '.content' | base64 -d | grep '^version:' | sed 's/version: *//;s/+.*//')
           TAG="v${VER}"
 
           # Bail out if tag already exists (idempotent)
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
+          if gh api "repos/${REPO}/git/refs/tags/${TAG}" >/dev/null 2>&1; then
             echo "Tag ${TAG} already exists — skipping"
             exit 0
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" "$SHA" -m "$TAG"
-          git push origin "$TAG"
+          # Create annotated tag object
+          TAG_SHA=$(gh api "repos/${REPO}/git/tags" \
+            -f tag="$TAG" -f message="$TAG" -f object="$SHA" -f type="commit" \
+            --jq '.sha')
+
+          # Create tag ref pointing to the tag object
+          gh api "repos/${REPO}/git/refs" \
+            -f ref="refs/tags/${TAG}" -f sha="$TAG_SHA"
+
+          echo "Created tag ${TAG} → ${SHA}"
