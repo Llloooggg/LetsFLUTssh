@@ -93,6 +93,7 @@ make run            # Run in debug mode
 make test           # Run all tests (with coverage)
 make analyze        # Run Dart analyzer (--fatal-infos)
 make check          # Analyzer + tests
+make tag            # Analyze + test + verify CI on GitHub + tag + push
 make gen            # Code generation (freezed, json_serializable)
 make clean          # Remove build artifacts
 make help           # Show all available targets

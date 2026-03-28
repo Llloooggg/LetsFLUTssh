@@ -36,9 +36,10 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 **Tagging — always use `make tag`:**
 
 1. Runs `make check` (analyze + test). Fails fast if broken
-2. Creates annotated tag `v{VERSION}` from `pubspec.yaml` (annotated — required for `--follow-tags`)
-3. `git push --follow-tags --atomic`. If push fails — auto-cleans local tag
-4. CI + Build & Release trigger automatically
+2. Verifies CI check run passed on HEAD via GitHub API. If HEAD is a ci/docs-only commit (no CI run) — refuses to tag and suggests the last CI-passed commit instead
+3. Creates annotated tag `v{VERSION}` from `pubspec.yaml` (annotated — required for `--follow-tags`)
+4. `git push --follow-tags --atomic`. If push fails — auto-cleans local tag
+5. CI + Build & Release trigger automatically
 
 | Scenario        | When to tag                                                     |
 | --------------- | --------------------------------------------------------------- |
