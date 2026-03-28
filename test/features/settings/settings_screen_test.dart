@@ -14,6 +14,7 @@ import 'package:letsflutssh/providers/update_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/logger.dart';
+import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/toast.dart';
 
 /// A ConfigNotifier subclass that starts with a custom initial config.
@@ -34,6 +35,9 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
+    // Force mobile layout so existing tests (written for flat ListView) keep working.
+    plat.debugMobilePlatformOverride = true;
+    plat.debugDesktopPlatformOverride = false;
     tempDir = await Directory.systemTemp.createTemp('settings_test_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -48,6 +52,8 @@ void main() {
   });
 
   tearDown(() async {
+    plat.debugMobilePlatformOverride = null;
+    plat.debugDesktopPlatformOverride = null;
     Toast.clearAllForTest();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -2122,6 +2128,91 @@ void main() {
         (s) => (s.title as Text?)?.data == 'Check for Updates on Startup',
       );
       expect(updateSwitch.value, isFalse);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Desktop two-column layout
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — desktop layout', () {
+    Widget buildDesktopApp({AppConfig? initialConfig}) {
+      final config = initialConfig ?? AppConfig.defaults;
+      return ProviderScope(
+        overrides: [
+          configProvider.overrideWith(
+            () => _PrePopulatedConfigNotifier(config),
+          ),
+          appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const SettingsScreen(),
+        ),
+      );
+    }
+
+    setUp(() {
+      plat.debugMobilePlatformOverride = false;
+      plat.debugDesktopPlatformOverride = true;
+    });
+
+    testWidgets('renders nav rail with all section labels', (tester) async {
+      await tester.pumpWidget(buildDesktopApp());
+      // "Appearance" appears in both nav + content header = 2
+      expect(find.text('Appearance'), findsNWidgets(2));
+      // Others appear once in nav only (content shows Appearance by default)
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.text('Connection'), findsOneWidget);
+      expect(find.text('Transfers'), findsOneWidget);
+      expect(find.text('Data'), findsOneWidget);
+      expect(find.text('Logging'), findsOneWidget);
+      expect(find.text('Updates'), findsOneWidget);
+      expect(find.text('About'), findsOneWidget);
+    });
+
+    testWidgets('first section is selected by default', (tester) async {
+      await tester.pumpWidget(buildDesktopApp());
+      // Appearance content should be visible (header + nav = 2 instances)
+      expect(find.text('Appearance'), findsNWidgets(2));
+      expect(find.text('Theme'), findsOneWidget);
+      expect(find.text('Font Size'), findsOneWidget);
+    });
+
+    testWidgets('tapping nav item switches content pane', (tester) async {
+      await tester.pumpWidget(buildDesktopApp());
+
+      // Initially shows Appearance
+      expect(find.text('Theme'), findsOneWidget);
+
+      // Tap Terminal nav item
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Terminal content visible (header + nav = 2), Appearance content gone
+      expect(find.text('Terminal'), findsNWidgets(2));
+      expect(find.text('Scrollback Lines'), findsOneWidget);
+      expect(find.text('Font Size'), findsNothing);
+    });
+
+    testWidgets('tapping Connection shows connection fields', (tester) async {
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.tap(find.text('Connection'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Connection'), findsNWidgets(2));
+      expect(find.text('Keep-Alive Interval (sec)'), findsOneWidget);
+      expect(find.text('SSH Timeout (sec)'), findsOneWidget);
+      expect(find.text('Default Port'), findsOneWidget);
+    });
+
+    testWidgets('renders Reset to Defaults button', (tester) async {
+      await tester.pumpWidget(buildDesktopApp());
+      expect(find.text('Reset to Defaults'), findsOneWidget);
+    });
+
+    testWidgets('has VerticalDivider between nav and content', (tester) async {
+      await tester.pumpWidget(buildDesktopApp());
+      expect(find.byType(VerticalDivider), findsOneWidget);
     });
   });
 }

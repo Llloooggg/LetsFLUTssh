@@ -408,7 +408,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.settings));
       await tester.pumpAndSettle();
 
-      expect(find.text('Appearance'), findsOneWidget);
+      expect(find.text('Appearance'), findsWidgets);
     });
 
     testWidgets('SFTP close button on tab chip closes tab', (tester) async {

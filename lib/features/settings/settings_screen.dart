@@ -22,7 +22,31 @@ import 'export_import.dart';
 
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
+/// Section descriptor for navigation and content rendering.
+class _Section {
+  final String title;
+  final IconData icon;
+  final Widget Function() builder;
+
+  const _Section({required this.title, required this.icon, required this.builder});
+}
+
+/// Ordered list of all settings sections.
+List<_Section> _buildSections() => [
+  const _Section(title: 'Appearance', icon: Icons.palette, builder: _AppearanceSection.new),
+  const _Section(title: 'Terminal', icon: Icons.terminal, builder: _TerminalSection.new),
+  const _Section(title: 'Connection', icon: Icons.lan, builder: _ConnectionSection.new),
+  const _Section(title: 'Transfers', icon: Icons.swap_horiz, builder: _TransferSection.new),
+  const _Section(title: 'Data', icon: Icons.storage, builder: _DataSection.new),
+  const _Section(title: 'Logging', icon: Icons.description, builder: _LoggingSection.new),
+  const _Section(title: 'Updates', icon: Icons.system_update, builder: _UpdateSection.new),
+  const _Section(title: 'About', icon: Icons.info_outline, builder: _AboutSection.new),
+];
+
 /// Settings screen with config editing.
+///
+/// Desktop: two-column layout (nav rail + content pane).
+/// Mobile: flat scrollable list (unchanged).
 ///
 /// Each section watches only its own config fields via `select()` to avoid
 /// unnecessary rebuilds when unrelated settings change.
@@ -37,55 +61,31 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (plat.isMobilePlatform) {
+      return const _MobileSettingsScreen();
+    }
+    return const _DesktopSettingsScreen();
+  }
+}
+
+/// Mobile: flat scrollable list with all sections separated by dividers.
+class _MobileSettingsScreen extends ConsumerWidget {
+  const _MobileSettingsScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sections = _buildSections();
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const _SectionHeader(title: 'Appearance'),
-          const _AppearanceSection(),
-
+          for (var i = 0; i < sections.length; i++) ...[
+            if (i > 0) const Divider(height: 32),
+            _SectionHeader(title: sections[i].title),
+            sections[i].builder(),
+          ],
           const Divider(height: 32),
-
-          const _SectionHeader(title: 'Terminal'),
-          const _TerminalSection(),
-
-          const Divider(height: 32),
-
-          const _SectionHeader(title: 'Connection'),
-          const _ConnectionSection(),
-
-          const Divider(height: 32),
-
-          const _SectionHeader(title: 'Transfers'),
-          const _TransferSection(),
-
-          const Divider(height: 32),
-
-          const _SectionHeader(title: 'Data'),
-          _ExportImportTile(),
-          const _QrExportTile(),
-          const _DataPathTile(),
-
-          const Divider(height: 32),
-
-          const _SectionHeader(title: 'Logging'),
-          const _LoggingSection(),
-
-          const Divider(height: 32),
-
-          const _SectionHeader(title: 'Updates'),
-          const _UpdateSection(),
-
-          const Divider(height: 32),
-
-          const _SectionHeader(title: 'About'),
-          const _AboutSection(),
-
-          const Divider(height: 32),
-
           Center(
             child: TextButton.icon(
               onPressed: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
@@ -95,6 +95,143 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Desktop: navigation rail on the left, content pane on the right.
+class _DesktopSettingsScreen extends ConsumerStatefulWidget {
+  const _DesktopSettingsScreen();
+
+  @override
+  ConsumerState<_DesktopSettingsScreen> createState() => _DesktopSettingsScreenState();
+}
+
+class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> {
+  int _selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sections = _buildSections();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: Row(
+        children: [
+          // --- Navigation rail ---
+          SizedBox(
+            width: 180,
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: sections.length,
+                    itemBuilder: (context, index) {
+                      final section = sections[index];
+                      final selected = index == _selectedIndex;
+                      return _NavItem(
+                        icon: section.icon,
+                        label: section.title,
+                        selected: selected,
+                        onTap: () => setState(() => _selectedIndex = index),
+                      );
+                    },
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: TextButton.icon(
+                    onPressed: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
+                    icon: const Icon(Icons.restore, size: 16),
+                    label: const Text('Reset to Defaults', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          VerticalDivider(width: 1, color: theme.dividerColor),
+          // --- Content pane ---
+          Expanded(
+            child: ListView(
+              key: ValueKey(_selectedIndex),
+              padding: const EdgeInsets.all(24),
+              children: [
+                _SectionHeader(title: sections[_selectedIndex].title),
+                sections[_selectedIndex].builder(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single item in the desktop navigation rail.
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: selected
+          ? theme.colorScheme.primary.withValues(alpha: 0.12)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                    color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Data section — groups export, import, QR, and data path tiles.
+class _DataSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        _ExportImportTile(),
+        const _QrExportTile(),
+        const _DataPathTile(),
+      ],
     );
   }
 }
