@@ -14,16 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-          # Pin to the exact commit that passed CI — workflow_run defaults
-          # to HEAD of main, which may differ if pushes are rapid.
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Download coverage artifact
         if: github.event_name != 'workflow_dispatch'
