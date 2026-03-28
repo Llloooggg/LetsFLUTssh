@@ -28,13 +28,14 @@ jobs:
       - name: Check version and create tag if needed
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
         run: |
-          SHA="${{ github.event.workflow_run.head_sha }}"
+          SHA="$COMMIT_SHA"
           REPO="${{ github.repository }}"
-          MSG="${{ github.event.workflow_run.head_commit.message }}"
 
           # Only tag commits that affect the shipped app (feat/fix/refactor)
-          PREFIX=$(echo "$MSG" | head -1 | sed -n 's/^\([a-z]*\):.*/\1/p')
+          PREFIX=$(echo "$COMMIT_MSG" | head -1 | sed -n 's/^\([a-z]*\):.*/\1/p')
           case "$PREFIX" in
             feat|fix|refactor) ;;
             *)
