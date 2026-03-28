@@ -662,4 +662,71 @@ void main() {
       expect(targetParent, 'GroupB');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Marquee selection (desktop only)
+  // ---------------------------------------------------------------------------
+  group('SessionTreeView — marquee selection', () {
+    testWidgets('drag on desktop fires onMarqueeSelect with session ids', (tester) async {
+      Set<String>? selectedIds;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              onMarqueeSelect: (ids) => selectedIds = ids,
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Drag across a large area to select sessions
+      final center = tester.getCenter(find.byType(SessionTreeView));
+      final gesture = await tester.startGesture(Offset(center.dx, 10));
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 400));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.up();
+      await tester.pump();
+
+      // Should have called onMarqueeSelect with at least some session ids
+      expect(selectedIds, isNotNull);
+      expect(selectedIds!, isNotEmpty);
+    });
+
+    testWidgets('small movement does not trigger marquee', (tester) async {
+      Set<String>? selectedIds;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              onMarqueeSelect: (ids) => selectedIds = ids,
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Tiny movement — below threshold
+      final center = tester.getCenter(find.byType(SessionTreeView));
+      final gesture = await tester.startGesture(center);
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 2));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+
+      expect(selectedIds, isNull);
+    });
+  });
 }
