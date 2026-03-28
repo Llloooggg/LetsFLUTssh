@@ -165,10 +165,11 @@ Bump the `version:` field in `pubspec.yaml` — it is the single source of truth
 | `ci.yml` | Push to `main`, PRs | Analyze, test (with coverage), outdated deps, commit-lint |
 | `sonarcloud.yml` | After CI succeeds (`workflow_run`) | Code quality + coverage analysis (separate from CI) |
 | `build.yml` | Tag `v*` push, manual | Preflight (waits for CI + SonarCloud + OSV-Scanner), builds all platforms, creates GitHub Release |
-| `dependabot-release.yml` | Dependabot PR merged | Auto patch-bump + tag + release for pub dependency updates |
+| `dependabot-release.yml` | Dependabot PR merged | Auto patch-bump + commit for pub dependency updates |
+| `dependabot-tag.yml` | After CI succeeds (`workflow_run`) | Creates tag on dependency bump commits → triggers build |
 | `osv-scanner.yml` | pubspec changes, weekly | Dependency CVE scanning |
 
-**Dependabot auto-releases:** when Dependabot merges a Dart dependency update (`pub` ecosystem), the pipeline automatically bumps the patch version, creates a tag, and triggers a full build + release. GitHub Actions updates are auto-merged but do not trigger a release (they don't affect the shipped app).
+**Dependabot auto-releases:** when Dependabot merges a Dart dependency update (`pub` ecosystem), the pipeline automatically bumps the patch version and pushes a commit. CI runs on that commit; if it passes, a tag is created and the full build + release pipeline triggers. If CI fails — no tag, no release, just a commit on main to fix. GitHub Actions updates are auto-merged but do not trigger a release (they don't affect the shipped app).
 
 ## Security
 

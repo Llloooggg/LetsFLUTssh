@@ -1,4 +1,4 @@
-name: Dependabot Auto-Release
+name: Dependabot Version Bump
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
 permissions: read-all
 
 jobs:
-  auto-release:
+  version-bump:
     # Only pub (Dart) dependency updates — github-actions updates don't affect the shipped app
     if: >-
       github.event.pull_request.merged == true &&
@@ -25,7 +25,9 @@ jobs:
           token: ${{ secrets.RELEASE_TOKEN }}
           fetch-depth: 0
 
-      - name: Bump patch version, commit, tag, push
+      - name: Bump patch version and push
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           # Extract current version
           FULL=$(grep '^version:' pubspec.yaml | sed 's/version: *//')
@@ -46,6 +48,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pubspec.yaml
-          git commit -m "chore(deps): ${{ github.event.pull_request.title }} (${VER} → ${NEW_VER})"
-          git tag -a "v${NEW_VER}" -m "v${NEW_VER}"
-          git push --follow-tags --atomic
+          git commit -m "chore(deps): ${PR_TITLE} (${VER} → ${NEW_VER})"
+          git push
