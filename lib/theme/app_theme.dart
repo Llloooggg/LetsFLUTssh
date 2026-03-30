@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// OneDark-inspired color palette for the app.
 ///
@@ -494,9 +493,8 @@ abstract final class AppTheme {
 
 /// Font helpers — Inter for UI, JetBrains Mono for technical data.
 ///
-/// Returns plain [TextStyle] objects with [fontFamily] set. Fonts are
-/// registered with the Flutter engine once [loadFonts] is called at
-/// app startup via [google_fonts].
+/// Returns plain [TextStyle] objects with [fontFamily] set.
+/// Fonts are bundled as assets in `assets/fonts/`.
 abstract final class AppFonts {
   static const _inter = 'Inter';
   static const _mono = 'JetBrains Mono';
@@ -526,11 +524,4 @@ abstract final class AppFonts {
         fontWeight: fontWeight,
         color: color,
       );
-
-  /// Call once after [WidgetsFlutterBinding.ensureInitialized] to register
-  /// Inter and JetBrains Mono with the Flutter engine via google_fonts.
-  static void loadFonts() {
-    GoogleFonts.inter();
-    GoogleFonts.jetBrainsMono();
-  }
 }
