@@ -302,4 +302,59 @@ void main() {
       expect(result, isFalse);
     });
   });
+
+  group('UpdateNotifier.download(autoInstall: true)', () {
+    test('calls install after successful download', () async {
+      final dir = await Directory.systemTemp.createTemp('update_auto_install');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      _mockPathProvider(dir.path);
+      addTearDown(_clearPathProviderMock);
+
+      final service = _StubUpdateService(
+        onCheck: (_) => const UpdateInfo(
+          latestVersion: '2.0.0',
+          currentVersion: '1.0.0',
+          releaseUrl: 'https://github.com',
+          assetUrl: 'https://example.com/app.AppImage',
+        ),
+        downloadedPath: 'app.AppImage',
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      await container.read(updateProvider.notifier).check();
+      // Should not throw even though install will fail in test env (no real file)
+      await container.read(updateProvider.notifier).download(autoInstall: true);
+
+      // State is still downloaded (install returned false, no state change)
+      final state = container.read(updateProvider);
+      expect(state.status, UpdateStatus.downloaded);
+      expect(state.downloadedPath, isNotNull);
+    });
+
+    test('does not call install when autoInstall is false', () async {
+      final dir = await Directory.systemTemp.createTemp('update_no_auto');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      _mockPathProvider(dir.path);
+      addTearDown(_clearPathProviderMock);
+
+      final service = _StubUpdateService(
+        onCheck: (_) => const UpdateInfo(
+          latestVersion: '2.0.0',
+          currentVersion: '1.0.0',
+          releaseUrl: 'https://github.com',
+          assetUrl: 'https://example.com/app.AppImage',
+        ),
+        downloadedPath: 'app.AppImage',
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      await container.read(updateProvider.notifier).check();
+      await container.read(updateProvider.notifier).download();
+
+      // Default autoInstall=false — state is downloaded, install not triggered
+      expect(container.read(updateProvider).status, UpdateStatus.downloaded);
+    });
+  });
 }

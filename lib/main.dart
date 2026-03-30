@@ -217,7 +217,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             FilledButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                ref.read(updateProvider.notifier).download();
+                ref.read(updateProvider.notifier).download(autoInstall: true);
               },
               child: const Text('Download & Install'),
             )
