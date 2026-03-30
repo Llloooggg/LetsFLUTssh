@@ -303,6 +303,67 @@ void main() {
     });
   });
 
+  group('UpdateNotifier.download() — stale file cleanup', () {
+    test('removes previously downloaded update file before new download', () async {
+      final dir = await Directory.systemTemp.createTemp('update_stale');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      _mockPathProvider(dir.path);
+      addTearDown(_clearPathProviderMock);
+
+      // Create a stale file with the same platform suffix
+      final staleFile = File('${dir.path}/letsflutssh-1.0.0-linux-x64.AppImage');
+      await staleFile.create();
+      expect(await staleFile.exists(), isTrue);
+
+      final service = _StubUpdateService(
+        onCheck: (_) => const UpdateInfo(
+          latestVersion: '2.0.0',
+          currentVersion: '1.0.0',
+          releaseUrl: 'https://github.com',
+          assetUrl: 'https://example.com/letsflutssh-2.0.0-linux-x64.AppImage',
+        ),
+        downloadedPath: 'letsflutssh-2.0.0-linux-x64.AppImage',
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      await container.read(updateProvider.notifier).check();
+      await container.read(updateProvider.notifier).download();
+
+      // Stale file should be deleted before the new download
+      expect(await staleFile.exists(), isFalse);
+    });
+
+    test('leaves files with different suffix untouched', () async {
+      final dir = await Directory.systemTemp.createTemp('update_other');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      _mockPathProvider(dir.path);
+      addTearDown(_clearPathProviderMock);
+
+      // Create a file with a different suffix (e.g. a .dmg while we download .exe)
+      final otherFile = File('${dir.path}/letsflutssh-1.0.0-macos-universal.dmg');
+      await otherFile.create();
+
+      final service = _StubUpdateService(
+        onCheck: (_) => const UpdateInfo(
+          latestVersion: '2.0.0',
+          currentVersion: '1.0.0',
+          releaseUrl: 'https://github.com',
+          assetUrl: 'https://example.com/letsflutssh-2.0.0-linux-x64.AppImage',
+        ),
+        downloadedPath: 'letsflutssh-2.0.0-linux-x64.AppImage',
+      );
+      final container = _makeContainer(service: service);
+      addTearDown(container.dispose);
+
+      await container.read(updateProvider.notifier).check();
+      await container.read(updateProvider.notifier).download();
+
+      // Different-suffix file should not be deleted
+      expect(await otherFile.exists(), isTrue);
+    });
+  });
+
   group('UpdateNotifier.download(autoInstall: true)', () {
     test('calls install after successful download', () async {
       final dir = await Directory.systemTemp.createTemp('update_auto_install');
