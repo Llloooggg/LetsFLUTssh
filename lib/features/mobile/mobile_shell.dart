@@ -128,7 +128,16 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                           : null,
                     ),
                     // SFTP page
-                    _MobileSftpPage(tabState: tabState),
+                    _MobileSftpPage(
+                      tabState: tabState,
+                      onOpenSsh: _activeSftpConnection(tabState)?.isConnected == true
+                          ? () {
+                              final conn = _activeSftpConnection(tabState)!;
+                              ref.read(tabProvider.notifier).addTerminalTab(conn);
+                              setState(() => _navIndex = 1);
+                            }
+                          : null,
+                    ),
                   ],
                 ),
                 ),
@@ -213,6 +222,13 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final termTabs = s.tabs.where((t) => t.kind == TabKind.terminal).toList();
     if (termTabs.isEmpty) return null;
     final active = termTabs.contains(s.activeTab) ? s.activeTab! : termTabs.last;
+    return active.connection;
+  }
+
+  Connection? _activeSftpConnection(TabState s) {
+    final sftpTabs = s.tabs.where((t) => t.kind == TabKind.sftp).toList();
+    if (sftpTabs.isEmpty) return null;
+    final active = sftpTabs.contains(s.activeTab) ? s.activeTab! : sftpTabs.last;
     return active.connection;
   }
 
@@ -423,8 +439,9 @@ class _MobileTerminalPage extends ConsumerWidget {
 /// SFTP page — shows active SFTP tab or empty state.
 class _MobileSftpPage extends ConsumerWidget {
   final TabState tabState;
+  final VoidCallback? onOpenSsh;
 
-  const _MobileSftpPage({required this.tabState});
+  const _MobileSftpPage({required this.tabState, this.onOpenSsh});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -452,10 +469,26 @@ class _MobileSftpPage extends ConsumerWidget {
 
     return Column(
       children: [
-        _MobileTabChipBar(
-          tabState: tabState,
-          filteredTabs: sftpTabs,
-          activeTab: activeSftpTab,
+        Row(
+          children: [
+            Expanded(
+              child: _MobileTabChipBar(
+                tabState: tabState,
+                filteredTabs: sftpTabs,
+                activeTab: activeSftpTab,
+              ),
+            ),
+            if (onOpenSsh != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: IconButton(
+                  onPressed: onOpenSsh,
+                  icon: const Icon(Icons.terminal, size: 20),
+                  tooltip: 'Open SSH Terminal',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+          ],
         ),
         Expanded(
           child: MobileFileBrowser(

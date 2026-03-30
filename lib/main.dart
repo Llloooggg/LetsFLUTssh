@@ -363,13 +363,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildRightSide(TabState tabState, Widget content, bool isNarrow) {
+    final activeTab = tabState.activeTab;
+    final connected = activeTab?.connection.isConnected ?? false;
     return Column(
       children: [
         _Toolbar(
           onNewSession: () => _newSession(context, ref),
-          onOpenSftp: tabState.activeTab != null &&
-                  tabState.activeTab!.connection.isConnected
-              ? () => _openSftp(ref, tabState.activeTab!.connection)
+          onOpenSftp: (activeTab?.kind == TabKind.terminal && connected)
+              ? () => _openSftp(ref, activeTab!.connection)
+              : null,
+          onOpenSsh: (activeTab?.kind == TabKind.sftp && connected)
+              ? () => _openSsh(ref, activeTab!.connection)
               : null,
           showMenuButton: isNarrow,
         ),
@@ -405,6 +409,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _openSftp(WidgetRef ref, Connection connection) {
     ref.read(tabProvider.notifier).addSftpTab(connection);
+  }
+
+  void _openSsh(WidgetRef ref, Connection connection) {
+    ref.read(tabProvider.notifier).addTerminalTab(connection);
   }
 
   void _connectSessionSftp(BuildContext context, WidgetRef ref, session) =>
@@ -512,11 +520,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 class _Toolbar extends StatelessWidget {
   final VoidCallback onNewSession;
   final VoidCallback? onOpenSftp;
+  final VoidCallback? onOpenSsh;
   final bool showMenuButton;
 
   const _Toolbar({
     required this.onNewSession,
     this.onOpenSftp,
+    this.onOpenSsh,
     this.showMenuButton = false,
   });
 
@@ -552,6 +562,13 @@ class _Toolbar extends StatelessWidget {
               onPressed: onOpenSftp,
               icon: const Icon(Icons.folder_open, size: 18),
               tooltip: 'Open SFTP Browser',
+              visualDensity: VisualDensity.compact,
+            ),
+          if (onOpenSsh != null)
+            IconButton(
+              onPressed: onOpenSsh,
+              icon: const Icon(Icons.terminal, size: 18),
+              tooltip: 'Open SSH Terminal',
               visualDensity: VisualDensity.compact,
             ),
           const Spacer(),
