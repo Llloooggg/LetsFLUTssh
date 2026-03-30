@@ -178,27 +178,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => AlertDialog(
         title: const Text('Update Available'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Version ${info.latestVersion} is available (current: v${info.currentVersion}).'),
-            if (info.changelog != null && info.changelog!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Text('Release notes:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: SingleChildScrollView(
-                  child: Text(
-                    info.changelog!,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+        content: _buildUpdateDialogContent(info),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -213,32 +193,62 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             },
             child: const Text('Skip This Version'),
           ),
-          if (hasAsset)
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                ref.read(updateProvider.notifier).download(autoInstall: true);
-              },
-              child: const Text('Download & Install'),
-            )
-          else
-            FilledButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                final url = Uri.parse(info.releaseUrl);
-                if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-                  if (context.mounted) {
-                    Clipboard.setData(ClipboardData(text: info.releaseUrl));
-                    Toast.show(context,
-                        message: 'Could not open browser — URL copied to clipboard',
-                        level: ToastLevel.warning);
-                  }
-                }
-              },
-              child: const Text('Open in Browser'),
-            ),
+          _buildPrimaryUpdateAction(ctx, context, info, hasAsset),
         ],
       ),
+    );
+  }
+
+  Widget _buildUpdateDialogContent(UpdateInfo info) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Version ${info.latestVersion} is available (current: v${info.currentVersion}).'),
+        if (info.changelog != null && info.changelog!.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const Text('Release notes:', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: SingleChildScrollView(
+              child: Text(info.changelog!, style: const TextStyle(fontSize: 13)),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPrimaryUpdateAction(
+    BuildContext ctx,
+    BuildContext outerContext,
+    UpdateInfo info,
+    bool hasAsset,
+  ) {
+    if (hasAsset) {
+      return FilledButton(
+        onPressed: () {
+          Navigator.pop(ctx);
+          ref.read(updateProvider.notifier).download(autoInstall: true);
+        },
+        child: const Text('Download & Install'),
+      );
+    }
+    return FilledButton(
+      onPressed: () async {
+        Navigator.pop(ctx);
+        final url = Uri.parse(info.releaseUrl);
+        if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+          if (outerContext.mounted) {
+            Clipboard.setData(ClipboardData(text: info.releaseUrl));
+            Toast.show(outerContext,
+                message: 'Could not open browser — URL copied to clipboard',
+                level: ToastLevel.warning);
+          }
+        }
+      },
+      child: const Text('Open in Browser'),
     );
   }
 

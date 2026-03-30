@@ -477,41 +477,10 @@ class _ExportImportTile extends ConsumerWidget {
       if (password == null || !context.mounted) return;
 
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
-      final defaultName = 'export_$timestamp.lfs';
-
-      final outputPath = await _pickSavePath(defaultName, 'lfs');
+      final outputPath = await _pickSavePath('export_$timestamp.lfs', 'lfs');
       if (outputPath == null || !context.mounted) return;
 
-      // Show progress indicator while PBKDF2 + encryption runs in isolate
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        animationStyle: AnimationStyle.noAnimation,
-        builder: (_) => const PopScope(
-          canPop: false,
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-
-      try {
-        final sessions = ref.read(sessionProvider);
-        final config = ref.read(configProvider);
-
-        await ExportImport.export(
-          masterPassword: password,
-          sessions: sessions,
-          config: config,
-          outputPath: outputPath,
-        );
-
-        if (context.mounted) {
-          Navigator.of(context).pop(); // close progress
-          Toast.show(context, message: 'Exported to: $outputPath', level: ToastLevel.success);
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop(); // close progress
-        rethrow;
-      }
+      await _runExport(context, ref, password, outputPath);
     } catch (e) {
       AppLogger.instance.log('Export failed: $e', name: 'Settings', error: e);
       if (context.mounted) {
@@ -520,6 +489,39 @@ class _ExportImportTile extends ConsumerWidget {
     } finally {
       passwordCtrl.dispose();
       confirmCtrl.dispose();
+    }
+  }
+
+  Future<void> _runExport(
+    BuildContext context,
+    WidgetRef ref,
+    String password,
+    String outputPath,
+  ) async {
+    // Show progress indicator while PBKDF2 + encryption runs in isolate
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+    try {
+      await ExportImport.export(
+        masterPassword: password,
+        sessions: ref.read(sessionProvider),
+        config: ref.read(configProvider),
+        outputPath: outputPath,
+      );
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        Toast.show(context, message: 'Exported to: $outputPath', level: ToastLevel.success);
+      }
+    } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
+      rethrow;
     }
   }
 

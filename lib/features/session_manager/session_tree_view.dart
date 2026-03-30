@@ -183,44 +183,13 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     if (_mobile || _marqueeAnchor == null) return;
 
     final distance = (e.localPosition - _marqueeAnchor!).distance;
-
     if (!_marqueeActive && !_crossMarqueeActive) {
       if (distance < _marqueeThreshold) return;
     }
 
-    // Check if pointer is outside our bounds → cross-marquee to file pane
     final box = context.findRenderObject() as RenderBox?;
     if (box != null && widget.crossMarquee != null) {
-      final size = box.size;
-      final local = e.localPosition;
-      final outsideBounds = local.dx > size.width || local.dx < 0 ||
-          local.dy < 0 || local.dy > size.height;
-
-      if (outsideBounds) {
-        if (_marqueeActive) {
-          setState(() {
-            _marqueeStart = null;
-            _marqueeCurrent = null;
-            _marqueeActive = false;
-          });
-          widget.onMarqueeEnd?.call();
-          widget.onMarqueeSelect?.call({});
-        }
-        if (!_crossMarqueeActive) {
-          _crossMarqueeActive = true;
-          widget.crossMarquee!.start(e.position);
-        } else {
-          widget.crossMarquee!.move(e.position);
-        }
-        return;
-      }
-
-      // Pointer came back inside — cancel cross-marquee
-      if (_crossMarqueeActive) {
-        _crossMarqueeActive = false;
-        widget.crossMarquee!.end();
-        _marqueeAnchor = e.localPosition;
-      }
+      if (_handleCrossMarquee(e, box)) return;
     }
 
     if (!_marqueeActive) {
@@ -233,6 +202,41 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       _marqueeCurrent = e.localPosition;
     });
     _updateMarqueeSelection();
+  }
+
+  // Returns true if the event was consumed by cross-marquee logic.
+  bool _handleCrossMarquee(PointerMoveEvent e, RenderBox box) {
+    final local = e.localPosition;
+    final size = box.size;
+    final outsideBounds =
+        local.dx > size.width || local.dx < 0 || local.dy < 0 || local.dy > size.height;
+
+    if (outsideBounds) {
+      if (_marqueeActive) {
+        setState(() {
+          _marqueeStart = null;
+          _marqueeCurrent = null;
+          _marqueeActive = false;
+        });
+        widget.onMarqueeEnd?.call();
+        widget.onMarqueeSelect?.call({});
+      }
+      if (!_crossMarqueeActive) {
+        _crossMarqueeActive = true;
+        widget.crossMarquee!.start(e.position);
+      } else {
+        widget.crossMarquee!.move(e.position);
+      }
+      return true;
+    }
+
+    // Pointer came back inside — cancel cross-marquee
+    if (_crossMarqueeActive) {
+      _crossMarqueeActive = false;
+      widget.crossMarquee!.end();
+      _marqueeAnchor = e.localPosition;
+    }
+    return false;
   }
 
   void _onPointerUp(PointerUpEvent _) {
@@ -324,60 +328,62 @@ class _SessionTreeViewState extends State<SessionTreeView> {
                 ? (d) => widget.onBackgroundContextMenu?.call(d.globalPosition)
                 : null,
             behavior: HitTestBehavior.translucent,
-            child: DragTarget<SessionDragData>(
-              onWillAcceptWithDetails: (details) => _canAcceptDrop(details.data, ''),
-              onAcceptWithDetails: (details) {
-                setState(() => _dropTargetGroup = null);
-                _handleDrop(details.data, '');
-              },
-              onMove: (_) {
-                if (_dropTargetGroup != '') {
-                  setState(() => _dropTargetGroup = '');
+            child: _buildDragTarget(flatNodes),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDragTarget(List<(SessionTreeNode, int)> flatNodes) {
+    return DragTarget<SessionDragData>(
+      onWillAcceptWithDetails: (details) => _canAcceptDrop(details.data, ''),
+      onAcceptWithDetails: (details) {
+        setState(() => _dropTargetGroup = null);
+        _handleDrop(details.data, '');
+      },
+      onMove: (_) {
+        if (_dropTargetGroup != '') {
+          setState(() => _dropTargetGroup = '');
+        }
+      },
+      onLeave: (_) {
+        if (_dropTargetGroup == '') {
+          setState(() => _dropTargetGroup = null);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        return Stack(
+          children: [
+            ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: flatNodes.length,
+              itemExtent: _rowHeight,
+              itemBuilder: (context, index) {
+                final (node, depth) = flatNodes[index];
+                if (node.isGroup) {
+                  return _buildGroupTile(node, depth);
+                } else {
+                  return _buildSessionTile(node, depth);
                 }
-              },
-              onLeave: (_) {
-                if (_dropTargetGroup == '') {
-                  setState(() => _dropTargetGroup = null);
-                }
-              },
-              builder: (context, candidateData, rejectedData) {
-                return Stack(
-                  children: [
-                    ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: flatNodes.length,
-                      itemExtent: _rowHeight,
-                      itemBuilder: (context, index) {
-                        final (node, depth) = flatNodes[index];
-                        if (node.isGroup) {
-                          return _buildGroupTile(node, depth);
-                        } else {
-                          return _buildSessionTile(node, depth);
-                        }
-                      },
-                    ),
-                    if (_marqueeActive &&
-                        _marqueeStart != null &&
-                        _marqueeCurrent != null)
-                      Positioned.fill(
-                        child: RepaintBoundary(
-                          child: IgnorePointer(
-                            child: CustomPaint(
-                              painter: MarqueePainter(
-                                start: _marqueeStart!,
-                                end: _marqueeCurrent!,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                );
               },
             ),
-          ),
+            if (_marqueeActive && _marqueeStart != null && _marqueeCurrent != null)
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: MarqueePainter(
+                        start: _marqueeStart!,
+                        end: _marqueeCurrent!,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       },
     );

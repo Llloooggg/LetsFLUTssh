@@ -333,23 +333,15 @@ class UpdateService {
     final client = HttpClient();
     try {
       var requestUri = url;
-
       while (true) {
         final request = await client.getUrl(requestUri);
         request.headers.set('User-Agent', 'LetsFLUTssh-UpdateChecker');
         final response = await request.close();
 
-        if (response.statusCode >= 300 && response.statusCode < 400) {
-          final location = response.headers.value('location');
-          if (location != null) {
-            await response.drain<void>();
-            final next = requestUri.resolve(location);
-            if (!isTrustedReleaseAssetUri(next)) {
-              throw StateError('Untrusted update download redirect: $next');
-            }
-            requestUri = next;
-            continue;
-          }
+        final redirect = await _handleRedirect(requestUri, response);
+        if (redirect != null) {
+          requestUri = redirect;
+          continue;
         }
 
         if (response.statusCode != 200) {
@@ -359,24 +351,47 @@ class UpdateService {
           );
         }
 
-        final total = response.contentLength;
-        var received = 0;
-        final file = File(savePath);
-        await file.parent.create(recursive: true);
-        final sink = file.openWrite();
-        try {
-          await for (final chunk in response) {
-            sink.add(chunk);
-            received += chunk.length;
-            onProgress?.call(received, total);
-          }
-        } finally {
-          await sink.close();
-        }
+        await _writeToFile(response, savePath, onProgress);
         return;
       }
     } finally {
       client.close();
+    }
+  }
+
+  static Future<Uri?> _handleRedirect(
+    Uri requestUri,
+    HttpClientResponse response,
+  ) async {
+    if (response.statusCode < 300 || response.statusCode >= 400) return null;
+    final location = response.headers.value('location');
+    if (location == null) return null;
+    await response.drain<void>();
+    final next = requestUri.resolve(location);
+    if (!isTrustedReleaseAssetUri(next)) {
+      throw StateError('Untrusted update download redirect: $next');
+    }
+    return next;
+  }
+
+  static Future<void> _writeToFile(
+    HttpClientResponse response,
+    String savePath,
+    void Function(int received, int total)? onProgress,
+  ) async {
+    final total = response.contentLength;
+    var received = 0;
+    final file = File(savePath);
+    await file.parent.create(recursive: true);
+    final sink = file.openWrite();
+    try {
+      await for (final chunk in response) {
+        sink.add(chunk);
+        received += chunk.length;
+        onProgress?.call(received, total);
+      }
+    } finally {
+      await sink.close();
     }
   }
 }
