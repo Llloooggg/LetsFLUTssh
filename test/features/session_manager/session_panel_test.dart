@@ -2410,5 +2410,26 @@ void main() {
       expect(find.text('Sessions'), findsOneWidget);
       expect(find.text('0 selected'), findsNothing);
     });
+
+    testWidgets('action bar suppressed while marquee drag is in progress', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final panelState = tester.state<SessionPanelState>(find.byType(SessionPanel));
+
+      // Simulate marquee start — selection updates but drag not yet finished
+      panelState.simulateMarqueeStart();
+      panelState.setMarqueeSelection({'1'});
+      await tester.pump();
+
+      // Action bar must NOT appear mid-drag to avoid layout shift
+      expect(find.text('1 selected'), findsNothing);
+      expect(find.text('Sessions'), findsOneWidget);
+
+      // Marquee ends — now action bar should appear
+      panelState.simulateMarqueeEnd();
+      await tester.pump();
+
+      expect(find.text('1 selected'), findsOneWidget);
+    });
   });
 }
