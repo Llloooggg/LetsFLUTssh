@@ -105,6 +105,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
     state = state.copyWith(status: UpdateStatus.downloading, progress: 0);
     try {
       final dir = await getApplicationSupportDirectory();
+      await _cleanupStaleDownloads(dir.path, info.assetUrl!);
       final path = await _service.downloadAsset(
         info.assetUrl!,
         dir.path,
@@ -143,6 +144,48 @@ class UpdateNotifier extends Notifier<UpdateState> {
       Future.delayed(const Duration(seconds: 5), () => _cleanupFile(path));
     }
     return ok;
+  }
+
+  /// Delete previously downloaded update files in [dir] before starting a
+  /// fresh download. Matches any file whose name ends with the same suffix
+  /// as the incoming [assetUrl] (e.g. `-windows-x64-setup.exe`).
+  Future<void> _cleanupStaleDownloads(String dir, String assetUrl) async {
+    try {
+      final fileName = Uri.parse(assetUrl).pathSegments.last;
+      // Extract the platform suffix: everything after the version segment.
+      // e.g. "letsflutssh-1.9.0-windows-x64-setup.exe" → "-windows-x64-setup.exe"
+      // The first dash separates name from version; the second separates
+      // version from platform — we want from the second dash onward.
+      final firstDash = fileName.indexOf('-');
+      if (firstDash < 0) return;
+      final secondDash = fileName.indexOf('-', firstDash + 1);
+      if (secondDash < 0) return;
+      final suffix = fileName.substring(secondDash);
+
+      final directory = Directory(dir);
+      if (!await directory.exists()) return;
+      await for (final entity in directory.list()) {
+        if (entity is File && entity.path.endsWith(suffix)) {
+          try {
+            await entity.delete();
+            AppLogger.instance.log(
+              'Removed stale download: ${entity.path}',
+              name: 'UpdateProvider',
+            );
+          } catch (e) {
+            AppLogger.instance.log(
+              'Failed to remove stale download: $e',
+              name: 'UpdateProvider',
+            );
+          }
+        }
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Stale download cleanup error: $e',
+        name: 'UpdateProvider',
+      );
+    }
   }
 
   Future<void> _cleanupFile(String path) async {
