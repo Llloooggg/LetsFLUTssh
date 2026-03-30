@@ -262,7 +262,7 @@ class AppConfig {
     );
   }
 
-  AppConfig copyWith({
+  AppConfig copyWith({ // NOSONAR — idiomatic Dart copyWith, parameter count matches field count
     TerminalConfig? terminal,
     SshDefaults? ssh,
     UiConfig? ui,

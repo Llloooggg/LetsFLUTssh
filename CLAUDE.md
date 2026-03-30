@@ -67,9 +67,10 @@ git push
   │     analyze + test + upload artifacts (coverage, sonar-source)
   │           │
   │           ├─► sonarcloud.yml   (on: workflow_run[CI] completed, main only)
-  │           │     downloads artifacts → Sonar scan
-  │           │     NOTE: sonarcloud.yml uploads sonar-source artifact from CI
-  │           │     to avoid untrusted ref interpolation (Scorecard safe)
+  │           │     downloads sonar-source + coverage artifacts
+  │           │     flutter pub get → Sonar scan
+  │           │     (no checkout — Scorecard safe, no untrusted ref in shell)
+  │           │     manual: gh workflow run sonarcloud.yml [-f ci-run-id=<id>]
   │           │
   │           └─► auto-tag.yml     (on: workflow_run[CI] completed)
   │                 reads HEAD commit via GitHub API → feat/fix/refactor → tag v*
