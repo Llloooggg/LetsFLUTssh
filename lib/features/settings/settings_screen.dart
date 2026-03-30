@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -70,7 +72,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-/// Mobile: flat scrollable list with all sections separated by dividers.
+/// Mobile: collapsible sections in a scrollable list.
 class _MobileSettingsScreen extends ConsumerWidget {
   const _MobileSettingsScreen();
 
@@ -80,14 +82,15 @@ class _MobileSettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         children: [
-          for (var i = 0; i < sections.length; i++) ...[
-            if (i > 0) const Divider(height: 32),
-            _SectionHeader(title: sections[i].title),
-            sections[i].builder(),
-          ],
-          const Divider(height: 32),
+          for (final section in sections)
+            _CollapsibleSection(
+              title: section.title,
+              icon: section.icon,
+              child: section.builder(),
+            ),
+          const SizedBox(height: 8),
           Center(
             child: TextButton.icon(
               onPressed: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
@@ -95,7 +98,56 @@ class _MobileSettingsScreen extends ConsumerWidget {
               label: const Text('Reset to Defaults'),
             ),
           ),
+          const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+}
+
+/// When true (test-only), all [_CollapsibleSection] widgets start expanded.
+/// Set this in test setUp / tearDown using the same pattern as
+/// [plat.debugMobilePlatformOverride].
+@visibleForTesting
+bool debugCollapsibleSectionsExpanded = false;
+
+/// Collapsible settings section used on mobile.
+class _CollapsibleSection extends StatefulWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  const _CollapsibleSection({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+
+  @override
+  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
+}
+
+class _CollapsibleSectionState extends State<_CollapsibleSection> {
+  late bool _expanded = debugCollapsibleSectionsExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: theme.dividerColor),
+      ),
+      child: ExpansionTile(
+        leading: Icon(widget.icon, size: 20),
+        title: Text(widget.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+        initiallyExpanded: _expanded,
+        onExpansionChanged: (v) => setState(() => _expanded = v),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        children: [widget.child],
       ),
     );
   }
@@ -1145,78 +1197,10 @@ class _LoggingSection extends ConsumerWidget {
           ),
         ),
         if (enabled && logPath != null) ...[
-          ListTile(
-            leading: const Icon(Icons.visibility, size: 20),
-            title: const Text('View Log'),
-            contentPadding: EdgeInsets.zero,
-            onTap: () => _showLogDialog(context),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: ListTile(
-                  leading: const Icon(Icons.save_alt, size: 20),
-                  title: const Text('Export Log'),
-                  contentPadding: EdgeInsets.zero,
-                  onTap: () => _exportLog(context),
-                ),
-              ),
-              Expanded(
-                child: ListTile(
-                  leading: const Icon(Icons.copy, size: 20),
-                  title: const Text('Copy Log'),
-                  contentPadding: EdgeInsets.zero,
-                  onTap: () => _copyLog(context),
-                ),
-              ),
-              Expanded(
-                child: ListTile(
-                  leading: const Icon(Icons.delete_outline, size: 20),
-                  title: const Text('Clear Logs'),
-                  contentPadding: EdgeInsets.zero,
-                  onTap: () => _clearLogs(context),
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: 8),
+          _LiveLogViewer(onExport: () => _exportLog(context), onClear: () => _clearLogs(context)),
         ],
       ],
-    );
-  }
-
-  Future<void> _showLogDialog(BuildContext context) async {
-    final content = await AppLogger.instance.readLog();
-    if (!context.mounted) return;
-    showDialog(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Log'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: SingleChildScrollView(
-            reverse: true,
-            child: SelectableText(
-              content.isEmpty ? '(empty)' : content,
-              style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: content));
-              Toast.show(ctx, message: 'Log copied to clipboard', level: ToastLevel.info);
-            },
-            child: const Text('Copy All'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1261,20 +1245,126 @@ class _LoggingSection extends ConsumerWidget {
     }
   }
 
-  Future<void> _copyLog(BuildContext context) async {
-    final content = await AppLogger.instance.readLog();
-    if (!context.mounted) return;
-    Clipboard.setData(ClipboardData(text: content));
-    Toast.show(context,
-      message: content.isEmpty ? 'Log is empty' : 'Log copied to clipboard',
-      level: ToastLevel.info,
-    );
-  }
-
   Future<void> _clearLogs(BuildContext context) async {
     await AppLogger.instance.clearLogs();
     if (!context.mounted) return;
     Toast.show(context, message: 'Logs cleared', level: ToastLevel.info);
+  }
+}
+
+/// Inline live log viewer — polls the log file every second and displays the
+/// content in a dark terminal-style panel with Copy and Clear action buttons.
+class _LiveLogViewer extends StatefulWidget {
+  final VoidCallback onExport;
+  final VoidCallback onClear;
+
+  const _LiveLogViewer({required this.onExport, required this.onClear});
+
+  @override
+  State<_LiveLogViewer> createState() => _LiveLogViewerState();
+}
+
+class _LiveLogViewerState extends State<_LiveLogViewer> {
+  final _scrollController = ScrollController();
+  String _content = '';
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    final text = await AppLogger.instance.readLog();
+    if (!mounted) return;
+    final changed = text != _content;
+    setState(() => _content = text);
+    if (changed && _scrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const bg = Colors.black87;
+    final fg = Colors.green.shade300;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Toolbar
+        Row(
+          children: [
+            Icon(Icons.circle, size: 8, color: fg),
+            const SizedBox(width: 6),
+            Text('Live Log', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
+            const Spacer(),
+            IconButton(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: _content));
+                Toast.show(context,
+                  message: _content.isEmpty ? 'Log is empty' : 'Copied to clipboard',
+                  level: ToastLevel.info,
+                );
+              },
+              icon: const Icon(Icons.copy, size: 16),
+              tooltip: 'Copy log',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              onPressed: widget.onExport,
+              icon: const Icon(Icons.save_alt, size: 16),
+              tooltip: 'Export log',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              onPressed: () async {
+                widget.onClear();
+                await Future<void>.delayed(const Duration(milliseconds: 100));
+                await _refresh();
+              },
+              icon: const Icon(Icons.delete_outline, size: 16),
+              tooltip: 'Clear logs',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+            ),
+          ],
+        ),
+        // Log content
+        Container(
+          width: double.infinity,
+          height: 260,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          padding: const EdgeInsets.all(8),
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            child: SelectableText(
+              _content.isEmpty ? '(no log entries yet)' : _content,
+              style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: fg, height: 1.4),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
