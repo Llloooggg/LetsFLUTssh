@@ -44,7 +44,6 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AppFonts.loadFonts();
   await AppLogger.instance.init();
   AppLogger.instance.log('App starting', name: 'App');
   runApp(const ProviderScope(child: LetsFLUTsshApp()));
