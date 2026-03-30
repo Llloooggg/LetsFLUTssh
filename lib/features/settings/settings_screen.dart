@@ -903,14 +903,14 @@ class _UpdateSection extends ConsumerWidget {
               if (!isSkipped)
                 TextButton(
                   onPressed: () => ref.read(configProvider.notifier).update(
-                    (c) => c.copyWith(skippedVersion: () => info.latestVersion),
+                    (c) => c.withSkippedVersion(info.latestVersion),
                   ),
                   child: const Text('Skip This Version'),
                 )
               else
                 TextButton(
                   onPressed: () => ref.read(configProvider.notifier).update(
-                    (c) => c.copyWith(skippedVersion: () => null),
+                    (c) => c.withSkippedVersion(null),
                   ),
                   child: const Text('Unskip'),
                 ),

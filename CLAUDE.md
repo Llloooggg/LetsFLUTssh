@@ -110,6 +110,8 @@ PR merge → dependabot-release.yml   (on: pull_request[closed])
 ### What Not To Do
 
 - Do not commit/push unless explicitly asked. Do not install packages without asking
+- **Never suppress issues** — no `// NOSONAR`, `// ignore:`, `@SuppressWarnings` or any other suppression mechanism. Always fix the root cause
+- **Never touch `UI_REDESIGN_PLAN.md`** — do not read, edit, or commit it
 - **Never amend after push** — only new commits. Amend OK only before first push
 - **All code must have tests** — target 100% coverage; 80% is SonarCloud minimum, never the goal
     - After writing code: `make test`, check uncovered lines, write more tests. Only skip untestable lines (real SSH, native file I/O)
