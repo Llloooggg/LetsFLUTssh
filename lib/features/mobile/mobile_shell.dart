@@ -27,7 +27,6 @@ class MobileShell extends ConsumerStatefulWidget {
 
 class _MobileShellState extends ConsumerState<MobileShell> {
   int _navIndex = 0; // 0 = sessions, 1 = terminal, 2 = sftp
-  Offset? _swipeStart; // Edge swipe tracking
 
   @override
   Widget build(BuildContext context) {
@@ -71,76 +70,41 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               ),
             ),
             Expanded(
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: (event) {
-                  _swipeStart = event.localPosition;
-                },
-                onPointerUp: (event) {
-                  final start = _swipeStart;
-                  _swipeStart = null;
-                  if (start == null) return;
-
-                  final dx = event.localPosition.dx - start.dx;
-                  final dy = (event.localPosition.dy - start.dy).abs();
-
-                  // Require primarily horizontal movement with minimum distance
-                  if (dx.abs() < 80 || dy > dx.abs()) return;
-
-                  if (dx > 0 && _navIndex > 0) {
-                    setState(() => _navIndex--);
-                  } else if (dx < 0 && _navIndex < 2) {
-                    setState(() => _navIndex++);
-                  }
-                },
-                onPointerCancel: (_) => _swipeStart = null,
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: (notification) {
-                    // Cancel swipe when a child scrollable (e.g. tab chip bar)
-                    // is actively scrolling to prevent accidental page switches.
-                    if (notification is ScrollStartNotification &&
-                        notification.metrics.axis == Axis.horizontal) {
-                      _swipeStart = null;
-                    }
-                    return false;
-                  },
-                  child: IndexedStack(
-                  index: _navIndex,
-                  children: [
-                    // Sessions page
-                    _MobileSessionsPage(
-                      onConnect: (session) => _connectSession(context, ref, session),
-                      onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-                      onQuickConnect: (config) {
-                        SessionConnect.connectConfig(context, ref, config);
-                        setState(() => _navIndex = 1);
-                      },
-                    ),
-                    // Terminal page
-                    _MobileTerminalPage(
-                      tabState: tabState,
-                      onOpenSftp: _activeTerminalConnection(tabState)?.isConnected == true
-                          ? () {
-                              final conn = _activeTerminalConnection(tabState)!;
-                              ref.read(tabProvider.notifier).addSftpTab(conn);
-                              setState(() => _navIndex = 2);
-                            }
-                          : null,
-                    ),
-                    // SFTP page
-                    _MobileSftpPage(
-                      tabState: tabState,
-                      onOpenSsh: _activeSftpConnection(tabState)?.isConnected == true
-                          ? () {
-                              final conn = _activeSftpConnection(tabState)!;
-                              ref.read(tabProvider.notifier).addTerminalTab(conn);
-                              setState(() => _navIndex = 1);
-                            }
-                          : null,
-                    ),
-                  ],
-                ),
-                ),
+              child: IndexedStack(
+                index: _navIndex,
+                children: [
+                  // Sessions page
+                  _MobileSessionsPage(
+                    onConnect: (session) => _connectSession(context, ref, session),
+                    onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+                    onQuickConnect: (config) {
+                      SessionConnect.connectConfig(context, ref, config);
+                      setState(() => _navIndex = 1);
+                    },
+                  ),
+                  // Terminal page
+                  _MobileTerminalPage(
+                    tabState: tabState,
+                    onOpenSftp: _activeTerminalConnection(tabState)?.isConnected == true
+                        ? () {
+                            final conn = _activeTerminalConnection(tabState)!;
+                            ref.read(tabProvider.notifier).addSftpTab(conn);
+                            setState(() => _navIndex = 2);
+                          }
+                        : null,
+                  ),
+                  // SFTP page
+                  _MobileSftpPage(
+                    tabState: tabState,
+                    onOpenSsh: _activeSftpConnection(tabState)?.isConnected == true
+                        ? () {
+                            final conn = _activeSftpConnection(tabState)!;
+                            ref.read(tabProvider.notifier).addTerminalTab(conn);
+                            setState(() => _navIndex = 1);
+                          }
+                        : null,
+                  ),
+                ],
               ),
             ),
           ],

@@ -334,39 +334,20 @@ void main() {
       }
     });
 
-    testWidgets('swipe right navigates to previous tab', (tester) async {
+    testWidgets('swipe gesture does not navigate between pages', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Navigate to Terminal first
-      await tester.tap(find.text('Terminal'));
-      await tester.pumpAndSettle();
-      expect(find.text('No active terminals'), findsOneWidget);
-
-      // Swipe right to go back to Sessions
-      final rect = tester.getRect(find.byType(IndexedStack));
-      final gesture = await tester.startGesture(rect.center);
-      await gesture.moveBy(const Offset(100, 0));
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      // Should be back on Sessions
-      expect(find.byType(IndexedStack), findsOneWidget);
-    });
-
-    testWidgets('swipe left navigates to next tab', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Start on Sessions, swipe left to go to Terminal
+      // Swipe left should NOT navigate to Terminal
       final rect = tester.getRect(find.byType(IndexedStack));
       final gesture = await tester.startGesture(rect.center);
       await gesture.moveBy(const Offset(-100, 0));
       await gesture.up();
       await tester.pumpAndSettle();
 
-      // Should be on Terminal page
-      expect(find.text('No active terminals'), findsOneWidget);
+      // Should still be on Sessions (swipe navigation removed)
+      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(navBar.selectedIndex, equals(0));
     });
 
     testWidgets('FAB not shown on Files page', (tester) async {
@@ -660,60 +641,6 @@ void main() {
       expect(find.text('Term Tab'), findsOneWidget);
     });
 
-    testWidgets('swipe does not go below index 0', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Already at index 0 (Sessions), swipe right should not change
-      final rect = tester.getRect(find.byType(IndexedStack));
-      final gesture = await tester.startGesture(rect.center);
-      await gesture.moveBy(const Offset(100, 0));
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      // Should still be on Sessions
-      expect(find.byType(IndexedStack), findsOneWidget);
-    });
-
-    testWidgets('swipe does not go above index 2', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Navigate to Files (index 2) first
-      await tester.tap(find.text('Files'));
-      await tester.pumpAndSettle();
-
-      // Swipe left should not change (already at max)
-      final rect = tester.getRect(find.byType(IndexedStack));
-      final gesture = await tester.startGesture(rect.center);
-      await gesture.moveBy(const Offset(-100, 0));
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      // Should still be on Files
-      expect(find.text('No active file browsers'), findsOneWidget);
-    });
-
-    testWidgets('double swipe from Sessions reaches Files', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      final rect = tester.getRect(find.byType(IndexedStack));
-
-      // Swipe left to Terminal
-      var gesture = await tester.startGesture(rect.center);
-      await gesture.moveBy(const Offset(-100, 0));
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(find.text('No active terminals'), findsOneWidget);
-
-      // Swipe left to Files
-      gesture = await tester.startGesture(rect.center);
-      await gesture.moveBy(const Offset(-100, 0));
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(find.text('No active file browsers'), findsOneWidget);
-    });
 
     // Helper to build widget with a session and custom ConnectionManager
     Widget buildWithSession({
@@ -1115,57 +1042,6 @@ void main() {
       expect(find.byTooltip('Open SSH Terminal'), findsNothing);
     });
 
-    testWidgets('horizontal scroll in tab chips does not trigger page swipe', (tester) async {
-      final conn = Connection(
-        id: 'conn-scroll',
-        label: 'Scroll Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
-        sshConnection: null,
-        state: SSHConnectionState.disconnected,
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) {
-                // Add many tabs to make the chip bar scrollable
-                for (var i = 0; i < 8; i++) {
-                  b.addTerminalTab(conn, label: 'Server $i');
-                }
-              }),
-            )),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Navigate to Terminal page
-      await tester.tap(find.text('Terminal'));
-      await tester.pumpAndSettle();
-
-      // Find the chip bar ListView and swipe horizontally within it
-      final chipBar = find.byType(ListView);
-      expect(chipBar, findsOneWidget);
-
-      // Perform a horizontal drag on the chip bar area
-      await tester.drag(chipBar, const Offset(-150, 0));
-      await tester.pumpAndSettle();
-
-      // Should still be on Terminal page (index 1), not switched to Files
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(1));
-    });
 
     testWidgets('badge shows terminal tab count', (tester) async {
       final conn = Connection(
