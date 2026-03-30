@@ -27,7 +27,6 @@ import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/theme_provider.dart';
-import 'providers/transfer_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/update/update_service.dart';
@@ -715,60 +714,65 @@ class _StatusBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final active = tabState.activeTab;
-    final transferStatus = ref.watch(transferStatusProvider).value;
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    final connectedCount =
+        connections.where((c) => c.isConnected).length;
+    final version = ref.watch(appVersionProvider);
 
     return Container(
-      height: 24,
+      height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
+      decoration: const BoxDecoration(
+        color: AppTheme.bg0,
         border: Border(
-          top: BorderSide(color: theme.dividerColor),
+          top: BorderSide(color: AppTheme.border),
         ),
       ),
       child: Row(
         children: [
-          if (active != null) ...[
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active.connection.isConnected
-                    ? AppTheme.connectedColor(theme.brightness)
-                    : AppTheme.disconnectedColor(theme.brightness),
-              ),
+          Container(
+            width: 5,
+            height: 5,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.green,
             ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                active.connection.isConnected
-                    ? 'Connected: ${active.connection.label}'
-                    : 'Disconnected',
-                style: const TextStyle(fontSize: 11),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ] else
-            const Text(
-              'No active connection',
-              style: TextStyle(fontSize: 11),
-            ),
-          const Spacer(),
-          if (transferStatus != null && transferStatus.hasActive) ...[
-            Icon(Icons.swap_vert, size: 12, color: theme.colorScheme.primary),
-            const SizedBox(width: 4),
-            Text(
-              transferStatus.currentInfo ?? '${transferStatus.running} active',
-              style: TextStyle(fontSize: 11, color: theme.colorScheme.primary),
-            ),
-            const SizedBox(width: 12),
-          ],
+          ),
+          const SizedBox(width: 6),
           Text(
-            '${tabState.tabs.length} tab(s)',
-            style: const TextStyle(fontSize: 11),
+            '$connectedCount connections',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: AppTheme.fgDim,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '${tabState.tabs.length} tabs',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: AppTheme.fgFaint,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'UTF-8',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: AppTheme.fgFaint,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            version.isNotEmpty ? 'v$version' : '',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: AppTheme.fgFaint,
+            ),
           ),
         ],
       ),
