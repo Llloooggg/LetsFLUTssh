@@ -21,6 +21,7 @@ import 'features/tabs/tab_bar.dart';
 import 'features/tabs/tab_controller.dart';
 import 'features/tabs/tab_model.dart';
 import 'features/tabs/welcome_screen.dart';
+import 'features/terminal/split_node.dart';
 import 'features/terminal/terminal_tab.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
@@ -36,7 +37,6 @@ import 'features/mobile/mobile_shell.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
 import 'utils/platform.dart' as plat;
-import 'widgets/split_view.dart';
 
 /// Global navigator key for showing dialogs from non-UI contexts
 /// (e.g., host key verification during SSH handshake).
@@ -141,6 +141,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final _deepLinkHandler = DeepLinkHandler();
   final _crossMarquee = CrossMarqueeController();
   bool _updateDialogShown = false;
+  bool _sidebarOpen = true;
+  final Map<String, GlobalKey<TerminalTabState>> _terminalKeys = {};
+
+  GlobalKey<TerminalTabState> _keyForTab(String tabId) =>
+      _terminalKeys.putIfAbsent(tabId, () => GlobalKey<TerminalTabState>());
 
   @override
   void initState() {
@@ -319,6 +324,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): () {
         _switchTab(tabState, -1);
       },
+      const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
+        setState(() => _sidebarOpen = !_sidebarOpen);
+      },
     };
   }
 
@@ -365,9 +373,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     return Scaffold(
-      body: SplitView(
-        left: sessionPanel,
-        right: rightSide,
+      body: Row(
+        children: [
+          if (_sidebarOpen) SizedBox(width: 220, child: sessionPanel),
+          Expanded(child: rightSide),
+        ],
       ),
     );
   }
@@ -375,17 +385,41 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget _buildRightSide(TabState tabState, Widget content, bool isNarrow) {
     final activeTab = tabState.activeTab;
     final connected = activeTab?.connection.isConnected ?? false;
+    final isTerminalTab = activeTab?.kind == TabKind.terminal;
+    final splitDir = isTerminalTab
+        ? _terminalKeys[activeTab!.id]?.currentState?.topLevelSplitDirection
+        : null;
     return Column(
       children: [
         _Toolbar(
+          sidebarOpen: _sidebarOpen,
+          onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
           onNewSession: () => _newSession(context, ref),
-          onOpenSftp: (activeTab?.kind == TabKind.terminal && connected)
+          onOpenSftp: (isTerminalTab && connected)
               ? () => _openSftp(ref, activeTab!.connection)
               : null,
           onOpenSsh: (activeTab?.kind == TabKind.sftp && connected)
               ? () => _openSsh(ref, activeTab!.connection)
               : null,
           showMenuButton: isNarrow,
+          isTerminalTab: isTerminalTab,
+          splitDir: splitDir,
+          onSplitVertical: isTerminalTab
+              ? () {
+                  _terminalKeys[activeTab!.id]
+                      ?.currentState
+                      ?.splitFocused(SplitDirection.vertical);
+                  setState(() {});
+                }
+              : null,
+          onSplitHorizontal: isTerminalTab
+              ? () {
+                  _terminalKeys[activeTab!.id]
+                      ?.currentState
+                      ?.splitFocused(SplitDirection.horizontal);
+                  setState(() {});
+                }
+              : null,
         ),
         const AppTabBar(),
         if (tabState.tabs.isNotEmpty) const Divider(height: 1),
@@ -396,13 +430,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildTabContent(TabState tabState) {
+    final currentIds = tabState.tabs.map((t) => t.id).toSet();
+    _terminalKeys.removeWhere((id, _) => !currentIds.contains(id));
     return IndexedStack(
       index: tabState.activeIndex,
       children: tabState.tabs.map((tab) {
         switch (tab.kind) {
           case TabKind.terminal:
             return TerminalTab(
-              key: ValueKey(tab.id),
+              key: _keyForTab(tab.id),
               tabId: tab.id,
               connection: tab.connection,
             );
@@ -528,68 +564,159 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 }
 
 class _Toolbar extends StatelessWidget {
+  final bool sidebarOpen;
+  final VoidCallback onToggleSidebar;
   final VoidCallback onNewSession;
   final VoidCallback? onOpenSftp;
   final VoidCallback? onOpenSsh;
   final bool showMenuButton;
+  final bool isTerminalTab;
+  final SplitDirection? splitDir;
+  final VoidCallback? onSplitVertical;
+  final VoidCallback? onSplitHorizontal;
 
   const _Toolbar({
+    required this.sidebarOpen,
+    required this.onToggleSidebar,
     required this.onNewSession,
     this.onOpenSftp,
     this.onOpenSsh,
     this.showMenuButton = false,
+    this.isTerminalTab = false,
+    this.splitDir,
+    this.onSplitVertical,
+    this.onSplitHorizontal,
   });
+
+  static ButtonStyle _tbtnStyle({required bool active, required ColorScheme scheme}) {
+    return ButtonStyle(
+      padding: WidgetStateProperty.all(EdgeInsets.zero),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (active) return scheme.onSurface.withValues(alpha: 0.12);
+        if (states.contains(WidgetState.hovered)) {
+          return scheme.onSurface.withValues(alpha: 0.08);
+        }
+        return Colors.transparent;
+      }),
+      splashFactory: NoSplash.splashFactory,
+      overlayColor: WidgetStateProperty.all(Colors.transparent),
+      shape: WidgetStateProperty.all(const RoundedRectangleBorder()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: 34,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: Border(
-          bottom: BorderSide(color: theme.dividerColor),
-        ),
+        color: scheme.surfaceContainerLow,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
+          const SizedBox(width: 2),
           if (showMenuButton)
             IconButton(
               onPressed: () => Scaffold.of(context).openDrawer(),
-              icon: const Icon(Icons.menu, size: 18),
+              icon: Icon(Icons.menu, size: 14,
+                  color: scheme.onSurface.withValues(alpha: 0.55)),
               tooltip: 'Sessions',
-              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(width: 26, height: 26),
+              style: _tbtnStyle(active: false, scheme: scheme),
+            )
+          else
+            _TBtn(
+              icon: Icons.view_sidebar,
+              onPressed: onToggleSidebar,
+              tooltip: 'Sidebar (Ctrl+B)',
+              active: sidebarOpen,
             ),
-          IconButton(
+          _Divider(),
+          _TBtn(
+            icon: Icons.add,
             onPressed: onNewSession,
-            icon: const Icon(Icons.add, size: 18),
             tooltip: 'New Session (Ctrl+N)',
-            visualDensity: VisualDensity.compact,
           ),
           if (onOpenSftp != null)
-            IconButton(
+            _TBtn(
+              icon: Icons.folder_open,
               onPressed: onOpenSftp,
-              icon: const Icon(Icons.folder_open, size: 18),
-              tooltip: 'Open SFTP Browser',
-              visualDensity: VisualDensity.compact,
+              tooltip: 'Open File Transfer',
             ),
           if (onOpenSsh != null)
-            IconButton(
+            _TBtn(
+              icon: Icons.terminal,
               onPressed: onOpenSsh,
-              icon: const Icon(Icons.terminal, size: 18),
-              tooltip: 'Open SSH Terminal',
-              visualDensity: VisualDensity.compact,
+              tooltip: 'Open Terminal',
             ),
           const Spacer(),
-          IconButton(
+          if (isTerminalTab) ...[
+            _TBtn(
+              icon: Icons.vertical_split,
+              onPressed: onSplitVertical,
+              tooltip: 'Split Vertical (Ctrl+\\)',
+              active: splitDir == SplitDirection.vertical,
+            ),
+            _TBtn(
+              icon: Icons.horizontal_split,
+              onPressed: onSplitHorizontal,
+              tooltip: 'Split Horizontal (Ctrl+Shift+\\)',
+              active: splitDir == SplitDirection.horizontal,
+            ),
+            _Divider(),
+          ] else
+            _Divider(),
+          _TBtn(
+            icon: Icons.settings,
             onPressed: () => SettingsScreen.show(context),
-            icon: const Icon(Icons.settings, size: 18),
             tooltip: 'Settings',
-            visualDensity: VisualDensity.compact,
           ),
+          const SizedBox(width: 2),
         ],
       ),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 16,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: Theme.of(context).colorScheme.outlineVariant,
+    );
+  }
+}
+
+class _TBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final String tooltip;
+  final bool active;
+
+  const _TBtn({
+    required this.icon,
+    this.onPressed,
+    required this.tooltip,
+    this.active = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final iconColor = active
+        ? scheme.onSurface
+        : scheme.onSurface.withValues(alpha: 0.55);
+    return IconButton(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 14, color: iconColor),
+      tooltip: tooltip,
+      constraints: const BoxConstraints.tightFor(width: 26, height: 26),
+      style: _Toolbar._tbtnStyle(active: active, scheme: scheme),
     );
   }
 }

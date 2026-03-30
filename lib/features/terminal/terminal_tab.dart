@@ -67,6 +67,36 @@ class TerminalTabState extends State<TerminalTab> {
     });
   }
 
+  /// The direction of the root-level split, or null if not split.
+  SplitDirection? get topLevelSplitDirection {
+    final root = _root;
+    if (root is BranchNode) return root.direction;
+    return null;
+  }
+
+  /// Toggle a split in the given direction at the toolbar level.
+  ///
+  /// If the root is already a [BranchNode] in that direction, collapses back
+  /// to a single pane (keeps the first leaf). Otherwise splits the focused pane.
+  void splitFocused(SplitDirection direction) {
+    final root = _root;
+    if (root is BranchNode && root.direction == direction) {
+      final keepId = _firstLeafIdOf(root.first);
+      _paneConnections.removeWhere((key, _) => key != keepId);
+      setState(() {
+        _root = LeafNode(id: keepId);
+        _focusedPaneId = keepId;
+      });
+    } else {
+      _splitPane(_focusedPaneId, direction, false);
+    }
+  }
+
+  String _firstLeafIdOf(SplitNode node) {
+    if (node is LeafNode) return node.id;
+    return _firstLeafIdOf((node as BranchNode).first);
+  }
+
   void _closePane(String paneId) {
     final newRoot = removeNode(_root, paneId);
     if (newRoot == null) return;
