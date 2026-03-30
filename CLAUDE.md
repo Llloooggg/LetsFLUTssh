@@ -57,6 +57,42 @@ Just `git push` — everything else is automatic:
 
 - By default Claude only reminds about tagging — does **not** run `make tag` unless user explicitly asks
 
+**Full workflow chain:**
+
+```
+# Normal push (feat/fix/refactor) to main:
+git push
+  │
+  ├─► ci.yml          (on: push lib/**,test/**,pubspec.*)
+  │     analyze + test + upload artifacts (coverage, sonar-source)
+  │           │
+  │           ├─► sonarcloud.yml   (on: workflow_run[CI] completed, main only)
+  │           │     downloads artifacts → Sonar scan
+  │           │     NOTE: sonarcloud.yml uploads sonar-source artifact from CI
+  │           │     to avoid untrusted ref interpolation (Scorecard safe)
+  │           │
+  │           └─► auto-tag.yml     (on: workflow_run[CI] completed)
+  │                 reads HEAD commit via GitHub API → feat/fix/refactor → tag v*
+  │                       │
+  │                       └─► build.yml   (on: push tags/v*)
+  │                             preflight: waits CI (required) + OSV (required)
+  │                               + SonarCloud (warn-only)
+  │                             → build all platforms → GitHub Release
+  │
+  ├─► scorecard.yml   (on: push)      — OpenSSF Scorecard
+  └─► codeql.yml      (on: push)      — CodeQL analysis
+
+# Dependabot patch/minor merge:
+PR merge → dependabot-release.yml   (on: pull_request[closed])
+               bumps version in pubspec.yaml → commit
+                     │
+                     └─► ci.yml (on: push) → ... → dependabot-tag.yml
+                                                       → build.yml → Release
+
+# ci:/docs:/test:/chore: commits: CI does NOT trigger (paths-filter).
+#   No tag, no release — correct behavior.
+```
+
 ### Post-change checklist
 
 1. Version bump in same commit (if app-affecting)
