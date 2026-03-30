@@ -1219,6 +1219,64 @@ void main() {
       expect(find.textContaining('2 tab(s)'), findsOneWidget);
       expect(find.byType(FileBrowserTab), findsOneWidget);
     });
+
+    testWidgets('SFTP button hidden when active tab is SFTP', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 's1', label: 'Files', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Open SFTP Browser'), findsNothing);
+    });
+  });
+
+  group('MainScreen — _buildRightSide onOpenSsh visibility', () {
+    testWidgets('SSH button shows when active tab is SFTP and connected', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 's1', label: 'Files', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Open SSH Terminal'), findsOneWidget);
+      expect(find.byIcon(Icons.terminal), findsAtLeastNWidgets(1));
+    });
+
+    testWidgets('SSH button hidden when active tab is terminal', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Open SSH Terminal'), findsNothing);
+    });
+
+    testWidgets('SSH button hidden when SFTP tab is disconnected', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.disconnected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 's1', label: 'Files', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Open SSH Terminal'), findsNothing);
+    });
+
+    testWidgets('tapping SSH button opens terminal tab alongside SFTP', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 's1', label: 'Files', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Open SSH Terminal'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+    });
   });
 
   group('MainScreen — _handleLfsDrop', () {

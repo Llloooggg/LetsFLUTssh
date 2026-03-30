@@ -1039,6 +1039,82 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsNothing);
     });
 
+    testWidgets('SSH button shown on SFTP page when connected', (tester) async {
+      final conn = Connection(
+        id: 'conn-ssh-btn',
+        label: 'Connected Server',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: null,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) => b.addSftpTab(conn)),
+            )),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Files page
+      await tester.tap(find.text('Files'));
+      await tester.pumpAndSettle();
+
+      // SSH button should be visible
+      expect(find.byTooltip('Open SSH Terminal'), findsOneWidget);
+    });
+
+    testWidgets('SSH button hidden on SFTP page when disconnected', (tester) async {
+      final conn = Connection(
+        id: 'conn-ssh-btn-off',
+        label: 'Disconnected Server',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) => b.addSftpTab(conn)),
+            )),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Files page
+      await tester.tap(find.text('Files'));
+      await tester.pumpAndSettle();
+
+      // SSH button should NOT be visible
+      expect(find.byTooltip('Open SSH Terminal'), findsNothing);
+    });
+
     testWidgets('horizontal scroll in tab chips does not trigger page swipe', (tester) async {
       final conn = Connection(
         id: 'conn-scroll',
