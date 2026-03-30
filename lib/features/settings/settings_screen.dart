@@ -806,11 +806,10 @@ class _UpdateSection extends ConsumerWidget {
         return const SizedBox.shrink();
 
       case UpdateStatus.upToDate:
-        final version = ref.watch(appVersionProvider);
         return ListTile(
           leading: Icon(Icons.check_circle_outline, size: 20,
               color: theme.colorScheme.primary),
-          title: Text('You\'re up to date (v$version)'),
+          title: const Text('You\'re up to date'),
           contentPadding: EdgeInsets.zero,
         );
 
