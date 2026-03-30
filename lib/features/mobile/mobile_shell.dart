@@ -284,10 +284,8 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     if (widget.filteredTabs.length > _previousTabCount) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
-          _scrollController.animateTo(
+          _scrollController.jumpTo(
             _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
           );
         }
       });
