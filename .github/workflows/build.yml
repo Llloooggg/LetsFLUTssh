@@ -86,8 +86,10 @@ jobs:
             fi
           }
 
-          # CI is implied by SonarCloud (Sonar only runs after CI passes).
-          wait_for_check "SonarCloud scan" "SonarCloud"
+          wait_for_check "analyze-and-test" "CI"
+          # SonarCloud runs via workflow_run and attaches to default branch HEAD,
+          # not to the tagged commit SHA — cannot be reliably gated here.
+          wait_for_check "SonarCloud scan" "SonarCloud" || true
           wait_for_check "scan" "OSV-Scanner"
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
