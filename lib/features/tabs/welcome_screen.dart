@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_theme.dart';
+
 /// Shown when no tabs are open.
 class WelcomeScreen extends StatelessWidget {
   final VoidCallback onNewSession;
@@ -8,45 +10,116 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.terminal,
-            size: 80,
-            color: theme.colorScheme.primary.withValues(alpha: 0.5),
+          // Terminal icon in 48×48 bg3 container
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(color: AppTheme.bg3),
+            child: const Icon(
+              Icons.terminal,
+              size: 22,
+              color: AppTheme.fgFaint,
+            ),
           ),
           const SizedBox(height: 16),
-          Text(
-            'LetsFLUTssh',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+          const Text(
+            'No active session',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13,
+              color: AppTheme.fgDim,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'SSH/SFTP Client',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          const SizedBox(height: 4),
+          const Text(
+            'Create a new connection or select one from the sidebar',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 11,
+              color: AppTheme.fgFaint,
             ),
           ),
-          const SizedBox(height: 32),
-          FilledButton.icon(
-            onPressed: onNewSession,
-            icon: const Icon(Icons.add),
-            label: const Text('New Session'),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Ctrl+N to connect',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 30,
+            child: TextButton.icon(
+              onPressed: onNewSession,
+              icon: const Icon(Icons.add, size: 13, color: Colors.white),
+              label: const Text(
+                'New Connection',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                backgroundColor: AppTheme.accent,
+                shape: const RoundedRectangleBorder(),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+              ),
             ),
           ),
+          const SizedBox(height: 16),
+          // Shortcuts table
+          const _ShortcutRow(keys: 'Ctrl+N', description: 'New Terminal'),
+          const SizedBox(height: 6),
+          const _ShortcutRow(
+              keys: 'Ctrl+Shift+N', description: 'New File Transfer'),
+          const SizedBox(height: 6),
+          const _ShortcutRow(keys: 'Ctrl+B', description: 'Toggle Sidebar'),
+          const SizedBox(height: 6),
+          const _ShortcutRow(keys: 'Ctrl+,', description: 'Settings'),
         ],
       ),
+    );
+  }
+}
+
+class _ShortcutRow extends StatelessWidget {
+  final String keys;
+  final String description;
+
+  const _ShortcutRow({required this.keys, required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          constraints: const BoxConstraints(minWidth: 90),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppTheme.bg3,
+            border: Border.all(color: AppTheme.borderLight),
+          ),
+          child: Text(
+            keys,
+            style: const TextStyle(
+              fontFamily: 'JetBrains Mono',
+              fontSize: 9,
+              color: AppTheme.fgDim,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          description,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 10,
+            color: AppTheme.fgFaint,
+          ),
+        ),
+      ],
     );
   }
 }
