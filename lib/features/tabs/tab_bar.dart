@@ -11,70 +11,77 @@ import 'tab_model.dart';
 ///
 /// Drag any tab to reorder. Click to select, right-click for context menu.
 class AppTabBar extends ConsumerWidget {
-  const AppTabBar({super.key});
+  final VoidCallback onNewSession;
+
+  const AppTabBar({super.key, required this.onNewSession});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tabState = ref.watch(tabProvider);
-    // Watch connection state changes so tab indicators update
-    // when SSH connects/disconnects (Connection objects are mutable).
+    // Watch connection state changes so tab indicators update.
     ref.watch(connectionsProvider);
     final tabs = tabState.tabs;
 
-    if (tabs.isEmpty) return const SizedBox.shrink();
+    return Container(
+      height: 32,
+      decoration: const BoxDecoration(
+        color: AppTheme.bg1,
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
+      ),
+      child: Row(
+        children: [
+          if (tabs.isNotEmpty)
+            Expanded(
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: tabs.length,
+                itemBuilder: (context, index) {
+                  final tab = tabs[index];
+                  final isActive = index == tabState.activeIndex;
 
-    final theme = Theme.of(context);
-
-    return SizedBox(
-      height: 36,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: tabs.length,
-        itemBuilder: (context, index) {
-          final tab = tabs[index];
-          final isActive = index == tabState.activeIndex;
-
-          // DragTarget for reorder: accepts drops from other tabs' grip handles.
-          return DragTarget<TabEntry>(
-            key: ValueKey('drop_${tab.id}'),
-            onWillAcceptWithDetails: (d) => d.data.id != tab.id,
-            onAcceptWithDetails: (d) {
-              final oldIdx = tabs.indexWhere((t) => t.id == d.data.id);
-              if (oldIdx >= 0 && oldIdx != index) {
-                ref.read(tabProvider.notifier).swapTabs(oldIdx, index);
-              }
-            },
-            builder: (context, candidates, rejected) {
-              final isDropHover = candidates.isNotEmpty;
-
-              return Container(
-                decoration: isDropHover
-                    ? BoxDecoration(
-                        border: Border(
-                          left: BorderSide(
-                            color: theme.colorScheme.primary,
-                            width: 2,
+                  return DragTarget<TabEntry>(
+                    key: ValueKey('drop_${tab.id}'),
+                    onWillAcceptWithDetails: (d) => d.data.id != tab.id,
+                    onAcceptWithDetails: (d) {
+                      final oldIdx = tabs.indexWhere((t) => t.id == d.data.id);
+                      if (oldIdx >= 0 && oldIdx != index) {
+                        ref.read(tabProvider.notifier).swapTabs(oldIdx, index);
+                      }
+                    },
+                    builder: (context, candidates, rejected) {
+                      return Container(
+                        decoration: candidates.isNotEmpty
+                            ? const BoxDecoration(
+                                border: Border(
+                                  left: BorderSide(
+                                    color: AppTheme.accent,
+                                    width: 2,
+                                  ),
+                                ),
+                              )
+                            : null,
+                        child: _TabItem(
+                          tab: tab,
+                          isActive: isActive,
+                          onSelect: () =>
+                              ref.read(tabProvider.notifier).selectTab(index),
+                          onClose: () =>
+                              ref.read(tabProvider.notifier).closeTab(tab.id),
+                          onContextMenu: (offset) => _showContextMenu(
+                            context, ref, tab, index, tabState, offset,
                           ),
                         ),
-                      )
-                    : null,
-                child: _TabItem(
-                  tab: tab,
-                  isActive: isActive,
-                  theme: theme,
-                  onSelect: () =>
-                      ref.read(tabProvider.notifier).selectTab(index),
-                  onClose: () =>
-                      ref.read(tabProvider.notifier).closeTab(tab.id),
-                  onContextMenu: (offset) => _showContextMenu(
-                    context, ref, tab, index, tabState, offset,
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                      );
+                    },
+                  );
+                },
+              ),
+            )
+          else
+            const Spacer(),
+          _PlusButton(onPressed: onNewSession),
+        ],
       ),
     );
   }
@@ -94,10 +101,7 @@ class AppTabBar extends ConsumerWidget {
         position.dx, position.dy, position.dx, position.dy,
       ),
       items: [
-        const PopupMenuItem(
-          value: 'close',
-          child: Text('Close'),
-        ),
+        const PopupMenuItem(value: 'close', child: Text('Close')),
         if (tabState.tabs.length > 1)
           const PopupMenuItem(
             value: 'close_others',
@@ -131,10 +135,9 @@ class AppTabBar extends ConsumerWidget {
   }
 }
 
-class _TabItem extends StatelessWidget {
+class _TabItem extends StatefulWidget {
   final TabEntry tab;
   final bool isActive;
-  final ThemeData theme;
   final VoidCallback onSelect;
   final VoidCallback onClose;
   final void Function(Offset position) onContextMenu;
@@ -142,103 +145,161 @@ class _TabItem extends StatelessWidget {
   const _TabItem({
     required this.tab,
     required this.isActive,
-    required this.theme,
     required this.onSelect,
     required this.onClose,
     required this.onContextMenu,
   });
 
-  Color _stateColor() {
-    final brightness = theme.brightness;
-    switch (tab.connection.state) {
-      case SSHConnectionState.connected:
-        return AppTheme.connectedColor(brightness);
-      case SSHConnectionState.connecting:
-        return AppTheme.connectingColor(brightness);
-      case SSHConnectionState.disconnected:
-        return AppTheme.disconnectedColor(brightness);
-    }
+  @override
+  State<_TabItem> createState() => _TabItemState();
+}
+
+class _TabItemState extends State<_TabItem> {
+  bool _hovered = false;
+
+  Color _dotColor() {
+    return widget.tab.connection.state == SSHConnectionState.connected
+        ? AppTheme.green
+        : AppTheme.fgFaint;
   }
 
-  IconData _kindIcon() {
-    switch (tab.kind) {
-      case TabKind.terminal:
-        return Icons.terminal;
-      case TabKind.sftp:
-        return Icons.folder;
-    }
+  Color _iconColor() {
+    if (!widget.isActive) return AppTheme.fgFaint;
+    return widget.tab.kind == TabKind.terminal ? AppTheme.blue : AppTheme.yellow;
   }
 
   @override
   Widget build(BuildContext context) {
-    final tabContent = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: isActive
-            ? theme.colorScheme.surfaceContainerHighest
-            : Colors.transparent,
-        border: Border(
-          bottom: BorderSide(
-            color: isActive ? theme.colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    final showClose = _hovered || widget.isActive;
+
+    final tabContent = SizedBox(
+      height: 32,
+      child: Stack(
         children: [
           Container(
-            width: 8,
-            height: 8,
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _stateColor(),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Icon(_kindIcon(), size: 14),
-          const SizedBox(width: 4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 150),
-            child: Text(
-              tab.label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              color: widget.isActive ? AppTheme.bg2 : Colors.transparent,
+              border: const Border(
+                right: BorderSide(color: AppTheme.border),
               ),
-              overflow: TextOverflow.ellipsis,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _dotColor(),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  widget.tab.kind == TabKind.terminal
+                      ? Icons.shield
+                      : Icons.folder,
+                  size: 12,
+                  color: _iconColor(),
+                ),
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 100),
+                  child: Text(
+                    widget.tab.label,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      color: widget.isActive ? AppTheme.fg : AppTheme.fgDim,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (widget.tab.kind == TabKind.sftp) ...[
+                  const SizedBox(width: 4),
+                  const Text(
+                    'SFTP',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 9,
+                      color: AppTheme.fgFaint,
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 4),
+                Opacity(
+                  opacity: showClose ? 1.0 : 0.0,
+                  child: GestureDetector(
+                    onTap: showClose ? widget.onClose : null,
+                    child: const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: Icon(Icons.close, size: 10, color: AppTheme.fgDim),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 4),
-          InkWell(
-            onTap: onClose,
-            borderRadius: BorderRadius.circular(8),
-            child: const Padding(
-              padding: EdgeInsets.all(2),
-              child: Icon(Icons.close, size: 14),
+          if (widget.isActive)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SizedBox(height: 2, child: ColoredBox(color: AppTheme.accent)),
             ),
-          ),
         ],
       ),
     );
 
-    return Draggable<TabEntry>(
-      data: tab,
-      feedback: Material(
-        elevation: 4,
-        color: Colors.transparent,
-        child: Opacity(
-          opacity: 0.85,
-          child: _DragChip(tab: tab, theme: theme),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Draggable<TabEntry>(
+        data: widget.tab,
+        feedback: Material(
+          elevation: 4,
+          color: Colors.transparent,
+          child: Opacity(opacity: 0.85, child: _DragChip(tab: widget.tab)),
+        ),
+        childWhenDragging: Opacity(opacity: 0.4, child: tabContent),
+        child: GestureDetector(
+          onTap: widget.onSelect,
+          onSecondaryTapUp: (d) => widget.onContextMenu(d.globalPosition),
+          child: tabContent,
         ),
       ),
-      childWhenDragging: Opacity(
-        opacity: 0.4,
-        child: tabContent,
-      ),
+    );
+  }
+}
+
+class _PlusButton extends StatefulWidget {
+  final VoidCallback onPressed;
+
+  const _PlusButton({required this.onPressed});
+
+  @override
+  State<_PlusButton> createState() => _PlusButtonState();
+}
+
+class _PlusButtonState extends State<_PlusButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: onSelect,
-        onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
-        child: tabContent,
+        onTap: widget.onPressed,
+        child: Container(
+          width: 32,
+          height: 32,
+          color: _hovered ? AppTheme.hover : Colors.transparent,
+          child: const Icon(Icons.add, size: 12, color: AppTheme.fgFaint),
+        ),
       ),
     );
   }
@@ -247,30 +308,35 @@ class _TabItem extends StatelessWidget {
 /// Drag feedback chip shown while dragging a tab.
 class _DragChip extends StatelessWidget {
   final TabEntry tab;
-  final ThemeData theme;
 
-  const _DragChip({required this.tab, required this.theme});
+  const _DragChip({required this.tab});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 36,
+      height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: theme.colorScheme.primary, width: 1),
+      decoration: const BoxDecoration(
+        color: AppTheme.bg3,
+        border: Border.fromBorderSide(BorderSide(color: AppTheme.accent)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            tab.kind == TabKind.terminal ? Icons.terminal : Icons.folder,
-            size: 14,
-            color: theme.colorScheme.onSurface,
+            tab.kind == TabKind.terminal ? Icons.shield : Icons.folder,
+            size: 12,
+            color: AppTheme.fgDim,
           ),
-          const SizedBox(width: 4),
-          Text(tab.label, style: theme.textTheme.bodySmall),
+          const SizedBox(width: 6),
+          Text(
+            tab.label,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 11,
+              color: AppTheme.fg,
+            ),
+          ),
         ],
       ),
     );
