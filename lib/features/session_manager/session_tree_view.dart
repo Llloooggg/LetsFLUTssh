@@ -46,6 +46,12 @@ class SessionTreeView extends StatefulWidget {
   /// enter select mode and provide [selectedIds] + [onToggleSelected].
   final void Function(Set<String> ids)? onMarqueeSelect;
 
+  /// Called when a marquee drag begins (threshold crossed).
+  final VoidCallback? onMarqueeStart;
+
+  /// Called when a marquee drag ends (pointer up or leaves bounds).
+  final VoidCallback? onMarqueeEnd;
+
   /// Cross-widget marquee controller — when the pointer exits session panel
   /// bounds during a marquee drag, events are forwarded to the file pane.
   final CrossMarqueeController? crossMarquee;
@@ -64,6 +70,8 @@ class SessionTreeView extends StatefulWidget {
     this.selectedIds = const {},
     this.onToggleSelected,
     this.onMarqueeSelect,
+    this.onMarqueeStart,
+    this.onMarqueeEnd,
     this.crossMarquee,
   });
 
@@ -195,6 +203,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
             _marqueeCurrent = null;
             _marqueeActive = false;
           });
+          widget.onMarqueeEnd?.call();
           widget.onMarqueeSelect?.call({});
         }
         if (!_crossMarqueeActive) {
@@ -216,6 +225,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
     if (!_marqueeActive) {
       _marqueeActive = true;
+      widget.onMarqueeStart?.call();
     }
 
     setState(() {
@@ -239,6 +249,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         _marqueeCurrent = null;
         _marqueeActive = false;
       });
+      widget.onMarqueeEnd?.call();
     } else {
       _marqueeAnchor = null;
       // Click without drag — clear marquee selection

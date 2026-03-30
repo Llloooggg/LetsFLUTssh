@@ -35,6 +35,7 @@ class SessionPanel extends ConsumerStatefulWidget {
 class SessionPanelState extends ConsumerState<SessionPanel> {
   bool _selectMode = false;
   final _selectedIds = <String>{};
+  bool _marqueeInProgress = false;
 
   @visibleForTesting
   bool get selectMode => _selectMode;
@@ -50,6 +51,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         ..addAll(ids);
     });
   }
+
+  @visibleForTesting
+  void simulateMarqueeStart() => setState(() => _marqueeInProgress = true);
+
+  @visibleForTesting
+  void simulateMarqueeEnd() => setState(() => _marqueeInProgress = false);
 
   void _enterSelectMode() {
     setState(() {
@@ -180,7 +187,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             onChanged: (v) => ref.read(sessionSearchProvider.notifier).set(v),
           ),
           // Desktop: compact action bar when marquee-selected
-          if (!mobile && _selectedIds.isNotEmpty)
+          // Suppressed during active marquee drag to avoid layout shift.
+          if (!mobile && _selectedIds.isNotEmpty && !_marqueeInProgress)
             _SelectActionBar(
               selectedCount: _selectedIds.length,
               onSelectAll: _selectAll,
@@ -215,6 +223,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   onGroupMoved: (groupPath, targetParent) {
                     ref.read(sessionProvider.notifier).moveGroup(groupPath, targetParent);
                   },
+                  onMarqueeStart: () => setState(() => _marqueeInProgress = true),
+                  onMarqueeEnd: () => setState(() => _marqueeInProgress = false),
                   onMarqueeSelect: (ids) {
                     setState(() {
                       _selectedIds
