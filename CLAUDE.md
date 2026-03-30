@@ -5,6 +5,8 @@
 LetsFLUTssh — lightweight cross-platform SSH/SFTP client with GUI, written in Dart/Flutter.
 Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, Android, iOS.
 
+**Solo developer project** — no team, no second reviewer. Scorecard checks like Code-Review and Branch-Protection assume multi-person teams; some findings are expected and acceptable for a solo project.
+
 **Predecessor:** LetsGOssh (Go/Fyne) — full feature port + improvements.
 
 ## Working Agreements
