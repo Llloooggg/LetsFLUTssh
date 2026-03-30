@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// OneDark-inspired color palette for the app.
 ///
@@ -131,7 +132,7 @@ abstract final class AppTheme {
         bodyMedium: TextStyle(color: _fg),
         bodySmall: TextStyle(color: _gutter),
         titleSmall: TextStyle(color: _blue),
-      ),
+      ).apply(fontFamily: 'Inter'),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: _blue,
@@ -325,7 +326,7 @@ abstract final class AppTheme {
         bodyMedium: TextStyle(color: _lightFg),
         bodySmall: TextStyle(color: _lightGutter),
         titleSmall: TextStyle(color: _lightBlue),
-      ),
+      ).apply(fontFamily: 'Inter'),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: _lightBlue,
@@ -461,4 +462,47 @@ abstract final class AppTheme {
 
   static Color folderColor(Brightness brightness) =>
       brightness == Brightness.dark ? _yellow : _lightYellow;
+}
+
+/// Font helpers — Inter for UI, JetBrains Mono for technical data.
+///
+/// Returns plain [TextStyle] objects with [fontFamily] set. Fonts are
+/// registered with the Flutter engine once [loadFonts] is called at
+/// app startup via [google_fonts].
+abstract final class AppFonts {
+  static const _inter = 'Inter';
+  static const _mono = 'JetBrains Mono';
+
+  static TextStyle inter({
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+    double? height,
+  }) =>
+      TextStyle(
+        fontFamily: _inter,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        height: height,
+      );
+
+  static TextStyle mono({
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+  }) =>
+      TextStyle(
+        fontFamily: _mono,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+
+  /// Call once after [WidgetsFlutterBinding.ensureInitialized] to register
+  /// Inter and JetBrains Mono with the Flutter engine via google_fonts.
+  static void loadFonts() {
+    GoogleFonts.inter();
+    GoogleFonts.jetBrainsMono();
+  }
 }

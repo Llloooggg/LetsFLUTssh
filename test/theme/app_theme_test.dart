@@ -189,6 +189,53 @@ void main() {
     });
   });
 
+  group('AppFonts', () {
+    test('inter fontFamily is Inter', () {
+      expect(AppFonts.inter().fontFamily, 'Inter');
+    });
+
+    test('inter passes fontSize and color', () {
+      final style = AppFonts.inter(fontSize: 12, color: const Color(0xFFABB2BF));
+      expect(style.fontSize, 12);
+      expect(style.color, const Color(0xFFABB2BF));
+    });
+
+    test('inter passes fontWeight and height', () {
+      final style = AppFonts.inter(fontWeight: FontWeight.w600, height: 1.5);
+      expect(style.fontWeight, FontWeight.w600);
+      expect(style.height, 1.5);
+    });
+
+    test('mono fontFamily is JetBrains Mono', () {
+      expect(AppFonts.mono().fontFamily, 'JetBrains Mono');
+    });
+
+    test('mono passes fontSize and color', () {
+      final style = AppFonts.mono(fontSize: 11, color: const Color(0xFF7F848E));
+      expect(style.fontSize, 11);
+      expect(style.color, const Color(0xFF7F848E));
+    });
+
+    test('mono passes fontWeight', () {
+      final style = AppFonts.mono(fontWeight: FontWeight.bold);
+      expect(style.fontWeight, FontWeight.bold);
+    });
+
+    test('inter and mono have different font families', () {
+      expect(AppFonts.inter().fontFamily, isNot(AppFonts.mono().fontFamily));
+    });
+
+    test('dark textTheme uses Inter font family', () {
+      final theme = AppTheme.dark();
+      expect(theme.textTheme.bodyMedium?.fontFamily, 'Inter');
+    });
+
+    test('light textTheme uses Inter font family', () {
+      final theme = AppTheme.light();
+      expect(theme.textTheme.bodyMedium?.fontFamily, 'Inter');
+    });
+  });
+
   group('brightness-aware color resolvers', () {
     test('connectedColor dark', () {
       expect(AppTheme.connectedColor(Brightness.dark), AppTheme.connected);
