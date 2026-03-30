@@ -69,6 +69,17 @@ jobs:
           path: coverage/lcov.info
           retention-days: 1
 
+      - name: Upload SonarCloud source artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: sonar-source
+          retention-days: 1
+          path: |
+            lib/**
+            test/**
+            pubspec.yaml
+            sonar-project.properties
+
   commit-lint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
