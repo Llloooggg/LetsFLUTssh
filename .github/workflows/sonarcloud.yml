@@ -18,22 +18,23 @@ jobs:
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.id == github.event.repository.id)
     permissions:
+      actions: read
       contents: read
     steps:
-      # Scorecard: no github.event.workflow_run in actions/checkout ref or in run: (static/script checks).
-      - name: Resolve checkout ref
-        id: checkout_ref
-        env:
-          RESOLVED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-        run: echo "sha=${RESOLVED_SHA}" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Checkout default branch for manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-          # Pin to the commit that triggered CI, not to current HEAD.
-          # Without this, a concurrent push can shift github.sha so the
-          # SonarCloud check-run lands on a different SHA than build.yml expects.
-          ref: ${{ steps.checkout_ref.outputs.sha }}
+
+      - name: Download SonarCloud source artifact
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sonar-source
+          path: .
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
 
       - name: Download coverage artifact
         if: github.event_name != 'workflow_dispatch'
