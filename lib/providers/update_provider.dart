@@ -93,7 +93,11 @@ class UpdateNotifier extends Notifier<UpdateState> {
   }
 
   /// Download the asset for the current platform.
-  Future<void> download() async {
+  ///
+  /// If [autoInstall] is true, automatically opens the installer after a
+  /// successful download (used by the startup update dialog so that
+  /// "Download & Install" actually installs without a second tap).
+  Future<void> download({bool autoInstall = false}) async {
     final info = state.info;
     if (info == null || info.assetUrl == null) return;
     if (state.status == UpdateStatus.downloading) return;
@@ -116,6 +120,9 @@ class UpdateNotifier extends Notifier<UpdateState> {
         downloadedPath: path,
         progress: 1,
       );
+      if (autoInstall) {
+        await install();
+      }
     } catch (e) {
       AppLogger.instance
           .log('Download failed: $e', name: 'UpdateProvider', error: e);
