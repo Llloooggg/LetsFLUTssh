@@ -630,7 +630,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsOneWidget);
+      expect(find.byTooltip('Open File Transfer'), findsOneWidget);
     });
   });
 
@@ -718,7 +718,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      final sftpBtn = find.byTooltip('Open SFTP Browser');
+      final sftpBtn = find.byTooltip('Open File Transfer');
       expect(sftpBtn, findsOneWidget);
 
       await tester.tap(sftpBtn);
@@ -1180,7 +1180,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsOneWidget);
+      expect(find.byTooltip('Open File Transfer'), findsOneWidget);
       // The folder_open icon should be visible
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
@@ -1192,7 +1192,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsNothing);
+      expect(find.byTooltip('Open File Transfer'), findsNothing);
       expect(find.byIcon(Icons.folder_open), findsNothing);
     });
 
@@ -1200,7 +1200,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsNothing);
+      expect(find.byTooltip('Open File Transfer'), findsNothing);
     });
 
     testWidgets('tapping SFTP button opens SFTP tab alongside terminal', (tester) async {
@@ -1212,7 +1212,7 @@ void main() {
 
       expect(find.textContaining('1 tab(s)'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Open SFTP Browser'));
+      await tester.tap(find.byTooltip('Open File Transfer'));
       await tester.pumpAndSettle();
 
       // Now should have 2 tabs (terminal + sftp)
@@ -1227,7 +1227,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsNothing);
+      expect(find.byTooltip('Open File Transfer'), findsNothing);
     });
   });
 
@@ -1239,7 +1239,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SSH Terminal'), findsOneWidget);
+      expect(find.byTooltip('Open Terminal'), findsOneWidget);
       expect(find.byIcon(Icons.terminal), findsAtLeastNWidgets(1));
     });
 
@@ -1250,7 +1250,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SSH Terminal'), findsNothing);
+      expect(find.byTooltip('Open Terminal'), findsNothing);
     });
 
     testWidgets('SSH button hidden when SFTP tab is disconnected', (tester) async {
@@ -1260,7 +1260,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SSH Terminal'), findsNothing);
+      expect(find.byTooltip('Open Terminal'), findsNothing);
     });
 
     testWidgets('tapping SSH button opens terminal tab alongside SFTP', (tester) async {
@@ -1272,7 +1272,7 @@ void main() {
 
       expect(find.textContaining('1 tab(s)'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Open SSH Terminal'));
+      await tester.tap(find.byTooltip('Open Terminal'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('2 tab(s)'), findsOneWidget);
@@ -1860,6 +1860,79 @@ void main() {
       // Menu button and tab content both visible
       expect(find.byIcon(Icons.menu), findsOneWidget);
       expect(find.textContaining('1 tab(s)'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — sidebar toggle', () {
+    testWidgets('wide layout shows view_sidebar button', (tester) async {
+      await tester.pumpWidget(buildApp(width: 1000));
+      await tester.pump();
+
+      expect(find.byTooltip('Sidebar (Ctrl+B)'), findsOneWidget);
+    });
+
+    testWidgets('view_sidebar button not shown on narrow layout', (tester) async {
+      tester.view.physicalSize = const Size(500, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [configProvider.overrideWith(ConfigNotifier.new)],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const Center(child: SizedBox(width: 500, height: 600, child: MainScreen())),
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.byTooltip('Sidebar (Ctrl+B)'), findsNothing);
+    });
+
+    testWidgets('Ctrl+B shortcut toggles sidebar', (tester) async {
+      await tester.pumpWidget(buildApp(width: 1000));
+      await tester.pump();
+
+      // Session panel visible by default
+      expect(find.text('Sessions'), findsOneWidget);
+
+      // Focus inside shortcuts tree
+      final textFields = find.byType(TextField);
+      if (textFields.evaluate().isNotEmpty) {
+        await tester.tap(textFields.first);
+        await tester.pump();
+      }
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Session panel should be hidden (width = 0, clipped)
+      expect(find.text('Sessions'), findsNothing);
+    });
+
+    testWidgets('split buttons shown only for terminal tab', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Split Vertical (Ctrl+\\)'), findsOneWidget);
+      expect(find.byTooltip('Split Horizontal (Ctrl+Shift+\\)'), findsOneWidget);
+    });
+
+    testWidgets('split buttons not shown for SFTP tab', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Split Vertical (Ctrl+\\)'), findsNothing);
+      expect(find.byTooltip('Split Horizontal (Ctrl+Shift+\\)'), findsNothing);
     });
   });
 }
