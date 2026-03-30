@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform.dart';
@@ -233,6 +234,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                     });
                   },
                 ),
+        ),
+        // Footer
+        _SidebarFooter(
+          activeCount: ref.watch(connectionsProvider).value
+              ?.where((c) => c.isConnected).length ?? 0,
+          savedCount: ref.watch(sessionProvider).length,
         ),
       ],
     );
@@ -651,13 +658,23 @@ class _PanelHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
+      ),
       child: Row(
         children: [
           const Text(
-            'Sessions',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            'SESSIONS',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+              color: AppTheme.fgFaint,
+            ),
           ),
           const Spacer(),
           if (onSelect != null)
@@ -667,11 +684,16 @@ class _PanelHeader extends StatelessWidget {
               tooltip: 'Select',
               visualDensity: VisualDensity.compact,
             ),
-          IconButton(
-            onPressed: onAddFolder,
-            icon: const Icon(Icons.create_new_folder, size: 18),
-            tooltip: _kNewFolder,
-            visualDensity: VisualDensity.compact,
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: IconButton(
+              onPressed: onAddFolder,
+              icon: const Icon(Icons.add, size: 14),
+              tooltip: _kNewFolder,
+              padding: EdgeInsets.zero,
+              color: AppTheme.fgDim,
+            ),
           ),
         ],
       ),
@@ -750,30 +772,45 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: SizedBox(
-        height: 32,
-        child: TextField(
-          decoration: InputDecoration(
-            hintText: 'Search...',
-            prefixIcon: const Icon(Icons.search, size: 16),
-            suffixIcon: value.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.close, size: 14),
-                    onPressed: () => onChanged(''),
-                    visualDensity: VisualDensity.compact,
-                  )
-                : null,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(vertical: 6),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide.none,
+      padding: const EdgeInsets.all(8),
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.bg3,
+          border: Border.all(color: AppTheme.borderLight),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search, size: 12, color: AppTheme.fgFaint),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Filter...',
+                  hintStyle: TextStyle(
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 11,
+                    color: AppTheme.fgFaint,
+                  ),
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none,
+                ),
+                style: const TextStyle(
+                  fontFamily: 'JetBrains Mono',
+                  fontSize: 11,
+                  color: AppTheme.fg,
+                ),
+                onChanged: onChanged,
+              ),
             ),
-            filled: true,
-          ),
-          style: const TextStyle(fontSize: 12),
-          onChanged: onChanged,
+            if (value.isNotEmpty)
+              GestureDetector(
+                onTap: () => onChanged(''),
+                child: const Icon(Icons.close, size: 12, color: AppTheme.fgFaint),
+              ),
+          ],
         ),
       ),
     );
@@ -809,6 +846,47 @@ class _EmptyState extends StatelessWidget {
             onPressed: onAdd,
             icon: const Icon(Icons.add, size: 16),
             label: const Text('Add Session', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarFooter extends StatelessWidget {
+  final int activeCount;
+  final int savedCount;
+
+  const _SidebarFooter({required this.activeCount, required this.savedCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppTheme.border)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi, size: 10, color: AppTheme.green),
+          const SizedBox(width: 6),
+          Text(
+            '$activeCount active',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: AppTheme.fgFaint,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '$savedCount saved',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: AppTheme.fgFaint,
+            ),
           ),
         ],
       ),

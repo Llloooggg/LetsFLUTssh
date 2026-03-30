@@ -231,7 +231,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Drawer should open and show Sessions panel
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
   });
 
@@ -368,7 +368,7 @@ void main() {
       await tester.pump();
 
       // Session panel should be visible
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
       // Toolbar should have New Session button
       expect(find.byTooltip('New Session (Ctrl+N)'), findsOneWidget);
     });
@@ -1826,7 +1826,7 @@ void main() {
       await tester.pump();
 
       // Session panel visible by default
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
 
       // Focus inside shortcuts tree
       final textFields = find.byType(TextField);
@@ -1841,7 +1841,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Session panel should be hidden (width = 0, clipped)
-      expect(find.text('Sessions'), findsNothing);
+      expect(find.text('SESSIONS'), findsNothing);
     });
 
     testWidgets('split buttons shown only for terminal tab', (tester) async {
