@@ -802,13 +802,13 @@ void main() {
 
       test('replaces skippedVersion with value', () {
         const config = AppConfig();
-        final copy = config.copyWith(skippedVersion: () => '2.0.0');
+        final copy = config.withSkippedVersion('2.0.0');
         expect(copy.skippedVersion, '2.0.0');
       });
 
       test('clears skippedVersion with null', () {
         const config = AppConfig(skippedVersion: '2.0.0');
-        final copy = config.copyWith(skippedVersion: () => null);
+        final copy = config.withSkippedVersion(null);
         expect(copy.skippedVersion, isNull);
       });
 

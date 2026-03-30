@@ -262,7 +262,7 @@ class AppConfig {
     );
   }
 
-  AppConfig copyWith({ // NOSONAR — idiomatic Dart copyWith, parameter count matches field count
+  AppConfig copyWith({
     TerminalConfig? terminal,
     SshDefaults? ssh,
     UiConfig? ui,
@@ -270,7 +270,6 @@ class AppConfig {
     int? maxHistory,
     bool? enableLogging,
     bool? checkUpdatesOnStart,
-    String? Function()? skippedVersion,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -280,9 +279,20 @@ class AppConfig {
       maxHistory: maxHistory ?? this.maxHistory,
       enableLogging: enableLogging ?? this.enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
-      skippedVersion: skippedVersion != null ? skippedVersion() : this.skippedVersion,
+      skippedVersion: skippedVersion,
     );
   }
+
+  AppConfig withSkippedVersion(String? version) => AppConfig(
+    terminal: terminal,
+    ssh: ssh,
+    ui: ui,
+    transferWorkers: transferWorkers,
+    maxHistory: maxHistory,
+    enableLogging: enableLogging,
+    checkUpdatesOnStart: checkUpdatesOnStart,
+    skippedVersion: version,
+  );
 
   @override
   bool operator ==(Object other) =>

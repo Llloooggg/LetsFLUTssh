@@ -188,7 +188,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             onPressed: () {
               Navigator.pop(ctx);
               ref.read(configProvider.notifier).update(
-                (c) => c.copyWith(skippedVersion: () => info.latestVersion),
+                (c) => c.withSkippedVersion(info.latestVersion),
               );
             },
             child: const Text('Skip This Version'),
