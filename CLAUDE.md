@@ -41,7 +41,7 @@ Just `git push` — everything else is automatic:
 2. CI passes → `auto-tag.yml` fires (also triggers `sonarcloud.yml` for quality scan)
 3. auto-tag fetches commit message via GitHub API (no untrusted input in shell/env — Scorecard safe), checks prefix
 4. If prefix is `feat:` / `fix:` / `refactor:` → reads version from `pubspec.yaml`, creates annotated tag `v{VERSION}` via API using `RELEASE_TOKEN`
-5. Tag triggers Build & Release workflow → preflight waits for CI (required) + SonarCloud (warn-only) + OSV-Scanner (required) → build all platforms → create GitHub Release
+5. Tag triggers Build & Release workflow → preflight waits for SonarCloud (required) + OSV-Scanner (required) → build all platforms → create GitHub Release (CI is implied by SonarCloud — Sonar only runs after CI passes)
 
 **HEAD must be a taggable commit.** auto-tag only inspects the HEAD commit message. If HEAD is `test:`, `docs:`, `ci:`, or `chore:` — no tag is created even if prior commits have version bumps.
 
@@ -51,7 +51,7 @@ Just `git push` — everything else is automatic:
 | App change + tests/docs     | Bundle tests/docs into the app commit, OR make sure the app commit is pushed last |
 | Tests/docs/CI only          | `git push` — no tag, no release (correct behavior)                  |
 | Dependabot deps             | Auto: merge → version bump → CI → `dependabot-tag.yml`             |
-| Failed build (re-trigger)   | `gh workflow run build.yml --ref v{VERSION}` (manual dispatch, SonarCloud non-blocking) |
+| Failed build (re-trigger)   | `gh workflow run build.yml --ref v{VERSION}` (manual dispatch — preflight warns if Sonar/OSV not found, then proceeds) |
 
 `make tag` exists as a **manual fallback only** (runs local checks, verifies remote CI, tags, pushes). Normal flow never needs it.
 
@@ -76,8 +76,8 @@ git push
   │                 reads HEAD commit via GitHub API → feat/fix/refactor → tag v*
   │                       │
   │                       └─► build.yml   (on: push tags/v*)
-  │                             preflight: waits CI (required) + OSV (required)
-  │                               + SonarCloud (warn-only)
+  │                             preflight: waits SonarCloud (required) + OSV (required)
+  │                               CI is implied — Sonar only runs after CI passes
   │                             → build all platforms → GitHub Release
   │
   ├─► scorecard.yml   (on: push)      — OpenSSF Scorecard
@@ -260,7 +260,7 @@ LetsFLUTssh/
 | **Export/Import** | `.lfs` archive (ZIP + AES-256-GCM), merge/replace modes, auto-migration from plaintext                                                                                                    |
 | **Mobile**        | Bottom nav, SSH virtual keyboard (sticky modifiers applied to system keyboard too), pinch-to-zoom, single-pane SFTP, deep links, file open intents                                        |
 | **UI**            | OneDark/One Light themes, responsive layout (sidebar→drawer <600px), toast notifications, no animations                                                                                   |
-| **CI/CD**         | `ci.yml`: analyze + test + outdated deps + commit-lint. `sonarcloud.yml`: triggers after CI via `workflow_run` (main branch only, no fork PR code execution), downloads coverage artifact, non-blocking in build preflight. `auto-tag.yml`: after CI passes, fetches commit message via API (no untrusted input in shell), creates annotated tag for feat/fix/refactor commits. `build.yml`: preflight waits for CI (required) + SonarCloud (warn-only) + OSV-Scanner (required), build provenance attestation (SLSA), packaging (AppImage/deb, EXE/zip, dmg, per-ABI APK). `dependabot-release.yml`: auto patch-bump + commit when Dependabot merges pub dependency updates. `dependabot-tag.yml`: creates tag after CI passes on the bump commit. `osv-scanner.yml`: dependency CVE scan (on pubspec change + weekly). `scorecard.yml`: OpenSSF Scorecard (on push + weekly). `codeql.yml`: Actions workflow analysis (weekly; Dart covered by SonarCloud). Dependabot version updates (pub + actions, weekly) with auto-merge for patch/minor. All actions pinned to SHA. Branch protection on main (require CI + OSV-Scanner). Top-level `permissions: read-all` on all workflows. OpenSSF Best Practices badge (passing) |
+| **CI/CD**         | `ci.yml`: analyze + test + outdated deps + commit-lint. `sonarcloud.yml`: triggers after CI via `workflow_run` (main branch only, no fork PR code execution), downloads sonar-source + coverage artifacts, runs flutter pub get (no checkout — Scorecard safe), required in build preflight. `auto-tag.yml`: after CI passes, fetches commit message via API (no untrusted input in shell), creates annotated tag for feat/fix/refactor commits. `build.yml`: preflight waits for SonarCloud (required) + OSV-Scanner (required) — CI is implied by SonarCloud; manual dispatch warns and proceeds if checks not found, build provenance attestation (SLSA), packaging (AppImage/deb, EXE/zip, dmg, per-ABI APK). `dependabot-release.yml`: auto patch-bump + commit when Dependabot merges pub dependency updates. `dependabot-tag.yml`: creates tag after CI passes on the bump commit. `osv-scanner.yml`: dependency CVE scan (on pubspec change + weekly). `scorecard.yml`: OpenSSF Scorecard (on push + weekly). `codeql.yml`: Actions workflow analysis (weekly; Dart covered by SonarCloud). Dependabot version updates (pub + actions, weekly) with auto-merge for patch/minor. All actions pinned to SHA. Branch protection on main (require CI + OSV-Scanner). Top-level `permissions: read-all` on all workflows. OpenSSF Best Practices badge (passing) |
 
 ### Decisions and Why
 
