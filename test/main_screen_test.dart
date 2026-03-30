@@ -572,7 +572,7 @@ void main() {
   }
 
   group('MainScreen — with active tabs', () {
-    testWidgets('shows tab bar with divider when tabs are present',
+    testWidgets('shows tab bar when tabs are present',
         (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs(tabs: [
@@ -584,7 +584,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byType(Divider), findsWidgets);
+      expect(find.text('SSH Tab'), findsWidgets);
     });
 
     testWidgets('status bar shows connected state for active tab',
@@ -600,7 +600,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Connected'), findsOneWidget);
+      expect(find.textContaining('Connected'), findsWidgets);
     });
 
     testWidgets('status bar shows disconnected state for disconnected tab',
@@ -615,7 +615,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Disconnected'), findsOneWidget);
+      expect(find.textContaining('Disconnected'), findsWidgets);
     });
 
     testWidgets('SFTP button visible when active tab is connected',
@@ -892,7 +892,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Status bar should show "Connected" for the active tab
-      expect(find.textContaining('Connected'), findsOneWidget);
+      expect(find.textContaining('Connected'), findsWidgets);
       expect(find.textContaining('1 tab(s)'), findsOneWidget);
     });
 
@@ -1100,7 +1100,7 @@ void main() {
 
       expect(find.textContaining('1 tab(s)'), findsOneWidget);
       // Status should still show this tab as active
-      expect(find.textContaining('Connected'), findsOneWidget);
+      expect(find.textContaining('Connected'), findsWidgets);
     });
 
     testWidgets('single tab: Ctrl+Shift+Tab does not switch (no-op)', (tester) async {
@@ -1692,7 +1692,7 @@ void main() {
       expect(stack.index, 1);
 
       // Status bar should reflect the active tab's connection
-      expect(find.textContaining('Connected'), findsOneWidget);
+      expect(find.textContaining('Connected'), findsWidgets);
     });
 
     testWidgets('clicking first tab after selecting second changes IndexedStack.index back to 0', (tester) async {

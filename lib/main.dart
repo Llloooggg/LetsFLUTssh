@@ -395,12 +395,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           sidebarOpen: _sidebarOpen,
           onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
           onNewSession: () => _newSession(context, ref),
-          onOpenSftp: (isTerminalTab && connected)
-              ? () => _openSftp(ref, activeTab!.connection)
-              : null,
-          onOpenSsh: (activeTab?.kind == TabKind.sftp && connected)
-              ? () => _openSsh(ref, activeTab!.connection)
-              : null,
           showMenuButton: isNarrow,
           isTerminalTab: isTerminalTab,
           splitDir: splitDir,
@@ -421,8 +415,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 }
               : null,
         ),
-        const AppTabBar(),
-        if (tabState.tabs.isNotEmpty) const Divider(height: 1),
+        AppTabBar(onNewSession: () => _newSession(context, ref)),
+        if (activeTab != null)
+          _ConnectionBar(
+            activeTab: activeTab,
+            onOpenSftp: (isTerminalTab && connected)
+                ? () => _openSftp(ref, activeTab.connection)
+                : null,
+            onOpenSsh: (activeTab.kind == TabKind.sftp && connected)
+                ? () => _openSsh(ref, activeTab.connection)
+                : null,
+          ),
         Expanded(child: content),
         _StatusBar(tabState: tabState),
       ],
@@ -567,8 +570,6 @@ class _Toolbar extends StatelessWidget {
   final bool sidebarOpen;
   final VoidCallback onToggleSidebar;
   final VoidCallback onNewSession;
-  final VoidCallback? onOpenSftp;
-  final VoidCallback? onOpenSsh;
   final bool showMenuButton;
   final bool isTerminalTab;
   final SplitDirection? splitDir;
@@ -579,8 +580,6 @@ class _Toolbar extends StatelessWidget {
     required this.sidebarOpen,
     required this.onToggleSidebar,
     required this.onNewSession,
-    this.onOpenSftp,
-    this.onOpenSsh,
     this.showMenuButton = false,
     this.isTerminalTab = false,
     this.splitDir,
@@ -639,18 +638,6 @@ class _Toolbar extends StatelessWidget {
             onPressed: onNewSession,
             tooltip: 'New Session (Ctrl+N)',
           ),
-          if (onOpenSftp != null)
-            _TBtn(
-              icon: Icons.folder_open,
-              onPressed: onOpenSftp,
-              tooltip: 'Open File Transfer',
-            ),
-          if (onOpenSsh != null)
-            _TBtn(
-              icon: Icons.terminal,
-              onPressed: onOpenSsh,
-              tooltip: 'Open Terminal',
-            ),
           const Spacer(),
           if (isTerminalTab) ...[
             _TBtn(
@@ -783,6 +770,131 @@ class _StatusBar extends ConsumerWidget {
             '${tabState.tabs.length} tab(s)',
             style: const TextStyle(fontSize: 11),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConnectionBar extends StatefulWidget {
+  final TabEntry activeTab;
+  final VoidCallback? onOpenSftp;
+  final VoidCallback? onOpenSsh;
+
+  const _ConnectionBar({
+    required this.activeTab,
+    this.onOpenSftp,
+    this.onOpenSsh,
+  });
+
+  @override
+  State<_ConnectionBar> createState() => _ConnectionBarState();
+}
+
+class _ConnectionBarState extends State<_ConnectionBar> {
+  bool _btnHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final conn = widget.activeTab.connection;
+    final cfg = conn.sshConfig;
+    final isTerminal = widget.activeTab.kind == TabKind.terminal;
+    final onCompanion = isTerminal ? widget.onOpenSftp : widget.onOpenSsh;
+    final btnColor = isTerminal ? AppTheme.yellow : AppTheme.accent;
+
+    return Container(
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        color: AppTheme.bg3,
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: conn.isConnected ? AppTheme.green : AppTheme.fgFaint,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  conn.isConnected ? 'Connected' : 'Disconnected',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 10,
+                    color: AppTheme.fgDim,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Text('·', style: TextStyle(fontSize: 10, color: AppTheme.fgFaint)),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
+                    style: const TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 10,
+                      color: AppTheme.fgDim,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (onCompanion != null)
+            Tooltip(
+              message: isTerminal ? 'Open File Transfer' : 'Open Terminal',
+              child: MouseRegion(
+                onEnter: (_) => setState(() => _btnHovered = true),
+                onExit: (_) => setState(() => _btnHovered = false),
+                child: GestureDetector(
+                  onTap: onCompanion,
+                  child: Container(
+                    height: 18,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    decoration: BoxDecoration(
+                      color: btnColor.withValues(
+                        alpha: _btnHovered ? 0x25 / 255.0 : 0x18 / 255.0,
+                      ),
+                      border: Border.all(
+                        color: btnColor.withValues(
+                          alpha: _btnHovered ? 0x60 / 255.0 : 0x40 / 255.0,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isTerminal ? Icons.folder_open : Icons.terminal,
+                          size: 11,
+                          color: btnColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isTerminal ? 'Open File Transfer' : 'Open Terminal',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: btnColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
