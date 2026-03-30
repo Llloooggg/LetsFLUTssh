@@ -208,19 +208,19 @@ void main() {
   group('SessionPanel — header and structure', () {
     testWidgets('renders header with Sessions title', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
 
     testWidgets('renders New Folder button in header', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.byIcon(Icons.create_new_folder), findsOneWidget);
+      expect(find.byIcon(Icons.add), findsWidgets);
       expect(find.byTooltip('New Folder'), findsOneWidget);
     });
 
     testWidgets('renders search bar with hint', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.byIcon(Icons.search), findsOneWidget);
-      expect(find.text('Search...'), findsOneWidget);
+      expect(find.text('Filter...'), findsOneWidget);
     });
 
     testWidgets('panel has correct layout structure', (tester) async {
@@ -238,23 +238,23 @@ void main() {
       expect(find.text('staging'), findsOneWidget);
     });
 
-    testWidgets('shows session hosts with port', (tester) async {
+    testWidgets('shows session hosts', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.text('10.0.0.1:22'), findsOneWidget);
-      expect(find.text('192.168.1.1:22'), findsOneWidget);
+      expect(find.text('10.0.0.1'), findsOneWidget);
+      expect(find.text('192.168.1.1'), findsOneWidget);
     });
 
     testWidgets('renders nested groups (Production/DB)', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.text('DB'), findsOneWidget);
       expect(find.text('db1'), findsOneWidget);
-      expect(find.text('10.0.1.1:22'), findsOneWidget);
+      expect(find.text('10.0.1.1'), findsOneWidget);
     });
 
     testWidgets('renders group folder icons', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Groups show folder_open when expanded (initially all expanded)
-      expect(find.byIcon(Icons.folder_open), findsWidgets);
+      // Groups show folder icon
+      expect(find.byIcon(Icons.folder), findsWidgets);
     });
 
     testWidgets('renders expand/collapse chevrons for groups', (tester) async {
@@ -271,23 +271,22 @@ void main() {
       expect(find.text('1'), findsOneWidget);
     });
 
-    testWidgets('renders auth type icons for sessions', (tester) async {
+    testWidgets('renders shield icons for sessions', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Default auth type is password → lock icon
-      expect(find.byIcon(Icons.lock), findsWidgets);
+      expect(find.byIcon(Icons.shield), findsWidgets);
     });
 
-    testWidgets('renders sessions with key auth icon', (tester) async {
+    testWidgets('renders shield icon for key auth session', (tester) async {
       final keySession = Session(id: '4', label: 'key-server', group: '', server: const ServerAddress(host: '10.0.0.5', user: 'ubuntu'), auth: const SessionAuth(authType: AuthType.key));
       await tester.pumpWidget(buildApp(sessions: [keySession]));
-      expect(find.byIcon(Icons.vpn_key), findsOneWidget);
+      expect(find.byIcon(Icons.shield), findsWidgets);
     });
 
-    testWidgets('renders sessions with keyWithPassword auth icon',
+    testWidgets('renders shield icon for keyWithPassword auth session',
         (tester) async {
       final keyPassSession = Session(id: '5', label: 'key-pass-server', group: '', server: const ServerAddress(host: '10.0.0.6', user: 'user'), auth: const SessionAuth(authType: AuthType.keyWithPassword));
       await tester.pumpWidget(buildApp(sessions: [keyPassSession]));
-      expect(find.byIcon(Icons.enhanced_encryption), findsOneWidget);
+      expect(find.byIcon(Icons.shield), findsWidgets);
     });
   });
 
@@ -303,7 +302,7 @@ void main() {
       await tester.pumpWidget(buildApp(sessions: []));
       final addButton = find.text('Add Session');
       expect(addButton, findsOneWidget);
-      expect(find.byIcon(Icons.add), findsOneWidget);
+      expect(find.byIcon(Icons.add), findsWidgets);
     });
   });
 
@@ -517,9 +516,8 @@ void main() {
       await tester.tap(find.text('Production').first);
       await tester.pumpAndSettle();
 
-      // After collapsing, child sessions hidden but DB might still be
-      // visible if it was expanded separately. At minimum, chevron_right appears
-      expect(find.byIcon(Icons.chevron_right), findsWidgets);
+      // After collapsing, children hidden; expand_more icon (rotated) still shows
+      expect(find.byIcon(Icons.expand_more), findsWidgets);
     });
   });
 
@@ -699,7 +697,7 @@ void main() {
       await tester.pumpWidget(buildApp(
         onSftpConnect: (_) {},
       ));
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
   });
 
@@ -1456,7 +1454,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      final hostText = find.text('10.0.0.10:22');
+      final hostText = find.text('10.0.0.10');
       expect(hostText, findsWidgets);
 
       final center = tester.getCenter(hostText.first);
@@ -2198,13 +2196,13 @@ void main() {
 
     testWidgets('action bar hides search bar and header', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.checklist));
       await tester.pump();
 
       // Header title should be gone
-      expect(find.text('Sessions'), findsNothing);
+      expect(find.text('SESSIONS'), findsNothing);
     });
 
     testWidgets('Cancel exits select mode', (tester) async {
@@ -2218,7 +2216,7 @@ void main() {
       await tester.pump();
 
       // Back to normal mode
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
       expect(find.text('0 selected'), findsNothing);
     });
 
@@ -2314,7 +2312,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should exit select mode
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
 
     testWidgets('Move confirm moves sessions and exits select mode', (tester) async {
@@ -2333,7 +2331,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should exit select mode after move
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
 
     testWidgets('Move cancel keeps select mode', (tester) async {
@@ -2388,7 +2386,7 @@ void main() {
       await tester.pump();
 
       // Header should still be visible
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
       // Action bar should appear
       expect(find.text('2 selected'), findsOneWidget);
       // No checkboxes (not in select mode)
@@ -2407,7 +2405,7 @@ void main() {
       await tester.pump();
 
       // Action bar gone, header still visible
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
       expect(find.text('0 selected'), findsNothing);
     });
 
@@ -2423,7 +2421,7 @@ void main() {
 
       // Action bar must NOT appear mid-drag to avoid layout shift
       expect(find.text('1 selected'), findsNothing);
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
 
       // Marquee ends — now action bar should appear
       panelState.simulateMarqueeEnd();
