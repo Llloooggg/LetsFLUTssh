@@ -269,25 +269,40 @@ class _FilePaneState extends State<FilePane> {
       );
     }
 
-    final parts = ctrl.currentPath.split('/')..removeWhere((p) => p.isEmpty);
+    final currentPath = ctrl.currentPath;
+    // Detect Windows paths (e.g. C:\Users or C:/)
+    final isWindows = currentPath.length >= 2 &&
+        currentPath[1] == ':' &&
+        RegExp(r'^[A-Za-z]$').hasMatch(currentPath[0]);
+    final separator = isWindows ? RegExp(r'[/\\]') : RegExp(r'/');
+    final parts = currentPath.split(separator)..removeWhere((p) => p.isEmpty);
+    final rootPath = isWindows && parts.isNotEmpty ? '${parts[0]}\\' : '/';
+    final rootLabel = isWindows && parts.isNotEmpty ? parts[0] : null;
+    final navParts = isWindows ? parts.skip(1).toList() : parts;
+
     return Row(
       children: [
         InkWell(
-          onTap: () => ctrl.navigateTo('/'),
-          child: const Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
+          onTap: () => ctrl.navigateTo(rootPath),
+          child: rootLabel != null
+              ? Text(rootLabel, style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint))
+              : const Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
         ),
-        for (var i = 0; i < parts.length; i++) ...[
-          Text(' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
+        for (var i = 0; i < navParts.length; i++) ...[
+          Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
           InkWell(
             onTap: () {
-              final path = '/${parts.sublist(0, i + 1).join('/')}';
-              ctrl.navigateTo(path);
+              if (isWindows) {
+                ctrl.navigateTo([parts[0], ...navParts.sublist(0, i + 1)].join('\\'));
+              } else {
+                ctrl.navigateTo('/${navParts.sublist(0, i + 1).join('/')}');
+              }
             },
             child: Text(
-              parts[i],
+              navParts[i],
               style: AppFonts.mono(
                 fontSize: 10,
-                color: i == parts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
+                color: i == navParts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
               ),
               overflow: TextOverflow.ellipsis,
             ),
