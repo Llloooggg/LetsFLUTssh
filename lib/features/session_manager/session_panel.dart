@@ -6,6 +6,7 @@ import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/context_menu.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/cross_marquee_controller.dart';
@@ -271,58 +272,52 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     Session session,
     Offset position,
   ) {
-    showMenu<String>(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
-      items: _sessionMenuItems(),
-    ).then((value) {
-      if (value == null || !context.mounted) return;
-      _handleSessionMenuAction(context, ref, session, value);
-    });
-  }
-
-  List<PopupMenuEntry<String>> _sessionMenuItems() {
-    final h = isMobilePlatform ? 48.0 : 32.0;
-    return [
-      PopupMenuItem(height: h, value: 'connect', child: const _MenuRow(icon: Icons.terminal, text: 'SSH')),
-      if (widget.onSftpConnect != null)
-        PopupMenuItem(height: h, value: 'sftp', child: const _MenuRow(icon: Icons.folder, text: 'SFTP')),
-      const PopupMenuDivider(height: 1),
-      PopupMenuItem(height: h, value: 'edit', child: const _MenuRow(icon: Icons.edit, text: 'Edit')),
-      PopupMenuItem(height: h, value: 'duplicate', child: const _MenuRow(icon: Icons.copy, text: 'Duplicate')),
-      if (isMobilePlatform)
-        PopupMenuItem(height: h, value: 'move', child: const _MenuRow(icon: Icons.drive_file_move, text: 'Move to...')),
-      const PopupMenuDivider(height: 1),
-      PopupMenuItem(height: h, value: 'delete', child: const _MenuRow(icon: Icons.delete, text: 'Delete', color: AppTheme.disconnected)),
-    ];
-  }
-
-  void _handleSessionMenuAction(
-    BuildContext context,
-    WidgetRef ref,
-    Session session,
-    String value,
-  ) {
-    switch (value) {
-      case 'connect':
-        widget.onConnect(session);
-      case 'sftp':
-        widget.onSftpConnect?.call(session);
-      case 'edit':
-        _editSession(context, ref, session);
-      case 'duplicate':
-        ref.read(sessionProvider.notifier).duplicate(session.id);
-      case 'move':
-        _moveSession(context, ref, session);
-      case 'delete':
-        _confirmDelete(context, ref, session);
-    }
+      position: position,
+      items: [
+        ContextMenuItem(
+          label: 'Open Terminal',
+          icon: Icons.terminal,
+          color: AppTheme.blue,
+          onTap: () => widget.onConnect(session),
+        ),
+        if (widget.onSftpConnect != null)
+          ContextMenuItem(
+            label: 'Open File Transfer',
+            icon: Icons.folder,
+            color: AppTheme.yellow,
+            onTap: () => widget.onSftpConnect?.call(session),
+          ),
+        const ContextMenuItem.divider(),
+        ContextMenuItem(
+          label: 'Edit Connection',
+          icon: Icons.settings,
+          shortcut: 'E',
+          onTap: () => _editSession(context, ref, session),
+        ),
+        ContextMenuItem(
+          label: 'Duplicate',
+          icon: Icons.copy,
+          shortcut: 'Ctrl+D',
+          onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
+        ),
+        if (isMobilePlatform)
+          ContextMenuItem(
+            label: 'Move to...',
+            icon: Icons.drive_file_move,
+            onTap: () => _moveSession(context, ref, session),
+          ),
+        const ContextMenuItem.divider(),
+        ContextMenuItem(
+          label: 'Delete',
+          icon: Icons.delete,
+          color: AppTheme.red,
+          shortcut: 'Del',
+          onTap: () => _confirmDelete(context, ref, session),
+        ),
+      ],
+    );
   }
 
   Future<void> _moveSession(BuildContext context, WidgetRef ref, Session session) async {
@@ -394,54 +389,46 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     Offset position,
   ) {
     final hasSessions = ref.read(sessionProvider).isNotEmpty;
-    showMenu<String>(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(
-        position.dx, position.dy, position.dx + 1, position.dy + 1,
-      ),
-      items: _groupMenuItems(groupPath, hasSessions),
-    ).then((value) {
-      if (value == null || !context.mounted) return;
-      _handleGroupMenuAction(context, ref, groupPath, value);
-    });
-  }
-
-  List<PopupMenuEntry<String>> _groupMenuItems(String groupPath, bool hasSessions) {
-    final h = isMobilePlatform ? 48.0 : 32.0;
-    return [
-      PopupMenuItem(height: h, value: 'new_session', child: const _MenuRow(icon: Icons.add, text: 'New Session')),
-      PopupMenuItem(height: h, value: 'new_folder', child: const _MenuRow(icon: Icons.create_new_folder, text: _kNewFolder)),
-      if (groupPath.isNotEmpty) ...[
-        const PopupMenuDivider(height: 1),
-        PopupMenuItem(height: h, value: 'rename', child: const _MenuRow(icon: Icons.drive_file_rename_outline, text: 'Rename')),
-        PopupMenuItem(height: h, value: 'delete', child: const _MenuRow(icon: Icons.delete, text: 'Delete Folder', color: AppTheme.disconnected)),
+      position: position,
+      items: [
+        ContextMenuItem(
+          label: 'New Connection',
+          icon: Icons.add,
+          onTap: () => _addSessionInGroup(context, ref, groupPath),
+        ),
+        ContextMenuItem(
+          label: _kNewFolder,
+          icon: Icons.create_new_folder,
+          onTap: () => _createFolder(context, ref, groupPath),
+        ),
+        if (groupPath.isNotEmpty) ...[
+          const ContextMenuItem.divider(),
+          ContextMenuItem(
+            label: 'Rename Group',
+            icon: Icons.drive_file_rename_outline,
+            shortcut: 'F2',
+            onTap: () => _renameFolder(context, ref, groupPath),
+          ),
+          ContextMenuItem(
+            label: 'Delete Group',
+            icon: Icons.delete,
+            color: AppTheme.red,
+            onTap: () => _confirmDeleteFolder(context, ref, groupPath),
+          ),
+        ],
+        if (groupPath.isEmpty && hasSessions) ...[
+          const ContextMenuItem.divider(),
+          ContextMenuItem(
+            label: 'Delete All Sessions',
+            icon: Icons.delete_forever,
+            color: AppTheme.red,
+            onTap: () => _confirmDeleteAll(context, ref),
+          ),
+        ],
       ],
-      if (groupPath.isEmpty && hasSessions) ...[
-        const PopupMenuDivider(height: 1),
-        PopupMenuItem(height: h, value: 'delete_all', child: const _MenuRow(icon: Icons.delete_forever, text: 'Delete All Sessions', color: AppTheme.disconnected)),
-      ],
-    ];
-  }
-
-  void _handleGroupMenuAction(
-    BuildContext context,
-    WidgetRef ref,
-    String groupPath,
-    String value,
-  ) {
-    switch (value) {
-      case 'new_session':
-        _addSessionInGroup(context, ref, groupPath);
-      case 'new_folder':
-        _createFolder(context, ref, groupPath);
-      case 'rename':
-        _renameFolder(context, ref, groupPath);
-      case 'delete':
-        _confirmDeleteFolder(context, ref, groupPath);
-      case 'delete_all':
-        _confirmDeleteAll(context, ref);
-    }
+    );
   }
 
   Future<void> _addSessionInGroup(BuildContext context, WidgetRef ref, String groupPath) async {
@@ -894,28 +881,3 @@ class _SidebarFooter extends StatelessWidget {
   }
 }
 
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final Color? color;
-
-  const _MenuRow({required this.icon, required this.text, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final mobile = isMobilePlatform;
-    return Row(
-      children: [
-        Icon(icon, size: mobile ? 20 : 16, color: color),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            text,
-            style: TextStyle(fontSize: mobile ? 15 : 13, color: color),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}

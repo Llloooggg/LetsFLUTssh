@@ -1388,11 +1388,11 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // Context menu should show "SFTP" option
-      expect(find.text('SFTP'), findsOneWidget);
+      // Context menu should show "Open File Transfer" option
+      expect(find.text('Open File Transfer'), findsOneWidget);
 
       // Tap SFTP to trigger _connectSessionSftp
-      await tester.tap(find.text('SFTP'));
+      await tester.tap(find.text('Open File Transfer'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
@@ -1700,7 +1700,7 @@ void main() {
       await tester.pump();
 
       // SFTP option in context menu confirms onSftpConnect is wired up (line 218)
-      expect(find.text('SFTP'), findsOneWidget);
+      expect(find.text('Open File Transfer'), findsOneWidget);
 
       // Dismiss menu
       await tester.tapAt(Offset.zero);

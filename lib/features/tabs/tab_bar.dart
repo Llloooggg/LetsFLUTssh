@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/context_menu.dart';
 import 'tab_controller.dart';
 import 'tab_model.dart';
 
@@ -94,44 +95,34 @@ class AppTabBar extends ConsumerWidget {
     TabState tabState,
     Offset position,
   ) {
-    showMenu<String>(
+    final notifier = ref.read(tabProvider.notifier);
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(
-        position.dx, position.dy, position.dx, position.dy,
-      ),
+      position: position,
       items: [
-        const PopupMenuItem(value: 'close', child: Text('Close')),
+        ContextMenuItem(
+          label: 'Close',
+          icon: Icons.close,
+          onTap: () => notifier.closeTab(tab.id),
+        ),
         if (tabState.tabs.length > 1)
-          const PopupMenuItem(
-            value: 'close_others',
-            child: Text('Close Others'),
+          ContextMenuItem(
+            label: 'Close Others',
+            icon: Icons.tab_unselected,
+            onTap: () => notifier.closeOthers(tab.id),
           ),
         if (index > 0)
-          const PopupMenuItem(
-            value: 'close_left',
-            child: Text('Close Tabs to the Left'),
+          ContextMenuItem(
+            label: 'Close Tabs to the Left',
+            onTap: () => notifier.closeToTheLeft(index),
           ),
         if (index < tabState.tabs.length - 1)
-          const PopupMenuItem(
-            value: 'close_right',
-            child: Text('Close Tabs to the Right'),
+          ContextMenuItem(
+            label: 'Close Tabs to the Right',
+            onTap: () => notifier.closeToTheRight(index),
           ),
       ],
-    ).then((value) {
-      if (value == null) return;
-      final notifier = ref.read(tabProvider.notifier);
-      switch (value) {
-        case 'close':
-          notifier.closeTab(tab.id);
-        case 'close_others':
-          notifier.closeOthers(tab.id);
-        case 'close_left':
-          notifier.closeToTheLeft(index);
-        case 'close_right':
-          notifier.closeToTheRight(index);
-      }
-    });
+    );
   }
 }
 

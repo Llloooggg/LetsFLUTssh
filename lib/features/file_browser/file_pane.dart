@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
 import '../../utils/format.dart';
+import '../../widgets/context_menu.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import 'file_browser_controller.dart';
 import 'file_pane_dialogs.dart';
@@ -701,20 +702,19 @@ class _FilePaneState extends State<FilePane> {
 
   void _showBackgroundContextMenu(BuildContext context, Offset position) {
     ctrl.clearSelection();
-    showMenu(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(
-        position.dx, position.dy, position.dx, position.dy,
-      ),
+      position: position,
       items: [
-        PopupMenuItem(
+        ContextMenuItem(
+          label: 'New Folder',
+          icon: Icons.create_new_folder,
           onTap: () => _showNewFolderDialog(context),
-          child: const MenuRow(icon: Icons.create_new_folder, text: 'New Folder'),
         ),
-        PopupMenuItem(
+        ContextMenuItem(
+          label: 'Refresh',
+          icon: Icons.refresh,
           onTap: () => ctrl.refresh(),
-          child: const MenuRow(icon: Icons.refresh, text: 'Refresh'),
         ),
       ],
     );
@@ -728,19 +728,19 @@ class _FilePaneState extends State<FilePane> {
     final selectedEntries = ctrl.selectedEntries;
     final hasMultiple = selectedEntries.length > 1;
 
-    showMenu(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(
-        position.dx, position.dy, position.dx, position.dy,
-      ),
-      items: <PopupMenuEntry>[
+      position: position,
+      items: [
         if (!hasMultiple && entry.isDir)
-          PopupMenuItem(
+          ContextMenuItem(
+            label: 'Open',
+            icon: Icons.folder_open,
             onTap: () => ctrl.navigateTo(entry.path),
-            child: const MenuRow(icon: Icons.folder_open, text: 'Open'),
           ),
-        PopupMenuItem(
+        ContextMenuItem(
+          label: hasMultiple ? 'Transfer ${selectedEntries.length} items' : 'Transfer',
+          icon: Icons.swap_horiz,
           onTap: () {
             if (hasMultiple) {
               widget.onTransferMultiple?.call(selectedEntries);
@@ -748,27 +748,25 @@ class _FilePaneState extends State<FilePane> {
               widget.onTransfer?.call(entry);
             }
           },
-          child: MenuRow(
-            icon: Icons.swap_horiz,
-            text: hasMultiple ? 'Transfer ${selectedEntries.length} items' : 'Transfer',
-          ),
         ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
+        const ContextMenuItem.divider(),
+        ContextMenuItem(
+          label: 'New Folder',
+          icon: Icons.create_new_folder,
           onTap: () => _showNewFolderDialog(context),
-          child: const MenuRow(icon: Icons.create_new_folder, text: 'New Folder'),
         ),
         if (!hasMultiple)
-          PopupMenuItem(
+          ContextMenuItem(
+            label: 'Rename',
+            icon: Icons.edit,
+            shortcut: 'F2',
             onTap: () => _showRenameDialog(context, entry),
-            child: const MenuRow(icon: Icons.edit, text: 'Rename'),
           ),
-        PopupMenuItem(
+        ContextMenuItem(
+          label: hasMultiple ? 'Delete ${selectedEntries.length} items' : 'Delete',
+          icon: Icons.delete,
+          color: const Color(0xFFE06C75),
           onTap: () => _confirmDelete(context, selectedEntries),
-          child: MenuRow(
-            icon: Icons.delete,
-            text: hasMultiple ? 'Delete ${selectedEntries.length} items' : 'Delete',
-          ),
         ),
       ],
     );

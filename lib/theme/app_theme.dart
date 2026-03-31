@@ -236,10 +236,14 @@ abstract final class AppTheme {
       tooltipTheme: TooltipThemeData(
         waitDuration: const Duration(milliseconds: 400),
         decoration: BoxDecoration(
-          color: _bg1,
+          color: _bg0,
           border: Border.all(color: _borderLight),
         ),
-        textStyle: const TextStyle(color: _fg, fontSize: 12),
+        textStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 10,
+          color: _fg,
+        ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: _bg3,
