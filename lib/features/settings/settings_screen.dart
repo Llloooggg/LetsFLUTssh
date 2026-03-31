@@ -19,6 +19,7 @@ import '../../providers/version_provider.dart';
 import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
+import '../../theme/app_theme.dart';
 import '../../widgets/toast.dart';
 import '../session_manager/qr_display_screen.dart';
 import '../session_manager/qr_export_dialog.dart';
@@ -166,55 +167,82 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final sections = _buildSections();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: Row(
+      body: Column(
         children: [
-          // --- Navigation rail ---
-          SizedBox(
-            width: 180,
-            child: Column(
+          // ── Header ──
+          Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: const BoxDecoration(
+              color: AppTheme.bg1,
+              border: Border(bottom: BorderSide(color: AppTheme.border)),
+            ),
+            child: Row(
               children: [
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: sections.length,
-                    itemBuilder: (context, index) {
-                      final section = sections[index];
-                      final selected = index == _selectedIndex;
-                      return _NavItem(
-                        icon: section.icon,
-                        label: section.title,
-                        selected: selected,
-                        onTap: () => setState(() => _selectedIndex = index),
-                      );
-                    },
-                  ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Icon(Icons.arrow_back, size: 16, color: AppTheme.fgDim),
                 ),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: TextButton.icon(
-                    onPressed: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
-                    icon: const Icon(Icons.restore, size: 16),
-                    label: const Text('Reset to Defaults', style: TextStyle(fontSize: 12)),
+                const SizedBox(width: 12),
+                const Text(
+                  'Settings',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.fgBright,
                   ),
                 ),
               ],
             ),
           ),
-          VerticalDivider(width: 1, color: theme.dividerColor),
-          // --- Content pane ---
+          // ── Body ──
           Expanded(
-            child: ListView(
-              key: ValueKey(_selectedIndex),
-              padding: const EdgeInsets.all(24),
+            child: Row(
               children: [
-                _SectionHeader(title: sections[_selectedIndex].title),
-                sections[_selectedIndex].builder(),
+                // ── Left nav ──
+                Container(
+                  width: 160,
+                  color: AppTheme.bg1,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          itemCount: sections.length,
+                          itemBuilder: (context, index) {
+                            final section = sections[index];
+                            final selected = index == _selectedIndex;
+                            return _NavItem(
+                              icon: section.icon,
+                              label: section.title,
+                              selected: selected,
+                              onTap: () => setState(() => _selectedIndex = index),
+                            );
+                          },
+                        ),
+                      ),
+                      _ResetButton(
+                        onTap: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
+                      ),
+                    ],
+                  ),
+                ),
+                const VerticalDivider(width: 1, thickness: 1, color: AppTheme.border),
+                // ── Content pane ──
+                Expanded(
+                  child: ListView(
+                    key: ValueKey(_selectedIndex),
+                    padding: const EdgeInsets.all(24),
+                    children: [
+                      _SectionHeader(title: sections[_selectedIndex].title),
+                      sections[_selectedIndex].builder(),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -225,7 +253,7 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
 }
 
 /// A single item in the desktop navigation rail.
-class _NavItem extends StatelessWidget {
+class _NavItem extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool selected;
@@ -239,32 +267,102 @@ class _NavItem extends StatelessWidget {
   });
 
   @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: selected
-          ? theme.colorScheme.primary.withValues(alpha: 0.12)
-          : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          color: widget.selected
+              ? AppTheme.selection
+              : _hovered
+                  ? AppTheme.hover
+                  : Colors.transparent,
+          child: Stack(
             children: [
-              Icon(
-                icon,
-                size: 18,
-                color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              if (widget.selected)
+                Positioned(
+                  left: 0,
+                  top: 4,
+                  bottom: 4,
+                  child: Container(width: 2, color: AppTheme.accent),
+                ),
+              Row(
+                children: [
+                  Icon(
+                    widget.icon,
+                    size: 13,
+                    color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      widget.label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
+                        color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Reset to Defaults button at bottom of nav.
+class _ResetButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _ResetButton({required this.onTap});
+
+  @override
+  State<_ResetButton> createState() => _ResetButtonState();
+}
+
+class _ResetButtonState extends State<_ResetButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          height: 28,
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          color: _hovered ? AppTheme.hover : Colors.transparent,
+          child: const Row(
+            children: [
+              Icon(Icons.restore, size: 12, color: AppTheme.red),
+              SizedBox(width: 6),
               Flexible(
                 child: Text(
-                  label,
+                  'Reset to Defaults',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                    color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+                    fontFamily: 'Inter',
+                    fontSize: 10,
+                    color: AppTheme.red,
                   ),
                 ),
               ),
@@ -1000,13 +1098,20 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+    return Container(
+      padding: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
+      ),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+        style: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.accent,
+        ),
       ),
     );
   }
