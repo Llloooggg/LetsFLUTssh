@@ -60,7 +60,11 @@ class SettingsScreen extends ConsumerWidget {
 
   static Future<void> show(BuildContext context) {
     return Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+      PageRouteBuilder(
+        pageBuilder: (_, _, _) => const SettingsScreen(),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
     );
   }
 
