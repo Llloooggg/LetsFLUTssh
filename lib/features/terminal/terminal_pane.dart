@@ -151,8 +151,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (_error != null) {
       return _buildErrorState();
     }
@@ -166,7 +164,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     if (!widget.hasMultiplePanes) {
       border = null;
     } else {
-      border = Border.all(color: theme.dividerColor, width: 0.5);
+      border = Border.all(color: AppTheme.bg0, width: 0.5);
     }
 
     return GestureDetector(
@@ -200,7 +198,35 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                   onKeyEvent: _handleTerminalKey,
                   backgroundOpacity: 1.0,
                   padding: const EdgeInsets.all(4),
-                  textStyle: TerminalStyle(fontSize: fontSize),
+                  theme: TerminalTheme(
+                    cursor: AppTheme.accent,
+                    selection: AppTheme.selection,
+                    foreground: AppTheme.fg,
+                    background: AppTheme.bg2,
+                    black: const Color(0xFF1B1D23),
+                    red: AppTheme.red,
+                    green: AppTheme.green,
+                    yellow: AppTheme.yellow,
+                    blue: AppTheme.blue,
+                    magenta: AppTheme.purple,
+                    cyan: AppTheme.cyan,
+                    white: AppTheme.fg,
+                    brightBlack: AppTheme.fgFaint,
+                    brightRed: AppTheme.red,
+                    brightGreen: AppTheme.green,
+                    brightYellow: AppTheme.yellow,
+                    brightBlue: AppTheme.blue,
+                    brightMagenta: AppTheme.purple,
+                    brightCyan: AppTheme.cyan,
+                    brightWhite: AppTheme.fgBright,
+                    searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+                    searchHitBackgroundCurrent: AppTheme.accent,
+                    searchHitForeground: Colors.white,
+                  ),
+                  textStyle: TerminalStyle(
+                    fontSize: fontSize,
+                    fontFamily: 'JetBrains Mono',
+                  ),
                   onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
                 ),
               ),
