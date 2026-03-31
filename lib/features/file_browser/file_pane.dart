@@ -55,6 +55,8 @@ class FilePane extends StatefulWidget {
 class _FilePaneState extends State<FilePane> {
   final _focusNode = FocusNode();
   final _fileListKey = GlobalKey();
+  final _pathController = TextEditingController();
+  bool _editingPath = false;
   bool _osDragging = false;
 
   FilePaneController get ctrl => widget.controller;
@@ -84,6 +86,7 @@ class _FilePaneState extends State<FilePane> {
   void dispose() {
     widget.crossMarquee?.removeListener(_onCrossMarquee);
     ctrl.removeListener(_onChanged);
+    _pathController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -224,24 +227,73 @@ class _FilePaneState extends State<FilePane> {
   }
 
   Widget _buildBreadcrumb() {
-    final parts = ctrl.currentPath.split('/')..removeWhere((p) => p.isEmpty);
-    return Row(
-      children: [
-        const Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
-        for (var i = 0; i < parts.length; i++) ...[
-          Text(' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
-          Flexible(
-            child: Text(
-              parts[i],
-              style: AppFonts.mono(
-                fontSize: 10,
-                color: i == parts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
-              ),
-              overflow: TextOverflow.ellipsis,
+    if (_editingPath) {
+      return SizedBox(
+        height: 22,
+        child: TextField(
+          controller: _pathController,
+          autofocus: true,
+          style: AppFonts.mono(fontSize: 10, color: AppTheme.fg),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: AppTheme.bg3,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            enabledBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.zero,
+              borderSide: BorderSide(color: AppTheme.borderLight),
             ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.zero,
+              borderSide: BorderSide(color: AppTheme.accent),
+            ),
+            hintText: ctrl.currentPath,
+            hintStyle: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
           ),
+          onSubmitted: (val) {
+            setState(() => _editingPath = false);
+            if (val.trim().isNotEmpty) {
+              ctrl.navigateTo(val.trim());
+            }
+          },
+          onTapOutside: (_) {
+            setState(() => _editingPath = false);
+          },
+        ),
+      );
+    }
+
+    final parts = ctrl.currentPath.split('/')..removeWhere((p) => p.isEmpty);
+    return GestureDetector(
+      onDoubleTap: () {
+        _pathController.text = ctrl.currentPath;
+        setState(() => _editingPath = true);
+      },
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => ctrl.navigateTo('/'),
+            child: const Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
+          ),
+          for (var i = 0; i < parts.length; i++) ...[
+            Text(' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
+            GestureDetector(
+              onTap: () {
+                final path = '/${parts.sublist(0, i + 1).join('/')}';
+                ctrl.navigateTo(path);
+              },
+              child: Text(
+                parts[i],
+                style: AppFonts.mono(
+                  fontSize: 10,
+                  color: i == parts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
