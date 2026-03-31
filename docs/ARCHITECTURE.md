@@ -944,6 +944,8 @@ ContextMenuItem({
 ContextMenuItem.divider()
 ```
 Keyboard nav (arrows, enter, esc), hover highlighting, repositioning.
+Re-entrant: right-clicking a new location auto-dismisses the previous menu and opens a new one.
+Styled with `AppTheme` colors directly (no Material surface tint).
 
 ### HostKeyDialog
 
