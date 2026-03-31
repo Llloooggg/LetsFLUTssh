@@ -768,9 +768,9 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Start inside, drag outside, then back inside
+      // Start below all rows (empty space) so Draggable doesn't intercept
       final center = tester.getCenter(find.byType(SessionTreeView));
-      final gesture = await tester.startGesture(Offset(center.dx, 10));
+      final gesture = await tester.startGesture(Offset(center.dx, 400));
       await tester.pump();
 
       // Move outside
@@ -778,13 +778,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       expect(crossMarquee.active, isTrue);
 
-      // Move back inside and down
+      // Move back inside and up into rows
       await gesture.moveTo(Offset(center.dx, 200));
       await tester.pump(const Duration(milliseconds: 100));
       expect(crossMarquee.active, isFalse);
 
       // Session marquee should be active now — check via onMarqueeSelect
-      await gesture.moveBy(const Offset(0, 100));
+      await gesture.moveBy(const Offset(0, -150));
       await tester.pump(const Duration(milliseconds: 100));
 
       // selectedIds was called during inside-marquee

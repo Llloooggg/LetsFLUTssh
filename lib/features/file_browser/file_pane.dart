@@ -9,6 +9,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/cross_marquee_controller.dart';
+import '../../widgets/marquee_mixin.dart';
 import 'file_browser_controller.dart';
 import 'file_pane_dialogs.dart';
 import 'file_row.dart';
@@ -57,7 +58,7 @@ class FilePane extends StatefulWidget {
   State<FilePane> createState() => _FilePaneState();
 }
 
-class _FilePaneState extends State<FilePane> {
+class _FilePaneState extends State<FilePane> with MarqueeMixin {
   final _focusNode = FocusNode();
   final _fileListKey = GlobalKey();
   final _pathController = TextEditingController();
@@ -108,7 +109,7 @@ class _FilePaneState extends State<FilePane> {
     _pathFocusNode.removeListener(_onPathFocusChanged);
     _pathFocusNode.dispose();
     _pathController.dispose();
-    _scrollController.dispose();
+    disposeMarquee();
     _focusNode.dispose();
     super.dispose();
   }
@@ -116,37 +117,50 @@ class _FilePaneState extends State<FilePane> {
   void _onCrossMarquee() {
     final cm = widget.crossMarquee!;
     if (!cm.active) {
-      // Cross-marquee ended
-      if (_marqueeActive) {
+      if (marqueeActive) {
         setState(() {
-          _marqueeAnchor = null;
-          _marqueeStart = null;
-          _marqueeCurrent = null;
+          marqueeAnchor = null;
+          marqueeStart = null;
+          marqueeCurrent = null;
           _preMarqueeSelection = null;
-          _marqueeActive = false;
+          marqueeActive = false;
         });
       }
       return;
     }
 
-    // Translate global position to our file list local coordinates
     final box = _fileListKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.attached) return;
     final local = box.globalToLocal(cm.globalPosition!);
 
     if (cm.phase == CrossMarqueePhase.start) {
-      // Start cross-marquee: anchor at the entry point
-      _marqueeActive = true;
-      _marqueeAnchor = local;
-      _preMarqueeSelection = _isCtrlHeld ? Set.from(ctrl.selected) : null;
-      if (!_isCtrlHeld) ctrl.clearSelection();
+      marqueeActive = true;
+      marqueeAnchor = local;
+      _preMarqueeSelection = isCtrlHeld ? Set.from(ctrl.selected) : null;
+      if (!isCtrlHeld) ctrl.clearSelection();
     }
 
     setState(() {
-      _marqueeStart = _marqueeAnchor;
-      _marqueeCurrent = local;
+      marqueeStart = marqueeAnchor;
+      marqueeCurrent = local;
     });
-    _updateMarqueeSelection();
+    _crossMarqueeUpdateSelection();
+  }
+
+  void _crossMarqueeUpdateSelection() {
+    if (marqueeStart == null || marqueeCurrent == null) return;
+    final scroll = marqueeScrollController.hasClients
+        ? marqueeScrollController.offset
+        : 0.0;
+    final startY = marqueeStart!.dy + scroll;
+    final endY = marqueeCurrent!.dy + scroll;
+    final minY = startY < endY ? startY : endY;
+    final maxY = startY > endY ? startY : endY;
+    final maxIdx = ctrl.entries.length - 1;
+    if (maxIdx < 0) return;
+    final firstIndex = (minY / _rowHeight).floor().clamp(0, maxIdx);
+    final lastIndex = (maxY / _rowHeight).floor().clamp(0, maxIdx);
+    applyMarqueeSelection(firstIndex, lastIndex, ctrlHeld: isCtrlHeld);
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -439,30 +453,59 @@ class _FilePaneState extends State<FilePane> {
     );
   }
 
-  // ── Marquee & drag state ──
-
-  Offset? _marqueeAnchor;
-  Offset? _marqueeStart;
-  Offset? _marqueeCurrent;
-  bool _marqueeActive = false;
-  bool _dragActive = false;
-  final _scrollController = ScrollController();
-  Set<String>? _preMarqueeSelection;
-  DateTime _lastMarqueeUpdate = DateTime(0);
+  // ── MarqueeMixin implementation ──
 
   static const _rowHeight = 26.0;
-  static const _marqueeThreshold = 5.0;
+  Set<String>? _preMarqueeSelection;
 
-  bool get _isCtrlHeld =>
-      HardwareKeyboard.instance.logicalKeysPressed
-          .contains(LogicalKeyboardKey.controlLeft) ||
-      HardwareKeyboard.instance.logicalKeysPressed
-          .contains(LogicalKeyboardKey.controlRight);
+  @override
+  double get marqueeRowHeight => _rowHeight;
 
-  int _rowIndexAt(double localY) {
-    final scrollOffset =
-        _scrollController.hasClients ? _scrollController.offset : 0.0;
-    return ((localY + scrollOffset) / _rowHeight).floor();
+  @override
+  int get marqueeItemCount => ctrl.entries.length;
+
+  @override
+  bool isMarqueeItemSelected(int index) =>
+      ctrl.selected.contains(ctrl.entries[index].path);
+
+  @override
+  void applyMarqueeSelection(int firstIndex, int lastIndex,
+      {required bool ctrlHeld}) {
+    final newSelection = <String>{};
+    if (_preMarqueeSelection != null) {
+      newSelection.addAll(_preMarqueeSelection!);
+    }
+    for (var i = firstIndex; i <= lastIndex; i++) {
+      newSelection.add(ctrl.entries[i].path);
+    }
+    ctrl.selectPaths(newSelection);
+  }
+
+  @override
+  void onMarqueePointerDown() {
+    _focusNode.requestFocus();
+    widget.onPaneActivated?.call();
+    _preMarqueeSelection = isCtrlHeld ? Set.from(ctrl.selected) : null;
+  }
+
+  @override
+  void onMarqueeActivated() {
+    if (!isCtrlHeld && _preMarqueeSelection == null) {
+      ctrl.clearSelection();
+    }
+  }
+
+  @override
+  void onMarqueeDeactivated() {
+    _preMarqueeSelection = null;
+  }
+
+  @override
+  void onMarqueeClickEmpty(int rowIndex) {
+    if (rowIndex < 0 || rowIndex >= ctrl.entries.length) {
+      ctrl.clearSelection();
+    }
+    _preMarqueeSelection = null;
   }
 
   // ── File list ──
@@ -544,9 +587,9 @@ class _FilePaneState extends State<FilePane> {
 
   Widget _buildFileListContent(ThemeData theme) {
     return Listener(
-      onPointerDown: _onListPointerDown,
-      onPointerMove: _onListPointerMove,
-      onPointerUp: _onListPointerUp,
+      onPointerDown: handleMarqueePointerDown,
+      onPointerMove: handleMarqueePointerMove,
+      onPointerUp: handleMarqueePointerUp,
       child: GestureDetector(
         onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
         behavior: HitTestBehavior.translucent,
@@ -554,79 +597,18 @@ class _FilePaneState extends State<FilePane> {
           key: _fileListKey,
           children: [
             ListView.builder(
-              controller: _scrollController,
+              controller: marqueeScrollController,
               itemCount: ctrl.entries.length,
               itemExtent: _rowHeight,
               itemBuilder: (context, index) =>
                   _buildFileListItem(context, index, theme),
             ),
-            if (_marqueeActive &&
-                _marqueeStart != null &&
-                _marqueeCurrent != null)
-              _buildMarqueeOverlay(theme),
+            if (marqueeVisible)
+              buildMarqueeOverlay(theme.colorScheme.primary),
           ],
         ),
       ),
     );
-  }
-
-  void _onListPointerDown(PointerDownEvent e) {
-    _focusNode.requestFocus();
-    widget.onPaneActivated?.call();
-    if (e.buttons != kPrimaryButton) return;
-
-    final rowIdx = _rowIndexAt(e.localPosition.dy);
-    final onRow = rowIdx >= 0 && rowIdx < ctrl.entries.length;
-    final onSelected = onRow && ctrl.selected.contains(ctrl.entries[rowIdx].path);
-
-    if (onSelected) return;
-
-    setState(() {
-      _marqueeAnchor = e.localPosition;
-      _preMarqueeSelection = _isCtrlHeld ? Set.from(ctrl.selected) : null;
-    });
-  }
-
-  void _onListPointerMove(PointerMoveEvent e) {
-    if (_dragActive || _marqueeAnchor == null) return;
-
-    final distance = (e.localPosition - _marqueeAnchor!).distance;
-
-    if (!_marqueeActive) {
-      if (distance < _marqueeThreshold) return;
-      _marqueeActive = true;
-      if (!_isCtrlHeld && _preMarqueeSelection == null) {
-        ctrl.clearSelection();
-      }
-    }
-
-    setState(() {
-      _marqueeStart = _marqueeAnchor;
-      _marqueeCurrent = e.localPosition;
-    });
-    _updateMarqueeSelection();
-  }
-
-  void _onListPointerUp(PointerUpEvent _) {
-    if (_marqueeActive) {
-      setState(() {
-        _marqueeAnchor = null;
-        _marqueeStart = null;
-        _marqueeCurrent = null;
-        _preMarqueeSelection = null;
-        _marqueeActive = false;
-      });
-    } else {
-      // Click (no drag) on empty space below files — clear selection
-      if (_marqueeAnchor != null && !_isCtrlHeld) {
-        final rowIdx = _rowIndexAt(_marqueeAnchor!.dy);
-        if (rowIdx < 0 || rowIdx >= ctrl.entries.length) {
-          ctrl.clearSelection();
-        }
-      }
-      _marqueeAnchor = null;
-      _preMarqueeSelection = null;
-    }
   }
 
   Widget _buildFileListItem(BuildContext context, int index, ThemeData theme) {
@@ -676,9 +658,9 @@ class _FilePaneState extends State<FilePane> {
         sourcePaneId: widget.paneId,
         entries: dragEntries,
       ),
-      onDragStarted: () => _dragActive = true,
-      onDragEnd: (_) => _dragActive = false,
-      onDraggableCanceled: (_, _) => _dragActive = false,
+      onDragStarted: onDragStarted,
+      onDragEnd: onDragEnd,
+      onDraggableCanceled: onDragCanceled,
       feedback: _buildDragFeedback(theme, entry, dragEntries),
       child: row,
     );
@@ -713,53 +695,6 @@ class _FilePaneState extends State<FilePane> {
         ),
       ),
     );
-  }
-
-  Widget _buildMarqueeOverlay(ThemeData theme) {
-    return Positioned.fill(
-      child: RepaintBoundary(
-        child: IgnorePointer(
-          child: CustomPaint(
-            painter: MarqueePainter(
-              start: _marqueeStart!,
-              end: _marqueeCurrent!,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _updateMarqueeSelection() {
-    if (_marqueeStart == null || _marqueeCurrent == null) return;
-
-    // Throttle selection updates to every 50ms to reduce Set allocations
-    final now = DateTime.now();
-    if (now.difference(_lastMarqueeUpdate).inMilliseconds < 50) return;
-    _lastMarqueeUpdate = now;
-
-    final scrollOffset =
-        _scrollController.hasClients ? _scrollController.offset : 0.0;
-
-    final startY = _marqueeStart!.dy + scrollOffset;
-    final endY = _marqueeCurrent!.dy + scrollOffset;
-    final minY = startY < endY ? startY : endY;
-    final maxY = startY > endY ? startY : endY;
-
-    final firstIndex =
-        (minY / _rowHeight).floor().clamp(0, ctrl.entries.length - 1);
-    final lastIndex =
-        (maxY / _rowHeight).floor().clamp(0, ctrl.entries.length - 1);
-
-    final newSelection = <String>{};
-    if (_preMarqueeSelection != null) {
-      newSelection.addAll(_preMarqueeSelection!);
-    }
-    for (var i = firstIndex; i <= lastIndex; i++) {
-      newSelection.add(ctrl.entries[i].path);
-    }
-    ctrl.selectPaths(newSelection);
   }
 
   // ── Footer ──
