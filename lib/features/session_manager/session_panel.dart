@@ -327,8 +327,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   },
                 ),
         ),
-        // Footer
-        const _SidebarFooter(),
+        // Footer — only on desktop (mobile shows counts in MobileShell header)
+        if (!mobile) const _SidebarFooter(),
       ],
     ),
     ),
