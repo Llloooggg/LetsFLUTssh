@@ -117,17 +117,16 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                 ),
               ),
               // Title
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'Quick Connect',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
+                    style: AppFonts.inter(
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.fg,
+                      color: AppTheme.fgBright,
                     ),
                   ),
                 ),
@@ -227,11 +226,11 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           height: 38,
                           alignment: Alignment.center,
                           color: AppTheme.bg3,
-                          child: const Text(
+                          child: Text(
                             'Cancel',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
+                            style: AppFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                               color: AppTheme.fgDim,
                             ),
                           ),
@@ -246,11 +245,10 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           height: 38,
                           alignment: Alignment.center,
                           color: AppTheme.accent,
-                          child: const Text(
+                          child: Text(
                             'Connect',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11,
+                            style: AppFonts.inter(
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: Colors.white,
                             ),
