@@ -3,6 +3,10 @@
     <!-- Network: SSH/SFTP connections -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Foreground service: keeps SSH connections alive when screen is locked -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
     <!-- Storage: local file browser for SFTP transfers -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -81,6 +85,12 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Foreground service: keeps SSH alive when screen is locked -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
     </application>
 
     <!-- Package visibility for text processing -->

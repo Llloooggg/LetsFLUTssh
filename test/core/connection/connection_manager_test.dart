@@ -399,6 +399,136 @@ void main() {
     });
   });
 
+  group('ConnectionManager.onActiveCountChanged', () {
+    test('callback fires when connection becomes connected', () async {
+      final counts = <int>[];
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) =>
+            FakeSSHConnection(config: config, knownHosts: kh),
+        onActiveCountChanged: counts.add,
+      );
+
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
+      final conn = mgr.connectAsync(config);
+      await waitForConnection(conn);
+
+      expect(counts, contains(1));
+
+      mgr.dispose();
+    });
+
+    test('callback fires with 0 when last connection disconnects', () async {
+      final counts = <int>[];
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) =>
+            FakeSSHConnection(config: config, knownHosts: kh),
+        onActiveCountChanged: counts.add,
+      );
+
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
+      final conn = mgr.connectAsync(config);
+      await waitForConnection(conn);
+
+      mgr.disconnect(conn.id);
+
+      expect(counts.last, 0);
+
+      mgr.dispose();
+    });
+
+    test('callback fires with correct count for multiple connections', () async {
+      final counts = <int>[];
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) =>
+            FakeSSHConnection(config: config, knownHosts: kh),
+        onActiveCountChanged: counts.add,
+      );
+
+      final connA = mgr.connectAsync(
+        const SSHConfig(server: ServerAddress(host: 'a', user: 'u')),
+      );
+      await waitForConnection(connA);
+      expect(counts.last, 1);
+
+      final connB = mgr.connectAsync(
+        const SSHConfig(server: ServerAddress(host: 'b', user: 'u')),
+      );
+      await waitForConnection(connB);
+      expect(counts.last, 2);
+
+      mgr.disconnect(connA.id);
+      expect(counts.last, 1);
+
+      mgr.disconnect(connB.id);
+      expect(counts.last, 0);
+
+      mgr.dispose();
+    });
+
+    test('callback not fired when count does not change', () async {
+      final counts = <int>[];
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        onActiveCountChanged: counts.add,
+      );
+
+      // disconnectAll on empty — count stays 0, should not fire
+      mgr.disconnectAll();
+      await Future.delayed(Duration.zero);
+
+      expect(counts, isEmpty);
+
+      mgr.dispose();
+    });
+
+    test('callback can be set after construction', () async {
+      final counts = <int>[];
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) =>
+            FakeSSHConnection(config: config, knownHosts: kh),
+      );
+      mgr.onActiveCountChanged = counts.add;
+
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
+      final conn = mgr.connectAsync(config);
+      await waitForConnection(conn);
+
+      expect(counts, contains(1));
+
+      mgr.dispose();
+    });
+
+    test('callback fires on remote disconnect', () async {
+      late FakeSSHConnection fakeConn;
+      final counts = <int>[];
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) {
+          fakeConn = FakeSSHConnection(config: config, knownHosts: kh);
+          return fakeConn;
+        },
+        onActiveCountChanged: counts.add,
+      );
+
+      const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
+      final conn = mgr.connectAsync(config);
+      await waitForConnection(conn);
+      expect(counts.last, 1);
+
+      // Simulate remote disconnect
+      fakeConn.onDisconnect?.call();
+      await Future.delayed(Duration.zero);
+
+      expect(counts.last, 0);
+
+      mgr.dispose();
+    });
+  });
+
   group('Connection model', () {
     test('isConnected returns true when state is connected', () {
       final conn = Connection(

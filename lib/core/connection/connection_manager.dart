@@ -14,6 +14,9 @@ typedef SSHConnectionFactory = SSHConnection Function(
   KnownHostsManager knownHosts,
 );
 
+/// Optional callback invoked when the number of active (connected) sessions changes.
+typedef ActiveCountCallback = void Function(int activeCount);
+
 /// Manages active SSH connections lifecycle.
 ///
 /// Tracks connections, associates them with tabs, notifies listeners.
@@ -23,6 +26,10 @@ class ConnectionManager {
   final KnownHostsManager knownHosts;
   final SSHConnectionFactory _connectionFactory;
 
+  /// Called whenever the number of *connected* sessions changes.
+  /// Used by [ForegroundServiceManager] on Android to start/stop the service.
+  ActiveCountCallback? onActiveCountChanged;
+
   final _controller = StreamController<void>.broadcast();
 
   /// Stream that fires on any connection state change.
@@ -31,6 +38,7 @@ class ConnectionManager {
   ConnectionManager({
     required this.knownHosts,
     SSHConnectionFactory? connectionFactory,
+    this.onActiveCountChanged,
   }) : _connectionFactory = connectionFactory ??
             ((config, kh) => SSHConnection(config: config, knownHosts: kh));
 
@@ -110,9 +118,22 @@ class ConnectionManager {
 
   bool _disposed = false;
 
+  int _lastActiveCount = 0;
+
   void _notify() {
     if (!_disposed) {
       _controller.add(null);
+      _notifyActiveCount();
+    }
+  }
+
+  void _notifyActiveCount() {
+    final count = _connections.values
+        .where((c) => c.state == SSHConnectionState.connected)
+        .length;
+    if (count != _lastActiveCount) {
+      _lastActiveCount = count;
+      onActiveCountChanged?.call(count);
     }
   }
 
