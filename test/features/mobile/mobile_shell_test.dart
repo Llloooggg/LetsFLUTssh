@@ -72,17 +72,6 @@ class _PrePopulatedSessionNotifier extends SessionNotifier {
   }
 }
 
-/// A SessionNotifier that stores in-memory only (no disk I/O).
-class _InMemorySessionNotifier extends SessionNotifier {
-  @override
-  List<Session> build() => [];
-
-  @override
-  Future<void> add(Session session) async {
-    state = [...state, session];
-  }
-}
-
 /// A ConnectionManager that simulates a connection that fails in background.
 class _FailingConnectionManager extends ConnectionManager {
   final Object error;
@@ -161,13 +150,6 @@ void main() {
       expect(find.byType(IndexedStack), findsOneWidget);
       // Settings icon should be visible
       expect(find.byIcon(Icons.settings), findsAtLeast(1));
-    });
-
-    testWidgets('shows FAB on sessions page', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.byType(FloatingActionButton), findsOneWidget);
     });
 
     testWidgets('switches to Terminal page on nav tap', (tester) async {
@@ -732,109 +714,7 @@ void main() {
       expect(navBar.selectedIndex, equals(2));
     });
 
-    testWidgets('FAB opens New Session dialog', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Tap the FAB
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      // New Session dialog should appear
-      expect(find.text('New Connection'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-    });
-
-    testWidgets('FAB new session — Connect Only navigates to Terminal',
-        (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Tap the FAB to open dialog
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      // Fill in required fields (Host and Username)
-      await tester.enterText(
-        find.widgetWithText(TextFormField, '192.168.1.1'),
-        'quick.example.com',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'root'),
-        'quickuser',
-      );
-      await tester.pumpAndSettle();
-
-      // Tap "Connect" button (ConnectOnlyResult path)
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-
-      // Should navigate to Terminal page (index 1) via _newSession ConnectOnlyResult
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(1));
-    });
-
-    testWidgets('FAB new session — Save & Connect saves and navigates to Terminal',
-        (tester) async {
-      // Use in-memory session notifier to avoid disk I/O in SessionStore.add()
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(_InMemorySessionNotifier.new),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Tap the FAB to open dialog
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      // Fill in required fields
-      await tester.enterText(
-        find.widgetWithText(TextFormField, '192.168.1.1'),
-        'save.example.com',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'root'),
-        'saveuser',
-      );
-      await tester.pumpAndSettle();
-
-      // Tap "Connect" button (ConnectOnlyResult path — triggers quick connect)
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-
-      // Should navigate to Terminal page (index 1) via _newSession ConnectOnlyResult
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(1));
-    });
-
-    testWidgets('FAB new session — Cancel does not navigate', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Tap the FAB to open dialog
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      // Tap "Cancel"
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-
-      // Should still be on Sessions page (index 0)
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(0));
-    });
+    // FAB was removed — new sessions are created from SessionPanel's add button.
 
     testWidgets('incomplete session shows toast and stays on Sessions page', (tester) async {
       final session = Session(
