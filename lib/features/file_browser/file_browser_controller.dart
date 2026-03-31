@@ -27,9 +27,11 @@ class FilePaneController extends ChangeNotifier {
   List<FileEntry>? _cachedSelectedEntries;
   int? _cachedTotalFileSize;
 
-  // Folder size cache: path → size (calculated async)
+  // Folder size cache: path → size (calculated async, max 2 concurrent)
   final Map<String, int> _folderSizes = {};
   final Set<String> _folderSizesPending = {};
+  final List<String> _folderSizeQueue = [];
+  static const _maxConcurrentSizeCalcs = 2;
 
   // Navigation history
   final _backStack = <String>[];
@@ -50,20 +52,34 @@ class FilePaneController extends ChangeNotifier {
   /// Get cached folder size, or null if not yet calculated.
   int? folderSize(String path) => _folderSizes[path];
 
-  /// Request async folder size calculation. Notifies listeners when done.
+  /// Request async folder size calculation (queued, max 2 concurrent).
   void requestFolderSize(String path) {
-    if (_folderSizes.containsKey(path) || _folderSizesPending.contains(path)) {
+    if (_folderSizes.containsKey(path) ||
+        _folderSizesPending.contains(path) ||
+        _folderSizeQueue.contains(path)) {
       return;
     }
-    _folderSizesPending.add(path);
-    fs.dirSize(path).then((size) {
-      _folderSizes[path] = size;
-      _folderSizesPending.remove(path);
-      notifyListeners();
-    }).catchError((e) {
-      _folderSizesPending.remove(path);
-      AppLogger.instance.log('Folder size failed: $path: $e', name: 'FilePane');
-    });
+    _folderSizeQueue.add(path);
+    _drainSizeQueue();
+  }
+
+  void _drainSizeQueue() {
+    while (_folderSizesPending.length < _maxConcurrentSizeCalcs &&
+        _folderSizeQueue.isNotEmpty) {
+      final path = _folderSizeQueue.removeAt(0);
+      if (_folderSizes.containsKey(path)) continue;
+      _folderSizesPending.add(path);
+      fs.dirSize(path).then((size) {
+        _folderSizes[path] = size;
+        _folderSizesPending.remove(path);
+        notifyListeners();
+        _drainSizeQueue();
+      }).catchError((e) {
+        _folderSizesPending.remove(path);
+        AppLogger.instance.log('Folder size failed: $path: $e', name: 'FilePane');
+        _drainSizeQueue();
+      });
+    }
   }
 
   /// Initialize with the file system's initial directory.
@@ -82,6 +98,7 @@ class FilePaneController extends ChangeNotifier {
     _selected = {};
     _folderSizes.clear();
     _folderSizesPending.clear();
+    _folderSizeQueue.clear();
     await refresh();
   }
 

@@ -1872,7 +1872,7 @@ void main() {
                (w.decoration as BoxDecoration).color == AppTheme.bg4 &&
                (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
       );
-      expect(toggleContainer, findsOneWidget);
+      expect(toggleContainer, findsWidgets);
 
       // Tap the toggle to enable logging
       await tester.tap(find.text('Enable Logging'));

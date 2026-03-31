@@ -502,6 +502,7 @@ class _TransferSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final workers = ref.watch(configProvider.select((c) => c.transferWorkers));
     final maxHistory = ref.watch(configProvider.select((c) => c.maxHistory));
+    final showFolderSizes = ref.watch(configProvider.select((c) => c.showFolderSizes));
     return Column(
       children: [
         _IntTile(
@@ -517,6 +518,11 @@ class _TransferSection extends ConsumerWidget {
           min: 10,
           max: 5000,
           onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(maxHistory: v)),
+        ),
+        _Toggle(
+          label: 'Calculate Folder Sizes',
+          value: showFolderSizes,
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(showFolderSizes: v)),
         ),
       ],
     );

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../providers/config_provider.dart';
 import '../../utils/logger.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../theme/app_theme.dart';
@@ -146,6 +147,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   Widget _buildDualPane(BuildContext context, FilePaneController local, FilePaneController remote) {
+    final showFolderSizes = ref.watch(configProvider.select((c) => c.showFolderSizes));
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
@@ -159,6 +161,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
               child: FilePane(
                 controller: local,
                 paneId: 'local',
+                showFolderSizes: showFolderSizes,
                 crossMarquee: widget.crossMarquee,
                 onTransfer: (entry) => _upload(entry),
                 onTransferMultiple: (entries) {
@@ -191,6 +194,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
               child: FilePane(
                 controller: remote,
                 paneId: 'remote',
+                showFolderSizes: showFolderSizes,
                 onTransfer: (entry) => _download(entry),
                 onTransferMultiple: (entries) {
                   for (final e in entries) {
