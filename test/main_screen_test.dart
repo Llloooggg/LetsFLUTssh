@@ -324,7 +324,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // New Session dialog should appear (may have multiple 'New Session' texts)
-      expect(find.text('Host *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
 
       // Cancel the dialog
       await tester.tap(find.text('Cancel'));
@@ -436,7 +436,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // New Session dialog should appear
-      expect(find.text('Host *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
 
       // Cancel the dialog
       await tester.tap(find.text('Cancel'));
@@ -454,7 +454,7 @@ void main() {
       await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Host *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
 
       // Cancel
@@ -472,7 +472,10 @@ void main() {
       await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
       await tester.pumpAndSettle();
 
-      // Dialog should have auth type options
+      // Switch to Auth tab to see auth selector
+      await tester.tap(find.text('Auth'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Password'), findsWidgets);
     });
   });
@@ -491,7 +494,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog opens
-      expect(find.text('Host *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
 
       // Cancel
       await tester.tap(find.text('Cancel'));
@@ -937,11 +940,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Fill in required fields
-      final hostField = find.widgetWithText(TextField, 'Host *');
+      final hostField = find.widgetWithText(TextField, '192.168.1.1');
       await tester.enterText(hostField, 'test.example.com');
       await tester.pump();
 
-      final userField = find.widgetWithText(TextField, 'Username *');
+      final userField = find.widgetWithText(TextField, 'root');
       await tester.enterText(userField, 'testuser');
       await tester.pump();
 
@@ -1434,11 +1437,11 @@ void main() {
       await tester.pump();
 
       // Fill in required fields
-      final hostField = find.widgetWithText(TextFormField, 'Host *');
+      final hostField = find.widgetWithText(TextFormField, '192.168.1.1');
       await tester.enterText(hostField, 'connect-only.example.com');
       await tester.pump();
 
-      final userField = find.widgetWithText(TextFormField, 'Username *');
+      final userField = find.widgetWithText(TextFormField, 'root');
       await tester.enterText(userField, 'testuser');
       await tester.pump();
 
@@ -1485,16 +1488,16 @@ void main() {
       await tester.pump();
 
       // Fill in required fields including label
-      final hostField = find.widgetWithText(TextFormField, 'Host *');
+      final hostField = find.widgetWithText(TextFormField, '192.168.1.1');
       await tester.enterText(hostField, 'save.example.com');
       await tester.pump();
 
-      final userField = find.widgetWithText(TextFormField, 'Username *');
+      final userField = find.widgetWithText(TextFormField, 'root');
       await tester.enterText(userField, 'saveuser');
       await tester.pump();
 
       // Click "Save & Connect" → SaveResult with connect: true
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Save'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
@@ -1721,7 +1724,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Quick connect dialog should appear
-        expect(find.text('Host *'), findsOneWidget);
+        expect(find.text('HOST *'), findsOneWidget);
 
         // Cancel the dialog
         await tester.tap(find.text('Cancel'));

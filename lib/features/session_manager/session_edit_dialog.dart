@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../../core/import/key_file_helper.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/platform.dart';
 
 /// Result of the session edit dialog.
@@ -25,7 +26,7 @@ class SaveResult extends SessionDialogResult {
 }
 
 /// Dialog for creating or editing a session.
-/// In create mode, shows 3 buttons: Cancel | Connect | Save & Connect
+/// In create mode, shows 3 buttons: Cancel | Save | Connect
 /// In edit mode, shows 2 buttons: Cancel | Save
 class SessionEditDialog extends StatefulWidget {
   final Session? session; // null = create new
@@ -78,6 +79,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   bool _showKeyText = false;
   bool _keyDragging = false;
   TextEditingController? _autoCompleteCtrl;
+  int _tabIndex = 0;
 
   bool get _isEditing => widget.session != null;
 
@@ -110,23 +112,6 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     _keyDataCtrl.dispose();
     _passphraseCtrl.dispose();
     super.dispose();
-  }
-
-  SSHConfig _buildConfig() {
-    final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
-    return SSHConfig(
-      server: ServerAddress(
-        host: _hostCtrl.text.trim(),
-        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-        user: _userCtrl.text.trim(),
-      ),
-      auth: SshAuth(
-        password: _passwordCtrl.text,
-        keyPath: keyPath,
-        keyData: _keyDataCtrl.text.trim(),
-        passphrase: _passphraseCtrl.text,
-      ),
-    );
   }
 
   Session _buildSession() {
@@ -167,14 +152,26 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     );
   }
 
+  SSHConfig _buildConfig() {
+    final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
+    return SSHConfig(
+      server: ServerAddress(
+        host: _hostCtrl.text.trim(),
+        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+        user: _userCtrl.text.trim(),
+      ),
+      auth: SshAuth(
+        password: _passwordCtrl.text,
+        keyPath: keyPath,
+        keyData: _keyDataCtrl.text.trim(),
+        passphrase: _passphraseCtrl.text,
+      ),
+    );
+  }
+
   void _connectOnly() {
     if (!_formKey.currentState!.validate()) return;
     Navigator.of(context).pop(ConnectOnlyResult(_buildConfig()));
-  }
-
-  void _saveAndConnect() {
-    if (!_formKey.currentState!.validate()) return;
-    Navigator.of(context).pop(SaveResult(_buildSession(), connect: true));
   }
 
   void _save() {
@@ -184,124 +181,199 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(_isEditing ? 'Edit Session' : 'New Session'),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 450),
+    return Dialog(
+      backgroundColor: AppTheme.bg1,
+      shape: const RoundedRectangleBorder(),
+      insetPadding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
         child: Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildLabelField(),
-                const SizedBox(height: 12),
-                _buildGroupField(),
-                const SizedBox(height: 16),
-                _buildHostPortRow(),
-                const SizedBox(height: 12),
-                _buildUserField(),
-                const SizedBox(height: 16),
-                _buildAuthTypeSelector(),
-                const SizedBox(height: 12),
-                ..._buildAuthFields(),
-              ],
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHeader(),
+              _buildTabBar(),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: IndexedStack(
+                    index: _tabIndex,
+                    children: [
+                      _buildConnectionTab(),
+                      _buildAuthTab(),
+                      _buildOptionsTab(),
+                    ],
+                  ),
+                ),
+              ),
+              _buildFooter(),
+            ],
           ),
         ),
       ),
-      actions: _buildActions(),
     );
   }
 
-  Widget _buildLabelField() {
-    return TextFormField(
-      controller: _labelCtrl,
-      decoration: const InputDecoration(
-        labelText: 'Label',
-        hintText: 'My Server',
-        prefixIcon: Icon(Icons.label),
+  // ── Header ──
+
+  Widget _buildHeader() {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
-      autofocus: true,
+      child: Row(
+        children: [
+          Text(
+            _isEditing ? 'Edit Connection' : 'New Connection',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.fg,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: const Icon(Icons.close, size: 13, color: AppTheme.fgDim),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Tab bar ──
+
+  Widget _buildTabBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
+      ),
+      child: Row(
+        children: [
+          _buildTab(0, Icons.dns, 'Connection'),
+          _buildTab(1, Icons.shield, 'Auth'),
+          _buildTab(2, Icons.folder, 'Options'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(int index, IconData icon, String label) {
+    final active = _tabIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _tabIndex = index),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          border: active
+              ? const Border(bottom: BorderSide(color: AppTheme.accent, width: 2))
+              : null,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 12, color: active ? AppTheme.fg : AppTheme.fgFaint),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: active ? AppTheme.fg : AppTheme.fgFaint,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Connection tab ──
+
+  Widget _buildConnectionTab() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _styledField('Session Name', _labelCtrl, hint: 'My Server'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _styledField('Host', _hostCtrl,
+                  hint: '192.168.1.1',
+                  required: true),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 80,
+              child: _styledField('Port', _portCtrl,
+                  hint: '22',
+                  keyboardType: TextInputType.number,
+                  validator: (v) {
+                    final port = int.tryParse(v ?? '');
+                    if (port == null || port < 1 || port > 65535) {
+                      return '1-65535';
+                    }
+                    return null;
+                  }),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _styledField('Username', _userCtrl,
+            hint: 'root', required: true),
+        const SizedBox(height: 12),
+        _buildGroupField(),
+      ],
     );
   }
 
   Widget _buildGroupField() {
-    return Autocomplete<String>(
-      initialValue: TextEditingValue(text: _groupCtrl.text),
-      optionsBuilder: (value) {
-        if (value.text.isEmpty) return widget.existingGroups;
-        return widget.existingGroups.where(
-          (g) => g.toLowerCase().contains(value.text.toLowerCase()),
-        );
-      },
-      onSelected: (value) => _groupCtrl.text = value,
-      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-        // Sync with our controller — only add listener once
-        if (_autoCompleteCtrl != controller) {
-          _autoCompleteCtrl = controller;
-          controller.text = _groupCtrl.text;
-          controller.addListener(() => _groupCtrl.text = controller.text);
-        }
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: const InputDecoration(
-            labelText: 'Group',
-            hintText: 'Production/Web',
-            prefixIcon: Icon(Icons.folder),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildHostPortRow() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          flex: 3,
-          child: TextFormField(
-            controller: _hostCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Host *',
-              hintText: '192.168.1.1',
-              prefixIcon: Icon(Icons.dns),
-            ),
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Required' : null,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: TextFormField(
-            controller: _portCtrl,
-            decoration: const InputDecoration(labelText: 'Port'),
-            keyboardType: TextInputType.number,
-            validator: (v) {
-              final port = int.tryParse(v ?? '');
-              if (port == null || port < 1 || port > 65535) {
-                return '1-65535';
-              }
-              return null;
-            },
-          ),
+        const _FieldLabel('Group'),
+        Autocomplete<String>(
+          initialValue: TextEditingValue(text: _groupCtrl.text),
+          optionsBuilder: (value) {
+            if (value.text.isEmpty) return widget.existingGroups;
+            return widget.existingGroups.where(
+              (g) => g.toLowerCase().contains(value.text.toLowerCase()),
+            );
+          },
+          onSelected: (value) => _groupCtrl.text = value,
+          fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+            if (_autoCompleteCtrl != controller) {
+              _autoCompleteCtrl = controller;
+              controller.text = _groupCtrl.text;
+              controller.addListener(() => _groupCtrl.text = controller.text);
+            }
+            return _StyledInput(
+              controller: controller,
+              focusNode: focusNode,
+              hint: 'Production/Web',
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _buildUserField() {
-    return TextFormField(
-      controller: _userCtrl,
-      decoration: const InputDecoration(
-        labelText: 'Username *',
-        hintText: 'root',
-        prefixIcon: Icon(Icons.person),
-      ),
-      validator: (v) =>
-          v == null || v.trim().isEmpty ? 'Required' : null,
+  // ── Auth tab ──
+
+  Widget _buildAuthTab() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildAuthTypeSelector(),
+        const SizedBox(height: 12),
+        ..._buildAuthFields(),
+      ],
     );
   }
 
@@ -309,46 +381,72 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Authentication', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 4),
-        SegmentedButton<AuthType>(
-          segments: const [
-            ButtonSegment(value: AuthType.password, label: Text('Password'), icon: Icon(Icons.lock, size: 16)),
-            ButtonSegment(value: AuthType.key, label: Text('Key'), icon: Icon(Icons.vpn_key, size: 16)),
-            ButtonSegment(value: AuthType.keyWithPassword, label: Text('Key+Pass'), icon: Icon(Icons.enhanced_encryption, size: 16)),
+        const _FieldLabel('Method'),
+        Row(
+          children: [
+            Expanded(child: _authButton(AuthType.password, Icons.shield, 'Password')),
+            const SizedBox(width: 8),
+            Expanded(child: _authButton(AuthType.key, Icons.vpn_key, 'SSH Key')),
+            const SizedBox(width: 8),
+            Expanded(child: _authButton(AuthType.keyWithPassword, Icons.enhanced_encryption, 'Key+Pass')),
           ],
-          selected: {_authType},
-          onSelectionChanged: (v) => setState(() => _authType = v.first),
         ),
       ],
     );
   }
 
+  Widget _authButton(AuthType type, IconData icon, String label) {
+    final active = _authType == type;
+    return GestureDetector(
+      onTap: () => setState(() => _authType = type),
+      child: Container(
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? AppTheme.selection : AppTheme.bg3,
+          border: Border.all(color: active ? AppTheme.accent : AppTheme.borderLight),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 11, color: active ? AppTheme.accent : AppTheme.fgDim),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: active ? AppTheme.accent : AppTheme.fgDim,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   List<Widget> _buildAuthFields() {
     return [
-      // Password (for password and keyWithPassword)
       if (_authType == AuthType.password || _authType == AuthType.keyWithPassword)
         _buildPasswordField(),
-
-      // Key fields (for key and keyWithPassword)
       if (_authType == AuthType.key || _authType == AuthType.keyWithPassword)
         ..._buildKeyFields(),
     ];
   }
 
   Widget _buildPasswordField() {
-    return TextFormField(
-      controller: _passwordCtrl,
-      decoration: InputDecoration(
-        labelText: 'Password',
-        prefixIcon: const Icon(Icons.lock),
-        suffixIcon: IconButton(
-          icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-        ),
-      ),
-      obscureText: _obscurePassword,
-    );
+    return _styledField('Password', _passwordCtrl,
+        hint: '••••••••',
+        obscure: _obscurePassword,
+        suffixIcon: GestureDetector(
+          onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+          child: Icon(
+            _obscurePassword ? Icons.visibility : Icons.visibility_off,
+            size: 12,
+            color: AppTheme.fgFaint,
+          ),
+        ));
   }
 
   List<Widget> _buildKeyFields() {
@@ -409,7 +507,6 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
     if (!isDesktopPlatform) return row;
 
-    // Desktop: wrap in DropTarget for drag & drop
     return DropTarget(
       onDragEntered: (_) => setState(() => _keyDragging = true),
       onDragExited: (_) => setState(() => _keyDragging = false),
@@ -431,17 +528,16 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       },
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
           border: _keyDragging
-              ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+              ? Border.all(color: AppTheme.accent, width: 2)
               : null,
         ),
         child: _keyDragging
-            ? SizedBox(
+            ? const SizedBox(
                 height: 48,
                 child: Center(
                   child: Text('Drop key file here',
-                      style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                      style: TextStyle(color: AppTheme.accent)),
                 ),
               )
             : row,
@@ -477,55 +573,220 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   }
 
   Widget _buildPassphraseField() {
-    return TextFormField(
-      controller: _passphraseCtrl,
-      decoration: InputDecoration(
-        labelText: 'Key Passphrase',
-        prefixIcon: const Icon(Icons.password),
-        suffixIcon: IconButton(
-          icon: Icon(_obscurePassphrase ? Icons.visibility : Icons.visibility_off),
-          onPressed: () => setState(() => _obscurePassphrase = !_obscurePassphrase),
+    return _styledField('Key Passphrase', _passphraseCtrl,
+        hint: 'Optional',
+        obscure: _obscurePassphrase,
+        suffixIcon: GestureDetector(
+          onTap: () => setState(() => _obscurePassphrase = !_obscurePassphrase),
+          child: Icon(
+            _obscurePassphrase ? Icons.visibility : Icons.visibility_off,
+            size: 12,
+            color: AppTheme.fgFaint,
+          ),
         ),
-      ),
-      obscureText: _obscurePassphrase,
-      validator: (v) {
-        if (v != null && v.isNotEmpty) {
-          final hasKey = _keyPathCtrl.text.trim().isNotEmpty ||
-              _keyDataCtrl.text.trim().isNotEmpty;
-          if (!hasKey) return 'Provide a key file or PEM text first';
-        }
-        return null;
-      },
+        validator: (v) {
+          if (v != null && v.isNotEmpty) {
+            final hasKey = _keyPathCtrl.text.trim().isNotEmpty ||
+                _keyDataCtrl.text.trim().isNotEmpty;
+            if (!hasKey) return 'Provide a key file or PEM text first';
+          }
+          return null;
+        });
+  }
+
+  // ── Options tab ──
+
+  Widget _buildOptionsTab() {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Placeholder — options will be added when the data model supports them.
+        SizedBox(height: 16),
+        Text(
+          'No additional options yet',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 11,
+            color: AppTheme.fgFaint,
+          ),
+        ),
+      ],
     );
   }
 
-  List<Widget> _buildActions() {
-    if (_isEditing) {
-      return [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+  // ── Footer ──
+
+  Widget _buildFooter() {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppTheme.border)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _footerButton('Cancel', onTap: () => Navigator.of(context).pop()),
+          const SizedBox(width: 8),
+          if (_isEditing)
+            _footerButton('Save', bg: AppTheme.accent, fg: Colors.white, onTap: _save)
+          else ...[
+            _footerButton('Save', bg: AppTheme.bg4, fg: AppTheme.fg, onTap: _save),
+            const SizedBox(width: 8),
+            _footerButton('Connect', bg: AppTheme.accent, fg: Colors.white, onTap: _connectOnly),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _footerButton(String label, {Color? bg, Color? fg, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 26,
+        padding: EdgeInsets.symmetric(horizontal: bg != null ? 16 : 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: bg,
         ),
-        FilledButton.icon(
-          onPressed: _save,
-          icon: const Icon(Icons.save),
-          label: const Text('Save'),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 11,
+            fontWeight: bg != null ? FontWeight.w500 : null,
+            color: fg ?? AppTheme.fgDim,
+          ),
         ),
-      ];
-    }
-    return [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
       ),
-      OutlinedButton(
-        onPressed: _connectOnly,
-        child: const Text('Connect'),
+    );
+  }
+
+  // ── Styled field helper ──
+
+  Widget _styledField(
+    String label,
+    TextEditingController controller, {
+    String? hint,
+    bool required = false,
+    bool obscure = false,
+    Widget? suffixIcon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FieldLabel(required ? '$label *' : label),
+        _StyledInput(
+          controller: controller,
+          hint: hint,
+          obscure: obscure,
+          suffixIcon: suffixIcon,
+          keyboardType: keyboardType,
+          validator: validator ?? (required
+              ? (v) => v == null || v.trim().isEmpty ? 'Required' : null
+              : null),
+        ),
+      ],
+    );
+  }
+}
+
+/// Uppercase field label.
+class _FieldLabel extends StatelessWidget {
+  final String text;
+  const _FieldLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+          color: AppTheme.fgFaint,
+        ),
       ),
-      FilledButton(
-        onPressed: _saveAndConnect,
-        child: const Text('Save & Connect'),
+    );
+  }
+}
+
+/// Styled text input matching the mockup.
+class _StyledInput extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode? focusNode;
+  final String? hint;
+  final bool obscure;
+  final Widget? suffixIcon;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+
+  const _StyledInput({
+    required this.controller,
+    this.focusNode,
+    this.hint,
+    this.obscure = false,
+    this.suffixIcon,
+    this.keyboardType,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: TextFormField(
+        controller: controller,
+        focusNode: focusNode,
+        obscureText: obscure,
+        keyboardType: keyboardType,
+        validator: validator,
+        style: const TextStyle(
+          fontFamily: 'JetBrains Mono',
+          fontSize: 11,
+          color: AppTheme.fg,
+        ),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(
+            fontFamily: 'JetBrains Mono',
+            fontSize: 11,
+            color: AppTheme.fgFaint,
+          ),
+          filled: true,
+          fillColor: AppTheme.bg3,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          border: const OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.borderLight),
+          ),
+          enabledBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.borderLight),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.accent),
+          ),
+          errorBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.red),
+          ),
+          suffixIcon: suffixIcon != null
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: suffixIcon,
+                )
+              : null,
+          suffixIconConstraints: const BoxConstraints(maxHeight: 30),
+        ),
       ),
-    ];
+    );
   }
 }

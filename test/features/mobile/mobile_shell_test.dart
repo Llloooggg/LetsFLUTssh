@@ -723,8 +723,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap 'SFTP' in the context menu
-      expect(find.text('SFTP'), findsOneWidget);
-      await tester.tap(find.text('SFTP'));
+      expect(find.text('Open File Transfer'), findsOneWidget);
+      await tester.tap(find.text('Open File Transfer'));
       await tester.pumpAndSettle();
 
       // Should navigate to Files page (index 2) after _connectSessionSftp
@@ -741,7 +741,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // New Session dialog should appear
-      expect(find.text('New Session'), findsOneWidget);
+      expect(find.text('New Connection'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
     });
 
@@ -756,11 +756,11 @@ void main() {
 
       // Fill in required fields (Host and Username)
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Host *'),
+        find.widgetWithText(TextFormField, '192.168.1.1'),
         'quick.example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Username *'),
+        find.widgetWithText(TextFormField, 'root'),
         'quickuser',
       );
       await tester.pumpAndSettle();
@@ -801,20 +801,20 @@ void main() {
 
       // Fill in required fields
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Host *'),
+        find.widgetWithText(TextFormField, '192.168.1.1'),
         'save.example.com',
       );
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Username *'),
+        find.widgetWithText(TextFormField, 'root'),
         'saveuser',
       );
       await tester.pumpAndSettle();
 
-      // Tap "Save & Connect" button (SaveResult with connect=true path)
-      await tester.tap(find.text('Save & Connect'));
+      // Tap "Connect" button (ConnectOnlyResult path — triggers quick connect)
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      // Should navigate to Terminal page (index 1) via _newSession SaveResult
+      // Should navigate to Terminal page (index 1) via _newSession ConnectOnlyResult
       final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
       expect(navBar.selectedIndex, equals(1));
     });
@@ -880,7 +880,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap 'SFTP' in the context menu
-      await tester.tap(find.text('SFTP'));
+      await tester.tap(find.text('Open File Transfer'));
       await tester.pumpAndSettle();
 
       // Should stay on Sessions page (index 0), not switch to Files
