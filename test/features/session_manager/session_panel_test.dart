@@ -533,7 +533,7 @@ void main() {
 
       // Folder name dialog should appear
       expect(find.text('New Folder'), findsWidgets); // title + button tooltip
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
       expect(find.text('Create'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
     });
@@ -549,7 +549,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog should be gone
-      expect(find.text('Folder name'), findsNothing);
+      expect(find.text('FOLDER NAME'), findsNothing);
     });
 
     testWidgets('folder name dialog shows hint text', (tester) async {
@@ -577,7 +577,7 @@ void main() {
       expect(find.text('Folder "Production" already exists'), findsOneWidget);
     });
 
-    testWidgets('folder name dialog Create button is disabled on duplicate',
+    testWidgets('folder name dialog shows error on duplicate name',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
@@ -589,13 +589,11 @@ void main() {
       await tester.enterText(textField, 'Production');
       await tester.pump();
 
-      // The FilledButton should be disabled (onPressed == null)
-      final createButton =
-          tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(createButton.onPressed, isNull);
+      // Error text should be shown
+      expect(find.text('Folder "Production" already exists'), findsOneWidget);
     });
 
-    testWidgets('folder name dialog Create button is enabled for new name',
+    testWidgets('folder name dialog has no error for new name',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
@@ -607,9 +605,8 @@ void main() {
       await tester.enterText(textField, 'NewFolder');
       await tester.pump();
 
-      final createButton =
-          tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(createButton.onPressed, isNotNull);
+      // No error text should be shown
+      expect(find.textContaining('already exists'), findsNothing);
     });
   });
 
@@ -801,7 +798,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Rename Folder'), findsOneWidget);
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
       expect(find.text('Rename'), findsOneWidget);
       // The current name should be pre-filled
       final textField = tester.widget<TextField>(find.byType(TextField).last);
@@ -886,8 +883,8 @@ void main() {
     });
   });
 
-  group('SessionPanel — Delete All Sessions', () {
-    testWidgets('Delete All from background context menu shows confirmation', (tester) async {
+  group('SessionPanel — Delete Folder confirmation', () {
+    testWidgets('Delete Folder from group context menu shows confirmation', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -956,11 +953,11 @@ void main() {
       await tester.pump();
 
       // Tap Create
-      await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       // Dialog should dismiss
-      expect(find.text('Folder name'), findsNothing);
+      expect(find.text('FOLDER NAME'), findsNothing);
     });
 
     testWidgets('folder name dialog submit via Enter key', (tester) async {
@@ -976,7 +973,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog should dismiss after Enter
-      expect(find.text('Folder name'), findsNothing);
+      expect(find.text('FOLDER NAME'), findsNothing);
     });
   });
 
@@ -1002,7 +999,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Folder name dialog should appear
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
       expect(find.text('Create'), findsOneWidget);
     });
   });
@@ -1034,7 +1031,7 @@ void main() {
       await tester.pump();
 
       // Submit
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
 
       // Dialog should dismiss
@@ -1131,13 +1128,12 @@ void main() {
     });
   });
 
-  group('SessionPanel — delete all sessions', () {
-    testWidgets('Delete All from empty background context menu', (tester) async {
+  group('SessionPanel — no delete all sessions option', () {
+    testWidgets('background context menu does not show Delete All Sessions', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       // Right-click on empty area (background context menu)
-      // The background area is below the sessions
       final panel = find.byType(SessionPanel);
       final panelBox = tester.getRect(panel);
       await tester.tapAt(
@@ -1146,20 +1142,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Look for Delete All Sessions
-      final deleteAll = find.text('Delete All Sessions');
-      if (deleteAll.evaluate().isNotEmpty) {
-        await tester.tap(deleteAll);
-        await tester.pumpAndSettle();
-
-        // Confirmation dialog should appear
-        expect(find.text('Delete All Sessions'), findsOneWidget);
-        expect(find.textContaining('cannot be undone'), findsOneWidget);
-
-        // Cancel
-        await tester.tap(find.text('Cancel'));
-        await tester.pumpAndSettle();
-      }
+      // Delete All Sessions should NOT be in the menu
+      expect(find.text('Delete All Sessions'), findsNothing);
     });
   });
 
@@ -1332,20 +1316,14 @@ void main() {
     });
   });
 
-  group('SessionPanel — Delete All confirmation', () {
-    testWidgets('Delete All with confirm deletes all sessions', (tester) async {
-      // We'll verify the dialog UI by accessing it through the background context
-      // menu or through a group context menu on root.
-      // The _confirmDeleteAll is accessed via group menu on root ('').
-      // Let's test via the empty space right-click that triggers onBackgroundContextMenu.
+  group('SessionPanel — Delete All removed', () {
+    testWidgets('background context menu does not have Delete All', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      // Try right-click on the Expanded tree area below all sessions
       final panel = find.byType(SessionPanel);
       final panelBox = tester.getRect(panel);
 
-      // Attempt to right-click at the bottom of the panel
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -1355,21 +1333,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      // Check if Delete All Sessions appeared
-      final deleteAll = find.text('Delete All Sessions');
-      if (deleteAll.evaluate().isNotEmpty) {
-        await tester.tap(deleteAll);
-        await tester.pumpAndSettle();
-
-        // Confirmation dialog
-        expect(find.textContaining('cannot be undone'), findsOneWidget);
-
-        // Confirm
-        await tester.tap(find.widgetWithText(FilledButton, 'Delete All'));
-        await tester.pumpAndSettle();
-
-        expect(find.textContaining('cannot be undone'), findsNothing);
-      }
+      expect(find.text('Delete All Sessions'), findsNothing);
     });
   });
 
@@ -1533,7 +1497,7 @@ void main() {
       await tester.enterText(find.byType(TextField).last, 'Database');
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
 
       expect(find.text('Rename Folder'), findsNothing);
@@ -1649,7 +1613,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
 
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -1678,7 +1642,7 @@ void main() {
       await tester.enterText(textField, '');
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
     });
   });
@@ -1717,7 +1681,7 @@ void main() {
       expect(
           find.text('Folder "Production" already exists'), findsNothing);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
     });
   });
@@ -1799,7 +1763,7 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Folder name'), findsNothing);
+      expect(find.text('FOLDER NAME'), findsNothing);
     });
   });
 

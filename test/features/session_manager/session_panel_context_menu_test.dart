@@ -315,8 +315,8 @@ void main() {
     });
   });
 
-  group('SessionPanel — delete all confirm (lines 526-550)', () {
-    testWidgets('Delete All Sessions + confirm calls deleteAll',
+  group('SessionPanel — no delete all option', () {
+    testWidgets('background context menu has no Delete All Sessions',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
@@ -335,17 +335,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      final deleteAll = find.text('Delete All Sessions');
-      if (deleteAll.evaluate().isNotEmpty) {
-        await tester.tap(deleteAll);
-        await tester.pumpAndSettle();
-
-        expect(find.textContaining('Delete all'), findsOneWidget);
-
-        // Confirm
-        await tester.tap(find.text('Delete All'));
-        await tester.pumpAndSettle();
-      }
+      expect(find.text('Delete All Sessions'), findsNothing);
     });
   });
 
@@ -475,7 +465,7 @@ void main() {
       await tester.enterText(textField, 'Production');
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
 
       // Dialog closed — name unchanged is a no-op
@@ -493,7 +483,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Submit with empty text
-      await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       // Dialog closed — empty name is no-op

@@ -397,7 +397,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     String groupPath,
     Offset position,
   ) {
-    final hasSessions = ref.read(sessionProvider).isNotEmpty;
     showAppContextMenu(
       context: context,
       position: position,
@@ -425,15 +424,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             icon: Icons.delete,
             color: AppTheme.red,
             onTap: () => _confirmDeleteFolder(context, ref, groupPath),
-          ),
-        ],
-        if (groupPath.isEmpty && hasSessions) ...[
-          const ContextMenuItem.divider(),
-          ContextMenuItem(
-            label: 'Delete All Sessions',
-            icon: Icons.delete_forever,
-            color: AppTheme.red,
-            onTap: () => _confirmDeleteAll(context, ref),
           ),
         ],
       ],
@@ -762,18 +752,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
-  Future<void> _confirmDeleteAll(BuildContext context, WidgetRef ref) async {
-    final count = ref.read(sessionProvider).length;
-    final confirmed = await ConfirmDialog.show(
-      context,
-      title: 'Delete All Sessions',
-      confirmLabel: 'Delete All',
-      content: Text('Delete all $count session(s) and all folders?\n\nThis cannot be undone.'),
-    );
-    if (confirmed) {
-      await ref.read(sessionProvider.notifier).deleteAll();
-    }
-  }
 }
 
 class _PanelHeader extends StatelessWidget {
