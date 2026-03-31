@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/cross_marquee_controller.dart';
@@ -325,16 +326,13 @@ class _FilePaneState extends State<FilePane> {
   }
 
   Widget _navButton(IconData icon, VoidCallback? onPressed, String tooltip) {
-    return SizedBox(
-      width: 20,
-      height: 20,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 11, color: AppTheme.fgFaint),
-        tooltip: tooltip,
-        padding: EdgeInsets.zero,
-        visualDensity: VisualDensity.compact,
-      ),
+    return AppIconButton(
+      icon: icon,
+      onTap: onPressed,
+      tooltip: tooltip,
+      size: 11,
+      boxSize: 20,
+      color: AppTheme.fgFaint,
     );
   }
 

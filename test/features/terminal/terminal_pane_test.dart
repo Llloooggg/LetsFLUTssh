@@ -12,6 +12,7 @@ import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/shell_helper.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/terminal/terminal_pane.dart';
+import 'package:letsflutssh/widgets/app_icon_button.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
 import '../../core/ssh/shell_helper_test.mocks.dart';
@@ -1365,17 +1366,17 @@ void main() {
       await tester.pumpAndSettle();
 
       // With no search text, buttons should be disabled (onPressed is null)
-      final prevButton = tester.widget<IconButton>(find.ancestor(
+      final prevButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(prevButton.onPressed, isNull);
+      expect(prevButton.onTap, isNull);
 
-      final nextButton = tester.widget<IconButton>(find.ancestor(
+      final nextButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(nextButton.onPressed, isNull);
+      expect(nextButton.onTap, isNull);
     });
 
     testWidgets('close button calls onClose callback', (tester) async {
@@ -1403,11 +1404,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // No match counter should be shown
-      final prevButton = tester.widget<IconButton>(find.ancestor(
+      final prevButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(prevButton.onPressed, isNull);
+      expect(prevButton.onTap, isNull);
     });
 
     testWidgets('searching for existing text shows match count', (tester) async {
@@ -1427,17 +1428,17 @@ void main() {
       await tester.pumpAndSettle();
 
       // prev/next buttons should now be enabled (matches found)
-      final prevButton = tester.widget<IconButton>(find.ancestor(
+      final prevButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(prevButton.onPressed, isNotNull);
+      expect(prevButton.onTap, isNotNull);
 
-      final nextButton = tester.widget<IconButton>(find.ancestor(
+      final nextButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(nextButton.onPressed, isNotNull);
+      expect(nextButton.onTap, isNotNull);
     });
 
     testWidgets('next/prev cycle through matches', (tester) async {
@@ -1462,11 +1463,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Buttons should still be enabled after cycling
-      final nextButton = tester.widget<IconButton>(find.ancestor(
+      final nextButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(nextButton.onPressed, isNotNull);
+      expect(nextButton.onTap, isNotNull);
     });
 
     testWidgets('searching for non-existent text shows no matches', (tester) async {
@@ -1480,11 +1481,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Buttons should be disabled — no matches
-      final prevButton = tester.widget<IconButton>(find.ancestor(
+      final prevButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(prevButton.onPressed, isNull);
+      expect(prevButton.onTap, isNull);
     });
 
     testWidgets('submitting search field advances to next match', (tester) async {
@@ -1506,11 +1507,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Still has matches, buttons enabled
-      final nextButton = tester.widget<IconButton>(find.ancestor(
+      final nextButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(nextButton.onPressed, isNotNull);
+      expect(nextButton.onTap, isNotNull);
     });
 
     testWidgets('search is case-insensitive', (tester) async {
@@ -1528,11 +1529,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should find matches (case-insensitive)
-      final nextButton = tester.widget<IconButton>(find.ancestor(
+      final nextButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(nextButton.onPressed, isNotNull);
+      expect(nextButton.onTap, isNotNull);
     });
 
     testWidgets('disposing search bar clears highlights', (tester) async {
@@ -1967,7 +1968,7 @@ void main() {
       // Three IconButtons: up, down, close
       final iconButtons = find.descendant(
         of: find.byType(Row),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       );
       expect(iconButtons, findsNWidgets(3));
 
@@ -2024,11 +2025,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
-      final buttonWrappers = sizedBoxes.where((sb) =>
-        sb.width == 28 && sb.height == 28,
+      final buttons = tester.widgetList<AppIconButton>(
+        find.byType(AppIconButton),
       ).toList();
-      expect(buttonWrappers.length, 3);
+      expect(buttons.length, 3);
+      for (final btn in buttons) {
+        expect(btn.boxSize, 28);
+      }
     });
   });
 
@@ -2051,17 +2054,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final prevButton = tester.widget<IconButton>(find.ancestor(
+      final prevButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(prevButton.onPressed, isNull);
+      expect(prevButton.onTap, isNull);
 
-      final nextButton = tester.widget<IconButton>(find.ancestor(
+      final nextButton = tester.widget<AppIconButton>(find.ancestor(
         of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(IconButton),
+        matching: find.byType(AppIconButton),
       ));
-      expect(nextButton.onPressed, isNull);
+      expect(nextButton.onTap, isNull);
     });
   });
 

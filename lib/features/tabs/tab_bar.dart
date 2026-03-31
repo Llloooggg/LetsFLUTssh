@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/context_menu.dart';
+import '../../widgets/hover_region.dart';
 import 'tab_controller.dart';
 import 'tab_model.dart';
 
@@ -217,8 +219,6 @@ class _TabItem extends StatefulWidget {
 }
 
 class _TabItemState extends State<_TabItem> {
-  bool _hovered = false;
-
   Color _dotColor() {
     return widget.tab.connection.state == SSHConnectionState.connected
         ? AppTheme.green
@@ -230,11 +230,8 @@ class _TabItemState extends State<_TabItem> {
     return widget.tab.kind == TabKind.terminal ? AppTheme.blue : AppTheme.yellow;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final showClose = _hovered || widget.isActive;
-
-    final tabContent = SizedBox(
+  Widget _buildContent(bool showClose) {
+    return SizedBox(
       width: widget.width,
       height: 32,
       child: Stack(
@@ -284,8 +281,13 @@ class _TabItemState extends State<_TabItem> {
                   height: 20,
                   child: Opacity(
                     opacity: showClose ? 1.0 : 0.0,
-                    child: _CloseButton(
+                    child: AppIconButton(
+                      icon: Icons.close,
                       onTap: showClose ? widget.onClose : null,
+                      size: 12,
+                      boxSize: 20,
+                      hoverColor: AppTheme.red.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                 ),
@@ -302,92 +304,44 @@ class _TabItemState extends State<_TabItem> {
         ],
       ),
     );
+  }
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: Draggable<TabEntry>(
-        data: widget.tab,
-        feedback: Material(
-          elevation: 4,
-          color: Colors.transparent,
-          child: Opacity(opacity: 0.85, child: _DragChip(tab: widget.tab)),
-        ),
-        childWhenDragging: Opacity(opacity: 0.4, child: tabContent),
-        child: GestureDetector(
-          onTap: widget.onSelect,
-          onSecondaryTapUp: (d) => widget.onContextMenu(d.globalPosition),
-          child: tabContent,
-        ),
-      ),
+  @override
+  Widget build(BuildContext context) {
+    return HoverRegion(
+      onTap: widget.onSelect,
+      onSecondaryTapUp: (d) => widget.onContextMenu(d.globalPosition),
+      builder: (hovered) {
+        final showClose = hovered || widget.isActive;
+        final content = _buildContent(showClose);
+        return Draggable<TabEntry>(
+          data: widget.tab,
+          feedback: Material(
+            elevation: 4,
+            color: Colors.transparent,
+            child: Opacity(opacity: 0.85, child: _DragChip(tab: widget.tab)),
+          ),
+          childWhenDragging: Opacity(opacity: 0.4, child: content),
+          child: content,
+        );
+      },
     );
   }
 }
 
-class _PlusButton extends StatefulWidget {
+class _PlusButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   const _PlusButton({required this.onPressed});
 
   @override
-  State<_PlusButton> createState() => _PlusButtonState();
-}
-
-class _PlusButtonState extends State<_PlusButton> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: Container(
-          width: 32,
-          height: 32,
-          color: _hovered ? AppTheme.hover : Colors.transparent,
-          child: Icon(Icons.add, size: 12, color: AppTheme.fgFaint),
-        ),
-      ),
-    );
-  }
-}
-
-/// Close button with hover highlight for tab items.
-class _CloseButton extends StatefulWidget {
-  final VoidCallback? onTap;
-
-  const _CloseButton({this.onTap});
-
-  @override
-  State<_CloseButton> createState() => _CloseButtonState();
-}
-
-class _CloseButtonState extends State<_CloseButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            color: _hovered ? AppTheme.red.withValues(alpha: 0.2) : Colors.transparent,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(
-            Icons.close,
-            size: 12,
-            color: _hovered ? AppTheme.red : AppTheme.fgDim,
-          ),
-        ),
-      ),
+    return AppIconButton(
+      icon: Icons.add,
+      onTap: onPressed,
+      size: 12,
+      boxSize: 32,
+      color: AppTheme.fgFaint,
     );
   }
 }

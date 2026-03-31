@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'app_icon_button.dart';
 
 /// Toast notification level.
 enum ToastLevel { info, success, warning, error }
@@ -170,10 +171,12 @@ class _ToastWidget extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    InkWell(
+                    AppIconButton(
+                      icon: Icons.close,
                       onTap: onDismiss,
-                      borderRadius: BorderRadius.circular(8),
-                      child: const Icon(Icons.close, size: 14),
+                      size: 14,
+                      boxSize: 20,
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ],
                 ),

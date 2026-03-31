@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import 'app_icon_button.dart';
 
 /// Dialog shown when connecting to an unknown SSH host (TOFU).
 /// Displays the host fingerprint and asks the user to accept or reject.
@@ -147,23 +148,20 @@ class _HostKeyDialogWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: IconButton(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: fingerprint));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Fingerprint copied'),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.copy, size: 14),
-                    tooltip: 'Copy fingerprint',
-                    padding: EdgeInsets.zero,
-                  ),
+                AppIconButton(
+                  icon: Icons.copy,
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: fingerprint));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Fingerprint copied'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                  tooltip: 'Copy fingerprint',
+                  size: 14,
+                  boxSize: 28,
                 ),
               ],
             ),

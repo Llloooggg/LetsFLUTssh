@@ -9,6 +9,7 @@ import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
@@ -460,35 +461,26 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
             ),
           ),
           const SizedBox(width: 4),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              onPressed: _totalMatches > 0 ? _prevMatch : null,
-              icon: const Icon(Icons.keyboard_arrow_up, size: 18),
-              tooltip: 'Previous',
-              padding: EdgeInsets.zero,
-            ),
+          AppIconButton(
+            icon: Icons.keyboard_arrow_up,
+            onTap: _totalMatches > 0 ? _prevMatch : null,
+            tooltip: 'Previous',
+            size: 18,
+            boxSize: 28,
           ),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              onPressed: _totalMatches > 0 ? _nextMatch : null,
-              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-              tooltip: 'Next',
-              padding: EdgeInsets.zero,
-            ),
+          AppIconButton(
+            icon: Icons.keyboard_arrow_down,
+            onTap: _totalMatches > 0 ? _nextMatch : null,
+            tooltip: 'Next',
+            size: 18,
+            boxSize: 28,
           ),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              onPressed: _close,
-              icon: const Icon(Icons.close, size: 18),
-              tooltip: 'Close (Esc)',
-              padding: EdgeInsets.zero,
-            ),
+          AppIconButton(
+            icon: Icons.close,
+            onTap: _close,
+            tooltip: 'Close (Esc)',
+            size: 18,
+            boxSize: 28,
           ),
         ],
       ),

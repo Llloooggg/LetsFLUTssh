@@ -7,6 +7,8 @@ import '../../core/import/key_file_helper.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 
 /// Result of the session edit dialog.
@@ -256,9 +258,11 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
             ),
           ),
           const Spacer(),
-          GestureDetector(
+          AppIconButton(
+            icon: Icons.close,
             onTap: () => Navigator.of(context).pop(),
-            child: Icon(Icons.close, size: 13, color: AppTheme.fgDim),
+            size: 13,
+            boxSize: 22,
           ),
         ],
       ),
@@ -284,12 +288,13 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   Widget _buildTab(int index, IconData icon, String label) {
     final active = _tabIndex == index;
-    return GestureDetector(
+    return HoverRegion(
       onTap: () => setState(() => _tabIndex = index),
-      child: Container(
+      builder: (hovered) => Container(
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
+          color: !active && hovered ? AppTheme.hover : Colors.transparent,
           border: active
               ? Border(bottom: BorderSide(color: AppTheme.accent, width: 2))
               : null,
@@ -530,10 +535,11 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       children: [
         Expanded(child: button),
         if (hasKey)
-          IconButton(
-            onPressed: () => setState(() => _keyPathCtrl.clear()),
-            icon: const Icon(Icons.close, size: 18),
+          AppIconButton(
+            icon: Icons.close,
+            onTap: () => setState(() => _keyPathCtrl.clear()),
             tooltip: 'Clear key file',
+            size: 18,
           ),
       ],
     );
