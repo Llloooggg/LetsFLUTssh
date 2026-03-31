@@ -65,11 +65,19 @@ class FileRow extends StatelessWidget {
   final VoidCallback onCtrlTap;
   final VoidCallback onDoubleTap;
   final void Function(Offset position) onContextMenu;
+  final double sizeWidth;
+  final double modifiedWidth;
+  final double modeWidth;
+  final double ownerWidth;
 
   const FileRow({
     super.key,
     required this.entry,
     required this.isSelected,
+    this.sizeWidth = 64,
+    this.modifiedWidth = 80,
+    this.modeWidth = 80,
+    this.ownerWidth = 60,
     required this.onTap,
     required this.onCtrlTap,
     required this.onDoubleTap,
@@ -107,7 +115,6 @@ class FileRow extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Expanded(
-                flex: 3,
                 child: Text(
                   entry.name,
                   style: AppFonts.mono(
@@ -117,37 +124,41 @@ class FileRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 6), // matches column divider gap
               SizedBox(
-                width: 64,
+                width: sizeWidth,
                 child: Text(
                   entry.isDir ? '' : formatSize(entry.size),
                   style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
-                  textAlign: TextAlign.left,
                 ),
               ),
+              const SizedBox(width: 6),
               SizedBox(
-                width: 80,
+                width: modifiedWidth,
                 child: Text(
                   formatTimestamp(entry.modTime),
                   style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 ),
               ),
+              const SizedBox(width: 6),
               SizedBox(
-                width: 80,
+                width: modeWidth,
                 child: Text(
                   entry.modeString,
                   style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 ),
               ),
-              if (entry.owner.isNotEmpty)
+              if (entry.owner.isNotEmpty) ...[
+                const SizedBox(width: 6),
                 SizedBox(
-                  width: 60,
+                  width: ownerWidth,
                   child: Text(
                     entry.owner,
                     style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+              ],
             ],
           ),
         ),
