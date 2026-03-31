@@ -442,13 +442,40 @@ class _FilePaneState extends State<FilePane> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-          const SizedBox(height: 8),
-          Text(ctrl.error!, style: TextStyle(color: theme.colorScheme.error)),
-          const SizedBox(height: 8),
-          FilledButton.tonal(
-            onPressed: ctrl.refresh,
-            child: const Text('Retry'),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(color: AppTheme.bg3),
+            child: const Icon(Icons.error_outline, size: 22, color: AppTheme.red),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Connection error',
+            style: AppFonts.inter(fontSize: 13, color: AppTheme.fgDim),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            ctrl.error!,
+            style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: ctrl.refresh,
+            child: Container(
+              height: 26,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              color: AppTheme.bg3,
+              alignment: Alignment.center,
+              child: Text(
+                'Retry',
+                style: AppFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.fgDim,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -463,7 +490,12 @@ class _FilePaneState extends State<FilePane> {
       },
       onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
       behavior: HitTestBehavior.translucent,
-      child: const Center(child: Text('Empty directory', style: TextStyle(fontSize: 13))),
+      child: Center(
+        child: Text(
+          'Empty directory',
+          style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint),
+        ),
+      ),
     );
   }
 
