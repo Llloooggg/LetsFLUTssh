@@ -11,6 +11,7 @@ import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
+import '../../widgets/context_menu.dart';
 import '../../widgets/error_state.dart';
 import '../../utils/platform.dart' as plat;
 
@@ -214,47 +215,44 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final hasSelection = _terminalController.selection != null;
     final hasSplit = widget.onSplitVertical != null;
 
-    showMenu<String>(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      position: position,
       items: [
         if (hasSelection)
-          const PopupMenuItem(value: 'copy', child: ListTile(
-            dense: true, leading: Icon(Icons.copy, size: 18),
-            title: Text('Copy'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-          )),
-        const PopupMenuItem(value: 'paste', child: ListTile(
-          dense: true, leading: Icon(Icons.paste, size: 18),
-          title: Text('Paste'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-        )),
+          ContextMenuItem(
+            label: 'Copy',
+            icon: Icons.copy,
+            shortcut: 'Ctrl+C',
+            onTap: _copySelection,
+          ),
+        ContextMenuItem(
+          label: 'Paste',
+          icon: Icons.paste,
+          shortcut: 'Ctrl+V',
+          onTap: _pasteClipboard,
+        ),
         if (hasSplit) ...[
-          const PopupMenuDivider(),
-          const PopupMenuItem(value: 'split-v', child: ListTile(
-            dense: true, leading: Icon(Icons.vertical_split, size: 18),
-            title: Text('Split Right'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-          )),
-          const PopupMenuItem(value: 'split-h', child: ListTile(
-            dense: true, leading: Icon(Icons.horizontal_split, size: 18),
-            title: Text('Split Down'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-          )),
+          const ContextMenuItem.divider(),
+          ContextMenuItem(
+            label: 'Split Right',
+            icon: Icons.vertical_split,
+            onTap: () => widget.onSplitVertical?.call(),
+          ),
+          ContextMenuItem(
+            label: 'Split Down',
+            icon: Icons.horizontal_split,
+            onTap: () => widget.onSplitHorizontal?.call(),
+          ),
           if (widget.onClose != null)
-            const PopupMenuItem(value: 'close', child: ListTile(
-              dense: true, leading: Icon(Icons.close, size: 18),
-              title: Text('Close Pane'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-            )),
+            ContextMenuItem(
+              label: 'Close Pane',
+              icon: Icons.close,
+              onTap: () => widget.onClose?.call(),
+            ),
         ],
       ],
-    ).then((action) {
-      switch (action) {
-        case 'copy': _copySelection();
-        case 'paste': _pasteClipboard();
-        case 'split-v': widget.onSplitVertical?.call();
-        case 'split-h': widget.onSplitHorizontal?.call();
-        case 'close': widget.onClose?.call();
-        default: break;
-      }
-    });
+    );
   }
 
   /// Handle Ctrl+Shift+C (copy) and Ctrl+Shift+V (paste) before xterm's

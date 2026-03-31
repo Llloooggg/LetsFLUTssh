@@ -10,6 +10,7 @@ import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
+import '../../widgets/context_menu.dart';
 import 'ssh_keyboard_bar.dart';
 
 /// Full-screen mobile terminal with SSH keyboard bar.
@@ -150,31 +151,23 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   void _showContextMenu(BuildContext context, Offset position) {
     final hasSelection = _terminalController.selection != null;
-    showMenu<String>(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      position: position,
       items: [
         if (hasSelection)
-          const PopupMenuItem(value: 'copy', child: ListTile(
-            dense: true, leading: Icon(Icons.copy, size: 18),
-            title: Text('Copy'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-          )),
-        const PopupMenuItem(value: 'paste', child: ListTile(
-          dense: true, leading: Icon(Icons.paste, size: 18),
-          title: Text('Paste'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-        )),
+          ContextMenuItem(
+            label: 'Copy',
+            icon: Icons.copy,
+            onTap: () => TerminalClipboard.copy(_terminal, _terminalController),
+          ),
+        ContextMenuItem(
+          label: 'Paste',
+          icon: Icons.paste,
+          onTap: () => TerminalClipboard.paste(_terminal),
+        ),
       ],
-    ).then((action) {
-      switch (action) {
-        case 'copy':
-          TerminalClipboard.copy(_terminal, _terminalController);
-        case 'paste':
-          TerminalClipboard.paste(_terminal);
-        default:
-          break;
-      }
-    });
+    );
   }
 
   Widget _buildError() {

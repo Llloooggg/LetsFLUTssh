@@ -213,7 +213,7 @@ void main() {
 
       await rightClick(tester, find.text('staging'));
 
-      await tester.tap(find.text('SSH'));
+      await tester.tap(find.text('Open Terminal'));
       await tester.pumpAndSettle();
 
       expect(connected, isNotNull);
@@ -231,7 +231,7 @@ void main() {
 
       await rightClick(tester, find.text('staging'));
 
-      await tester.tap(find.text('SFTP'));
+      await tester.tap(find.text('Open File Transfer'));
       await tester.pumpAndSettle();
 
       expect(sftpSession, isNotNull);
@@ -248,7 +248,7 @@ void main() {
 
       await rightClick(tester, find.text('staging'));
 
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
       expect(find.text('Edit Session'), findsOneWidget);
@@ -303,7 +303,7 @@ void main() {
 
       await rightClick(tester, find.text('Production'));
 
-      await tester.tap(find.text('Delete Folder'));
+      await tester.tap(find.text('Delete Group'));
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Folder'), findsOneWidget);
@@ -372,7 +372,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      final newSession = find.text('New Session');
+      final newSession = find.text('New Connection');
       if (newSession.evaluate().isNotEmpty) {
         await tester.tap(newSession);
         await tester.pumpAndSettle();
@@ -417,7 +417,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      final newSession = find.text('New Session');
+      final newSession = find.text('New Connection');
       if (newSession.evaluate().isNotEmpty) {
         await tester.tap(newSession);
         await tester.pumpAndSettle();
@@ -446,7 +446,7 @@ void main() {
       // Right-click Production group
       await rightClick(tester, find.text('Production'));
 
-      await tester.tap(find.text('New Session'));
+      await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
       // Dialog opened
@@ -465,7 +465,7 @@ void main() {
 
       await rightClick(tester, find.text('Production'));
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       expect(find.text('Rename Folder'), findsOneWidget);

@@ -350,9 +350,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Context menu items should appear
-      expect(find.text('SSH'), findsOneWidget);
-      expect(find.text('SFTP'), findsOneWidget);
-      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Open Terminal'), findsOneWidget);
+      expect(find.text('Open File Transfer'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
       expect(find.text('Duplicate'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
     });
@@ -373,8 +373,8 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(find.text('SSH'), findsOneWidget);
-      expect(find.text('SFTP'), findsNothing);
+      expect(find.text('Open Terminal'), findsOneWidget);
+      expect(find.text('Open File Transfer'), findsNothing);
     });
 
     testWidgets('SSH menu action calls onConnect', (tester) async {
@@ -398,7 +398,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap SSH
-      await tester.tap(find.text('SSH'));
+      await tester.tap(find.text('Open Terminal'));
       await tester.pumpAndSettle();
 
       expect(connected, isNotNull);
@@ -423,7 +423,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('SFTP'));
+      await tester.tap(find.text('Open File Transfer'));
       await tester.pumpAndSettle();
 
       expect(sftpConnected, isNotNull);
@@ -499,10 +499,10 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(find.text('New Session'), findsOneWidget);
+      expect(find.text('New Connection'), findsOneWidget);
       expect(find.text('New Folder'), findsOneWidget);
-      expect(find.text('Rename'), findsOneWidget);
-      expect(find.text('Delete Folder'), findsOneWidget);
+      expect(find.text('Rename Group'), findsOneWidget);
+      expect(find.text('Delete Group'), findsOneWidget);
     });
 
     testWidgets('group expand/collapse toggles on tap', (tester) async {
@@ -631,7 +631,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Delete Folder'));
+      await tester.tap(find.text('Delete Group'));
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Folder'), findsWidgets);
@@ -723,7 +723,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Menu should dismiss without error
-      expect(find.text('SSH'), findsNothing);
+      expect(find.text('Open Terminal'), findsNothing);
     });
   });
 
@@ -797,7 +797,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       expect(find.text('Rename Folder'), findsOneWidget);
@@ -826,7 +826,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('New Session'));
+      await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
       // SessionEditDialog should open — labels have asterisks for required fields
@@ -852,7 +852,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
       // SessionEditDialog should show with pre-filled values
@@ -925,7 +925,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Confirm Delete Folder
-      await tester.tap(find.text('Delete Folder'));
+      await tester.tap(find.text('Delete Group'));
       await tester.pumpAndSettle();
 
       // Dialog should show
@@ -1025,7 +1025,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open Rename dialog
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       // Change name
@@ -1146,8 +1146,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Look for Delete All
-      final deleteAll = find.text('Delete All');
+      // Look for Delete All Sessions
+      final deleteAll = find.text('Delete All Sessions');
       if (deleteAll.evaluate().isNotEmpty) {
         await tester.tap(deleteAll);
         await tester.pumpAndSettle();
@@ -1254,7 +1254,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('New Session'));
+      await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
       // Fill fields and tap Connect (not Save & Connect)
@@ -1286,7 +1286,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('New Session'));
+      await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), '10.0.0.5');
@@ -1319,7 +1319,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap Edit
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
       // Should show Edit Session dialog
@@ -1392,7 +1392,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       // Change name and submit via Enter
@@ -1426,7 +1426,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Look for Rename in the context menu
-      final renameItem = find.text('Rename');
+      final renameItem = find.text('Rename Group');
       if (renameItem.evaluate().isNotEmpty) {
         await tester.tap(renameItem);
         await tester.pumpAndSettle();
@@ -1497,7 +1497,7 @@ void main() {
         await gesture.up();
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Delete Folder'));
+        await tester.tap(find.text('Delete Group'));
         await tester.pumpAndSettle();
 
         expect(find.text('Delete Folder'), findsOneWidget);
@@ -1525,7 +1525,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       final textField =
@@ -1562,7 +1562,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -1673,7 +1673,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       final textField = find.byType(TextField).last;
@@ -1703,7 +1703,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       final textField = find.byType(TextField).last;
@@ -1768,7 +1768,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Delete Folder'));
+      await tester.tap(find.text('Delete Group'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Cancel'));
