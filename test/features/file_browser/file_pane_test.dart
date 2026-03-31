@@ -175,7 +175,7 @@ void main() {
       expect(find.text('Empty directory'), findsOneWidget);
     });
 
-    testWidgets('empty directory text has font size 13', (tester) async {
+    testWidgets('empty directory text has font size 11', (tester) async {
       final fs = _MockFS({'/home': []});
       final ctrl = FilePaneController(fs: fs, label: 'Local');
       await ctrl.init();
@@ -184,7 +184,7 @@ void main() {
       await tester.pump();
 
       final textWidget = tester.widget<Text>(find.text('Empty directory'));
-      expect(textWidget.style?.fontSize, 13);
+      expect(textWidget.style?.fontSize, 11);
     });
   });
 
@@ -238,7 +238,7 @@ void main() {
       expect(icon.color, theme.colorScheme.error);
     });
 
-    testWidgets('error text uses theme error color', (tester) async {
+    testWidgets('error text uses fgFaint color', (tester) async {
       final fs = _MockFS({});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/missing');
@@ -247,8 +247,7 @@ void main() {
       await tester.pump();
 
       final errorText = tester.widget<Text>(find.textContaining('Not found'));
-      final theme = AppTheme.dark();
-      expect(errorText.style?.color, theme.colorScheme.error);
+      expect(errorText.style?.color, AppTheme.fgFaint);
     });
   });
 
