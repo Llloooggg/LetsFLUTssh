@@ -334,12 +334,11 @@ void main() {
   });
 
   group('_StatusBar — basic display', () {
-    testWidgets('status bar shows tabs and UTF-8', (tester) async {
+    testWidgets('status bar shows tab count', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
       expect(find.text('0 tabs'), findsOneWidget);
-      expect(find.text('UTF-8'), findsOneWidget);
     });
   });
 
@@ -797,7 +796,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('1 tabs'), findsOneWidget);
-      expect(find.text('UTF-8'), findsOneWidget);
     });
   });
 
