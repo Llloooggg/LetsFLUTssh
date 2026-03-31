@@ -154,6 +154,11 @@ abstract final class AppTheme {
           side: BorderSide(color: _borderLight),
         ),
       ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: _accent,
+        selectionColor: _accent.withValues(alpha: 0.3),
+        selectionHandleColor: _accent,
+      ),
       inputDecorationTheme: const InputDecorationTheme(
         filled: true,
         fillColor: _bg3,
@@ -346,6 +351,11 @@ abstract final class AppTheme {
         shape: RoundedRectangleBorder(
           side: BorderSide(color: _lightBorder),
         ),
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: _lightBlue,
+        selectionColor: _lightBlue.withValues(alpha: 0.3),
+        selectionHandleColor: _lightBlue,
       ),
       inputDecorationTheme: const InputDecorationTheme(
         filled: true,

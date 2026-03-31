@@ -877,20 +877,18 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final dimColor = scheme.onSurface.withValues(alpha: 0.45);
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Container(
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          border: Border.all(color: scheme.outlineVariant),
+          color: AppTheme.bg3,
+          border: Border.all(color: AppTheme.borderLight),
         ),
         child: Row(
           children: [
-            Icon(Icons.search, size: 12, color: dimColor),
+            Icon(Icons.search, size: 12, color: AppTheme.fgFaint),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
@@ -899,16 +897,19 @@ class _SearchBar extends StatelessWidget {
                   hintStyle: TextStyle(
                     fontFamily: 'JetBrains Mono',
                     fontSize: 11,
-                    color: dimColor,
+                    color: AppTheme.fgFaint,
                   ),
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
                 ),
                 style: TextStyle(
                   fontFamily: 'JetBrains Mono',
                   fontSize: 11,
-                  color: scheme.onSurface,
+                  color: AppTheme.fg,
                 ),
                 onChanged: onChanged,
               ),
@@ -916,7 +917,7 @@ class _SearchBar extends StatelessWidget {
             if (value.isNotEmpty)
               GestureDetector(
                 onTap: () => onChanged(''),
-                child: Icon(Icons.close, size: 12, color: dimColor),
+                child: Icon(Icons.close, size: 12, color: AppTheme.fgFaint),
               ),
           ],
         ),
