@@ -251,13 +251,13 @@ void main() {
       await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Edit Session'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
       // No crash, dialog closed
-      expect(find.text('Edit Session'), findsNothing);
+      expect(find.text('Edit Connection'), findsNothing);
     });
   });
 
@@ -379,9 +379,9 @@ void main() {
 
         // Fill required fields
         await tester.enterText(
-            find.widgetWithText(TextFormField, 'Host *'), 'quickhost');
+            find.widgetWithText(TextFormField, '192.168.1.1'), 'quickhost');
         await tester.enterText(
-            find.widgetWithText(TextFormField, 'Username *'), 'quickuser');
+            find.widgetWithText(TextFormField, 'root'), 'quickuser');
         await tester.pumpAndSettle();
 
         // Tap Connect (connect-only, no save)
@@ -423,12 +423,12 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-            find.widgetWithText(TextFormField, 'Host *'), 'savehost');
+            find.widgetWithText(TextFormField, '192.168.1.1'), 'savehost');
         await tester.enterText(
-            find.widgetWithText(TextFormField, 'Username *'), 'saveuser');
+            find.widgetWithText(TextFormField, 'root'), 'saveuser');
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Save & Connect'));
+        await tester.tap(find.text('Save'));
         await tester.pumpAndSettle();
 
         expect(connected, isNotNull);
@@ -450,7 +450,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog opened
-      expect(find.text('New Session'), findsOneWidget);
+      expect(find.text('New Connection'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();

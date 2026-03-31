@@ -830,8 +830,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // SessionEditDialog should open — labels have asterisks for required fields
-      expect(find.text('Host *'), findsOneWidget);
-      expect(find.text('Username *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
     });
   });
 
@@ -856,8 +856,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // SessionEditDialog should show with pre-filled values
-      expect(find.text('Host *'), findsOneWidget);
-      expect(find.text('Username *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
     });
   });
 
@@ -1175,7 +1175,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // New Session dialog should open
-        expect(find.text('New Session'), findsOneWidget);
+        expect(find.text('New Connection'), findsOneWidget);
 
         // Cancel
         await tester.tap(find.text('Cancel'));
@@ -1196,11 +1196,11 @@ void main() {
         await tester.tap(addButton);
         await tester.pumpAndSettle();
 
-        await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'test.com');
-        await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'user');
+        await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), 'test.com');
+        await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'user');
         await tester.pumpAndSettle();
 
-        await tester.tap(find.widgetWithText(OutlinedButton, 'Connect'));
+        await tester.tap(find.text('Connect'));
         await tester.pumpAndSettle();
 
         expect(quickConnected, isNotNull);
@@ -1208,11 +1208,9 @@ void main() {
       }
     });
 
-    testWidgets('Add Session with Save & Connect saves and connects', (tester) async {
-      Session? connected;
+    testWidgets('Add Session with Save saves session', (tester) async {
       await tester.pumpWidget(buildApp(
         sessions: [],
-        onConnect: (s) => connected = s,
       ));
       await tester.pumpAndSettle();
 
@@ -1221,15 +1219,15 @@ void main() {
         await tester.tap(addButton);
         await tester.pumpAndSettle();
 
-        await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'save.com');
-        await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'admin');
+        await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), 'save.com');
+        await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'admin');
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Save & Connect'));
+        await tester.tap(find.text('Save'));
         await tester.pumpAndSettle();
 
-        expect(connected, isNotNull);
-        expect(connected!.host, 'save.com');
+        // Save without connect — dialog closes but no connect callback
+        expect(find.text('Edit Connection'), findsNothing);
       }
     });
   });
@@ -1258,12 +1256,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Fill fields and tap Connect (not Save & Connect)
-      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'example.com');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'root');
+      await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), 'example.com');
+      await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'root');
       await tester.pumpAndSettle();
 
       // Find the OutlinedButton "Connect" (not the segment button text)
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
       expect(quickConnected, isNotNull);
@@ -1289,15 +1287,15 @@ void main() {
       await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), '10.0.0.5');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'admin');
+      await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), '10.0.0.5');
+      await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'admin');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
       // Dialog should close
-      expect(find.text('Host *'), findsNothing);
+      expect(find.text('HOST *'), findsNothing);
     });
   });
 
@@ -1323,14 +1321,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should show Edit Session dialog
-      expect(find.text('Edit Session'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
 
       // Tap Save
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
       // Dialog should close
-      expect(find.text('Edit Session'), findsNothing);
+      expect(find.text('Edit Connection'), findsNothing);
     });
   });
 
