@@ -230,7 +230,8 @@ void main() {
     });
 
     testWidgets('theme shows correct selection for dark', (tester) async {
-      await tester.pumpWidget(buildApp());
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'dark'))));
       // The selected segment has AppTheme.accent background
       final darkText = find.text('Dark');
       final darkContainer = find.ancestor(
@@ -268,7 +269,8 @@ void main() {
 
     testWidgets('tapping Dark when already Dark keeps Dark selected',
         (tester) async {
-      await tester.pumpWidget(buildApp());
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'dark'))));
       await tester.tap(find.text('Dark'));
       await tester.pumpAndSettle();
       final darkContainer = find.ancestor(
