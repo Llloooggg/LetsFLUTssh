@@ -658,12 +658,6 @@ class _Toolbar extends StatelessWidget {
               tooltip: 'Sidebar (Ctrl+B)',
               active: sidebarOpen,
             ),
-          _Divider(),
-          _TBtn(
-            icon: Icons.add,
-            onPressed: onNewSession,
-            tooltip: 'New Session (Ctrl+N)',
-          ),
           const Spacer(),
           if (isTerminalTab) ...[
             _TBtn(
