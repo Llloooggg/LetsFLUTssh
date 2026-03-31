@@ -104,6 +104,9 @@ class _FakeFSWithDir implements FileSystem {
   Future<void> removeDir(String path) async {}
   @override
   Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<int> dirSize(String path) async => 0;
+
 }
 
 /// Creates a fake SFTPInitResult using a tracking SFTPService.
@@ -157,6 +160,9 @@ class _FakeFS implements FileSystem {
   Future<void> removeDir(String path) async {}
   @override
   Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<int> dirSize(String path) async => 0;
+
 }
 
 /// Test file entries for local pane.

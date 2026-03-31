@@ -615,6 +615,18 @@ class _FilePaneState extends State<FilePane> {
     final entry = ctrl.entries[index];
     final isSelected = ctrl.selected.contains(entry.path);
 
+    // Trigger async folder size calculation for directories
+    String? folderSizeText;
+    if (entry.isDir) {
+      final cachedSize = ctrl.folderSize(entry.path);
+      if (cachedSize != null) {
+        folderSizeText = formatSize(cachedSize);
+      } else {
+        ctrl.requestFolderSize(entry.path);
+        folderSizeText = '...';
+      }
+    }
+
     final row = FileRow(
       entry: entry,
       isSelected: isSelected,
@@ -622,6 +634,7 @@ class _FilePaneState extends State<FilePane> {
       modifiedWidth: _modifiedColWidth,
       modeWidth: _modeColWidth,
       ownerWidth: _ownerColWidth,
+      folderSizeText: folderSizeText,
       onTap: () => ctrl.selectSingle(entry.path),
       onCtrlTap: () => ctrl.toggleSelect(entry.path),
       onDoubleTap: () {

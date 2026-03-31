@@ -27,6 +27,10 @@ class FilePaneController extends ChangeNotifier {
   List<FileEntry>? _cachedSelectedEntries;
   int? _cachedTotalFileSize;
 
+  // Folder size cache: path → size (calculated async)
+  final Map<String, int> _folderSizes = {};
+  final Set<String> _folderSizesPending = {};
+
   // Navigation history
   final _backStack = <String>[];
   final _forwardStack = <String>[];
@@ -43,6 +47,25 @@ class FilePaneController extends ChangeNotifier {
   bool get canGoBack => _backStack.isNotEmpty;
   bool get canGoForward => _forwardStack.isNotEmpty;
 
+  /// Get cached folder size, or null if not yet calculated.
+  int? folderSize(String path) => _folderSizes[path];
+
+  /// Request async folder size calculation. Notifies listeners when done.
+  void requestFolderSize(String path) {
+    if (_folderSizes.containsKey(path) || _folderSizesPending.contains(path)) {
+      return;
+    }
+    _folderSizesPending.add(path);
+    fs.dirSize(path).then((size) {
+      _folderSizes[path] = size;
+      _folderSizesPending.remove(path);
+      notifyListeners();
+    }).catchError((e) {
+      _folderSizesPending.remove(path);
+      AppLogger.instance.log('Folder size failed: $path: $e', name: 'FilePane');
+    });
+  }
+
   /// Initialize with the file system's initial directory.
   Future<void> init() async {
     final dir = await fs.initialDir();
@@ -57,6 +80,8 @@ class FilePaneController extends ChangeNotifier {
     }
     _currentPath = path;
     _selected = {};
+    _folderSizes.clear();
+    _folderSizesPending.clear();
     await refresh();
   }
 

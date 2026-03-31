@@ -335,4 +335,18 @@ class RemoteFS implements FileSystem {
   @override
   Future<void> rename(String oldPath, String newPath) =>
       sftp.rename(oldPath, newPath);
+
+  @override
+  Future<int> dirSize(String path) async {
+    int total = 0;
+    final entries = await sftp.list(path);
+    for (final entry in entries) {
+      if (entry.isDir) {
+        total += await dirSize(entry.path);
+      } else {
+        total += entry.size;
+      }
+    }
+    return total;
+  }
 }
