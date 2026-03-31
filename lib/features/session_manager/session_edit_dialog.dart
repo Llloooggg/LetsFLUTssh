@@ -78,6 +78,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   bool _obscurePassphrase = true;
   bool _showKeyText = false;
   bool _keyDragging = false;
+  String? _keyError;
   TextEditingController? _autoCompleteCtrl;
   int _tabIndex = 0;
 
@@ -169,12 +170,31 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     );
   }
 
+  bool _validateAuth() {
+    final needsKey = _authType == AuthType.key || _authType == AuthType.keyWithPassword;
+    if (needsKey) {
+      final hasKey = _keyPathCtrl.text.trim().isNotEmpty ||
+          _keyDataCtrl.text.trim().isNotEmpty;
+      if (!hasKey) {
+        setState(() {
+          _keyError = 'Provide a key file or paste PEM text';
+          _tabIndex = 1;
+        });
+        return false;
+      }
+    }
+    setState(() => _keyError = null);
+    return true;
+  }
+
   void _connectOnly() {
+    if (!_validateAuth()) return;
     if (!_formKey.currentState!.validate()) return;
     Navigator.of(context).pop(ConnectOnlyResult(_buildConfig()));
   }
 
   void _save() {
+    if (!_validateAuth()) return;
     if (!_formKey.currentState!.validate()) return;
     Navigator.of(context).pop(SaveResult(_buildSession()));
   }
@@ -438,6 +458,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   Widget _buildPasswordField() {
     return _styledField('Password', _passwordCtrl,
         hint: '••••••••',
+        required: true,
         obscure: _obscurePassword,
         suffixIcon: GestureDetector(
           onTap: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -453,6 +474,18 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return [
       const SizedBox(height: 12),
       _buildKeyPathField(),
+      if (_keyError != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            _keyError!,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: AppTheme.red,
+            ),
+          ),
+        ),
       const SizedBox(height: 8),
       _buildPemToggle(),
       if (_showKeyText) _buildPemTextField(),
