@@ -19,15 +19,15 @@ class WelcomeScreen extends StatelessWidget {
             width: 48,
             height: 48,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(color: AppTheme.bg3),
-            child: const Icon(
+            decoration: BoxDecoration(color: AppTheme.bg3),
+            child: Icon(
               Icons.terminal,
               size: 22,
               color: AppTheme.fgFaint,
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No active session',
             style: TextStyle(
               fontFamily: 'Inter',
@@ -36,7 +36,7 @@ class WelcomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Create a new connection or select one from the sidebar',
             style: TextStyle(
               fontFamily: 'Inter',
@@ -103,7 +103,7 @@ class _ShortcutRow extends StatelessWidget {
           ),
           child: Text(
             keys,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'JetBrains Mono',
               fontSize: 9,
               color: AppTheme.fgDim,
@@ -113,7 +113,7 @@ class _ShortcutRow extends StatelessWidget {
         const SizedBox(width: 12),
         Text(
           description,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Inter',
             fontSize: 10,
             color: AppTheme.fgFaint,

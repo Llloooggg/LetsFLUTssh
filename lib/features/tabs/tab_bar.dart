@@ -25,7 +25,7 @@ class AppTabBar extends ConsumerWidget {
 
     return Container(
       height: 32,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.bg1,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
@@ -53,7 +53,7 @@ class AppTabBar extends ConsumerWidget {
                     builder: (context, candidates, rejected) {
                       return Container(
                         decoration: candidates.isNotEmpty
-                            ? const BoxDecoration(
+                            ? BoxDecoration(
                                 border: Border(
                                   left: BorderSide(
                                     color: AppTheme.accent,
@@ -93,7 +93,7 @@ class AppTabBar extends ConsumerWidget {
               builder: (context, candidates, _) => Container(
                 height: 32,
                 decoration: candidates.isNotEmpty
-                    ? const BoxDecoration(
+                    ? BoxDecoration(
                         border: Border(
                           left: BorderSide(color: AppTheme.accent, width: 2),
                         ),
@@ -193,7 +193,7 @@ class _TabItemState extends State<_TabItem> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: widget.isActive ? AppTheme.bg2 : Colors.transparent,
-              border: const Border(
+              border: Border(
                 right: BorderSide(color: AppTheme.border),
               ),
             ),
@@ -231,7 +231,7 @@ class _TabItemState extends State<_TabItem> {
                 ),
                 if (widget.tab.kind == TabKind.sftp) ...[
                   const SizedBox(width: 4),
-                  const Text(
+                  Text(
                     'SFTP',
                     style: TextStyle(
                       fontFamily: 'Inter',
@@ -251,7 +251,7 @@ class _TabItemState extends State<_TabItem> {
             ),
           ),
           if (widget.isActive)
-            const Positioned(
+            Positioned(
               top: 0,
               left: 0,
               right: 0,
@@ -305,7 +305,7 @@ class _PlusButtonState extends State<_PlusButton> {
           width: 32,
           height: 32,
           color: _hovered ? AppTheme.hover : Colors.transparent,
-          child: const Icon(Icons.add, size: 12, color: AppTheme.fgFaint),
+          child: Icon(Icons.add, size: 12, color: AppTheme.fgFaint),
         ),
       ),
     );
@@ -361,7 +361,7 @@ class _DragChip extends StatelessWidget {
     return Container(
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.bg3,
         border: Border.fromBorderSide(BorderSide(color: AppTheme.accent)),
       ),
@@ -376,7 +376,7 @@ class _DragChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             tab.label,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 11,
               color: AppTheme.fg,

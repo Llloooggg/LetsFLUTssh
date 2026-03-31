@@ -332,7 +332,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
           padding: const EdgeInsets.only(bottom: 4),
           child: Text(
             (required ? '$label *' : label).toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 10,
               fontWeight: FontWeight.w600,
@@ -351,14 +351,14 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                 (required
                     ? (v) => v == null || v.trim().isEmpty ? 'Required' : null
                     : null),
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'JetBrains Mono',
               fontSize: 11,
               color: AppTheme.fg,
             ),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                 fontFamily: 'JetBrains Mono',
                 fontSize: 11,
                 color: AppTheme.fgFaint,
@@ -367,19 +367,19 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
               fillColor: AppTheme.bg3,
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-              border: const OutlineInputBorder(
+              border: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: AppTheme.borderLight),
               ),
-              enabledBorder: const OutlineInputBorder(
+              enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: AppTheme.borderLight),
               ),
-              focusedBorder: const OutlineInputBorder(
+              focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: AppTheme.accent),
               ),
-              errorBorder: const OutlineInputBorder(
+              errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.zero,
                 borderSide: BorderSide(color: AppTheme.red),
               ),

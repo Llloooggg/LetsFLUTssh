@@ -45,32 +45,43 @@ abstract final class AppTheme {
   static const _lightBorder    = Color(0xFFD3D3D3);
   static const _lightSurface   = Color(0xFFF0F0F0);
 
-  // ── Public color constants ──
-  static const Color bg0 = _bg0;
-  static const Color bg1 = _bg1;
-  static const Color bg2 = _bg2;
-  static const Color bg3 = _bg3;
-  static const Color bg4 = _bg4;
+  // ── Brightness-aware state ──
+  // Set by the app root widget when the theme mode changes.
+  static Brightness _brightness = Brightness.dark;
 
-  static const Color fg       = _fg;
-  static const Color fgDim    = _fgDim;
-  static const Color fgFaint  = _fgFaint;
-  static const Color fgBright = _fgBright;
+  /// Call from the app root to sync with the current theme brightness.
+  static void setBrightness(Brightness brightness) {
+    _brightness = brightness;
+  }
 
-  static const Color accent = _accent;
-  static const Color blue   = _blue;
-  static const Color green  = _green;
-  static const Color red    = _red;
-  static const Color yellow = _yellow;
-  static const Color orange = _orange;
-  static const Color cyan   = _cyan;
-  static const Color purple = _purple;
+  static bool get isDark => _brightness == Brightness.dark;
 
-  static const Color border      = _border;
-  static const Color borderLight = _borderLight;
-  static const Color selection   = _selectionColor;
-  static const Color hover       = _hoverColor;
-  static const Color active      = _activeColor;
+  // ── Public brightness-aware colors ──
+  static Color get bg0 => isDark ? _bg0 : const Color(0xFFE8E8E8);
+  static Color get bg1 => isDark ? _bg1 : _lightSurface;
+  static Color get bg2 => isDark ? _bg2 : _lightBg;
+  static Color get bg3 => isDark ? _bg3 : _lightSelection;
+  static Color get bg4 => isDark ? _bg4 : _lightBorder;
+
+  static Color get fg       => isDark ? _fg : _lightFg;
+  static Color get fgDim    => isDark ? _fgDim : _lightGutter;
+  static Color get fgFaint  => isDark ? _fgFaint : const Color(0xFFB0B0B4);
+  static Color get fgBright => isDark ? _fgBright : const Color(0xFF232529);
+
+  static Color get accent => isDark ? _accent : _lightBlue;
+  static Color get blue   => isDark ? _blue : _lightBlue;
+  static Color get green  => isDark ? _green : _lightGreen;
+  static Color get red    => isDark ? _red : _lightRed;
+  static Color get yellow => isDark ? _yellow : _lightYellow;
+  static Color get orange => isDark ? _orange : const Color(0xFFA06B2C);
+  static Color get cyan   => isDark ? _cyan : const Color(0xFF0184BC);
+  static Color get purple => isDark ? _purple : _lightPurple;
+
+  static Color get border      => isDark ? _border : _lightBorder;
+  static Color get borderLight => isDark ? _borderLight : _lightSelection;
+  static Color get selection   => isDark ? _selectionColor : const Color(0x1F4078F2);
+  static Color get hover       => isDark ? _hoverColor : const Color(0x08000000);
+  static Color get active      => isDark ? _activeColor : const Color(0x0F000000);
 
   static ThemeData dark() {
     const scheme = ColorScheme(

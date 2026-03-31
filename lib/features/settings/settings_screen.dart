@@ -180,7 +180,7 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
           Container(
             height: 40,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppTheme.bg1,
               border: Border(bottom: BorderSide(color: AppTheme.border)),
             ),
@@ -188,10 +188,10 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
               children: [
                 GestureDetector(
                   onTap: () => Navigator.of(context).pop(),
-                  child: const Icon(Icons.arrow_back, size: 16, color: AppTheme.fgDim),
+                  child: Icon(Icons.arrow_back, size: 16, color: AppTheme.fgDim),
                 ),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   'Settings',
                   style: TextStyle(
                     fontFamily: 'Inter',
@@ -235,11 +235,11 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
                     ],
                   ),
                 ),
-                const VerticalDivider(width: 1, thickness: 1, color: AppTheme.border),
+                VerticalDivider(width: 1, thickness: 1, color: AppTheme.border),
                 // ── Content pane ──
                 Expanded(
                   child: ListTileTheme(
-                    data: const ListTileThemeData(
+                    data: ListTileThemeData(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       titleTextStyle: TextStyle(
@@ -362,10 +362,10 @@ class _ResetButtonState extends State<_ResetButton> {
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           color: _hovered ? AppTheme.hover : Colors.transparent,
-          child: const Row(
+          child: Row(
             children: [
               Icon(Icons.restore, size: 12, color: AppTheme.red),
-              SizedBox(width: 6),
+              const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   'Reset to Defaults',
@@ -1121,12 +1121,12 @@ class _SectionHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.only(bottom: 12),
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'Inter',
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -1380,11 +1380,11 @@ class _InputField extends StatelessWidget {
         keyboardType: keyboardType,
         textAlign: TextAlign.center,
         style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           isDense: true,
           filled: true,
           fillColor: AppTheme.bg3,
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.zero,
             borderSide: BorderSide(color: AppTheme.borderLight),

@@ -395,7 +395,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
   Widget _buildIndentGuides(int depth, ThemeData theme) {
     if (depth == 0) return const SizedBox(width: 8);
-    const guideColor = AppTheme.borderLight;
+    final guideColor = AppTheme.borderLight;
     return SizedBox(
       width: 8.0 + depth * 16.0,
       child: Row(
@@ -625,7 +625,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         ),
       Text(
         session.host,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'JetBrains Mono',
           fontSize: 9,
           color: AppTheme.fgFaint,
@@ -687,7 +687,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.terminal, size: 12, color: AppTheme.fgFaint),
+              Icon(Icons.terminal, size: 12, color: AppTheme.fgFaint),
               const SizedBox(width: 4),
               Text(node.name, style: const TextStyle(fontSize: 11)),
             ],

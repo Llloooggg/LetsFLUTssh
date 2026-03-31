@@ -55,7 +55,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             // Global app bar visible on all tabs
             Container(
               height: 44,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppTheme.bg1,
                 border: Border(bottom: BorderSide(color: AppTheme.border)),
               ),
@@ -110,7 +110,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                       ),
-                      icon: const Icon(Icons.settings, size: 15, color: AppTheme.fgDim),
+                      icon: Icon(Icons.settings, size: 15, color: AppTheme.fgDim),
                     ),
                   ),
                 ],
@@ -329,7 +329,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.bg1,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
@@ -390,7 +390,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                       const SizedBox(width: 4),
                       GestureDetector(
                         onTap: () => ref.read(tabProvider.notifier).closeTab(tab.id),
-                        child: const Icon(Icons.close, size: 12, color: AppTheme.fgDim),
+                        child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
                       ),
                     ],
                   ],
@@ -429,7 +429,7 @@ class _MobileTerminalPage extends ConsumerWidget {
                 color: AppTheme.bg3,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.terminal, size: 22, color: AppTheme.fgFaint),
+              child: Icon(Icons.terminal, size: 22, color: AppTheme.fgFaint),
             ),
             const SizedBox(height: 12),
             Text('No active terminals', style: AppFonts.inter(fontSize: 13, color: AppTheme.fgDim)),
@@ -500,7 +500,7 @@ class _MobileSftpPage extends ConsumerWidget {
                 color: AppTheme.bg3,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.folder, size: 22, color: AppTheme.fgFaint),
+              child: Icon(Icons.folder, size: 22, color: AppTheme.fgFaint),
             ),
             const SizedBox(height: 12),
             Text('No active file browsers', style: AppFonts.inter(fontSize: 13, color: AppTheme.fgDim)),

@@ -423,7 +423,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.bg1,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
@@ -440,11 +440,11 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
                 filled: true,
                 fillColor: AppTheme.bg3,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                enabledBorder: const OutlineInputBorder(
+                enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.zero,
                   borderSide: BorderSide(color: AppTheme.borderLight),
                 ),
-                focusedBorder: const OutlineInputBorder(
+                focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.zero,
                   borderSide: BorderSide(color: AppTheme.accent),
                 ),
