@@ -23,11 +23,13 @@ class AppTabBar extends ConsumerWidget {
     ref.watch(connectionsProvider);
     final tabs = tabState.tabs;
 
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Container(
       height: 32,
       decoration: BoxDecoration(
-        color: AppTheme.bg1,
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        color: scheme.surfaceContainerLow,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [

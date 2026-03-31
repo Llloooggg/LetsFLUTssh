@@ -177,32 +177,36 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
       body: Column(
         children: [
           // ── Header ──
-          Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: AppTheme.bg1,
-              border: Border(bottom: BorderSide(color: AppTheme.border)),
-            ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Icon(Icons.arrow_back, size: 16, color: AppTheme.fgDim),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Settings',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.fgBright,
+          Builder(builder: (context) {
+            final theme = Theme.of(context);
+            final scheme = theme.colorScheme;
+            return Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                border: Border(bottom: BorderSide(color: theme.dividerColor)),
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Icon(Icons.arrow_back, size: 16, color: scheme.onSurfaceVariant),
                   ),
-                ),
-              ],
-            ),
-          ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Settings',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
           // ── Body ──
           Expanded(
             child: Row(
@@ -210,7 +214,7 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
                 // ── Left nav ──
                 Container(
                   width: 160,
-                  color: AppTheme.bg1,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   child: Column(
                     children: [
                       Expanded(
@@ -235,25 +239,27 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
                     ],
                   ),
                 ),
-                VerticalDivider(width: 1, thickness: 1, color: AppTheme.border),
+                VerticalDivider(width: 1, thickness: 1, color: Theme.of(context).dividerColor),
                 // ── Content pane ──
                 Expanded(
-                  child: ListTileTheme(
+                  child: Builder(builder: (context) {
+                    final scheme = Theme.of(context).colorScheme;
+                    return ListTileTheme(
                     data: ListTileThemeData(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       titleTextStyle: TextStyle(
-                        fontFamily: 'Inter', fontSize: 11, color: AppTheme.fg,
+                        fontFamily: 'Inter', fontSize: 11, color: scheme.onSurface,
                       ),
                       subtitleTextStyle: TextStyle(
-                        fontFamily: 'Inter', fontSize: 10, color: AppTheme.fgDim,
+                        fontFamily: 'Inter', fontSize: 10, color: scheme.onSurfaceVariant,
                       ),
                       leadingAndTrailingTextStyle: TextStyle(
-                        fontFamily: 'Inter', fontSize: 10, color: AppTheme.fgFaint,
+                        fontFamily: 'Inter', fontSize: 10, color: scheme.onSurface.withValues(alpha: 0.45),
                       ),
                     ),
                     child: DefaultTextStyle(
-                      style: AppFonts.inter(fontSize: 11, color: AppTheme.fg),
+                      style: AppFonts.inter(fontSize: 11, color: scheme.onSurface),
                       child: ListView(
                         key: ValueKey(_selectedIndex),
                         padding: const EdgeInsets.all(24),
@@ -263,7 +269,8 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
                         ],
                       ),
                     ),
-                  ),
+                  );
+                  }),
                 ),
               ],
             ),
