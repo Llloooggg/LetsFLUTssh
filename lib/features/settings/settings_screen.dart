@@ -20,6 +20,8 @@ import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/hover_region.dart';
 import '../../widgets/toast.dart';
 import '../session_manager/qr_display_screen.dart';
 import '../session_manager/qr_export_dialog.dart';
@@ -189,9 +191,10 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
               ),
               child: Row(
                 children: [
-                  GestureDetector(
+                  AppIconButton(
+                    icon: Icons.arrow_back,
                     onTap: () => Navigator.of(context).pop(),
-                    child: Icon(Icons.arrow_back, size: 16, color: scheme.onSurfaceVariant),
+                    size: 16,
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -300,45 +303,39 @@ class _NavItem extends StatefulWidget {
 }
 
 class _NavItemState extends State<_NavItem> {
-  bool _hovered = false;
-
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          color: widget.selected
-              ? AppTheme.selection
-              : _hovered
-                  ? AppTheme.hover
-                  : Colors.transparent,
-          child: Row(
-            children: [
-              Icon(
-                widget.icon,
-                size: 13,
-                color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  widget.label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
-                    fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
-                    color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
-                  ),
+    return HoverRegion(
+      onTap: widget.onTap,
+      builder: (hovered) => Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        color: widget.selected
+            ? AppTheme.selection
+            : hovered
+                ? AppTheme.hover
+                : Colors.transparent,
+        child: Row(
+          children: [
+            Icon(
+              widget.icon,
+              size: 13,
+              color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                widget.label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 11,
+                  fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
+                  color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -355,20 +352,16 @@ class _ResetButton extends StatefulWidget {
 }
 
 class _ResetButtonState extends State<_ResetButton> {
-  bool _hovered = false;
-
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: HoverRegion(
         onTap: widget.onTap,
-        child: Container(
+        builder: (hovered) => Container(
           height: 28,
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          color: _hovered ? AppTheme.hover : Colors.transparent,
+          color: hovered ? AppTheme.hover : Colors.transparent,
           child: Row(
             children: [
               Icon(Icons.restore, size: 12, color: AppTheme.red),
@@ -1697,36 +1690,33 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
             const SizedBox(width: 6),
             Text('Live Log', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
             const Spacer(),
-            IconButton(
-              onPressed: () {
+            AppIconButton(
+              icon: Icons.copy,
+              onTap: () {
                 Clipboard.setData(ClipboardData(text: _content));
                 Toast.show(context,
                   message: _content.isEmpty ? 'Log is empty' : 'Copied to clipboard',
                   level: ToastLevel.info,
                 );
               },
-              icon: const Icon(Icons.copy, size: 16),
               tooltip: 'Copy log',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
+              size: 16,
             ),
-            IconButton(
-              onPressed: widget.onExport,
-              icon: const Icon(Icons.save_alt, size: 16),
+            AppIconButton(
+              icon: Icons.save_alt,
+              onTap: widget.onExport,
               tooltip: 'Export log',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
+              size: 16,
             ),
-            IconButton(
-              onPressed: () async {
+            AppIconButton(
+              icon: Icons.delete_outline,
+              onTap: () async {
                 widget.onClear();
                 await Future<void>.delayed(const Duration(milliseconds: 100));
                 await _refresh();
               },
-              icon: const Icon(Icons.delete_outline, size: 16),
               tooltip: 'Clear logs',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
+              size: 16,
             ),
           ],
         ),

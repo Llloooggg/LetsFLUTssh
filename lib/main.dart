@@ -13,6 +13,8 @@ import 'features/settings/export_import.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/cross_marquee_controller.dart';
+import 'widgets/app_icon_button.dart';
+import 'widgets/hover_region.dart';
 import 'widgets/toast.dart';
 import 'features/file_browser/file_browser_tab.dart';
 import 'features/settings/settings_screen.dart';
@@ -637,22 +639,6 @@ class _Toolbar extends StatelessWidget {
     this.onSplitHorizontal,
   });
 
-  static ButtonStyle _tbtnStyle({required bool active, required ColorScheme scheme}) {
-    return ButtonStyle(
-      padding: WidgetStateProperty.all(EdgeInsets.zero),
-      backgroundColor: WidgetStateProperty.resolveWith((states) {
-        if (active) return scheme.onSurface.withValues(alpha: 0.12);
-        if (states.contains(WidgetState.hovered)) {
-          return scheme.onSurface.withValues(alpha: 0.08);
-        }
-        return Colors.transparent;
-      }),
-      splashFactory: NoSplash.splashFactory,
-      overlayColor: WidgetStateProperty.all(Colors.transparent),
-      shape: WidgetStateProperty.all(const RoundedRectangleBorder()),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -667,39 +653,37 @@ class _Toolbar extends StatelessWidget {
         children: [
           const SizedBox(width: 2),
           if (showMenuButton)
-            IconButton(
-              onPressed: () => Scaffold.of(context).openDrawer(),
-              icon: Icon(Icons.menu, size: 14,
-                  color: scheme.onSurface.withValues(alpha: 0.55)),
+            AppIconButton(
+              icon: Icons.menu,
+              onTap: () => Scaffold.of(context).openDrawer(),
               tooltip: 'Sessions',
-              constraints: const BoxConstraints.tightFor(width: 26, height: 26),
-              style: _tbtnStyle(active: false, scheme: scheme),
+              color: AppTheme.fgDim,
             )
           else
-            _TBtn(
+            AppIconButton(
               icon: Icons.view_sidebar,
-              onPressed: onToggleSidebar,
+              onTap: onToggleSidebar,
               tooltip: 'Sidebar (Ctrl+B)',
               active: sidebarOpen,
             ),
           const Spacer(),
           if (isTerminalTab) ...[
-            _TBtn(
+            AppIconButton(
               icon: Icons.vertical_split,
-              onPressed: onSplitVertical,
+              onTap: onSplitVertical,
               tooltip: 'Split Vertical (Ctrl+\\)',
             ),
-            _TBtn(
+            AppIconButton(
               icon: Icons.horizontal_split,
-              onPressed: onSplitHorizontal,
+              onTap: onSplitHorizontal,
               tooltip: 'Split Horizontal (Ctrl+Shift+\\)',
             ),
             _Divider(),
           ] else
             _Divider(),
-          _TBtn(
+          AppIconButton(
             icon: Icons.settings,
-            onPressed: () => SettingsScreen.show(context),
+            onTap: () => SettingsScreen.show(context),
             tooltip: 'Settings',
           ),
           const SizedBox(width: 2),
@@ -717,35 +701,6 @@ class _Divider extends StatelessWidget {
       height: 16,
       margin: const EdgeInsets.symmetric(horizontal: 4),
       color: Theme.of(context).colorScheme.outlineVariant,
-    );
-  }
-}
-
-class _TBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final String tooltip;
-  final bool active;
-
-  const _TBtn({
-    required this.icon,
-    this.onPressed,
-    required this.tooltip,
-    this.active = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final iconColor = active
-        ? scheme.onSurface
-        : scheme.onSurface.withValues(alpha: 0.55);
-    return IconButton(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 14, color: iconColor),
-      tooltip: tooltip,
-      constraints: const BoxConstraints.tightFor(width: 26, height: 26),
-      style: _Toolbar._tbtnStyle(active: active, scheme: scheme),
     );
   }
 }
@@ -806,7 +761,7 @@ class _StatusBar extends ConsumerWidget {
   }
 }
 
-class _ConnectionBar extends StatefulWidget {
+class _ConnectionBar extends StatelessWidget {
   final TabEntry activeTab;
   final VoidCallback? onOpenSftp;
   final VoidCallback? onOpenSsh;
@@ -818,18 +773,11 @@ class _ConnectionBar extends StatefulWidget {
   });
 
   @override
-  State<_ConnectionBar> createState() => _ConnectionBarState();
-}
-
-class _ConnectionBarState extends State<_ConnectionBar> {
-  bool _btnHovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    final conn = widget.activeTab.connection;
+    final conn = activeTab.connection;
     final cfg = conn.sshConfig;
-    final isTerminal = widget.activeTab.kind == TabKind.terminal;
-    final onCompanion = isTerminal ? widget.onOpenSftp : widget.onOpenSsh;
+    final isTerminal = activeTab.kind == TabKind.terminal;
+    final onCompanion = isTerminal ? onOpenSftp : onOpenSsh;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
@@ -885,44 +833,40 @@ class _ConnectionBarState extends State<_ConnectionBar> {
           if (onCompanion != null)
             Tooltip(
               message: isTerminal ? 'Files' : 'Terminal',
-              child: MouseRegion(
-                onEnter: (_) => setState(() => _btnHovered = true),
-                onExit: (_) => setState(() => _btnHovered = false),
-                child: GestureDetector(
-                  onTap: onCompanion,
-                  child: Container(
-                    height: 18,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    decoration: BoxDecoration(
+              child: HoverRegion(
+                onTap: onCompanion,
+                builder: (hovered) => Container(
+                  height: 18,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: btnColor.withValues(
+                      alpha: hovered ? 0x25 / 255.0 : 0x18 / 255.0,
+                    ),
+                    border: Border.all(
                       color: btnColor.withValues(
-                        alpha: _btnHovered ? 0x25 / 255.0 : 0x18 / 255.0,
-                      ),
-                      border: Border.all(
-                        color: btnColor.withValues(
-                          alpha: _btnHovered ? 0x60 / 255.0 : 0x40 / 255.0,
-                        ),
+                        alpha: hovered ? 0x60 / 255.0 : 0x40 / 255.0,
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isTerminal ? Icons.folder_open : Icons.terminal,
-                          size: 11,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isTerminal ? Icons.folder_open : Icons.terminal,
+                        size: 11,
+                        color: btnColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isTerminal ? 'Files' : 'Terminal',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
                           color: btnColor,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          isTerminal ? 'Files' : 'Terminal',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: btnColor,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),

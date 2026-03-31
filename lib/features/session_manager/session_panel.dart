@@ -6,6 +6,7 @@ import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/context_menu.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
@@ -784,22 +785,18 @@ class _PanelHeader extends StatelessWidget {
           ),
           const Spacer(),
           if (onSelect != null)
-            IconButton(
-              onPressed: onSelect,
-              icon: const Icon(Icons.checklist, size: 18),
+            AppIconButton(
+              icon: Icons.checklist,
+              onTap: onSelect,
               tooltip: 'Select',
-              visualDensity: VisualDensity.compact,
+              size: 18,
             ),
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: IconButton(
-              onPressed: onAddFolder,
-              icon: const Icon(Icons.create_new_folder, size: 14),
-              tooltip: _kNewFolder,
-              padding: EdgeInsets.zero,
-              color: AppTheme.fgDim,
-            ),
+          AppIconButton(
+            icon: Icons.create_new_folder,
+            onTap: onAddFolder,
+            tooltip: _kNewFolder,
+            size: 14,
+            boxSize: 24,
           ),
         ],
       ),
@@ -839,29 +836,30 @@ class _SelectActionBar extends StatelessWidget {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
           ),
           const Spacer(),
-          IconButton(
-            onPressed: onSelectAll,
-            icon: const Icon(Icons.select_all, size: 18),
+          AppIconButton(
+            icon: Icons.select_all,
+            onTap: onSelectAll,
             tooltip: 'Select All',
-            visualDensity: VisualDensity.compact,
+            size: 18,
           ),
-          IconButton(
-            onPressed: selectedCount > 0 ? onMove : null,
-            icon: const Icon(Icons.drive_file_move, size: 18),
+          AppIconButton(
+            icon: Icons.drive_file_move,
+            onTap: selectedCount > 0 ? onMove : null,
             tooltip: 'Move to...',
-            visualDensity: VisualDensity.compact,
+            size: 18,
           ),
-          IconButton(
-            onPressed: selectedCount > 0 ? onDelete : null,
-            icon: Icon(Icons.delete, size: 18, color: selectedCount > 0 ? AppTheme.disconnected : null),
+          AppIconButton(
+            icon: Icons.delete,
+            onTap: selectedCount > 0 ? onDelete : null,
             tooltip: 'Delete',
-            visualDensity: VisualDensity.compact,
+            size: 18,
+            color: selectedCount > 0 ? AppTheme.disconnected : null,
           ),
-          IconButton(
-            onPressed: onCancel,
-            icon: const Icon(Icons.close, size: 18),
+          AppIconButton(
+            icon: Icons.close,
+            onTap: onCancel,
             tooltip: 'Cancel',
-            visualDensity: VisualDensity.compact,
+            size: 18,
           ),
         ],
       ),

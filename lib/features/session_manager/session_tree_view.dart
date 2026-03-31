@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../file_browser/file_row.dart';
@@ -424,7 +425,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       onLongPressStart: _mobile
           ? (d) => widget.onGroupContextMenu?.call(node.fullPath, d.globalPosition)
           : null,
-      child: _HoverBuilder(
+      child: HoverRegion(
         builder: (hovered) => InkWell(
           onTap: () {
             setState(() {
@@ -649,7 +650,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       onLongPressStart: (_mobile && !widget.selectMode)
           ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
           : null,
-      child: _HoverBuilder(
+      child: HoverRegion(
         builder: (hovered) => InkWell(
           onTap: () => _onSessionTap(session),
           hoverColor: Colors.transparent,
@@ -701,25 +702,3 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
 }
 
-/// Lightweight hover detector that rebuilds child with hover state.
-class _HoverBuilder extends StatefulWidget {
-  final Widget Function(bool hovered) builder;
-
-  const _HoverBuilder({required this.builder});
-
-  @override
-  State<_HoverBuilder> createState() => _HoverBuilderState();
-}
-
-class _HoverBuilderState extends State<_HoverBuilder> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: widget.builder(_hovered),
-    );
-  }
-}

@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../../core/import/key_file_helper.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../utils/platform.dart';
 
 /// Quick Connect — shown as a bottom sheet.
@@ -287,10 +288,11 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
           ),
         ),
         if (hasKey)
-          IconButton(
-            onPressed: () => setState(() => _keyPathCtrl.clear()),
-            icon: const Icon(Icons.close, size: 18),
+          AppIconButton(
+            icon: Icons.close,
+            onTap: () => setState(() => _keyPathCtrl.clear()),
             tooltip: 'Clear key file',
+            size: 18,
           ),
       ],
     );
