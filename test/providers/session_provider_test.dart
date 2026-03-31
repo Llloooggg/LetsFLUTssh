@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/credential_store.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
@@ -90,6 +91,19 @@ class FakeSessionStore extends SessionStore {
     final name = groupPath.split('/').last;
     final newPath = newParent.isEmpty ? name : '$newParent/$name';
     await renameGroup(groupPath, newPath);
+  }
+
+  @override
+  Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async => {};
+
+  @override
+  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyGroups, [Map<String, CredentialData> credentials = const {}]) async {
+    _fakeSessions
+      ..clear()
+      ..addAll(sessions);
+    _fakeEmptyGroups
+      ..clear()
+      ..addAll(emptyGroups);
   }
 
 }

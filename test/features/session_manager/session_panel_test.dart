@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/credential_store.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
@@ -153,6 +154,19 @@ class FakeSessionStore extends SessionStore {
         _fakeSessions[i] = Session(id: s.id, label: s.label, group: newGroup, server: ServerAddress(host: s.host, port: s.port, user: s.user));
       }
     }
+  }
+
+  @override
+  Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async => {};
+
+  @override
+  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyGroups, [Map<String, CredentialData> credentials = const {}]) async {
+    _fakeSessions
+      ..clear()
+      ..addAll(sessions);
+    _fakeEmptyGroups
+      ..clear()
+      ..addAll(emptyGroups);
   }
 }
 
@@ -2259,8 +2273,8 @@ void main() {
       await tester.tap(find.byIcon(Icons.delete));
       await tester.pumpAndSettle();
 
-      expect(find.text('Delete Sessions'), findsOneWidget);
-      expect(find.textContaining('1 selected session'), findsOneWidget);
+      expect(find.text('Delete Selected'), findsOneWidget);
+      expect(find.textContaining('1 session(s)'), findsOneWidget);
     });
 
     testWidgets('Move shows folder dialog', (tester) async {
@@ -2377,6 +2391,35 @@ void main() {
       expect(find.text('2 selected'), findsNothing);
       // No checkboxes (not in select mode)
       expect(find.byType(Checkbox), findsNothing);
+    });
+
+    testWidgets('marquee selection with groups tracks selectedGroupPaths', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.setMarqueeSelection({'1'}, {'Production/Web'});
+      await tester.pump();
+
+      expect(state.selectedIds, equals({'1'}));
+      expect(state.selectedGroupPaths, equals({'Production/Web'}));
+    });
+
+    testWidgets('clearDesktopSelection clears both sessions and groups', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.setMarqueeSelection({'1', '2'}, {'Production'});
+      await tester.pump();
+
+      expect(state.selectedIds, isNotEmpty);
+      expect(state.selectedGroupPaths, isNotEmpty);
+
+      // Simulate clicking empty area — triggers clear via tree view pointer up
+      state.setMarqueeSelection({});
+      await tester.pump();
+
+      expect(state.selectedIds, isEmpty);
+      expect(state.selectedGroupPaths, isEmpty);
     });
   });
 }

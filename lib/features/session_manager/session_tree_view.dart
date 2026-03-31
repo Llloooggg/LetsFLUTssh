@@ -10,7 +10,7 @@ import '../../utils/platform.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../file_browser/file_row.dart';
 
-/// Drag data: either a session or a group path.
+/// Drag data: either a session, a group path, or a bulk selection.
 sealed class SessionDragData {}
 
 class SessionDrag extends SessionDragData {
@@ -21,6 +21,13 @@ class SessionDrag extends SessionDragData {
 class GroupDrag extends SessionDragData {
   final String groupPath;
   GroupDrag(this.groupPath);
+}
+
+class BulkDrag extends SessionDragData {
+  final Set<String> sessionIds;
+  final Set<String> groupPaths;
+  BulkDrag({required this.sessionIds, required this.groupPaths});
+  int get totalCount => sessionIds.length + groupPaths.length;
 }
 
 /// Hierarchical tree view of sessions with nested group folders.
@@ -38,14 +45,21 @@ class SessionTreeView extends StatefulWidget {
   /// Called when a group is dropped onto another group (or root).
   final void Function(String groupPath, String targetParent)? onGroupMoved;
 
+  /// Called when a bulk selection is dropped onto a group (or root).
+  final void Function(Set<String> sessionIds, Set<String> groupPaths, String targetGroup)? onBulkMoved;
+
   /// Multi-select mode: show checkboxes, tap toggles selection.
   final bool selectMode;
   final Set<String> selectedIds;
   final void Function(String sessionId)? onToggleSelected;
 
+  /// Selected group paths (for bulk operations).
+  final Set<String> selectedGroupPaths;
+  final void Function(String groupPath)? onToggleGroupSelected;
+
   /// Called when marquee selection starts on desktop — parent should
   /// enter select mode and provide [selectedIds] + [onToggleSelected].
-  final void Function(Set<String> ids)? onMarqueeSelect;
+  final void Function(Set<String> ids, Set<String> groupPaths)? onMarqueeSelect;
 
   /// Called when a marquee drag begins (threshold crossed).
   final VoidCallback? onMarqueeStart;
@@ -70,9 +84,12 @@ class SessionTreeView extends StatefulWidget {
     this.onBackgroundContextMenu,
     this.onSessionMoved,
     this.onGroupMoved,
+    this.onBulkMoved,
     this.selectMode = false,
     this.selectedIds = const {},
     this.onToggleSelected,
+    this.selectedGroupPaths = const {},
+    this.onToggleGroupSelected,
     this.onMarqueeSelect,
     this.onMarqueeStart,
     this.onMarqueeEnd,
@@ -99,6 +116,9 @@ class _SessionTreeViewState extends State<SessionTreeView> {
   DateTime _lastMarqueeUpdate = DateTime(0);
 
   static const _marqueeThreshold = 5.0;
+
+  bool get _hasBulkSelection =>
+      widget.selectedIds.length + widget.selectedGroupPaths.length > 1;
 
   bool get _isCtrlHeld =>
       HardwareKeyboard.instance.logicalKeysPressed
@@ -148,18 +168,22 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
   bool _canAcceptDrop(SessionDragData data, String targetGroup) {
     if (data is SessionDrag) {
-      // Don't drop on own group
       return data.session.group != targetGroup;
     } else if (data is GroupDrag) {
-      // Can't drop on self or into own subtree
       if (data.groupPath == targetGroup) return false;
       if (targetGroup.startsWith('${data.groupPath}/')) return false;
-      // Can't drop on own current parent
       final parts = data.groupPath.split('/');
       final currentParent = parts.length > 1
           ? parts.sublist(0, parts.length - 1).join('/')
           : '';
       return currentParent != targetGroup;
+    } else if (data is BulkDrag) {
+      // Can't drop on a group that's part of the selection
+      if (data.groupPaths.contains(targetGroup)) return false;
+      for (final gp in data.groupPaths) {
+        if (targetGroup.startsWith('$gp/')) return false;
+      }
+      return true;
     }
     return false;
   }
@@ -169,6 +193,8 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       widget.onSessionMoved?.call(data.session.id, targetGroup);
     } else if (data is GroupDrag) {
       widget.onGroupMoved?.call(data.groupPath, targetGroup);
+    } else if (data is BulkDrag) {
+      widget.onBulkMoved?.call(data.sessionIds, data.groupPaths, targetGroup);
     }
   }
 
@@ -224,7 +250,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           _marqueeActive = false;
         });
         widget.onMarqueeEnd?.call();
-        widget.onMarqueeSelect?.call({});
+        widget.onMarqueeSelect?.call({}, {});
       }
       if (!_crossMarqueeActive) {
         _crossMarqueeActive = true;
@@ -262,8 +288,8 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     } else {
       _marqueeAnchor = null;
       // Click without drag — clear marquee selection
-      if (widget.selectedIds.isNotEmpty && !widget.selectMode) {
-        widget.onMarqueeSelect?.call({});
+      if ((widget.selectedIds.isNotEmpty || widget.selectedGroupPaths.isNotEmpty) && !widget.selectMode) {
+        widget.onMarqueeSelect?.call({}, {});
       }
     }
   }
@@ -292,17 +318,21 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         (maxY / _rowHeight).floor().clamp(0, flatNodes.length - 1);
 
     final ids = <String>{};
+    final groupPaths = <String>{};
     for (var i = firstIndex; i <= lastIndex; i++) {
-      final session = flatNodes[i].$1.session;
-      if (session != null) {
-        ids.add(session.id);
+      final node = flatNodes[i].$1;
+      if (node.session != null) {
+        ids.add(node.session!.id);
+      } else if (node.isGroup) {
+        groupPaths.add(node.fullPath);
       }
     }
 
     if (_isCtrlHeld) {
       ids.addAll(widget.selectedIds);
+      groupPaths.addAll(widget.selectedGroupPaths);
     }
-    widget.onMarqueeSelect?.call(ids);
+    widget.onMarqueeSelect?.call(ids, groupPaths);
   }
 
   @override
@@ -394,9 +424,13 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     );
   }
 
-  BoxDecoration _rowDecoration(bool isDropTarget, bool hovered, ThemeData theme) {
+  BoxDecoration _rowDecoration(
+    bool isDropTarget, bool hovered, bool isSelected, ThemeData theme,
+  ) {
     final Color? bg;
     if (isDropTarget) {
+      bg = theme.colorScheme.primary.withValues(alpha: 0.15);
+    } else if (isSelected) {
       bg = theme.colorScheme.primary.withValues(alpha: 0.15);
     } else if (hovered) {
       bg = AppTheme.hover;
@@ -408,6 +442,32 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       border: isDropTarget
           ? Border.all(color: theme.colorScheme.primary, width: 1)
           : null,
+    );
+  }
+
+  Widget _buildDragFeedback(ThemeData theme, bool isBulk, IconData icon, String label) {
+    final totalCount = widget.selectedIds.length + widget.selectedGroupPaths.length;
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(isBulk ? Icons.file_copy : icon, size: 12, color: AppTheme.fgFaint),
+            const SizedBox(width: 4),
+            Text(
+              isBulk ? '$totalCount items' : label,
+              style: const TextStyle(fontSize: 11),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -442,6 +502,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
   Widget _buildGroupContent(SessionTreeNode node, int depth, bool isDropTarget) {
     final expanded = _expandedGroups.contains(node.fullPath);
     final theme = Theme.of(context);
+    final isSelected = widget.selectedGroupPaths.contains(node.fullPath);
 
     return GestureDetector(
       onSecondaryTapUp: (d) {
@@ -452,7 +513,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           : null,
       child: HoverRegion(
         builder: (hovered) => InkWell(
-          onTap: () => _toggleGroup(node.fullPath, expanded),
+          onTap: () => _onGroupTap(node.fullPath, expanded),
           hoverColor: Colors.transparent,
           child: Container(
             height: _rowHeight,
@@ -460,7 +521,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
               left: _mobile ? 8.0 : 12.0,
               right: 8,
             ),
-            decoration: _rowDecoration(isDropTarget, hovered, theme),
+            decoration: _rowDecoration(isDropTarget, hovered, isSelected, theme),
             child: Row(
               children: _buildGroupRowChildren(node, depth, expanded, theme),
             ),
@@ -470,7 +531,12 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     );
   }
 
-  void _toggleGroup(String fullPath, bool expanded) {
+  void _onGroupTap(String fullPath, bool expanded) {
+    // If there's an active selection, toggle group selection instead
+    if (widget.selectedIds.isNotEmpty || widget.selectedGroupPaths.isNotEmpty) {
+      widget.onToggleGroupSelected?.call(fullPath);
+      return;
+    }
     setState(() {
       if (expanded) {
         _expandedGroups.remove(fullPath);
@@ -527,29 +593,16 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
     final theme = Theme.of(context);
 
-    // Desktop: Draggable + DragTarget
+    // Desktop: Draggable + DragTarget — if part of a bulk selection, drag all
+    final isGroupSelected = widget.selectedGroupPaths.contains(node.fullPath);
+    final isBulk = isGroupSelected && _hasBulkSelection;
+    final SessionDragData dragData = isBulk
+        ? BulkDrag(sessionIds: widget.selectedIds, groupPaths: widget.selectedGroupPaths)
+        : GroupDrag(node.fullPath);
+
     return Draggable<SessionDragData>(
-      data: GroupDrag(node.fullPath),
-      feedback: Material(
-        elevation: 4,
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.folder, size: 14,
-                  color: AppTheme.folderColor(theme.brightness)),
-              const SizedBox(width: 4),
-              Text(node.name, style: const TextStyle(fontSize: 12)),
-            ],
-          ),
-        ),
-      ),
+      data: dragData,
+      feedback: _buildDragFeedback(theme, isBulk, Icons.folder, node.name),
       childWhenDragging: Opacity(
         opacity: 0.4,
         child: _buildGroupContent(node, depth, false),
@@ -689,28 +742,15 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     // Select mode or mobile: no drag&drop
     if (_mobile || widget.selectMode) return content;
 
-    // Desktop: Draggable (immediate drag start, no long-press needed)
+    // Desktop: Draggable — if part of a bulk selection, drag all selected items
+    final isBulk = isChecked && _hasBulkSelection;
+    final SessionDragData dragData = isBulk
+        ? BulkDrag(sessionIds: widget.selectedIds, groupPaths: widget.selectedGroupPaths)
+        : SessionDrag(session);
+
     return Draggable<SessionDragData>(
-      data: SessionDrag(session),
-      feedback: Material(
-        elevation: 4,
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.terminal, size: 12, color: AppTheme.fgFaint),
-              const SizedBox(width: 4),
-              Text(node.name, style: const TextStyle(fontSize: 11)),
-            ],
-          ),
-        ),
-      ),
+      data: dragData,
+      feedback: _buildDragFeedback(theme, isBulk, Icons.terminal, node.name),
       childWhenDragging: Opacity(opacity: 0.4, child: content),
       child: content,
     );
