@@ -854,9 +854,8 @@ class _ConnectionBarState extends State<_ConnectionBar> {
             ),
           ),
           const SizedBox(width: 6),
-          Flexible(
+          Expanded(
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   conn.isConnected ? 'Connected' : 'Disconnected',
@@ -883,8 +882,7 @@ class _ConnectionBarState extends State<_ConnectionBar> {
               ],
             ),
           ),
-          if (onCompanion != null) ...[
-          const Spacer(),
+          if (onCompanion != null)
             Tooltip(
               message: isTerminal ? 'Files' : 'Terminal',
               child: MouseRegion(
@@ -929,7 +927,6 @@ class _ConnectionBarState extends State<_ConnectionBar> {
                 ),
               ),
             ),
-          ],
         ],
       ),
     );
