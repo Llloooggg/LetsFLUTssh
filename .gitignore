@@ -62,6 +62,3 @@ coverage/
 
 # Claude
 .claude
-
-# Local planning docs (not for repo)
-UI_REDESIGN_PLAN.md
