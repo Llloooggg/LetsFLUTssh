@@ -93,19 +93,10 @@ void main() {
       expect(find.byIcon(Icons.folder), findsWidgets);
     });
 
-    testWidgets('renders SFTP badge text for sftp tab', (tester) async {
+    testWidgets('sftp tab does not show SFTP badge', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(id: 't1', label: 'Files', connection: conn, kind: TabKind.sftp),
-      ]));
-      await tester.pumpAndSettle();
-      expect(find.text('SFTP'), findsWidgets);
-    });
-
-    testWidgets('does not render SFTP badge for terminal tab', (tester) async {
-      final conn = makeConn();
-      await tester.pumpWidget(buildAppWithTabs([
-        TabEntry(id: 't1', label: 'Shell', connection: conn, kind: TabKind.terminal),
       ]));
       await tester.pumpAndSettle();
       expect(find.text('SFTP'), findsNothing);
