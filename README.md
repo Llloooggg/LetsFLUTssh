@@ -132,6 +132,10 @@ See [SECURITY.md](docs/SECURITY.md) for vulnerability reporting and security sco
 
 GPL-3.0 — see [LICENSE](LICENSE) for details.
 
+## Architecture
+
+For detailed technical documentation — module structure, data models, data flow diagrams, API references, design decisions, and CI/CD pipeline — see [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Contributing
 
 Contributions welcome — see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for build instructions, dev workflow, and PR guidelines.
