@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/toast.dart';
 import 'file_browser_controller.dart';
@@ -62,7 +63,7 @@ class FilePaneDialogs {
       } catch (e) {
         AppLogger.instance.log('mkdir failed: $path: $e', name: 'FilePane', error: e);
         if (context.mounted) {
-          Toast.show(context, message: 'Failed to create folder: $e', level: ToastLevel.error);
+          Toast.show(context, message: 'Failed to create folder: ${sanitizeError(e)}', level: ToastLevel.error);
         }
       }
     }
@@ -86,7 +87,7 @@ class FilePaneDialogs {
       } catch (e) {
         AppLogger.instance.log('Rename failed: ${entry.path} → $newPath: $e', name: 'FilePane', error: e);
         if (context.mounted) {
-          Toast.show(context, message: 'Failed to rename: $e', level: ToastLevel.error);
+          Toast.show(context, message: 'Failed to rename: ${sanitizeError(e)}', level: ToastLevel.error);
         }
       }
     }

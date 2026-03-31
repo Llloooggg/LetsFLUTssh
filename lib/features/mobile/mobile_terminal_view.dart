@@ -8,6 +8,7 @@ import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
@@ -86,7 +87,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       if (mounted) setState(() => _connected = true);
     } catch (e) {
       AppLogger.instance.log('Shell open failed: $e', name: 'MobileTerminal', error: e);
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = sanitizeError(e));
     }
   }
 
