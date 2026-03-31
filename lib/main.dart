@@ -72,6 +72,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       await ref.read(appVersionProvider.notifier).load();
       await ref.read(configProvider.notifier).load();
       ref.read(sessionProvider.notifier).load();
+      if (plat.isMobilePlatform) {
+        ref.read(foregroundServiceProvider).init();
+      }
       if (ref.read(configProvider).checkUpdatesOnStart) {
         ref.read(updateProvider.notifier).check();
       }
