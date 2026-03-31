@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../theme/app_theme.dart';
 
 /// A single context menu item — either a normal item or a divider.
 class ContextMenuItem {
@@ -156,40 +155,46 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                 if (_activeIndex != null) _activate(_activeIndex!);
               }
             },
-            child: Material(
-              color: AppTheme.bg1,
-              child: Container(
-              constraints: const BoxConstraints(minWidth: 200),
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppTheme.borderLight),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black54,
-                    blurRadius: 24,
-                    offset: Offset(0, 6),
+            child: Builder(builder: (context) {
+              final theme = Theme.of(context);
+              final scheme = theme.colorScheme;
+              final menuBg = scheme.surfaceContainerLow;
+              final menuBorder = theme.dividerColor;
+              return Material(
+                color: menuBg,
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: menuBorder),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 24,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: IntrinsicWidth(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (int i = 0; i < widget.items.length; i++)
-                      widget.items[i].divider
-                          ? const Divider(
-                              height: 1,
-                              thickness: 1,
-                              indent: 8,
-                              endIndent: 8,
-                              color: AppTheme.border,
-                            )
-                          : _buildItem(i),
-                  ],
+                  child: IntrinsicWidth(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (int i = 0; i < widget.items.length; i++)
+                          widget.items[i].divider
+                              ? Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  indent: 8,
+                                  endIndent: 8,
+                                  color: theme.dividerColor,
+                                )
+                              : _buildItem(i),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            ),
+              );
+            }),
           ),
         ),
       ],
@@ -199,8 +204,13 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
   Widget _buildItem(int index) {
     final item = widget.items[index];
     final isActive = _activeIndex == index;
-    final color = item.color ?? AppTheme.fg;
-    final iconColor = item.color ?? AppTheme.fgDim;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final fgColor = item.color ?? scheme.onSurface;
+    final iconColor = item.color ?? scheme.onSurface.withValues(alpha: 0.6);
+    final shortcutBg = scheme.surfaceContainerHighest;
+    final shortcutFg = scheme.onSurface.withValues(alpha: 0.45);
+    final hoverBg = scheme.primary.withValues(alpha: 0.1);
 
     return MouseRegion(
       onEnter: (_) => setState(() {
@@ -213,7 +223,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
         child: Container(
           height: 28,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          color: isActive ? AppTheme.selection : Colors.transparent,
+          color: isActive ? hoverBg : Colors.transparent,
           child: Row(
             children: [
               if (item.icon != null) ...[
@@ -226,7 +236,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
-                    color: color,
+                    color: fgColor,
                   ),
                 ),
               ),
@@ -234,13 +244,13 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                 const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  color: AppTheme.bg3,
+                  color: shortcutBg,
                   child: Text(
                     item.shortcut!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'JetBrains Mono',
                       fontSize: 9,
-                      color: AppTheme.fgFaint,
+                      color: shortcutFg,
                     ),
                   ),
                 ),
