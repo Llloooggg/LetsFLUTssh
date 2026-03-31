@@ -72,17 +72,6 @@ class _PrePopulatedSessionNotifier extends SessionNotifier {
   }
 }
 
-/// A SessionNotifier that stores in-memory only (no disk I/O).
-class _InMemorySessionNotifier extends SessionNotifier {
-  @override
-  List<Session> build() => [];
-
-  @override
-  Future<void> add(Session session) async {
-    state = [...state, session];
-  }
-}
-
 /// A ConnectionManager that simulates a connection that fails in background.
 class _FailingConnectionManager extends ConnectionManager {
   final Object error;
@@ -161,13 +150,6 @@ void main() {
       expect(find.byType(IndexedStack), findsOneWidget);
       // Settings icon should be visible
       expect(find.byIcon(Icons.settings), findsAtLeast(1));
-    });
-
-    testWidgets('shows FAB on sessions page', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.byType(FloatingActionButton), findsOneWidget);
     });
 
     testWidgets('switches to Terminal page on nav tap', (tester) async {
@@ -722,9 +704,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap 'SFTP' in the context menu
-      expect(find.text('SFTP'), findsOneWidget);
-      await tester.tap(find.text('SFTP'));
+      // Tap 'Files' in the context menu (last match — first is nav bar)
+      expect(find.text('Files'), findsWidgets);
+      await tester.tap(find.text('Files').last);
       await tester.pumpAndSettle();
 
       // Should navigate to Files page (index 2) after _connectSessionSftp
@@ -732,109 +714,7 @@ void main() {
       expect(navBar.selectedIndex, equals(2));
     });
 
-    testWidgets('FAB opens New Session dialog', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Tap the FAB
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      // New Session dialog should appear
-      expect(find.text('New Session'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-    });
-
-    testWidgets('FAB new session — Connect Only navigates to Terminal',
-        (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Tap the FAB to open dialog
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      // Fill in required fields (Host and Username)
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Host *'),
-        'quick.example.com',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Username *'),
-        'quickuser',
-      );
-      await tester.pumpAndSettle();
-
-      // Tap "Connect" button (ConnectOnlyResult path)
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-
-      // Should navigate to Terminal page (index 1) via _newSession ConnectOnlyResult
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(1));
-    });
-
-    testWidgets('FAB new session — Save & Connect saves and navigates to Terminal',
-        (tester) async {
-      // Use in-memory session notifier to avoid disk I/O in SessionStore.add()
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(_InMemorySessionNotifier.new),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Tap the FAB to open dialog
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      // Fill in required fields
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Host *'),
-        'save.example.com',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Username *'),
-        'saveuser',
-      );
-      await tester.pumpAndSettle();
-
-      // Tap "Save & Connect" button (SaveResult with connect=true path)
-      await tester.tap(find.text('Save & Connect'));
-      await tester.pumpAndSettle();
-
-      // Should navigate to Terminal page (index 1) via _newSession SaveResult
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(1));
-    });
-
-    testWidgets('FAB new session — Cancel does not navigate', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Tap the FAB to open dialog
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      // Tap "Cancel"
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-
-      // Should still be on Sessions page (index 0)
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(0));
-    });
+    // FAB was removed — new sessions are created from SessionPanel's add button.
 
     testWidgets('incomplete session shows toast and stays on Sessions page', (tester) async {
       final session = Session(
@@ -879,8 +759,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap 'SFTP' in the context menu
-      await tester.tap(find.text('SFTP'));
+      // Tap 'Files' in the context menu (last match — first is nav bar)
+      await tester.tap(find.text('Files').last);
       await tester.pumpAndSettle();
 
       // Should stay on Sessions page (index 0), not switch to Files

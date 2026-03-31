@@ -13,6 +13,8 @@ import 'features/settings/export_import.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/cross_marquee_controller.dart';
+import 'widgets/app_icon_button.dart';
+import 'widgets/hover_region.dart';
 import 'widgets/toast.dart';
 import 'features/file_browser/file_browser_tab.dart';
 import 'features/settings/settings_screen.dart';
@@ -21,12 +23,12 @@ import 'features/tabs/tab_bar.dart';
 import 'features/tabs/tab_controller.dart';
 import 'features/tabs/tab_model.dart';
 import 'features/tabs/welcome_screen.dart';
+import 'features/terminal/split_node.dart';
 import 'features/terminal/terminal_tab.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/theme_provider.dart';
-import 'providers/transfer_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/update/update_service.dart';
@@ -36,7 +38,6 @@ import 'features/mobile/mobile_shell.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
 import 'utils/platform.dart' as plat;
-import 'widgets/split_view.dart';
 
 /// Global navigator key for showing dialogs from non-UI contexts
 /// (e.g., host key verification during SSH handshake).
@@ -117,6 +118,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
+
+    // Sync AppTheme brightness before building the widget tree
+    final isDark = themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+    AppTheme.setBrightness(isDark ? Brightness.dark : Brightness.light);
 
     return MaterialApp(
       navigatorKey: navigatorKey,
@@ -125,6 +133,16 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       themeMode: themeMode,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      themeAnimationDuration: Duration.zero,
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(uiScale),
+          ),
+          child: child!,
+        );
+      },
       home: const MainScreen(),
     );
   }
@@ -141,6 +159,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final _deepLinkHandler = DeepLinkHandler();
   final _crossMarquee = CrossMarqueeController();
   bool _updateDialogShown = false;
+  bool _sidebarOpen = true;
+  double _sidebarWidth = 220;
+  final Map<String, GlobalKey<TerminalTabState>> _terminalKeys = {};
+
+  GlobalKey<TerminalTabState> _keyForTab(String tabId) =>
+      _terminalKeys.putIfAbsent(tabId, () => GlobalKey<TerminalTabState>());
 
   @override
   void initState() {
@@ -319,6 +343,32 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): () {
         _switchTab(tabState, -1);
       },
+      const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
+        setState(() => _sidebarOpen = !_sidebarOpen);
+      },
+      // Split shortcuts
+      const SingleActivator(LogicalKeyboardKey.backslash, control: true): () {
+        final active = tabState.activeTab;
+        if (active?.kind == TabKind.terminal) {
+          _terminalKeys[active!.id]
+              ?.currentState
+              ?.splitFocused(SplitDirection.vertical);
+          setState(() {});
+        }
+      },
+      const SingleActivator(LogicalKeyboardKey.backslash, control: true, shift: true): () {
+        final active = tabState.activeTab;
+        if (active?.kind == TabKind.terminal) {
+          _terminalKeys[active!.id]
+              ?.currentState
+              ?.splitFocused(SplitDirection.horizontal);
+          setState(() {});
+        }
+      },
+      // Settings
+      const SingleActivator(LogicalKeyboardKey.comma, control: true): () {
+        SettingsScreen.show(context);
+      },
     };
   }
 
@@ -365,9 +415,27 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     return Scaffold(
-      body: SplitView(
-        left: sessionPanel,
-        right: rightSide,
+      body: Row(
+        children: [
+          if (_sidebarOpen) ...[
+            SizedBox(width: _sidebarWidth, child: sessionPanel),
+            MouseRegion(
+              cursor: SystemMouseCursors.resizeColumn,
+              child: GestureDetector(
+                onHorizontalDragUpdate: (d) {
+                  setState(() {
+                    _sidebarWidth = (_sidebarWidth + d.delta.dx).clamp(140.0, 400.0);
+                  });
+                },
+                child: Container(
+                  width: 3,
+                  color: Theme.of(context).dividerColor,
+                ),
+              ),
+            ),
+          ],
+          Expanded(child: rightSide),
+        ],
       ),
     );
   }
@@ -375,20 +443,43 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget _buildRightSide(TabState tabState, Widget content, bool isNarrow) {
     final activeTab = tabState.activeTab;
     final connected = activeTab?.connection.isConnected ?? false;
+    final isTerminalTab = activeTab?.kind == TabKind.terminal;
     return Column(
       children: [
         _Toolbar(
+          sidebarOpen: _sidebarOpen,
+          onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
           onNewSession: () => _newSession(context, ref),
-          onOpenSftp: (activeTab?.kind == TabKind.terminal && connected)
-              ? () => _openSftp(ref, activeTab!.connection)
-              : null,
-          onOpenSsh: (activeTab?.kind == TabKind.sftp && connected)
-              ? () => _openSsh(ref, activeTab!.connection)
-              : null,
           showMenuButton: isNarrow,
+          isTerminalTab: isTerminalTab,
+          onSplitVertical: isTerminalTab
+              ? () {
+                  _terminalKeys[activeTab!.id]
+                      ?.currentState
+                      ?.splitFocused(SplitDirection.vertical);
+                  setState(() {});
+                }
+              : null,
+          onSplitHorizontal: isTerminalTab
+              ? () {
+                  _terminalKeys[activeTab!.id]
+                      ?.currentState
+                      ?.splitFocused(SplitDirection.horizontal);
+                  setState(() {});
+                }
+              : null,
         ),
-        const AppTabBar(),
-        if (tabState.tabs.isNotEmpty) const Divider(height: 1),
+        AppTabBar(onNewSession: () => _newSession(context, ref)),
+        if (activeTab != null)
+          _ConnectionBar(
+            activeTab: activeTab,
+            onOpenSftp: (isTerminalTab && connected)
+                ? () => _openSftp(ref, activeTab.connection)
+                : null,
+            onOpenSsh: (activeTab.kind == TabKind.sftp && connected)
+                ? () => _openSsh(ref, activeTab.connection)
+                : null,
+          ),
         Expanded(child: content),
         _StatusBar(tabState: tabState),
       ],
@@ -396,13 +487,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildTabContent(TabState tabState) {
+    final currentIds = tabState.tabs.map((t) => t.id).toSet();
+    _terminalKeys.removeWhere((id, _) => !currentIds.contains(id));
     return IndexedStack(
       index: tabState.activeIndex,
       children: tabState.tabs.map((tab) {
         switch (tab.kind) {
           case TabKind.terminal:
             return TerminalTab(
-              key: ValueKey(tab.id),
+              key: _keyForTab(tab.id),
               tabId: tab.id,
               connection: tab.connection,
             );
@@ -528,68 +621,86 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 }
 
 class _Toolbar extends StatelessWidget {
+  final bool sidebarOpen;
+  final VoidCallback onToggleSidebar;
   final VoidCallback onNewSession;
-  final VoidCallback? onOpenSftp;
-  final VoidCallback? onOpenSsh;
   final bool showMenuButton;
+  final bool isTerminalTab;
+  final VoidCallback? onSplitVertical;
+  final VoidCallback? onSplitHorizontal;
 
   const _Toolbar({
+    required this.sidebarOpen,
+    required this.onToggleSidebar,
     required this.onNewSession,
-    this.onOpenSftp,
-    this.onOpenSsh,
     this.showMenuButton = false,
+    this.isTerminalTab = false,
+    this.onSplitVertical,
+    this.onSplitHorizontal,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: 34,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: Border(
-          bottom: BorderSide(color: theme.dividerColor),
-        ),
+        color: scheme.surfaceContainerLow,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
+          const SizedBox(width: 2),
           if (showMenuButton)
-            IconButton(
-              onPressed: () => Scaffold.of(context).openDrawer(),
-              icon: const Icon(Icons.menu, size: 18),
+            AppIconButton(
+              icon: Icons.menu,
+              onTap: () => Scaffold.of(context).openDrawer(),
               tooltip: 'Sessions',
-              visualDensity: VisualDensity.compact,
-            ),
-          IconButton(
-            onPressed: onNewSession,
-            icon: const Icon(Icons.add, size: 18),
-            tooltip: 'New Session (Ctrl+N)',
-            visualDensity: VisualDensity.compact,
-          ),
-          if (onOpenSftp != null)
-            IconButton(
-              onPressed: onOpenSftp,
-              icon: const Icon(Icons.folder_open, size: 18),
-              tooltip: 'Open SFTP Browser',
-              visualDensity: VisualDensity.compact,
-            ),
-          if (onOpenSsh != null)
-            IconButton(
-              onPressed: onOpenSsh,
-              icon: const Icon(Icons.terminal, size: 18),
-              tooltip: 'Open SSH Terminal',
-              visualDensity: VisualDensity.compact,
+              color: AppTheme.fgDim,
+            )
+          else
+            AppIconButton(
+              icon: Icons.view_sidebar,
+              onTap: onToggleSidebar,
+              tooltip: 'Sidebar (Ctrl+B)',
+              active: sidebarOpen,
             ),
           const Spacer(),
-          IconButton(
-            onPressed: () => SettingsScreen.show(context),
-            icon: const Icon(Icons.settings, size: 18),
+          if (isTerminalTab) ...[
+            AppIconButton(
+              icon: Icons.vertical_split,
+              onTap: onSplitVertical,
+              tooltip: 'Split Vertical (Ctrl+\\)',
+            ),
+            AppIconButton(
+              icon: Icons.horizontal_split,
+              onTap: onSplitHorizontal,
+              tooltip: 'Split Horizontal (Ctrl+Shift+\\)',
+            ),
+            _Divider(),
+          ] else
+            _Divider(),
+          AppIconButton(
+            icon: Icons.settings,
+            onTap: () => SettingsScreen.show(context),
             tooltip: 'Settings',
-            visualDensity: VisualDensity.compact,
           ),
+          const SizedBox(width: 2),
         ],
       ),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 16,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: Theme.of(context).colorScheme.outlineVariant,
     );
   }
 }
@@ -601,61 +712,165 @@ class _StatusBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final version = ref.watch(appVersionProvider);
     final theme = Theme.of(context);
-    final active = tabState.activeTab;
-    final transferStatus = ref.watch(transferStatusProvider).value;
+    final scheme = theme.colorScheme;
+    final dimColor = scheme.onSurface.withValues(alpha: 0.45);
 
     return Container(
-      height: 24,
+      height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
+        color: scheme.surfaceContainerLowest,
         border: Border(
           top: BorderSide(color: theme.dividerColor),
         ),
       ),
       child: Row(
         children: [
-          if (active != null) ...[
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active.connection.isConnected
-                    ? AppTheme.connectedColor(theme.brightness)
-                    : AppTheme.disconnectedColor(theme.brightness),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                active.connection.isConnected
-                    ? 'Connected: ${active.connection.label}'
-                    : 'Disconnected',
-                style: const TextStyle(fontSize: 11),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ] else
-            const Text(
-              'No active connection',
-              style: TextStyle(fontSize: 11),
-            ),
           const Spacer(),
-          if (transferStatus != null && transferStatus.hasActive) ...[
-            Icon(Icons.swap_vert, size: 12, color: theme.colorScheme.primary),
-            const SizedBox(width: 4),
-            Text(
-              transferStatus.currentInfo ?? '${transferStatus.running} active',
-              style: TextStyle(fontSize: 11, color: theme.colorScheme.primary),
-            ),
-            const SizedBox(width: 12),
-          ],
           Text(
-            '${tabState.tabs.length} tab(s)',
-            style: const TextStyle(fontSize: 11),
+            '${tabState.tabs.length} tabs',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: dimColor,
+            ),
           ),
+          const SizedBox(width: 12),
+          Text(
+            'UTF-8',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: dimColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            version.isNotEmpty ? 'v$version' : '',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: dimColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConnectionBar extends StatelessWidget {
+  final TabEntry activeTab;
+  final VoidCallback? onOpenSftp;
+  final VoidCallback? onOpenSsh;
+
+  const _ConnectionBar({
+    required this.activeTab,
+    this.onOpenSftp,
+    this.onOpenSsh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final conn = activeTab.connection;
+    final cfg = conn.sshConfig;
+    final isTerminal = activeTab.kind == TabKind.terminal;
+    final onCompanion = isTerminal ? onOpenSftp : onOpenSsh;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
+    final dimColor = scheme.onSurface.withValues(alpha: 0.6);
+    final faintColor = scheme.onSurface.withValues(alpha: 0.45);
+
+    return Container(
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: conn.isConnected ? AppTheme.green : faintColor,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Row(
+              children: [
+                Text(
+                  conn.isConnected ? 'Connected' : 'Disconnected',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 10,
+                    color: dimColor,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text('·', style: TextStyle(fontSize: 10, color: faintColor)),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
+                    style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 10,
+                      color: dimColor,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (onCompanion != null)
+            Tooltip(
+              message: isTerminal ? 'Files' : 'Terminal',
+              child: HoverRegion(
+                onTap: onCompanion,
+                builder: (hovered) => Container(
+                  height: 18,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: btnColor.withValues(
+                      alpha: hovered ? 0x25 / 255.0 : 0x18 / 255.0,
+                    ),
+                    border: Border.all(
+                      color: btnColor.withValues(
+                        alpha: hovered ? 0x60 / 255.0 : 0x40 / 255.0,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isTerminal ? Icons.folder_open : Icons.terminal,
+                        size: 11,
+                        color: btnColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isTerminal ? 'Files' : 'Terminal',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: btnColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

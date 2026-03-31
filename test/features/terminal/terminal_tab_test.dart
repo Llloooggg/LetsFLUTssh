@@ -9,6 +9,7 @@ import 'package:mockito/mockito.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/terminal/terminal_pane.dart';
+import 'package:letsflutssh/features/terminal/split_node.dart';
 import 'package:letsflutssh/features/terminal/terminal_tab.dart';
 import 'package:letsflutssh/features/terminal/tiling_view.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
@@ -1135,6 +1136,105 @@ void main() {
       // Clean up
       completer.complete();
       await tester.pumpAndSettle();
+    });
+  });
+
+  group('TerminalTab — splitFocused (no toggle)', () {
+    Connection makeDisconn(String id) => Connection(
+          id: id,
+          label: 'T$id',
+          sshConfig:
+              const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+          sshConnection: null,
+          state: SSHConnectionState.disconnected,
+        );
+
+    Future<GlobalKey<TerminalTabState>> pumpTab(
+        WidgetTester tester, String id) async {
+      final key = GlobalKey<TerminalTabState>();
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TerminalTab(
+                  key: key,
+                  tabId: 'tab-$id',
+                  connection: makeDisconn(id),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      return key;
+    }
+
+    testWidgets('splitFocused(vertical) creates a second pane', (tester) async {
+      final key = await pumpTab(tester, 'sfd-2');
+      expect(find.byType(TerminalPane), findsOneWidget);
+
+      key.currentState!.splitFocused(SplitDirection.vertical);
+      await tester.pump();
+
+      expect(find.byType(TerminalPane), findsNWidgets(2));
+    });
+
+    testWidgets(
+        'splitFocused(vertical) twice creates three panes (no collapse)',
+        (tester) async {
+      final key = await pumpTab(tester, 'sfd-4');
+
+      key.currentState!.splitFocused(SplitDirection.vertical);
+      await tester.pump();
+      expect(find.byType(TerminalPane), findsNWidgets(2));
+
+      key.currentState!.splitFocused(SplitDirection.vertical);
+      await tester.pump();
+      expect(find.byType(TerminalPane), findsNWidgets(3));
+    });
+
+    testWidgets('splitFocused(horizontal) creates a second pane',
+        (tester) async {
+      final key = await pumpTab(tester, 'sfd-5');
+
+      key.currentState!.splitFocused(SplitDirection.horizontal);
+      await tester.pump();
+
+      expect(find.byType(TerminalPane), findsNWidgets(2));
+    });
+
+    testWidgets(
+        'splitFocused(horizontal) twice creates three panes (no collapse)',
+        (tester) async {
+      final key = await pumpTab(tester, 'sfd-6');
+
+      key.currentState!.splitFocused(SplitDirection.horizontal);
+      await tester.pump();
+
+      key.currentState!.splitFocused(SplitDirection.horizontal);
+      await tester.pump();
+
+      expect(find.byType(TerminalPane), findsNWidgets(3));
+    });
+
+    testWidgets(
+        'splitFocused(horizontal) after vertical split deepens tree',
+        (tester) async {
+      final key = await pumpTab(tester, 'sfd-7');
+
+      key.currentState!.splitFocused(SplitDirection.vertical);
+      await tester.pump();
+
+      key.currentState!.splitFocused(SplitDirection.horizontal);
+      await tester.pump();
+
+      // Tree now has 3 panes: original vertical split + new horizontal
+      expect(find.byType(TerminalPane), findsNWidgets(3));
     });
   });
 }

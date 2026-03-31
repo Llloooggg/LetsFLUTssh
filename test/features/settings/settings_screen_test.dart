@@ -217,49 +217,69 @@ void main() {
       expect(find.text('Dark'), findsOneWidget);
       expect(find.text('Light'), findsOneWidget);
       expect(find.text('System'), findsOneWidget);
-      expect(find.text('Font Size'), findsOneWidget);
-      expect(find.byType(Slider), findsOneWidget);
-      expect(find.byType(SegmentedButton<String>), findsOneWidget);
+      expect(find.text('Terminal Font Size'), findsOneWidget);
+      expect(find.text('UI Scale'), findsOneWidget);
+      expect(find.byType(Slider), findsNWidgets(2));
     });
 
-    testWidgets('theme selector hides selected icon to prevent layout shift', (tester) async {
+    testWidgets('theme selector renders all segment labels', (tester) async {
       await tester.pumpWidget(buildApp());
-      final seg = tester.widget<SegmentedButton<String>>(
-          find.byType(SegmentedButton<String>));
-      expect(seg.showSelectedIcon, isFalse);
+      expect(find.text('Dark'), findsOneWidget);
+      expect(find.text('Light'), findsOneWidget);
+      expect(find.text('System'), findsOneWidget);
     });
 
     testWidgets('theme shows correct selection for dark', (tester) async {
-      await tester.pumpWidget(buildApp());
-      final seg = tester.widget<SegmentedButton<String>>(
-          find.byType(SegmentedButton<String>));
-      expect(seg.selected, {'dark'});
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'dark'))));
+      // The selected segment has AppTheme.accent background
+      final darkText = find.text('Dark');
+      final darkContainer = find.ancestor(
+        of: darkText,
+        matching: find.byWidgetPredicate(
+          (w) => w is Container && w.color == AppTheme.accent,
+        ),
+      );
+      expect(darkContainer, findsOneWidget);
     });
 
     testWidgets('theme shows correct selection for light', (tester) async {
       await tester.pumpWidget(
           buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'light'))));
-      final seg = tester.widget<SegmentedButton<String>>(
-          find.byType(SegmentedButton<String>));
-      expect(seg.selected, {'light'});
+      final lightContainer = find.ancestor(
+        of: find.text('Light'),
+        matching: find.byWidgetPredicate(
+          (w) => w is Container && w.color == AppTheme.accent,
+        ),
+      );
+      expect(lightContainer, findsOneWidget);
     });
 
     testWidgets('theme shows correct selection for system', (tester) async {
       await tester.pumpWidget(
           buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'system'))));
-      final seg = tester.widget<SegmentedButton<String>>(
-          find.byType(SegmentedButton<String>));
-      expect(seg.selected, {'system'});
+      final systemContainer = find.ancestor(
+        of: find.text('System'),
+        matching: find.byWidgetPredicate(
+          (w) => w is Container && w.color == AppTheme.accent,
+        ),
+      );
+      expect(systemContainer, findsOneWidget);
     });
 
     testWidgets('tapping Dark when already Dark keeps Dark selected',
         (tester) async {
-      await tester.pumpWidget(buildApp());
+      await tester.pumpWidget(
+          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'dark'))));
       await tester.tap(find.text('Dark'));
       await tester.pumpAndSettle();
-      final seg = tester.widget<SegmentedButton<String>>(
-          find.byType(SegmentedButton<String>));
-      expect(seg.selected, {'dark'});
+      final darkContainer = find.ancestor(
+        of: find.text('Dark'),
+        matching: find.byWidgetPredicate(
+          (w) => w is Container && w.color == AppTheme.accent,
+        ),
+      );
+      expect(darkContainer, findsOneWidget);
     });
 
     testWidgets('tapping Light theme does not crash', (tester) async {
@@ -292,15 +312,17 @@ void main() {
   // Font size slider
   // ---------------------------------------------------------------------------
   group('SettingsScreen — font size slider', () {
+    // Font size slider is the second Slider (index 1); UI Scale is index 0.
+    Finder fontSliderFinder() => find.byType(Slider).at(1);
+
     testWidgets('slider shows default value 14', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.text('14'), findsOneWidget);
-      final slider = tester.widget<Slider>(find.byType(Slider));
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.value, 14.0);
       expect(slider.min, 8.0);
       expect(slider.max, 24.0);
       expect(slider.divisions, 16);
-      expect(slider.label, '14');
     });
 
     testWidgets('slider with custom font size', (tester) async {
@@ -309,12 +331,12 @@ void main() {
       expect(find.text('18'), findsOneWidget);
     });
 
-    testWidgets('slider label shows formatted value', (tester) async {
+    testWidgets('slider shows formatted value text', (tester) async {
       await tester.pumpWidget(
           buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 16.0))));
-      final slider = tester.widget<Slider>(find.byType(Slider));
-      expect(slider.label, '16');
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.value, 16.0);
+      expect(find.text('16'), findsOneWidget);
     });
 
     testWidgets('slider with min value 8', (tester) async {
@@ -332,17 +354,17 @@ void main() {
     testWidgets('value out of range is clamped', (tester) async {
       await tester.pumpWidget(
           buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 4.0))));
-      final slider = tester.widget<Slider>(find.byType(Slider));
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.value, 8.0);
     });
 
     testWidgets('onChanged callback is wired', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.byType(Slider), 100,
+        fontSliderFinder(), 100,
         scrollable: find.byType(Scrollable).first,
       );
-      final slider = tester.widget<Slider>(find.byType(Slider));
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.onChanged, isNotNull);
       slider.onChanged!(18.0);
       await tester.pump();
@@ -350,16 +372,16 @@ void main() {
 
     testWidgets('dragging slider changes value', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.drag(find.byType(Slider), const Offset(50, 0));
+      await tester.drag(fontSliderFinder(), const Offset(50, 0));
       await tester.pumpAndSettle();
-      expect(find.byType(Slider), findsOneWidget);
+      expect(find.byType(Slider), findsNWidgets(2));
     });
 
     testWidgets('slider with custom font size 20 shows correct value',
         (tester) async {
       await tester.pumpWidget(
           buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 20.0))));
-      final slider = tester.widget<Slider>(find.byType(Slider));
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.value, 20.0);
     });
   });
@@ -634,8 +656,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '2');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '4');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -649,8 +669,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '2');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '10');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -664,8 +682,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '2');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '99');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -678,8 +694,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '500');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '1000');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -693,8 +707,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '500');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '10');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -708,8 +720,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '500');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '5000');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -724,7 +734,7 @@ void main() {
     testWidgets('renders export tile with subtitle and icon', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Data'), findsOneWidget);
@@ -737,7 +747,7 @@ void main() {
     testWidgets('tap opens export dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -751,7 +761,7 @@ void main() {
     testWidgets('export dialog fields are obscured', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -771,7 +781,7 @@ void main() {
     testWidgets('cancel closes export dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -784,7 +794,7 @@ void main() {
     testWidgets('empty password does not close dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -797,7 +807,7 @@ void main() {
     testWidgets('mismatched passwords shows warning toast', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -823,7 +833,7 @@ void main() {
     testWidgets('matching passwords closes dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -1638,8 +1648,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Enable Logging'), findsOneWidget);
-      expect(find.text('Write diagnostic logs to file (no sensitive data)'),
-          findsOneWidget);
     });
 
     testWidgets('logging tiles visible when enabled', (tester) async {
@@ -1847,17 +1855,17 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
 
-      // Find the logging switch specifically
-      final switchFinder = find.widgetWithText(SwitchListTile, 'Enable Logging');
-      expect(switchFinder, findsOneWidget);
+      // The toggle pill should have bg4 color (off state)
+      final toggleContainer = find.byWidgetPredicate(
+        (w) => w is Container &&
+               w.decoration is BoxDecoration &&
+               (w.decoration as BoxDecoration).color == AppTheme.bg4 &&
+               (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
+      );
+      expect(toggleContainer, findsWidgets);
 
-      final switchTile = tester.widget<SwitchListTile>(switchFinder);
-      expect(switchTile.value, isFalse);
-      // Verify onChanged callback is wired (not null)
-      expect(switchTile.onChanged, isNotNull);
-
-      // Call onChanged directly to exercise the callback path
-      switchTile.onChanged!(true);
+      // Tap the toggle to enable logging
+      await tester.tap(find.text('Enable Logging'));
       await tester.pumpAndSettle();
     });
 
@@ -1877,7 +1885,7 @@ void main() {
       expect(find.text('Live Log'), findsNothing);
     });
 
-    testWidgets('switch renders ON when config has enableLogging true',
+    testWidgets('toggle renders ON when config has enableLogging true',
         (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
@@ -1891,9 +1899,21 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
 
-      final switchTile = tester.widget<SwitchListTile>(
-          find.widgetWithText(SwitchListTile, 'Enable Logging'));
-      expect(switchTile.value, isTrue);
+      // Find the toggle pill that is in the same Row as "Enable Logging"
+      final loggingRow = find.ancestor(
+        of: find.text('Enable Logging'),
+        matching: find.byType(Row),
+      ).first;
+      final toggleContainer = find.descendant(
+        of: loggingRow,
+        matching: find.byWidgetPredicate(
+          (w) => w is Container &&
+                 w.decoration is BoxDecoration &&
+                 (w.decoration as BoxDecoration).color == AppTheme.accent &&
+                 (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
+        ),
+      );
+      expect(toggleContainer, findsOneWidget);
     });
 
     testWidgets('logging section shows icons for copy/export/clear in live viewer',
@@ -1958,7 +1978,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('SwitchListTile has correct contentPadding and subtitle',
+    testWidgets('toggle has correct pill shape and label',
         (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
@@ -1972,10 +1992,21 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
 
-      final switchTile = tester.widget<SwitchListTile>(
-          find.widgetWithText(SwitchListTile, 'Enable Logging'));
-      expect(switchTile.contentPadding, EdgeInsets.zero);
-      expect(switchTile.subtitle, isA<Text>());
+      expect(find.text('Enable Logging'), findsOneWidget);
+      // Find the toggle pill in the same Row as "Enable Logging"
+      final loggingRow = find.ancestor(
+        of: find.text('Enable Logging'),
+        matching: find.byType(Row),
+      ).first;
+      final toggleContainer = find.descendant(
+        of: loggingRow,
+        matching: find.byWidgetPredicate(
+          (w) => w is Container &&
+                 w.decoration is BoxDecoration &&
+                 (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
+        ),
+      );
+      expect(toggleContainer, findsOneWidget);
     });
   });
 
@@ -2081,7 +2112,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Check for Updates on Startup'), findsOneWidget);
-      expect(find.byType(SwitchListTile), findsWidgets);
     });
 
     testWidgets('toggle defaults to on', (tester) async {
@@ -2090,14 +2120,14 @@ void main() {
         find.text('Check for Updates on Startup'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-      final switches = tester.widgetList<SwitchListTile>(
-        find.byType(SwitchListTile),
+      // The toggle pill near "Check for Updates on Startup" should have accent color (on)
+      final toggleContainer = find.byWidgetPredicate(
+        (w) => w is Container &&
+               w.decoration is BoxDecoration &&
+               (w.decoration as BoxDecoration).color == AppTheme.accent &&
+               (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
       );
-      // The updates toggle — find it by title
-      final updateSwitch = switches.firstWhere(
-        (s) => (s.title as Text?)?.data == 'Check for Updates on Startup',
-      );
-      expect(updateSwitch.value, isTrue);
+      expect(toggleContainer, findsOneWidget);
     });
 
     testWidgets('renders check button', (tester) async {
@@ -2221,13 +2251,21 @@ void main() {
         find.text('Check for Updates on Startup'), 200,
         scrollable: find.byType(Scrollable).first,
       );
-      final switches = tester.widgetList<SwitchListTile>(
-        find.byType(SwitchListTile),
+      // Find the toggle pill in the same Row as "Check for Updates on Startup"
+      final updateRow = find.ancestor(
+        of: find.text('Check for Updates on Startup'),
+        matching: find.byType(Row),
+      ).first;
+      final toggleContainer = find.descendant(
+        of: updateRow,
+        matching: find.byWidgetPredicate(
+          (w) => w is Container &&
+                 w.decoration is BoxDecoration &&
+                 (w.decoration as BoxDecoration).color == AppTheme.bg4 &&
+                 (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
+        ),
       );
-      final updateSwitch = switches.firstWhere(
-        (s) => (s.title as Text?)?.data == 'Check for Updates on Startup',
-      );
-      expect(updateSwitch.value, isFalse);
+      expect(toggleContainer, findsOneWidget);
     });
 
     testWidgets('manual check shows toast when up to date', (tester) async {
@@ -2383,7 +2421,7 @@ void main() {
       // Appearance content should be visible (header + nav = 2 instances)
       expect(find.text('Appearance'), findsNWidgets(2));
       expect(find.text('Theme'), findsOneWidget);
-      expect(find.text('Font Size'), findsOneWidget);
+      expect(find.text('Terminal Font Size'), findsOneWidget);
     });
 
     testWidgets('tapping nav item switches content pane', (tester) async {

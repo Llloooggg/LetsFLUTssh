@@ -8,8 +8,10 @@ import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
+import '../../widgets/context_menu.dart';
 import 'ssh_keyboard_bar.dart';
 
 /// Full-screen mobile terminal with SSH keyboard bar.
@@ -85,7 +87,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       if (mounted) setState(() => _connected = true);
     } catch (e) {
       AppLogger.instance.log('Shell open failed: $e', name: 'MobileTerminal', error: e);
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = sanitizeError(e));
     }
   }
 
@@ -116,14 +118,20 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       children: [
         Expanded(
           child: GestureDetector(
-            onScaleStart: (_) => _baseScaleFontSize = _fontSize,
+            behavior: HitTestBehavior.translucent,
+            onScaleStart: (details) {
+              if (details.pointerCount >= 2) {
+                _baseScaleFontSize = _fontSize;
+              }
+            },
             onScaleUpdate: (details) {
-              if (_baseScaleFontSize == null) return;
+              if (_baseScaleFontSize == null || details.pointerCount < 2) return;
               setState(() {
                 _fontSize = (_baseScaleFontSize! * details.scale).clamp(8.0, 24.0);
               });
             },
             onScaleEnd: (_) {
+              if (_baseScaleFontSize == null) return;
               _baseScaleFontSize = null;
               // Persist pinch-zoomed font size to config
               ref.read(configProvider.notifier).update(
@@ -139,7 +147,35 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               autofocus: true,
               backgroundOpacity: 1.0,
               padding: const EdgeInsets.all(4),
-              textStyle: TerminalStyle(fontSize: _fontSize),
+              theme: TerminalTheme(
+                cursor: AppTheme.accent,
+                selection: AppTheme.selection,
+                foreground: AppTheme.fg,
+                background: AppTheme.bg2,
+                black: const Color(0xFF1B1D23),
+                red: AppTheme.red,
+                green: AppTheme.green,
+                yellow: AppTheme.yellow,
+                blue: AppTheme.blue,
+                magenta: AppTheme.purple,
+                cyan: AppTheme.cyan,
+                white: AppTheme.fg,
+                brightBlack: AppTheme.fgFaint,
+                brightRed: AppTheme.red,
+                brightGreen: AppTheme.green,
+                brightYellow: AppTheme.yellow,
+                brightBlue: AppTheme.blue,
+                brightMagenta: AppTheme.purple,
+                brightCyan: AppTheme.cyan,
+                brightWhite: AppTheme.fgBright,
+                searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+                searchHitBackgroundCurrent: AppTheme.accent,
+                searchHitForeground: Colors.white,
+              ),
+              textStyle: TerminalStyle(
+                fontSize: _fontSize,
+                fontFamily: 'JetBrains Mono',
+              ),
             ),
           ),
         ),
@@ -150,31 +186,23 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   void _showContextMenu(BuildContext context, Offset position) {
     final hasSelection = _terminalController.selection != null;
-    showMenu<String>(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      position: position,
       items: [
         if (hasSelection)
-          const PopupMenuItem(value: 'copy', child: ListTile(
-            dense: true, leading: Icon(Icons.copy, size: 18),
-            title: Text('Copy'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-          )),
-        const PopupMenuItem(value: 'paste', child: ListTile(
-          dense: true, leading: Icon(Icons.paste, size: 18),
-          title: Text('Paste'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-        )),
+          ContextMenuItem(
+            label: 'Copy',
+            icon: Icons.copy,
+            onTap: () => TerminalClipboard.copy(_terminal, _terminalController),
+          ),
+        ContextMenuItem(
+          label: 'Paste',
+          icon: Icons.paste,
+          onTap: () => TerminalClipboard.paste(_terminal),
+        ),
       ],
-    ).then((action) {
-      switch (action) {
-        case 'copy':
-          TerminalClipboard.copy(_terminal, _terminalController);
-        case 'paste':
-          TerminalClipboard.paste(_terminal);
-        default:
-          break;
-      }
-    });
+    );
   }
 
   Widget _buildError() {

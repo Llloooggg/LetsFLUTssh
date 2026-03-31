@@ -213,7 +213,7 @@ void main() {
 
       await rightClick(tester, find.text('staging'));
 
-      await tester.tap(find.text('SSH'));
+      await tester.tap(find.text('Terminal'));
       await tester.pumpAndSettle();
 
       expect(connected, isNotNull);
@@ -231,7 +231,7 @@ void main() {
 
       await rightClick(tester, find.text('staging'));
 
-      await tester.tap(find.text('SFTP'));
+      await tester.tap(find.text('Files'));
       await tester.pumpAndSettle();
 
       expect(sftpSession, isNotNull);
@@ -248,16 +248,16 @@ void main() {
 
       await rightClick(tester, find.text('staging'));
 
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Edit Session'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
       // No crash, dialog closed
-      expect(find.text('Edit Session'), findsNothing);
+      expect(find.text('Edit Connection'), findsNothing);
     });
   });
 
@@ -303,7 +303,7 @@ void main() {
 
       await rightClick(tester, find.text('Production'));
 
-      await tester.tap(find.text('Delete Folder'));
+      await tester.tap(find.text('Delete Group'));
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Folder'), findsOneWidget);
@@ -315,8 +315,8 @@ void main() {
     });
   });
 
-  group('SessionPanel — delete all confirm (lines 526-550)', () {
-    testWidgets('Delete All Sessions + confirm calls deleteAll',
+  group('SessionPanel — no delete all option', () {
+    testWidgets('background context menu has no Delete All Sessions',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
@@ -335,17 +335,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      final deleteAll = find.text('Delete All Sessions');
-      if (deleteAll.evaluate().isNotEmpty) {
-        await tester.tap(deleteAll);
-        await tester.pumpAndSettle();
-
-        expect(find.textContaining('Delete all'), findsOneWidget);
-
-        // Confirm
-        await tester.tap(find.text('Delete All'));
-        await tester.pumpAndSettle();
-      }
+      expect(find.text('Delete All Sessions'), findsNothing);
     });
   });
 
@@ -372,16 +362,16 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      final newSession = find.text('New Session');
+      final newSession = find.text('New Connection');
       if (newSession.evaluate().isNotEmpty) {
         await tester.tap(newSession);
         await tester.pumpAndSettle();
 
         // Fill required fields
         await tester.enterText(
-            find.widgetWithText(TextFormField, 'Host *'), 'quickhost');
+            find.widgetWithText(TextFormField, '192.168.1.1'), 'quickhost');
         await tester.enterText(
-            find.widgetWithText(TextFormField, 'Username *'), 'quickuser');
+            find.widgetWithText(TextFormField, 'root'), 'quickuser');
         await tester.pumpAndSettle();
 
         // Tap Connect (connect-only, no save)
@@ -417,18 +407,18 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      final newSession = find.text('New Session');
+      final newSession = find.text('New Connection');
       if (newSession.evaluate().isNotEmpty) {
         await tester.tap(newSession);
         await tester.pumpAndSettle();
 
         await tester.enterText(
-            find.widgetWithText(TextFormField, 'Host *'), 'savehost');
+            find.widgetWithText(TextFormField, '192.168.1.1'), 'savehost');
         await tester.enterText(
-            find.widgetWithText(TextFormField, 'Username *'), 'saveuser');
+            find.widgetWithText(TextFormField, 'root'), 'saveuser');
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Save & Connect'));
+        await tester.tap(find.text('Save'));
         await tester.pumpAndSettle();
 
         expect(connected, isNotNull);
@@ -446,11 +436,11 @@ void main() {
       // Right-click Production group
       await rightClick(tester, find.text('Production'));
 
-      await tester.tap(find.text('New Session'));
+      await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
       // Dialog opened
-      expect(find.text('New Session'), findsOneWidget);
+      expect(find.text('New Connection'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -465,7 +455,7 @@ void main() {
 
       await rightClick(tester, find.text('Production'));
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       expect(find.text('Rename Folder'), findsOneWidget);
@@ -475,7 +465,7 @@ void main() {
       await tester.enterText(textField, 'Production');
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
 
       // Dialog closed — name unchanged is a no-op
@@ -493,7 +483,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Submit with empty text
-      await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       // Dialog closed — empty name is no-op

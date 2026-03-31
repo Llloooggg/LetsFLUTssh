@@ -47,7 +47,7 @@ void main() {
       ],
       child: MaterialApp(
         theme: AppTheme.dark(),
-        home: const Scaffold(body: AppTabBar()),
+        home: Scaffold(body: AppTabBar(onNewSession: () {})),
       ),
     );
   }
@@ -58,11 +58,11 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             theme: AppTheme.dark(),
-            home: const Scaffold(body: AppTabBar()),
+            home: Scaffold(body: AppTabBar(onNewSession: () {})),
           ),
         ),
       );
-      // Should render SizedBox.shrink
+      // No tabs → no ListView (only + button shown)
       expect(find.byType(ListView), findsNothing);
     });
 
@@ -91,6 +91,38 @@ void main() {
       ]));
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.folder), findsWidgets);
+    });
+
+    testWidgets('sftp tab does not show SFTP badge', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Files', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+      expect(find.text('SFTP'), findsNothing);
+    });
+
+    testWidgets('plus button triggers onNewSession callback', (tester) async {
+      var called = false;
+      final conn = makeConn();
+      final initialState = TabState(tabs: [
+        TabEntry(id: 't1', label: 'Tab', connection: conn, kind: TabKind.terminal),
+      ], activeIndex: 0);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(initialState)),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(body: AppTabBar(onNewSession: () { called = true; })),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+      expect(called, isTrue);
     });
 
     testWidgets('renders close button', (tester) async {
@@ -401,7 +433,7 @@ void main() {
       expect(dotContainers, isNotEmpty);
     });
 
-    testWidgets('connecting state shows yellow dot', (tester) async {
+    testWidgets('connecting state shows fgFaint dot', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connecting);
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(id: 't1', label: 'Tab', connection: conn, kind: TabKind.terminal),
@@ -411,15 +443,14 @@ void main() {
       final containers = tester.widgetList<Container>(find.byType(Container));
       final dotContainers = containers.where((c) {
         final decoration = c.decoration;
-        if (decoration is BoxDecoration && decoration.shape == BoxShape.circle) {
-          return decoration.color == AppTheme.connectingColor(Brightness.dark);
-        }
-        return false;
+        return decoration is BoxDecoration &&
+            decoration.shape == BoxShape.circle &&
+            decoration.color == AppTheme.fgFaint;
       });
       expect(dotContainers, isNotEmpty);
     });
 
-    testWidgets('disconnected state shows red dot', (tester) async {
+    testWidgets('disconnected state shows fgFaint dot', (tester) async {
       final conn = makeConn(state: SSHConnectionState.disconnected);
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(id: 't1', label: 'Tab', connection: conn, kind: TabKind.terminal),
@@ -429,15 +460,14 @@ void main() {
       final containers = tester.widgetList<Container>(find.byType(Container));
       final dotContainers = containers.where((c) {
         final decoration = c.decoration;
-        if (decoration is BoxDecoration && decoration.shape == BoxShape.circle) {
-          return decoration.color == AppTheme.disconnectedColor(Brightness.dark);
-        }
-        return false;
+        return decoration is BoxDecoration &&
+            decoration.shape == BoxShape.circle &&
+            decoration.color == AppTheme.fgFaint;
       });
       expect(dotContainers, isNotEmpty);
     });
 
-    testWidgets('active tab has bold text and bottom border', (tester) async {
+    testWidgets('active tab has fg color text', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(id: 't1', label: 'Active Tab', connection: conn, kind: TabKind.terminal),
@@ -445,13 +475,12 @@ void main() {
       ], activeIndex: 0));
       await tester.pumpAndSettle();
 
-      // Find the active tab text
       final activeTexts = tester.widgetList<Text>(find.text('Active Tab'));
-      final hasActiveStyle = activeTexts.any((t) => t.style?.fontWeight == FontWeight.bold);
-      expect(hasActiveStyle, isTrue);
+      final hasActiveColor = activeTexts.any((t) => t.style?.color == AppTheme.fg);
+      expect(hasActiveColor, isTrue);
     });
 
-    testWidgets('inactive tab has normal weight text', (tester) async {
+    testWidgets('inactive tab has fgDim color text', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(id: 't1', label: 'Active Tab', connection: conn, kind: TabKind.terminal),
@@ -459,10 +488,9 @@ void main() {
       ], activeIndex: 0));
       await tester.pumpAndSettle();
 
-      // Find the inactive tab text
       final inactiveTexts = tester.widgetList<Text>(find.text('Inactive Tab'));
-      final hasNormalStyle = inactiveTexts.any((t) => t.style?.fontWeight == FontWeight.normal);
-      expect(hasNormalStyle, isTrue);
+      final hasDimColor = inactiveTexts.any((t) => t.style?.color == AppTheme.fgDim);
+      expect(hasDimColor, isTrue);
     });
 
     testWidgets('context menu does not show Close Tabs to the Left for first tab', (tester) async {
@@ -575,7 +603,8 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byType(DragTarget<TabEntry>), findsOneWidget);
+      // One per tab + one trailing drop zone
+      expect(find.byType(DragTarget<TabEntry>), findsNWidgets(2));
     });
   });
 
@@ -666,7 +695,7 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             theme: AppTheme.dark(),
-            home: const Scaffold(body: AppTabBar()),
+            home: Scaffold(body: AppTabBar(onNewSession: () {})),
           ),
         ),
       );
@@ -867,7 +896,7 @@ void main() {
   });
 
   group('AppTabBar — state color verification', () {
-    testWidgets('connected state uses connectedColor', (tester) async {
+    testWidgets('connected state shows green dot', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(
@@ -878,18 +907,17 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      final containers =
-          tester.widgetList<Container>(find.byType(Container));
+      final containers = tester.widgetList<Container>(find.byType(Container));
       final dots = containers.where((c) {
         final d = c.decoration;
         return d is BoxDecoration &&
             d.shape == BoxShape.circle &&
-            d.color == AppTheme.connectedColor(Brightness.dark);
+            d.color == AppTheme.green;
       });
       expect(dots, isNotEmpty);
     });
 
-    testWidgets('connecting state uses connectingColor', (tester) async {
+    testWidgets('connecting state shows fgFaint dot', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connecting);
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(
@@ -900,18 +928,17 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      final containers =
-          tester.widgetList<Container>(find.byType(Container));
+      final containers = tester.widgetList<Container>(find.byType(Container));
       final dots = containers.where((c) {
         final d = c.decoration;
         return d is BoxDecoration &&
             d.shape == BoxShape.circle &&
-            d.color == AppTheme.connectingColor(Brightness.dark);
+            d.color == AppTheme.fgFaint;
       });
       expect(dots, isNotEmpty);
     });
 
-    testWidgets('disconnected state uses disconnectedColor', (tester) async {
+    testWidgets('disconnected state shows fgFaint dot', (tester) async {
       final conn = makeConn(state: SSHConnectionState.disconnected);
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(
@@ -922,13 +949,12 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      final containers =
-          tester.widgetList<Container>(find.byType(Container));
+      final containers = tester.widgetList<Container>(find.byType(Container));
       final dots = containers.where((c) {
         final d = c.decoration;
         return d is BoxDecoration &&
             d.shape == BoxShape.circle &&
-            d.color == AppTheme.disconnectedColor(Brightness.dark);
+            d.color == AppTheme.fgFaint;
       });
       expect(dots, isNotEmpty);
     });

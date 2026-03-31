@@ -11,7 +11,9 @@ final themeModeProvider = Provider<ThemeMode>((ref) {
       return ThemeMode.light;
     case 'system':
       return ThemeMode.system;
-    default:
+    case 'dark':
       return ThemeMode.dark;
+    default:
+      return ThemeMode.system;
   }
 });

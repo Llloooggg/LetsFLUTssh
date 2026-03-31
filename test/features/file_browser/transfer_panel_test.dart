@@ -8,6 +8,7 @@ import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/transfer_panel.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
+import 'package:letsflutssh/theme/app_theme.dart';
 
 Widget _buildTestWidget({
   required TransferManager manager,
@@ -20,8 +21,9 @@ Widget _buildTestWidget({
       transferHistoryProvider.overrideWith((ref) => Stream.value(history)),
       transferStatusProvider.overrideWith((ref) => Stream.value(status)),
     ],
-    child: const MaterialApp(
-      home: Scaffold(
+    child: MaterialApp(
+      theme: AppTheme.dark(),
+      home: const Scaffold(
         body: Column(
           children: [
             Expanded(child: SizedBox()),
@@ -44,8 +46,9 @@ Widget _buildTestWidgetWithHistoryError({
           (ref) => Stream<List<HistoryEntry>>.error(Exception('load failed'))),
       transferStatusProvider.overrideWith((ref) => Stream.value(status)),
     ],
-    child: const MaterialApp(
-      home: Scaffold(
+    child: MaterialApp(
+      theme: AppTheme.dark(),
+      home: const Scaffold(
         body: Column(
           children: [
             Expanded(child: SizedBox()),
@@ -61,7 +64,6 @@ Widget _buildTestWidgetWithHistoryLoading({
   required TransferManager manager,
   ActiveTransferState status = const ActiveTransferState(),
 }) {
-  // A stream that never emits keeps the AsyncValue in loading state.
   return ProviderScope(
     overrides: [
       transferManagerProvider.overrideWithValue(manager),
@@ -69,8 +71,9 @@ Widget _buildTestWidgetWithHistoryLoading({
           (ref) => StreamController<List<HistoryEntry>>().stream),
       transferStatusProvider.overrideWith((ref) => Stream.value(status)),
     ],
-    child: const MaterialApp(
-      home: Scaffold(
+    child: MaterialApp(
+      theme: AppTheme.dark(),
+      home: const Scaffold(
         body: Column(
           children: [
             Expanded(child: SizedBox()),
@@ -94,11 +97,11 @@ void main() {
   });
 
   group('TransferPanel', () {
-    testWidgets('renders collapsed header with "Transfers" label', (tester) async {
+    testWidgets('renders collapsed header with "Transfers:" label', (tester) async {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
-      expect(find.text('Transfers'), findsOneWidget);
+      expect(find.text('Transfers:'), findsOneWidget);
       expect(find.text('Name'), findsNothing);
     });
 
@@ -106,7 +109,7 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
       expect(find.text('Name'), findsOneWidget);
@@ -120,7 +123,7 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
       expect(find.text('No transfers yet'), findsOneWidget);
@@ -130,11 +133,11 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
       expect(find.text('Name'), findsOneWidget);
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
       expect(find.text('Name'), findsNothing);
     });
@@ -143,12 +146,12 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.delete_sweep), findsNothing);
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.delete_sweep), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
     });
 
     testWidgets('shows history count in header', (tester) async {
@@ -190,7 +193,7 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
       expect(find.text('upload_file.txt'), findsOneWidget);
@@ -212,10 +215,10 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      expect(find.text('↑'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
     });
 
     testWidgets('shows download direction icon', (tester) async {
@@ -234,10 +237,10 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      expect(find.text('↓'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
     });
 
     testWidgets('shows failed transfer with error icon', (tester) async {
@@ -257,11 +260,11 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
       expect(find.text('fail.txt'), findsOneWidget);
-      expect(find.byIcon(Icons.error), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
     });
 
     testWidgets('shows completed transfer with check icon', (tester) async {
@@ -280,10 +283,10 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
     });
 
     testWidgets('resize handle drag updates panel height', (tester) async {
@@ -291,7 +294,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Expand panel first
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
       // Find the resize handle by the resizeRow cursor
@@ -313,10 +316,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Expand panel
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      // Find the resize handle by the resizeRow cursor
       final resizeHandle = find.byWidgetPredicate(
         (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
       );
@@ -352,11 +354,10 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
       expect(find.text('big.bin'), findsOneWidget);
-      // Size should be formatted
       expect(find.textContaining('MB'), findsOneWidget);
     });
 
@@ -376,10 +377,9 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      // Shortened paths should contain "..."
       expect(find.textContaining('...'), findsWidgets);
     });
 
@@ -387,34 +387,8 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
-      // Should be collapsed — column headers not visible
       expect(find.text('Name'), findsNothing);
-      // Transfers label should still be visible
-      expect(find.text('Transfers'), findsOneWidget);
-    });
-
-    testWidgets('shows error tooltip for failed transfer', (tester) async {
-      final history = [
-        HistoryEntry(
-          id: '1',
-          name: 'fail.txt',
-          direction: TransferDirection.upload,
-          sourcePath: '/local/fail.txt',
-          targetPath: '/remote/fail.txt',
-          status: TransferStatus.failed,
-          error: 'Permission denied',
-          createdAt: DateTime.now(),
-        ),
-      ];
-
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Transfers'));
-      await tester.pumpAndSettle();
-
-      // Error info icon should be present
-      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+      expect(find.text('Transfers:'), findsOneWidget);
     });
 
     testWidgets('clear history button calls manager.clearHistory', (tester) async {
@@ -434,15 +408,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // Expand panel
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
       // Tap clear history button
-      expect(find.byIcon(Icons.delete_sweep), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.delete_sweep));
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.delete_outline));
       await tester.pumpAndSettle();
 
-      // After clearing, manager.history should be empty
       expect(manager.history, isEmpty);
     });
 
@@ -456,24 +429,22 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, status: status));
       await tester.pumpAndSettle();
 
-      // Panel should auto-expand when there are active transfers
-      // Column headers should be visible
       expect(find.text('Name'), findsOneWidget);
       expect(find.text('No transfers yet'), findsOneWidget);
     });
 
-    testWidgets('shows expand_more icon when expanded', (tester) async {
+    testWidgets('shows chevron_right icon when collapsed, expand_more when expanded', (tester) async {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
-      // Initially collapsed: shows expand_less icon
-      expect(find.byIcon(Icons.expand_less), findsOneWidget);
+      // Initially collapsed: shows chevron_right
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
 
       // Expand
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      // When expanded: shows expand_more icon
+      // When expanded: shows expand_more
       expect(find.byIcon(Icons.expand_more), findsOneWidget);
     });
 
@@ -505,13 +476,13 @@ void main() {
 
       expect(find.text('2 in history'), findsOneWidget);
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
       expect(find.text('first.txt'), findsOneWidget);
       expect(find.text('second.txt'), findsOneWidget);
-      expect(find.text('↑'), findsOneWidget); // upload
-      expect(find.text('↓'), findsOneWidget); // download
+      expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
     });
 
     testWidgets('shows duration for completed transfer with timing', (tester) async {
@@ -534,10 +505,9 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      // Duration should be displayed (10 seconds)
       expect(find.textContaining('10'), findsWidgets);
     });
 
@@ -545,19 +515,16 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
-      // Collapsed: no clear button
-      expect(find.byIcon(Icons.delete_sweep), findsNothing);
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
     });
 
     testWidgets('shows error text when history stream errors (expanded)', (tester) async {
       await tester.pumpWidget(_buildTestWidgetWithHistoryError(manager: manager));
       await tester.pumpAndSettle();
 
-      // Expand panel
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      // Should show error text
       expect(find.textContaining('Error:'), findsOneWidget);
     });
 
@@ -565,22 +532,18 @@ void main() {
       await tester.pumpWidget(_buildTestWidgetWithHistoryError(manager: manager));
       await tester.pumpAndSettle();
 
-      // Header should not show "in history" count — the error callback returns SizedBox.shrink
       expect(find.textContaining('in history'), findsNothing);
     });
 
     testWidgets('shows loading spinner when history stream is pending (expanded)', (tester) async {
       await tester.pumpWidget(_buildTestWidgetWithHistoryLoading(manager: manager));
-      // Don't settle — stream never emits, so we stay in loading state
       await tester.pump();
       await tester.pump();
 
-      // Expand panel
-      await tester.tap(find.text('Transfers'));
+      await tester.tap(find.text('Transfers:'));
       await tester.pump();
       await tester.pump();
 
-      // Should show CircularProgressIndicator in the expanded history area
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
@@ -594,8 +557,19 @@ void main() {
       await tester.pumpWidget(_buildTestWidget(manager: manager, status: status));
       await tester.pumpAndSettle();
 
-      expect(find.text('2 active, 3 queued'), findsOneWidget);
-      expect(find.text('Uploading test.txt...'), findsOneWidget);
+      expect(find.text('2 active'), findsOneWidget);
+      expect(find.text(', 3 queued'), findsOneWidget);
+    });
+
+    testWidgets('footer shows stats when expanded', (tester) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      // Footer shows "· N in hist", header shows "N in history"
+      expect(find.textContaining('in hist'), findsWidgets);
     });
   });
 }

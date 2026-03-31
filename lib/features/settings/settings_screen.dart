@@ -19,6 +19,9 @@ import '../../providers/version_provider.dart';
 import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
+import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/hover_region.dart';
 import '../../widgets/toast.dart';
 import '../session_manager/qr_display_screen.dart';
 import '../session_manager/qr_export_dialog.dart';
@@ -59,7 +62,11 @@ class SettingsScreen extends ConsumerWidget {
 
   static Future<void> show(BuildContext context) {
     return Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+      PageRouteBuilder(
+        pageBuilder: (_, _, _) => const SettingsScreen(),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
     );
   }
 
@@ -166,55 +173,108 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final sections = _buildSections();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: Row(
+      body: Column(
         children: [
-          // --- Navigation rail ---
-          SizedBox(
-            width: 180,
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: sections.length,
-                    itemBuilder: (context, index) {
-                      final section = sections[index];
-                      final selected = index == _selectedIndex;
-                      return _NavItem(
-                        icon: section.icon,
-                        label: section.title,
-                        selected: selected,
-                        onTap: () => setState(() => _selectedIndex = index),
-                      );
-                    },
+          // ── Header ──
+          Builder(builder: (context) {
+            final theme = Theme.of(context);
+            final scheme = theme.colorScheme;
+            return Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                border: Border(bottom: BorderSide(color: theme.dividerColor)),
+              ),
+              child: Row(
+                children: [
+                  AppIconButton(
+                    icon: Icons.arrow_back,
+                    onTap: () => Navigator.of(context).pop(),
+                    size: 16,
                   ),
-                ),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: TextButton.icon(
-                    onPressed: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
-                    icon: const Icon(Icons.restore, size: 16),
-                    label: const Text('Reset to Defaults', style: TextStyle(fontSize: 12)),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Settings',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          VerticalDivider(width: 1, color: theme.dividerColor),
-          // --- Content pane ---
+                ],
+              ),
+            );
+          }),
+          // ── Body ──
           Expanded(
-            child: ListView(
-              key: ValueKey(_selectedIndex),
-              padding: const EdgeInsets.all(24),
+            child: Row(
               children: [
-                _SectionHeader(title: sections[_selectedIndex].title),
-                sections[_selectedIndex].builder(),
+                // ── Left nav ──
+                Container(
+                  width: 160,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          itemCount: sections.length,
+                          itemBuilder: (context, index) {
+                            final section = sections[index];
+                            final selected = index == _selectedIndex;
+                            return _NavItem(
+                              icon: section.icon,
+                              label: section.title,
+                              selected: selected,
+                              onTap: () => setState(() => _selectedIndex = index),
+                            );
+                          },
+                        ),
+                      ),
+                      _ResetButton(
+                        onTap: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
+                      ),
+                    ],
+                  ),
+                ),
+                VerticalDivider(width: 1, thickness: 1, color: Theme.of(context).dividerColor),
+                // ── Content pane ──
+                Expanded(
+                  child: Builder(builder: (context) {
+                    final scheme = Theme.of(context).colorScheme;
+                    return ListTileTheme(
+                    data: ListTileThemeData(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      titleTextStyle: TextStyle(
+                        fontFamily: 'Inter', fontSize: 11, color: scheme.onSurface,
+                      ),
+                      subtitleTextStyle: TextStyle(
+                        fontFamily: 'Inter', fontSize: 10, color: scheme.onSurfaceVariant,
+                      ),
+                      leadingAndTrailingTextStyle: TextStyle(
+                        fontFamily: 'Inter', fontSize: 10, color: scheme.onSurface.withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: DefaultTextStyle(
+                      style: AppFonts.inter(fontSize: 11, color: scheme.onSurface),
+                      child: ListView(
+                        key: ValueKey(_selectedIndex),
+                        padding: const EdgeInsets.all(24),
+                        children: [
+                          _SectionHeader(title: sections[_selectedIndex].title),
+                          sections[_selectedIndex].builder(),
+                        ],
+                      ),
+                    ),
+                  );
+                  }),
+                ),
               ],
             ),
           ),
@@ -225,7 +285,7 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
 }
 
 /// A single item in the desktop navigation rail.
-class _NavItem extends StatelessWidget {
+class _NavItem extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool selected;
@@ -239,32 +299,81 @@ class _NavItem extends StatelessWidget {
   });
 
   @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: selected
-          ? theme.colorScheme.primary.withValues(alpha: 0.12)
-          : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    return HoverRegion(
+      onTap: widget.onTap,
+      builder: (hovered) => Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        color: widget.selected
+            ? AppTheme.selection
+            : hovered
+                ? AppTheme.hover
+                : Colors.transparent,
+        child: Row(
+          children: [
+            Icon(
+              widget.icon,
+              size: 13,
+              color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                widget.label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 11,
+                  fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
+                  color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Reset to Defaults button at bottom of nav.
+class _ResetButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _ResetButton({required this.onTap});
+
+  @override
+  State<_ResetButton> createState() => _ResetButtonState();
+}
+
+class _ResetButtonState extends State<_ResetButton> {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: HoverRegion(
+        onTap: widget.onTap,
+        builder: (hovered) => Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          color: hovered ? AppTheme.hover : Colors.transparent,
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 18,
-                color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-              const SizedBox(width: 12),
+              Icon(Icons.restore, size: 12, color: AppTheme.red),
+              const SizedBox(width: 6),
               Flexible(
                 child: Text(
-                  label,
+                  'Reset to Defaults',
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                    color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+                    fontFamily: 'Inter',
+                    fontSize: 10,
+                    color: AppTheme.red,
                   ),
                 ),
               ),
@@ -297,6 +406,7 @@ class _AppearanceSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(configProvider.select((c) => c.theme));
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
+    final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
     return Column(
       children: [
         _ThemeTile(
@@ -304,7 +414,16 @@ class _AppearanceSection extends ConsumerWidget {
           onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(terminal: c.terminal.copyWith(theme: v))),
         ),
         _SliderTile(
-          title: 'Font Size',
+          title: 'UI Scale',
+          value: uiScale,
+          min: 0.5,
+          max: 2.0,
+          divisions: 15,
+          format: (v) => '${(v * 100).round()}%',
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ui: c.ui.copyWith(uiScale: v))),
+        ),
+        _SliderTile(
+          title: 'Terminal Font Size',
           value: fontSize,
           min: 8,
           max: 24,
@@ -376,6 +495,7 @@ class _TransferSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final workers = ref.watch(configProvider.select((c) => c.transferWorkers));
     final maxHistory = ref.watch(configProvider.select((c) => c.maxHistory));
+    final showFolderSizes = ref.watch(configProvider.select((c) => c.showFolderSizes));
     return Column(
       children: [
         _IntTile(
@@ -391,6 +511,11 @@ class _TransferSection extends ConsumerWidget {
           min: 10,
           max: 5000,
           onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(maxHistory: v)),
+        ),
+        _Toggle(
+          label: 'Calculate Folder Sizes',
+          value: showFolderSizes,
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(showFolderSizes: v)),
         ),
       ],
     );
@@ -744,10 +869,9 @@ class _UpdateSection extends ConsumerWidget {
 
     return Column(
       children: [
-        SwitchListTile(
-          title: const Text('Check for Updates on Startup'),
+        _Toggle(
+          label: 'Check for Updates on Startup',
           value: checkOnStart,
-          contentPadding: EdgeInsets.zero,
           onChanged: (v) => ref.read(configProvider.notifier).update(
             (c) => c.copyWith(checkUpdatesOnStart: v),
           ),
@@ -1000,17 +1124,291 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+    return Container(
+      padding: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
+      ),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.accent,
+        ),
       ),
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Custom settings primitives — match the mockup pixel-perfect
+// ═══════════════════════════════════════════════════════════════════
+
+/// Generic settings row: [label Inter 11px fg flex] [control], minHeight 36.
+class _SettingsRow extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _SettingsRow({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 36),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: AppFonts.inter(fontSize: 11, color: AppTheme.fg),
+              ),
+            ),
+            const SizedBox(width: 24),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom toggle pill: 32×18, borderRadius 9, accent/bg4 bg, white 14×14 thumb.
+class _Toggle extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _Toggle({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingsRow(
+      label: label,
+      child: GestureDetector(
+        onTap: () => onChanged(!value),
+        child: Container(
+          width: 32,
+          height: 18,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: value ? AppTheme.accent : AppTheme.bg4,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 120),
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom segment control: height 26, accent+white / bg3+fgDim.
+class _SegmentControl extends StatelessWidget {
+  final List<String> values;
+  final List<String> labels;
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  const _SegmentControl({
+    required this.values,
+    required this.labels,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < values.length; i++) {
+      if (i > 0) {
+        children.add(Container(width: 1, color: AppTheme.borderLight));
+      }
+      final isSelected = values[i] == selected;
+      children.add(
+        GestureDetector(
+          onTap: () => onChanged(values[i]),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            color: isSelected ? AppTheme.accent : AppTheme.bg3,
+            alignment: Alignment.center,
+            child: Text(
+              labels[i],
+              style: AppFonts.inter(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                color: isSelected ? Colors.white : AppTheme.fgDim,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 26,
+      decoration: BoxDecoration(
+        border: Border.all(color: AppTheme.borderLight),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+/// Custom slider: 3px track, circle thumb bg2 + 2px accent border, width 280.
+class _SliderField extends StatelessWidget {
+  final double value;
+  final double min;
+  final double max;
+  final int? divisions;
+  final String Function(double) format;
+  final ValueChanged<double> onChanged;
+
+  const _SliderField({
+    required this.value,
+    required this.min,
+    required this.max,
+    this.divisions,
+    required this.format,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 200,
+          child: SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 3,
+              activeTrackColor: AppTheme.accent,
+              inactiveTrackColor: AppTheme.bg4,
+              thumbColor: AppTheme.bg2,
+              thumbShape: const _CircleThumbShape(),
+              overlayShape: SliderComponentShape.noOverlay,
+            ),
+            child: Slider(
+              value: value.clamp(min, max),
+              min: min,
+              max: max,
+              divisions: divisions,
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          format(value),
+          style: AppFonts.mono(fontSize: 11, color: AppTheme.fgDim),
+        ),
+      ],
+    );
+  }
+}
+
+class _CircleThumbShape extends SliderComponentShape {
+  const _CircleThumbShape();
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size(12, 12);
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final canvas = context.canvas;
+    // Accent border
+    canvas.drawCircle(
+      center,
+      6,
+      Paint()..color = AppTheme.accent,
+    );
+    // Inner circle
+    canvas.drawCircle(
+      center,
+      4,
+      Paint()..color = AppTheme.bg2,
+    );
+  }
+}
+
+/// Custom input field: bg bg3, height 26, borderLight, JetBrains Mono 11px.
+class _InputField extends StatelessWidget {
+  final String initialValue;
+  final TextInputType? keyboardType;
+  final double width = 100;
+  final ValueChanged<String> onSubmitted;
+
+  const _InputField({
+    required this.initialValue,
+    this.keyboardType,
+    required this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      height: 26,
+      child: TextFormField(
+        initialValue: initialValue,
+        keyboardType: keyboardType,
+        textAlign: TextAlign.center,
+        style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: AppTheme.bg3,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.borderLight),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.accent),
+          ),
+        ),
+        onFieldSubmitted: onSubmitted,
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Composed setting tiles using the primitives above
+// ═══════════════════════════════════════════════════════════════════
 
 class _ThemeTile extends StatelessWidget {
   final String value;
@@ -1020,21 +1418,13 @@ class _ThemeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: const Text('Theme'),
-      contentPadding: EdgeInsets.zero,
-      trailing: SegmentedButton<String>(
-        segments: const [
-          ButtonSegment(value: 'dark', label: Text('Dark')),
-          ButtonSegment(value: 'light', label: Text('Light')),
-          ButtonSegment(value: 'system', label: Text('System')),
-        ],
-        selected: {value},
-        showSelectedIcon: false,
-        onSelectionChanged: (s) => onChanged(s.first),
-        style: const ButtonStyle(
-          visualDensity: VisualDensity.compact,
-        ),
+    return _SettingsRow(
+      label: 'Theme',
+      child: _SegmentControl(
+        values: const ['dark', 'light', 'system'],
+        labels: const ['Dark', 'Light', 'System'],
+        selected: value,
+        onChanged: onChanged,
       ),
     );
   }
@@ -1061,18 +1451,16 @@ class _SliderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(title),
-      subtitle: Slider(
-        value: value.clamp(min, max),
+    return _SettingsRow(
+      label: title,
+      child: _SliderField(
+        value: value,
         min: min,
         max: max,
         divisions: divisions,
-        label: format(value),
+        format: format,
         onChanged: onChanged,
       ),
-      trailing: Text(format(value)),
-      contentPadding: EdgeInsets.zero,
     );
   }
 }
@@ -1094,27 +1482,17 @@ class _IntTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(title),
-      contentPadding: EdgeInsets.zero,
-      trailing: SizedBox(
-        width: 100,
-        child: TextFormField(
-          initialValue: value.toString(),
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            border: OutlineInputBorder(),
-          ),
-          onFieldSubmitted: (v) {
-            final n = int.tryParse(v);
-            if (n != null && n >= min && n <= max) {
-              onChanged(n);
-            }
-          },
-        ),
+    return _SettingsRow(
+      label: title,
+      child: _InputField(
+        initialValue: value.toString(),
+        keyboardType: TextInputType.number,
+        onSubmitted: (v) {
+          final n = int.tryParse(v);
+          if (n != null && n >= min && n <= max) {
+            onChanged(n);
+          }
+        },
       ),
     );
   }
@@ -1188,11 +1566,9 @@ class _LoggingSection extends ConsumerWidget {
 
     return Column(
       children: [
-        SwitchListTile(
-          title: const Text('Enable Logging'),
-          subtitle: const Text('Write diagnostic logs to file (no sensitive data)'),
+        _Toggle(
+          label: 'Enable Logging',
           value: enabled,
-          contentPadding: EdgeInsets.zero,
           onChanged: (v) => ref.read(configProvider.notifier).update(
             (c) => c.copyWith(enableLogging: v),
           ),
@@ -1314,55 +1690,58 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
             const SizedBox(width: 6),
             Text('Live Log', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
             const Spacer(),
-            IconButton(
-              onPressed: () {
+            AppIconButton(
+              icon: Icons.copy,
+              onTap: () {
                 Clipboard.setData(ClipboardData(text: _content));
                 Toast.show(context,
                   message: _content.isEmpty ? 'Log is empty' : 'Copied to clipboard',
                   level: ToastLevel.info,
                 );
               },
-              icon: const Icon(Icons.copy, size: 16),
               tooltip: 'Copy log',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
+              size: 16,
             ),
-            IconButton(
-              onPressed: widget.onExport,
-              icon: const Icon(Icons.save_alt, size: 16),
+            AppIconButton(
+              icon: Icons.save_alt,
+              onTap: widget.onExport,
               tooltip: 'Export log',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
+              size: 16,
             ),
-            IconButton(
-              onPressed: () async {
+            AppIconButton(
+              icon: Icons.delete_outline,
+              onTap: () async {
                 widget.onClear();
                 await Future<void>.delayed(const Duration(milliseconds: 100));
                 await _refresh();
               },
-              icon: const Icon(Icons.delete_outline, size: 16),
               tooltip: 'Clear logs',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
+              size: 16,
             ),
           ],
         ),
-        // Log content
-        Container(
-          width: double.infinity,
-          height: 260,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          padding: const EdgeInsets.all(8),
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            child: SelectableText(
-              _content.isEmpty ? '(no log entries yet)' : _content,
-              style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: fg, height: 1.4),
-            ),
-          ),
+        // Log content — fill remaining vertical space
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Use available height minus toolbar (~40px), clamped to reasonable min
+            final availableHeight = MediaQuery.of(context).size.height - 200;
+            return Container(
+              width: double.infinity,
+              height: availableHeight.clamp(200.0, double.infinity),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: SelectableText(
+                  _content.isEmpty ? '(no log entries yet)' : _content,
+                  style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: fg, height: 1.4),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );

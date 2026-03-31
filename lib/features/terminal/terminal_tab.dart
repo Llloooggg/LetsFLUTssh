@@ -67,6 +67,11 @@ class TerminalTabState extends State<TerminalTab> {
     });
   }
 
+  /// Split the focused pane in the given direction.
+  void splitFocused(SplitDirection direction) {
+    _splitPane(_focusedPaneId, direction, false);
+  }
+
   void _closePane(String paneId) {
     final newRoot = removeNode(_root, paneId);
     if (newRoot == null) return;

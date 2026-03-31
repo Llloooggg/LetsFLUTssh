@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../file_browser/file_row.dart';
@@ -56,6 +57,9 @@ class SessionTreeView extends StatefulWidget {
   /// bounds during a marquee drag, events are forwarded to the file pane.
   final CrossMarqueeController? crossMarquee;
 
+  /// IDs of sessions that currently have an active connection.
+  final Set<String> connectedSessionIds;
+
   const SessionTreeView({
     super.key,
     required this.tree,
@@ -73,6 +77,7 @@ class SessionTreeView extends StatefulWidget {
     this.onMarqueeStart,
     this.onMarqueeEnd,
     this.crossMarquee,
+    this.connectedSessionIds = const {},
   });
 
   @override
@@ -102,11 +107,11 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           .contains(LogicalKeyboardKey.controlRight);
 
   static final bool _mobile = isMobilePlatform;
-  double get _rowHeight => _mobile ? 48.0 : 30.0;
-  double get _fontSize => _mobile ? 15.0 : 13.0;
-  double get _subFontSize => _mobile ? 12.0 : 10.0;
-  double get _iconSize => _mobile ? 20.0 : 16.0;
-  double get _authIconSize => _mobile ? 18.0 : 14.0;
+  double get _rowHeight => _mobile ? 48.0 : 28.0;
+  double get _fontSize => _mobile ? 15.0 : 11.0;
+  double get _subFontSize => _mobile ? 12.0 : 9.0;
+  double get _iconSize => _mobile ? 20.0 : 12.0;
+  double get _authIconSize => _mobile ? 18.0 : 12.0;
 
   @override
   void initState() {
@@ -391,7 +396,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
   Widget _buildIndentGuides(int depth, ThemeData theme) {
     if (depth == 0) return const SizedBox(width: 8);
-    final guideColor = theme.colorScheme.onSurface.withValues(alpha: 0.12);
+    final guideColor = AppTheme.borderLight;
     return SizedBox(
       width: 8.0 + depth * 16.0,
       child: Row(
@@ -420,56 +425,74 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       onLongPressStart: _mobile
           ? (d) => widget.onGroupContextMenu?.call(node.fullPath, d.globalPosition)
           : null,
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            if (expanded) {
-              _expandedGroups.remove(node.fullPath);
-            } else {
-              _expandedGroups.add(node.fullPath);
-            }
-          });
-        },
-        child: Container(
-          height: _rowHeight,
-          decoration: isDropTarget
-              ? BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                  border: Border.all(color: theme.colorScheme.primary, width: 1),
-                )
-              : null,
-          child: Row(
-            children: [
-              _buildIndentGuides(depth, theme),
-              Icon(
-                expanded ? Icons.expand_more : Icons.chevron_right,
-                size: _iconSize,
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                expanded ? Icons.folder_open : Icons.folder,
-                size: _iconSize,
-                color: AppTheme.folderColor(theme.brightness),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  node.name,
-                  style: TextStyle(fontSize: _fontSize, fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(
-                  '${node.sessionCount}',
-                  style: TextStyle(
-                    fontSize: _subFontSize + 1,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+      child: HoverRegion(
+        builder: (hovered) => InkWell(
+          onTap: () {
+            setState(() {
+              if (expanded) {
+                _expandedGroups.remove(node.fullPath);
+              } else {
+                _expandedGroups.add(node.fullPath);
+              }
+            });
+          },
+          hoverColor: Colors.transparent,
+          child: Container(
+            height: _rowHeight,
+            padding: EdgeInsets.only(
+              left: _mobile ? 8.0 : 12.0,
+              right: 8,
+            ),
+            decoration: BoxDecoration(
+              color: isDropTarget
+                  ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                  : hovered
+                      ? AppTheme.hover
+                      : null,
+              border: isDropTarget
+                  ? Border.all(color: theme.colorScheme.primary, width: 1)
+                  : null,
+            ),
+            child: Row(
+              children: [
+                if (depth > 0) _buildIndentGuides(depth, theme),
+                Transform.rotate(
+                  angle: expanded ? 0 : -1.5708, // -90° in radians
+                  child: Icon(
+                    Icons.expand_more,
+                    size: _iconSize,
+                    color: AppTheme.fgDim,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Icon(
+                  expanded ? Icons.folder_open : Icons.folder,
+                  size: _iconSize,
+                  color: AppTheme.yellow,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    node.name,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: _fontSize,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.fgDim,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  '${node.sessionCount}',
+                  style: TextStyle(
+                    fontSize: _subFontSize,
+                    color: AppTheme.fgFaint,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -554,6 +577,9 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     bool isChecked,
     ThemeData theme,
   ) {
+    // Connected state comes from active connections, but session tree
+    final isConnected = widget.connectedSessionIds.contains(session.id);
+
     return [
       if (widget.selectMode)
         SizedBox(
@@ -567,23 +593,21 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         )
       else
         _buildIndentGuides(depth, theme),
-      if (!widget.selectMode) const SizedBox(width: 4),
-      Icon(
-        _authIcon(session.authType),
-        size: _authIconSize,
-        color: session.incomplete
-            ? AppTheme.connectingColor(theme.brightness)
-            : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-      ),
-      const SizedBox(width: 6),
+      if (!widget.selectMode) ...[
+        Icon(
+          Icons.terminal,
+          size: _authIconSize,
+          color: isConnected ? AppTheme.green : AppTheme.fgFaint,
+        ),
+        const SizedBox(width: 8),
+      ],
       Expanded(
         child: Text(
           node.name,
           style: TextStyle(
+            fontFamily: 'Inter',
             fontSize: _fontSize,
-            color: session.incomplete
-                ? theme.colorScheme.onSurface.withValues(alpha: 0.5)
-                : null,
+            color: isConnected ? AppTheme.fg : AppTheme.fgDim,
           ),
           overflow: TextOverflow.ellipsis,
         ),
@@ -601,10 +625,11 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           ),
         ),
       Text(
-        '${session.host}:${session.port}',
+        session.host,
         style: TextStyle(
-          fontSize: _subFontSize,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+          fontFamily: 'JetBrains Mono',
+          fontSize: 9,
+          color: AppTheme.fgFaint,
         ),
       ),
     ];
@@ -625,16 +650,21 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       onLongPressStart: (_mobile && !widget.selectMode)
           ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
           : null,
-      child: InkWell(
-        onTap: () => _onSessionTap(session),
-        child: Container(
-          height: _rowHeight,
-          padding: const EdgeInsets.only(right: 8),
-          color: (isSelected || isChecked) && !widget.selectMode
-              ? theme.colorScheme.primary.withValues(alpha: 0.15)
-              : null,
-          child: Row(
-            children: _buildSessionRowChildren(node, session, depth, isChecked, theme),
+      child: HoverRegion(
+        builder: (hovered) => InkWell(
+          onTap: () => _onSessionTap(session),
+          hoverColor: Colors.transparent,
+          child: Container(
+            height: _rowHeight,
+            padding: const EdgeInsets.only(right: 8),
+            color: (isSelected || isChecked) && !widget.selectMode
+                ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                : hovered
+                    ? AppTheme.hover
+                    : null,
+            child: Row(
+              children: _buildSessionRowChildren(node, session, depth, isChecked, theme),
+            ),
           ),
         ),
       ),
@@ -658,9 +688,9 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(_authIcon(session.authType), size: 14),
+              Icon(Icons.terminal, size: 12, color: AppTheme.fgFaint),
               const SizedBox(width: 4),
-              Text(node.name, style: const TextStyle(fontSize: 12)),
+              Text(node.name, style: const TextStyle(fontSize: 11)),
             ],
           ),
         ),
@@ -670,14 +700,5 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     );
   }
 
-  IconData _authIcon(AuthType type) {
-    switch (type) {
-      case AuthType.password:
-        return Icons.lock;
-      case AuthType.key:
-        return Icons.vpn_key;
-      case AuthType.keyWithPassword:
-        return Icons.enhanced_encryption;
-    }
-  }
 }
+
