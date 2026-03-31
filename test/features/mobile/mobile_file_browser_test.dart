@@ -41,6 +41,9 @@ class FakeFileSystem implements FileSystem {
 
   @override
   Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<int> dirSize(String path) async => 0;
+
 }
 
 /// Error-throwing file system for testing error states.
@@ -64,6 +67,9 @@ class ErrorFileSystem implements FileSystem {
 
   @override
   Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<int> dirSize(String path) async => 0;
+
 }
 
 /// Standard test entries used across tests.

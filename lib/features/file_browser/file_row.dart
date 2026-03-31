@@ -5,7 +5,72 @@ import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 
+/// File extensions grouped by type for icon/color mapping.
+const _imageExts = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'};
+const _archiveExts = {'zip', 'tar', 'gz', 'bz2', 'xz', 'rar', '7z', 'tgz', 'zst'};
+const _codeExts = {
+  'dart', 'js', 'ts', 'py', 'go', 'rs', 'c', 'cpp', 'h', 'java',
+  'kt', 'rb', 'sh', 'bash', 'zsh', 'yaml', 'yml', 'toml', 'json',
+  'xml', 'html', 'css', 'scss', 'md', 'txt', 'log', 'conf', 'cfg',
+  'ini', 'env', 'sql', 'swift', 'tsx', 'jsx',
+};
+
+String _ext(String name) =>
+    name.contains('.') ? name.split('.').last.toLowerCase() : '';
+
+/// Returns a file-type icon matching the mockup color scheme.
+IconData fileIcon(FileEntry entry) {
+  if (entry.isDir) {
+    return Icons.folder;
+  }
+  final ext = _ext(entry.name);
+  if (_imageExts.contains(ext)) {
+    return Icons.image;
+  }
+  if (_archiveExts.contains(ext)) {
+    return Icons.archive;
+  }
+  if (_codeExts.contains(ext)) {
+    return Icons.description;
+  }
+  return Icons.insert_drive_file;
+}
+
+/// Returns a file-type icon color matching the mockup.
+Color fileIconColor(FileEntry entry, Brightness brightness) {
+  if (entry.isDir) {
+    return AppTheme.folderColor(brightness);
+  }
+  if (entry.name.startsWith('.')) {
+    return AppTheme.fgFaint;
+  }
+  final ext = _ext(entry.name);
+  if (_imageExts.contains(ext)) {
+    return AppTheme.purple;
+  }
+  if (_archiveExts.contains(ext)) {
+    return AppTheme.orange;
+  }
+  if (_codeExts.contains(ext)) {
+    return AppTheme.green;
+  }
+  return AppTheme.blue;
+}
+
 /// A single file row in the file browser list.
+/// Column divider line matching the header dividers.
+Widget _colDivider() {
+  return SizedBox(
+    width: 10,
+    child: Center(
+      child: Container(
+        width: 1,
+        color: AppTheme.fgFaint.withValues(alpha: 0.15),
+      ),
+    ),
+  );
+}
+
 class FileRow extends StatelessWidget {
   final FileEntry entry;
   final bool isSelected;
@@ -13,11 +78,21 @@ class FileRow extends StatelessWidget {
   final VoidCallback onCtrlTap;
   final VoidCallback onDoubleTap;
   final void Function(Offset position) onContextMenu;
+  final double sizeWidth;
+  final double modifiedWidth;
+  final double modeWidth;
+  final double ownerWidth;
+  final String? folderSizeText;
 
   const FileRow({
     super.key,
     required this.entry,
     required this.isSelected,
+    this.sizeWidth = 55,
+    this.modifiedWidth = 105,
+    this.modeWidth = 65,
+    this.ownerWidth = 50,
+    this.folderSizeText,
     required this.onTap,
     required this.onCtrlTap,
     required this.onDoubleTap,
@@ -27,12 +102,6 @@ class FileRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
-    final divider = Container(
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: theme.dividerColor,
-    );
 
     return GestureDetector(
       onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
@@ -49,65 +118,60 @@ class FileRow extends StatelessWidget {
         },
         onDoubleTap: onDoubleTap,
         child: Container(
-          height: 28,
+          height: 26,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          color: isSelected
-              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
-              : null,
+          color: isSelected ? AppTheme.selection : null,
           child: Row(
             children: [
               Icon(
-                entry.isDir ? Icons.folder : Icons.insert_drive_file,
-                size: 16,
-                color: entry.isDir
-                    ? AppTheme.folderColor(theme.brightness)
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                fileIcon(entry),
+                size: 14,
+                color: fileIconColor(entry, theme.brightness),
               ),
               const SizedBox(width: 6),
               Expanded(
-                flex: 3,
                 child: Text(
                   entry.name,
-                  style: const TextStyle(fontSize: 12),
+                  style: AppFonts.mono(
+                    fontSize: 11,
+                    color: entry.isDir ? AppTheme.fg : AppTheme.fgDim,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              divider,
+              _colDivider(),
               SizedBox(
-                width: 70,
+                width: sizeWidth,
                 child: Text(
-                  entry.isDir ? '' : formatSize(entry.size),
-                  style: TextStyle(fontSize: 11, color: dimColor),
-                  textAlign: TextAlign.right,
+                  entry.isDir
+                      ? (folderSizeText ?? '')
+                      : formatSize(entry.size),
+                  style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 ),
               ),
-              divider,
+              _colDivider(),
               SizedBox(
-                width: 120,
+                width: modifiedWidth,
                 child: Text(
                   formatTimestamp(entry.modTime),
-                  style: TextStyle(fontSize: 11, color: dimColor),
+                  style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 ),
               ),
-              divider,
+              _colDivider(),
               SizedBox(
-                width: 90,
+                width: modeWidth,
                 child: Text(
                   entry.modeString,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                    color: dimColor,
-                  ),
+                  style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 ),
               ),
               if (entry.owner.isNotEmpty) ...[
-                divider,
+                _colDivider(),
                 SizedBox(
-                  width: 60,
+                  width: ownerWidth,
                   child: Text(
                     entry.owner,
-                    style: TextStyle(fontSize: 11, color: dimColor),
+                    style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

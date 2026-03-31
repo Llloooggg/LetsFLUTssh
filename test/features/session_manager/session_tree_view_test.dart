@@ -58,10 +58,10 @@ void main() {
       expect(find.text('staging'), findsOneWidget);
     });
 
-    testWidgets('shows host:port for sessions', (tester) async {
+    testWidgets('shows host for sessions', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.text('10.0.0.1:22'), findsOneWidget);
-      expect(find.text('10.0.0.2:22'), findsOneWidget);
+      expect(find.text('10.0.0.1'), findsOneWidget);
+      expect(find.text('10.0.0.2'), findsOneWidget);
     });
 
     testWidgets('shows No sessions for empty tree', (tester) async {
@@ -119,14 +119,12 @@ void main() {
 
     testWidgets('shows folder icons', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Expanded groups show folder_open icons
       expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
-    testWidgets('shows auth icons for sessions', (tester) async {
+    testWidgets('shows terminal icons for sessions', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Default auth type is password → lock icon
-      expect(find.byIcon(Icons.lock), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
     testWidgets('shows session count on groups', (tester) async {
@@ -176,53 +174,36 @@ void main() {
       expect(find.text('DB'), findsNothing);
     });
 
-    testWidgets('shows chevron_right for collapsed group', (tester) async {
+    testWidgets('shows expand_more icons for groups (rotated when collapsed)',
+        (tester) async {
       await tester.pumpWidget(buildApp());
-
-      // Collapse Web
-      await tester.tap(find.text('Web'));
-      await tester.pumpAndSettle();
-
-      // Collapsed group should show chevron_right
-      expect(find.byIcon(Icons.chevron_right), findsWidgets);
-    });
-
-    testWidgets('shows expand_more for expanded group', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      // Groups start expanded
+      // All groups use expand_more (rotated -90° when collapsed)
       expect(find.byIcon(Icons.expand_more), findsWidgets);
     });
 
-    testWidgets('shows folder icon for collapsed group', (tester) async {
+    testWidgets('shows folder icon for all groups', (tester) async {
       await tester.pumpWidget(buildApp());
-
-      // Collapse Web
-      await tester.tap(find.text('Web'));
-      await tester.pumpAndSettle();
-
-      // Should show closed folder icon
-      expect(find.byIcon(Icons.folder), findsWidgets);
+      expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
-    testWidgets('shows key icon for key auth type', (tester) async {
+    testWidgets('shows terminal icon for key auth type', (tester) async {
       final keySessions = [
         Session(id: '10', label: 'key-server', group: '', server: const ServerAddress(host: '10.0.0.10', user: 'root'), auth: const SessionAuth(authType: AuthType.key)),
       ];
       final keyTree = SessionTree.build(keySessions);
       await tester.pumpWidget(buildApp(overrideTree: keyTree));
 
-      expect(find.byIcon(Icons.vpn_key), findsOneWidget);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
-    testWidgets('shows enhanced_encryption icon for keyWithPassword auth', (tester) async {
+    testWidgets('shows terminal icon for keyWithPassword auth', (tester) async {
       final keySessions = [
         Session(id: '11', label: 'enc-server', group: '', server: const ServerAddress(host: '10.0.0.11', user: 'root'), auth: const SessionAuth(authType: AuthType.keyWithPassword)),
       ];
       final keyTree = SessionTree.build(keySessions);
       await tester.pumpWidget(buildApp(overrideTree: keyTree));
 
-      expect(find.byIcon(Icons.enhanced_encryption), findsOneWidget);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
     testWidgets('session tap calls onSessionTap callback', (tester) async {
@@ -294,7 +275,7 @@ void main() {
       await tester.pumpWidget(buildApp(overrideTree: rootTree));
 
       expect(find.text('root-server'), findsOneWidget);
-      expect(find.text('h:22'), findsOneWidget);
+      expect(find.text('h'), findsOneWidget);
     });
 
     testWidgets('Draggable is present for sessions on desktop', (tester) async {

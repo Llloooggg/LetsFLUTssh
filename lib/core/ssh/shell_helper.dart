@@ -35,7 +35,7 @@ class ShellHelper {
   ShellHelper._();
 
   /// Base delay in milliseconds between shell open retry attempts.
-  static const _retryDelayMs = 300;
+  static const _retryDelayMs = 500;
 
   /// Open an SSH shell and wire it to [terminal].
   ///
@@ -47,7 +47,7 @@ class ShellHelper {
   static Future<ShellConnection> openShell({
     required Connection connection,
     required Terminal terminal,
-    int maxAttempts = 3,
+    int maxAttempts = 5,
     VoidCallback? onDone,
   }) async {
     final sshConn = connection.sshConnection;

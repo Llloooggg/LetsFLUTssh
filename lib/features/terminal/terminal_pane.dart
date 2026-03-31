@@ -9,8 +9,11 @@ import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
+import '../../widgets/context_menu.dart';
 import '../../widgets/error_state.dart';
 import '../../utils/platform.dart' as plat;
 
@@ -79,10 +82,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   Future<void> _connectAndOpenShell() async {
     final conn = widget.connection;
-    final config = conn.sshConfig;
-
-    // Show connection info in terminal
-    _terminal.write('Connecting to ${config.user}@${config.host}:${config.effectivePort}...\r\n');
 
     // Wait for connection if still connecting
     await conn.waitUntilReady();
@@ -90,13 +89,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     // Check connection result
     if (!conn.isConnected) {
       final error = conn.connectionError ?? 'Connection failed';
-      _terminal.write('\r\n\x1B[31m$error\x1B[0m\r\n'); // red text
-      _terminal.write('\r\nPress any key to close this tab.\r\n');
+      _terminal.write('\x1B[31m$error\x1B[0m\r\n');
       if (mounted) setState(() => _error = error);
       return;
     }
-
-    _terminal.write('Connected.\r\n\r\n');
 
     void onDone() {
       if (mounted) {
@@ -124,8 +120,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       if (mounted) setState(() => _connected = true);
     } catch (e) {
       AppLogger.instance.log('Shell open failed: $e', name: 'TerminalPane', error: e);
-      _terminal.write('\r\n\x1B[31mShell error: $e\x1B[0m\r\n');
-      if (mounted) setState(() => _error = e.toString());
+      _terminal.write('\r\n\x1B[31mShell error: ${sanitizeError(e)}\x1B[0m\r\n');
+      if (mounted) setState(() => _error = sanitizeError(e));
     }
   }
 
@@ -150,8 +146,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (_error != null) {
       return _buildErrorState();
     }
@@ -165,7 +159,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     if (!widget.hasMultiplePanes) {
       border = null;
     } else {
-      border = Border.all(color: theme.dividerColor, width: 0.5);
+      border = Border.all(color: AppTheme.bg0, width: 0.5);
     }
 
     return GestureDetector(
@@ -199,7 +193,35 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                   onKeyEvent: _handleTerminalKey,
                   backgroundOpacity: 1.0,
                   padding: const EdgeInsets.all(4),
-                  textStyle: TerminalStyle(fontSize: fontSize),
+                  theme: TerminalTheme(
+                    cursor: AppTheme.accent,
+                    selection: AppTheme.selection,
+                    foreground: AppTheme.fg,
+                    background: AppTheme.bg2,
+                    black: const Color(0xFF1B1D23),
+                    red: AppTheme.red,
+                    green: AppTheme.green,
+                    yellow: AppTheme.yellow,
+                    blue: AppTheme.blue,
+                    magenta: AppTheme.purple,
+                    cyan: AppTheme.cyan,
+                    white: AppTheme.fg,
+                    brightBlack: AppTheme.fgFaint,
+                    brightRed: AppTheme.red,
+                    brightGreen: AppTheme.green,
+                    brightYellow: AppTheme.yellow,
+                    brightBlue: AppTheme.blue,
+                    brightMagenta: AppTheme.purple,
+                    brightCyan: AppTheme.cyan,
+                    brightWhite: AppTheme.fgBright,
+                    searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+                    searchHitBackgroundCurrent: AppTheme.accent,
+                    searchHitForeground: Colors.white,
+                  ),
+                  textStyle: TerminalStyle(
+                    fontSize: fontSize,
+                    fontFamily: 'JetBrains Mono',
+                  ),
                   onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
                 ),
               ),
@@ -214,47 +236,44 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final hasSelection = _terminalController.selection != null;
     final hasSplit = widget.onSplitVertical != null;
 
-    showMenu<String>(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      position: position,
       items: [
         if (hasSelection)
-          const PopupMenuItem(value: 'copy', child: ListTile(
-            dense: true, leading: Icon(Icons.copy, size: 18),
-            title: Text('Copy'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-          )),
-        const PopupMenuItem(value: 'paste', child: ListTile(
-          dense: true, leading: Icon(Icons.paste, size: 18),
-          title: Text('Paste'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-        )),
+          ContextMenuItem(
+            label: 'Copy',
+            icon: Icons.copy,
+            shortcut: 'Ctrl+C',
+            onTap: _copySelection,
+          ),
+        ContextMenuItem(
+          label: 'Paste',
+          icon: Icons.paste,
+          shortcut: 'Ctrl+V',
+          onTap: _pasteClipboard,
+        ),
         if (hasSplit) ...[
-          const PopupMenuDivider(),
-          const PopupMenuItem(value: 'split-v', child: ListTile(
-            dense: true, leading: Icon(Icons.vertical_split, size: 18),
-            title: Text('Split Right'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-          )),
-          const PopupMenuItem(value: 'split-h', child: ListTile(
-            dense: true, leading: Icon(Icons.horizontal_split, size: 18),
-            title: Text('Split Down'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-          )),
+          const ContextMenuItem.divider(),
+          ContextMenuItem(
+            label: 'Split Right',
+            icon: Icons.vertical_split,
+            onTap: () => widget.onSplitVertical?.call(),
+          ),
+          ContextMenuItem(
+            label: 'Split Down',
+            icon: Icons.horizontal_split,
+            onTap: () => widget.onSplitHorizontal?.call(),
+          ),
           if (widget.onClose != null)
-            const PopupMenuItem(value: 'close', child: ListTile(
-              dense: true, leading: Icon(Icons.close, size: 18),
-              title: Text('Close Pane'), contentPadding: EdgeInsets.zero, visualDensity: VisualDensity.compact,
-            )),
+            ContextMenuItem(
+              label: 'Close Pane',
+              icon: Icons.close,
+              onTap: () => widget.onClose?.call(),
+            ),
         ],
       ],
-    ).then((action) {
-      switch (action) {
-        case 'copy': _copySelection();
-        case 'paste': _pasteClipboard();
-        case 'split-v': widget.onSplitVertical?.call();
-        case 'split-h': widget.onSplitHorizontal?.call();
-        case 'close': widget.onClose?.call();
-        default: break;
-      }
-    });
+    );
   }
 
   /// Handle Ctrl+Shift+C (copy) and Ctrl+Shift+V (paste) before xterm's
@@ -400,14 +419,14 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+        color: AppTheme.bg1,
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
@@ -416,51 +435,52 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
               controller: _searchController,
               focusNode: _searchFocusNode,
               autofocus: true,
-              style: const TextStyle(fontSize: 13),
+              style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
               decoration: InputDecoration(
                 isDense: true,
+                filled: true,
+                fillColor: AppTheme.bg3,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                border: const OutlineInputBorder(),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: AppTheme.borderLight),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: AppTheme.accent),
+                ),
                 hintText: 'Search...',
+                hintStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgFaint),
                 suffixText: _totalMatches > 0
                     ? '${_currentMatchIndex + 1}/$_totalMatches'
                     : null,
-                suffixStyle: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                suffixStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgDim),
               ),
               onChanged: (_) => _debouncedSearch(),
               onSubmitted: (_) => _nextMatch(),
             ),
           ),
           const SizedBox(width: 4),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              onPressed: _totalMatches > 0 ? _prevMatch : null,
-              icon: const Icon(Icons.keyboard_arrow_up, size: 18),
-              tooltip: 'Previous',
-              padding: EdgeInsets.zero,
-            ),
+          AppIconButton(
+            icon: Icons.keyboard_arrow_up,
+            onTap: _totalMatches > 0 ? _prevMatch : null,
+            tooltip: 'Previous',
+            size: 18,
+            boxSize: 28,
           ),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              onPressed: _totalMatches > 0 ? _nextMatch : null,
-              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-              tooltip: 'Next',
-              padding: EdgeInsets.zero,
-            ),
+          AppIconButton(
+            icon: Icons.keyboard_arrow_down,
+            onTap: _totalMatches > 0 ? _nextMatch : null,
+            tooltip: 'Next',
+            size: 18,
+            boxSize: 28,
           ),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              onPressed: _close,
-              icon: const Icon(Icons.close, size: 18),
-              tooltip: 'Close (Esc)',
-              padding: EdgeInsets.zero,
-            ),
+          AppIconButton(
+            icon: Icons.close,
+            onTap: _close,
+            tooltip: 'Close (Esc)',
+            size: 18,
+            boxSize: 28,
           ),
         ],
       ),

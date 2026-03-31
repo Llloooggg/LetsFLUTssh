@@ -8,7 +8,7 @@ void main() {
       test('has expected default values', () {
         const config = TerminalConfig();
         expect(config.fontSize, 14.0);
-        expect(config.theme, 'dark');
+        expect(config.theme, 'system');
         expect(config.scrollback, 5000);
       });
 
@@ -175,7 +175,7 @@ void main() {
       test('toJson() produces expected keys', () {
         final json = const TerminalConfig().toJson();
         expect(json, containsPair('font_size', 14.0));
-        expect(json, containsPair('theme', 'dark'));
+        expect(json, containsPair('theme', 'system'));
         expect(json, containsPair('scrollback', 5000));
       });
 
@@ -922,7 +922,7 @@ void main() {
         final json = const AppConfig().toJson();
         // Terminal keys
         expect(json, containsPair('font_size', 14.0));
-        expect(json, containsPair('theme', 'dark'));
+        expect(json, containsPair('theme', 'system'));
         expect(json, containsPair('scrollback', 5000));
         // SSH keys
         expect(json, containsPair('keepalive_sec', 30));

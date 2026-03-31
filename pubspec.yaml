@@ -1,7 +1,7 @@
 name: letsflutssh
 description: Lightweight cross-platform SSH/SFTP client with GUI
 publish_to: 'none'
-version: 1.9.6+131
+version: 2.4.1+190
 
 environment:
   sdk: ^3.11.0
@@ -37,6 +37,7 @@ dependencies:
 
   # OS drag&drop into app (desktop)
   desktop_drop: ^0.7.0
+
 
   # Deep links / file open intents
   app_links: ^7.0.0
@@ -76,3 +77,14 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf

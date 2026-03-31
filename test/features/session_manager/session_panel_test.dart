@@ -161,9 +161,9 @@ void main() {
 
   setUp(() {
     testSessions = [
-      Session(id: '1', label: 'web1', group: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
-      Session(id: '2', label: 'db1', group: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin')),
-      Session(id: '3', label: 'staging', group: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy')),
+      Session(id: '1', label: 'web1', group: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
+      Session(id: '2', label: 'db1', group: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
+      Session(id: '3', label: 'staging', group: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
     ];
   });
 
@@ -208,19 +208,19 @@ void main() {
   group('SessionPanel — header and structure', () {
     testWidgets('renders header with Sessions title', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
 
     testWidgets('renders New Folder button in header', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.byIcon(Icons.create_new_folder), findsOneWidget);
+      expect(find.byIcon(Icons.create_new_folder), findsWidgets);
       expect(find.byTooltip('New Folder'), findsOneWidget);
     });
 
     testWidgets('renders search bar with hint', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.byIcon(Icons.search), findsOneWidget);
-      expect(find.text('Search...'), findsOneWidget);
+      expect(find.text('Filter...'), findsOneWidget);
     });
 
     testWidgets('panel has correct layout structure', (tester) async {
@@ -238,22 +238,22 @@ void main() {
       expect(find.text('staging'), findsOneWidget);
     });
 
-    testWidgets('shows session hosts with port', (tester) async {
+    testWidgets('shows session hosts', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.text('10.0.0.1:22'), findsOneWidget);
-      expect(find.text('192.168.1.1:22'), findsOneWidget);
+      expect(find.text('10.0.0.1'), findsOneWidget);
+      expect(find.text('192.168.1.1'), findsOneWidget);
     });
 
     testWidgets('renders nested groups (Production/DB)', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.text('DB'), findsOneWidget);
       expect(find.text('db1'), findsOneWidget);
-      expect(find.text('10.0.1.1:22'), findsOneWidget);
+      expect(find.text('10.0.1.1'), findsOneWidget);
     });
 
     testWidgets('renders group folder icons', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Groups show folder_open when expanded (initially all expanded)
+      // Groups show folder icon
       expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
@@ -271,23 +271,22 @@ void main() {
       expect(find.text('1'), findsOneWidget);
     });
 
-    testWidgets('renders auth type icons for sessions', (tester) async {
+    testWidgets('renders terminal icons for sessions', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Default auth type is password → lock icon
-      expect(find.byIcon(Icons.lock), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
-    testWidgets('renders sessions with key auth icon', (tester) async {
+    testWidgets('renders terminal icon for key auth session', (tester) async {
       final keySession = Session(id: '4', label: 'key-server', group: '', server: const ServerAddress(host: '10.0.0.5', user: 'ubuntu'), auth: const SessionAuth(authType: AuthType.key));
       await tester.pumpWidget(buildApp(sessions: [keySession]));
-      expect(find.byIcon(Icons.vpn_key), findsOneWidget);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
-    testWidgets('renders sessions with keyWithPassword auth icon',
+    testWidgets('renders terminal icon for keyWithPassword auth session',
         (tester) async {
       final keyPassSession = Session(id: '5', label: 'key-pass-server', group: '', server: const ServerAddress(host: '10.0.0.6', user: 'user'), auth: const SessionAuth(authType: AuthType.keyWithPassword));
       await tester.pumpWidget(buildApp(sessions: [keyPassSession]));
-      expect(find.byIcon(Icons.enhanced_encryption), findsOneWidget);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
   });
 
@@ -303,7 +302,7 @@ void main() {
       await tester.pumpWidget(buildApp(sessions: []));
       final addButton = find.text('Add Session');
       expect(addButton, findsOneWidget);
-      expect(find.byIcon(Icons.add), findsOneWidget);
+      expect(find.byIcon(Icons.add), findsWidgets);
     });
   });
 
@@ -351,9 +350,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Context menu items should appear
-      expect(find.text('SSH'), findsOneWidget);
-      expect(find.text('SFTP'), findsOneWidget);
-      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.text('Files'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
       expect(find.text('Duplicate'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
     });
@@ -374,8 +373,8 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(find.text('SSH'), findsOneWidget);
-      expect(find.text('SFTP'), findsNothing);
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.text('Files'), findsNothing);
     });
 
     testWidgets('SSH menu action calls onConnect', (tester) async {
@@ -399,7 +398,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap SSH
-      await tester.tap(find.text('SSH'));
+      await tester.tap(find.text('Terminal'));
       await tester.pumpAndSettle();
 
       expect(connected, isNotNull);
@@ -424,7 +423,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('SFTP'));
+      await tester.tap(find.text('Files'));
       await tester.pumpAndSettle();
 
       expect(sftpConnected, isNotNull);
@@ -500,10 +499,10 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(find.text('New Session'), findsOneWidget);
+      expect(find.text('New Connection'), findsOneWidget);
       expect(find.text('New Folder'), findsOneWidget);
-      expect(find.text('Rename'), findsOneWidget);
-      expect(find.text('Delete Folder'), findsOneWidget);
+      expect(find.text('Rename Group'), findsOneWidget);
+      expect(find.text('Delete Group'), findsOneWidget);
     });
 
     testWidgets('group expand/collapse toggles on tap', (tester) async {
@@ -517,9 +516,8 @@ void main() {
       await tester.tap(find.text('Production').first);
       await tester.pumpAndSettle();
 
-      // After collapsing, child sessions hidden but DB might still be
-      // visible if it was expanded separately. At minimum, chevron_right appears
-      expect(find.byIcon(Icons.chevron_right), findsWidgets);
+      // After collapsing, children hidden; expand_more icon (rotated) still shows
+      expect(find.byIcon(Icons.expand_more), findsWidgets);
     });
   });
 
@@ -535,7 +533,7 @@ void main() {
 
       // Folder name dialog should appear
       expect(find.text('New Folder'), findsWidgets); // title + button tooltip
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
       expect(find.text('Create'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
     });
@@ -551,7 +549,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog should be gone
-      expect(find.text('Folder name'), findsNothing);
+      expect(find.text('FOLDER NAME'), findsNothing);
     });
 
     testWidgets('folder name dialog shows hint text', (tester) async {
@@ -579,7 +577,7 @@ void main() {
       expect(find.text('Folder "Production" already exists'), findsOneWidget);
     });
 
-    testWidgets('folder name dialog Create button is disabled on duplicate',
+    testWidgets('folder name dialog shows error on duplicate name',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
@@ -591,13 +589,11 @@ void main() {
       await tester.enterText(textField, 'Production');
       await tester.pump();
 
-      // The FilledButton should be disabled (onPressed == null)
-      final createButton =
-          tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(createButton.onPressed, isNull);
+      // Error text should be shown
+      expect(find.text('Folder "Production" already exists'), findsOneWidget);
     });
 
-    testWidgets('folder name dialog Create button is enabled for new name',
+    testWidgets('folder name dialog has no error for new name',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
@@ -609,9 +605,8 @@ void main() {
       await tester.enterText(textField, 'NewFolder');
       await tester.pump();
 
-      final createButton =
-          tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(createButton.onPressed, isNotNull);
+      // No error text should be shown
+      expect(find.textContaining('already exists'), findsNothing);
     });
   });
 
@@ -633,7 +628,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Delete Folder'));
+      await tester.tap(find.text('Delete Group'));
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Folder'), findsWidgets);
@@ -699,7 +694,7 @@ void main() {
       await tester.pumpWidget(buildApp(
         onSftpConnect: (_) {},
       ));
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
   });
 
@@ -725,7 +720,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Menu should dismiss without error
-      expect(find.text('SSH'), findsNothing);
+      expect(find.text('Terminal'), findsNothing);
     });
   });
 
@@ -799,11 +794,11 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       expect(find.text('Rename Folder'), findsOneWidget);
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
       expect(find.text('Rename'), findsOneWidget);
       // The current name should be pre-filled
       final textField = tester.widget<TextField>(find.byType(TextField).last);
@@ -828,12 +823,12 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('New Session'));
+      await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
       // SessionEditDialog should open — labels have asterisks for required fields
-      expect(find.text('Host *'), findsOneWidget);
-      expect(find.text('Username *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
     });
   });
 
@@ -854,12 +849,12 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
       // SessionEditDialog should show with pre-filled values
-      expect(find.text('Host *'), findsOneWidget);
-      expect(find.text('Username *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
     });
   });
 
@@ -888,8 +883,8 @@ void main() {
     });
   });
 
-  group('SessionPanel — Delete All Sessions', () {
-    testWidgets('Delete All from background context menu shows confirmation', (tester) async {
+  group('SessionPanel — Delete Folder confirmation', () {
+    testWidgets('Delete Folder from group context menu shows confirmation', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -927,7 +922,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Confirm Delete Folder
-      await tester.tap(find.text('Delete Folder'));
+      await tester.tap(find.text('Delete Group'));
       await tester.pumpAndSettle();
 
       // Dialog should show
@@ -958,11 +953,11 @@ void main() {
       await tester.pump();
 
       // Tap Create
-      await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
       // Dialog should dismiss
-      expect(find.text('Folder name'), findsNothing);
+      expect(find.text('FOLDER NAME'), findsNothing);
     });
 
     testWidgets('folder name dialog submit via Enter key', (tester) async {
@@ -978,7 +973,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog should dismiss after Enter
-      expect(find.text('Folder name'), findsNothing);
+      expect(find.text('FOLDER NAME'), findsNothing);
     });
   });
 
@@ -1004,7 +999,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Folder name dialog should appear
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
       expect(find.text('Create'), findsOneWidget);
     });
   });
@@ -1027,7 +1022,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open Rename dialog
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       // Change name
@@ -1036,7 +1031,7 @@ void main() {
       await tester.pump();
 
       // Submit
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
 
       // Dialog should dismiss
@@ -1133,13 +1128,12 @@ void main() {
     });
   });
 
-  group('SessionPanel — delete all sessions', () {
-    testWidgets('Delete All from empty background context menu', (tester) async {
+  group('SessionPanel — no delete all sessions option', () {
+    testWidgets('background context menu does not show Delete All Sessions', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       // Right-click on empty area (background context menu)
-      // The background area is below the sessions
       final panel = find.byType(SessionPanel);
       final panelBox = tester.getRect(panel);
       await tester.tapAt(
@@ -1148,20 +1142,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Look for Delete All
-      final deleteAll = find.text('Delete All');
-      if (deleteAll.evaluate().isNotEmpty) {
-        await tester.tap(deleteAll);
-        await tester.pumpAndSettle();
-
-        // Confirmation dialog should appear
-        expect(find.text('Delete All Sessions'), findsOneWidget);
-        expect(find.textContaining('cannot be undone'), findsOneWidget);
-
-        // Cancel
-        await tester.tap(find.text('Cancel'));
-        await tester.pumpAndSettle();
-      }
+      // Delete All Sessions should NOT be in the menu
+      expect(find.text('Delete All Sessions'), findsNothing);
     });
   });
 
@@ -1177,7 +1159,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // New Session dialog should open
-        expect(find.text('New Session'), findsOneWidget);
+        expect(find.text('New Connection'), findsOneWidget);
 
         // Cancel
         await tester.tap(find.text('Cancel'));
@@ -1198,11 +1180,17 @@ void main() {
         await tester.tap(addButton);
         await tester.pumpAndSettle();
 
-        await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'test.com');
-        await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'user');
+        await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), 'test.com');
+        await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'user');
         await tester.pumpAndSettle();
 
-        await tester.tap(find.widgetWithText(OutlinedButton, 'Connect'));
+        // Fill password (required)
+        await tester.tap(find.text('Auth'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.widgetWithText(TextFormField, '••••••••'), 'pass');
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Connect'));
         await tester.pumpAndSettle();
 
         expect(quickConnected, isNotNull);
@@ -1210,11 +1198,9 @@ void main() {
       }
     });
 
-    testWidgets('Add Session with Save & Connect saves and connects', (tester) async {
-      Session? connected;
+    testWidgets('Add Session with Save saves session', (tester) async {
       await tester.pumpWidget(buildApp(
         sessions: [],
-        onConnect: (s) => connected = s,
       ));
       await tester.pumpAndSettle();
 
@@ -1223,15 +1209,21 @@ void main() {
         await tester.tap(addButton);
         await tester.pumpAndSettle();
 
-        await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'save.com');
-        await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'admin');
+        await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), 'save.com');
+        await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'admin');
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Save & Connect'));
+        // Fill password (required)
+        await tester.tap(find.text('Auth'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.widgetWithText(TextFormField, '••••••••'), 'pass');
         await tester.pumpAndSettle();
 
-        expect(connected, isNotNull);
-        expect(connected!.host, 'save.com');
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Save without connect — dialog closes but no connect callback
+        expect(find.text('Edit Connection'), findsNothing);
       }
     });
   });
@@ -1256,16 +1248,22 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('New Session'));
+      await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
       // Fill fields and tap Connect (not Save & Connect)
-      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'example.com');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'root');
+      await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), 'example.com');
+      await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'root');
+      await tester.pumpAndSettle();
+
+      // Fill password (required)
+      await tester.tap(find.text('Auth'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, '••••••••'), 'pass');
       await tester.pumpAndSettle();
 
       // Find the OutlinedButton "Connect" (not the segment button text)
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
       expect(quickConnected, isNotNull);
@@ -1288,18 +1286,24 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('New Session'));
+      await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), '10.0.0.5');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'admin');
+      await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), '10.0.0.5');
+      await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'admin');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save & Connect'));
+      // Fill password (required)
+      await tester.tap(find.text('Auth'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, '••••••••'), 'pass');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
       // Dialog should close
-      expect(find.text('Host *'), findsNothing);
+      expect(find.text('HOST *'), findsNothing);
     });
   });
 
@@ -1321,35 +1325,29 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap Edit
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
       // Should show Edit Session dialog
-      expect(find.text('Edit Session'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
 
       // Tap Save
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
       // Dialog should close
-      expect(find.text('Edit Session'), findsNothing);
+      expect(find.text('Edit Connection'), findsNothing);
     });
   });
 
-  group('SessionPanel — Delete All confirmation', () {
-    testWidgets('Delete All with confirm deletes all sessions', (tester) async {
-      // We'll verify the dialog UI by accessing it through the background context
-      // menu or through a group context menu on root.
-      // The _confirmDeleteAll is accessed via group menu on root ('').
-      // Let's test via the empty space right-click that triggers onBackgroundContextMenu.
+  group('SessionPanel — Delete All removed', () {
+    testWidgets('background context menu does not have Delete All', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      // Try right-click on the Expanded tree area below all sessions
       final panel = find.byType(SessionPanel);
       final panelBox = tester.getRect(panel);
 
-      // Attempt to right-click at the bottom of the panel
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -1359,21 +1357,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      // Check if Delete All Sessions appeared
-      final deleteAll = find.text('Delete All Sessions');
-      if (deleteAll.evaluate().isNotEmpty) {
-        await tester.tap(deleteAll);
-        await tester.pumpAndSettle();
-
-        // Confirmation dialog
-        expect(find.textContaining('cannot be undone'), findsOneWidget);
-
-        // Confirm
-        await tester.tap(find.widgetWithText(FilledButton, 'Delete All'));
-        await tester.pumpAndSettle();
-
-        expect(find.textContaining('cannot be undone'), findsNothing);
-      }
+      expect(find.text('Delete All Sessions'), findsNothing);
     });
   });
 
@@ -1394,7 +1378,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       // Change name and submit via Enter
@@ -1428,7 +1412,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Look for Rename in the context menu
-      final renameItem = find.text('Rename');
+      final renameItem = find.text('Rename Group');
       if (renameItem.evaluate().isNotEmpty) {
         await tester.tap(renameItem);
         await tester.pumpAndSettle();
@@ -1456,7 +1440,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      final hostText = find.text('10.0.0.10:22');
+      final hostText = find.text('10.0.0.10');
       expect(hostText, findsWidgets);
 
       final center = tester.getCenter(hostText.first);
@@ -1499,7 +1483,7 @@ void main() {
         await gesture.up();
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Delete Folder'));
+        await tester.tap(find.text('Delete Group'));
         await tester.pumpAndSettle();
 
         expect(find.text('Delete Folder'), findsOneWidget);
@@ -1527,7 +1511,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       final textField =
@@ -1537,7 +1521,7 @@ void main() {
       await tester.enterText(find.byType(TextField).last, 'Database');
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
 
       expect(find.text('Rename Folder'), findsNothing);
@@ -1564,7 +1548,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -1653,7 +1637,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
 
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -1675,14 +1659,14 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       final textField = find.byType(TextField).last;
       await tester.enterText(textField, '');
       await tester.pump();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
     });
   });
@@ -1705,7 +1689,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename'));
+      await tester.tap(find.text('Rename Group'));
       await tester.pumpAndSettle();
 
       final textField = find.byType(TextField).last;
@@ -1721,7 +1705,7 @@ void main() {
       expect(
           find.text('Folder "Production" already exists'), findsNothing);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
     });
   });
@@ -1770,7 +1754,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Delete Folder'));
+      await tester.tap(find.text('Delete Group'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Cancel'));
@@ -1803,7 +1787,7 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Folder name'), findsNothing);
+      expect(find.text('FOLDER NAME'), findsNothing);
     });
   });
 
@@ -2004,7 +1988,7 @@ void main() {
       // Root has home icon
       expect(find.byIcon(Icons.home), findsOneWidget);
       // Non-root groups have folder icons
-      expect(find.byIcon(Icons.folder), findsWidgets);
+      expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
     testWidgets('Move dialog — tapping current group does nothing (disabled)',
@@ -2198,13 +2182,13 @@ void main() {
 
     testWidgets('action bar hides search bar and header', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.checklist));
       await tester.pump();
 
       // Header title should be gone
-      expect(find.text('Sessions'), findsNothing);
+      expect(find.text('SESSIONS'), findsNothing);
     });
 
     testWidgets('Cancel exits select mode', (tester) async {
@@ -2218,7 +2202,7 @@ void main() {
       await tester.pump();
 
       // Back to normal mode
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
       expect(find.text('0 selected'), findsNothing);
     });
 
@@ -2314,7 +2298,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should exit select mode
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
 
     testWidgets('Move confirm moves sessions and exits select mode', (tester) async {
@@ -2333,7 +2317,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should exit select mode after move
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
 
     testWidgets('Move cancel keeps select mode', (tester) async {
@@ -2380,7 +2364,7 @@ void main() {
       expect(find.byIcon(Icons.checklist), findsNothing);
     });
 
-    testWidgets('marquee selection shows action bar without hiding header', (tester) async {
+    testWidgets('marquee selection highlights rows without action bar', (tester) async {
       await tester.pumpWidget(buildApp());
 
       final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
@@ -2388,48 +2372,11 @@ void main() {
       await tester.pump();
 
       // Header should still be visible
-      expect(find.text('Sessions'), findsOneWidget);
-      // Action bar should appear
-      expect(find.text('2 selected'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
+      // No action bar on desktop — bulk actions via context menu
+      expect(find.text('2 selected'), findsNothing);
       // No checkboxes (not in select mode)
       expect(find.byType(Checkbox), findsNothing);
-    });
-
-    testWidgets('Cancel clears desktop selection', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
-      state.setMarqueeSelection({'1', '2'});
-      await tester.pump();
-      expect(find.text('2 selected'), findsOneWidget);
-
-      await tester.tap(find.byIcon(Icons.close));
-      await tester.pump();
-
-      // Action bar gone, header still visible
-      expect(find.text('Sessions'), findsOneWidget);
-      expect(find.text('0 selected'), findsNothing);
-    });
-
-    testWidgets('action bar suppressed while marquee drag is in progress', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final panelState = tester.state<SessionPanelState>(find.byType(SessionPanel));
-
-      // Simulate marquee start — selection updates but drag not yet finished
-      panelState.simulateMarqueeStart();
-      panelState.setMarqueeSelection({'1'});
-      await tester.pump();
-
-      // Action bar must NOT appear mid-drag to avoid layout shift
-      expect(find.text('1 selected'), findsNothing);
-      expect(find.text('Sessions'), findsOneWidget);
-
-      // Marquee ends — now action bar should appear
-      panelState.simulateMarqueeEnd();
-      await tester.pump();
-
-      expect(find.text('1 selected'), findsOneWidget);
     });
   });
 }

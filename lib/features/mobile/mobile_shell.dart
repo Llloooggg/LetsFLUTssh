@@ -6,8 +6,8 @@ import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../theme/app_theme.dart';
 import '../session_manager/session_connect.dart';
-import '../session_manager/session_edit_dialog.dart';
 import '../session_manager/session_panel.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_controller.dart';
@@ -53,18 +53,65 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         child: Column(
           children: [
             // Global app bar visible on all tabs
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppTheme.bg1,
+                border: Border(bottom: BorderSide(color: AppTheme.border)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Row(
                 children: [
-                  const Text(
-                    'LetsFLUTssh',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.terminal, size: 14, color: Colors.white),
                   ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'LetsFLUTssh',
+                    style: AppFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.fgBright,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Builder(builder: (_) {
+                    final activeCount = (ref.watch(connectionsProvider).value ?? []).length;
+                    final savedCount = ref.watch(sessionProvider).length;
+                    return Text.rich(
+                      TextSpan(children: [
+                        TextSpan(
+                          text: '$activeCount active',
+                          style: AppFonts.inter(fontSize: 10, color: AppTheme.green),
+                        ),
+                        TextSpan(
+                          text: ' · $savedCount saved',
+                          style: AppFonts.inter(fontSize: 10, color: AppTheme.fgFaint),
+                        ),
+                      ]),
+                    );
+                  }),
                   const Spacer(),
-                  IconButton(
-                    onPressed: () => SettingsScreen.show(context),
-                    icon: const Icon(Icons.settings, size: 22),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      onPressed: () => SettingsScreen.show(context),
+                      padding: EdgeInsets.zero,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppTheme.bg3,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      icon: Icon(Icons.settings, size: 15, color: AppTheme.fgDim),
+                    ),
                   ),
                 ],
               ),
@@ -111,7 +158,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         ),
       ),
       bottomNavigationBar: NavigationBar(
-        height: 60,
+        height: 56,
+        backgroundColor: AppTheme.bg1,
         selectedIndex: _navIndex,
         onDestinationSelected: (i) => setState(() => _navIndex = i),
         destinations: [
@@ -148,12 +196,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
           ),
         ],
       ),
-      floatingActionButton: _navIndex == 0
-          ? FloatingActionButton(
-              onPressed: () => _newSession(context, ref),
-              child: const Icon(Icons.add),
-            )
-          : null,
     ),
     );
   }
@@ -212,21 +254,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     if (ok) setState(() => _navIndex = 2);
   }
 
-  Future<void> _newSession(BuildContext ctx, WidgetRef ref) async {
-    final result = await SessionEditDialog.show(ctx);
-    if (result == null || !ctx.mounted) return;
-    switch (result) {
-      case ConnectOnlyResult(:final config):
-        SessionConnect.connectConfig(ctx, ref, config);
-        setState(() => _navIndex = 1);
-      case SaveResult(:final session, :final connect):
-        await ref.read(sessionProvider.notifier).add(session);
-        if (connect && ctx.mounted) {
-          SessionConnect.connectTerminal(ctx, ref, session);
-          setState(() => _navIndex = 1);
-        }
-    }
-  }
 }
 
 /// Sessions page — full screen session list with settings access.
@@ -301,27 +328,74 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.bg1,
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
+      ),
+      height: 36,
       child: ListView.builder(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         itemCount: widget.filteredTabs.length,
         itemBuilder: (context, index) {
           final tab = widget.filteredTabs[index];
           final isActive = tab.id == widget.activeTab.id;
+          final isConnected = tab.connection.isConnected;
+          final isTerminal = tab.kind == TabKind.terminal;
           return Padding(
-            padding: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
-            child: InputChip(
-              label: Text(tab.label, style: const TextStyle(fontSize: 13)),
-              selected: isActive,
-              onPressed: () {
+            padding: const EdgeInsets.only(right: 6),
+            child: GestureDetector(
+              onTap: () {
                 final globalIdx = widget.tabState.tabs.indexOf(tab);
                 ref.read(tabProvider.notifier).selectTab(globalIdx);
               },
-              deleteIcon: const Icon(Icons.close, size: 16),
-              onDeleted: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+              child: Container(
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: isActive ? AppTheme.selection : AppTheme.bg3,
+                  borderRadius: BorderRadius.circular(13),
+                  border: isActive
+                      ? Border.all(color: AppTheme.accent.withValues(alpha: 0x30 / 255))
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isConnected ? AppTheme.green : AppTheme.fgFaint,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Icon(
+                      isTerminal ? Icons.terminal : Icons.folder,
+                      size: 10,
+                      color: isActive ? AppTheme.accent : AppTheme.fgFaint,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      tab.label,
+                      style: AppFonts.inter(
+                        fontSize: 10,
+                        color: isActive ? AppTheme.fg : AppTheme.fgDim,
+                      ),
+                    ),
+                    if (isActive) ...[
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+                        child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           );
         },
@@ -344,17 +418,23 @@ class _MobileTerminalPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final termTabs = tabState.tabs.where((t) => t.kind == TabKind.terminal).toList();
     if (termTabs.isEmpty) {
-      final dimColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24);
-      final hintColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38);
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.terminal, size: 64, color: dimColor),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppTheme.bg3,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.terminal, size: 22, color: AppTheme.fgFaint),
+            ),
             const SizedBox(height: 12),
-            const Text('No active terminals', style: TextStyle(fontSize: 14)),
+            Text('No active terminals', style: AppFonts.inter(fontSize: 13, color: AppTheme.fgDim)),
             const SizedBox(height: 4),
-            Text('Connect from Sessions tab', style: TextStyle(fontSize: 12, color: hintColor)),
+            Text('Connect from Sessions tab', style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint)),
           ],
         ),
       );
@@ -409,17 +489,23 @@ class _MobileSftpPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sftpTabs = tabState.tabs.where((t) => t.kind == TabKind.sftp).toList();
     if (sftpTabs.isEmpty) {
-      final dimColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24);
-      final hintColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38);
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.folder, size: 64, color: dimColor),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppTheme.bg3,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.folder, size: 22, color: AppTheme.fgFaint),
+            ),
             const SizedBox(height: 12),
-            const Text('No active file browsers', style: TextStyle(fontSize: 14)),
+            Text('No active file browsers', style: AppFonts.inter(fontSize: 13, color: AppTheme.fgDim)),
             const SizedBox(height: 4),
-            Text('Use "SFTP" from Sessions', style: TextStyle(fontSize: 12, color: hintColor)),
+            Text('Use "SFTP" from Sessions', style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint)),
           ],
         ),
       );

@@ -6,7 +6,7 @@ class TerminalConfig {
 
   const TerminalConfig({
     this.fontSize = 14.0,
-    this.theme = 'dark',
+    this.theme = 'system',
     this.scrollback = 5000,
   });
 
@@ -138,11 +138,13 @@ class UiConfig {
   final int toastDurationMs;
   final double windowWidth;
   final double windowHeight;
+  final double uiScale;
 
   const UiConfig({
     this.toastDurationMs = 4000,
     this.windowWidth = 1100,
     this.windowHeight = 650,
+    this.uiScale = 1.0,
   });
 
   static const defaults = UiConfig();
@@ -151,6 +153,7 @@ class UiConfig {
     if (toastDurationMs < 500) return 'Toast duration must be at least 500ms';
     if (windowWidth < 200) return 'Window width must be at least 200';
     if (windowHeight < 200) return 'Window height must be at least 200';
+    if (uiScale < 0.5 || uiScale > 2.0) return 'UI scale must be 0.5-2.0';
     return null;
   }
 
@@ -160,6 +163,7 @@ class UiConfig {
       toastDurationMs: toastDurationMs < 500 ? d.toastDurationMs : toastDurationMs,
       windowWidth: windowWidth < 200 ? d.windowWidth : windowWidth,
       windowHeight: windowHeight < 200 ? d.windowHeight : windowHeight,
+      uiScale: uiScale.clamp(0.5, 2.0),
     );
   }
 
@@ -167,10 +171,12 @@ class UiConfig {
     int? toastDurationMs,
     double? windowWidth,
     double? windowHeight,
+    double? uiScale,
   }) => UiConfig(
     toastDurationMs: toastDurationMs ?? this.toastDurationMs,
     windowWidth: windowWidth ?? this.windowWidth,
     windowHeight: windowHeight ?? this.windowHeight,
+    uiScale: uiScale ?? this.uiScale,
   );
 
   @override
@@ -179,15 +185,17 @@ class UiConfig {
       other is UiConfig &&
           toastDurationMs == other.toastDurationMs &&
           windowWidth == other.windowWidth &&
-          windowHeight == other.windowHeight;
+          windowHeight == other.windowHeight &&
+          uiScale == other.uiScale;
 
   @override
-  int get hashCode => Object.hash(toastDurationMs, windowWidth, windowHeight);
+  int get hashCode => Object.hash(toastDurationMs, windowWidth, windowHeight, uiScale);
 
   Map<String, dynamic> toJson() => {
     'toast_duration_ms': toastDurationMs,
     'window_width': windowWidth,
     'window_height': windowHeight,
+    'ui_scale': uiScale,
   };
 
   factory UiConfig.fromJson(Map<String, dynamic> json) {
@@ -196,6 +204,7 @@ class UiConfig {
       toastDurationMs: json['toast_duration_ms'] as int? ?? d.toastDurationMs,
       windowWidth: (json['window_width'] as num?)?.toDouble() ?? d.windowWidth,
       windowHeight: (json['window_height'] as num?)?.toDouble() ?? d.windowHeight,
+      uiScale: (json['ui_scale'] as num?)?.toDouble() ?? d.uiScale,
     ).sanitized();
   }
 }
@@ -212,6 +221,7 @@ class AppConfig {
   final int maxHistory;
   final bool enableLogging;
   final bool checkUpdatesOnStart;
+  final bool showFolderSizes;
   final String? skippedVersion;
 
   const AppConfig({
@@ -222,6 +232,7 @@ class AppConfig {
     this.maxHistory = 500,
     this.enableLogging = false,
     this.checkUpdatesOnStart = true,
+    this.showFolderSizes = false,
     this.skippedVersion,
   });
 
@@ -237,6 +248,7 @@ class AppConfig {
   int get toastDurationMs => ui.toastDurationMs;
   double get windowWidth => ui.windowWidth;
   double get windowHeight => ui.windowHeight;
+  double get uiScale => ui.uiScale;
 
   /// Validate config values. Returns error message or null.
   String? validate() {
@@ -258,6 +270,7 @@ class AppConfig {
       maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
       enableLogging: enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart,
+      showFolderSizes: showFolderSizes,
       skippedVersion: skippedVersion,
     );
   }
@@ -270,6 +283,7 @@ class AppConfig {
     int? maxHistory,
     bool? enableLogging,
     bool? checkUpdatesOnStart,
+    bool? showFolderSizes,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -279,6 +293,7 @@ class AppConfig {
       maxHistory: maxHistory ?? this.maxHistory,
       enableLogging: enableLogging ?? this.enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
+      showFolderSizes: showFolderSizes ?? this.showFolderSizes,
       skippedVersion: skippedVersion,
     );
   }
@@ -291,6 +306,7 @@ class AppConfig {
     maxHistory: maxHistory,
     enableLogging: enableLogging,
     checkUpdatesOnStart: checkUpdatesOnStart,
+    showFolderSizes: showFolderSizes,
     skippedVersion: version,
   );
 
@@ -305,12 +321,13 @@ class AppConfig {
           maxHistory == other.maxHistory &&
           enableLogging == other.enableLogging &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
+          showFolderSizes == other.showFolderSizes &&
           skippedVersion == other.skippedVersion;
 
   @override
   int get hashCode => Object.hash(
         terminal, ssh, ui, transferWorkers, maxHistory, enableLogging,
-        checkUpdatesOnStart, skippedVersion,
+        checkUpdatesOnStart, showFolderSizes, skippedVersion,
       );
 
   /// JSON stays flat for backward compatibility.
@@ -322,6 +339,7 @@ class AppConfig {
     'max_history': maxHistory,
     'enable_logging': enableLogging,
     'check_updates_on_start': checkUpdatesOnStart,
+    'show_folder_sizes': showFolderSizes,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
   };
 
@@ -335,6 +353,7 @@ class AppConfig {
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
       checkUpdatesOnStart: json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
+      showFolderSizes: json['show_folder_sizes'] as bool? ?? d.showFolderSizes,
       skippedVersion: json['skipped_version'] as String?,
     ).sanitized();
   }

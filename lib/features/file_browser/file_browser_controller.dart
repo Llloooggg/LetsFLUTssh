@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_models.dart';
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 
 /// Sort column options for file table.
@@ -26,6 +27,12 @@ class FilePaneController extends ChangeNotifier {
   List<FileEntry>? _cachedSelectedEntries;
   int? _cachedTotalFileSize;
 
+  // Folder size cache: path → size (calculated async, max 2 concurrent)
+  final Map<String, int> _folderSizes = {};
+  final Set<String> _folderSizesPending = {};
+  final List<String> _folderSizeQueue = [];
+  static const _maxConcurrentSizeCalcs = 2;
+
   // Navigation history
   final _backStack = <String>[];
   final _forwardStack = <String>[];
@@ -42,6 +49,39 @@ class FilePaneController extends ChangeNotifier {
   bool get canGoBack => _backStack.isNotEmpty;
   bool get canGoForward => _forwardStack.isNotEmpty;
 
+  /// Get cached folder size, or null if not yet calculated.
+  int? folderSize(String path) => _folderSizes[path];
+
+  /// Request async folder size calculation (queued, max 2 concurrent).
+  void requestFolderSize(String path) {
+    if (_folderSizes.containsKey(path) ||
+        _folderSizesPending.contains(path) ||
+        _folderSizeQueue.contains(path)) {
+      return;
+    }
+    _folderSizeQueue.add(path);
+    _drainSizeQueue();
+  }
+
+  void _drainSizeQueue() {
+    while (_folderSizesPending.length < _maxConcurrentSizeCalcs &&
+        _folderSizeQueue.isNotEmpty) {
+      final path = _folderSizeQueue.removeAt(0);
+      if (_folderSizes.containsKey(path)) continue;
+      _folderSizesPending.add(path);
+      fs.dirSize(path).then((size) {
+        _folderSizes[path] = size;
+        _folderSizesPending.remove(path);
+        notifyListeners();
+        _drainSizeQueue();
+      }).catchError((e) {
+        _folderSizesPending.remove(path);
+        AppLogger.instance.log('Folder size failed: $path: $e', name: 'FilePane');
+        _drainSizeQueue();
+      });
+    }
+  }
+
   /// Initialize with the file system's initial directory.
   Future<void> init() async {
     final dir = await fs.initialDir();
@@ -56,6 +96,9 @@ class FilePaneController extends ChangeNotifier {
     }
     _currentPath = path;
     _selected = {};
+    _folderSizes.clear();
+    _folderSizesPending.clear();
+    _folderSizeQueue.clear();
     await refresh();
   }
 
@@ -100,7 +143,7 @@ class FilePaneController extends ChangeNotifier {
       _invalidateCaches();
     } catch (e) {
       AppLogger.instance.log('Failed to list $_currentPath: $e', name: 'FilePane', error: e);
-      _error = e.toString();
+      _error = sanitizeError(e);
       _entries = [];
       _invalidateCaches();
     } finally {

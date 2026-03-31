@@ -18,8 +18,8 @@ void main() {
       expect(theme.colorScheme.brightness, Brightness.dark);
     });
 
-    test('primary is OneDark blue', () {
-      expect(theme.colorScheme.primary, const Color(0xFF61AFEF));
+    test('primary is accent indigo', () {
+      expect(theme.colorScheme.primary, const Color(0xFF4D78CC));
     });
 
     test('error is OneDark red', () {
@@ -37,14 +37,14 @@ void main() {
     test('segmented button resolves selected background', () {
       final style = theme.segmentedButtonTheme.style!;
       final bg = style.backgroundColor!;
-      expect(bg.resolve({WidgetState.selected}), const Color(0xFF61AFEF));
-      expect(bg.resolve({}), const Color(0xFF21252B));
+      expect(bg.resolve({WidgetState.selected}), const Color(0xFF4D78CC));
+      expect(bg.resolve({}), const Color(0xFF2C313A));
     });
 
     test('segmented button resolves selected foreground', () {
       final style = theme.segmentedButtonTheme.style!;
       final fg = style.foregroundColor!;
-      expect(fg.resolve({WidgetState.selected}), const Color(0xFF282C34));
+      expect(fg.resolve({WidgetState.selected}), Colors.white);
       expect(fg.resolve({}), const Color(0xFFABB2BF));
     });
   });
@@ -117,22 +117,22 @@ void main() {
   });
 
   group('chip theme', () {
-    test('dark chip uses OneDark darker background', () {
+    test('dark chip uses bg3 background', () {
       final theme = AppTheme.dark();
-      expect(theme.chipTheme.backgroundColor, const Color(0xFF21252B));
+      expect(theme.chipTheme.backgroundColor, const Color(0xFF2C313A));
     });
 
-    test('dark chip selected color uses blue with alpha', () {
+    test('dark chip selected color uses accent with alpha', () {
       final theme = AppTheme.dark();
       expect(theme.chipTheme.selectedColor, isNotNull);
-      // Selected color is blue-tinted
+      // Selected color is accent-tinted
       expect(theme.chipTheme.selectedColor!.a, lessThan(1.0));
     });
 
-    test('dark chip border matches OneDark border', () {
+    test('dark chip border matches bg0 border', () {
       final theme = AppTheme.dark();
       final side = theme.chipTheme.side as BorderSide;
-      expect(side.color, const Color(0xFF3B4048));
+      expect(side.color, const Color(0xFF1B1D23));
     });
 
     test('light chip uses white background', () {
@@ -186,6 +186,87 @@ void main() {
 
     test('searchHighlightLight is defined', () {
       expect(AppTheme.searchHighlightLight, const Color(0xFFFFD700));
+    });
+  });
+
+  group('public color constants', () {
+    test('accent is indigo', () {
+      expect(AppTheme.accent, const Color(0xFF4D78CC));
+    });
+
+    test('bg0..bg4 are distinct dark layers', () {
+      expect(AppTheme.bg0, const Color(0xFF1B1D23));
+      expect(AppTheme.bg1, const Color(0xFF1E2127));
+      expect(AppTheme.bg2, const Color(0xFF282C34));
+      expect(AppTheme.bg3, const Color(0xFF2C313A));
+      expect(AppTheme.bg4, const Color(0xFF333842));
+    });
+
+    test('border equals bg0', () {
+      expect(AppTheme.border, AppTheme.bg0);
+    });
+
+    test('borderLight equals bg3', () {
+      expect(AppTheme.borderLight, AppTheme.bg3);
+    });
+
+    test('selection has partial alpha', () {
+      expect(AppTheme.selection, const Color(0x1F4D78CC));
+    });
+
+    test('hover has partial alpha', () {
+      expect(AppTheme.hover, const Color(0x08FFFFFF));
+    });
+
+    test('active has partial alpha', () {
+      expect(AppTheme.active, const Color(0x0FFFFFFF));
+    });
+  });
+
+  group('AppFonts', () {
+    test('inter fontFamily is Inter', () {
+      expect(AppFonts.inter().fontFamily, 'Inter');
+    });
+
+    test('inter passes fontSize and color', () {
+      final style = AppFonts.inter(fontSize: 12, color: const Color(0xFFABB2BF));
+      expect(style.fontSize, 12);
+      expect(style.color, const Color(0xFFABB2BF));
+    });
+
+    test('inter passes fontWeight and height', () {
+      final style = AppFonts.inter(fontWeight: FontWeight.w600, height: 1.5);
+      expect(style.fontWeight, FontWeight.w600);
+      expect(style.height, 1.5);
+    });
+
+    test('mono fontFamily is JetBrains Mono', () {
+      expect(AppFonts.mono().fontFamily, 'JetBrains Mono');
+    });
+
+    test('mono passes fontSize and color', () {
+      final style = AppFonts.mono(fontSize: 11, color: const Color(0xFF7F848E));
+      expect(style.fontSize, 11);
+      expect(style.color, const Color(0xFF7F848E));
+    });
+
+    test('mono passes fontWeight', () {
+      final style = AppFonts.mono(fontWeight: FontWeight.bold);
+      expect(style.fontWeight, FontWeight.bold);
+    });
+
+    test('inter and mono have different font families', () {
+      expect(AppFonts.inter().fontFamily, isNot(AppFonts.mono().fontFamily));
+    });
+
+    test('dark textTheme uses Inter font family', () {
+      final theme = AppTheme.dark();
+      expect(theme.textTheme.bodyMedium?.fontFamily, 'Inter');
+    });
+
+    test('light textTheme uses Inter font family', () {
+      final theme = AppTheme.light();
+      expect(theme.textTheme.bodyMedium?.fontFamily, 'Inter');
     });
   });
 

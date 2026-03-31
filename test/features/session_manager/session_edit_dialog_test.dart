@@ -30,9 +30,23 @@ void main() {
     );
   }
 
-  Future<void> fillRequiredFields(WidgetTester tester, {String host = 'example.com', String user = 'testuser'}) async {
-    await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), host);
-    await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), user);
+  /// Finds a TextFormField by its hint text.
+  Finder fieldByHint(String hint) =>
+      find.widgetWithText(TextFormField, hint);
+
+  Future<void> fillRequiredFields(WidgetTester tester, {String host = 'example.com', String user = 'testuser', String password = 'pass'}) async {
+    await tester.enterText(fieldByHint('192.168.1.1'), host);
+    await tester.enterText(fieldByHint('root'), user);
+    // Fill password on Auth tab (required for default password auth)
+    await tester.tap(find.text('Auth'));
+    await tester.pumpAndSettle();
+    await tester.enterText(fieldByHint('••••••••'), password);
+    await tester.tap(find.text('Connection'));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> switchToAuth(WidgetTester tester) async {
+    await tester.tap(find.text('Auth'));
     await tester.pumpAndSettle();
   }
 
@@ -42,29 +56,34 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('New Session'), findsOneWidget);
+      expect(find.text('New Connection'), findsOneWidget);
     });
 
-    testWidgets('has all required fields', (tester) async {
+    testWidgets('has all required fields on Connection tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Label'), findsOneWidget);
-      expect(find.text('Group'), findsOneWidget);
-      expect(find.text('Host *'), findsOneWidget);
-      expect(find.text('Port'), findsOneWidget);
-      expect(find.text('Username *'), findsOneWidget);
+      // Connection tab is active by default
+      expect(find.text('SESSION NAME'), findsOneWidget);
+      expect(find.text('GROUP'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('PORT'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
     });
 
-    testWidgets('has auth type selector', (tester) async {
+    testWidgets('has auth type selector on Auth tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Authentication'), findsOneWidget);
-      expect(find.text('Password'), findsWidgets); // segment + field
-      expect(find.text('Key'), findsOneWidget);
+      // Switch to Auth tab
+      await tester.tap(find.text('Auth'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('METHOD'), findsOneWidget);
+      expect(find.text('Password'), findsWidgets); // auth button + field
+      expect(find.text('SSH Key'), findsOneWidget);
       expect(find.text('Key+Pass'), findsOneWidget);
     });
 
@@ -73,8 +92,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Save & Connect'), findsOneWidget);
       expect(find.text('Connect'), findsOneWidget);
+      expect(find.text('Save'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
     });
 
@@ -83,7 +102,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('Required'), findsWidgets);
@@ -97,7 +116,7 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
-      expect(find.text('New Session'), findsNothing);
+      expect(find.text('New Connection'), findsNothing);
     });
 
     testWidgets('switching to Key auth shows key fields', (tester) async {
@@ -105,12 +124,12 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Tap Key segment
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       expect(find.text('Select Key File'), findsOneWidget);
-      expect(find.text('Key Passphrase'), findsOneWidget);
+      expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
     testWidgets('port defaults to 22', (tester) async {
@@ -118,7 +137,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('22'), findsOneWidget);
+      expect(find.text('22'), findsWidgets); // hint + value
     });
   });
 
@@ -140,38 +159,36 @@ void main() {
       expect(result.config.port, 22);
     });
 
-    testWidgets('Save & Connect returns SaveResult with connect=true', (tester) async {
+    testWidgets('Connect returns ConnectOnlyResult', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
 
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<SaveResult>());
-      final result = dialogResult as SaveResult;
-      expect(result.session.host, 'example.com');
-      expect(result.session.user, 'testuser');
-      expect(result.connect, isTrue);
+      expect(dialogResult, isA<ConnectOnlyResult>());
+      final result = dialogResult as ConnectOnlyResult;
+      expect(result.config.host, 'example.com');
+      expect(result.config.user, 'testuser');
     });
 
-    testWidgets('Save & Connect with label and group', (tester) async {
+    testWidgets('Connect with label filled', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Label'), 'My Server');
+      await tester.enterText(fieldByHint('My Server'), 'My Server');
       await fillRequiredFields(tester, host: '10.0.0.1', user: 'root');
 
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      final result = dialogResult as SaveResult;
-      expect(result.session.label, 'My Server');
-      expect(result.session.host, '10.0.0.1');
-      expect(result.session.user, 'root');
+      final result = dialogResult as ConnectOnlyResult;
+      expect(result.config.host, '10.0.0.1');
+      expect(result.config.user, 'root');
     });
 
     testWidgets('Connect without valid fields does not close', (tester) async {
@@ -184,23 +201,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(dialogResult, isNull);
-      expect(find.text('New Session'), findsOneWidget);
+      expect(find.text('New Connection'), findsOneWidget);
     });
 
-    testWidgets('Save & Connect with custom port', (tester) async {
+    testWidgets('Connect with custom port', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
-      await tester.enterText(find.widgetWithText(TextFormField, 'Port'), '2222');
+      await tester.enterText(fieldByHint('22'), '2222');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      final result = dialogResult as SaveResult;
-      expect(result.session.port, 2222);
+      expect(dialogResult, isA<ConnectOnlyResult>());
+      final result = dialogResult as ConnectOnlyResult;
+      expect(result.config.port, 2222);
     });
 
     testWidgets('Connect with password auth', (tester) async {
@@ -209,7 +227,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
-      await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'secret123');
+      await switchToAuth(tester);
+      await tester.enterText(fieldByHint('••••••••'), 'secret123');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -222,7 +241,7 @@ void main() {
 
   group('SessionEditDialog — edit session submit', () {
     testWidgets('Save returns SaveResult with connect=false', (tester) async {
-      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -238,13 +257,13 @@ void main() {
     });
 
     testWidgets('Save preserves edited fields', (tester) async {
-      final session = Session(label: 'old-label', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(label: 'old-label', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       // Clear and re-enter label
-      await tester.enterText(find.widgetWithText(TextFormField, 'Label'), 'new-label');
+      await tester.enterText(fieldByHint('My Server'), 'new-label');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -263,10 +282,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Switch to Key auth
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Key Passphrase'), findsOneWidget);
+      expect(find.text('KEY PASSPHRASE'), findsOneWidget);
       // PEM toggle should be present
       expect(find.text('Paste PEM key text'), findsOneWidget);
     });
@@ -276,7 +296,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // Click toggle to show PEM text — scroll down to find it first
@@ -312,7 +333,8 @@ void main() {
       await fillRequiredFields(tester);
 
       // Switch to Key auth
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // Open PEM text and enter key data (required for passphrase validation)
@@ -337,12 +359,12 @@ void main() {
 
       // Scroll to passphrase field and fill it
       await tester.scrollUntilVisible(
-        find.text('Key Passphrase'),
+        find.text('KEY PASSPHRASE'),
         100,
         scrollable: find.byType(Scrollable).last,
       );
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Key Passphrase'),
+        fieldByHint('Optional'),
         'mypassphrase',
       );
       await tester.pumpAndSettle();
@@ -368,48 +390,71 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
+      await switchToAuth(tester);
       await tester.tap(find.text('Key+Pass'));
       await tester.pumpAndSettle();
 
       expect(find.text('Password'), findsWidgets); // segment label + field
-      expect(find.text('Key Passphrase'), findsOneWidget);
+      expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
-    testWidgets('Save & Connect with Key+Pass auth', (tester) async {
+    testWidgets('Connect with Key+Pass auth', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
 
+      await switchToAuth(tester);
       await tester.tap(find.text('Key+Pass'));
       await tester.pumpAndSettle();
 
+      final scrollable = find.byType(Scrollable).last;
+
       // Scroll to password field
       await tester.scrollUntilVisible(
-        find.widgetWithText(TextFormField, 'Password'),
+        fieldByHint('••••••••'),
         100,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: scrollable,
       );
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Password'),
+        fieldByHint('••••••••'),
         'secret',
+      );
+      await tester.pumpAndSettle();
+
+      // Add PEM key data (required for key auth)
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
       );
       await tester.pumpAndSettle();
 
       // Scroll back to action buttons
       await tester.scrollUntilVisible(
-        find.text('Save & Connect'),
+        find.text('Connect'),
         -100,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: scrollable,
       );
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<SaveResult>());
-      final result = dialogResult as SaveResult;
-      expect(result.session.authType, AuthType.keyWithPassword);
-      expect(result.session.password, 'secret');
+      expect(dialogResult, isA<ConnectOnlyResult>());
+      final result = dialogResult as ConnectOnlyResult;
+      expect(result.config.password, 'secret');
     });
   });
 
@@ -418,6 +463,8 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
+
+      await switchToAuth(tester);
 
       // Scroll to password area
       await tester.scrollUntilVisible(
@@ -445,11 +492,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // The group field should show suggestions
-      final groupField = find.widgetWithText(TextFormField, 'Group');
+      expect(find.text('GROUP'), findsOneWidget);
+      final groupField = find.byType(Autocomplete<String>);
       expect(groupField, findsOneWidget);
 
-      // Type to filter
-      await tester.enterText(groupField, 'Prod');
+      // Type to filter — find the TextFormField inside the Autocomplete
+      final textField = find.descendant(of: groupField, matching: find.byType(TextFormField));
+      await tester.enterText(textField, 'Prod');
       await tester.pumpAndSettle();
 
       // Production should appear as suggestion
@@ -461,8 +510,9 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      final groupField = find.widgetWithText(TextFormField, 'Group');
-      await tester.enterText(groupField, 'Stag');
+      final groupField = find.byType(Autocomplete<String>);
+      final textField = find.descendant(of: groupField, matching: find.byType(TextFormField));
+      await tester.enterText(textField, 'Stag');
       await tester.pumpAndSettle();
 
       // Tap the "Staging" suggestion from autocomplete
@@ -485,8 +535,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Focus the group field — all options should appear
-      final groupField = find.widgetWithText(TextFormField, 'Group');
-      await tester.tap(groupField);
+      final groupField = find.byType(Autocomplete<String>);
+      final textField = find.descendant(of: groupField, matching: find.byType(TextFormField));
+      await tester.tap(textField);
       await tester.pumpAndSettle();
 
       // Both options should be listed in the autocomplete overlay
@@ -501,9 +552,9 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Host *'), 'example.com');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Username *'), 'root');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Port'), '99999');
+      await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
+      await tester.enterText(fieldByHint('root'), 'root');
+      await tester.enterText(fieldByHint('22'), '99999');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -520,9 +571,11 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Edit Session'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
+
+      await switchToAuth(tester);
       // Key auth should be selected
-      expect(find.text('Key Passphrase'), findsOneWidget);
+      expect(find.text('KEY PASSPHRASE'), findsOneWidget);
       // PEM text should be visible since keyData is not empty
       expect(find.text('Key Text (PEM)'), findsOneWidget);
     });
@@ -559,12 +612,13 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // Scroll to passphrase field
       await tester.scrollUntilVisible(
-        find.text('Key Passphrase'),
+        find.text('KEY PASSPHRASE'),
         100,
         scrollable: find.byType(Scrollable).last,
       );
@@ -589,7 +643,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Edit Session'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
     });
 
     testWidgets('Save button present for edit mode', (tester) async {
@@ -649,25 +703,25 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Host *'), '');
+          fieldByHint('192.168.1.1'), '');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
       expect(find.text('Required'), findsOneWidget);
-      expect(find.text('Edit Session'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
     });
 
     testWidgets('editing session preserves original session id',
         (tester) async {
-      final session = Session(id: 'original-id-123', label: 'edit-me', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password));
+      final session = Session(id: 'original-id-123', label: 'edit-me', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Label'), 'new-label');
+          fieldByHint('My Server'), 'new-label');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -686,10 +740,10 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Edit Session'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
-      expect(find.text('Save & Connect'), findsNothing);
+      expect(find.text('Connect'), findsNothing);
       expect(find.text('Connect'), findsNothing);
     });
   });
@@ -703,7 +757,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Label'), 'key-srv-updated');
+          fieldByHint('My Server'), 'key-srv-updated');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -720,17 +774,17 @@ void main() {
   });
 
   group('SessionEditDialog — additional validation', () {
-    testWidgets('Save&Connect with empty host fails validation',
+    testWidgets('Connect with empty host fails validation',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Username *'), 'user');
+          fieldByHint('root'), 'user');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('Required'), findsOneWidget);
@@ -744,7 +798,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Host *'), 'host.com');
+          fieldByHint('192.168.1.1'), 'host.com');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -761,7 +815,7 @@ void main() {
 
       await fillRequiredFields(tester);
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Port'), 'abc');
+          fieldByHint('22'), 'abc');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -777,7 +831,7 @@ void main() {
 
       await fillRequiredFields(tester);
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Port'), '0');
+          fieldByHint('22'), '0');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -793,7 +847,7 @@ void main() {
 
       await fillRequiredFields(tester);
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Port'), '');
+          fieldByHint('22'), '');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -811,7 +865,7 @@ void main() {
 
       await fillRequiredFields(tester);
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Port'), '1');
+          fieldByHint('22'), '1');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -828,7 +882,7 @@ void main() {
 
       await fillRequiredFields(tester);
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Port'), '65535');
+          fieldByHint('22'), '65535');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -862,13 +916,16 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
+      await switchToAuth(tester);
+
+      // Password auth is default — password field visible
+      expect(fieldByHint('••••••••'), findsOneWidget);
 
       await tester.tap(find.text('Key+Pass'));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
-      expect(find.text('Key Passphrase'), findsOneWidget);
+      expect(fieldByHint('••••••••'), findsOneWidget);
+      expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
     testWidgets('Key auth hides password TextFormField', (tester) async {
@@ -876,11 +933,12 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Key Passphrase'), findsOneWidget);
-      expect(find.widgetWithText(TextFormField, 'Password'), findsNothing);
+      expect(find.text('KEY PASSPHRASE'), findsOneWidget);
+      expect(fieldByHint('••••••••'), findsNothing);
     });
   });
 
@@ -892,9 +950,11 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Edit Session'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
+
+      await switchToAuth(tester);
       expect(find.text('Password'), findsWidgets);
-      expect(find.text('Key Passphrase'), findsOneWidget);
+      expect(find.text('KEY PASSPHRASE'), findsOneWidget);
       expect(find.text('Key Text (PEM)'), findsOneWidget);
     });
   });
@@ -907,20 +967,22 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Host *'), 'h.com');
+          fieldByHint('192.168.1.1'), 'h.com');
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Username *'), 'u');
+          fieldByHint('root'), 'u');
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Port'), '2222');
+          fieldByHint('22'), '2222');
+
+      await switchToAuth(tester);
 
       final scrollable = find.byType(Scrollable).last;
       await tester.scrollUntilVisible(
-        find.widgetWithText(TextFormField, 'Password'),
+        fieldByHint('••••••••'),
         100,
         scrollable: scrollable,
       );
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Password'), 'secret');
+          fieldByHint('••••••••'), 'secret');
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
@@ -940,8 +1002,8 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — Save&Connect with Key+Pass all fields', () {
-    testWidgets('Save&Connect with Key+Pass auth includes all fields',
+  group('SessionEditDialog — Connect with Key+Pass all fields', () {
+    testWidgets('Connect with Key+Pass auth includes all fields',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
@@ -949,37 +1011,56 @@ void main() {
 
       await fillRequiredFields(tester);
 
+      await switchToAuth(tester);
       await tester.tap(find.text('Key+Pass'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
       await tester.scrollUntilVisible(
-        find.widgetWithText(TextFormField, 'Password'),
+        fieldByHint('••••••••'),
         100,
         scrollable: scrollable,
       );
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Password'), 'pass123');
+          fieldByHint('••••••••'), 'pass123');
+      await tester.pumpAndSettle();
+
+      // Add PEM key data (required for key auth)
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Save & Connect'),
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Connect'),
         -100,
         scrollable: scrollable,
       );
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<SaveResult>());
-      final result = dialogResult as SaveResult;
-      expect(result.session.authType, AuthType.keyWithPassword);
-      expect(result.session.password, 'pass123');
-      expect(result.connect, isTrue);
+      expect(dialogResult, isA<ConnectOnlyResult>());
+      final result = dialogResult as ConnectOnlyResult;
+      expect(result.config.password, 'pass123');
     });
   });
 
   group('SessionEditDialog — new session with group', () {
-    testWidgets('Save&Connect for new session creates Session with group',
+    testWidgets('Connect for new session returns ConnectOnlyResult',
         (tester) async {
       await tester.pumpWidget(buildApp(
         existingGroups: ['Production'],
@@ -989,19 +1070,16 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Label'), 'my-server');
+          fieldByHint('My Server'), 'my-server');
       await fillRequiredFields(tester, host: 'new.host', user: 'newuser');
 
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<SaveResult>());
-      final result = dialogResult as SaveResult;
-      expect(result.session.label, 'my-server');
-      expect(result.session.group, 'Production');
-      expect(result.session.host, 'new.host');
-      expect(result.session.user, 'newuser');
-      expect(result.connect, isTrue);
+      expect(dialogResult, isA<ConnectOnlyResult>());
+      final result = dialogResult as ConnectOnlyResult;
+      expect(result.config.host, 'new.host');
+      expect(result.config.user, 'newuser');
     });
   });
 
@@ -1012,7 +1090,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       expect(find.text('Select Key File'), findsOneWidget);
@@ -1025,7 +1104,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // Should NOT have a TextFormField for key path
@@ -1044,16 +1124,18 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      // Fill required fields on Connection tab first
+      await tester.enterText(
+          fieldByHint('192.168.1.1'), 'h.com');
+      await tester.enterText(
+          fieldByHint('root'), 'u');
+      await tester.pumpAndSettle();
+
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
-
-      await tester.enterText(
-          find.widgetWithText(TextFormField, 'Host *'), 'h.com');
-      await tester.enterText(
-          find.widgetWithText(TextFormField, 'Username *'), 'u');
-      await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
         find.text('Paste PEM key text'),
@@ -1120,6 +1202,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
+      await switchToAuth(tester);
       await tester.tap(find.text('Key+Pass'));
       await tester.pumpAndSettle();
 
@@ -1145,12 +1228,13 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
+      await switchToAuth(tester);
       await tester.tap(find.text('Key+Pass'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
       await tester.scrollUntilVisible(
-        find.text('Key Passphrase'),
+        find.text('KEY PASSPHRASE'),
         100,
         scrollable: scrollable,
       );
@@ -1166,17 +1250,28 @@ void main() {
   });
 
   group('SessionEditDialog — Key+Pass with PEM key data', () {
-    testWidgets('Save with Key+Pass auth preserves keyData', (tester) async {
+    testWidgets('Connect with Key+Pass auth preserves keyData', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
 
+      await switchToAuth(tester);
       await tester.tap(find.text('Key+Pass'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
+
+      // Fill password (required for Key+Pass)
+      await tester.scrollUntilVisible(
+        fieldByHint('••••••••'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.enterText(fieldByHint('••••••••'), 'pass');
+      await tester.pumpAndSettle();
+
       await tester.scrollUntilVisible(
         find.text('Paste PEM key text'),
         100,
@@ -1197,17 +1292,16 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Save & Connect'),
+        find.text('Connect'),
         -100,
         scrollable: scrollable,
       );
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<SaveResult>());
-      final result = dialogResult as SaveResult;
-      expect(result.session.authType, AuthType.keyWithPassword);
-      expect(result.session.keyData, contains('PRIVATE KEY'));
+      expect(dialogResult, isA<ConnectOnlyResult>());
+      final result = dialogResult as ConnectOnlyResult;
+      expect(result.config.keyData, contains('PRIVATE KEY'));
     });
   });
 
@@ -1239,7 +1333,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
@@ -1259,7 +1354,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
@@ -1285,7 +1381,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
@@ -1316,6 +1413,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
+      await switchToAuth(tester);
+
       // Since keyData is not empty, _showKeyText starts as true
       // PEM toggle should say "Hide PEM text"
       final scrollable = find.byType(Scrollable).last;
@@ -1342,6 +1441,8 @@ void main() {
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
+
+      await switchToAuth(tester);
 
       final scrollable = find.byType(Scrollable).last;
 
@@ -1390,7 +1491,8 @@ void main() {
       await fillRequiredFields(tester);
 
       // Switch to Key auth
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // Do NOT enter a key path or PEM text — leave them empty
@@ -1398,12 +1500,12 @@ void main() {
       // Scroll to passphrase field and fill it
       final scrollable = find.byType(Scrollable).last;
       await tester.scrollUntilVisible(
-        find.text('Key Passphrase'),
+        find.text('KEY PASSPHRASE'),
         100,
         scrollable: scrollable,
       );
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Key Passphrase'),
+        fieldByHint('Optional'),
         'mypassphrase',
       );
       await tester.pumpAndSettle();
@@ -1418,7 +1520,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should show validation error — dialog stays open
-      expect(find.text('Provide a key file or PEM text first'), findsOneWidget);
+      expect(find.text('Provide a key file or paste PEM text'), findsOneWidget);
       expect(dialogResult, isNull);
     });
   });
@@ -1430,7 +1532,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // On desktop, the key path field is wrapped in a DropTarget
@@ -1457,7 +1560,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Switch to Key auth
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // On mobile, the key path field should NOT be wrapped in DropTarget
@@ -1474,7 +1578,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // PEM toggle should be visible
@@ -1515,7 +1620,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // Open PEM text area
@@ -1551,7 +1657,8 @@ void main() {
 
       await fillRequiredFields(tester);
 
-      await tester.tap(find.text('Key'));
+      await switchToAuth(tester);
+      await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
       // Open PEM text and enter key data

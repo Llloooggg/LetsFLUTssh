@@ -22,7 +22,6 @@ import 'package:letsflutssh/main.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
-import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
 /// A SessionNotifier subclass that starts with pre-populated sessions.
@@ -232,7 +231,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Drawer should open and show Sessions panel
-      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
     });
   });
 
@@ -262,15 +261,15 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.text('LetsFLUTssh'), findsWidgets);
-      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+      expect(find.text('No active session'), findsOneWidget);
+      expect(find.text('New Connection'), findsOneWidget);
     });
 
-    testWidgets('status bar shows "No active connection"', (tester) async {
+    testWidgets('status bar shows tab count', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.text('No active connection'), findsOneWidget);
+      expect(find.text('0 tabs'), findsOneWidget);
     });
 
     testWidgets('status bar shows tab count', (tester) async {
@@ -287,23 +286,12 @@ void main() {
       expect(find.byType(Scaffold), findsWidgets);
     });
 
-    testWidgets('toolbar has tooltip with Ctrl+N', (tester) async {
+    testWidgets('toolbar has Settings tooltip', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // Find all IconButtons and check at least one has Ctrl+N tooltip
-      final iconButtons = find.byType(IconButton);
-      expect(iconButtons, findsWidgets);
-
-      bool foundCtrlN = false;
-      for (int i = 0; i < tester.widgetList(iconButtons).length; i++) {
-        final btn = tester.widgetList<IconButton>(iconButtons).elementAt(i);
-        if (btn.tooltip?.contains('Ctrl+N') == true) {
-          foundCtrlN = true;
-          break;
-        }
-      }
-      expect(foundCtrlN, isTrue);
+      // Toolbar should have Settings button
+      expect(find.byTooltip('Settings'), findsOneWidget);
     });
 
     testWidgets('renders session panel (sidebar)', (tester) async {
@@ -316,16 +304,16 @@ void main() {
   });
 
   group('MainScreen — toolbar new session button', () {
-    testWidgets('toolbar add button with Ctrl+N tooltip opens dialog', (tester) async {
+    testWidgets('tab bar add button opens dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // Tap the toolbar "+" button (the one with Ctrl+N tooltip)
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Tap the "+" button in the AppTabBar
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pumpAndSettle();
 
       // New Session dialog should appear (may have multiple 'New Session' texts)
-      expect(find.text('Host *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
 
       // Cancel the dialog
       await tester.tap(find.text('Cancel'));
@@ -345,13 +333,13 @@ void main() {
     });
   });
 
-  group('_StatusBar — transfer status display', () {
-    testWidgets('status bar renders without active transfers', (tester) async {
+  group('_StatusBar — basic display', () {
+    testWidgets('status bar shows tabs and UTF-8', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.text('No active connection'), findsOneWidget);
-      expect(find.textContaining('tab(s)'), findsOneWidget);
+      expect(find.text('0 tabs'), findsOneWidget);
+      expect(find.text('UTF-8'), findsOneWidget);
     });
   });
 
@@ -368,17 +356,17 @@ void main() {
       await tester.pump();
 
       // Session panel should be visible
-      expect(find.text('Sessions'), findsOneWidget);
-      // Toolbar should have New Session button
-      expect(find.byTooltip('New Session (Ctrl+N)'), findsOneWidget);
+      expect(find.text('SESSIONS'), findsOneWidget);
+      // Toolbar should have Sidebar toggle button
+      expect(find.byTooltip('Sidebar (Ctrl+B)'), findsOneWidget);
     });
 
     testWidgets('wide layout shows welcome screen when no tabs', (tester) async {
       await tester.pumpWidget(buildApp(width: 1000));
       await tester.pump();
 
-      expect(find.text('SSH/SFTP Client'), findsOneWidget);
-      expect(find.text('No active connection'), findsOneWidget);
+      expect(find.text('No active session'), findsOneWidget);
+      expect(find.text('0 tabs'), findsOneWidget);
     });
 
   });
@@ -413,7 +401,7 @@ void main() {
       await tester.pump();
 
       // The welcome screen should be shown, no tab bar divider
-      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+      expect(find.text('No active session'), findsOneWidget);
     });
   });
 
@@ -436,7 +424,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // New Session dialog should appear
-      expect(find.text('Host *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
 
       // Cancel the dialog
       await tester.tap(find.text('Cancel'));
@@ -450,11 +438,11 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // Open dialog via toolbar button
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Open dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Host *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
 
       // Cancel
@@ -462,36 +450,39 @@ void main() {
       await tester.pumpAndSettle();
 
       // Back to welcome screen
-      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+      expect(find.text('No active session'), findsOneWidget);
     });
 
     testWidgets('new session dialog shows auth type selector', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pumpAndSettle();
 
-      // Dialog should have auth type options
+      // Switch to Auth tab to see auth selector
+      await tester.tap(find.text('Auth'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Password'), findsWidgets);
     });
   });
 
   group('MainScreen — welcome screen interaction', () {
-    testWidgets('welcome screen New Session button opens dialog',
+    testWidgets('welcome screen New Connection button opens dialog',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // Find the "New Session" FilledButton on welcome screen
-      final newSessionBtn = find.widgetWithText(FilledButton, 'New Session');
-      expect(newSessionBtn, findsOneWidget);
+      // Find the "New Connection" TextButton on welcome screen
+      final newConnBtn = find.widgetWithText(TextButton, 'New Connection');
+      expect(newConnBtn, findsOneWidget);
 
-      await tester.tap(newSessionBtn);
+      await tester.tap(newConnBtn);
       await tester.pumpAndSettle();
 
       // Dialog opens
-      expect(find.text('Host *'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
 
       // Cancel
       await tester.tap(find.text('Cancel'));
@@ -572,7 +563,7 @@ void main() {
   }
 
   group('MainScreen — with active tabs', () {
-    testWidgets('shows tab bar with divider when tabs are present',
+    testWidgets('shows tab bar when tabs are present',
         (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs(tabs: [
@@ -584,7 +575,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byType(Divider), findsWidgets);
+      expect(find.text('SSH Tab'), findsWidgets);
     });
 
     testWidgets('status bar shows connected state for active tab',
@@ -600,7 +591,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Connected'), findsOneWidget);
+      expect(find.textContaining('Connected'), findsWidgets);
     });
 
     testWidgets('status bar shows disconnected state for disconnected tab',
@@ -615,7 +606,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Disconnected'), findsOneWidget);
+      expect(find.textContaining('Disconnected'), findsWidgets);
     });
 
     testWidgets('SFTP button visible when active tab is connected',
@@ -630,7 +621,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsOneWidget);
+      expect(find.byTooltip('Files'), findsOneWidget);
     });
   });
 
@@ -656,7 +647,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+      expect(find.textContaining('2 tabs'), findsOneWidget);
     });
 
     testWidgets('Ctrl+Shift+Tab cycles to previous tab', (tester) async {
@@ -682,7 +673,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+      expect(find.textContaining('2 tabs'), findsOneWidget);
     });
 
     testWidgets('Ctrl+Tab with single tab does not crash', (tester) async {
@@ -701,7 +692,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
     });
 
   });
@@ -718,13 +709,13 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      final sftpBtn = find.byTooltip('Open SFTP Browser');
+      final sftpBtn = find.byTooltip('Files');
       expect(sftpBtn, findsOneWidget);
 
       await tester.tap(sftpBtn);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+      expect(find.textContaining('2 tabs'), findsOneWidget);
     });
   });
 
@@ -759,7 +750,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
 
       // Close via tab bar context — find the close button on the tab
       final closeButtons = find.byIcon(Icons.close);
@@ -769,7 +760,7 @@ void main() {
       }
 
       // After closing, should show welcome screen
-      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+      expect(find.text('No active session'), findsOneWidget);
     });
 
     testWidgets('Ctrl+W does nothing when no tabs', (tester) async {
@@ -789,93 +780,24 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should still show welcome screen
-      expect(find.text('SSH/SFTP Client'), findsOneWidget);
+      expect(find.text('No active session'), findsOneWidget);
     });
   });
 
-  group('MainScreen — status bar with transfer status', () {
-    testWidgets('status bar shows transfer info when active', (tester) async {
+  group('MainScreen — status bar content', () {
+    testWidgets('status bar shows tab count for open tabs', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            configProvider.overrideWith(ConfigNotifier.new),
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addTerminalTab(conn, label: 'Tab')),
-            )),
-            transferStatusProvider.overrideWith(
-              (ref) => Stream.value(const ActiveTransferState(
-                running: 2,
-                queued: 1,
-                currentInfo: 'Uploading test.txt',
-              )),
-            ),
-          ],
-          child: MaterialApp(
-            navigatorKey: navigatorKey,
-            theme: AppTheme.dark(),
-            home: const MediaQuery(
-              data: MediaQueryData(size: Size(1000, 600)),
-              child: SizedBox(
-                width: 1000,
-                height: 600,
-                child: MainScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(
+            id: 't1',
+            label: 'Tab',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
 
-      // Transfer status should be shown
-      expect(find.text('Uploading test.txt'), findsOneWidget);
-    });
-
-    testWidgets('status bar shows active count when no currentInfo', (tester) async {
-      final conn = makeConn(state: SSHConnectionState.connected);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            configProvider.overrideWith(ConfigNotifier.new),
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addTerminalTab(conn, label: 'Tab')),
-            )),
-            transferStatusProvider.overrideWith(
-              (ref) => Stream.value(const ActiveTransferState(
-                running: 3,
-                queued: 0,
-              )),
-            ),
-          ],
-          child: MaterialApp(
-            navigatorKey: navigatorKey,
-            theme: AppTheme.dark(),
-            home: const MediaQuery(
-              data: MediaQueryData(size: Size(1000, 600)),
-              child: SizedBox(
-                width: 1000,
-                height: 600,
-                child: MainScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump();
-
-      expect(find.text('3 active'), findsOneWidget);
+      expect(find.text('1 tabs'), findsOneWidget);
+      expect(find.text('UTF-8'), findsOneWidget);
     });
   });
 
@@ -892,8 +814,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Status bar should show "Connected" for the active tab
-      expect(find.textContaining('Connected'), findsOneWidget);
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('Connected'), findsWidgets);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
     });
 
     testWidgets('renders FileBrowserTab for sftp kind', (tester) async {
@@ -907,7 +829,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
     });
 
     testWidgets('IndexedStack preserves both terminal and sftp tabs', (tester) async {
@@ -926,7 +848,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+      expect(find.textContaining('2 tabs'), findsOneWidget);
       expect(find.byType(IndexedStack), findsOneWidget);
     });
   });
@@ -943,7 +865,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
 
       // Focus inside the shortcuts area
       final textFields = find.byType(TextField);
@@ -959,8 +881,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tab should be closed → welcome screen
-      expect(find.text('SSH/SFTP Client'), findsOneWidget);
-      expect(find.textContaining('0 tab(s)'), findsOneWidget);
+      expect(find.text('No active session'), findsOneWidget);
+      expect(find.textContaining('0 tabs'), findsOneWidget);
     });
 
     testWidgets('Ctrl+W with two tabs closes active and keeps other', (tester) async {
@@ -979,7 +901,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+      expect(find.textContaining('2 tabs'), findsOneWidget);
 
       final textFields = find.byType(TextField);
       if (textFields.evaluate().isNotEmpty) {
@@ -992,7 +914,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
     });
   });
 
@@ -1001,16 +923,16 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // Open new session dialog
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Open new session dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pumpAndSettle();
 
       // Fill in required fields
-      final hostField = find.widgetWithText(TextField, 'Host *');
+      final hostField = find.widgetWithText(TextField, '192.168.1.1');
       await tester.enterText(hostField, 'test.example.com');
       await tester.pump();
 
-      final userField = find.widgetWithText(TextField, 'Username *');
+      final userField = find.widgetWithText(TextField, 'root');
       await tester.enterText(userField, 'testuser');
       await tester.pump();
 
@@ -1033,7 +955,7 @@ void main() {
       ], activeIndex: 0));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('3 tab(s)'), findsOneWidget);
+      expect(find.textContaining('3 tabs'), findsOneWidget);
 
       // Ctrl+Tab: 0 -> 1
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -1054,7 +976,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // All 3 tabs still present, no crash
-      expect(find.textContaining('3 tab(s)'), findsOneWidget);
+      expect(find.textContaining('3 tabs'), findsOneWidget);
     });
 
     testWidgets('Ctrl+Shift+Tab cycles backward through 3 tabs', (tester) async {
@@ -1082,7 +1004,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('3 tab(s)'), findsOneWidget);
+      expect(find.textContaining('3 tabs'), findsOneWidget);
     });
 
     testWidgets('single tab: Ctrl+Tab does not switch (no-op)', (tester) async {
@@ -1098,9 +1020,9 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
       // Status should still show this tab as active
-      expect(find.textContaining('Connected'), findsOneWidget);
+      expect(find.textContaining('Connected'), findsWidgets);
     });
 
     testWidgets('single tab: Ctrl+Shift+Tab does not switch (no-op)', (tester) async {
@@ -1118,7 +1040,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
     });
   });
 
@@ -1180,7 +1102,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsOneWidget);
+      expect(find.byTooltip('Files'), findsOneWidget);
       // The folder_open icon should be visible
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
@@ -1192,7 +1114,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsNothing);
+      expect(find.byTooltip('Files'), findsNothing);
       expect(find.byIcon(Icons.folder_open), findsNothing);
     });
 
@@ -1200,7 +1122,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsNothing);
+      expect(find.byTooltip('Files'), findsNothing);
     });
 
     testWidgets('tapping SFTP button opens SFTP tab alongside terminal', (tester) async {
@@ -1210,13 +1132,13 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Open SFTP Browser'));
+      await tester.tap(find.byTooltip('Files'));
       await tester.pumpAndSettle();
 
       // Now should have 2 tabs (terminal + sftp)
-      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+      expect(find.textContaining('2 tabs'), findsOneWidget);
       expect(find.byType(FileBrowserTab), findsOneWidget);
     });
 
@@ -1227,7 +1149,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SFTP Browser'), findsNothing);
+      expect(find.byTooltip('Files'), findsNothing);
     });
   });
 
@@ -1239,7 +1161,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SSH Terminal'), findsOneWidget);
+      expect(find.byTooltip('Terminal'), findsOneWidget);
       expect(find.byIcon(Icons.terminal), findsAtLeastNWidgets(1));
     });
 
@@ -1250,7 +1172,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SSH Terminal'), findsNothing);
+      expect(find.byTooltip('Terminal'), findsNothing);
     });
 
     testWidgets('SSH button hidden when SFTP tab is disconnected', (tester) async {
@@ -1260,7 +1182,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open SSH Terminal'), findsNothing);
+      expect(find.byTooltip('Terminal'), findsNothing);
     });
 
     testWidgets('tapping SSH button opens terminal tab alongside SFTP', (tester) async {
@@ -1270,12 +1192,12 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Open SSH Terminal'));
+      await tester.tap(find.byTooltip('Terminal'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tab(s)'), findsOneWidget);
+      expect(find.textContaining('2 tabs'), findsOneWidget);
     });
   });
 
@@ -1457,11 +1379,11 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // Context menu should show "SFTP" option
-      expect(find.text('SFTP'), findsOneWidget);
+      // Context menu should show "Files" option
+      expect(find.text('Files'), findsOneWidget);
 
       // Tap SFTP to trigger _connectSessionSftp
-      await tester.tap(find.text('SFTP'));
+      await tester.tap(find.text('Files'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
@@ -1497,17 +1419,17 @@ void main() {
       ));
       await tester.pump();
 
-      // Open new session dialog
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Open new session dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pump();
       await tester.pump();
 
       // Fill in required fields
-      final hostField = find.widgetWithText(TextFormField, 'Host *');
+      final hostField = find.widgetWithText(TextFormField, '192.168.1.1');
       await tester.enterText(hostField, 'connect-only.example.com');
       await tester.pump();
 
-      final userField = find.widgetWithText(TextFormField, 'Username *');
+      final userField = find.widgetWithText(TextFormField, 'root');
       await tester.enterText(userField, 'testuser');
       await tester.pump();
 
@@ -1548,22 +1470,22 @@ void main() {
       ));
       await tester.pump();
 
-      // Open new session dialog
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Open new session dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pump();
       await tester.pump();
 
       // Fill in required fields including label
-      final hostField = find.widgetWithText(TextFormField, 'Host *');
+      final hostField = find.widgetWithText(TextFormField, '192.168.1.1');
       await tester.enterText(hostField, 'save.example.com');
       await tester.pump();
 
-      final userField = find.widgetWithText(TextFormField, 'Username *');
+      final userField = find.widgetWithText(TextFormField, 'root');
       await tester.enterText(userField, 'saveuser');
       await tester.pump();
 
       // Click "Save & Connect" → SaveResult with connect: true
-      await tester.tap(find.text('Save & Connect'));
+      await tester.tap(find.text('Save'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
@@ -1692,7 +1614,7 @@ void main() {
       expect(stack.index, 1);
 
       // Status bar should reflect the active tab's connection
-      expect(find.textContaining('Connected'), findsOneWidget);
+      expect(find.textContaining('Connected'), findsWidgets);
     });
 
     testWidgets('clicking first tab after selecting second changes IndexedStack.index back to 0', (tester) async {
@@ -1769,7 +1691,7 @@ void main() {
       await tester.pump();
 
       // SFTP option in context menu confirms onSftpConnect is wired up (line 218)
-      expect(find.text('SFTP'), findsOneWidget);
+      expect(find.text('Files'), findsOneWidget);
 
       // Dismiss menu
       await tester.tapAt(Offset.zero);
@@ -1790,7 +1712,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Quick connect dialog should appear
-        expect(find.text('Host *'), findsOneWidget);
+        expect(find.text('HOST *'), findsOneWidget);
 
         // Cancel the dialog
         await tester.tap(find.text('Cancel'));
@@ -1822,8 +1744,8 @@ void main() {
 
       // Menu button visible in narrow mode
       expect(find.byIcon(Icons.menu), findsOneWidget);
-      // Toolbar should still have New Session button
-      expect(find.byTooltip('New Session (Ctrl+N)'), findsOneWidget);
+      // Tab bar should have add button
+      expect(find.byIcon(Icons.add), findsWidgets);
       // Status bar should show
       expect(find.textContaining('tab'), findsWidgets);
     });
@@ -1859,7 +1781,80 @@ void main() {
 
       // Menu button and tab content both visible
       expect(find.byIcon(Icons.menu), findsOneWidget);
-      expect(find.textContaining('1 tab(s)'), findsOneWidget);
+      expect(find.textContaining('1 tabs'), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — sidebar toggle', () {
+    testWidgets('wide layout shows view_sidebar button', (tester) async {
+      await tester.pumpWidget(buildApp(width: 1000));
+      await tester.pump();
+
+      expect(find.byTooltip('Sidebar (Ctrl+B)'), findsOneWidget);
+    });
+
+    testWidgets('view_sidebar button not shown on narrow layout', (tester) async {
+      tester.view.physicalSize = const Size(500, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [configProvider.overrideWith(ConfigNotifier.new)],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          theme: AppTheme.dark(),
+          home: const Center(child: SizedBox(width: 500, height: 600, child: MainScreen())),
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.byTooltip('Sidebar (Ctrl+B)'), findsNothing);
+    });
+
+    testWidgets('Ctrl+B shortcut toggles sidebar', (tester) async {
+      await tester.pumpWidget(buildApp(width: 1000));
+      await tester.pump();
+
+      // Session panel visible by default
+      expect(find.text('SESSIONS'), findsOneWidget);
+
+      // Focus inside shortcuts tree
+      final textFields = find.byType(TextField);
+      if (textFields.evaluate().isNotEmpty) {
+        await tester.tap(textFields.first);
+        await tester.pump();
+      }
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Session panel should be hidden (width = 0, clipped)
+      expect(find.text('SESSIONS'), findsNothing);
+    });
+
+    testWidgets('split buttons shown only for terminal tab', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Split Vertical (Ctrl+\\)'), findsOneWidget);
+      expect(find.byTooltip('Split Horizontal (Ctrl+Shift+\\)'), findsOneWidget);
+    });
+
+    testWidgets('split buttons not shown for SFTP tab', (tester) async {
+      final conn = makeConn(state: SSHConnectionState.connected);
+      await tester.pumpWidget(buildAppWithTabs(tabs: [
+        TabEntry(id: 't1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
+      ]));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Split Vertical (Ctrl+\\)'), findsNothing);
+      expect(find.byTooltip('Split Horizontal (Ctrl+Shift+\\)'), findsNothing);
     });
   });
 }

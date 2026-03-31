@@ -6,7 +6,7 @@ void main() {
     test('defaults are correct', () {
       const config = AppConfig.defaults;
       expect(config.fontSize, 14.0);
-      expect(config.theme, 'dark');
+      expect(config.theme, 'system');
       expect(config.scrollback, 5000);
       expect(config.keepAliveSec, 30);
       expect(config.defaultPort, 22);
@@ -39,7 +39,7 @@ void main() {
     test('fromJson handles missing fields', () {
       final config = AppConfig.fromJson({});
       expect(config.fontSize, 14.0);
-      expect(config.theme, 'dark');
+      expect(config.theme, 'system');
     });
 
     test('fromJson sanitizes invalid values', () {
@@ -53,7 +53,7 @@ void main() {
       });
       // Should be clamped/replaced to safe defaults
       expect(config.fontSize, 6.0); // clamped to min
-      expect(config.theme, 'dark'); // replaced with default
+      expect(config.theme, 'system'); // replaced with default
       expect(config.scrollback, 5000); // replaced with default
       expect(config.transferWorkers, 2); // replaced with default
       expect(config.defaultPort, 22); // replaced with default
@@ -133,7 +133,7 @@ void main() {
     });
 
     test('replaces invalid theme with default', () {
-      expect(const AppConfig(terminal: TerminalConfig(theme: 'neon')).sanitized().theme, 'dark');
+      expect(const AppConfig(terminal: TerminalConfig(theme: 'neon')).sanitized().theme, 'system');
     });
 
     test('replaces invalid transferWorkers with default', () {

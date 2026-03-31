@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
+import '../../widgets/context_menu.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import 'file_browser_controller.dart';
 import 'file_pane_dialogs.dart';
@@ -34,6 +37,9 @@ class FilePane extends StatefulWidget {
   /// starts in the session panel and crosses into this file pane.
   final CrossMarqueeController? crossMarquee;
 
+  /// Whether to calculate and display folder sizes.
+  final bool showFolderSizes;
+
   const FilePane({
     super.key,
     required this.controller,
@@ -44,6 +50,7 @@ class FilePane extends StatefulWidget {
     this.onOsDropReceived,
     this.onPaneActivated,
     this.crossMarquee,
+    this.showFolderSizes = false,
   });
 
   @override
@@ -51,11 +58,18 @@ class FilePane extends StatefulWidget {
 }
 
 class _FilePaneState extends State<FilePane> {
-  final _pathController = TextEditingController();
   final _focusNode = FocusNode();
   final _fileListKey = GlobalKey();
+  final _pathController = TextEditingController();
+  final _pathFocusNode = FocusNode();
   bool _editingPath = false;
   bool _osDragging = false;
+
+  // Resizable column widths (compact defaults so Name gets more space)
+  double _sizeColWidth = 55;
+  double _modifiedColWidth = 105;
+  double _modeColWidth = 65;
+  double _ownerColWidth = 50;
 
   FilePaneController get ctrl => widget.controller;
 
@@ -68,8 +82,14 @@ class _FilePaneState extends State<FilePane> {
   void initState() {
     super.initState();
     ctrl.addListener(_onChanged);
-    _pathController.text = ctrl.currentPath;
     widget.crossMarquee?.addListener(_onCrossMarquee);
+    _pathFocusNode.addListener(_onPathFocusChanged);
+  }
+
+  void _onPathFocusChanged() {
+    if (!_pathFocusNode.hasFocus && _editingPath) {
+      setState(() => _editingPath = false);
+    }
   }
 
   @override
@@ -85,6 +105,8 @@ class _FilePaneState extends State<FilePane> {
   void dispose() {
     widget.crossMarquee?.removeListener(_onCrossMarquee);
     ctrl.removeListener(_onChanged);
+    _pathFocusNode.removeListener(_onPathFocusChanged);
+    _pathFocusNode.dispose();
     _pathController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -137,11 +159,7 @@ class _FilePaneState extends State<FilePane> {
 
   void _onChanged() {
     if (mounted) {
-      setState(() {
-        if (!_editingPath) {
-          _pathController.text = ctrl.currentPath;
-        }
-      });
+      setState(() {});
     }
   }
 
@@ -184,10 +202,7 @@ class _FilePaneState extends State<FilePane> {
             child: Column(
               children: [
                 _buildHeader(theme),
-                _buildPathBar(theme),
-                const Divider(height: 1),
                 _buildColumnHeaders(theme),
-                const Divider(height: 1),
                 Expanded(child: _buildDropTarget(_buildFileList(theme))),
                 _buildFooter(theme),
               ],
@@ -201,99 +216,143 @@ class _FilePaneState extends State<FilePane> {
   // ── Header ──
 
   Widget _buildHeader(ThemeData theme) {
+    final isLocal = ctrl.label.toUpperCase() == 'LOCAL';
+    final labelColor = isLocal ? AppTheme.blue : AppTheme.green;
+
     return Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
           Text(
-            ctrl.label,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ctrl.label.toUpperCase(),
+            style: AppFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: labelColor,
+            ),
           ),
-          const Spacer(),
-          _iconButton(Icons.arrow_back, ctrl.canGoBack ? ctrl.goBack : null, 'Back'),
-          _iconButton(Icons.arrow_forward, ctrl.canGoForward ? ctrl.goForward : null, 'Forward'),
-          _iconButton(Icons.arrow_upward, ctrl.navigateUp, 'Up'),
-          _iconButton(Icons.refresh, ctrl.refresh, 'Refresh'),
+          const SizedBox(width: 8),
+          Expanded(child: _buildBreadcrumb()),
+          const SizedBox(width: 4),
+          _navButton(Icons.arrow_back, ctrl.canGoBack ? ctrl.goBack : null, 'Back'),
+          _navButton(Icons.arrow_forward, ctrl.canGoForward ? ctrl.goForward : null, 'Forward'),
+          _navButton(Icons.arrow_upward, ctrl.navigateUp, 'Up'),
+          _navButton(Icons.refresh, ctrl.refresh, 'Refresh'),
         ],
       ),
     );
   }
 
-  Widget _iconButton(IconData icon, VoidCallback? onPressed, String tooltip) {
-    return SizedBox(
-      width: 28,
-      height: 28,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16),
-        tooltip: tooltip,
-        padding: EdgeInsets.zero,
-        visualDensity: VisualDensity.compact,
-      ),
+  Widget _buildBreadcrumb() {
+    if (_editingPath) {
+      return SizedBox(
+        height: 22,
+        child: TextField(
+          controller: _pathController,
+          focusNode: _pathFocusNode,
+          autofocus: true,
+          style: AppFonts.mono(fontSize: 10, color: AppTheme.fg),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: AppTheme.bg3,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.zero,
+              borderSide: BorderSide(color: AppTheme.borderLight),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.zero,
+              borderSide: BorderSide(color: AppTheme.accent),
+            ),
+            hintText: ctrl.currentPath,
+            hintStyle: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+          ),
+          onSubmitted: (val) {
+            setState(() => _editingPath = false);
+            if (val.trim().isNotEmpty) {
+              ctrl.navigateTo(val.trim());
+            }
+          },
+          onTapOutside: (_) => _pathFocusNode.unfocus(),
+        ),
+      );
+    }
+
+    final currentPath = ctrl.currentPath;
+    // Detect Windows paths (e.g. C:\Users or C:/)
+    final isWindows = currentPath.length >= 2 &&
+        currentPath[1] == ':' &&
+        RegExp(r'^[A-Za-z]$').hasMatch(currentPath[0]);
+    final separator = isWindows ? RegExp(r'[/\\]') : RegExp(r'/');
+    final parts = currentPath.split(separator)..removeWhere((p) => p.isEmpty);
+    final rootPath = isWindows && parts.isNotEmpty ? '${parts[0]}\\' : '/';
+    final rootLabel = isWindows && parts.isNotEmpty ? parts[0] : null;
+    final navParts = isWindows ? parts.skip(1).toList() : parts;
+
+    return Row(
+      children: [
+        InkWell(
+          onTap: () => ctrl.navigateTo(rootPath),
+          child: rootLabel != null
+              ? Text(rootLabel, style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint))
+              : Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
+        ),
+        for (var i = 0; i < navParts.length; i++) ...[
+          Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
+          InkWell(
+            onTap: () {
+              if (isWindows) {
+                ctrl.navigateTo([parts[0], ...navParts.sublist(0, i + 1)].join('\\'));
+              } else {
+                ctrl.navigateTo('/${navParts.sublist(0, i + 1).join('/')}');
+              }
+            },
+            child: Text(
+              navParts[i],
+              style: AppFonts.mono(
+                fontSize: 10,
+                color: i == navParts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+        const SizedBox(width: 4),
+        InkWell(
+          onTap: () {
+            _pathController.text = ctrl.currentPath;
+            setState(() => _editingPath = true);
+          },
+          child: Icon(Icons.edit, size: 9, color: AppTheme.fgFaint),
+        ),
+      ],
     );
   }
 
-  // ── Path bar ──
-
-  Widget _buildPathBar(ThemeData theme) {
-    return Container(
-      height: 30,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: _editingPath
-                ? TextField(
-                    controller: _pathController,
-                    autofocus: true,
-                    style: const TextStyle(fontSize: 12),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted: (val) {
-                      _editingPath = false;
-                      ctrl.navigateTo(val);
-                    },
-                    onTapOutside: (_) {
-                      setState(() {
-                        _editingPath = false;
-                        _pathController.text = ctrl.currentPath;
-                      });
-                    },
-                  )
-                : GestureDetector(
-                    onTap: () => setState(() => _editingPath = true),
-                    child: Container(
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: theme.dividerColor),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        ctrl.currentPath,
-                        style: const TextStyle(fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-          ),
-        ],
-      ),
+  Widget _navButton(IconData icon, VoidCallback? onPressed, String tooltip) {
+    return AppIconButton(
+      icon: icon,
+      onTap: onPressed,
+      tooltip: tooltip,
+      size: 11,
+      boxSize: 20,
+      color: AppTheme.fgFaint,
     );
   }
 
   // ── Column headers ──
 
   Widget _buildColumnHeaders(ThemeData theme) {
-    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
-    const headerStyle = TextStyle(fontSize: 11, fontWeight: FontWeight.w600);
+    final headerStyle = AppFonts.inter(
+      fontSize: 10,
+      fontWeight: FontWeight.w500,
+      color: AppTheme.fgFaint,
+    );
 
     Widget headerCell(String label, SortColumn column, {double? width, TextAlign? textAlign}) {
       final isActive = ctrl.sortColumn == column;
@@ -310,17 +369,17 @@ class _FilePaneState extends State<FilePane> {
               Flexible(
                 child: Text(
                   label,
-                  style: headerStyle.copyWith(
-                    color: isActive ? theme.colorScheme.primary : dimColor,
-                  ),
+                  style: isActive
+                      ? headerStyle.copyWith(color: AppTheme.accent)
+                      : headerStyle,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (isActive)
                 Icon(
                   ctrl.sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                  size: 12,
-                  color: theme.colorScheme.primary,
+                  size: 10,
+                  color: AppTheme.accent,
                 ),
             ],
           ),
@@ -330,29 +389,44 @@ class _FilePaneState extends State<FilePane> {
 
     final hasOwner = ctrl.entries.any((e) => e.owner.isNotEmpty);
 
-    final divider = Container(
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: theme.dividerColor,
-    );
+    Widget colHandle(void Function(double dx) onDrag) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragUpdate: (d) => setState(() => onDrag(d.delta.dx)),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.resizeColumn,
+          child: SizedBox(
+            width: 10,
+            height: 24,
+            child: Center(
+              child: Container(
+                width: 1,
+                height: 14,
+                color: AppTheme.fgFaint.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      color: theme.colorScheme.surfaceContainerLow,
+      color: AppTheme.bg3,
       child: Row(
         children: [
-          const SizedBox(width: 22), // icon space
-          Expanded(flex: 3, child: headerCell('Name', SortColumn.name)),
-          divider,
-          headerCell('Size', SortColumn.size, width: 70, textAlign: TextAlign.right),
-          divider,
-          headerCell('Modified', SortColumn.modified, width: 120),
-          divider,
-          headerCell('Mode', SortColumn.mode, width: 90),
+          const SizedBox(width: 20), // icon space
+          Expanded(child: headerCell('Name', SortColumn.name)),
+          colHandle((dx) => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 200)),
+          headerCell('Size', SortColumn.size, width: _sizeColWidth),
+          colHandle((dx) => _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, 200)),
+          headerCell('Modified', SortColumn.modified, width: _modifiedColWidth),
+          colHandle((dx) => _modeColWidth = (_modeColWidth - dx).clamp(50, 200)),
+          headerCell('Mode', SortColumn.mode, width: _modeColWidth),
           if (hasOwner) ...[
-            divider,
-            headerCell('Owner', SortColumn.owner, width: 60),
+            colHandle((dx) => _ownerColWidth = (_ownerColWidth - dx).clamp(40, 200)),
+            headerCell('Owner', SortColumn.owner, width: _ownerColWidth),
           ],
         ],
       ),
@@ -370,7 +444,7 @@ class _FilePaneState extends State<FilePane> {
   Set<String>? _preMarqueeSelection;
   DateTime _lastMarqueeUpdate = DateTime(0);
 
-  static const _rowHeight = 28.0;
+  static const _rowHeight = 26.0;
   static const _marqueeThreshold = 5.0;
 
   bool get _isCtrlHeld =>
@@ -405,13 +479,40 @@ class _FilePaneState extends State<FilePane> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-          const SizedBox(height: 8),
-          Text(ctrl.error!, style: TextStyle(color: theme.colorScheme.error)),
-          const SizedBox(height: 8),
-          FilledButton.tonal(
-            onPressed: ctrl.refresh,
-            child: const Text('Retry'),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(color: AppTheme.bg3),
+            child: Icon(Icons.error_outline, size: 22, color: AppTheme.red),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Connection error',
+            style: AppFonts.inter(fontSize: 13, color: AppTheme.fgDim),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            ctrl.error!,
+            style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: ctrl.refresh,
+            child: Container(
+              height: 26,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              color: AppTheme.bg3,
+              alignment: Alignment.center,
+              child: Text(
+                'Retry',
+                style: AppFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.fgDim,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -426,7 +527,12 @@ class _FilePaneState extends State<FilePane> {
       },
       onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
       behavior: HitTestBehavior.translucent,
-      child: const Center(child: Text('Empty directory', style: TextStyle(fontSize: 13))),
+      child: Center(
+        child: Text(
+          'Empty directory',
+          style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint),
+        ),
+      ),
     );
   }
 
@@ -521,9 +627,26 @@ class _FilePaneState extends State<FilePane> {
     final entry = ctrl.entries[index];
     final isSelected = ctrl.selected.contains(entry.path);
 
+    // Trigger async folder size calculation for directories (if enabled)
+    String? folderSizeText;
+    if (entry.isDir && widget.showFolderSizes) {
+      final cachedSize = ctrl.folderSize(entry.path);
+      if (cachedSize != null) {
+        folderSizeText = formatSize(cachedSize);
+      } else {
+        ctrl.requestFolderSize(entry.path);
+        folderSizeText = '...';
+      }
+    }
+
     final row = FileRow(
       entry: entry,
       isSelected: isSelected,
+      sizeWidth: _sizeColWidth,
+      modifiedWidth: _modifiedColWidth,
+      modeWidth: _modeColWidth,
+      ownerWidth: _ownerColWidth,
+      folderSizeText: folderSizeText,
       onTap: () => ctrl.selectSingle(entry.path),
       onCtrlTap: () => ctrl.toggleSelect(entry.path),
       onDoubleTap: () {
@@ -638,26 +761,21 @@ class _FilePaneState extends State<FilePane> {
   Widget _buildFooter(ThemeData theme) {
     final count = ctrl.entries.length;
     final selCount = ctrl.selected.length;
+    final style = AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint);
 
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: Border(top: BorderSide(color: theme.dividerColor)),
+        color: AppTheme.bg0,
+        border: Border(top: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
-          Text(
-            '$count items, ${formatSize(ctrl.totalFileSize)}',
-            style: const TextStyle(fontSize: 11),
-          ),
+          Text('$count items, ${formatSize(ctrl.totalFileSize)}', style: style),
           if (selCount > 0) ...[
             const SizedBox(width: 8),
-            Text(
-              '($selCount selected)',
-              style: const TextStyle(fontSize: 11),
-            ),
+            Text('($selCount selected)', style: style),
           ],
         ],
       ),
@@ -701,20 +819,19 @@ class _FilePaneState extends State<FilePane> {
 
   void _showBackgroundContextMenu(BuildContext context, Offset position) {
     ctrl.clearSelection();
-    showMenu(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(
-        position.dx, position.dy, position.dx, position.dy,
-      ),
+      position: position,
       items: [
-        PopupMenuItem(
+        ContextMenuItem(
+          label: 'New Folder',
+          icon: Icons.create_new_folder,
           onTap: () => _showNewFolderDialog(context),
-          child: const MenuRow(icon: Icons.create_new_folder, text: 'New Folder'),
         ),
-        PopupMenuItem(
+        ContextMenuItem(
+          label: 'Refresh',
+          icon: Icons.refresh,
           onTap: () => ctrl.refresh(),
-          child: const MenuRow(icon: Icons.refresh, text: 'Refresh'),
         ),
       ],
     );
@@ -728,19 +845,19 @@ class _FilePaneState extends State<FilePane> {
     final selectedEntries = ctrl.selectedEntries;
     final hasMultiple = selectedEntries.length > 1;
 
-    showMenu(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(
-        position.dx, position.dy, position.dx, position.dy,
-      ),
-      items: <PopupMenuEntry>[
+      position: position,
+      items: [
         if (!hasMultiple && entry.isDir)
-          PopupMenuItem(
+          ContextMenuItem(
+            label: 'Open',
+            icon: Icons.folder_open,
             onTap: () => ctrl.navigateTo(entry.path),
-            child: const MenuRow(icon: Icons.folder_open, text: 'Open'),
           ),
-        PopupMenuItem(
+        ContextMenuItem(
+          label: hasMultiple ? 'Transfer ${selectedEntries.length} items' : 'Transfer',
+          icon: Icons.swap_horiz,
           onTap: () {
             if (hasMultiple) {
               widget.onTransferMultiple?.call(selectedEntries);
@@ -748,27 +865,25 @@ class _FilePaneState extends State<FilePane> {
               widget.onTransfer?.call(entry);
             }
           },
-          child: MenuRow(
-            icon: Icons.swap_horiz,
-            text: hasMultiple ? 'Transfer ${selectedEntries.length} items' : 'Transfer',
-          ),
         ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
+        const ContextMenuItem.divider(),
+        ContextMenuItem(
+          label: 'New Folder',
+          icon: Icons.create_new_folder,
           onTap: () => _showNewFolderDialog(context),
-          child: const MenuRow(icon: Icons.create_new_folder, text: 'New Folder'),
         ),
         if (!hasMultiple)
-          PopupMenuItem(
+          ContextMenuItem(
+            label: 'Rename',
+            icon: Icons.edit,
+            shortcut: 'F2',
             onTap: () => _showRenameDialog(context, entry),
-            child: const MenuRow(icon: Icons.edit, text: 'Rename'),
           ),
-        PopupMenuItem(
+        ContextMenuItem(
+          label: hasMultiple ? 'Delete ${selectedEntries.length} items' : 'Delete',
+          icon: Icons.delete,
+          color: const Color(0xFFE06C75),
           onTap: () => _confirmDelete(context, selectedEntries),
-          child: MenuRow(
-            icon: Icons.delete,
-            text: hasMultiple ? 'Delete ${selectedEntries.length} items' : 'Delete',
-          ),
         ),
       ],
     );
@@ -785,3 +900,4 @@ class _FilePaneState extends State<FilePane> {
   Future<void> _confirmDelete(BuildContext context, List<FileEntry> entries) =>
       FilePaneDialogs.confirmDelete(context, ctrl, entries);
 }
+

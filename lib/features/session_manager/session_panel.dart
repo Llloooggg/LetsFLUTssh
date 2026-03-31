@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/context_menu.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/cross_marquee_controller.dart';
@@ -35,7 +38,9 @@ class SessionPanel extends ConsumerStatefulWidget {
 class SessionPanelState extends ConsumerState<SessionPanel> {
   bool _selectMode = false;
   final _selectedIds = <String>{};
-  bool _marqueeInProgress = false;
+  // Marquee state tracked for test visibility only.
+  @visibleForTesting
+  bool marqueeInProgress = false;
 
   @visibleForTesting
   bool get selectMode => _selectMode;
@@ -53,10 +58,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   @visibleForTesting
-  void simulateMarqueeStart() => setState(() => _marqueeInProgress = true);
+  void simulateMarqueeStart() => setState(() => marqueeInProgress = true);
 
   @visibleForTesting
-  void simulateMarqueeEnd() => setState(() => _marqueeInProgress = false);
+  void simulateMarqueeEnd() => setState(() => marqueeInProgress = false);
 
   void _enterSelectMode() {
     setState(() {
@@ -157,6 +162,21 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
+  /// Build set of session IDs that have an active connection.
+  Set<String> _connectedSessionIds(WidgetRef ref) {
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    final activeConfigs = connections
+        .where((c) => c.isConnected)
+        .map((c) => '${c.sshConfig.host}:${c.sshConfig.effectivePort}:${c.sshConfig.user}')
+        .toSet();
+    final sessions = ref.watch(sessionProvider);
+    return {
+      for (final s in sessions)
+        if (activeConfigs.contains('${s.server.host}:${s.port}:${s.server.user}'))
+          s.id,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final tree = ref.watch(filteredSessionTreeProvider);
@@ -165,7 +185,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final mobile = isMobilePlatform;
 
-    return Column(
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.surfaceContainerLow,
+      child: Column(
       children: [
         if (_selectMode && mobile)
           _SelectActionBar(
@@ -186,16 +209,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             value: searchQuery,
             onChanged: (v) => ref.read(sessionSearchProvider.notifier).set(v),
           ),
-          // Desktop: compact action bar when marquee-selected
-          // Suppressed during active marquee drag to avoid layout shift.
-          if (!mobile && _selectedIds.isNotEmpty && !_marqueeInProgress)
-            _SelectActionBar(
-              selectedCount: _selectedIds.length,
-              onSelectAll: _selectAll,
-              onDelete: () => _deleteSelected(context),
-              onMove: () => _moveSelected(context),
-              onCancel: _clearDesktopSelection,
-            ),
+          // Desktop marquee selection is shown inline via row highlights.
+          // Bulk actions available via right-click context menu.
         ],
         // Tree view
         Expanded(
@@ -203,6 +218,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               ? _EmptyState(onAdd: () => _addSession(context, ref))
               : SessionTreeView(
                   tree: tree,
+                  connectedSessionIds: _connectedSessionIds(ref),
                   selectMode: mobile && _selectMode,
                   selectedIds: _selectedIds,
                   onToggleSelected: _toggleSelected,
@@ -223,8 +239,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   onGroupMoved: (groupPath, targetParent) {
                     ref.read(sessionProvider.notifier).moveGroup(groupPath, targetParent);
                   },
-                  onMarqueeStart: () => setState(() => _marqueeInProgress = true),
-                  onMarqueeEnd: () => setState(() => _marqueeInProgress = false),
+                  onMarqueeStart: () => setState(() => marqueeInProgress = true),
+                  onMarqueeEnd: () => setState(() => marqueeInProgress = false),
                   onMarqueeSelect: (ids) {
                     setState(() {
                       _selectedIds
@@ -234,7 +250,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   },
                 ),
         ),
+        // Footer
+        const _SidebarFooter(),
       ],
+    ),
     );
   }
 
@@ -264,58 +283,52 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     Session session,
     Offset position,
   ) {
-    showMenu<String>(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
-      items: _sessionMenuItems(),
-    ).then((value) {
-      if (value == null || !context.mounted) return;
-      _handleSessionMenuAction(context, ref, session, value);
-    });
-  }
-
-  List<PopupMenuEntry<String>> _sessionMenuItems() {
-    final h = isMobilePlatform ? 48.0 : 32.0;
-    return [
-      PopupMenuItem(height: h, value: 'connect', child: const _MenuRow(icon: Icons.terminal, text: 'SSH')),
-      if (widget.onSftpConnect != null)
-        PopupMenuItem(height: h, value: 'sftp', child: const _MenuRow(icon: Icons.folder, text: 'SFTP')),
-      const PopupMenuDivider(height: 1),
-      PopupMenuItem(height: h, value: 'edit', child: const _MenuRow(icon: Icons.edit, text: 'Edit')),
-      PopupMenuItem(height: h, value: 'duplicate', child: const _MenuRow(icon: Icons.copy, text: 'Duplicate')),
-      if (isMobilePlatform)
-        PopupMenuItem(height: h, value: 'move', child: const _MenuRow(icon: Icons.drive_file_move, text: 'Move to...')),
-      const PopupMenuDivider(height: 1),
-      PopupMenuItem(height: h, value: 'delete', child: const _MenuRow(icon: Icons.delete, text: 'Delete', color: AppTheme.disconnected)),
-    ];
-  }
-
-  void _handleSessionMenuAction(
-    BuildContext context,
-    WidgetRef ref,
-    Session session,
-    String value,
-  ) {
-    switch (value) {
-      case 'connect':
-        widget.onConnect(session);
-      case 'sftp':
-        widget.onSftpConnect?.call(session);
-      case 'edit':
-        _editSession(context, ref, session);
-      case 'duplicate':
-        ref.read(sessionProvider.notifier).duplicate(session.id);
-      case 'move':
-        _moveSession(context, ref, session);
-      case 'delete':
-        _confirmDelete(context, ref, session);
-    }
+      position: position,
+      items: [
+        ContextMenuItem(
+          label: 'Terminal',
+          icon: Icons.terminal,
+          color: AppTheme.blue,
+          onTap: () => widget.onConnect(session),
+        ),
+        if (widget.onSftpConnect != null)
+          ContextMenuItem(
+            label: 'Files',
+            icon: Icons.folder,
+            color: AppTheme.yellow,
+            onTap: () => widget.onSftpConnect?.call(session),
+          ),
+        const ContextMenuItem.divider(),
+        ContextMenuItem(
+          label: 'Edit Connection',
+          icon: Icons.settings,
+          shortcut: 'E',
+          onTap: () => _editSession(context, ref, session),
+        ),
+        ContextMenuItem(
+          label: 'Duplicate',
+          icon: Icons.copy,
+          shortcut: 'Ctrl+D',
+          onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
+        ),
+        if (isMobilePlatform)
+          ContextMenuItem(
+            label: 'Move to...',
+            icon: Icons.drive_file_move,
+            onTap: () => _moveSession(context, ref, session),
+          ),
+        const ContextMenuItem.divider(),
+        ContextMenuItem(
+          label: 'Delete',
+          icon: Icons.delete,
+          color: AppTheme.red,
+          shortcut: 'Del',
+          onTap: () => _confirmDelete(context, ref, session),
+        ),
+      ],
+    );
   }
 
   Future<void> _moveSession(BuildContext context, WidgetRef ref, Session session) async {
@@ -386,55 +399,37 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     String groupPath,
     Offset position,
   ) {
-    final hasSessions = ref.read(sessionProvider).isNotEmpty;
-    showMenu<String>(
+    showAppContextMenu(
       context: context,
-      popUpAnimationStyle: AnimationStyle.noAnimation,
-      position: RelativeRect.fromLTRB(
-        position.dx, position.dy, position.dx + 1, position.dy + 1,
-      ),
-      items: _groupMenuItems(groupPath, hasSessions),
-    ).then((value) {
-      if (value == null || !context.mounted) return;
-      _handleGroupMenuAction(context, ref, groupPath, value);
-    });
-  }
-
-  List<PopupMenuEntry<String>> _groupMenuItems(String groupPath, bool hasSessions) {
-    final h = isMobilePlatform ? 48.0 : 32.0;
-    return [
-      PopupMenuItem(height: h, value: 'new_session', child: const _MenuRow(icon: Icons.add, text: 'New Session')),
-      PopupMenuItem(height: h, value: 'new_folder', child: const _MenuRow(icon: Icons.create_new_folder, text: _kNewFolder)),
-      if (groupPath.isNotEmpty) ...[
-        const PopupMenuDivider(height: 1),
-        PopupMenuItem(height: h, value: 'rename', child: const _MenuRow(icon: Icons.drive_file_rename_outline, text: 'Rename')),
-        PopupMenuItem(height: h, value: 'delete', child: const _MenuRow(icon: Icons.delete, text: 'Delete Folder', color: AppTheme.disconnected)),
+      position: position,
+      items: [
+        ContextMenuItem(
+          label: 'New Connection',
+          icon: Icons.add,
+          onTap: () => _addSessionInGroup(context, ref, groupPath),
+        ),
+        ContextMenuItem(
+          label: _kNewFolder,
+          icon: Icons.create_new_folder,
+          onTap: () => _createFolder(context, ref, groupPath),
+        ),
+        if (groupPath.isNotEmpty) ...[
+          const ContextMenuItem.divider(),
+          ContextMenuItem(
+            label: 'Rename Group',
+            icon: Icons.drive_file_rename_outline,
+            shortcut: 'F2',
+            onTap: () => _renameFolder(context, ref, groupPath),
+          ),
+          ContextMenuItem(
+            label: 'Delete Group',
+            icon: Icons.delete,
+            color: AppTheme.red,
+            onTap: () => _confirmDeleteFolder(context, ref, groupPath),
+          ),
+        ],
       ],
-      if (groupPath.isEmpty && hasSessions) ...[
-        const PopupMenuDivider(height: 1),
-        PopupMenuItem(height: h, value: 'delete_all', child: const _MenuRow(icon: Icons.delete_forever, text: 'Delete All Sessions', color: AppTheme.disconnected)),
-      ],
-    ];
-  }
-
-  void _handleGroupMenuAction(
-    BuildContext context,
-    WidgetRef ref,
-    String groupPath,
-    String value,
-  ) {
-    switch (value) {
-      case 'new_session':
-        _addSessionInGroup(context, ref, groupPath);
-      case 'new_folder':
-        _createFolder(context, ref, groupPath);
-      case 'rename':
-        _renameFolder(context, ref, groupPath);
-      case 'delete':
-        _confirmDeleteFolder(context, ref, groupPath);
-      case 'delete_all':
-        _confirmDeleteAll(context, ref);
-    }
+    );
   }
 
   Future<void> _addSessionInGroup(BuildContext context, WidgetRef ref, String groupPath) async {
@@ -549,7 +544,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
-  AlertDialog _buildFolderNameAlert(
+  Widget _buildFolderNameAlert(
     BuildContext context, {
     required String title,
     required String confirmLabel,
@@ -558,35 +553,165 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     required ValueChanged<String> onChanged,
     String? hintText,
   }) {
-    return AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: nameCtrl,
-        autofocus: true,
-        decoration: InputDecoration(
-          labelText: 'Folder name',
-          hintText: hintText,
-          errorText: errorText,
+    return Dialog(
+      backgroundColor: AppTheme.bg1,
+      shape: const RoundedRectangleBorder(),
+      insetPadding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppTheme.border)),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.fg,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Icon(Icons.close, size: 13, color: AppTheme.fgDim),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'FOLDER NAME',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                      color: AppTheme.fgFaint,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TextFormField(
+                    controller: nameCtrl,
+                    autofocus: true,
+                    style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 11,
+                      color: AppTheme.fg,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      hintStyle: TextStyle(
+                        fontFamily: 'JetBrains Mono',
+                        fontSize: 11,
+                        color: AppTheme.fgFaint,
+                      ),
+                      filled: true,
+                      fillColor: AppTheme.bg3,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: AppTheme.borderLight),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: AppTheme.borderLight),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: AppTheme.accent),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: AppTheme.red),
+                      ),
+                      errorText: errorText,
+                      errorStyle: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 10,
+                        color: AppTheme.red,
+                      ),
+                    ),
+                    onChanged: onChanged,
+                    onFieldSubmitted: (v) {
+                      if (errorText == null && v.trim().isNotEmpty) {
+                        Navigator.of(context).pop(v);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            // Footer
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: AppTheme.border)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      height: 26,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          color: AppTheme.fgDim,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: errorText == null
+                        ? () => Navigator.of(context).pop(nameCtrl.text)
+                        : null,
+                    child: Container(
+                      height: 26,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: errorText == null ? AppTheme.accent : AppTheme.bg4,
+                      ),
+                      child: Text(
+                        confirmLabel,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: errorText == null ? Colors.white : AppTheme.fgFaint,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        onChanged: onChanged,
-        onSubmitted: (v) {
-          if (errorText == null && v.trim().isNotEmpty) {
-            Navigator.of(context).pop(v);
-          }
-        },
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: errorText == null
-              ? () => Navigator.of(context).pop(nameCtrl.text)
-              : null,
-          child: Text(confirmLabel),
-        ),
-      ],
     );
   }
 
@@ -629,18 +754,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
-  Future<void> _confirmDeleteAll(BuildContext context, WidgetRef ref) async {
-    final count = ref.read(sessionProvider).length;
-    final confirmed = await ConfirmDialog.show(
-      context,
-      title: 'Delete All Sessions',
-      confirmLabel: 'Delete All',
-      content: Text('Delete all $count session(s) and all folders?\n\nThis cannot be undone.'),
-    );
-    if (confirmed) {
-      await ref.read(sessionProvider.notifier).deleteAll();
-    }
-  }
 }
 
 class _PanelHeader extends StatelessWidget {
@@ -651,27 +764,39 @@ class _PanelHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    final theme = Theme.of(context);
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      ),
       child: Row(
         children: [
-          const Text(
-            'Sessions',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          Text(
+            'SESSIONS',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+            ),
           ),
           const Spacer(),
           if (onSelect != null)
-            IconButton(
-              onPressed: onSelect,
-              icon: const Icon(Icons.checklist, size: 18),
+            AppIconButton(
+              icon: Icons.checklist,
+              onTap: onSelect,
               tooltip: 'Select',
-              visualDensity: VisualDensity.compact,
+              size: 18,
             ),
-          IconButton(
-            onPressed: onAddFolder,
-            icon: const Icon(Icons.create_new_folder, size: 18),
+          AppIconButton(
+            icon: Icons.create_new_folder,
+            onTap: onAddFolder,
             tooltip: _kNewFolder,
-            visualDensity: VisualDensity.compact,
+            size: 14,
+            boxSize: 24,
           ),
         ],
       ),
@@ -711,29 +836,30 @@ class _SelectActionBar extends StatelessWidget {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
           ),
           const Spacer(),
-          IconButton(
-            onPressed: onSelectAll,
-            icon: const Icon(Icons.select_all, size: 18),
+          AppIconButton(
+            icon: Icons.select_all,
+            onTap: onSelectAll,
             tooltip: 'Select All',
-            visualDensity: VisualDensity.compact,
+            size: 18,
           ),
-          IconButton(
-            onPressed: selectedCount > 0 ? onMove : null,
-            icon: const Icon(Icons.drive_file_move, size: 18),
+          AppIconButton(
+            icon: Icons.drive_file_move,
+            onTap: selectedCount > 0 ? onMove : null,
             tooltip: 'Move to...',
-            visualDensity: VisualDensity.compact,
+            size: 18,
           ),
-          IconButton(
-            onPressed: selectedCount > 0 ? onDelete : null,
-            icon: Icon(Icons.delete, size: 18, color: selectedCount > 0 ? AppTheme.disconnected : null),
+          AppIconButton(
+            icon: Icons.delete,
+            onTap: selectedCount > 0 ? onDelete : null,
             tooltip: 'Delete',
-            visualDensity: VisualDensity.compact,
+            size: 18,
+            color: selectedCount > 0 ? AppTheme.disconnected : null,
           ),
-          IconButton(
-            onPressed: onCancel,
-            icon: const Icon(Icons.close, size: 18),
+          AppIconButton(
+            icon: Icons.close,
+            onTap: onCancel,
             tooltip: 'Cancel',
-            visualDensity: VisualDensity.compact,
+            size: 18,
           ),
         ],
       ),
@@ -750,30 +876,48 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: SizedBox(
-        height: 32,
-        child: TextField(
-          decoration: InputDecoration(
-            hintText: 'Search...',
-            prefixIcon: const Icon(Icons.search, size: 16),
-            suffixIcon: value.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.close, size: 14),
-                    onPressed: () => onChanged(''),
-                    visualDensity: VisualDensity.compact,
-                  )
-                : null,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(vertical: 6),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide.none,
+      padding: const EdgeInsets.all(8),
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.bg3,
+          border: Border.all(color: AppTheme.borderLight),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search, size: 12, color: AppTheme.fgFaint),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Filter...',
+                  hintStyle: TextStyle(
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 11,
+                    color: AppTheme.fgFaint,
+                  ),
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                ),
+                style: TextStyle(
+                  fontFamily: 'JetBrains Mono',
+                  fontSize: 11,
+                  color: AppTheme.fg,
+                ),
+                onChanged: onChanged,
+              ),
             ),
-            filled: true,
-          ),
-          style: const TextStyle(fontSize: 12),
-          onChanged: onChanged,
+            if (value.isNotEmpty)
+              GestureDetector(
+                onTap: () => onChanged(''),
+                child: Icon(Icons.close, size: 12, color: AppTheme.fgFaint),
+              ),
+          ],
         ),
       ),
     );
@@ -816,28 +960,40 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final Color? color;
-
-  const _MenuRow({required this.icon, required this.text, this.color});
+class _SidebarFooter extends ConsumerWidget {
+  const _SidebarFooter();
 
   @override
-  Widget build(BuildContext context) {
-    final mobile = isMobilePlatform;
-    return Row(
-      children: [
-        Icon(icon, size: mobile ? 20 : 16, color: color),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            text,
-            style: TextStyle(fontSize: mobile ? 15 : 13, color: color),
-            overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    final activeCount = connections.where((c) => c.isConnected).length;
+    final savedCount = ref.watch(sessionProvider).length;
+
+    final theme = Theme.of(context);
+    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.45);
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.wifi, size: 10,
+              color: activeCount > 0 ? AppTheme.green : dimColor),
+          const SizedBox(width: 6),
+          Text(
+            '$activeCount active',
+            style: AppFonts.inter(fontSize: 10, color: dimColor),
           ),
-        ),
-      ],
+          const Spacer(),
+          Text(
+            '$savedCount saved',
+            style: AppFonts.inter(fontSize: 10, color: dimColor),
+          ),
+        ],
+      ),
     );
   }
 }
+

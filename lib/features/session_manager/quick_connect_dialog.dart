@@ -4,17 +4,21 @@ import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../utils/platform.dart';
 
-/// Quick Connect dialog — host, port, user, password, key file/text.
+/// Quick Connect — shown as a bottom sheet.
 class QuickConnectDialog extends StatefulWidget {
   const QuickConnectDialog({super.key});
 
-  /// Show the dialog and return SSHConfig if user confirms.
+  /// Show the bottom sheet and return SSHConfig if user confirms.
   static Future<SSHConfig?> show(BuildContext context) {
-    return showDialog<SSHConfig>(
+    return showModalBottomSheet<SSHConfig>(
       context: context,
-      animationStyle: AnimationStyle.noAnimation,
+      backgroundColor: AppTheme.bg1,
+      shape: const RoundedRectangleBorder(),
+      isScrollControlled: true,
       builder: (_) => const QuickConnectDialog(),
     );
   }
@@ -89,6 +93,180 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
     }
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Container(
+                  width: 32,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: AppTheme.bg4,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              // Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Quick Connect',
+                    style: AppFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.fgBright,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Fields
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    // Host + Port
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _field('Host', _hostCtrl,
+                              hint: '192.168.1.1', required: true),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 80,
+                          child: _field('Port', _portCtrl,
+                              hint: '22',
+                              keyboardType: TextInputType.number,
+                              validator: (v) {
+                                final port = int.tryParse(v ?? '');
+                                if (port == null || port < 1 || port > 65535) {
+                                  return '1-65535';
+                                }
+                                return null;
+                              }),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _field('Username', _userCtrl,
+                        hint: 'root', required: true),
+                    const SizedBox(height: 12),
+                    _field('Password', _passwordCtrl,
+                        hint: '••••••••',
+                        obscure: _obscurePassword,
+                        suffixIcon: GestureDetector(
+                          onTap: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
+                          child: Icon(
+                            _obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            size: 12,
+                            color: AppTheme.fgFaint,
+                          ),
+                        )),
+                    const SizedBox(height: 12),
+                    _buildKeyFileButton(),
+                    const SizedBox(height: 8),
+                    _buildPemToggle(),
+                    if (_showKeyText) ...[
+                      TextFormField(
+                        controller: _keyDataCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Key Text (PEM)',
+                          hintText: '-----BEGIN OPENSSH PRIVATE KEY-----',
+                          alignLabelWithHint: true,
+                        ),
+                        maxLines: 5,
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontSize: 11),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    _field('Key Passphrase', _passphraseCtrl,
+                        hint: 'Optional',
+                        obscure: _obscurePassphrase,
+                        suffixIcon: GestureDetector(
+                          onTap: () => setState(
+                              () => _obscurePassphrase = !_obscurePassphrase),
+                          child: Icon(
+                            _obscurePassphrase
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            size: 12,
+                            color: AppTheme.fgFaint,
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Buttons
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          height: 38,
+                          alignment: Alignment.center,
+                          color: AppTheme.bg3,
+                          child: Text(
+                            'Cancel',
+                            style: AppFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.fgDim,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _submit,
+                        child: Container(
+                          height: 38,
+                          alignment: Alignment.center,
+                          color: AppTheme.accent,
+                          child: Text(
+                            'Connect',
+                            style: AppFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildKeyFileButton() {
     final hasKey = _keyPathCtrl.text.trim().isNotEmpty;
     final fileName = hasKey ? p.basename(_keyPathCtrl.text.trim()) : null;
@@ -110,172 +288,112 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
           ),
         ),
         if (hasKey)
-          IconButton(
-            onPressed: () => setState(() => _keyPathCtrl.clear()),
-            icon: const Icon(Icons.close, size: 18),
+          AppIconButton(
+            icon: Icons.close,
+            onTap: () => setState(() => _keyPathCtrl.clear()),
             tooltip: 'Clear key file',
+            size: 18,
           ),
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Quick Connect'),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Host + Port row
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _hostCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Host *',
-                          hintText: '192.168.1.1',
-                          prefixIcon: Icon(Icons.dns),
-                        ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Required' : null,
-                        autofocus: true,
-                        onFieldSubmitted: (_) => _submit(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _portCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Port',
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (v) {
-                          final port = int.tryParse(v ?? '');
-                          if (port == null || port < 1 || port > 65535) {
-                            return '1-65535';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+  Widget _buildPemToggle() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: () => setState(() => _showKeyText = !_showKeyText),
+        icon: Icon(
+          _showKeyText
+              ? Icons.keyboard_arrow_up
+              : Icons.keyboard_arrow_down,
+          size: 16,
+        ),
+        label: Text(
+          _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
+          style: const TextStyle(fontSize: 12),
+        ),
+      ),
+    );
+  }
 
-                // User
-                TextFormField(
-                  controller: _userCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Username *',
-                    hintText: 'root',
-                    prefixIcon: Icon(Icons.person),
-                  ),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-
-                // Password
-                TextFormField(
-                  controller: _passwordCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                  obscureText: _obscurePassword,
-                ),
-                const SizedBox(height: 12),
-
-                // Key file
-                _buildKeyFileButton(),
-                const SizedBox(height: 8),
-
-                // Toggle key text
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () =>
-                        setState(() => _showKeyText = !_showKeyText),
-                    icon: Icon(
-                      _showKeyText
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                      size: 16,
-                    ),
-                    label: Text(
-                      _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ),
-
-                // Key text (PEM)
-                if (_showKeyText) ...[
-                  TextFormField(
-                    controller: _keyDataCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Key Text (PEM)',
-                      hintText: '-----BEGIN OPENSSH PRIVATE KEY-----',
-                      alignLabelWithHint: true,
-                    ),
-                    maxLines: 5,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                // Passphrase
-                TextFormField(
-                  controller: _passphraseCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Key Passphrase',
-                    prefixIcon: const Icon(Icons.password),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassphrase
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () => setState(
-                          () => _obscurePassphrase = !_obscurePassphrase),
-                    ),
-                  ),
-                  obscureText: _obscurePassphrase,
-                ),
-              ],
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    String? hint,
+    bool required = false,
+    bool obscure = false,
+    Widget? suffixIcon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(
+            (required ? '$label *' : label).toUpperCase(),
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
+              color: AppTheme.fgFaint,
             ),
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.icon(
-          onPressed: _submit,
-          icon: const Icon(Icons.login),
-          label: const Text('Connect'),
+        SizedBox(
+          height: 30,
+          child: TextFormField(
+            controller: controller,
+            obscureText: obscure,
+            keyboardType: keyboardType,
+            validator: validator ??
+                (required
+                    ? (v) => v == null || v.trim().isEmpty ? 'Required' : null
+                    : null),
+            style: TextStyle(
+              fontFamily: 'JetBrains Mono',
+              fontSize: 11,
+              color: AppTheme.fg,
+            ),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(
+                fontFamily: 'JetBrains Mono',
+                fontSize: 11,
+                color: AppTheme.fgFaint,
+              ),
+              filled: true,
+              fillColor: AppTheme.bg3,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: AppTheme.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: AppTheme.borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: AppTheme.accent),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: AppTheme.red),
+              ),
+              suffixIcon: suffixIcon != null
+                  ? Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: suffixIcon,
+                    )
+                  : null,
+              suffixIconConstraints: const BoxConstraints(maxHeight: 30),
+            ),
+          ),
         ),
       ],
     );
