@@ -1,0 +1,41 @@
+name: CI Skip
+
+# Provides required status checks (analyze-and-test, scan) when CI and
+# OSV-Scanner don't trigger due to paths-filter.  Without this, PRs that
+# only touch workflows/docs/config stay in "Expected — Waiting" forever.
+#
+# Mutually exclusive with ci.yml / osv-scanner.yml: if code paths match,
+# the real workflows run and this one doesn't — so it can never mask a
+# real failure.
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'lib/**'
+      - 'test/**'
+      - 'pubspec.*'
+      - 'Makefile'
+      - 'analysis_options.yaml'
+      - 'android/**'
+      - 'ios/**'
+      - 'linux/**'
+      - 'macos/**'
+      - 'windows/**'
+
+permissions: read-all
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - run: echo "No code changes — skipping CI"
+
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - run: echo "No dependency changes — skipping OSV scan"
