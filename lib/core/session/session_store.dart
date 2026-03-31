@@ -267,6 +267,37 @@ class SessionStore {
     await Future.wait([_save(), _saveEmptyGroups()]);
   }
 
+  /// Load credentials for the given session IDs.
+  Future<Map<String, CredentialData>> loadCredentials(Set<String> sessionIds) async {
+    if (sessionIds.isEmpty) return {};
+    final all = await _credStore.loadAllSafe();
+    return {
+      for (final id in sessionIds)
+        if (all.containsKey(id)) id: all[id]!,
+    };
+  }
+
+  /// Replace sessions and empty groups with the given state and persist.
+  /// Optionally restores credentials for sessions that were deleted.
+  Future<void> restoreSnapshot(
+    List<Session> sessions,
+    Set<String> emptyGroups, [
+    Map<String, CredentialData> credentials = const {},
+  ]) async {
+    _sessions
+      ..clear()
+      ..addAll(sessions);
+    _emptyGroups
+      ..clear()
+      ..addAll(emptyGroups);
+    await Future.wait([_save(), _saveEmptyGroups()]);
+    if (credentials.isNotEmpty) {
+      final all = await _credStore.loadAllSafe();
+      all.addAll(credentials);
+      await _credStore.saveAll(all);
+    }
+  }
+
   /// Count sessions in a group and its subgroups.
   int countSessionsInGroup(String groupPath) {
     return _sessions

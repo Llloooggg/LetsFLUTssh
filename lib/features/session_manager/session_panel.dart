@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
@@ -38,6 +39,7 @@ class SessionPanel extends ConsumerStatefulWidget {
 class SessionPanelState extends ConsumerState<SessionPanel> {
   bool _selectMode = false;
   final _selectedIds = <String>{};
+  final _selectedGroupPaths = <String>{};
   // Marquee state tracked for test visibility only.
   @visibleForTesting
   bool marqueeInProgress = false;
@@ -46,14 +48,19 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   bool get selectMode => _selectMode;
   @visibleForTesting
   Set<String> get selectedIds => _selectedIds;
+  @visibleForTesting
+  Set<String> get selectedGroupPaths => _selectedGroupPaths;
 
   /// Simulate marquee selection in tests.
   @visibleForTesting
-  void setMarqueeSelection(Set<String> ids) {
+  void setMarqueeSelection(Set<String> ids, [Set<String> groupPaths = const {}]) {
     setState(() {
       _selectedIds
         ..clear()
         ..addAll(ids);
+      _selectedGroupPaths
+        ..clear()
+        ..addAll(groupPaths);
     });
   }
 
@@ -67,6 +74,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     setState(() {
       _selectMode = true;
       _selectedIds.clear();
+      _selectedGroupPaths.clear();
     });
   }
 
@@ -74,12 +82,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     setState(() {
       _selectMode = false;
       _selectedIds.clear();
+      _selectedGroupPaths.clear();
     });
   }
 
   void _clearDesktopSelection() {
     setState(() {
       _selectedIds.clear();
+      _selectedGroupPaths.clear();
     });
   }
 
@@ -93,6 +103,16 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     });
   }
 
+  void _toggleGroupSelected(String groupPath) {
+    setState(() {
+      if (_selectedGroupPaths.contains(groupPath)) {
+        _selectedGroupPaths.remove(groupPath);
+      } else {
+        _selectedGroupPaths.add(groupPath);
+      }
+    });
+  }
+
   void _selectAll() {
     final sessions = ref.read(filteredSessionsProvider);
     setState(() {
@@ -101,15 +121,26 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   Future<void> _deleteSelected(BuildContext context) async {
-    if (_selectedIds.isEmpty) return;
-    final count = _selectedIds.length;
+    if (_selectedIds.isEmpty && _selectedGroupPaths.isEmpty) return;
+    final sessionCount = _selectedIds.length;
+    final groupCount = _selectedGroupPaths.length;
+    final parts = <String>[
+      if (sessionCount > 0) '$sessionCount session(s)',
+      if (groupCount > 0) '$groupCount folder(s)',
+    ];
     final confirmed = await ConfirmDialog.show(
       context,
-      title: 'Delete Sessions',
-      content: Text('Delete $count selected session(s)?\n\nThis cannot be undone.'),
+      title: 'Delete Selected',
+      content: Text('Delete ${parts.join(' and ')}?\n\nThis cannot be undone.'),
     );
     if (confirmed) {
-      await ref.read(sessionProvider.notifier).deleteMultiple(Set.of(_selectedIds));
+      final notifier = ref.read(sessionProvider.notifier);
+      if (_selectedIds.isNotEmpty) {
+        await notifier.deleteMultiple(Set.of(_selectedIds));
+      }
+      for (final groupPath in _selectedGroupPaths) {
+        await notifier.deleteGroup(groupPath);
+      }
       if (_selectMode) {
         _exitSelectMode();
       } else {
@@ -119,7 +150,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   Future<void> _moveSelected(BuildContext context) async {
-    if (_selectedIds.isEmpty) return;
+    if (_selectedIds.isEmpty && _selectedGroupPaths.isEmpty) return;
     final store = ref.read(sessionStoreProvider);
     final allGroups = <String>{'', ...store.groups(), ...store.emptyGroups};
 
@@ -153,7 +184,13 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
 
     if (selected != null) {
-      await ref.read(sessionProvider.notifier).moveMultiple(Set.of(_selectedIds), selected);
+      final notifier = ref.read(sessionProvider.notifier);
+      if (_selectedIds.isNotEmpty) {
+        await notifier.moveMultiple(Set.of(_selectedIds), selected);
+      }
+      for (final groupPath in _selectedGroupPaths) {
+        await notifier.moveGroup(groupPath, selected);
+      }
       if (_selectMode) {
         _exitSelectMode();
       } else {
@@ -177,6 +214,24 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     };
   }
 
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final ctrl = HardwareKeyboard.instance.logicalKeysPressed
+        .intersection({LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.controlRight})
+        .isNotEmpty;
+    if (!ctrl) return KeyEventResult.ignored;
+
+    if (event.logicalKey == LogicalKeyboardKey.keyZ) {
+      ref.read(sessionProvider.notifier).undo();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyY) {
+      ref.read(sessionProvider.notifier).redo();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
     final tree = ref.watch(filteredSessionTreeProvider);
@@ -186,7 +241,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final mobile = isMobilePlatform;
 
     final scheme = Theme.of(context).colorScheme;
-    return Container(
+    return Focus(
+      autofocus: false,
+      onKeyEvent: _onKeyEvent,
+      child: Container(
       color: scheme.surfaceContainerLow,
       child: Column(
       children: [
@@ -222,6 +280,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   selectMode: mobile && _selectMode,
                   selectedIds: _selectedIds,
                   onToggleSelected: _toggleSelected,
+                  selectedGroupPaths: _selectedGroupPaths,
+                  onToggleGroupSelected: _toggleGroupSelected,
                   crossMarquee: widget.crossMarquee,
                   onSessionDoubleTap: widget.onConnect,
                   onSessionContextMenu: (session, position) {
@@ -239,13 +299,26 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   onGroupMoved: (groupPath, targetParent) {
                     ref.read(sessionProvider.notifier).moveGroup(groupPath, targetParent);
                   },
+                  onBulkMoved: (sessionIds, groupPaths, targetGroup) async {
+                    final notifier = ref.read(sessionProvider.notifier);
+                    if (sessionIds.isNotEmpty) {
+                      await notifier.moveMultiple(sessionIds, targetGroup);
+                    }
+                    for (final gp in groupPaths) {
+                      await notifier.moveGroup(gp, targetGroup);
+                    }
+                    _clearDesktopSelection();
+                  },
                   onMarqueeStart: () => setState(() => marqueeInProgress = true),
                   onMarqueeEnd: () => setState(() => marqueeInProgress = false),
-                  onMarqueeSelect: (ids) {
+                  onMarqueeSelect: (ids, groupPaths) {
                     setState(() {
                       _selectedIds
                         ..clear()
                         ..addAll(ids);
+                      _selectedGroupPaths
+                        ..clear()
+                        ..addAll(groupPaths);
                     });
                   },
                 ),
@@ -253,6 +326,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         // Footer
         const _SidebarFooter(),
       ],
+    ),
     ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/credential_store.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
@@ -114,6 +115,13 @@ class _FakeStore extends SessionStore {
 
   @override
   Future<void> moveGroup(String gp, String newParent) async {}
+  @override
+  Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async => {};
+  @override
+  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyGroups, [Map<String, CredentialData> credentials = const {}]) async {
+    _s..clear()..addAll(sessions);
+    _eg..clear()..addAll(emptyGroups);
+  }
 }
 
 void main() {

@@ -660,7 +660,7 @@ void main() {
             height: 600,
             child: SessionTreeView(
               tree: tree,
-              onMarqueeSelect: (ids) => selectedIds = ids,
+              onMarqueeSelect: (ids, _) => selectedIds = ids,
             ),
           ),
         ),
@@ -692,7 +692,7 @@ void main() {
             height: 600,
             child: SessionTreeView(
               tree: tree,
-              onMarqueeSelect: (ids) => selectedIds = ids,
+              onMarqueeSelect: (ids, _) => selectedIds = ids,
             ),
           ),
         ),
@@ -761,7 +761,7 @@ void main() {
             child: SessionTreeView(
               tree: tree,
               crossMarquee: crossMarquee,
-              onMarqueeSelect: (ids) => selectedIds = ids,
+              onMarqueeSelect: (ids, _) => selectedIds = ids,
             ),
           ),
         ),
@@ -805,7 +805,7 @@ void main() {
             height: 600,
             child: SessionTreeView(
               tree: tree,
-              onMarqueeSelect: (ids) => selectedIds = ids,
+              onMarqueeSelect: (ids, _) => selectedIds = ids,
             ),
           ),
         ),
@@ -823,6 +823,179 @@ void main() {
 
       expect(selectedIds, isNotNull);
       expect(selectedIds!, isNotEmpty);
+    });
+  });
+
+  group('Group selection', () {
+    testWidgets('marquee selects groups alongside sessions', (tester) async {
+      Set<String>? selectedIds;
+      Set<String>? selectedGroupPaths;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              onMarqueeSelect: (ids, groups) {
+                selectedIds = ids;
+                selectedGroupPaths = groups;
+              },
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Drag across a large area to select both groups and sessions
+      final center = tester.getCenter(find.byType(SessionTreeView));
+      final gesture = await tester.startGesture(Offset(center.dx, 10));
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 400));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.up();
+      await tester.pump();
+
+      expect(selectedIds, isNotNull);
+      expect(selectedGroupPaths, isNotNull);
+      // Tree has groups (Production, Web, DB) so marquee should pick them up
+      expect(selectedGroupPaths!, isNotEmpty);
+    });
+
+    testWidgets('selected group gets highlight background', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              selectedGroupPaths: const {'Production'},
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Find the Production row container — it should have a non-null color
+      // indicating selection highlight
+      final productionText = find.text('Production');
+      expect(productionText, findsOneWidget);
+
+      // Verify the Container ancestor has a BoxDecoration with color set
+      final container = find.ancestor(
+        of: productionText,
+        matching: find.byType(Container),
+      );
+      expect(container, findsWidgets);
+
+      // The closest Container should have a decorated background
+      final containerWidget = tester.widget<Container>(container.first);
+      final decoration = containerWidget.decoration as BoxDecoration?;
+      expect(decoration, isNotNull);
+      expect(decoration!.color, isNotNull);
+    });
+
+    testWidgets('tapping group during active selection toggles group', (tester) async {
+      String? toggledGroup;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              selectedIds: const {'1'},  // active selection
+              onToggleGroupSelected: (path) => toggledGroup = path,
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Tap on a group while there's an active session selection
+      await tester.tap(find.text('DB'));
+      await tester.pump();
+
+      expect(toggledGroup, equals('Production/DB'));
+    });
+
+    testWidgets('tapping group without selection expands/collapses', (tester) async {
+      String? toggledGroup;
+
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              onToggleGroupSelected: (path) => toggledGroup = path,
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // All groups expanded by default — sessions should be visible
+      expect(find.text('nginx1'), findsOneWidget);
+
+      // Tap on Web group — should collapse, not toggle selection
+      await tester.tap(find.text('Web'));
+      await tester.pump();
+
+      expect(toggledGroup, isNull);  // not a selection toggle
+      expect(find.text('nginx1'), findsNothing);  // collapsed
+    });
+  });
+
+  group('Multi-drag', () {
+    testWidgets('BulkDrag has correct counts', (tester) async {
+      final bulk = BulkDrag(
+        sessionIds: {'1', '2'},
+        groupPaths: {'Production/Web'},
+      );
+      expect(bulk.totalCount, 3);
+      expect(bulk.sessionIds, {'1', '2'});
+      expect(bulk.groupPaths, {'Production/Web'});
+    });
+
+    testWidgets('dragging selected session with bulk selection creates BulkDrag feedback', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: tree,
+              selectedIds: const {'1', '2'},
+              selectedGroupPaths: const {'Production/Web'},
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Start dragging nginx1 (which is selected)
+      final nginx1 = find.text('nginx1');
+      expect(nginx1, findsOneWidget);
+
+      final gesture = await tester.startGesture(tester.getCenter(nginx1));
+      await gesture.moveBy(const Offset(0, 50));
+      await tester.pump();
+
+      // Should show "3 items" feedback
+      expect(find.text('3 items'), findsOneWidget);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
     });
   });
 }

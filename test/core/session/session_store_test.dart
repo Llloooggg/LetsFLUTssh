@@ -737,4 +737,53 @@ void main() {
       expect(s.passphrase, '');
     });
   });
+
+  group('SessionStore — restoreSnapshot', () {
+    test('replaces sessions and empty groups', () async {
+      final store = SessionStore();
+      await store.load();
+
+      // Add initial data
+      final s1 = Session(id: 'a', label: 'A', group: '', server: const ServerAddress(host: 'h', user: 'u'));
+      final s2 = Session(id: 'b', label: 'B', group: 'G', server: const ServerAddress(host: 'h2', user: 'u'));
+      await store.add(s1);
+      await store.add(s2);
+      await store.addEmptyGroup('EmptyFolder');
+      expect(store.sessions.length, 2);
+
+      // Snapshot state
+      final snapSessions = List.of(store.sessions);
+      final snapGroups = Set.of(store.emptyGroups);
+
+      // Delete everything
+      await store.deleteAll();
+      expect(store.sessions, isEmpty);
+      expect(store.emptyGroups, isEmpty);
+
+      // Restore from snapshot
+      await store.restoreSnapshot(snapSessions, snapGroups);
+      expect(store.sessions.length, 2);
+      expect(store.sessions.map((s) => s.id).toSet(), {'a', 'b'});
+      expect(store.emptyGroups, contains('EmptyFolder'));
+    });
+
+    test('restored state persists to disk', () async {
+      final store = SessionStore();
+      await store.load();
+
+      final s1 = Session(id: 'x', label: 'X', group: '', server: const ServerAddress(host: 'h', user: 'u'));
+      await store.add(s1);
+      final snap = List.of(store.sessions);
+      final snapGroups = Set.of(store.emptyGroups);
+
+      await store.deleteAll();
+      await store.restoreSnapshot(snap, snapGroups);
+
+      // Reload from disk
+      final store2 = SessionStore();
+      final loaded = await store2.load();
+      expect(loaded.length, 1);
+      expect(loaded.first.id, 'x');
+    });
+  });
 }
