@@ -274,7 +274,7 @@ void main() {
       expect(find.text('readme.md'), findsOneWidget);
     });
 
-    testWidgets('path bar shows current path', (tester) async {
+    testWidgets('breadcrumb shows current path segments', (tester) async {
       final fs = _MockFS({'/home': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
@@ -282,7 +282,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      expect(find.text('/home'), findsWidgets);
+      expect(find.text('home'), findsWidgets);
     });
   });
 
@@ -298,7 +298,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      expect(find.text('Remote'), findsOneWidget);
+      expect(find.text('REMOTE'), findsOneWidget);
       expect(find.byIcon(Icons.arrow_back), findsOneWidget);
       expect(find.byIcon(Icons.arrow_forward), findsOneWidget);
       expect(find.byIcon(Icons.arrow_upward), findsWidgets);
@@ -598,56 +598,21 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // Path bar editing
+  // Breadcrumb
   // ---------------------------------------------------------------------------
-  group('FilePane — path bar editing', () {
-    testWidgets('tapping path bar enters edit mode', (tester) async {
-      final fs = _MockFS({'/home': []});
+  group('FilePane — breadcrumb', () {
+    testWidgets('breadcrumb shows path segments', (tester) async {
+      final fs = _MockFS({'/home': [], '/home/docs': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
+      await ctrl.navigateTo('/home/docs');
 
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      await tester.tap(find.text('/home').first);
-      await tester.pump();
-
-      expect(find.byType(TextField), findsWidgets);
-    });
-
-    testWidgets('submitting path bar navigates to new path', (tester) async {
-      final fs = _MockFS({'/home': [], '/tmp': []});
-      final ctrl = FilePaneController(fs: fs, label: 'Test');
-      await ctrl.init();
-
-      await tester.pumpWidget(buildApp(controller: ctrl));
-      await tester.pump();
-
-      await tester.tap(find.text('/home').first);
-      await tester.pump();
-
-      await tester.enterText(find.byType(TextField).first, '/tmp');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump();
-
-      expect(ctrl.currentPath, '/tmp');
-    });
-
-    testWidgets('tapping outside cancels edit', (tester) async {
-      final fs = _MockFS({'/home': [], '/': []});
-      final ctrl = FilePaneController(fs: fs, label: 'Test');
-      await ctrl.init();
-
-      await tester.pumpWidget(buildApp(controller: ctrl));
-      await tester.pump();
-
-      await tester.tap(find.text('/home').first);
-      await tester.pump();
-
-      await tester.tapAt(const Offset(10, 10));
-      await tester.pump();
-
-      expect(ctrl.currentPath, '/home');
+      expect(find.text('home'), findsWidgets);
+      expect(find.text('docs'), findsWidgets);
+      expect(find.byIcon(Icons.home), findsOneWidget);
     });
   });
 
@@ -1582,37 +1547,8 @@ void main() {
   // ---------------------------------------------------------------------------
   // Path bar onTapOutside restores path
   // ---------------------------------------------------------------------------
-  group('FilePane — path bar onTapOutside', () {
-    testWidgets('tapping outside path bar restores original path text',
-        (tester) async {
-      final fs = _MockFS({'/home': [], '/': []});
-      final ctrl = FilePaneController(fs: fs, label: 'Test');
-      await ctrl.init();
-
-      await tester.pumpWidget(buildApp(controller: ctrl));
-      await tester.pump();
-
-      // Enter edit mode
-      await tester.tap(find.text('/home').first);
-      await tester.pump();
-
-      // Type something different
-      final textField = find.byType(TextField).first;
-      await tester.enterText(textField, '/some/other/path');
-      await tester.pump();
-
-      // Tap outside to trigger onTapOutside
-      await tester.tapAt(const Offset(10, 300));
-      await tester.pump();
-
-      // Path should be restored to /home (original)
-      expect(ctrl.currentPath, '/home');
-      // Path bar should show /home, not the typed text
-      expect(find.text('/home'), findsWidgets);
-    });
-
-    testWidgets('submitting edited path navigates and updates bar',
-        (tester) async {
+  group('FilePane — breadcrumb navigation', () {
+    testWidgets('breadcrumb updates after navigating', (tester) async {
       final fs = _MockFS({'/home': [], '/var': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
@@ -1620,16 +1556,12 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      // Enter edit mode
-      await tester.tap(find.text('/home').first);
+      expect(find.text('home'), findsWidgets);
+
+      await ctrl.navigateTo('/var');
       await tester.pump();
 
-      // Submit a new path
-      await tester.enterText(find.byType(TextField).first, '/var');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump();
-
-      expect(ctrl.currentPath, '/var');
+      expect(find.text('var'), findsWidgets);
     });
   });
 
@@ -1657,7 +1589,7 @@ void main() {
       expect(find.text('new.txt'), findsOneWidget);
     });
 
-    testWidgets('navigating updates path bar text', (tester) async {
+    testWidgets('navigating updates breadcrumb', (tester) async {
       final fs = _MockFS({'/home': [], '/tmp': [], '/var': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
@@ -1665,12 +1597,12 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      expect(find.text('/home'), findsWidgets);
+      expect(find.text('home'), findsWidgets);
 
       await ctrl.navigateTo('/tmp');
       await tester.pump();
 
-      expect(find.text('/tmp'), findsWidgets);
+      expect(find.text('tmp'), findsWidgets);
     });
   });
 
