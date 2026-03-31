@@ -1648,41 +1648,43 @@ Non-code commit (test/docs/ci/chore)
 
 ## 17. Dependencies
 
+> **Versions are NOT listed here** — `pubspec.yaml` is the single source of truth.
+> Run `flutter pub deps` to see the resolved dependency tree.
+
 ### Runtime
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `dartssh2` | ^2.17.0 | SSH2 protocol (auth, shell, SFTP) |
-| `xterm` | ^4.0.0 | Terminal emulator widget |
-| `flutter_riverpod` | ^3.3.1 | State management |
-| `pointycastle` | ^4.0.0 | AES-256-GCM encryption |
-| `path_provider` | ^2.1.5 | App data directories |
-| `archive` | ^4.0.4 | ZIP for .lfs export/import |
-| `desktop_drop` | ^0.7.0 | OS drag & drop |
-| `flutter_foreground_task` | ^9.2.1 | Android foreground service |
-| `app_links` | ^7.0.0 | Deep links + file intents |
-| `qr_flutter` | ^4.1.0 | QR code generation |
-| `file_picker` | ^10.3.10 | File selection |
-| `package_info_plus` | ^9.0.1 | App version at runtime |
-| `url_launcher` | ^6.3.2 | Open URLs |
-| `uuid` | ^4.5.1 | UUID generation |
-| `path` | ^1.9.1 | Cross-platform path utils |
-| `json_annotation` | ^4.11.0 | JSON serialization |
+| Package | Purpose |
+|---------|---------|
+| `dartssh2` | SSH2 protocol (auth, shell, SFTP) |
+| `xterm` | Terminal emulator widget |
+| `flutter_riverpod` | State management |
+| `pointycastle` | AES-256-GCM encryption (transitive via dartssh2) |
+| `path_provider` | App data directories |
+| `archive` | ZIP for .lfs export/import |
+| `desktop_drop` | OS drag & drop |
+| `flutter_foreground_task` | Android foreground service |
+| `app_links` | Deep links + file intents |
+| `qr_flutter` | QR code generation |
+| `file_picker` | File selection |
+| `package_info_plus` | App version at runtime |
+| `url_launcher` | Open URLs |
+| `uuid` | UUID generation |
+| `path` | Cross-platform path utils |
+| `json_annotation` | JSON serialization |
 
 ### Dev
 
 | Package | Purpose |
 |---------|---------|
-| `flutter_lints` ^6.0.0 | Lint rules |
-| `mockito` ^5.6.4 | Test mocking |
-| `build_runner` ^2.4.15 | Code generation |
-| `json_serializable` ^6.13.1 | JSON code gen |
-| `flutter_launcher_icons` ^0.14.3 | App icon gen |
+| `flutter_lints` | Lint rules |
+| `mockito` | Test mocking |
+| `build_runner` | Code generation |
+| `json_serializable` | JSON code gen |
+| `flutter_launcher_icons` | App icon gen |
 
 ### SDK Constraints
 
-- **Dart:** ^3.11.0
-- **Flutter:** stable channel
+See `pubspec.yaml` → `environment` section for exact SDK constraints.
 
 ### Lint Rules
 
