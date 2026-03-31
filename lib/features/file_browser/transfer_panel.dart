@@ -33,7 +33,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     }
     _wasRunning = isRunning;
 
-    return Column(
+    return Container(
+      color: AppTheme.bg1,
+      child: Column(
       children: [
         // Drag handle
         if (_expanded)
@@ -125,6 +127,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           _buildFooter(ref),
         ],
       ],
+    ),
     );
   }
 
