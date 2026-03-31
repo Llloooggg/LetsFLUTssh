@@ -58,6 +58,19 @@ Color fileIconColor(FileEntry entry, Brightness brightness) {
 }
 
 /// A single file row in the file browser list.
+/// Column divider line matching the header dividers.
+Widget _colDivider() {
+  return SizedBox(
+    width: 10,
+    child: Center(
+      child: Container(
+        width: 1,
+        color: AppTheme.fgFaint.withValues(alpha: 0.15),
+      ),
+    ),
+  );
+}
+
 class FileRow extends StatelessWidget {
   final FileEntry entry;
   final bool isSelected;
@@ -75,10 +88,10 @@ class FileRow extends StatelessWidget {
     super.key,
     required this.entry,
     required this.isSelected,
-    this.sizeWidth = 64,
-    this.modifiedWidth = 80,
-    this.modeWidth = 80,
-    this.ownerWidth = 60,
+    this.sizeWidth = 55,
+    this.modifiedWidth = 105,
+    this.modeWidth = 65,
+    this.ownerWidth = 50,
     this.folderSizeText,
     required this.onTap,
     required this.onCtrlTap,
@@ -126,7 +139,7 @@ class FileRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 6), // matches column divider gap
+              _colDivider(),
               SizedBox(
                 width: sizeWidth,
                 child: Text(
@@ -136,7 +149,7 @@ class FileRow extends StatelessWidget {
                   style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 ),
               ),
-              const SizedBox(width: 6),
+              _colDivider(),
               SizedBox(
                 width: modifiedWidth,
                 child: Text(
@@ -144,7 +157,7 @@ class FileRow extends StatelessWidget {
                   style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 ),
               ),
-              const SizedBox(width: 6),
+              _colDivider(),
               SizedBox(
                 width: modeWidth,
                 child: Text(
@@ -153,7 +166,7 @@ class FileRow extends StatelessWidget {
                 ),
               ),
               if (entry.owner.isNotEmpty) ...[
-                const SizedBox(width: 6),
+                _colDivider(),
                 SizedBox(
                   width: ownerWidth,
                   child: Text(
