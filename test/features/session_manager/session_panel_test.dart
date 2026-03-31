@@ -213,7 +213,7 @@ void main() {
 
     testWidgets('renders New Folder button in header', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.byIcon(Icons.add), findsWidgets);
+      expect(find.byIcon(Icons.create_new_folder), findsWidgets);
       expect(find.byTooltip('New Folder'), findsOneWidget);
     });
 
@@ -271,22 +271,22 @@ void main() {
       expect(find.text('1'), findsOneWidget);
     });
 
-    testWidgets('renders shield icons for sessions', (tester) async {
+    testWidgets('renders terminal icons for sessions', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.byIcon(Icons.shield), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
-    testWidgets('renders shield icon for key auth session', (tester) async {
+    testWidgets('renders terminal icon for key auth session', (tester) async {
       final keySession = Session(id: '4', label: 'key-server', group: '', server: const ServerAddress(host: '10.0.0.5', user: 'ubuntu'), auth: const SessionAuth(authType: AuthType.key));
       await tester.pumpWidget(buildApp(sessions: [keySession]));
-      expect(find.byIcon(Icons.shield), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
-    testWidgets('renders shield icon for keyWithPassword auth session',
+    testWidgets('renders terminal icon for keyWithPassword auth session',
         (tester) async {
       final keyPassSession = Session(id: '5', label: 'key-pass-server', group: '', server: const ServerAddress(host: '10.0.0.6', user: 'user'), auth: const SessionAuth(authType: AuthType.keyWithPassword));
       await tester.pumpWidget(buildApp(sessions: [keyPassSession]));
-      expect(find.byIcon(Icons.shield), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
   });
 
@@ -2376,7 +2376,7 @@ void main() {
       expect(find.byIcon(Icons.checklist), findsNothing);
     });
 
-    testWidgets('marquee selection shows action bar without hiding header', (tester) async {
+    testWidgets('marquee selection highlights rows without action bar', (tester) async {
       await tester.pumpWidget(buildApp());
 
       final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
@@ -2385,47 +2385,10 @@ void main() {
 
       // Header should still be visible
       expect(find.text('SESSIONS'), findsOneWidget);
-      // Action bar should appear
-      expect(find.text('2 selected'), findsOneWidget);
+      // No action bar on desktop — bulk actions via context menu
+      expect(find.text('2 selected'), findsNothing);
       // No checkboxes (not in select mode)
       expect(find.byType(Checkbox), findsNothing);
-    });
-
-    testWidgets('Cancel clears desktop selection', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
-      state.setMarqueeSelection({'1', '2'});
-      await tester.pump();
-      expect(find.text('2 selected'), findsOneWidget);
-
-      await tester.tap(find.byIcon(Icons.close));
-      await tester.pump();
-
-      // Action bar gone, header still visible
-      expect(find.text('SESSIONS'), findsOneWidget);
-      expect(find.text('0 selected'), findsNothing);
-    });
-
-    testWidgets('action bar suppressed while marquee drag is in progress', (tester) async {
-      await tester.pumpWidget(buildApp());
-
-      final panelState = tester.state<SessionPanelState>(find.byType(SessionPanel));
-
-      // Simulate marquee start — selection updates but drag not yet finished
-      panelState.simulateMarqueeStart();
-      panelState.setMarqueeSelection({'1'});
-      await tester.pump();
-
-      // Action bar must NOT appear mid-drag to avoid layout shift
-      expect(find.text('1 selected'), findsNothing);
-      expect(find.text('SESSIONS'), findsOneWidget);
-
-      // Marquee ends — now action bar should appear
-      panelState.simulateMarqueeEnd();
-      await tester.pump();
-
-      expect(find.text('1 selected'), findsOneWidget);
     });
   });
 }

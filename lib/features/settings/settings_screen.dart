@@ -234,13 +234,16 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
                 const VerticalDivider(width: 1, thickness: 1, color: AppTheme.border),
                 // ── Content pane ──
                 Expanded(
-                  child: ListView(
-                    key: ValueKey(_selectedIndex),
-                    padding: const EdgeInsets.all(24),
-                    children: [
-                      _SectionHeader(title: sections[_selectedIndex].title),
-                      sections[_selectedIndex].builder(),
-                    ],
+                  child: DefaultTextStyle(
+                    style: AppFonts.inter(fontSize: 11, color: AppTheme.fg),
+                    child: ListView(
+                      key: ValueKey(_selectedIndex),
+                      padding: const EdgeInsets.all(24),
+                      children: [
+                        _SectionHeader(title: sections[_selectedIndex].title),
+                        sections[_selectedIndex].builder(),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -289,6 +292,7 @@ class _NavItemState extends State<_NavItem> {
                   ? AppTheme.hover
                   : Colors.transparent,
           child: Stack(
+            alignment: Alignment.centerLeft,
             children: [
               if (widget.selected)
                 Positioned(
@@ -1709,7 +1713,7 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
         // Log content
         Container(
           width: double.infinity,
-          height: 260,
+          height: 400,
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(6),
