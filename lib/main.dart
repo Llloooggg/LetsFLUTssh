@@ -715,7 +715,6 @@ class _StatusBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final version = ref.watch(appVersionProvider);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final dimColor = scheme.onSurface.withValues(alpha: 0.45);
@@ -734,24 +733,6 @@ class _StatusBar extends ConsumerWidget {
           const Spacer(),
           Text(
             '${tabState.tabs.length} tabs',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 10,
-              color: dimColor,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'UTF-8',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 10,
-              color: dimColor,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            version.isNotEmpty ? 'v$version' : '',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 10,
