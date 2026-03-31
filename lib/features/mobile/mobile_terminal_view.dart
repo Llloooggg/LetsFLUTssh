@@ -117,14 +117,20 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       children: [
         Expanded(
           child: GestureDetector(
-            onScaleStart: (_) => _baseScaleFontSize = _fontSize,
+            behavior: HitTestBehavior.translucent,
+            onScaleStart: (details) {
+              if (details.pointerCount >= 2) {
+                _baseScaleFontSize = _fontSize;
+              }
+            },
             onScaleUpdate: (details) {
-              if (_baseScaleFontSize == null) return;
+              if (_baseScaleFontSize == null || details.pointerCount < 2) return;
               setState(() {
                 _fontSize = (_baseScaleFontSize! * details.scale).clamp(8.0, 24.0);
               });
             },
             onScaleEnd: (_) {
+              if (_baseScaleFontSize == null) return;
               _baseScaleFontSize = null;
               // Persist pinch-zoomed font size to config
               ref.read(configProvider.notifier).update(
