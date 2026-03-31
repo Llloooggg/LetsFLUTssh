@@ -82,7 +82,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                   ),
                   const SizedBox(width: 8),
                   Builder(builder: (_) {
-                    final activeCount = (ref.watch(connectionsProvider).value ?? []).length;
+                    final activeCount = (ref.watch(connectionsProvider).value ?? []).where((c) => c.isConnected).length;
                     final savedCount = ref.watch(sessionProvider).length;
                     return Text.rich(
                       TextSpan(children: [
