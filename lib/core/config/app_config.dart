@@ -6,7 +6,7 @@ class TerminalConfig {
 
   const TerminalConfig({
     this.fontSize = 14.0,
-    this.theme = 'dark',
+    this.theme = 'system',
     this.scrollback = 5000,
   });
 

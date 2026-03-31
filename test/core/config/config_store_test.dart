@@ -33,7 +33,7 @@ void main() {
       mockPathProvider();
       final config = await store.load();
       expect(config.fontSize, 14.0);
-      expect(config.theme, 'dark');
+      expect(config.theme, 'system');
       expect(config.scrollback, 5000);
     });
 
@@ -84,7 +84,7 @@ void main() {
       final config = await store2.load();
       // Should fall back to defaults
       expect(config.fontSize, 14.0);
-      expect(config.theme, 'dark');
+      expect(config.theme, 'system');
     });
 
     test('save creates parent directories', () async {

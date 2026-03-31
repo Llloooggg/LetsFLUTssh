@@ -37,24 +37,24 @@ void main() {
       expect(container.read(themeModeProvider), ThemeMode.system);
     });
 
-    test('returns ThemeMode.dark for unknown value', () {
+    test('returns ThemeMode.system for unknown value', () {
       final container = ProviderContainer(
         overrides: [
           configProvider.overrideWith(() => _FakeConfigNotifier('garbage')),
         ],
       );
       addTearDown(container.dispose);
-      expect(container.read(themeModeProvider), ThemeMode.dark);
+      expect(container.read(themeModeProvider), ThemeMode.system);
     });
 
-    test('returns ThemeMode.dark for empty string', () {
+    test('returns ThemeMode.system for empty string', () {
       final container = ProviderContainer(
         overrides: [
           configProvider.overrideWith(() => _FakeConfigNotifier('')),
         ],
       );
       addTearDown(container.dispose);
-      expect(container.read(themeModeProvider), ThemeMode.dark);
+      expect(container.read(themeModeProvider), ThemeMode.system);
     });
   });
 }
