@@ -161,9 +161,9 @@ void main() {
 
   setUp(() {
     testSessions = [
-      Session(id: '1', label: 'web1', group: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
-      Session(id: '2', label: 'db1', group: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin')),
-      Session(id: '3', label: 'staging', group: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy')),
+      Session(id: '1', label: 'web1', group: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
+      Session(id: '2', label: 'db1', group: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
+      Session(id: '3', label: 'staging', group: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
     ];
   });
 
@@ -1184,6 +1184,12 @@ void main() {
         await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'user');
         await tester.pumpAndSettle();
 
+        // Fill password (required)
+        await tester.tap(find.text('Auth'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.widgetWithText(TextFormField, '••••••••'), 'pass');
+        await tester.pumpAndSettle();
+
         await tester.tap(find.text('Connect'));
         await tester.pumpAndSettle();
 
@@ -1205,6 +1211,12 @@ void main() {
 
         await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), 'save.com');
         await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'admin');
+        await tester.pumpAndSettle();
+
+        // Fill password (required)
+        await tester.tap(find.text('Auth'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.widgetWithText(TextFormField, '••••••••'), 'pass');
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Save'));
@@ -1244,6 +1256,12 @@ void main() {
       await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'root');
       await tester.pumpAndSettle();
 
+      // Fill password (required)
+      await tester.tap(find.text('Auth'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, '••••••••'), 'pass');
+      await tester.pumpAndSettle();
+
       // Find the OutlinedButton "Connect" (not the segment button text)
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
@@ -1273,6 +1291,12 @@ void main() {
 
       await tester.enterText(find.widgetWithText(TextFormField, '192.168.1.1'), '10.0.0.5');
       await tester.enterText(find.widgetWithText(TextFormField, 'root'), 'admin');
+      await tester.pumpAndSettle();
+
+      // Fill password (required)
+      await tester.tap(find.text('Auth'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, '••••••••'), 'pass');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));

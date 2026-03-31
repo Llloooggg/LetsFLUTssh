@@ -34,9 +34,14 @@ void main() {
   Finder fieldByHint(String hint) =>
       find.widgetWithText(TextFormField, hint);
 
-  Future<void> fillRequiredFields(WidgetTester tester, {String host = 'example.com', String user = 'testuser'}) async {
+  Future<void> fillRequiredFields(WidgetTester tester, {String host = 'example.com', String user = 'testuser', String password = 'pass'}) async {
     await tester.enterText(fieldByHint('192.168.1.1'), host);
     await tester.enterText(fieldByHint('root'), user);
+    // Fill password on Auth tab (required for default password auth)
+    await tester.tap(find.text('Auth'));
+    await tester.pumpAndSettle();
+    await tester.enterText(fieldByHint('••••••••'), password);
+    await tester.tap(find.text('Connection'));
     await tester.pumpAndSettle();
   }
 
@@ -236,7 +241,7 @@ void main() {
 
   group('SessionEditDialog — edit session submit', () {
     testWidgets('Save returns SaveResult with connect=false', (tester) async {
-      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -252,7 +257,7 @@ void main() {
     });
 
     testWidgets('Save preserves edited fields', (tester) async {
-      final session = Session(label: 'old-label', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(label: 'old-label', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -404,11 +409,13 @@ void main() {
       await tester.tap(find.text('Key+Pass'));
       await tester.pumpAndSettle();
 
+      final scrollable = find.byType(Scrollable).last;
+
       // Scroll to password field
       await tester.scrollUntilVisible(
         fieldByHint('••••••••'),
         100,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: scrollable,
       );
       await tester.enterText(
         fieldByHint('••••••••'),
@@ -416,11 +423,31 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Add PEM key data (required for key auth)
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
+      );
+      await tester.pumpAndSettle();
+
       // Scroll back to action buttons
       await tester.scrollUntilVisible(
         find.text('Connect'),
         -100,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: scrollable,
       );
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
@@ -688,7 +715,7 @@ void main() {
 
     testWidgets('editing session preserves original session id',
         (tester) async {
-      final session = Session(id: 'original-id-123', label: 'edit-me', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password));
+      final session = Session(id: 'original-id-123', label: 'edit-me', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -998,6 +1025,26 @@ void main() {
           fieldByHint('••••••••'), 'pass123');
       await tester.pumpAndSettle();
 
+      // Add PEM key data (required for key auth)
+      await tester.scrollUntilVisible(
+        find.text('Paste PEM key text'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.tap(find.text('Paste PEM key text'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
+        '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
+      );
+      await tester.pumpAndSettle();
+
       await tester.scrollUntilVisible(
         find.text('Connect'),
         -100,
@@ -1215,6 +1262,16 @@ void main() {
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
+
+      // Fill password (required for Key+Pass)
+      await tester.scrollUntilVisible(
+        fieldByHint('••••••••'),
+        100,
+        scrollable: scrollable,
+      );
+      await tester.enterText(fieldByHint('••••••••'), 'pass');
+      await tester.pumpAndSettle();
+
       await tester.scrollUntilVisible(
         find.text('Paste PEM key text'),
         100,
@@ -1463,7 +1520,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should show validation error — dialog stays open
-      expect(find.text('Provide a key file or PEM text first'), findsOneWidget);
+      expect(find.text('Provide a key file or paste PEM text'), findsOneWidget);
       expect(dialogResult, isNull);
     });
   });
