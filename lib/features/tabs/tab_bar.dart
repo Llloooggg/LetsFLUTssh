@@ -190,7 +190,7 @@ class _TabItemState extends State<_TabItem> {
                 const SizedBox(width: 6),
                 Icon(
                   widget.tab.kind == TabKind.terminal
-                      ? Icons.shield
+                      ? Icons.terminal
                       : Icons.folder,
                   size: 12,
                   color: _iconColor(),
@@ -315,7 +315,7 @@ class _DragChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            tab.kind == TabKind.terminal ? Icons.shield : Icons.folder,
+            tab.kind == TabKind.terminal ? Icons.terminal : Icons.folder,
             size: 12,
             color: AppTheme.fgDim,
           ),

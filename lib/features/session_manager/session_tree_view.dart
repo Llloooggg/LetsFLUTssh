@@ -590,7 +590,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         SizedBox(width: 28.0 + (depth > 0 ? depth * 12.0 : 0)),
       if (!widget.selectMode) ...[
         Icon(
-          Icons.shield,
+          Icons.terminal,
           size: _authIconSize,
           color: isConnected ? AppTheme.green : AppTheme.fgFaint,
         ),
@@ -683,7 +683,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.shield, size: 12, color: AppTheme.fgFaint),
+              const Icon(Icons.terminal, size: 12, color: AppTheme.fgFaint),
               const SizedBox(width: 4),
               Text(node.name, style: const TextStyle(fontSize: 11)),
             ],

@@ -122,9 +122,9 @@ void main() {
       expect(find.byIcon(Icons.folder), findsWidgets);
     });
 
-    testWidgets('shows shield icons for sessions', (tester) async {
+    testWidgets('shows terminal icons for sessions', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.byIcon(Icons.shield), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
     testWidgets('shows session count on groups', (tester) async {
@@ -186,24 +186,24 @@ void main() {
       expect(find.byIcon(Icons.folder), findsWidgets);
     });
 
-    testWidgets('shows shield icon for key auth type', (tester) async {
+    testWidgets('shows terminal icon for key auth type', (tester) async {
       final keySessions = [
         Session(id: '10', label: 'key-server', group: '', server: const ServerAddress(host: '10.0.0.10', user: 'root'), auth: const SessionAuth(authType: AuthType.key)),
       ];
       final keyTree = SessionTree.build(keySessions);
       await tester.pumpWidget(buildApp(overrideTree: keyTree));
 
-      expect(find.byIcon(Icons.shield), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
-    testWidgets('shows shield icon for keyWithPassword auth', (tester) async {
+    testWidgets('shows terminal icon for keyWithPassword auth', (tester) async {
       final keySessions = [
         Session(id: '11', label: 'enc-server', group: '', server: const ServerAddress(host: '10.0.0.11', user: 'root'), auth: const SessionAuth(authType: AuthType.keyWithPassword)),
       ];
       final keyTree = SessionTree.build(keySessions);
       await tester.pumpWidget(buildApp(overrideTree: keyTree));
 
-      expect(find.byIcon(Icons.shield), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
     testWidgets('session tap calls onSessionTap callback', (tester) async {

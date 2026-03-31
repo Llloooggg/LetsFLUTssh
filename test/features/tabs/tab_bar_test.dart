@@ -75,13 +75,13 @@ void main() {
       expect(find.text('MyServer'), findsWidgets);
     });
 
-    testWidgets('renders shield icon for terminal tab', (tester) async {
+    testWidgets('renders terminal icon for terminal tab', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(id: 't1', label: 'SSH', connection: conn, kind: TabKind.terminal),
       ]));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.shield), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
     testWidgets('renders folder icon for SFTP tab', (tester) async {
@@ -827,7 +827,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('DragMe'), findsWidgets);
-      expect(find.byIcon(Icons.shield), findsWidgets);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
 
       await gesture.up();
       await tester.pumpAndSettle();

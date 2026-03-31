@@ -374,7 +374,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                     ),
                     const SizedBox(width: 5),
                     Icon(
-                      isTerminal ? Icons.shield : Icons.folder,
+                      isTerminal ? Icons.terminal : Icons.folder,
                       size: 10,
                       color: isActive ? AppTheme.accent : AppTheme.fgFaint,
                     ),

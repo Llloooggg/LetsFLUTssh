@@ -724,9 +724,6 @@ class _StatusBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connections = ref.watch(connectionsProvider).value ?? [];
-    final connectedCount =
-        connections.where((c) => c.isConnected).length;
     final version = ref.watch(appVersionProvider);
 
     return Container(
@@ -740,23 +737,6 @@ class _StatusBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 5,
-            height: 5,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.green,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '$connectedCount connections',
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 10,
-              color: AppTheme.fgDim,
-            ),
-          ),
           const Spacer(),
           Text(
             '${tabState.tabs.length} tabs',
@@ -863,7 +843,7 @@ class _ConnectionBarState extends State<_ConnectionBar> {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const Spacer(),
           if (onCompanion != null)
             Tooltip(
               message: isTerminal ? 'Open File Transfer' : 'Open Terminal',

@@ -37,7 +37,9 @@ class SessionPanel extends ConsumerStatefulWidget {
 class SessionPanelState extends ConsumerState<SessionPanel> {
   bool _selectMode = false;
   final _selectedIds = <String>{};
-  bool _marqueeInProgress = false;
+  // Marquee state tracked for test visibility only.
+  @visibleForTesting
+  bool marqueeInProgress = false;
 
   @visibleForTesting
   bool get selectMode => _selectMode;
@@ -55,10 +57,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   @visibleForTesting
-  void simulateMarqueeStart() => setState(() => _marqueeInProgress = true);
+  void simulateMarqueeStart() => setState(() => marqueeInProgress = true);
 
   @visibleForTesting
-  void simulateMarqueeEnd() => setState(() => _marqueeInProgress = false);
+  void simulateMarqueeEnd() => setState(() => marqueeInProgress = false);
 
   void _enterSelectMode() {
     setState(() {
@@ -167,7 +169,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final mobile = isMobilePlatform;
 
-    return Column(
+    return Container(
+      color: AppTheme.bg1,
+      child: Column(
       children: [
         if (_selectMode && mobile)
           _SelectActionBar(
@@ -188,16 +192,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             value: searchQuery,
             onChanged: (v) => ref.read(sessionSearchProvider.notifier).set(v),
           ),
-          // Desktop: compact action bar when marquee-selected
-          // Suppressed during active marquee drag to avoid layout shift.
-          if (!mobile && _selectedIds.isNotEmpty && !_marqueeInProgress)
-            _SelectActionBar(
-              selectedCount: _selectedIds.length,
-              onSelectAll: _selectAll,
-              onDelete: () => _deleteSelected(context),
-              onMove: () => _moveSelected(context),
-              onCancel: _clearDesktopSelection,
-            ),
+          // Desktop marquee selection is shown inline via row highlights.
+          // Bulk actions available via right-click context menu.
         ],
         // Tree view
         Expanded(
@@ -225,8 +221,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   onGroupMoved: (groupPath, targetParent) {
                     ref.read(sessionProvider.notifier).moveGroup(groupPath, targetParent);
                   },
-                  onMarqueeStart: () => setState(() => _marqueeInProgress = true),
-                  onMarqueeEnd: () => setState(() => _marqueeInProgress = false),
+                  onMarqueeStart: () => setState(() => marqueeInProgress = true),
+                  onMarqueeEnd: () => setState(() => marqueeInProgress = false),
                   onMarqueeSelect: (ids) {
                     setState(() {
                       _selectedIds
@@ -243,6 +239,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           savedCount: ref.watch(sessionProvider).length,
         ),
       ],
+    ),
     );
   }
 
@@ -676,7 +673,7 @@ class _PanelHeader extends StatelessWidget {
             height: 24,
             child: IconButton(
               onPressed: onAddFolder,
-              icon: const Icon(Icons.add, size: 14),
+              icon: const Icon(Icons.create_new_folder, size: 14),
               tooltip: _kNewFolder,
               padding: EdgeInsets.zero,
               color: AppTheme.fgDim,
