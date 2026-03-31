@@ -122,7 +122,7 @@ class FileRow extends StatelessWidget {
                 child: Text(
                   entry.isDir ? '' : formatSize(entry.size),
                   style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
-                  textAlign: TextAlign.right,
+                  textAlign: TextAlign.left,
                 ),
               ),
               SizedBox(
