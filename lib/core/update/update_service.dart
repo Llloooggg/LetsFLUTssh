@@ -284,7 +284,7 @@ class UpdateService {
   }
 
   /// Open a downloaded file using the platform's default handler.
-  static Future<bool> openFile(String path) async {
+  Future<bool> openFile(String path) async {
     ProcessResult result;
     if (Platform.isLinux) {
       result = await Process.run('xdg-open', [path]);
