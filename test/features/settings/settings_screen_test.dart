@@ -656,8 +656,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '2');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '4');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -671,8 +669,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '2');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '10');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -686,8 +682,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '2');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '99');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -700,8 +694,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '500');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '1000');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -715,8 +707,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '500');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '10');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
@@ -730,8 +720,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       final field = find.widgetWithText(TextFormField, '500');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
       await tester.enterText(field, '5000');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
