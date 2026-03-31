@@ -217,8 +217,9 @@ void main() {
       expect(find.text('Dark'), findsOneWidget);
       expect(find.text('Light'), findsOneWidget);
       expect(find.text('System'), findsOneWidget);
-      expect(find.text('Font Size'), findsOneWidget);
-      expect(find.byType(Slider), findsOneWidget);
+      expect(find.text('Terminal Font Size'), findsOneWidget);
+      expect(find.text('UI Scale'), findsOneWidget);
+      expect(find.byType(Slider), findsNWidgets(2));
     });
 
     testWidgets('theme selector renders all segment labels', (tester) async {
@@ -309,10 +310,13 @@ void main() {
   // Font size slider
   // ---------------------------------------------------------------------------
   group('SettingsScreen — font size slider', () {
+    // Font size slider is the second Slider (index 1); UI Scale is index 0.
+    Finder fontSliderFinder() => find.byType(Slider).at(1);
+
     testWidgets('slider shows default value 14', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.text('14'), findsOneWidget);
-      final slider = tester.widget<Slider>(find.byType(Slider));
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.value, 14.0);
       expect(slider.min, 8.0);
       expect(slider.max, 24.0);
@@ -328,7 +332,7 @@ void main() {
     testWidgets('slider shows formatted value text', (tester) async {
       await tester.pumpWidget(
           buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 16.0))));
-      final slider = tester.widget<Slider>(find.byType(Slider));
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.value, 16.0);
       expect(find.text('16'), findsOneWidget);
     });
@@ -348,17 +352,17 @@ void main() {
     testWidgets('value out of range is clamped', (tester) async {
       await tester.pumpWidget(
           buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 4.0))));
-      final slider = tester.widget<Slider>(find.byType(Slider));
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.value, 8.0);
     });
 
     testWidgets('onChanged callback is wired', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.byType(Slider), 100,
+        fontSliderFinder(), 100,
         scrollable: find.byType(Scrollable).first,
       );
-      final slider = tester.widget<Slider>(find.byType(Slider));
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.onChanged, isNotNull);
       slider.onChanged!(18.0);
       await tester.pump();
@@ -366,16 +370,16 @@ void main() {
 
     testWidgets('dragging slider changes value', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.drag(find.byType(Slider), const Offset(50, 0));
+      await tester.drag(fontSliderFinder(), const Offset(50, 0));
       await tester.pumpAndSettle();
-      expect(find.byType(Slider), findsOneWidget);
+      expect(find.byType(Slider), findsNWidgets(2));
     });
 
     testWidgets('slider with custom font size 20 shows correct value',
         (tester) async {
       await tester.pumpWidget(
           buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 20.0))));
-      final slider = tester.widget<Slider>(find.byType(Slider));
+      final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.value, 20.0);
     });
   });
@@ -740,7 +744,7 @@ void main() {
     testWidgets('renders export tile with subtitle and icon', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Data'), findsOneWidget);
@@ -753,7 +757,7 @@ void main() {
     testWidgets('tap opens export dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -767,7 +771,7 @@ void main() {
     testWidgets('export dialog fields are obscured', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -787,7 +791,7 @@ void main() {
     testWidgets('cancel closes export dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -800,7 +804,7 @@ void main() {
     testWidgets('empty password does not close dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -813,7 +817,7 @@ void main() {
     testWidgets('mismatched passwords shows warning toast', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -839,7 +843,7 @@ void main() {
     testWidgets('matching passwords closes dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'), 200,
+        find.text('Export Data'), 400,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
@@ -2427,7 +2431,7 @@ void main() {
       // Appearance content should be visible (header + nav = 2 instances)
       expect(find.text('Appearance'), findsNWidgets(2));
       expect(find.text('Theme'), findsOneWidget);
-      expect(find.text('Font Size'), findsOneWidget);
+      expect(find.text('Terminal Font Size'), findsOneWidget);
     });
 
     testWidgets('tapping nav item switches content pane', (tester) async {
