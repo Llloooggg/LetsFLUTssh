@@ -307,37 +307,43 @@ class _NavItemState extends State<_NavItem> {
   Widget build(BuildContext context) {
     return HoverRegion(
       onTap: widget.onTap,
-      builder: (hovered) => Container(
-        height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        color: widget.selected
-            ? AppTheme.selection
-            : hovered
-                ? AppTheme.hover
-                : Colors.transparent,
-        child: Row(
-          children: [
-            Icon(
-              widget.icon,
-              size: 13,
-              color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                widget.label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 11,
-                  fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
-                  color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+      builder: (hovered) {
+        final Color bg;
+        if (widget.selected) {
+          bg = AppTheme.selection;
+        } else if (hovered) {
+          bg = AppTheme.hover;
+        } else {
+          bg = Colors.transparent;
+        }
+        return Container(
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          color: bg,
+          child: Row(
+            children: [
+              Icon(
+                widget.icon,
+                size: 13,
+                color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  widget.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
+                    color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -515,7 +521,7 @@ class _TransferSection extends ConsumerWidget {
         _Toggle(
           label: 'Calculate Folder Sizes',
           value: showFolderSizes,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(showFolderSizes: v)),
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ui: c.ui.copyWith(showFolderSizes: v))),
         ),
       ],
     );

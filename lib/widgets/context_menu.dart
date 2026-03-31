@@ -125,6 +125,19 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
 
   int? get _activeIndex => _keyIndex ?? _hoveredIndex;
 
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      widget.onDismiss();
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      _moveKey(1);
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      _moveKey(-1);
+    } else if (event.logicalKey == LogicalKeyboardKey.enter) {
+      if (_activeIndex != null) _activate(_activeIndex!);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -143,18 +156,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
           delegate: _MenuPositionDelegate(widget.position),
           child: KeyboardListener(
             focusNode: _focusNode,
-            onKeyEvent: (event) {
-              if (event is! KeyDownEvent && event is! KeyRepeatEvent) return;
-              if (event.logicalKey == LogicalKeyboardKey.escape) {
-                widget.onDismiss();
-              } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-                _moveKey(1);
-              } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                _moveKey(-1);
-              } else if (event.logicalKey == LogicalKeyboardKey.enter) {
-                if (_activeIndex != null) _activate(_activeIndex!);
-              }
-            },
+            onKeyEvent: _handleKeyEvent,
             child: Builder(builder: (context) {
               final theme = Theme.of(context);
               final scheme = theme.colorScheme;

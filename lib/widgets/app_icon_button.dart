@@ -51,23 +51,29 @@ class AppIconButton extends StatelessWidget {
 
     Widget button = HoverRegion(
       onTap: onTap,
-      builder: (hovered) => Container(
-        width: boxSize,
-        height: boxSize,
-        decoration: BoxDecoration(
-          color: active
-              ? AppTheme.active
-              : (hovered && onTap != null)
-                  ? (hoverColor ?? AppTheme.hover)
-                  : Colors.transparent,
-          borderRadius: borderRadius,
-        ),
-        child: Icon(
-          icon,
-          size: size,
-          color: onTap != null ? iconColor : disabledColor,
-        ),
-      ),
+      builder: (hovered) {
+        final Color bg;
+        if (active) {
+          bg = AppTheme.active;
+        } else if (hovered && onTap != null) {
+          bg = hoverColor ?? AppTheme.hover;
+        } else {
+          bg = Colors.transparent;
+        }
+        return Container(
+          width: boxSize,
+          height: boxSize,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: borderRadius,
+          ),
+          child: Icon(
+            icon,
+            size: size,
+            color: onTap != null ? iconColor : disabledColor,
+          ),
+        );
+      },
     );
 
     if (tooltip != null) {

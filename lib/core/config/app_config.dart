@@ -139,12 +139,14 @@ class UiConfig {
   final double windowWidth;
   final double windowHeight;
   final double uiScale;
+  final bool showFolderSizes;
 
   const UiConfig({
     this.toastDurationMs = 4000,
     this.windowWidth = 1100,
     this.windowHeight = 650,
     this.uiScale = 1.0,
+    this.showFolderSizes = false,
   });
 
   static const defaults = UiConfig();
@@ -164,6 +166,7 @@ class UiConfig {
       windowWidth: windowWidth < 200 ? d.windowWidth : windowWidth,
       windowHeight: windowHeight < 200 ? d.windowHeight : windowHeight,
       uiScale: uiScale.clamp(0.5, 2.0),
+      showFolderSizes: showFolderSizes,
     );
   }
 
@@ -172,11 +175,13 @@ class UiConfig {
     double? windowWidth,
     double? windowHeight,
     double? uiScale,
+    bool? showFolderSizes,
   }) => UiConfig(
     toastDurationMs: toastDurationMs ?? this.toastDurationMs,
     windowWidth: windowWidth ?? this.windowWidth,
     windowHeight: windowHeight ?? this.windowHeight,
     uiScale: uiScale ?? this.uiScale,
+    showFolderSizes: showFolderSizes ?? this.showFolderSizes,
   );
 
   @override
@@ -186,16 +191,18 @@ class UiConfig {
           toastDurationMs == other.toastDurationMs &&
           windowWidth == other.windowWidth &&
           windowHeight == other.windowHeight &&
-          uiScale == other.uiScale;
+          uiScale == other.uiScale &&
+          showFolderSizes == other.showFolderSizes;
 
   @override
-  int get hashCode => Object.hash(toastDurationMs, windowWidth, windowHeight, uiScale);
+  int get hashCode => Object.hash(toastDurationMs, windowWidth, windowHeight, uiScale, showFolderSizes);
 
   Map<String, dynamic> toJson() => {
     'toast_duration_ms': toastDurationMs,
     'window_width': windowWidth,
     'window_height': windowHeight,
     'ui_scale': uiScale,
+    'show_folder_sizes': showFolderSizes,
   };
 
   factory UiConfig.fromJson(Map<String, dynamic> json) {
@@ -205,6 +212,7 @@ class UiConfig {
       windowWidth: (json['window_width'] as num?)?.toDouble() ?? d.windowWidth,
       windowHeight: (json['window_height'] as num?)?.toDouble() ?? d.windowHeight,
       uiScale: (json['ui_scale'] as num?)?.toDouble() ?? d.uiScale,
+      showFolderSizes: json['show_folder_sizes'] as bool? ?? d.showFolderSizes,
     ).sanitized();
   }
 }
@@ -221,7 +229,6 @@ class AppConfig {
   final int maxHistory;
   final bool enableLogging;
   final bool checkUpdatesOnStart;
-  final bool showFolderSizes;
   final String? skippedVersion;
 
   const AppConfig({
@@ -232,7 +239,6 @@ class AppConfig {
     this.maxHistory = 500,
     this.enableLogging = false,
     this.checkUpdatesOnStart = true,
-    this.showFolderSizes = false,
     this.skippedVersion,
   });
 
@@ -249,6 +255,7 @@ class AppConfig {
   double get windowWidth => ui.windowWidth;
   double get windowHeight => ui.windowHeight;
   double get uiScale => ui.uiScale;
+  bool get showFolderSizes => ui.showFolderSizes;
 
   /// Validate config values. Returns error message or null.
   String? validate() {
@@ -270,7 +277,6 @@ class AppConfig {
       maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
       enableLogging: enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart,
-      showFolderSizes: showFolderSizes,
       skippedVersion: skippedVersion,
     );
   }
@@ -283,7 +289,6 @@ class AppConfig {
     int? maxHistory,
     bool? enableLogging,
     bool? checkUpdatesOnStart,
-    bool? showFolderSizes,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -293,7 +298,6 @@ class AppConfig {
       maxHistory: maxHistory ?? this.maxHistory,
       enableLogging: enableLogging ?? this.enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
-      showFolderSizes: showFolderSizes ?? this.showFolderSizes,
       skippedVersion: skippedVersion,
     );
   }
@@ -306,7 +310,6 @@ class AppConfig {
     maxHistory: maxHistory,
     enableLogging: enableLogging,
     checkUpdatesOnStart: checkUpdatesOnStart,
-    showFolderSizes: showFolderSizes,
     skippedVersion: version,
   );
 
@@ -321,13 +324,12 @@ class AppConfig {
           maxHistory == other.maxHistory &&
           enableLogging == other.enableLogging &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
-          showFolderSizes == other.showFolderSizes &&
           skippedVersion == other.skippedVersion;
 
   @override
   int get hashCode => Object.hash(
         terminal, ssh, ui, transferWorkers, maxHistory, enableLogging,
-        checkUpdatesOnStart, showFolderSizes, skippedVersion,
+        checkUpdatesOnStart, skippedVersion,
       );
 
   /// JSON stays flat for backward compatibility.
@@ -339,7 +341,6 @@ class AppConfig {
     'max_history': maxHistory,
     'enable_logging': enableLogging,
     'check_updates_on_start': checkUpdatesOnStart,
-    'show_folder_sizes': showFolderSizes,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
   };
 
@@ -353,7 +354,6 @@ class AppConfig {
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
       checkUpdatesOnStart: json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
-      showFolderSizes: json['show_folder_sizes'] as bool? ?? d.showFolderSizes,
       skippedVersion: json['skipped_version'] as String?,
     ).sanitized();
   }

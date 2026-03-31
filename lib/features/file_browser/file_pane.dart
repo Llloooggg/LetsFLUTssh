@@ -248,46 +248,10 @@ class _FilePaneState extends State<FilePane> {
   }
 
   Widget _buildBreadcrumb() {
-    if (_editingPath) {
-      return SizedBox(
-        height: 22,
-        child: TextField(
-          controller: _pathController,
-          focusNode: _pathFocusNode,
-          autofocus: true,
-          style: AppFonts.mono(fontSize: 10, color: AppTheme.fg),
-          decoration: InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: AppTheme.bg3,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.zero,
-              borderSide: BorderSide(color: AppTheme.borderLight),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.zero,
-              borderSide: BorderSide(color: AppTheme.accent),
-            ),
-            hintText: ctrl.currentPath,
-            hintStyle: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
-          ),
-          onSubmitted: (val) {
-            setState(() => _editingPath = false);
-            if (val.trim().isNotEmpty) {
-              ctrl.navigateTo(val.trim());
-            }
-          },
-          onTapOutside: (_) => _pathFocusNode.unfocus(),
-        ),
-      );
-    }
+    if (_editingPath) return _buildPathEditor();
 
     final currentPath = ctrl.currentPath;
-    // Detect Windows paths (e.g. C:\Users or C:/)
-    final isWindows = currentPath.length >= 2 &&
-        currentPath[1] == ':' &&
-        RegExp(r'^[A-Za-z]$').hasMatch(currentPath[0]);
+    final isWindows = _isWindowsPath(currentPath);
     final separator = isWindows ? RegExp(r'[/\\]') : RegExp(r'/');
     final parts = currentPath.split(separator)..removeWhere((p) => p.isEmpty);
     final rootPath = isWindows && parts.isNotEmpty ? '${parts[0]}\\' : '/';
@@ -305,13 +269,7 @@ class _FilePaneState extends State<FilePane> {
         for (var i = 0; i < navParts.length; i++) ...[
           Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
           InkWell(
-            onTap: () {
-              if (isWindows) {
-                ctrl.navigateTo([parts[0], ...navParts.sublist(0, i + 1)].join('\\'));
-              } else {
-                ctrl.navigateTo('/${navParts.sublist(0, i + 1).join('/')}');
-              }
-            },
+            onTap: () => _navigateToPart(isWindows, parts, navParts, i),
             child: Text(
               navParts[i],
               style: AppFonts.mono(
@@ -331,6 +289,54 @@ class _FilePaneState extends State<FilePane> {
           child: Icon(Icons.edit, size: 9, color: AppTheme.fgFaint),
         ),
       ],
+    );
+  }
+
+  static bool _isWindowsPath(String path) =>
+      path.length >= 2 &&
+      path[1] == ':' &&
+      RegExp(r'^[A-Za-z]$').hasMatch(path[0]);
+
+  void _navigateToPart(bool isWindows, List<String> parts, List<String> navParts, int i) {
+    if (isWindows) {
+      ctrl.navigateTo([parts[0], ...navParts.sublist(0, i + 1)].join('\\'));
+    } else {
+      ctrl.navigateTo('/${navParts.sublist(0, i + 1).join('/')}');
+    }
+  }
+
+  Widget _buildPathEditor() {
+    return SizedBox(
+      height: 22,
+      child: TextField(
+        controller: _pathController,
+        focusNode: _pathFocusNode,
+        autofocus: true,
+        style: AppFonts.mono(fontSize: 10, color: AppTheme.fg),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: AppTheme.bg3,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.borderLight),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.accent),
+          ),
+          hintText: ctrl.currentPath,
+          hintStyle: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+        ),
+        onSubmitted: (val) {
+          setState(() => _editingPath = false);
+          if (val.trim().isNotEmpty) {
+            ctrl.navigateTo(val.trim());
+          }
+        },
+        onTapOutside: (_) => _pathFocusNode.unfocus(),
+      ),
     );
   }
 

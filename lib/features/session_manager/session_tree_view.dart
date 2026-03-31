@@ -394,6 +394,31 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     );
   }
 
+  BoxDecoration _rowDecoration(bool isDropTarget, bool hovered, ThemeData theme) {
+    final Color? bg;
+    if (isDropTarget) {
+      bg = theme.colorScheme.primary.withValues(alpha: 0.15);
+    } else if (hovered) {
+      bg = AppTheme.hover;
+    } else {
+      bg = null;
+    }
+    return BoxDecoration(
+      color: bg,
+      border: isDropTarget
+          ? Border.all(color: theme.colorScheme.primary, width: 1)
+          : null,
+    );
+  }
+
+  Color? _sessionRowColor(bool highlighted, bool hovered, ThemeData theme) {
+    if (highlighted && !widget.selectMode) {
+      return theme.colorScheme.primary.withValues(alpha: 0.15);
+    }
+    if (hovered) return AppTheme.hover;
+    return null;
+  }
+
   Widget _buildIndentGuides(int depth, ThemeData theme) {
     if (depth == 0) return const SizedBox(width: 8);
     final guideColor = AppTheme.borderLight;
@@ -427,15 +452,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           : null,
       child: HoverRegion(
         builder: (hovered) => InkWell(
-          onTap: () {
-            setState(() {
-              if (expanded) {
-                _expandedGroups.remove(node.fullPath);
-              } else {
-                _expandedGroups.add(node.fullPath);
-              }
-            });
-          },
+          onTap: () => _toggleGroup(node.fullPath, expanded),
           hoverColor: Colors.transparent,
           child: Container(
             height: _rowHeight,
@@ -443,60 +460,63 @@ class _SessionTreeViewState extends State<SessionTreeView> {
               left: _mobile ? 8.0 : 12.0,
               right: 8,
             ),
-            decoration: BoxDecoration(
-              color: isDropTarget
-                  ? theme.colorScheme.primary.withValues(alpha: 0.15)
-                  : hovered
-                      ? AppTheme.hover
-                      : null,
-              border: isDropTarget
-                  ? Border.all(color: theme.colorScheme.primary, width: 1)
-                  : null,
-            ),
+            decoration: _rowDecoration(isDropTarget, hovered, theme),
             child: Row(
-              children: [
-                if (depth > 0) _buildIndentGuides(depth, theme),
-                Transform.rotate(
-                  angle: expanded ? 0 : -1.5708, // -90° in radians
-                  child: Icon(
-                    Icons.expand_more,
-                    size: _iconSize,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  expanded ? Icons.folder_open : Icons.folder,
-                  size: _iconSize,
-                  color: AppTheme.yellow,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    node.name,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: _fontSize,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.fgDim,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Text(
-                  '${node.sessionCount}',
-                  style: TextStyle(
-                    fontSize: _subFontSize,
-                    color: AppTheme.fgFaint,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
+              children: _buildGroupRowChildren(node, depth, expanded, theme),
             ),
           ),
         ),
       ),
     );
+  }
+
+  void _toggleGroup(String fullPath, bool expanded) {
+    setState(() {
+      if (expanded) {
+        _expandedGroups.remove(fullPath);
+      } else {
+        _expandedGroups.add(fullPath);
+      }
+    });
+  }
+
+  List<Widget> _buildGroupRowChildren(
+    SessionTreeNode node, int depth, bool expanded, ThemeData theme,
+  ) {
+    return [
+      if (depth > 0) _buildIndentGuides(depth, theme),
+      Transform.rotate(
+        angle: expanded ? 0 : -1.5708, // -90° in radians
+        child: Icon(Icons.expand_more, size: _iconSize, color: AppTheme.fgDim),
+      ),
+      const SizedBox(width: 4),
+      Icon(
+        expanded ? Icons.folder_open : Icons.folder,
+        size: _iconSize,
+        color: AppTheme.yellow,
+      ),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          node.name,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: _fontSize,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.fgDim,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      Text(
+        '${node.sessionCount}',
+        style: TextStyle(
+          fontSize: _subFontSize,
+          color: AppTheme.fgFaint,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    ];
   }
 
   Widget _buildGroupTile(SessionTreeNode node, int depth) {
@@ -657,11 +677,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           child: Container(
             height: _rowHeight,
             padding: const EdgeInsets.only(right: 8),
-            color: (isSelected || isChecked) && !widget.selectMode
-                ? theme.colorScheme.primary.withValues(alpha: 0.15)
-                : hovered
-                    ? AppTheme.hover
-                    : null,
+            color: _sessionRowColor(isSelected || isChecked, hovered, theme),
             child: Row(
               children: _buildSessionRowChildren(node, session, depth, isChecked, theme),
             ),
