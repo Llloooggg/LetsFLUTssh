@@ -395,6 +395,7 @@ class _AppearanceSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(configProvider.select((c) => c.theme));
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
+    final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
     return Column(
       children: [
         _ThemeTile(
@@ -402,7 +403,16 @@ class _AppearanceSection extends ConsumerWidget {
           onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(terminal: c.terminal.copyWith(theme: v))),
         ),
         _SliderTile(
-          title: 'Font Size',
+          title: 'UI Scale',
+          value: uiScale,
+          min: 0.5,
+          max: 2.0,
+          divisions: 15,
+          format: (v) => '${(v * 100).round()}%',
+          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ui: c.ui.copyWith(uiScale: v))),
+        ),
+        _SliderTile(
+          title: 'Terminal Font Size',
           value: fontSize,
           min: 8,
           max: 24,

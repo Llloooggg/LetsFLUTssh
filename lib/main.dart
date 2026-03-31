@@ -116,6 +116,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
 
     return MaterialApp(
       navigatorKey: navigatorKey,
@@ -124,6 +125,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       themeMode: themeMode,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(uiScale),
+          ),
+          child: child!,
+        );
+      },
       home: const MainScreen(),
     );
   }
