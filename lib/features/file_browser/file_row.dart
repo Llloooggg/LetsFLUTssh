@@ -69,6 +69,7 @@ class FileRow extends StatelessWidget {
   final double modifiedWidth;
   final double modeWidth;
   final double ownerWidth;
+  final String? folderSizeText;
 
   const FileRow({
     super.key,
@@ -78,6 +79,7 @@ class FileRow extends StatelessWidget {
     this.modifiedWidth = 80,
     this.modeWidth = 80,
     this.ownerWidth = 60,
+    this.folderSizeText,
     required this.onTap,
     required this.onCtrlTap,
     required this.onDoubleTap,
@@ -128,7 +130,9 @@ class FileRow extends StatelessWidget {
               SizedBox(
                 width: sizeWidth,
                 child: Text(
-                  entry.isDir ? '' : formatSize(entry.size),
+                  entry.isDir
+                      ? (folderSizeText ?? '')
+                      : formatSize(entry.size),
                   style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 ),
               ),

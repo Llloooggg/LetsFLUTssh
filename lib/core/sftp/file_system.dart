@@ -13,6 +13,9 @@ abstract class FileSystem {
   Future<void> remove(String path);
   Future<void> removeDir(String path);
   Future<void> rename(String oldPath, String newPath);
+
+  /// Recursively calculate the total size of a directory.
+  Future<int> dirSize(String path);
 }
 
 /// Local file system implementation using dart:io.
@@ -106,6 +109,23 @@ class LocalFS implements FileSystem {
   @override
   Future<void> removeDir(String path) async {
     await Directory(path).delete(recursive: true);
+  }
+
+  @override
+  Future<int> dirSize(String path) async {
+    int total = 0;
+    final dir = Directory(path);
+    if (!await dir.exists()) return 0;
+    await for (final entity in dir.list(recursive: true)) {
+      if (entity is File) {
+        try {
+          total += await entity.length();
+        } catch (_) {
+          // Skip unreadable files
+        }
+      }
+    }
+    return total;
   }
 
   @override
