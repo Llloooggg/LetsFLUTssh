@@ -151,6 +151,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final _crossMarquee = CrossMarqueeController();
   bool _updateDialogShown = false;
   bool _sidebarOpen = true;
+  double _sidebarWidth = 220;
   final Map<String, GlobalKey<TerminalTabState>> _terminalKeys = {};
 
   GlobalKey<TerminalTabState> _keyForTab(String tabId) =>
@@ -384,7 +385,23 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return Scaffold(
       body: Row(
         children: [
-          if (_sidebarOpen) SizedBox(width: 220, child: sessionPanel),
+          if (_sidebarOpen) ...[
+            SizedBox(width: _sidebarWidth, child: sessionPanel),
+            MouseRegion(
+              cursor: SystemMouseCursors.resizeColumn,
+              child: GestureDetector(
+                onHorizontalDragUpdate: (d) {
+                  setState(() {
+                    _sidebarWidth = (_sidebarWidth + d.delta.dx).clamp(140.0, 400.0);
+                  });
+                },
+                child: Container(
+                  width: 3,
+                  color: AppTheme.bg0,
+                ),
+              ),
+            ),
+          ],
           Expanded(child: rightSide),
         ],
       ),

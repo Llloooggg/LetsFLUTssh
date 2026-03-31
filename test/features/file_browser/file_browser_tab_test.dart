@@ -465,9 +465,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Upload and download arrow buttons should exist
-      expect(find.byTooltip('Upload selected'), findsOneWidget);
-      expect(find.byTooltip('Download selected'), findsOneWidget);
+      // Divider between panes should exist (arrows removed)
+      expect(find.byType(Container), findsWidgets);
     });
 
     testWidgets('TransferPanel is shown below panes', (tester) async {
@@ -620,41 +619,7 @@ void main() {
     });
   });
 
-  group('FileBrowserTab — transfer arrows', () {
-    testWidgets('upload and download arrows present', (tester) async {
-      final conn = Connection(
-        id: 'arrows-1',
-        label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
-        state: SSHConnectionState.connected,
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 1200,
-                height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byTooltip('Upload selected'), findsOneWidget);
-      expect(find.byTooltip('Download selected'), findsOneWidget);
-    });
-  });
+  // Transfer arrows removed — transfers via drag&drop and context menu.
 
   group('FileBrowserTab — upload/download enqueue', () {
     testWidgets('upload enqueues a task to TransferManager', (tester) async {
