@@ -56,6 +56,9 @@ class SessionTreeView extends StatefulWidget {
   /// bounds during a marquee drag, events are forwarded to the file pane.
   final CrossMarqueeController? crossMarquee;
 
+  /// IDs of sessions that currently have an active connection.
+  final Set<String> connectedSessionIds;
+
   const SessionTreeView({
     super.key,
     required this.tree,
@@ -73,6 +76,7 @@ class SessionTreeView extends StatefulWidget {
     this.onMarqueeStart,
     this.onMarqueeEnd,
     this.crossMarquee,
+    this.connectedSessionIds = const {},
   });
 
   @override
@@ -569,9 +573,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     ThemeData theme,
   ) {
     // Connected state comes from active connections, but session tree
-    // doesn't have that info — use incomplete as a proxy for now.
-    // The mockup uses Shield icon instead of auth-type icons.
-    final isConnected = !session.incomplete;
+    final isConnected = widget.connectedSessionIds.contains(session.id);
 
     return [
       if (widget.selectMode)

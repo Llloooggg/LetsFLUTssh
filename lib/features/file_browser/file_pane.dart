@@ -264,36 +264,38 @@ class _FilePaneState extends State<FilePane> {
     }
 
     final parts = ctrl.currentPath.split('/')..removeWhere((p) => p.isEmpty);
-    return GestureDetector(
-      onDoubleTap: () {
-        _pathController.text = ctrl.currentPath;
-        setState(() => _editingPath = true);
-      },
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => ctrl.navigateTo('/'),
-            child: const Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
-          ),
-          for (var i = 0; i < parts.length; i++) ...[
-            Text(' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
-            GestureDetector(
-              onTap: () {
-                final path = '/${parts.sublist(0, i + 1).join('/')}';
-                ctrl.navigateTo(path);
-              },
-              child: Text(
-                parts[i],
-                style: AppFonts.mono(
-                  fontSize: 10,
-                  color: i == parts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
-                ),
-                overflow: TextOverflow.ellipsis,
+    return Row(
+      children: [
+        InkWell(
+          onTap: () => ctrl.navigateTo('/'),
+          child: const Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
+        ),
+        for (var i = 0; i < parts.length; i++) ...[
+          Text(' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
+          InkWell(
+            onTap: () {
+              final path = '/${parts.sublist(0, i + 1).join('/')}';
+              ctrl.navigateTo(path);
+            },
+            child: Text(
+              parts[i],
+              style: AppFonts.mono(
+                fontSize: 10,
+                color: i == parts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
+          ),
         ],
-      ),
+        const SizedBox(width: 4),
+        InkWell(
+          onTap: () {
+            _pathController.text = ctrl.currentPath;
+            setState(() => _editingPath = true);
+          },
+          child: const Icon(Icons.edit, size: 9, color: AppTheme.fgFaint),
+        ),
+      ],
     );
   }
 

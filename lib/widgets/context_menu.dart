@@ -156,11 +156,12 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                 if (_activeIndex != null) _activate(_activeIndex!);
               }
             },
-            child: Container(
+            child: Material(
+              color: AppTheme.bg1,
+              child: Container(
               constraints: const BoxConstraints(minWidth: 200),
               padding: const EdgeInsets.symmetric(vertical: 4),
               decoration: BoxDecoration(
-                color: AppTheme.bg1,
                 border: Border.all(color: AppTheme.borderLight),
                 boxShadow: const [
                   BoxShadow(
@@ -187,6 +188,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                   ],
                 ),
               ),
+            ),
             ),
           ),
         ),

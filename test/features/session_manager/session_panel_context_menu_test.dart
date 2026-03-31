@@ -213,7 +213,7 @@ void main() {
 
       await rightClick(tester, find.text('staging'));
 
-      await tester.tap(find.text('Open Terminal'));
+      await tester.tap(find.text('Terminal'));
       await tester.pumpAndSettle();
 
       expect(connected, isNotNull);
@@ -231,7 +231,7 @@ void main() {
 
       await rightClick(tester, find.text('staging'));
 
-      await tester.tap(find.text('Open File Transfer'));
+      await tester.tap(find.text('Files'));
       await tester.pumpAndSettle();
 
       expect(sftpSession, isNotNull);
