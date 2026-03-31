@@ -846,8 +846,8 @@ class _ConnectionBarState extends State<_ConnectionBar> {
               ],
             ),
           ),
+          if (onCompanion != null) ...[
           const Spacer(),
-          if (onCompanion != null)
             Tooltip(
               message: isTerminal ? 'Files' : 'Terminal',
               child: MouseRegion(
@@ -892,6 +892,7 @@ class _ConnectionBarState extends State<_ConnectionBar> {
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
