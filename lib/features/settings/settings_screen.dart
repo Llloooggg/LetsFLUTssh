@@ -1729,22 +1729,28 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
             ),
           ],
         ),
-        // Log content
-        Container(
-          width: double.infinity,
-          height: MediaQuery.of(context).size.height * 0.5,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          padding: const EdgeInsets.all(8),
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            child: SelectableText(
-              _content.isEmpty ? '(no log entries yet)' : _content,
-              style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: fg, height: 1.4),
-            ),
-          ),
+        // Log content — fill remaining vertical space
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Use available height minus toolbar (~40px), clamped to reasonable min
+            final availableHeight = MediaQuery.of(context).size.height - 200;
+            return Container(
+              width: double.infinity,
+              height: availableHeight.clamp(200.0, double.infinity),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: SelectableText(
+                  _content.isEmpty ? '(no log entries yet)' : _content,
+                  style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: fg, height: 1.4),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
