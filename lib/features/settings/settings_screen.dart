@@ -842,10 +842,9 @@ class _UpdateSection extends ConsumerWidget {
 
     return Column(
       children: [
-        SwitchListTile(
-          title: const Text('Check for Updates on Startup'),
+        _Toggle(
+          label: 'Check for Updates on Startup',
           value: checkOnStart,
-          contentPadding: EdgeInsets.zero,
           onChanged: (v) => ref.read(configProvider.notifier).update(
             (c) => c.copyWith(checkUpdatesOnStart: v),
           ),
@@ -1117,6 +1116,273 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Custom settings primitives — match the mockup pixel-perfect
+// ═══════════════════════════════════════════════════════════════════
+
+/// Generic settings row: [label Inter 11px fg flex] [control], minHeight 36.
+class _SettingsRow extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _SettingsRow({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 36),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: AppFonts.inter(fontSize: 11, color: AppTheme.fg),
+              ),
+            ),
+            const SizedBox(width: 24),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom toggle pill: 32×18, borderRadius 9, accent/bg4 bg, white 14×14 thumb.
+class _Toggle extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _Toggle({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingsRow(
+      label: label,
+      child: GestureDetector(
+        onTap: () => onChanged(!value),
+        child: Container(
+          width: 32,
+          height: 18,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: value ? AppTheme.accent : AppTheme.bg4,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 120),
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom segment control: height 26, accent+white / bg3+fgDim.
+class _SegmentControl extends StatelessWidget {
+  final List<String> values;
+  final List<String> labels;
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  const _SegmentControl({
+    required this.values,
+    required this.labels,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < values.length; i++) {
+      if (i > 0) {
+        children.add(Container(width: 1, color: AppTheme.borderLight));
+      }
+      final isSelected = values[i] == selected;
+      children.add(
+        GestureDetector(
+          onTap: () => onChanged(values[i]),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            color: isSelected ? AppTheme.accent : AppTheme.bg3,
+            alignment: Alignment.center,
+            child: Text(
+              labels[i],
+              style: AppFonts.inter(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                color: isSelected ? Colors.white : AppTheme.fgDim,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 26,
+      decoration: BoxDecoration(
+        border: Border.all(color: AppTheme.borderLight),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+/// Custom slider: 3px track, circle thumb bg2 + 2px accent border, width 280.
+class _SliderField extends StatelessWidget {
+  final double value;
+  final double min;
+  final double max;
+  final int? divisions;
+  final String Function(double) format;
+  final ValueChanged<double> onChanged;
+
+  const _SliderField({
+    required this.value,
+    required this.min,
+    required this.max,
+    this.divisions,
+    required this.format,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 200,
+          child: SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 3,
+              activeTrackColor: AppTheme.accent,
+              inactiveTrackColor: AppTheme.bg4,
+              thumbColor: AppTheme.bg2,
+              thumbShape: const _CircleThumbShape(),
+              overlayShape: SliderComponentShape.noOverlay,
+            ),
+            child: Slider(
+              value: value.clamp(min, max),
+              min: min,
+              max: max,
+              divisions: divisions,
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          format(value),
+          style: AppFonts.mono(fontSize: 11, color: AppTheme.fgDim),
+        ),
+      ],
+    );
+  }
+}
+
+class _CircleThumbShape extends SliderComponentShape {
+  const _CircleThumbShape();
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size(12, 12);
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final canvas = context.canvas;
+    // Accent border
+    canvas.drawCircle(
+      center,
+      6,
+      Paint()..color = AppTheme.accent,
+    );
+    // Inner circle
+    canvas.drawCircle(
+      center,
+      4,
+      Paint()..color = AppTheme.bg2,
+    );
+  }
+}
+
+/// Custom input field: bg bg3, height 26, borderLight, JetBrains Mono 11px.
+class _InputField extends StatelessWidget {
+  final String initialValue;
+  final TextInputType? keyboardType;
+  final double width = 100;
+  final ValueChanged<String> onSubmitted;
+
+  const _InputField({
+    required this.initialValue,
+    this.keyboardType,
+    required this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      height: 26,
+      child: TextFormField(
+        initialValue: initialValue,
+        keyboardType: keyboardType,
+        textAlign: TextAlign.center,
+        style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
+        decoration: const InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: AppTheme.bg3,
+          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.borderLight),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: AppTheme.accent),
+          ),
+        ),
+        onFieldSubmitted: onSubmitted,
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Composed setting tiles using the primitives above
+// ═══════════════════════════════════════════════════════════════════
+
 class _ThemeTile extends StatelessWidget {
   final String value;
   final ValueChanged<String> onChanged;
@@ -1125,21 +1391,13 @@ class _ThemeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: const Text('Theme'),
-      contentPadding: EdgeInsets.zero,
-      trailing: SegmentedButton<String>(
-        segments: const [
-          ButtonSegment(value: 'dark', label: Text('Dark')),
-          ButtonSegment(value: 'light', label: Text('Light')),
-          ButtonSegment(value: 'system', label: Text('System')),
-        ],
-        selected: {value},
-        showSelectedIcon: false,
-        onSelectionChanged: (s) => onChanged(s.first),
-        style: const ButtonStyle(
-          visualDensity: VisualDensity.compact,
-        ),
+    return _SettingsRow(
+      label: 'Theme',
+      child: _SegmentControl(
+        values: const ['dark', 'light', 'system'],
+        labels: const ['Dark', 'Light', 'System'],
+        selected: value,
+        onChanged: onChanged,
       ),
     );
   }
@@ -1166,18 +1424,16 @@ class _SliderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(title),
-      subtitle: Slider(
-        value: value.clamp(min, max),
+    return _SettingsRow(
+      label: title,
+      child: _SliderField(
+        value: value,
         min: min,
         max: max,
         divisions: divisions,
-        label: format(value),
+        format: format,
         onChanged: onChanged,
       ),
-      trailing: Text(format(value)),
-      contentPadding: EdgeInsets.zero,
     );
   }
 }
@@ -1199,27 +1455,17 @@ class _IntTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(title),
-      contentPadding: EdgeInsets.zero,
-      trailing: SizedBox(
-        width: 100,
-        child: TextFormField(
-          initialValue: value.toString(),
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            border: OutlineInputBorder(),
-          ),
-          onFieldSubmitted: (v) {
-            final n = int.tryParse(v);
-            if (n != null && n >= min && n <= max) {
-              onChanged(n);
-            }
-          },
-        ),
+    return _SettingsRow(
+      label: title,
+      child: _InputField(
+        initialValue: value.toString(),
+        keyboardType: TextInputType.number,
+        onSubmitted: (v) {
+          final n = int.tryParse(v);
+          if (n != null && n >= min && n <= max) {
+            onChanged(n);
+          }
+        },
       ),
     );
   }
@@ -1293,11 +1539,9 @@ class _LoggingSection extends ConsumerWidget {
 
     return Column(
       children: [
-        SwitchListTile(
-          title: const Text('Enable Logging'),
-          subtitle: const Text('Write diagnostic logs to file (no sensitive data)'),
+        _Toggle(
+          label: 'Enable Logging',
           value: enabled,
-          contentPadding: EdgeInsets.zero,
           onChanged: (v) => ref.read(configProvider.notifier).update(
             (c) => c.copyWith(enableLogging: v),
           ),
