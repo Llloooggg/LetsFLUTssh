@@ -21,7 +21,6 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final manager = ref.watch(transferManagerProvider);
     final historyAsync = ref.watch(transferHistoryProvider);
     final statusAsync = ref.watch(transferStatusProvider);
@@ -36,65 +35,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
 
     return Column(
       children: [
-        // Toggle header
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerLow,
-              border: Border(top: BorderSide(color: theme.dividerColor)),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _expanded ? Icons.expand_more : Icons.expand_less,
-                  size: 20,
-                ),
-                const SizedBox(width: 4),
-                const Text(
-                  'Transfers',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(width: 8),
-                if (status != null && status.hasActive)
-                  Text(
-                    '${status.running} active, ${status.queued} queued',
-                    style: TextStyle(fontSize: 12, color: theme.colorScheme.primary),
-                  ),
-                if (status?.currentInfo != null) ...[
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      status!.currentInfo!,
-                      style: const TextStyle(fontSize: 12),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                historyAsync.when(
-                  data: (history) => Text(
-                    '${history.length} in history',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, _) => const SizedBox.shrink(),
-                ),
-                const SizedBox(width: 4),
-                if (_expanded)
-                  IconButton(
-                    onPressed: () => manager.clearHistory(),
-                    icon: const Icon(Icons.delete_sweep, size: 18),
-                    tooltip: 'Clear history',
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-          ),
-        ),
-        // Resize handle
+        // Drag handle
         if (_expanded)
           MouseRegion(
             cursor: SystemMouseCursors.resizeRow,
@@ -106,20 +47,101 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               },
               child: Container(
                 height: 4,
-                color: Theme.of(context).dividerColor,
+                color: AppTheme.bg0,
+                alignment: Alignment.center,
+                child: Container(width: 32, height: 1, color: AppTheme.borderLight),
               ),
             ),
           ),
-        // Column headers
-        if (_expanded)
-          _buildColumnHeaders(theme),
-        // Expanded transfer list (active + history)
-        if (_expanded)
+        // Toggle header
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Container(
+            height: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.bg3,
+              border: Border(
+                top: const BorderSide(color: AppTheme.border),
+                bottom: _expanded
+                    ? const BorderSide(color: AppTheme.border)
+                    : BorderSide.none,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _expanded ? Icons.expand_more : Icons.chevron_right,
+                  size: 11,
+                  color: AppTheme.fgDim,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Transfers:',
+                  style: AppFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.fgDim,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                if (status != null) ...[
+                  Text(
+                    '${status.running} active',
+                    style: AppFonts.inter(fontSize: 10, color: AppTheme.accent),
+                  ),
+                  Text(
+                    ', ${status.queued} queued',
+                    style: AppFonts.inter(fontSize: 10, color: AppTheme.fgDim),
+                  ),
+                ],
+                const Spacer(),
+                historyAsync.when(
+                  data: (history) => Text(
+                    '${history.length} in history',
+                    style: AppFonts.inter(fontSize: 9, color: AppTheme.fgFaint),
+                  ),
+                  loading: SizedBox.shrink,
+                  error: (_, _) => const SizedBox.shrink(),
+                ),
+                const SizedBox(width: 4),
+                if (_expanded)
+                  _headerButton(
+                    icon: Icons.delete_outline,
+                    tooltip: 'Clear history',
+                    onTap: () => manager.clearHistory(),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        // Column headers + transfer list
+        if (_expanded) ...[
+          _buildColumnHeaders(),
           SizedBox(
             height: _panelHeight,
             child: _buildTransferList(historyAsync, ref),
           ),
+          _buildFooter(ref),
+        ],
       ],
+    );
+  }
+
+  Widget _headerButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(icon, size: 12, color: AppTheme.fgFaint),
+        ),
+      ),
     );
   }
 
@@ -133,13 +155,17 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     return historyAsync.when(
       data: (history) {
         if (active.isEmpty && history.isEmpty) {
-          return const Center(
-            child: Text('No transfers yet', style: TextStyle(fontSize: 12)),
+          return Center(
+            child: Text(
+              'No transfers yet',
+              style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint),
+            ),
           );
         }
         final totalCount = active.length + history.length;
         return ListView.builder(
           itemCount: totalCount,
+          itemExtent: 24,
           itemBuilder: (context, index) {
             if (index < active.length) {
               return _ActiveRow(entry: active[index]);
@@ -153,39 +179,59 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     );
   }
 
-  Widget _buildColumnHeaders(ThemeData theme) {
-    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
-    const style = TextStyle(fontSize: 10, fontWeight: FontWeight.w600);
-    final divider = Container(
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      color: theme.dividerColor,
+  Widget _buildColumnHeaders() {
+    final style = AppFonts.inter(
+      fontSize: 9,
+      fontWeight: FontWeight.w500,
+      color: AppTheme.fgFaint,
     );
 
     return Container(
+      height: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      color: AppTheme.bg3,
+      child: Row(
+        children: [
+          SizedBox(width: 16, child: Text('#', style: style)),
+          const SizedBox(width: 4),
+          SizedBox(width: 20, child: Text('', style: style)),
+          const SizedBox(width: 4),
+          Expanded(flex: 2, child: Text('Name', style: style)),
+          Expanded(flex: 2, child: Text('Local', style: style)),
+          Expanded(flex: 2, child: Text('Remote', style: style)),
+          SizedBox(width: 56, child: Text('Size', style: style, textAlign: TextAlign.right)),
+          SizedBox(width: 50, child: Text('Duration', style: style)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(WidgetRef ref) {
+    final statusAsync = ref.watch(transferStatusProvider);
+    final status = statusAsync.value;
+    final historyAsync = ref.watch(transferHistoryProvider);
+    final historyCount = historyAsync.value?.length ?? 0;
+
+    return Container(
       height: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        color: AppTheme.bg0,
+        border: Border(top: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
-          const SizedBox(width: 24),
-          const SizedBox(width: 4),
-          const SizedBox(width: 24),
-          divider,
-          Expanded(flex: 2, child: Text('Name', style: style.copyWith(color: dimColor))),
-          divider,
-          Expanded(flex: 2, child: Text('Local', style: style.copyWith(color: dimColor))),
-          divider,
-          Expanded(flex: 2, child: Text('Remote', style: style.copyWith(color: dimColor))),
-          divider,
-          SizedBox(width: 60, child: Text('Size', style: style.copyWith(color: dimColor), textAlign: TextAlign.right)),
-          divider,
-          SizedBox(width: 55, child: Text('Duration', style: style.copyWith(color: dimColor))),
-          const SizedBox(width: 8),
-          const SizedBox(width: 16),
+          const Icon(Icons.circle, size: 5, color: AppTheme.green),
+          const SizedBox(width: 6),
+          if (status != null)
+            Text(
+              '${status.running} active · ${status.queued} queued',
+              style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+            ),
+          Text(
+            ' · $historyCount in hist',
+            style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+          ),
         ],
       ),
     );
@@ -199,54 +245,42 @@ class _HistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isFailed = entry.status == TransferStatus.failed;
     final isUpload = entry.direction == TransferDirection.upload;
-    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
-    final divider = Container(
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      color: theme.dividerColor,
-    );
 
     return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          // Direction icon
+          // Status icon
           SizedBox(
-            width: 24,
-            child: Text(
-              entry.directionIcon,
-              style: TextStyle(
-                fontSize: 14,
-                color: isUpload ? AppTheme.info : AppTheme.connected,
-              ),
-              textAlign: TextAlign.center,
+            width: 16,
+            child: Icon(
+              isUpload ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 10,
+              color: isUpload ? AppTheme.green : AppTheme.blue,
             ),
           ),
           const SizedBox(width: 4),
-          // Status icon
           SizedBox(
-            width: 24,
+            width: 20,
             child: Icon(
-              isFailed ? Icons.error : Icons.check_circle,
-              size: 14,
-              color: isFailed ? AppTheme.disconnected : AppTheme.connected,
+              isFailed ? Icons.error_outline : Icons.check_circle_outline,
+              size: 10,
+              color: isFailed ? AppTheme.red : AppTheme.green,
             ),
           ),
-          divider,
+          const SizedBox(width: 4),
           // Name
           Expanded(
             flex: 2,
             child: Text(
               entry.name,
-              style: const TextStyle(fontSize: 12),
+              style: AppFonts.mono(fontSize: 10, color: AppTheme.fgDim),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          divider,
           // Local path
           Expanded(
             flex: 2,
@@ -254,12 +288,11 @@ class _HistoryRow extends StatelessWidget {
               message: isUpload ? entry.sourcePath : entry.targetPath,
               child: Text(
                 _shortenPath(isUpload ? entry.sourcePath : entry.targetPath),
-                style: TextStyle(fontSize: 11, color: dimColor),
+                style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
-          divider,
           // Remote path
           Expanded(
             flex: 2,
@@ -267,40 +300,27 @@ class _HistoryRow extends StatelessWidget {
               message: isUpload ? entry.targetPath : entry.sourcePath,
               child: Text(
                 _shortenPath(isUpload ? entry.targetPath : entry.sourcePath),
-                style: TextStyle(fontSize: 11, color: dimColor),
+                style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
-          divider,
           // Size
           SizedBox(
-            width: 60,
+            width: 56,
             child: Text(
               entry.sizeBytes > 0 ? formatSize(entry.sizeBytes) : '',
-              style: TextStyle(fontSize: 11, color: dimColor),
+              style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
               textAlign: TextAlign.right,
             ),
           ),
-          divider,
           // Duration
           SizedBox(
-            width: 55,
+            width: 50,
             child: Text(
               entry.duration != null ? formatDuration(entry.duration!) : '',
-              style: TextStyle(fontSize: 11, color: dimColor),
+              style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
             ),
-          ),
-          const SizedBox(width: 8),
-          // Error icon
-          SizedBox(
-            width: 16,
-            child: isFailed && entry.error != null
-                ? Tooltip(
-                    message: entry.error!,
-                    child: const Icon(Icons.info_outline, size: 14, color: AppTheme.disconnected),
-                  )
-                : const SizedBox.shrink(),
           ),
         ],
       ),
@@ -310,7 +330,6 @@ class _HistoryRow extends StatelessWidget {
   /// Shorten a path to just the last 2 segments for display.
   static String _shortenPath(String path) {
     if (path.isEmpty) return '';
-    // Normalize separators
     final normalized = path.replaceAll('\\', '/');
     final parts = normalized.split('/').where((p) => p.isNotEmpty).toList();
     if (parts.length <= 2) return normalized;
@@ -326,104 +345,117 @@ class _ActiveRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isUpload = entry.direction == TransferDirection.upload;
     final isQueued = entry.status == TransferStatus.queued;
-    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
-    final divider = Container(
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      color: theme.dividerColor,
-    );
 
-    return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      color: theme.colorScheme.primary.withValues(alpha: 0.06),
-      child: Row(
-        children: [
-          // Direction icon
-          SizedBox(
-            width: 24,
-            child: Text(
-              entry.directionIcon,
-              style: TextStyle(
-                fontSize: 14,
-                color: isUpload ? AppTheme.info : AppTheme.connected,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 22,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              // Direction icon
+              SizedBox(
+                width: 16,
+                child: Icon(
+                  isUpload ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 10,
+                  color: isUpload ? AppTheme.green : AppTheme.blue,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(width: 4),
-          // Status icon — sync for running, clock for queued
-          SizedBox(
-            width: 24,
-            child: Icon(
-              isQueued ? Icons.schedule : Icons.sync,
-              size: 14,
-              color: isQueued ? dimColor : theme.colorScheme.primary,
-            ),
-          ),
-          divider,
-          // Name
-          Expanded(
-            flex: 2,
-            child: Text(
-              entry.name,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          divider,
-          // Local path
-          Expanded(
-            flex: 2,
-            child: Tooltip(
-              message: isUpload ? entry.sourcePath : entry.targetPath,
-              child: Text(
-                _HistoryRow._shortenPath(isUpload ? entry.sourcePath : entry.targetPath),
-                style: TextStyle(fontSize: 11, color: dimColor),
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 4),
+              // Status icon
+              SizedBox(
+                width: 20,
+                child: Icon(
+                  isQueued ? Icons.schedule : Icons.sync,
+                  size: 10,
+                  color: isQueued ? AppTheme.fgFaint : AppTheme.accent,
+                ),
               ),
-            ),
-          ),
-          divider,
-          // Remote path
-          Expanded(
-            flex: 2,
-            child: Tooltip(
-              message: isUpload ? entry.targetPath : entry.sourcePath,
-              child: Text(
-                _HistoryRow._shortenPath(isUpload ? entry.targetPath : entry.sourcePath),
-                style: TextStyle(fontSize: 11, color: dimColor),
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 4),
+              // Name + speed
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        entry.name,
+                        style: AppFonts.mono(fontSize: 10, color: AppTheme.fg),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (!isQueued && entry.message.isNotEmpty) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        entry.message,
+                        style: AppFonts.mono(fontSize: 8, color: AppTheme.accent),
+                      ),
+                    ],
+                  ],
+                ),
               ),
+              // Local path
+              Expanded(
+                flex: 2,
+                child: Tooltip(
+                  message: isUpload ? entry.sourcePath : entry.targetPath,
+                  child: Text(
+                    _HistoryRow._shortenPath(isUpload ? entry.sourcePath : entry.targetPath),
+                    style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              // Remote path
+              Expanded(
+                flex: 2,
+                child: Tooltip(
+                  message: isUpload ? entry.targetPath : entry.sourcePath,
+                  child: Text(
+                    _HistoryRow._shortenPath(isUpload ? entry.targetPath : entry.sourcePath),
+                    style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              // Progress
+              SizedBox(
+                width: 56,
+                child: Text(
+                  isQueued ? 'Queued' : '${entry.percent.toStringAsFixed(0)}%',
+                  style: AppFonts.mono(fontSize: 10, color: AppTheme.accent),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+              // Message
+              SizedBox(
+                width: 50,
+                child: Text(
+                  entry.message,
+                  style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // 2px progress bar under active transfers
+        if (!isQueued)
+          Container(
+            height: 2,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            child: LinearProgressIndicator(
+              value: entry.percent / 100.0,
+              backgroundColor: AppTheme.bg0,
+              valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
+              minHeight: 2,
             ),
           ),
-          divider,
-          // Progress
-          SizedBox(
-            width: 60,
-            child: Text(
-              isQueued ? 'Queued' : '${entry.percent.toStringAsFixed(0)}%',
-              style: TextStyle(fontSize: 11, color: theme.colorScheme.primary),
-              textAlign: TextAlign.right,
-            ),
-          ),
-          divider,
-          // Message
-          SizedBox(
-            width: 55,
-            child: Text(
-              entry.message,
-              style: TextStyle(fontSize: 11, color: dimColor),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 8),
-          const SizedBox(width: 16),
-        ],
-      ),
+      ],
     );
   }
 }
