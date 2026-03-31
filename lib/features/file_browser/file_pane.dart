@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/cross_marquee_controller.dart';
@@ -52,10 +53,8 @@ class FilePane extends StatefulWidget {
 }
 
 class _FilePaneState extends State<FilePane> {
-  final _pathController = TextEditingController();
   final _focusNode = FocusNode();
   final _fileListKey = GlobalKey();
-  bool _editingPath = false;
   bool _osDragging = false;
 
   FilePaneController get ctrl => widget.controller;
@@ -69,7 +68,6 @@ class _FilePaneState extends State<FilePane> {
   void initState() {
     super.initState();
     ctrl.addListener(_onChanged);
-    _pathController.text = ctrl.currentPath;
     widget.crossMarquee?.addListener(_onCrossMarquee);
   }
 
@@ -86,7 +84,6 @@ class _FilePaneState extends State<FilePane> {
   void dispose() {
     widget.crossMarquee?.removeListener(_onCrossMarquee);
     ctrl.removeListener(_onChanged);
-    _pathController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -138,11 +135,7 @@ class _FilePaneState extends State<FilePane> {
 
   void _onChanged() {
     if (mounted) {
-      setState(() {
-        if (!_editingPath) {
-          _pathController.text = ctrl.currentPath;
-        }
-      });
+      setState(() {});
     }
   }
 
@@ -185,10 +178,7 @@ class _FilePaneState extends State<FilePane> {
             child: Column(
               children: [
                 _buildHeader(theme),
-                _buildPathBar(theme),
-                const Divider(height: 1),
                 _buildColumnHeaders(theme),
-                const Divider(height: 1),
                 Expanded(child: _buildDropTarget(_buildFileList(theme))),
                 _buildFooter(theme),
               ],
@@ -202,35 +192,66 @@ class _FilePaneState extends State<FilePane> {
   // ── Header ──
 
   Widget _buildHeader(ThemeData theme) {
+    final isLocal = ctrl.label.toUpperCase() == 'LOCAL';
+    final labelColor = isLocal ? AppTheme.blue : AppTheme.green;
+
     return Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
           Text(
-            ctrl.label,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ctrl.label.toUpperCase(),
+            style: AppFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: labelColor,
+            ),
           ),
-          const Spacer(),
-          _iconButton(Icons.arrow_back, ctrl.canGoBack ? ctrl.goBack : null, 'Back'),
-          _iconButton(Icons.arrow_forward, ctrl.canGoForward ? ctrl.goForward : null, 'Forward'),
-          _iconButton(Icons.arrow_upward, ctrl.navigateUp, 'Up'),
-          _iconButton(Icons.refresh, ctrl.refresh, 'Refresh'),
+          const SizedBox(width: 8),
+          Expanded(child: _buildBreadcrumb()),
+          const SizedBox(width: 4),
+          _navButton(Icons.arrow_back, ctrl.canGoBack ? ctrl.goBack : null, 'Back'),
+          _navButton(Icons.arrow_forward, ctrl.canGoForward ? ctrl.goForward : null, 'Forward'),
+          _navButton(Icons.arrow_upward, ctrl.navigateUp, 'Up'),
+          _navButton(Icons.refresh, ctrl.refresh, 'Refresh'),
         ],
       ),
     );
   }
 
-  Widget _iconButton(IconData icon, VoidCallback? onPressed, String tooltip) {
+  Widget _buildBreadcrumb() {
+    final parts = ctrl.currentPath.split('/')..removeWhere((p) => p.isEmpty);
+    return Row(
+      children: [
+        const Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
+        for (var i = 0; i < parts.length; i++) ...[
+          Text(' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
+          Flexible(
+            child: Text(
+              parts[i],
+              style: AppFonts.mono(
+                fontSize: 10,
+                color: i == parts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _navButton(IconData icon, VoidCallback? onPressed, String tooltip) {
     return SizedBox(
-      width: 28,
-      height: 28,
+      width: 20,
+      height: 20,
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(icon, size: 16),
+        icon: Icon(icon, size: 11, color: AppTheme.fgFaint),
         tooltip: tooltip,
         padding: EdgeInsets.zero,
         visualDensity: VisualDensity.compact,
@@ -238,63 +259,14 @@ class _FilePaneState extends State<FilePane> {
     );
   }
 
-  // ── Path bar ──
-
-  Widget _buildPathBar(ThemeData theme) {
-    return Container(
-      height: 30,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: _editingPath
-                ? TextField(
-                    controller: _pathController,
-                    autofocus: true,
-                    style: const TextStyle(fontSize: 12),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted: (val) {
-                      _editingPath = false;
-                      ctrl.navigateTo(val);
-                    },
-                    onTapOutside: (_) {
-                      setState(() {
-                        _editingPath = false;
-                        _pathController.text = ctrl.currentPath;
-                      });
-                    },
-                  )
-                : GestureDetector(
-                    onTap: () => setState(() => _editingPath = true),
-                    child: Container(
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: theme.dividerColor),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        ctrl.currentPath,
-                        style: const TextStyle(fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ── Column headers ──
 
   Widget _buildColumnHeaders(ThemeData theme) {
-    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
-    const headerStyle = TextStyle(fontSize: 11, fontWeight: FontWeight.w600);
+    final headerStyle = AppFonts.inter(
+      fontSize: 10,
+      fontWeight: FontWeight.w500,
+      color: AppTheme.fgFaint,
+    );
 
     Widget headerCell(String label, SortColumn column, {double? width, TextAlign? textAlign}) {
       final isActive = ctrl.sortColumn == column;
@@ -311,17 +283,17 @@ class _FilePaneState extends State<FilePane> {
               Flexible(
                 child: Text(
                   label,
-                  style: headerStyle.copyWith(
-                    color: isActive ? theme.colorScheme.primary : dimColor,
-                  ),
+                  style: isActive
+                      ? headerStyle.copyWith(color: AppTheme.accent)
+                      : headerStyle,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (isActive)
                 Icon(
                   ctrl.sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                  size: 12,
-                  color: theme.colorScheme.primary,
+                  size: 10,
+                  color: AppTheme.accent,
                 ),
             ],
           ),
@@ -331,30 +303,19 @@ class _FilePaneState extends State<FilePane> {
 
     final hasOwner = ctrl.entries.any((e) => e.owner.isNotEmpty);
 
-    final divider = Container(
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: theme.dividerColor,
-    );
-
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      color: theme.colorScheme.surfaceContainerLow,
+      color: AppTheme.bg3,
       child: Row(
         children: [
-          const SizedBox(width: 22), // icon space
+          const SizedBox(width: 20), // icon space
           Expanded(flex: 3, child: headerCell('Name', SortColumn.name)),
-          divider,
-          headerCell('Size', SortColumn.size, width: 70, textAlign: TextAlign.right),
-          divider,
-          headerCell('Modified', SortColumn.modified, width: 120),
-          divider,
-          headerCell('Mode', SortColumn.mode, width: 90),
-          if (hasOwner) ...[
-            divider,
+          headerCell('Size', SortColumn.size, width: 64, textAlign: TextAlign.right),
+          headerCell('Modified', SortColumn.modified, width: 80),
+          headerCell('Mode', SortColumn.mode, width: 80),
+          if (hasOwner)
             headerCell('Owner', SortColumn.owner, width: 60),
-          ],
         ],
       ),
     );
@@ -371,7 +332,7 @@ class _FilePaneState extends State<FilePane> {
   Set<String>? _preMarqueeSelection;
   DateTime _lastMarqueeUpdate = DateTime(0);
 
-  static const _rowHeight = 28.0;
+  static const _rowHeight = 26.0;
   static const _marqueeThreshold = 5.0;
 
   bool get _isCtrlHeld =>
@@ -639,26 +600,21 @@ class _FilePaneState extends State<FilePane> {
   Widget _buildFooter(ThemeData theme) {
     final count = ctrl.entries.length;
     final selCount = ctrl.selected.length;
+    final style = AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint);
 
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: Border(top: BorderSide(color: theme.dividerColor)),
+      decoration: const BoxDecoration(
+        color: AppTheme.bg0,
+        border: Border(top: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
-          Text(
-            '$count items, ${formatSize(ctrl.totalFileSize)}',
-            style: const TextStyle(fontSize: 11),
-          ),
+          Text('$count items, ${formatSize(ctrl.totalFileSize)}', style: style),
           if (selCount > 0) ...[
             const SizedBox(width: 8),
-            Text(
-              '($selCount selected)',
-              style: const TextStyle(fontSize: 11),
-            ),
+            Text('($selCount selected)', style: style),
           ],
         ],
       ),
