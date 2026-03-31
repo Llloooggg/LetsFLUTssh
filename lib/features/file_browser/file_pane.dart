@@ -59,6 +59,12 @@ class _FilePaneState extends State<FilePane> {
   bool _editingPath = false;
   bool _osDragging = false;
 
+  // Resizable column widths
+  double _sizeColWidth = 64;
+  double _modifiedColWidth = 80;
+  double _modeColWidth = 80;
+  double _ownerColWidth = 60;
+
   FilePaneController get ctrl => widget.controller;
 
   static IconData _dragIcon(List<FileEntry> entries, FileEntry entry) {
@@ -357,6 +363,16 @@ class _FilePaneState extends State<FilePane> {
 
     final hasOwner = ctrl.entries.any((e) => e.owner.isNotEmpty);
 
+    Widget colDivider(void Function(double) onDrag) {
+      return MouseRegion(
+        cursor: SystemMouseCursors.resizeColumn,
+        child: GestureDetector(
+          onHorizontalDragUpdate: (d) => setState(() => onDrag(d.delta.dx)),
+          child: const SizedBox(width: 6, height: 24),
+        ),
+      );
+    }
+
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -364,12 +380,17 @@ class _FilePaneState extends State<FilePane> {
       child: Row(
         children: [
           const SizedBox(width: 20), // icon space
-          Expanded(flex: 3, child: headerCell('Name', SortColumn.name)),
-          headerCell('Size', SortColumn.size, width: 64, textAlign: TextAlign.right),
-          headerCell('Modified', SortColumn.modified, width: 80),
-          headerCell('Mode', SortColumn.mode, width: 80),
-          if (hasOwner)
-            headerCell('Owner', SortColumn.owner, width: 60),
+          Expanded(child: headerCell('Name', SortColumn.name)),
+          colDivider((dx) => _sizeColWidth = (_sizeColWidth + dx).clamp(40, 120)),
+          headerCell('Size', SortColumn.size, width: _sizeColWidth),
+          colDivider((dx) => _modifiedColWidth = (_modifiedColWidth + dx).clamp(50, 150)),
+          headerCell('Modified', SortColumn.modified, width: _modifiedColWidth),
+          colDivider((dx) => _modeColWidth = (_modeColWidth + dx).clamp(50, 120)),
+          headerCell('Mode', SortColumn.mode, width: _modeColWidth),
+          if (hasOwner) ...[
+            colDivider((dx) => _ownerColWidth = (_ownerColWidth + dx).clamp(40, 100)),
+            headerCell('Owner', SortColumn.owner, width: _ownerColWidth),
+          ],
         ],
       ),
     );
@@ -540,6 +561,10 @@ class _FilePaneState extends State<FilePane> {
     final row = FileRow(
       entry: entry,
       isSelected: isSelected,
+      sizeWidth: _sizeColWidth,
+      modifiedWidth: _modifiedColWidth,
+      modeWidth: _modeColWidth,
+      ownerWidth: _ownerColWidth,
       onTap: () => ctrl.selectSingle(entry.path),
       onCtrlTap: () => ctrl.toggleSelect(entry.path),
       onDoubleTap: () {
