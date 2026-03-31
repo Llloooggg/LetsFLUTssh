@@ -119,7 +119,7 @@ void main() {
 
     testWidgets('shows folder icons', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.byIcon(Icons.folder), findsWidgets);
+      expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
     testWidgets('shows terminal icons for sessions', (tester) async {
@@ -183,7 +183,7 @@ void main() {
 
     testWidgets('shows folder icon for all groups', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.byIcon(Icons.folder), findsWidgets);
+      expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
     testWidgets('shows terminal icon for key auth type', (tester) async {

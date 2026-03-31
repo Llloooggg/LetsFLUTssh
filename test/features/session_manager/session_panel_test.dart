@@ -254,7 +254,7 @@ void main() {
     testWidgets('renders group folder icons', (tester) async {
       await tester.pumpWidget(buildApp());
       // Groups show folder icon
-      expect(find.byIcon(Icons.folder), findsWidgets);
+      expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
     testWidgets('renders expand/collapse chevrons for groups', (tester) async {
@@ -2000,7 +2000,7 @@ void main() {
       // Root has home icon
       expect(find.byIcon(Icons.home), findsOneWidget);
       // Non-root groups have folder icons
-      expect(find.byIcon(Icons.folder), findsWidgets);
+      expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
     testWidgets('Move dialog — tapping current group does nothing (disabled)',

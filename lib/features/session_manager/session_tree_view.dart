@@ -395,7 +395,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
   Widget _buildIndentGuides(int depth, ThemeData theme) {
     if (depth == 0) return const SizedBox(width: 8);
-    final guideColor = theme.colorScheme.onSurface.withValues(alpha: 0.12);
+    const guideColor = AppTheme.borderLight;
     return SizedBox(
       width: 8.0 + depth * 16.0,
       child: Row(
@@ -454,7 +454,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
             ),
             child: Row(
               children: [
-                if (!_mobile && depth > 0) SizedBox(width: depth * 12.0),
+                if (depth > 0) _buildIndentGuides(depth, theme),
                 Transform.rotate(
                   angle: expanded ? 0 : -1.5708, // -90° in radians
                   child: Icon(
@@ -464,7 +464,11 @@ class _SessionTreeViewState extends State<SessionTreeView> {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.folder, size: _iconSize, color: AppTheme.yellow),
+                Icon(
+                  expanded ? Icons.folder_open : Icons.folder,
+                  size: _iconSize,
+                  color: AppTheme.yellow,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -586,10 +590,8 @@ class _SessionTreeViewState extends State<SessionTreeView> {
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         )
-      else if (_mobile)
-        _buildIndentGuides(depth, theme)
       else
-        SizedBox(width: 28.0 + (depth > 0 ? depth * 12.0 : 0)),
+        _buildIndentGuides(depth, theme),
       if (!widget.selectMode) ...[
         Icon(
           Icons.terminal,
