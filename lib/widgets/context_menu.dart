@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_theme.dart';
+
 
 /// A single context menu item — either a normal item or a divider.
 class ContextMenuItem {
@@ -31,32 +33,51 @@ class ContextMenuItem {
         onTap = null;
 }
 
+// Active menu state — allows re-entrant right-click to dismiss + reopen.
+OverlayEntry? _activeEntry;
+Completer<void>? _activeCompleter;
+
+void _dismissActive() {
+  _activeEntry?.remove();
+  _activeEntry = null;
+  if (_activeCompleter != null && !_activeCompleter!.isCompleted) {
+    _activeCompleter!.complete();
+  }
+  _activeCompleter = null;
+}
+
 /// Shows a custom context menu at [position] with the given [items].
 ///
 /// Returns a `Future` that completes when the menu is dismissed.
 /// The caller does not need to handle the return value — each item's
 /// [ContextMenuItem.onTap] is invoked when selected.
+///
+/// If a menu is already open, it is dismissed first.
 Future<void> showAppContextMenu({
   required BuildContext context,
   required Offset position,
   required List<ContextMenuItem> items,
 }) {
-  final overlay = Overlay.of(context);
-  late final OverlayEntry entry;
+  _dismissActive();
 
+  final overlay = Overlay.of(context);
   final completer = Completer<void>();
+  late final OverlayEntry entry;
 
   entry = OverlayEntry(
     builder: (ctx) => _ContextMenuOverlay(
       position: position,
       items: items,
       onDismiss: () {
-        entry.remove();
-        if (!completer.isCompleted) completer.complete();
+        if (_activeEntry == entry) {
+          _dismissActive();
+        }
       },
     ),
   );
 
+  _activeEntry = entry;
+  _activeCompleter = completer;
   overlay.insert(entry);
   return completer.future;
 }
@@ -142,12 +163,12 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Barrier — dismiss on tap outside.
+        // Barrier — dismiss on any click outside the menu.
+        // Translucent so right-clicks reach widgets below and re-open a menu.
         Positioned.fill(
-          child: GestureDetector(
-            onTap: widget.onDismiss,
-            onSecondaryTap: widget.onDismiss,
-            behavior: HitTestBehavior.opaque,
+          child: Listener(
+            onPointerDown: (_) => widget.onDismiss(),
+            behavior: HitTestBehavior.translucent,
             child: const SizedBox.expand(),
           ),
         ),
@@ -157,46 +178,34 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
           child: KeyboardListener(
             focusNode: _focusNode,
             onKeyEvent: _handleKeyEvent,
-            child: Builder(builder: (context) {
-              final theme = Theme.of(context);
-              final scheme = theme.colorScheme;
-              final menuBg = scheme.surfaceContainerLow;
-              final menuBorder = theme.dividerColor;
-              return Material(
-                color: menuBg,
-                child: Container(
-                  constraints: const BoxConstraints(minWidth: 200),
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: menuBorder),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 24,
-                        offset: const Offset(0, 6),
-                      ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 200),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.bg1,
+                  border: Border.all(color: AppTheme.borderLight),
+                ),
+                child: IntrinsicWidth(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (int i = 0; i < widget.items.length; i++)
+                        widget.items[i].divider
+                            ? Divider(
+                                height: 1,
+                                thickness: 1,
+                                indent: 8,
+                                endIndent: 8,
+                                color: AppTheme.border,
+                              )
+                            : _buildItem(i),
                     ],
                   ),
-                  child: IntrinsicWidth(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (int i = 0; i < widget.items.length; i++)
-                          widget.items[i].divider
-                              ? Divider(
-                                  height: 1,
-                                  thickness: 1,
-                                  indent: 8,
-                                  endIndent: 8,
-                                  color: theme.dividerColor,
-                                )
-                              : _buildItem(i),
-                      ],
-                    ),
-                  ),
                 ),
-              );
-            }),
+              ),
+            ),
           ),
         ),
       ],
@@ -206,13 +215,11 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
   Widget _buildItem(int index) {
     final item = widget.items[index];
     final isActive = _activeIndex == index;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final fgColor = item.color ?? scheme.onSurface;
-    final iconColor = item.color ?? scheme.onSurface.withValues(alpha: 0.6);
-    final shortcutBg = scheme.surfaceContainerHighest;
-    final shortcutFg = scheme.onSurface.withValues(alpha: 0.45);
-    final hoverBg = scheme.primary.withValues(alpha: 0.1);
+    final fgColor = item.color ?? AppTheme.fg;
+    final iconColor = item.color ?? AppTheme.fgDim;
+    final shortcutBg = AppTheme.bg3;
+    final shortcutFg = AppTheme.fgFaint;
+    final hoverBg = AppTheme.selection;
 
     return MouseRegion(
       onEnter: (_) => setState(() {
