@@ -1139,7 +1139,7 @@ void main() {
     });
   });
 
-  group('TerminalTab — splitFocused and topLevelSplitDirection', () {
+  group('TerminalTab — splitFocused (no toggle)', () {
     Connection makeDisconn(String id) => Connection(
           id: id,
           label: 'T$id',
@@ -1174,12 +1174,6 @@ void main() {
       return key;
     }
 
-    testWidgets('topLevelSplitDirection is null for single pane',
-        (tester) async {
-      final key = await pumpTab(tester, 'sfd-1');
-      expect(key.currentState!.topLevelSplitDirection, isNull);
-    });
-
     testWidgets('splitFocused(vertical) creates a second pane', (tester) async {
       final key = await pumpTab(tester, 'sfd-2');
       expect(find.byType(TerminalPane), findsOneWidget);
@@ -1191,19 +1185,7 @@ void main() {
     });
 
     testWidgets(
-        'topLevelSplitDirection is vertical after splitFocused(vertical)',
-        (tester) async {
-      final key = await pumpTab(tester, 'sfd-3');
-
-      key.currentState!.splitFocused(SplitDirection.vertical);
-      await tester.pump();
-
-      expect(key.currentState!.topLevelSplitDirection,
-          SplitDirection.vertical);
-    });
-
-    testWidgets(
-        'splitFocused(vertical) twice collapses back to single pane',
+        'splitFocused(vertical) twice creates three panes (no collapse)',
         (tester) async {
       final key = await pumpTab(tester, 'sfd-4');
 
@@ -1213,8 +1195,7 @@ void main() {
 
       key.currentState!.splitFocused(SplitDirection.vertical);
       await tester.pump();
-      expect(find.byType(TerminalPane), findsOneWidget);
-      expect(key.currentState!.topLevelSplitDirection, isNull);
+      expect(find.byType(TerminalPane), findsNWidgets(3));
     });
 
     testWidgets('splitFocused(horizontal) creates a second pane',
@@ -1225,12 +1206,10 @@ void main() {
       await tester.pump();
 
       expect(find.byType(TerminalPane), findsNWidgets(2));
-      expect(key.currentState!.topLevelSplitDirection,
-          SplitDirection.horizontal);
     });
 
     testWidgets(
-        'splitFocused(horizontal) twice collapses back to single pane',
+        'splitFocused(horizontal) twice creates three panes (no collapse)',
         (tester) async {
       final key = await pumpTab(tester, 'sfd-6');
 
@@ -1240,22 +1219,17 @@ void main() {
       key.currentState!.splitFocused(SplitDirection.horizontal);
       await tester.pump();
 
-      expect(find.byType(TerminalPane), findsOneWidget);
-      expect(key.currentState!.topLevelSplitDirection, isNull);
+      expect(find.byType(TerminalPane), findsNWidgets(3));
     });
 
     testWidgets(
-        'splitFocused(horizontal) after vertical split replaces direction',
+        'splitFocused(horizontal) after vertical split deepens tree',
         (tester) async {
       final key = await pumpTab(tester, 'sfd-7');
 
       key.currentState!.splitFocused(SplitDirection.vertical);
       await tester.pump();
-      expect(key.currentState!.topLevelSplitDirection,
-          SplitDirection.vertical);
 
-      // Splitting in horizontal direction when already split vertically
-      // creates a second split from the focused pane (tree deepens)
       key.currentState!.splitFocused(SplitDirection.horizontal);
       await tester.pump();
 

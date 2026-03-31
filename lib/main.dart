@@ -412,9 +412,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final activeTab = tabState.activeTab;
     final connected = activeTab?.connection.isConnected ?? false;
     final isTerminalTab = activeTab?.kind == TabKind.terminal;
-    final splitDir = isTerminalTab
-        ? _terminalKeys[activeTab!.id]?.currentState?.topLevelSplitDirection
-        : null;
     return Column(
       children: [
         _Toolbar(
@@ -423,7 +420,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           onNewSession: () => _newSession(context, ref),
           showMenuButton: isNarrow,
           isTerminalTab: isTerminalTab,
-          splitDir: splitDir,
           onSplitVertical: isTerminalTab
               ? () {
                   _terminalKeys[activeTab!.id]
@@ -598,7 +594,6 @@ class _Toolbar extends StatelessWidget {
   final VoidCallback onNewSession;
   final bool showMenuButton;
   final bool isTerminalTab;
-  final SplitDirection? splitDir;
   final VoidCallback? onSplitVertical;
   final VoidCallback? onSplitHorizontal;
 
@@ -608,7 +603,6 @@ class _Toolbar extends StatelessWidget {
     required this.onNewSession,
     this.showMenuButton = false,
     this.isTerminalTab = false,
-    this.splitDir,
     this.onSplitVertical,
     this.onSplitHorizontal,
   });
@@ -664,13 +658,11 @@ class _Toolbar extends StatelessWidget {
               icon: Icons.vertical_split,
               onPressed: onSplitVertical,
               tooltip: 'Split Vertical (Ctrl+\\)',
-              active: splitDir == SplitDirection.vertical,
             ),
             _TBtn(
               icon: Icons.horizontal_split,
               onPressed: onSplitHorizontal,
               tooltip: 'Split Horizontal (Ctrl+Shift+\\)',
-              active: splitDir == SplitDirection.horizontal,
             ),
             _Divider(),
           ] else
