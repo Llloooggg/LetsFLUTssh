@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/features/file_browser/file_row.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/marquee_mixin.dart';
 
 void main() {
   final now = DateTime(2024, 1, 15, 10, 30);

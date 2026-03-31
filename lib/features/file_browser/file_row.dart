@@ -203,46 +203,6 @@ class MenuRow extends StatelessWidget {
   }
 }
 
-/// Paints a semi-transparent marquee selection rectangle.
-class MarqueePainter extends CustomPainter {
-  final Offset start;
-  final Offset end;
-  final Color color;
-
-  MarqueePainter({
-    required this.start,
-    required this.end,
-    required this.color,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromPoints(start, end);
-
-    // Fill
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..color = color.withValues(alpha: 0.12)
-        ..style = PaintingStyle.fill,
-    );
-
-    // Border
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..color = color.withValues(alpha: 0.5)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-  }
-
-  @override
-  bool shouldRepaint(MarqueePainter oldDelegate) {
-    return start != oldDelegate.start || end != oldDelegate.end;
-  }
-}
-
 /// Drag data with source pane identity to prevent same-pane drops.
 class PaneDragData {
   final String sourcePaneId;

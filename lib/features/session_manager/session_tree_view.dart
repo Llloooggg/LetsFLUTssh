@@ -1,6 +1,4 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
@@ -8,7 +6,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 import '../../widgets/cross_marquee_controller.dart';
-import '../file_browser/file_row.dart';
+import '../../widgets/marquee_mixin.dart';
 
 /// Drag data: either a session, a group path, or a bulk selection.
 sealed class SessionDragData {}
@@ -101,30 +99,17 @@ class SessionTreeView extends StatefulWidget {
   State<SessionTreeView> createState() => _SessionTreeViewState();
 }
 
-class _SessionTreeViewState extends State<SessionTreeView> {
+class _SessionTreeViewState extends State<SessionTreeView>
+    with MarqueeMixin {
   final _expandedGroups = <String>{};
   String? _selectedSessionId;
   String? _dropTargetGroup; // highlight on drag hover
 
-  // ── Marquee state (desktop only) ──
-  Offset? _marqueeAnchor;
-  Offset? _marqueeStart;
-  Offset? _marqueeCurrent;
-  bool _marqueeActive = false;
+  // ── Cross-marquee state (session panel only) ──
   bool _crossMarqueeActive = false;
-  final _scrollController = ScrollController();
-  DateTime _lastMarqueeUpdate = DateTime(0);
-
-  static const _marqueeThreshold = 5.0;
 
   bool get _hasBulkSelection =>
       widget.selectedIds.length + widget.selectedGroupPaths.length > 1;
-
-  bool get _isCtrlHeld =>
-      HardwareKeyboard.instance.logicalKeysPressed
-          .contains(LogicalKeyboardKey.controlLeft) ||
-      HardwareKeyboard.instance.logicalKeysPressed
-          .contains(LogicalKeyboardKey.controlRight);
 
   static final bool _mobile = isMobilePlatform;
   double get _rowHeight => _mobile ? 48.0 : 28.0;
@@ -141,9 +126,81 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    disposeMarquee();
     super.dispose();
   }
+
+  // ── MarqueeMixin implementation ──
+
+  List<(SessionTreeNode, int)>? _cachedFlatNodes;
+
+  @override
+  double get marqueeRowHeight => _rowHeight;
+
+  @override
+  double get marqueeListPadding => 4.0; // matches ListView padding
+
+  @override
+  int get marqueeItemCount => _cachedFlatNodes?.length ?? 0;
+
+  @override
+  bool isMarqueeItemSelected(int index) {
+    final flatNodes = _cachedFlatNodes;
+    if (flatNodes == null || index < 0 || index >= flatNodes.length) {
+      return false;
+    }
+    final node = flatNodes[index].$1;
+    if (node.session != null) {
+      return widget.selectedIds.contains(node.session!.id);
+    }
+    if (node.isGroup) {
+      return widget.selectedGroupPaths.contains(node.fullPath);
+    }
+    return false;
+  }
+
+  @override
+  void applyMarqueeSelection(int firstIndex, int lastIndex,
+      {required bool ctrlHeld}) {
+    final flatNodes = _cachedFlatNodes;
+    if (flatNodes == null) return;
+
+    final ids = <String>{};
+    final groupPaths = <String>{};
+    for (var i = firstIndex; i <= lastIndex; i++) {
+      final node = flatNodes[i].$1;
+      if (node.session != null) {
+        ids.add(node.session!.id);
+      } else if (node.isGroup) {
+        groupPaths.add(node.fullPath);
+      }
+    }
+    if (ctrlHeld) {
+      ids.addAll(widget.selectedIds);
+      groupPaths.addAll(widget.selectedGroupPaths);
+    }
+    widget.onMarqueeSelect?.call(ids, groupPaths);
+  }
+
+  @override
+  void onMarqueeActivated() {
+    widget.onMarqueeStart?.call();
+  }
+
+  @override
+  void onMarqueeDeactivated() {
+    widget.onMarqueeEnd?.call();
+  }
+
+  @override
+  void onMarqueeClickEmpty(int rowIndex) {
+    if ((widget.selectedIds.isNotEmpty || widget.selectedGroupPaths.isNotEmpty) &&
+        !widget.selectMode) {
+      widget.onMarqueeSelect?.call({}, {});
+    }
+  }
+
+  // ── Tree helpers ──
 
   void _expandAllGroups(List<SessionTreeNode> nodes) {
     for (final node in nodes) {
@@ -154,8 +211,8 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     }
   }
 
-  /// Flattened visible nodes for ListView.builder.
-  List<(SessionTreeNode, int)> _flattenVisible(List<SessionTreeNode> nodes, int depth) {
+  List<(SessionTreeNode, int)> _flattenVisible(
+      List<SessionTreeNode> nodes, int depth) {
     final result = <(SessionTreeNode, int)>[];
     for (final node in nodes) {
       result.add((node, depth));
@@ -165,6 +222,8 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     }
     return result;
   }
+
+  // ── Drag & drop ──
 
   bool _canAcceptDrop(SessionDragData data, String targetGroup) {
     if (data is SessionDrag) {
@@ -201,24 +260,19 @@ class _SessionTreeViewState extends State<SessionTreeView> {
     }
   }
 
-  // ── Marquee pointer handlers (desktop only) ──
-
-  /// Cached flat nodes for marquee hit testing.
-  List<(SessionTreeNode, int)>? _cachedFlatNodes;
+  // ── Cross-marquee (session panel → file pane) ──
 
   void _onPointerDown(PointerDownEvent e) {
-    if (_mobile || e.buttons != kPrimaryButton) return;
-    setState(() {
-      _marqueeAnchor = e.localPosition;
-    });
+    if (_mobile) return;
+    handleMarqueePointerDown(e);
   }
 
   void _onPointerMove(PointerMoveEvent e) {
-    if (_mobile || _marqueeAnchor == null) return;
+    if (_mobile || marqueeAnchor == null) return;
 
-    final distance = (e.localPosition - _marqueeAnchor!).distance;
-    if (!_marqueeActive && !_crossMarqueeActive) {
-      if (distance < _marqueeThreshold) return;
+    final distance = (e.localPosition - marqueeAnchor!).distance;
+    if (!marqueeActive && !_crossMarqueeActive) {
+      if (distance < 5.0) return;
     }
 
     final box = context.findRenderObject() as RenderBox?;
@@ -226,31 +280,40 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       if (_handleCrossMarquee(e, box)) return;
     }
 
-    if (!_marqueeActive) {
-      _marqueeActive = true;
-      widget.onMarqueeStart?.call();
+    if (marqueeDragActive) return;
+
+    if (!marqueeActive) {
+      marqueeActive = true;
+      onMarqueeActivated();
     }
 
     setState(() {
-      _marqueeStart = _marqueeAnchor;
-      _marqueeCurrent = e.localPosition;
+      marqueeStart = marqueeAnchor;
+      marqueeCurrent = e.localPosition;
     });
-    _updateMarqueeSelection();
+    final a = _clampedIndex(marqueeStart!.dy);
+    final b = _clampedIndex(marqueeCurrent!.dy);
+    applyMarqueeSelection(a < b ? a : b, a > b ? a : b, ctrlHeld: isCtrlHeld);
   }
 
-  // Returns true if the event was consumed by cross-marquee logic.
+  int _clampedIndex(double localY) {
+    final maxIdx = marqueeItemCount - 1;
+    if (maxIdx < 0) return 0;
+    return marqueeRowIndexAt(localY).clamp(0, maxIdx);
+  }
+
   bool _handleCrossMarquee(PointerMoveEvent e, RenderBox box) {
     final local = e.localPosition;
     final size = box.size;
-    final outsideBounds =
-        local.dx > size.width || local.dx < 0 || local.dy < 0 || local.dy > size.height;
+    final outside = local.dx > size.width || local.dx < 0 ||
+        local.dy < 0 || local.dy > size.height;
 
-    if (outsideBounds) {
-      if (_marqueeActive) {
+    if (outside) {
+      if (marqueeActive) {
         setState(() {
-          _marqueeStart = null;
-          _marqueeCurrent = null;
-          _marqueeActive = false;
+          marqueeStart = null;
+          marqueeCurrent = null;
+          marqueeActive = false;
         });
         widget.onMarqueeEnd?.call();
         widget.onMarqueeSelect?.call({}, {});
@@ -264,78 +327,22 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       return true;
     }
 
-    // Pointer came back inside — cancel cross-marquee
     if (_crossMarqueeActive) {
       _crossMarqueeActive = false;
       widget.crossMarquee!.end();
-      _marqueeAnchor = e.localPosition;
+      marqueeAnchor = e.localPosition;
     }
     return false;
   }
 
-  void _onPointerUp(PointerUpEvent _) {
+  void _onPointerUp(PointerUpEvent e) {
     if (_crossMarqueeActive) {
       _crossMarqueeActive = false;
       widget.crossMarquee?.end();
-      _marqueeAnchor = null;
+      marqueeAnchor = null;
       return;
     }
-    if (_marqueeActive) {
-      setState(() {
-        _marqueeAnchor = null;
-        _marqueeStart = null;
-        _marqueeCurrent = null;
-        _marqueeActive = false;
-      });
-      widget.onMarqueeEnd?.call();
-    } else {
-      _marqueeAnchor = null;
-      // Click without drag — clear marquee selection
-      if ((widget.selectedIds.isNotEmpty || widget.selectedGroupPaths.isNotEmpty) && !widget.selectMode) {
-        widget.onMarqueeSelect?.call({}, {});
-      }
-    }
-  }
-
-  void _updateMarqueeSelection() {
-    if (_marqueeStart == null || _marqueeCurrent == null) return;
-    final flatNodes = _cachedFlatNodes;
-    if (flatNodes == null) return;
-
-    final now = DateTime.now();
-    if (now.difference(_lastMarqueeUpdate).inMilliseconds < 50) return;
-    _lastMarqueeUpdate = now;
-
-    final scrollOffset =
-        _scrollController.hasClients ? _scrollController.offset : 0.0;
-    const listPaddingTop = 4.0; // matches ListView padding
-
-    final startY = _marqueeStart!.dy + scrollOffset;
-    final endY = _marqueeCurrent!.dy + scrollOffset;
-    final minY = (startY < endY ? startY : endY) - listPaddingTop;
-    final maxY = (startY > endY ? startY : endY) - listPaddingTop;
-
-    final firstIndex =
-        (minY / _rowHeight).floor().clamp(0, flatNodes.length - 1);
-    final lastIndex =
-        (maxY / _rowHeight).floor().clamp(0, flatNodes.length - 1);
-
-    final ids = <String>{};
-    final groupPaths = <String>{};
-    for (var i = firstIndex; i <= lastIndex; i++) {
-      final node = flatNodes[i].$1;
-      if (node.session != null) {
-        ids.add(node.session!.id);
-      } else if (node.isGroup) {
-        groupPaths.add(node.fullPath);
-      }
-    }
-
-    if (_isCtrlHeld) {
-      ids.addAll(widget.selectedIds);
-      groupPaths.addAll(widget.selectedGroupPaths);
-    }
-    widget.onMarqueeSelect?.call(ids, groupPaths);
+    handleMarqueePointerUp(e);
   }
 
   @override
@@ -394,7 +401,7 @@ class _SessionTreeViewState extends State<SessionTreeView> {
         return Stack(
           children: [
             ListView.builder(
-              controller: _scrollController,
+              controller: marqueeScrollController,
               padding: const EdgeInsets.symmetric(vertical: 4),
               itemCount: flatNodes.length,
               itemExtent: _rowHeight,
@@ -407,20 +414,8 @@ class _SessionTreeViewState extends State<SessionTreeView> {
                 }
               },
             ),
-            if (_marqueeActive && _marqueeStart != null && _marqueeCurrent != null)
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: MarqueePainter(
-                        start: _marqueeStart!,
-                        end: _marqueeCurrent!,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            if (marqueeVisible)
+              buildMarqueeOverlay(Theme.of(context).colorScheme.primary),
           ],
         );
       },
@@ -605,6 +600,9 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
     return Draggable<SessionDragData>(
       data: dragData,
+      onDragStarted: onDragStarted,
+      onDragEnd: onDragEnd,
+      onDraggableCanceled: onDragCanceled,
       feedback: _buildDragFeedback(theme, isBulk, Icons.folder, node.name),
       childWhenDragging: Opacity(
         opacity: 0.4,
@@ -670,12 +668,14 @@ class _SessionTreeViewState extends State<SessionTreeView> {
       else
         _buildIndentGuides(depth, theme),
       if (!widget.selectMode) ...[
+        // Spacer matching the expand arrow width in group rows
+        SizedBox(width: _iconSize + 4),
         Icon(
           Icons.terminal,
           size: _authIconSize,
           color: isConnected ? AppTheme.green : AppTheme.fgFaint,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
       ],
       Expanded(
         child: Text(
@@ -753,6 +753,9 @@ class _SessionTreeViewState extends State<SessionTreeView> {
 
     return Draggable<SessionDragData>(
       data: dragData,
+      onDragStarted: onDragStarted,
+      onDragEnd: onDragEnd,
+      onDraggableCanceled: onDragCanceled,
       feedback: _buildDragFeedback(theme, isBulk, Icons.terminal, node.name),
       childWhenDragging: Opacity(opacity: 0.4, child: content),
       child: content,

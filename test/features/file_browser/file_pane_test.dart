@@ -12,6 +12,7 @@ import 'package:letsflutssh/features/file_browser/file_pane.dart';
 import 'package:letsflutssh/features/file_browser/file_row.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/cross_marquee_controller.dart';
+import 'package:letsflutssh/widgets/marquee_mixin.dart';
 
 /// In-memory file system for testing.
 class _MockFS implements FileSystem {
