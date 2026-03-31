@@ -217,6 +217,8 @@ LetsFLUTssh/
 │   │   └── theme_provider.dart      # Theme state (dark/light)
 │   │
 │   ├── widgets/                     # Reusable UI components
+│   │   ├── app_icon_button.dart     # Unified icon button (rectangular hover, no splash)
+│   │   ├── hover_region.dart        # Hover detector with builder pattern
 │   │   ├── split_view.dart          # Resizable split pane (H/V)
 │   │   ├── toast.dart               # Non-blocking toast notifications
 │   │   ├── context_menu.dart        # Right-click context menu helper
@@ -248,6 +250,7 @@ LetsFLUTssh/
 5. **FileSystem interface** — abstraction for local/remote
 6. **No SCP** — dartssh2 doesn't support it; SFTP covers all use cases
 7. **Tree-based sessions** — nested groups via `/` separator, flat list with group path
+8. **Custom UI components** — `AppIconButton` and `HoverRegion` instead of Material `IconButton`/`InkWell`. Never use `IconButton` directly — use `AppIconButton` for icons, `HoverRegion` for custom hover containers
 
 ## Current State
 
@@ -308,4 +311,5 @@ LetsFLUTssh/
 - Immutable models with copyWith, ==, hashCode, toJson/fromJson
 - Credentials in `CredentialStore` (AES-256-GCM), NOT in plain JSON
 - OneDark theme: centralized in `app_theme.dart`, semantic color constants, no hardcoded Colors
+- **Buttons & hover** — `AppIconButton` for all icon buttons (rectangular hover, no splash, disabled dimming). `HoverRegion` for custom hover containers (builder pattern). Never use bare `IconButton`, `InkWell` for buttons, or manual `MouseRegion`+`GestureDetector`+`setState(_hovered)`. Exception: `context_menu.dart` (centralized keyboard nav state)
 - `.lfs` export format: `[salt 32B] [iv 12B] [encrypted ZIP + GCM tag]`, merge/replace import modes
