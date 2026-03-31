@@ -69,7 +69,7 @@
          ▼                 ▼                 ▼
 ┌─────────────┐  ┌─────────────────┐  ┌──────────────┐
 │  features/  │  │   providers/    │  │   widgets/   │
-│  (UI + UX)  │◄─┤  (Riverpod)    │  │  (reusable)  │
+│  (UI + UX)  │◄─┤   (Riverpod)    │  │  (reusable)  │
 │             │  │  global state   │  │              │
 └──────┬──────┘  └────────┬────────┘  └──────────────┘
        │                  │
@@ -252,16 +252,16 @@ class RemoteFS implements FileSystem { ... }  // SFTPService wrapper
 │             TransferManager              │
 │                                          │
 │  Queue: [task1, task2, task3, ...]       │
-│  Workers: 2 (configurable)              │
-│  Max history: 500 entries               │
-│  Timeout: 30 min per task               │
+│  Workers: 2 (configurable)               │
+│  Max history: 500 entries                │
+│  Timeout: 30 min per task                │
 │                                          │
 │  States: queued → running → completed    │
 │                          └→ failed       │
 │                          └→ cancelled    │
 │                                          │
 │  Streams:                                │
-│    onChange → UI updates                  │
+│    onChange → UI updates                 │
 │    onHistoryChange → history             │
 └──────────────────────────────────────────┘
 ```
@@ -584,8 +584,8 @@ class UpdateService {
         ┌─────────────────────┼──────────────────────┐
         ▼                     ▼                      ▼
 ┌───────────────┐  ┌──────────────────┐  ┌────────────────────┐
-│ sessionProvider│  │  configProvider  │  │    tabProvider      │
-│  (Notifier)   │  │   (Notifier)    │  │    (Notifier)      │
+│sessionProvider│  │  configProvider  │  │    tabProvider     │
+│  (Notifier)   │  │   (Notifier)     │  │    (Notifier)      │
 └───────┬───────┘  └────────┬─────────┘  └────────────────────┘
         │                   │
         ▼                   ▼
@@ -598,18 +598,18 @@ class UpdateService {
    SessionStore        ConfigStore          ← core/ (pure Dart)
    CredentialStore
 
-┌────────────────────────┐     ┌─────────────────────────┐
-│connectionManagerProvider│     │transferManagerProvider   │
-│                        │     │                         │
-│ → connectionsProvider  │     │ → activeTransfersProvider│
-│   (StreamProvider)     │     │ → transferHistoryProvider│
-│                        │     │ → transferStatusProvider │
-└────────────────────────┘     └─────────────────────────┘
+┌─────────────────────────┐     ┌──────────────────────────┐
+│connectionManagerProvider│     │ transferManagerProvider  │
+│                         │     │                          │
+│ → connectionsProvider   │     │ → activeTransfersProvider│
+│   (StreamProvider)      │     │ → transferHistoryProvider│
+│                         │     │ → transferStatusProvider │
+└─────────────────────────┘     └──────────────────────────┘
 
 ┌─────────────────────┐     ┌────────────────────┐
-│ sessionTreeProvider │     │ themeModeProvider   │
-│ (computed from      │     │ (computed from      │
-│  sessionProvider)   │     │  configProvider)    │
+│ sessionTreeProvider │     │ themeModeProvider  │
+│ (computed from      │     │ (computed from     │
+│  sessionProvider)   │     │  configProvider)   │
 └─────────────────────┘     └────────────────────┘
 
 ┌──────────────────────────┐
