@@ -9,6 +9,7 @@ import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
@@ -118,8 +119,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       if (mounted) setState(() => _connected = true);
     } catch (e) {
       AppLogger.instance.log('Shell open failed: $e', name: 'TerminalPane', error: e);
-      _terminal.write('\r\n\x1B[31mShell error: $e\x1B[0m\r\n');
-      if (mounted) setState(() => _error = e.toString());
+      _terminal.write('\r\n\x1B[31mShell error: ${sanitizeError(e)}\x1B[0m\r\n');
+      if (mounted) setState(() => _error = sanitizeError(e));
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_models.dart';
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 
 /// Sort column options for file table.
@@ -100,7 +101,7 @@ class FilePaneController extends ChangeNotifier {
       _invalidateCaches();
     } catch (e) {
       AppLogger.instance.log('Failed to list $_currentPath: $e', name: 'FilePane', error: e);
-      _error = e.toString();
+      _error = sanitizeError(e);
       _entries = [];
       _invalidateCaches();
     } finally {
