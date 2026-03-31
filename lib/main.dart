@@ -343,6 +343,29 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
         setState(() => _sidebarOpen = !_sidebarOpen);
       },
+      // Split shortcuts
+      const SingleActivator(LogicalKeyboardKey.backslash, control: true): () {
+        final active = tabState.activeTab;
+        if (active?.kind == TabKind.terminal) {
+          _terminalKeys[active!.id]
+              ?.currentState
+              ?.splitFocused(SplitDirection.vertical);
+          setState(() {});
+        }
+      },
+      const SingleActivator(LogicalKeyboardKey.backslash, control: true, shift: true): () {
+        final active = tabState.activeTab;
+        if (active?.kind == TabKind.terminal) {
+          _terminalKeys[active!.id]
+              ?.currentState
+              ?.splitFocused(SplitDirection.horizontal);
+          setState(() {});
+        }
+      },
+      // Settings
+      const SingleActivator(LogicalKeyboardKey.comma, control: true): () {
+        SettingsScreen.show(context);
+      },
     };
   }
 
