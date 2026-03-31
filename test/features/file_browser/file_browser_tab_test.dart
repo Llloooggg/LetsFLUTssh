@@ -435,7 +435,7 @@ void main() {
   });
 
   group('FileBrowserTab — success path (injectable factory)', () {
-    testWidgets('split divider exists in success state', (tester) async {
+    testWidgets('transfer arrows exist in success state', (tester) async {
       final conn = Connection(
         id: 'success-2',
         label: 'Test',
@@ -465,10 +465,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Divider with resize cursor should exist
-      final dividers = find.byWidgetPredicate((w) =>
-          w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
-      expect(dividers, findsOneWidget);
+      // Upload and download arrow buttons should exist
+      expect(find.byTooltip('Upload selected'), findsOneWidget);
+      expect(find.byTooltip('Download selected'), findsOneWidget);
     });
 
     testWidgets('TransferPanel is shown below panes', (tester) async {
@@ -621,18 +620,10 @@ void main() {
     });
   });
 
-  group('FileBrowserTab — divider drag', () {
-    // FilePane internal path bar may overflow when pane shrinks — suppress
-    // rendering overflow errors since we're testing divider logic, not layout.
-    testWidgets('dragging divider moves it without crash', (tester) async {
-      final origHandler = FlutterError.onError;
-      FlutterError.onError = (details) {
-        if (details.toString().contains('overflowed')) return;
-        origHandler?.call(details);
-      };
-      addTearDown(() => FlutterError.onError = origHandler);
+  group('FileBrowserTab — transfer arrows', () {
+    testWidgets('upload and download arrows present', (tester) async {
       final conn = Connection(
-        id: 'drag-1',
+        id: 'arrows-1',
         label: 'Test',
         sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
         state: SSHConnectionState.connected,
@@ -660,65 +651,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final divider = find.byWidgetPredicate((w) =>
-          w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
-      expect(divider, findsOneWidget);
-
-      // Drag right — exercises the onHorizontalDragUpdate callback
-      await tester.drag(divider, const Offset(50, 0));
-      await tester.pumpAndSettle();
-
-      // Divider should still exist
-      expect(divider, findsOneWidget);
-    });
-
-    testWidgets('extreme drag does not crash (clamp logic)', (tester) async {
-      final origHandler = FlutterError.onError;
-      FlutterError.onError = (details) {
-        if (details.toString().contains('overflowed')) return;
-        origHandler?.call(details);
-      };
-      addTearDown(() => FlutterError.onError = origHandler);
-      final conn = Connection(
-        id: 'drag-2',
-        label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
-        state: SSHConnectionState.connected,
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 1200,
-                height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final divider = find.byWidgetPredicate((w) =>
-          w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
-
-      // Drag far left then far right — clamp should prevent crash
-      await tester.drag(divider, const Offset(-800, 0));
-      await tester.pumpAndSettle();
-      expect(divider, findsOneWidget);
-
-      await tester.drag(divider, const Offset(800, 0));
-      await tester.pumpAndSettle();
-      expect(divider, findsOneWidget);
+      expect(find.byTooltip('Upload selected'), findsOneWidget);
+      expect(find.byTooltip('Download selected'), findsOneWidget);
     });
   });
 
