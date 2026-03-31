@@ -424,14 +424,14 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      decoration: const BoxDecoration(
+        color: AppTheme.bg1,
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
@@ -440,16 +440,26 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
               controller: _searchController,
               focusNode: _searchFocusNode,
               autofocus: true,
-              style: const TextStyle(fontSize: 13),
+              style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
               decoration: InputDecoration(
                 isDense: true,
+                filled: true,
+                fillColor: AppTheme.bg3,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                border: const OutlineInputBorder(),
+                enabledBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: AppTheme.borderLight),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: AppTheme.accent),
+                ),
                 hintText: 'Search...',
+                hintStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgFaint),
                 suffixText: _totalMatches > 0
                     ? '${_currentMatchIndex + 1}/$_totalMatches'
                     : null,
-                suffixStyle: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                suffixStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgDim),
               ),
               onChanged: (_) => _debouncedSearch(),
               onSubmitted: (_) => _nextMatch(),
