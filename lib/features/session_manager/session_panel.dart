@@ -184,18 +184,22 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
 
     if (selected != null) {
-      final notifier = ref.read(sessionProvider.notifier);
-      if (_selectedIds.isNotEmpty) {
-        await notifier.moveMultiple(Set.of(_selectedIds), selected);
-      }
-      for (final groupPath in _selectedGroupPaths) {
-        await notifier.moveGroup(groupPath, selected);
-      }
-      if (_selectMode) {
-        _exitSelectMode();
-      } else {
-        _clearDesktopSelection();
-      }
+      await _applyMove(selected);
+    }
+  }
+
+  Future<void> _applyMove(String target) async {
+    final notifier = ref.read(sessionProvider.notifier);
+    if (_selectedIds.isNotEmpty) {
+      await notifier.moveMultiple(Set.of(_selectedIds), target);
+    }
+    for (final groupPath in _selectedGroupPaths) {
+      await notifier.moveGroup(groupPath, target);
+    }
+    if (_selectMode) {
+      _exitSelectMode();
+    } else {
+      _clearDesktopSelection();
     }
   }
 

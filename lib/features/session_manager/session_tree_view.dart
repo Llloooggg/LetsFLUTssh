@@ -178,14 +178,17 @@ class _SessionTreeViewState extends State<SessionTreeView> {
           : '';
       return currentParent != targetGroup;
     } else if (data is BulkDrag) {
-      // Can't drop on a group that's part of the selection
-      if (data.groupPaths.contains(targetGroup)) return false;
-      for (final gp in data.groupPaths) {
-        if (targetGroup.startsWith('$gp/')) return false;
-      }
-      return true;
+      return _canAcceptBulkDrop(data, targetGroup);
     }
     return false;
+  }
+
+  bool _canAcceptBulkDrop(BulkDrag data, String targetGroup) {
+    if (data.groupPaths.contains(targetGroup)) return false;
+    for (final gp in data.groupPaths) {
+      if (targetGroup.startsWith('$gp/')) return false;
+    }
+    return true;
   }
 
   void _handleDrop(SessionDragData data, String targetGroup) {
