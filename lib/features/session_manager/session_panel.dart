@@ -552,7 +552,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
-  AlertDialog _buildFolderNameAlert(
+  Widget _buildFolderNameAlert(
     BuildContext context, {
     required String title,
     required String confirmLabel,
@@ -561,35 +561,165 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     required ValueChanged<String> onChanged,
     String? hintText,
   }) {
-    return AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: nameCtrl,
-        autofocus: true,
-        decoration: InputDecoration(
-          labelText: 'Folder name',
-          hintText: hintText,
-          errorText: errorText,
+    return Dialog(
+      backgroundColor: AppTheme.bg1,
+      shape: const RoundedRectangleBorder(),
+      insetPadding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppTheme.border)),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.fg,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.close, size: 13, color: AppTheme.fgDim),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'FOLDER NAME',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                      color: AppTheme.fgFaint,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TextFormField(
+                    controller: nameCtrl,
+                    autofocus: true,
+                    style: const TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 11,
+                      color: AppTheme.fg,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      hintStyle: const TextStyle(
+                        fontFamily: 'JetBrains Mono',
+                        fontSize: 11,
+                        color: AppTheme.fgFaint,
+                      ),
+                      filled: true,
+                      fillColor: AppTheme.bg3,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: AppTheme.borderLight),
+                      ),
+                      enabledBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: AppTheme.borderLight),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: AppTheme.accent),
+                      ),
+                      errorBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: AppTheme.red),
+                      ),
+                      errorText: errorText,
+                      errorStyle: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 10,
+                        color: AppTheme.red,
+                      ),
+                    ),
+                    onChanged: onChanged,
+                    onFieldSubmitted: (v) {
+                      if (errorText == null && v.trim().isNotEmpty) {
+                        Navigator.of(context).pop(v);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            // Footer
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppTheme.border)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      height: 26,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          color: AppTheme.fgDim,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: errorText == null
+                        ? () => Navigator.of(context).pop(nameCtrl.text)
+                        : null,
+                    child: Container(
+                      height: 26,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: errorText == null ? AppTheme.accent : AppTheme.bg4,
+                      ),
+                      child: Text(
+                        confirmLabel,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: errorText == null ? Colors.white : AppTheme.fgFaint,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        onChanged: onChanged,
-        onSubmitted: (v) {
-          if (errorText == null && v.trim().isNotEmpty) {
-            Navigator.of(context).pop(v);
-          }
-        },
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: errorText == null
-              ? () => Navigator.of(context).pop(nameCtrl.text)
-              : null,
-          child: Text(confirmLabel),
-        ),
-      ],
     );
   }
 
