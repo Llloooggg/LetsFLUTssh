@@ -857,7 +857,7 @@ class _ConnectionBarState extends State<_ConnectionBar> {
           const Spacer(),
           if (onCompanion != null)
             Tooltip(
-              message: isTerminal ? 'Open File Transfer' : 'Open Terminal',
+              message: isTerminal ? 'Files' : 'Terminal',
               child: MouseRegion(
                 onEnter: (_) => setState(() => _btnHovered = true),
                 onExit: (_) => setState(() => _btnHovered = false),
@@ -886,7 +886,7 @@ class _ConnectionBarState extends State<_ConnectionBar> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          isTerminal ? 'Open File Transfer' : 'Open Terminal',
+                          isTerminal ? 'Files' : 'Terminal',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 10,
