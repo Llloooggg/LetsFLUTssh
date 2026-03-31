@@ -61,6 +61,7 @@ class _FilePaneState extends State<FilePane> {
   final _focusNode = FocusNode();
   final _fileListKey = GlobalKey();
   final _pathController = TextEditingController();
+  final _pathFocusNode = FocusNode();
   bool _editingPath = false;
   bool _osDragging = false;
 
@@ -82,6 +83,13 @@ class _FilePaneState extends State<FilePane> {
     super.initState();
     ctrl.addListener(_onChanged);
     widget.crossMarquee?.addListener(_onCrossMarquee);
+    _pathFocusNode.addListener(_onPathFocusChanged);
+  }
+
+  void _onPathFocusChanged() {
+    if (!_pathFocusNode.hasFocus && _editingPath) {
+      setState(() => _editingPath = false);
+    }
   }
 
   @override
@@ -97,6 +105,8 @@ class _FilePaneState extends State<FilePane> {
   void dispose() {
     widget.crossMarquee?.removeListener(_onCrossMarquee);
     ctrl.removeListener(_onChanged);
+    _pathFocusNode.removeListener(_onPathFocusChanged);
+    _pathFocusNode.dispose();
     _pathController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -243,6 +253,7 @@ class _FilePaneState extends State<FilePane> {
         height: 22,
         child: TextField(
           controller: _pathController,
+          focusNode: _pathFocusNode,
           autofocus: true,
           style: AppFonts.mono(fontSize: 10, color: AppTheme.fg),
           decoration: InputDecoration(
@@ -267,9 +278,7 @@ class _FilePaneState extends State<FilePane> {
               ctrl.navigateTo(val.trim());
             }
           },
-          onTapOutside: (_) {
-            setState(() => _editingPath = false);
-          },
+          onTapOutside: (_) => _pathFocusNode.unfocus(),
         ),
       );
     }
