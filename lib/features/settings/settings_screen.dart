@@ -234,15 +234,30 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
                 const VerticalDivider(width: 1, thickness: 1, color: AppTheme.border),
                 // ── Content pane ──
                 Expanded(
-                  child: DefaultTextStyle(
-                    style: AppFonts.inter(fontSize: 11, color: AppTheme.fg),
-                    child: ListView(
-                      key: ValueKey(_selectedIndex),
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        _SectionHeader(title: sections[_selectedIndex].title),
-                        sections[_selectedIndex].builder(),
-                      ],
+                  child: ListTileTheme(
+                    data: const ListTileThemeData(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      titleTextStyle: TextStyle(
+                        fontFamily: 'Inter', fontSize: 11, color: AppTheme.fg,
+                      ),
+                      subtitleTextStyle: TextStyle(
+                        fontFamily: 'Inter', fontSize: 10, color: AppTheme.fgDim,
+                      ),
+                      leadingAndTrailingTextStyle: TextStyle(
+                        fontFamily: 'Inter', fontSize: 10, color: AppTheme.fgFaint,
+                      ),
+                    ),
+                    child: DefaultTextStyle(
+                      style: AppFonts.inter(fontSize: 11, color: AppTheme.fg),
+                      child: ListView(
+                        key: ValueKey(_selectedIndex),
+                        padding: const EdgeInsets.all(24),
+                        children: [
+                          _SectionHeader(title: sections[_selectedIndex].title),
+                          sections[_selectedIndex].builder(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1713,7 +1728,7 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
         // Log content
         Container(
           width: double.infinity,
-          height: 400,
+          height: MediaQuery.of(context).size.height * 0.5,
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(6),

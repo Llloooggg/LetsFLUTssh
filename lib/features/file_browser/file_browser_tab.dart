@@ -49,7 +49,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   SFTPInitResult? _sftp;
   bool _initializing = true;
   String? _error;
-  final double _splitRatio = 0.5;
+  double _splitRatio = 0.5;
 
   FilePaneController? get _localCtrl => _sftp?.localCtrl;
   FilePaneController? get _remoteCtrl => _sftp?.remoteCtrl;
@@ -175,7 +175,18 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                 onPaneActivated: () => remote.clearSelection(),
               ),
             ),
-            Container(width: 3, color: AppTheme.bg0),
+            MouseRegion(
+              cursor: SystemMouseCursors.resizeColumn,
+              child: GestureDetector(
+                onHorizontalDragUpdate: (d) {
+                  setState(() {
+                    _splitRatio = ((_splitRatio * maxWidth + d.delta.dx) / maxWidth)
+                        .clamp(0.2, 0.8);
+                  });
+                },
+                child: Container(width: 3, color: AppTheme.bg0),
+              ),
+            ),
             Expanded(
               child: FilePane(
                 controller: remote,

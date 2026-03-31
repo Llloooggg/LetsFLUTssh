@@ -704,9 +704,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap 'SFTP' in the context menu
-      expect(find.text('Open File Transfer'), findsOneWidget);
-      await tester.tap(find.text('Open File Transfer'));
+      // Tap 'Files' in the context menu (last match — first is nav bar)
+      expect(find.text('Files'), findsWidgets);
+      await tester.tap(find.text('Files').last);
       await tester.pumpAndSettle();
 
       // Should navigate to Files page (index 2) after _connectSessionSftp
@@ -759,8 +759,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap 'SFTP' in the context menu
-      await tester.tap(find.text('Open File Transfer'));
+      // Tap 'Files' in the context menu (last match — first is nav bar)
+      await tester.tap(find.text('Files').last);
       await tester.pumpAndSettle();
 
       // Should stay on Sessions page (index 0), not switch to Files

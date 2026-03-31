@@ -350,8 +350,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Context menu items should appear
-      expect(find.text('Open Terminal'), findsOneWidget);
-      expect(find.text('Open File Transfer'), findsOneWidget);
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.text('Files'), findsOneWidget);
       expect(find.text('Edit Connection'), findsOneWidget);
       expect(find.text('Duplicate'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
@@ -373,8 +373,8 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(find.text('Open Terminal'), findsOneWidget);
-      expect(find.text('Open File Transfer'), findsNothing);
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.text('Files'), findsNothing);
     });
 
     testWidgets('SSH menu action calls onConnect', (tester) async {
@@ -398,7 +398,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap SSH
-      await tester.tap(find.text('Open Terminal'));
+      await tester.tap(find.text('Terminal'));
       await tester.pumpAndSettle();
 
       expect(connected, isNotNull);
@@ -423,7 +423,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Open File Transfer'));
+      await tester.tap(find.text('Files'));
       await tester.pumpAndSettle();
 
       expect(sftpConnected, isNotNull);
@@ -723,7 +723,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Menu should dismiss without error
-      expect(find.text('Open Terminal'), findsNothing);
+      expect(find.text('Terminal'), findsNothing);
     });
   });
 

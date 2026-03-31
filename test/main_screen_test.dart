@@ -621,7 +621,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open File Transfer'), findsOneWidget);
+      expect(find.byTooltip('Files'), findsOneWidget);
     });
   });
 
@@ -709,7 +709,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      final sftpBtn = find.byTooltip('Open File Transfer');
+      final sftpBtn = find.byTooltip('Files');
       expect(sftpBtn, findsOneWidget);
 
       await tester.tap(sftpBtn);
@@ -1102,7 +1102,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open File Transfer'), findsOneWidget);
+      expect(find.byTooltip('Files'), findsOneWidget);
       // The folder_open icon should be visible
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
@@ -1114,7 +1114,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open File Transfer'), findsNothing);
+      expect(find.byTooltip('Files'), findsNothing);
       expect(find.byIcon(Icons.folder_open), findsNothing);
     });
 
@@ -1122,7 +1122,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.byTooltip('Open File Transfer'), findsNothing);
+      expect(find.byTooltip('Files'), findsNothing);
     });
 
     testWidgets('tapping SFTP button opens SFTP tab alongside terminal', (tester) async {
@@ -1134,7 +1134,7 @@ void main() {
 
       expect(find.textContaining('1 tabs'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Open File Transfer'));
+      await tester.tap(find.byTooltip('Files'));
       await tester.pumpAndSettle();
 
       // Now should have 2 tabs (terminal + sftp)
@@ -1149,7 +1149,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open File Transfer'), findsNothing);
+      expect(find.byTooltip('Files'), findsNothing);
     });
   });
 
@@ -1161,7 +1161,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open Terminal'), findsOneWidget);
+      expect(find.byTooltip('Terminal'), findsOneWidget);
       expect(find.byIcon(Icons.terminal), findsAtLeastNWidgets(1));
     });
 
@@ -1172,7 +1172,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open Terminal'), findsNothing);
+      expect(find.byTooltip('Terminal'), findsNothing);
     });
 
     testWidgets('SSH button hidden when SFTP tab is disconnected', (tester) async {
@@ -1182,7 +1182,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Open Terminal'), findsNothing);
+      expect(find.byTooltip('Terminal'), findsNothing);
     });
 
     testWidgets('tapping SSH button opens terminal tab alongside SFTP', (tester) async {
@@ -1194,7 +1194,7 @@ void main() {
 
       expect(find.textContaining('1 tabs'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Open Terminal'));
+      await tester.tap(find.byTooltip('Terminal'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('2 tabs'), findsOneWidget);
@@ -1379,11 +1379,11 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // Context menu should show "Open File Transfer" option
-      expect(find.text('Open File Transfer'), findsOneWidget);
+      // Context menu should show "Files" option
+      expect(find.text('Files'), findsOneWidget);
 
       // Tap SFTP to trigger _connectSessionSftp
-      await tester.tap(find.text('Open File Transfer'));
+      await tester.tap(find.text('Files'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
@@ -1691,7 +1691,7 @@ void main() {
       await tester.pump();
 
       // SFTP option in context menu confirms onSftpConnect is wired up (line 218)
-      expect(find.text('Open File Transfer'), findsOneWidget);
+      expect(find.text('Files'), findsOneWidget);
 
       // Dismiss menu
       await tester.tapAt(Offset.zero);

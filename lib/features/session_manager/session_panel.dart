@@ -161,6 +161,21 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
+  /// Build set of session IDs that have an active connection.
+  Set<String> _connectedSessionIds(WidgetRef ref) {
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    final activeConfigs = connections
+        .where((c) => c.isConnected)
+        .map((c) => '${c.sshConfig.host}:${c.sshConfig.effectivePort}:${c.sshConfig.user}')
+        .toSet();
+    final sessions = ref.watch(sessionProvider);
+    return {
+      for (final s in sessions)
+        if (activeConfigs.contains('${s.server.host}:${s.port}:${s.server.user}'))
+          s.id,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final tree = ref.watch(filteredSessionTreeProvider);
@@ -201,6 +216,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               ? _EmptyState(onAdd: () => _addSession(context, ref))
               : SessionTreeView(
                   tree: tree,
+                  connectedSessionIds: _connectedSessionIds(ref),
                   selectMode: mobile && _selectMode,
                   selectedIds: _selectedIds,
                   onToggleSelected: _toggleSelected,
@@ -270,14 +286,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       position: position,
       items: [
         ContextMenuItem(
-          label: 'Open Terminal',
+          label: 'Terminal',
           icon: Icons.terminal,
           color: AppTheme.blue,
           onTap: () => widget.onConnect(session),
         ),
         if (widget.onSftpConnect != null)
           ContextMenuItem(
-            label: 'Open File Transfer',
+            label: 'Files',
             icon: Icons.folder,
             color: AppTheme.yellow,
             onTap: () => widget.onSftpConnect?.call(session),
