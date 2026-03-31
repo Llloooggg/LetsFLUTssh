@@ -368,7 +368,17 @@ class _FilePaneState extends State<FilePane> {
         cursor: SystemMouseCursors.resizeColumn,
         child: GestureDetector(
           onHorizontalDragUpdate: (d) => setState(() => onDrag(d.delta.dx)),
-          child: const SizedBox(width: 6, height: 24),
+          child: SizedBox(
+            width: 10,
+            height: 24,
+            child: Center(
+              child: Container(
+                width: 1,
+                height: 14,
+                color: AppTheme.fgFaint.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
         ),
       );
     }
