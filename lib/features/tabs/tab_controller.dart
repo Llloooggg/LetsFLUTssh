@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/connection/connection.dart';
+import '../../providers/connection_provider.dart';
 import 'tab_model.dart';
 
 /// State notifier for managing open tabs.
@@ -44,9 +45,11 @@ class TabNotifier extends Notifier<TabState> {
   }
 
   /// Close a tab by id.
+  /// Disconnects the underlying connection if no other tabs reference it.
   void closeTab(String id) {
     final idx = state.tabs.indexWhere((t) => t.id == id);
     if (idx < 0) return;
+    final closedTab = state.tabs[idx];
     final newTabs = [...state.tabs]..removeAt(idx);
     var newActive = state.activeIndex;
     if (newActive >= newTabs.length) {
@@ -54,32 +57,50 @@ class TabNotifier extends Notifier<TabState> {
     }
     if (newActive < 0) newActive = -1;
     state = state.copyWith(tabs: newTabs, activeIndex: newActive);
+    _disconnectOrphaned([closedTab]);
   }
 
   /// Close all tabs except the one with the given id.
   void closeOthers(String id) {
     final tab = state.tabs.firstWhere((t) => t.id == id);
+    final closed = state.tabs.where((t) => t.id != id).toList();
     state = state.copyWith(tabs: [tab], activeIndex: 0);
+    _disconnectOrphaned(closed);
   }
 
   /// Close all tabs to the right of the given index.
   void closeToTheRight(int index) {
     if (index >= state.tabs.length - 1) return;
+    final closed = state.tabs.sublist(index + 1);
     final newTabs = state.tabs.sublist(0, index + 1);
     var newActive = state.activeIndex;
     if (newActive >= newTabs.length) {
       newActive = newTabs.length - 1;
     }
     state = state.copyWith(tabs: newTabs, activeIndex: newActive);
+    _disconnectOrphaned(closed);
   }
 
   /// Close all tabs to the left of the given index.
   void closeToTheLeft(int index) {
     if (index <= 0) return;
+    final closed = state.tabs.sublist(0, index);
     final newTabs = state.tabs.sublist(index);
     var newActive = state.activeIndex - index;
     if (newActive < 0) newActive = 0;
     state = state.copyWith(tabs: newTabs, activeIndex: newActive);
+    _disconnectOrphaned(closed);
+  }
+
+  /// Disconnect connections that are no longer referenced by any open tab.
+  void _disconnectOrphaned(List<TabEntry> closedTabs) {
+    final remainingConnIds = state.tabs.map((t) => t.connection.id).toSet();
+    final manager = ref.read(connectionManagerProvider);
+    for (final tab in closedTabs) {
+      if (!remainingConnIds.contains(tab.connection.id)) {
+        manager.disconnect(tab.connection.id);
+      }
+    }
   }
 
   /// Select a tab by index.

@@ -816,7 +816,7 @@ class SessionConnect {
 | File | Class | Purpose |
 |------|-------|---------|
 | `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder |
-| `tab_controller.dart` | `TabNotifier` | State: open, close, reorder, select |
+| `tab_controller.dart` | `TabNotifier` | State: open, close (+ disconnect orphaned), reorder, select |
 | `tab_model.dart` | `TabEntry`, `TabKind` | Tab model (id, label, connection, kind) |
 | `welcome_screen.dart` | `WelcomeScreen` | Screen shown when no tabs are open |
 
@@ -832,6 +832,8 @@ class TabEntry {
 ```
 
 **IndexedStack:** Tabs are rendered via `IndexedStack` — all tabs stay in memory, only the current one is visible. This preserves terminal state when switching tabs.
+
+**Connection lifecycle:** When all tabs referencing a connection are closed, `TabNotifier` automatically disconnects the orphaned connection via `ConnectionManager.disconnect()`. This keeps the active session count accurate.
 
 ---
 

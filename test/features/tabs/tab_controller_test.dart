@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
+import 'package:letsflutssh/core/connection/connection_manager.dart';
+import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_controller.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
+import 'package:letsflutssh/providers/connection_provider.dart';
 
 void main() {
   Connection makeConn({String label = 'Server', String id = 'conn-1'}) {
@@ -350,6 +353,91 @@ void main() {
         notifier.swapTabs(0, 2);
         expect(notifier.state.activeIndex, 1);
       });
+    });
+  });
+
+  group('orphaned connection cleanup', () {
+    late ProviderContainer container;
+    late TabNotifier notifier;
+    late ConnectionManager manager;
+
+    setUp(() {
+      manager = ConnectionManager(knownHosts: KnownHostsManager());
+      container = ProviderContainer(
+        overrides: [
+          connectionManagerProvider.overrideWithValue(manager),
+        ],
+      );
+      notifier = container.read(tabProvider.notifier);
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    Connection connectVia(ConnectionManager mgr) {
+      return mgr.connectAsync(
+        const SSHConfig(server: ServerAddress(host: '10.0.0.1', user: 'root')),
+        label: 'S',
+      );
+    }
+
+    test('closeTab disconnects orphaned connection', () {
+      final conn = connectVia(manager);
+      final tabId = notifier.addTerminalTab(conn);
+
+      notifier.closeTab(tabId);
+
+      // Connection should be removed from manager
+      expect(manager.connections, isEmpty);
+    });
+
+    test('closeTab keeps connection when other tabs reference it', () {
+      final conn = connectVia(manager);
+      notifier.addTerminalTab(conn);
+      final sftpId = notifier.addSftpTab(conn);
+
+      // Close only the SFTP tab — terminal tab still references the connection
+      notifier.closeTab(sftpId);
+
+      expect(manager.connections, hasLength(1));
+    });
+
+    test('closeOthers disconnects orphaned connections', () {
+      final conn1 = connectVia(manager);
+      final conn2 = connectVia(manager);
+      notifier.addTerminalTab(conn1);
+      final id2 = notifier.addTerminalTab(conn2);
+
+      notifier.closeOthers(id2);
+
+      // conn1 should be disconnected, conn2 kept
+      expect(manager.connections, hasLength(1));
+      expect(manager.connections.first.id, conn2.id);
+    });
+
+    test('closeToTheRight disconnects orphaned connections', () {
+      final conn1 = connectVia(manager);
+      final conn2 = connectVia(manager);
+      notifier.addTerminalTab(conn1);
+      notifier.addTerminalTab(conn2);
+
+      notifier.closeToTheRight(0);
+
+      expect(manager.connections, hasLength(1));
+      expect(manager.connections.first.id, conn1.id);
+    });
+
+    test('closeToTheLeft disconnects orphaned connections', () {
+      final conn1 = connectVia(manager);
+      final conn2 = connectVia(manager);
+      notifier.addTerminalTab(conn1);
+      notifier.addTerminalTab(conn2);
+
+      notifier.closeToTheLeft(1);
+
+      expect(manager.connections, hasLength(1));
+      expect(manager.connections.first.id, conn2.id);
     });
   });
 }
