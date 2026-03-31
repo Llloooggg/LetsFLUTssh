@@ -564,14 +564,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             Container(
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: AppTheme.border)),
               ),
               child: Row(
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -581,7 +581,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.close, size: 13, color: AppTheme.fgDim),
+                    child: Icon(Icons.close, size: 13, color: AppTheme.fgDim),
                   ),
                 ],
               ),
@@ -592,7 +592,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'FOLDER NAME',
                     style: TextStyle(
                       fontFamily: 'Inter',
@@ -606,14 +606,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   TextFormField(
                     controller: nameCtrl,
                     autofocus: true,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'JetBrains Mono',
                       fontSize: 11,
                       color: AppTheme.fg,
                     ),
                     decoration: InputDecoration(
                       hintText: hintText,
-                      hintStyle: const TextStyle(
+                      hintStyle: TextStyle(
                         fontFamily: 'JetBrains Mono',
                         fontSize: 11,
                         color: AppTheme.fgFaint,
@@ -622,24 +622,24 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                       fillColor: AppTheme.bg3,
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: const OutlineInputBorder(
+                      border: OutlineInputBorder(
                         borderRadius: BorderRadius.zero,
                         borderSide: BorderSide(color: AppTheme.borderLight),
                       ),
-                      enabledBorder: const OutlineInputBorder(
+                      enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.zero,
                         borderSide: BorderSide(color: AppTheme.borderLight),
                       ),
-                      focusedBorder: const OutlineInputBorder(
+                      focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.zero,
                         borderSide: BorderSide(color: AppTheme.accent),
                       ),
-                      errorBorder: const OutlineInputBorder(
+                      errorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.zero,
                         borderSide: BorderSide(color: AppTheme.red),
                       ),
                       errorText: errorText,
-                      errorStyle: const TextStyle(
+                      errorStyle: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 10,
                         color: AppTheme.red,
@@ -659,7 +659,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             Container(
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppTheme.border)),
               ),
               child: Row(
@@ -671,7 +671,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                       height: 26,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       alignment: Alignment.center,
-                      child: const Text(
+                      child: Text(
                         'Cancel',
                         style: TextStyle(
                           fontFamily: 'Inter',
@@ -765,12 +765,12 @@ class _PanelHeader extends StatelessWidget {
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
-          const Text(
+          Text(
             'SESSIONS',
             style: TextStyle(
               fontFamily: 'Inter',
@@ -886,11 +886,11 @@ class _SearchBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.search, size: 12, color: AppTheme.fgFaint),
+            Icon(Icons.search, size: 12, color: AppTheme.fgFaint),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Filter...',
                   hintStyle: TextStyle(
                     fontFamily: 'JetBrains Mono',
@@ -901,7 +901,7 @@ class _SearchBar extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
                 ),
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'JetBrains Mono',
                   fontSize: 11,
                   color: AppTheme.fg,
@@ -912,7 +912,7 @@ class _SearchBar extends StatelessWidget {
             if (value.isNotEmpty)
               GestureDetector(
                 onTap: () => onChanged(''),
-                child: const Icon(Icons.close, size: 12, color: AppTheme.fgFaint),
+                child: Icon(Icons.close, size: 12, color: AppTheme.fgFaint),
               ),
           ],
         ),
@@ -969,7 +969,7 @@ class _SidebarFooter extends ConsumerWidget {
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
       child: Row(

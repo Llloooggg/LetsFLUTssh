@@ -221,14 +221,14 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
           Text(
             _isEditing ? 'Edit Connection' : 'New Connection',
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -238,7 +238,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           const Spacer(),
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(Icons.close, size: 13, color: AppTheme.fgDim),
+            child: Icon(Icons.close, size: 13, color: AppTheme.fgDim),
           ),
         ],
       ),
@@ -249,7 +249,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   Widget _buildTabBar() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
@@ -271,7 +271,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           border: active
-              ? const Border(bottom: BorderSide(color: AppTheme.accent, width: 2))
+              ? Border(bottom: BorderSide(color: AppTheme.accent, width: 2))
               : null,
         ),
         child: Row(
@@ -533,7 +533,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
               : null,
         ),
         child: _keyDragging
-            ? const SizedBox(
+            ? SizedBox(
                 height: 48,
                 child: Center(
                   child: Text('Drop key file here',
@@ -597,11 +597,10 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   // ── Options tab ──
 
   Widget _buildOptionsTab() {
-    return const Column(
+    return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Placeholder — options will be added when the data model supports them.
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
         Text(
           'No additional options yet',
           style: TextStyle(
@@ -620,7 +619,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
@@ -705,7 +704,7 @@ class _FieldLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 4),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'Inter',
           fontSize: 10,
           fontWeight: FontWeight.w600,
@@ -745,14 +744,14 @@ class _StyledInput extends StatelessWidget {
       obscureText: obscure,
       keyboardType: keyboardType,
       validator: validator,
-      style: const TextStyle(
+      style: TextStyle(
         fontFamily: 'JetBrains Mono',
         fontSize: 11,
         color: AppTheme.fg,
       ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
+        hintStyle: TextStyle(
           fontFamily: 'JetBrains Mono',
           fontSize: 11,
           color: AppTheme.fgFaint,
@@ -761,27 +760,27 @@ class _StyledInput extends StatelessWidget {
         fillColor: AppTheme.bg3,
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        border: const OutlineInputBorder(
+        border: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide: BorderSide(color: AppTheme.borderLight),
         ),
-        enabledBorder: const OutlineInputBorder(
+        enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide: BorderSide(color: AppTheme.borderLight),
         ),
-        focusedBorder: const OutlineInputBorder(
+        focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide: BorderSide(color: AppTheme.accent),
         ),
-        errorBorder: const OutlineInputBorder(
+        errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide: BorderSide(color: AppTheme.red),
         ),
-        focusedErrorBorder: const OutlineInputBorder(
+        focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide: BorderSide(color: AppTheme.red),
         ),
-        errorStyle: const TextStyle(
+        errorStyle: TextStyle(
           fontFamily: 'Inter',
           fontSize: 10,
           color: AppTheme.red,

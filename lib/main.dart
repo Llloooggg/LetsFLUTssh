@@ -118,6 +118,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final themeMode = ref.watch(themeModeProvider);
     final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
 
+    // Sync AppTheme brightness before building the widget tree
+    final isDark = themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+    AppTheme.setBrightness(isDark ? Brightness.dark : Brightness.light);
+
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: 'LetsFLUTssh',
@@ -732,7 +738,7 @@ class _StatusBar extends ConsumerWidget {
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.bg0,
         border: Border(
           top: BorderSide(color: AppTheme.border),
@@ -743,14 +749,14 @@ class _StatusBar extends ConsumerWidget {
           const Spacer(),
           Text(
             '${tabState.tabs.length} tabs',
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 10,
               color: AppTheme.fgFaint,
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'UTF-8',
             style: TextStyle(
               fontFamily: 'Inter',
@@ -761,7 +767,7 @@ class _StatusBar extends ConsumerWidget {
           const SizedBox(width: 12),
           Text(
             version.isNotEmpty ? 'v$version' : '',
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 10,
               color: AppTheme.fgFaint,
@@ -802,7 +808,7 @@ class _ConnectionBarState extends State<_ConnectionBar> {
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.bg3,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
@@ -823,19 +829,19 @@ class _ConnectionBarState extends State<_ConnectionBar> {
               children: [
                 Text(
                   conn.isConnected ? 'Connected' : 'Disconnected',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 10,
                     color: AppTheme.fgDim,
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Text('·', style: TextStyle(fontSize: 10, color: AppTheme.fgFaint)),
+                Text('·', style: TextStyle(fontSize: 10, color: AppTheme.fgFaint)),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
                     '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'JetBrains Mono',
                       fontSize: 10,
                       color: AppTheme.fgDim,

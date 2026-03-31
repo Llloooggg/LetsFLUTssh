@@ -64,9 +64,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             decoration: BoxDecoration(
               color: AppTheme.bg3,
               border: Border(
-                top: const BorderSide(color: AppTheme.border),
+                top: BorderSide(color: AppTheme.border),
                 bottom: _expanded
-                    ? const BorderSide(color: AppTheme.border)
+                    ? BorderSide(color: AppTheme.border)
                     : BorderSide.none,
               ),
             ),
@@ -218,13 +218,13 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.bg0,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.circle, size: 5, color: AppTheme.green),
+          Icon(Icons.circle, size: 5, color: AppTheme.green),
           const SizedBox(width: 6),
           if (status != null)
             Text(
@@ -454,7 +454,7 @@ class _ActiveRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: entry.percent / 100.0,
               backgroundColor: AppTheme.bg0,
-              valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
+              valueColor: AlwaysStoppedAnimation(AppTheme.accent),
               minHeight: 2,
             ),
           ),

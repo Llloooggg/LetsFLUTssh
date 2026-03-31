@@ -612,7 +612,8 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byType(DragTarget<TabEntry>), findsOneWidget);
+      // One per tab + one trailing drop zone
+      expect(find.byType(DragTarget<TabEntry>), findsNWidgets(2));
     });
   });
 

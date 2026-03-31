@@ -207,7 +207,7 @@ class _FilePaneState extends State<FilePane> {
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
@@ -245,11 +245,11 @@ class _FilePaneState extends State<FilePane> {
             filled: true,
             fillColor: AppTheme.bg3,
             contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            enabledBorder: const OutlineInputBorder(
+            enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.zero,
               borderSide: BorderSide(color: AppTheme.borderLight),
             ),
-            focusedBorder: const OutlineInputBorder(
+            focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.zero,
               borderSide: BorderSide(color: AppTheme.accent),
             ),
@@ -286,7 +286,7 @@ class _FilePaneState extends State<FilePane> {
           onTap: () => ctrl.navigateTo(rootPath),
           child: rootLabel != null
               ? Text(rootLabel, style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint))
-              : const Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
+              : Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
         ),
         for (var i = 0; i < navParts.length; i++) ...[
           Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
@@ -314,7 +314,7 @@ class _FilePaneState extends State<FilePane> {
             _pathController.text = ctrl.currentPath;
             setState(() => _editingPath = true);
           },
-          child: const Icon(Icons.edit, size: 9, color: AppTheme.fgFaint),
+          child: Icon(Icons.edit, size: 9, color: AppTheme.fgFaint),
         ),
       ],
     );
@@ -470,8 +470,8 @@ class _FilePaneState extends State<FilePane> {
           Container(
             width: 48,
             height: 48,
-            decoration: const BoxDecoration(color: AppTheme.bg3),
-            child: const Icon(Icons.error_outline, size: 22, color: AppTheme.red),
+            decoration: BoxDecoration(color: AppTheme.bg3),
+            child: Icon(Icons.error_outline, size: 22, color: AppTheme.red),
           ),
           const SizedBox(height: 12),
           Text(
@@ -741,7 +741,7 @@ class _FilePaneState extends State<FilePane> {
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.bg0,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
