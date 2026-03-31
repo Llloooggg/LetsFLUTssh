@@ -233,11 +233,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 ),
         ),
         // Footer
-        _SidebarFooter(
-          activeCount: ref.watch(connectionsProvider).value
-              ?.where((c) => c.isConnected).length ?? 0,
-          savedCount: ref.watch(sessionProvider).length,
-        ),
+        const _SidebarFooter(),
       ],
     ),
     );
@@ -837,14 +833,15 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _SidebarFooter extends StatelessWidget {
-  final int activeCount;
-  final int savedCount;
-
-  const _SidebarFooter({required this.activeCount, required this.savedCount});
+class _SidebarFooter extends ConsumerWidget {
+  const _SidebarFooter();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    final activeCount = connections.where((c) => c.isConnected).length;
+    final savedCount = ref.watch(sessionProvider).length;
+
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -853,24 +850,17 @@ class _SidebarFooter extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.wifi, size: 10, color: AppTheme.green),
+          Icon(Icons.wifi, size: 10,
+              color: activeCount > 0 ? AppTheme.green : AppTheme.fgFaint),
           const SizedBox(width: 6),
           Text(
             '$activeCount active',
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 10,
-              color: AppTheme.fgFaint,
-            ),
+            style: AppFonts.inter(fontSize: 10, color: AppTheme.fgFaint),
           ),
           const Spacer(),
           Text(
             '$savedCount saved',
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 10,
-              color: AppTheme.fgFaint,
-            ),
+            style: AppFonts.inter(fontSize: 10, color: AppTheme.fgFaint),
           ),
         ],
       ),
