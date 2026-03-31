@@ -36,6 +36,9 @@ class FilePane extends StatefulWidget {
   /// starts in the session panel and crosses into this file pane.
   final CrossMarqueeController? crossMarquee;
 
+  /// Whether to calculate and display folder sizes.
+  final bool showFolderSizes;
+
   const FilePane({
     super.key,
     required this.controller,
@@ -46,6 +49,7 @@ class FilePane extends StatefulWidget {
     this.onOsDropReceived,
     this.onPaneActivated,
     this.crossMarquee,
+    this.showFolderSizes = false,
   });
 
   @override
@@ -615,9 +619,9 @@ class _FilePaneState extends State<FilePane> {
     final entry = ctrl.entries[index];
     final isSelected = ctrl.selected.contains(entry.path);
 
-    // Trigger async folder size calculation for directories
+    // Trigger async folder size calculation for directories (if enabled)
     String? folderSizeText;
-    if (entry.isDir) {
+    if (entry.isDir && widget.showFolderSizes) {
       final cachedSize = ctrl.folderSize(entry.path);
       if (cachedSize != null) {
         folderSizeText = formatSize(cachedSize);

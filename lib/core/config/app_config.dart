@@ -221,6 +221,7 @@ class AppConfig {
   final int maxHistory;
   final bool enableLogging;
   final bool checkUpdatesOnStart;
+  final bool showFolderSizes;
   final String? skippedVersion;
 
   const AppConfig({
@@ -231,6 +232,7 @@ class AppConfig {
     this.maxHistory = 500,
     this.enableLogging = false,
     this.checkUpdatesOnStart = true,
+    this.showFolderSizes = false,
     this.skippedVersion,
   });
 
@@ -268,6 +270,7 @@ class AppConfig {
       maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
       enableLogging: enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart,
+      showFolderSizes: showFolderSizes,
       skippedVersion: skippedVersion,
     );
   }
@@ -280,6 +283,7 @@ class AppConfig {
     int? maxHistory,
     bool? enableLogging,
     bool? checkUpdatesOnStart,
+    bool? showFolderSizes,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -289,6 +293,7 @@ class AppConfig {
       maxHistory: maxHistory ?? this.maxHistory,
       enableLogging: enableLogging ?? this.enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
+      showFolderSizes: showFolderSizes ?? this.showFolderSizes,
       skippedVersion: skippedVersion,
     );
   }
@@ -301,6 +306,7 @@ class AppConfig {
     maxHistory: maxHistory,
     enableLogging: enableLogging,
     checkUpdatesOnStart: checkUpdatesOnStart,
+    showFolderSizes: showFolderSizes,
     skippedVersion: version,
   );
 
@@ -315,12 +321,13 @@ class AppConfig {
           maxHistory == other.maxHistory &&
           enableLogging == other.enableLogging &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
+          showFolderSizes == other.showFolderSizes &&
           skippedVersion == other.skippedVersion;
 
   @override
   int get hashCode => Object.hash(
         terminal, ssh, ui, transferWorkers, maxHistory, enableLogging,
-        checkUpdatesOnStart, skippedVersion,
+        checkUpdatesOnStart, showFolderSizes, skippedVersion,
       );
 
   /// JSON stays flat for backward compatibility.
@@ -332,6 +339,7 @@ class AppConfig {
     'max_history': maxHistory,
     'enable_logging': enableLogging,
     'check_updates_on_start': checkUpdatesOnStart,
+    'show_folder_sizes': showFolderSizes,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
   };
 
@@ -345,6 +353,7 @@ class AppConfig {
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
       checkUpdatesOnStart: json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
+      showFolderSizes: json['show_folder_sizes'] as bool? ?? d.showFolderSizes,
       skippedVersion: json['skipped_version'] as String?,
     ).sanitized();
   }
