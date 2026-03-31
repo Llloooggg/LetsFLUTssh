@@ -333,68 +333,81 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
         color: AppTheme.bg1,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
-      height: 36,
+      height: 32,
       child: ListView.builder(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        padding: EdgeInsets.zero,
         itemCount: widget.filteredTabs.length,
         itemBuilder: (context, index) {
           final tab = widget.filteredTabs[index];
           final isActive = tab.id == widget.activeTab.id;
           final isConnected = tab.connection.isConnected;
           final isTerminal = tab.kind == TabKind.terminal;
-          return Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: GestureDetector(
-              onTap: () {
-                final globalIdx = widget.tabState.tabs.indexOf(tab);
-                ref.read(tabProvider.notifier).selectTab(globalIdx);
-              },
-              child: Container(
-                height: 26,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: isActive ? AppTheme.selection : AppTheme.bg3,
-                  borderRadius: BorderRadius.circular(13),
-                  border: isActive
-                      ? Border.all(color: AppTheme.accent.withValues(alpha: 0x30 / 255))
-                      : null,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isConnected ? AppTheme.green : AppTheme.fgFaint,
+          final iconColor = isActive
+              ? (isTerminal ? AppTheme.blue : AppTheme.yellow)
+              : AppTheme.fgFaint;
+          return GestureDetector(
+            onTap: () {
+              final globalIdx = widget.tabState.tabs.indexOf(tab);
+              ref.read(tabProvider.notifier).selectTab(globalIdx);
+            },
+            child: SizedBox(
+              height: 32,
+              child: Stack(
+                children: [
+                  Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: isActive ? AppTheme.bg2 : Colors.transparent,
+                      border: Border(
+                        right: BorderSide(color: AppTheme.border),
                       ),
                     ),
-                    const SizedBox(width: 5),
-                    Icon(
-                      isTerminal ? Icons.terminal : Icons.folder,
-                      size: 10,
-                      color: isActive ? AppTheme.accent : AppTheme.fgFaint,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isConnected ? AppTheme.green : AppTheme.fgFaint,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          isTerminal ? Icons.terminal : Icons.folder,
+                          size: 12,
+                          color: iconColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          tab.label,
+                          style: AppFonts.inter(
+                            fontSize: 11,
+                            color: isActive ? AppTheme.fg : AppTheme.fgDim,
+                          ),
+                        ),
+                        if (isActive) ...[
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+                            child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      tab.label,
-                      style: AppFonts.inter(
-                        fontSize: 10,
-                        color: isActive ? AppTheme.fg : AppTheme.fgDim,
-                      ),
+                  ),
+                  if (isActive)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: SizedBox(height: 2, child: ColoredBox(color: AppTheme.accent)),
                     ),
-                    if (isActive) ...[
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: () => ref.read(tabProvider.notifier).closeTab(tab.id),
-                        child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
-                      ),
-                    ],
-                  ],
-                ),
+                ],
               ),
             ),
           );
@@ -457,12 +470,13 @@ class _MobileTerminalPage extends ConsumerWidget {
             ),
             if (onOpenSftp != null)
               Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: IconButton(
-                  onPressed: onOpenSftp,
-                  icon: const Icon(Icons.folder_open, size: 20),
+                padding: const EdgeInsets.only(right: 8),
+                child: _MobileCompanionButton(
+                  label: 'Files',
+                  icon: Icons.folder_open,
+                  color: AppTheme.yellow,
                   tooltip: 'Open SFTP Browser',
-                  visualDensity: VisualDensity.compact,
+                  onTap: onOpenSftp!,
                 ),
               ),
           ],
@@ -528,12 +542,13 @@ class _MobileSftpPage extends ConsumerWidget {
             ),
             if (onOpenSsh != null)
               Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: IconButton(
-                  onPressed: onOpenSsh,
-                  icon: const Icon(Icons.terminal, size: 20),
+                padding: const EdgeInsets.only(right: 8),
+                child: _MobileCompanionButton(
+                  label: 'Terminal',
+                  icon: Icons.terminal,
+                  color: AppTheme.blue,
                   tooltip: 'Open SSH Terminal',
-                  visualDensity: VisualDensity.compact,
+                  onTap: onOpenSsh!,
                 ),
               ),
           ],
@@ -546,5 +561,73 @@ class _MobileSftpPage extends ConsumerWidget {
         ),
       ],
     );
+  }
+}
+
+/// Styled companion button matching desktop's Terminal/Files button.
+class _MobileCompanionButton extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final String? tooltip;
+
+  const _MobileCompanionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.tooltip,
+  });
+
+  @override
+  State<_MobileCompanionButton> createState() => _MobileCompanionButtonState();
+}
+
+class _MobileCompanionButtonState extends State<_MobileCompanionButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final alpha = _pressed ? 0x30 / 255.0 : 0x18 / 255.0;
+    final borderAlpha = _pressed ? 0x60 / 255.0 : 0x40 / 255.0;
+    Widget button = GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: Container(
+        height: 26,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: widget.color.withValues(alpha: alpha),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: widget.color.withValues(alpha: borderAlpha),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(widget.icon, size: 13, color: widget.color),
+            const SizedBox(width: 4),
+            Text(
+              widget.label,
+              style: AppFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: widget.color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (widget.tooltip != null) {
+      button = Tooltip(message: widget.tooltip!, child: button);
+    }
+    return button;
   }
 }
