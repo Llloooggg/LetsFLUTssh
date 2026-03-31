@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../../utils/logger.dart';
@@ -23,23 +24,23 @@ class _KeepAliveHandler extends TaskHandler {
   Future<void> onDestroy(DateTime timestamp, bool isAppTerminated) async {}
 }
 
-/// Manages Android foreground service lifecycle tied to active SSH connections.
-///
-/// Call [onConnectionCountChanged] whenever the number of active connections
-/// changes. The service starts when count goes from 0→1 and stops when it
-/// drops back to 0.
-///
-/// On non-Android platforms this class is a no-op.
-class ForegroundServiceManager {
-  bool _running = false;
-  bool _initialized = false;
+/// Abstracts platform service calls so [ForegroundServiceManager] can be tested
+/// without a real Android foreground service.
+abstract class ForegroundServiceBinding {
+  Future<bool> startService(int count);
+  Future<void> updateNotification(int count);
+  Future<void> stopService();
+  void initService();
+  bool get isSupported;
+}
 
-  bool get isRunning => _running;
+/// Real implementation that talks to [FlutterForegroundTask].
+class _RealBinding implements ForegroundServiceBinding {
+  @override
+  bool get isSupported => Platform.isAndroid;
 
-  /// Initialize the foreground task options. Call once at app startup.
-  void init() {
-    if (!Platform.isAndroid) return;
-    _initialized = true;
+  @override
+  void initService() {
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'ssh_foreground_service',
@@ -63,6 +64,65 @@ class ForegroundServiceManager {
         allowWifiLock: true,
       ),
     );
+  }
+
+  @override
+  Future<bool> startService(int count) async {
+    final result = await FlutterForegroundTask.startService(
+      serviceId: 100,
+      notificationTitle: 'SSH active',
+      notificationText: notificationText(count),
+      serviceTypes: [ForegroundServiceTypes.dataSync],
+      callback: _startCallback,
+    );
+    return result is ServiceRequestSuccess;
+  }
+
+  @override
+  Future<void> updateNotification(int count) async {
+    await FlutterForegroundTask.updateService(
+      notificationTitle: 'SSH active',
+      notificationText: notificationText(count),
+    );
+  }
+
+  @override
+  Future<void> stopService() async {
+    await FlutterForegroundTask.stopService();
+  }
+}
+
+/// Notification text shared between binding and tests.
+String notificationText(int count) =>
+    '$count active connection${count == 1 ? '' : 's'}';
+
+/// Manages Android foreground service lifecycle tied to active SSH connections.
+///
+/// Call [onConnectionCountChanged] whenever the number of active connections
+/// changes. The service starts when count goes from 0→1 and stops when it
+/// drops back to 0.
+///
+/// On non-Android platforms this class is a no-op (unless a test binding
+/// is injected).
+class ForegroundServiceManager {
+  final ForegroundServiceBinding _binding;
+  bool _running = false;
+  bool _initialized = false;
+
+  bool get isRunning => _running;
+
+  @visibleForTesting
+  bool get isInitialized => _initialized;
+
+  ForegroundServiceManager({
+    @visibleForTesting ForegroundServiceBinding? binding,
+  }) : _binding = binding ?? _RealBinding();
+
+  /// Initialize the foreground task options. Call once at app startup.
+  void init() {
+    if (!_binding.isSupported) return;
+    _initialized = true;
+    _binding.initService();
     AppLogger.instance.log(
       'Foreground service initialized',
       name: 'ForegroundService',
@@ -71,7 +131,7 @@ class ForegroundServiceManager {
 
   /// Update notification and start/stop service based on active count.
   Future<void> onConnectionCountChanged(int activeCount) async {
-    if (!Platform.isAndroid || !_initialized) return;
+    if (!_binding.isSupported || !_initialized) return;
 
     if (activeCount > 0 && !_running) {
       await _start(activeCount);
@@ -83,14 +143,8 @@ class ForegroundServiceManager {
   }
 
   Future<void> _start(int count) async {
-    final result = await FlutterForegroundTask.startService(
-      serviceId: 100,
-      notificationTitle: 'SSH active',
-      notificationText: _notificationText(count),
-      serviceTypes: [ForegroundServiceTypes.dataSync],
-      callback: _startCallback,
-    );
-    if (result is ServiceRequestSuccess) {
+    final ok = await _binding.startService(count);
+    if (ok) {
       _running = true;
       AppLogger.instance.log(
         'Foreground service started ($count connection(s))',
@@ -98,30 +152,24 @@ class ForegroundServiceManager {
       );
     } else {
       AppLogger.instance.log(
-        'Foreground service start failed: $result',
+        'Foreground service start failed',
         name: 'ForegroundService',
       );
     }
   }
 
   Future<void> _updateNotification(int count) async {
-    await FlutterForegroundTask.updateService(
-      notificationTitle: 'SSH active',
-      notificationText: _notificationText(count),
-    );
+    await _binding.updateNotification(count);
   }
 
   Future<void> _stop() async {
-    await FlutterForegroundTask.stopService();
+    await _binding.stopService();
     _running = false;
     AppLogger.instance.log(
       'Foreground service stopped',
       name: 'ForegroundService',
     );
   }
-
-  String _notificationText(int count) =>
-      '$count active connection${count == 1 ? '' : 's'}';
 
   /// Stop the service if running. Call on app dispose.
   Future<void> dispose() async {
