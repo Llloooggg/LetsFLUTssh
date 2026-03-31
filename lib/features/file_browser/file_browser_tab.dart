@@ -175,20 +175,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                 onPaneActivated: () => remote.clearSelection(),
               ),
             ),
-            _TransferArrows(
-              onUpload: () {
-                final sel = local.selectedEntries;
-                for (final e in sel) {
-                  _upload(e);
-                }
-              },
-              onDownload: () {
-                final sel = remote.selectedEntries;
-                for (final e in sel) {
-                  _download(e);
-                }
-              },
-            ),
+            Container(width: 3, color: AppTheme.bg0),
             Expanded(
               child: FilePane(
                 controller: remote,
@@ -318,90 +305,5 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         await _copyDirLocal(entity, Directory(p.join(dst.path, name)), depth + 1);
       }
     }
-  }
-}
-
-/// Central column with upload/download arrow buttons between local and remote panes.
-class _TransferArrows extends StatelessWidget {
-  final VoidCallback onUpload;
-  final VoidCallback onDownload;
-
-  const _TransferArrows({required this.onUpload, required this.onDownload});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      color: AppTheme.bg1,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _ArrowButton(
-            icon: Icons.arrow_forward,
-            color: AppTheme.green,
-            tooltip: 'Upload selected',
-            onTap: onUpload,
-          ),
-          const SizedBox(height: 6),
-          _ArrowButton(
-            icon: Icons.arrow_back,
-            color: AppTheme.blue,
-            tooltip: 'Download selected',
-            onTap: onDownload,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ArrowButton extends StatefulWidget {
-  final IconData icon;
-  final Color color;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  const _ArrowButton({
-    required this.icon,
-    required this.color,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  @override
-  State<_ArrowButton> createState() => _ArrowButtonState();
-}
-
-class _ArrowButtonState extends State<_ArrowButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: widget.tooltip,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: Container(
-            width: 22,
-            height: 22,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _hovered
-                  ? widget.color.withValues(alpha: 0.15)
-                  : AppTheme.bg3,
-              border: Border.all(
-                color: _hovered
-                    ? widget.color.withValues(alpha: 0.3)
-                    : AppTheme.borderLight,
-              ),
-            ),
-            child: Icon(widget.icon, size: 12, color: widget.color),
-          ),
-        ),
-      ),
-    );
   }
 }
