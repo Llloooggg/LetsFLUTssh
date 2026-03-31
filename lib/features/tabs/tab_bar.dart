@@ -32,7 +32,7 @@ class AppTabBar extends ConsumerWidget {
       child: Row(
         children: [
           if (tabs.isNotEmpty)
-            Expanded(
+            Flexible(
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const NeverScrollableScrollPhysics(),
@@ -78,9 +78,30 @@ class AppTabBar extends ConsumerWidget {
                   );
                 },
               ),
-            )
-          else
-            const Spacer(),
+            ),
+          // Drop zone — allows dragging tabs to the rightmost position
+          Expanded(
+            child: DragTarget<TabEntry>(
+              onWillAcceptWithDetails: (_) => true,
+              onAcceptWithDetails: (d) {
+                final oldIdx = tabs.indexWhere((t) => t.id == d.data.id);
+                final lastIdx = tabs.length - 1;
+                if (oldIdx >= 0 && oldIdx != lastIdx) {
+                  ref.read(tabProvider.notifier).swapTabs(oldIdx, lastIdx);
+                }
+              },
+              builder: (context, candidates, _) => Container(
+                height: 32,
+                decoration: candidates.isNotEmpty
+                    ? const BoxDecoration(
+                        border: Border(
+                          left: BorderSide(color: AppTheme.accent, width: 2),
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+          ),
           _PlusButton(onPressed: onNewSession),
         ],
       ),
@@ -222,13 +243,8 @@ class _TabItemState extends State<_TabItem> {
                 const SizedBox(width: 4),
                 Opacity(
                   opacity: showClose ? 1.0 : 0.0,
-                  child: GestureDetector(
+                  child: _CloseButton(
                     onTap: showClose ? widget.onClose : null,
-                    child: const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: Icon(Icons.close, size: 10, color: AppTheme.fgDim),
-                    ),
                   ),
                 ),
               ],
@@ -290,6 +306,44 @@ class _PlusButtonState extends State<_PlusButton> {
           height: 32,
           color: _hovered ? AppTheme.hover : Colors.transparent,
           child: const Icon(Icons.add, size: 12, color: AppTheme.fgFaint),
+        ),
+      ),
+    );
+  }
+}
+
+/// Close button with hover highlight for tab items.
+class _CloseButton extends StatefulWidget {
+  final VoidCallback? onTap;
+
+  const _CloseButton({this.onTap});
+
+  @override
+  State<_CloseButton> createState() => _CloseButtonState();
+}
+
+class _CloseButtonState extends State<_CloseButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: _hovered ? AppTheme.red.withValues(alpha: 0.2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Icon(
+            Icons.close,
+            size: 12,
+            color: _hovered ? AppTheme.red : AppTheme.fgDim,
+          ),
         ),
       ),
     );
