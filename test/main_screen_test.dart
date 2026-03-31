@@ -265,11 +265,11 @@ void main() {
       expect(find.text('New Connection'), findsOneWidget);
     });
 
-    testWidgets('status bar shows connection count', (tester) async {
+    testWidgets('status bar shows tab count', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.text('0 connections'), findsOneWidget);
+      expect(find.text('0 tabs'), findsOneWidget);
     });
 
     testWidgets('status bar shows tab count', (tester) async {
@@ -286,23 +286,12 @@ void main() {
       expect(find.byType(Scaffold), findsWidgets);
     });
 
-    testWidgets('toolbar has tooltip with Ctrl+N', (tester) async {
+    testWidgets('toolbar has Settings tooltip', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // Find all IconButtons and check at least one has Ctrl+N tooltip
-      final iconButtons = find.byType(IconButton);
-      expect(iconButtons, findsWidgets);
-
-      bool foundCtrlN = false;
-      for (int i = 0; i < tester.widgetList(iconButtons).length; i++) {
-        final btn = tester.widgetList<IconButton>(iconButtons).elementAt(i);
-        if (btn.tooltip?.contains('Ctrl+N') == true) {
-          foundCtrlN = true;
-          break;
-        }
-      }
-      expect(foundCtrlN, isTrue);
+      // Toolbar should have Settings button
+      expect(find.byTooltip('Settings'), findsOneWidget);
     });
 
     testWidgets('renders session panel (sidebar)', (tester) async {
@@ -315,12 +304,12 @@ void main() {
   });
 
   group('MainScreen — toolbar new session button', () {
-    testWidgets('toolbar add button with Ctrl+N tooltip opens dialog', (tester) async {
+    testWidgets('tab bar add button opens dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // Tap the toolbar "+" button (the one with Ctrl+N tooltip)
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Tap the "+" button in the AppTabBar
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pumpAndSettle();
 
       // New Session dialog should appear (may have multiple 'New Session' texts)
@@ -345,12 +334,11 @@ void main() {
   });
 
   group('_StatusBar — basic display', () {
-    testWidgets('status bar shows connection count and tabs', (tester) async {
+    testWidgets('status bar shows tabs and UTF-8', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.text('0 connections'), findsOneWidget);
-      expect(find.textContaining('tabs'), findsOneWidget);
+      expect(find.text('0 tabs'), findsOneWidget);
       expect(find.text('UTF-8'), findsOneWidget);
     });
   });
@@ -369,8 +357,8 @@ void main() {
 
       // Session panel should be visible
       expect(find.text('SESSIONS'), findsOneWidget);
-      // Toolbar should have New Session button
-      expect(find.byTooltip('New Session (Ctrl+N)'), findsOneWidget);
+      // Toolbar should have Sidebar toggle button
+      expect(find.byTooltip('Sidebar (Ctrl+B)'), findsOneWidget);
     });
 
     testWidgets('wide layout shows welcome screen when no tabs', (tester) async {
@@ -378,7 +366,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('No active session'), findsOneWidget);
-      expect(find.text('0 connections'), findsOneWidget);
+      expect(find.text('0 tabs'), findsOneWidget);
     });
 
   });
@@ -450,8 +438,8 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // Open dialog via toolbar button
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Open dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pumpAndSettle();
 
       expect(find.text('HOST *'), findsOneWidget);
@@ -469,7 +457,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pumpAndSettle();
 
       // Switch to Auth tab to see auth selector
@@ -935,8 +923,8 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      // Open new session dialog
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Open new session dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pumpAndSettle();
 
       // Fill in required fields
@@ -1431,8 +1419,8 @@ void main() {
       ));
       await tester.pump();
 
-      // Open new session dialog
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Open new session dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pump();
       await tester.pump();
 
@@ -1482,8 +1470,8 @@ void main() {
       ));
       await tester.pump();
 
-      // Open new session dialog
-      await tester.tap(find.byTooltip('New Session (Ctrl+N)'));
+      // Open new session dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
       await tester.pump();
       await tester.pump();
 
@@ -1756,8 +1744,8 @@ void main() {
 
       // Menu button visible in narrow mode
       expect(find.byIcon(Icons.menu), findsOneWidget);
-      // Toolbar should still have New Session button
-      expect(find.byTooltip('New Session (Ctrl+N)'), findsOneWidget);
+      // Tab bar should have add button
+      expect(find.byIcon(Icons.add), findsWidgets);
       // Status bar should show
       expect(find.textContaining('tab'), findsWidgets);
     });
