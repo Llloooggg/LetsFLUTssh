@@ -36,6 +36,9 @@ class _StubUpdateService extends UpdateService {
     onProgress?.call(100, 100);
     return downloadedPath!;
   }
+
+  @override
+  Future<bool> openFile(String path) async => false;
 }
 
 /// Build a container with an injected stub UpdateService and a fixed version.

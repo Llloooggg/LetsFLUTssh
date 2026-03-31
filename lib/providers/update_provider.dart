@@ -138,7 +138,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
   Future<bool> install() async {
     final path = state.downloadedPath;
     if (path == null) return false;
-    final ok = await UpdateService.openFile(path);
+    final ok = await _service.openFile(path);
     if (ok) {
       // Clean up after a short delay so the OS has time to read the file
       Future.delayed(const Duration(seconds: 5), () => _cleanupFile(path));
