@@ -310,37 +310,25 @@ class _NavItemState extends State<_NavItem> {
               : _hovered
                   ? AppTheme.hover
                   : Colors.transparent,
-          child: Stack(
-            alignment: Alignment.centerLeft,
+          child: Row(
             children: [
-              if (widget.selected)
-                Positioned(
-                  left: 0,
-                  top: 4,
-                  bottom: 4,
-                  child: Container(width: 2, color: AppTheme.accent),
-                ),
-              Row(
-                children: [
-                  Icon(
-                    widget.icon,
-                    size: 13,
+              Icon(
+                widget.icon,
+                size: 13,
+                color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  widget.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
                     color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
                   ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      widget.label,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
-                        color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
