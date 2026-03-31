@@ -608,18 +608,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   TextFormField(
                     controller: nameCtrl,
                     autofocus: true,
-                    style: TextStyle(
-                      fontFamily: 'JetBrains Mono',
-                      fontSize: 11,
-                      color: AppTheme.fg,
-                    ),
+                    style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
                     decoration: InputDecoration(
                       hintText: hintText,
-                      hintStyle: TextStyle(
-                        fontFamily: 'JetBrains Mono',
-                        fontSize: 11,
-                        color: AppTheme.fgFaint,
-                      ),
+                      hintStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgFaint),
                       filled: true,
                       fillColor: AppTheme.bg3,
                       isDense: true,
@@ -892,11 +884,7 @@ class _SearchBar extends StatelessWidget {
               child: TextField(
                 decoration: InputDecoration(
                   hintText: 'Filter...',
-                  hintStyle: TextStyle(
-                    fontFamily: 'JetBrains Mono',
-                    fontSize: 11,
-                    color: AppTheme.fgFaint,
-                  ),
+                  hintStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgFaint),
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
@@ -904,11 +892,7 @@ class _SearchBar extends StatelessWidget {
                   focusedBorder: InputBorder.none,
                   filled: false,
                 ),
-                style: TextStyle(
-                  fontFamily: 'JetBrains Mono',
-                  fontSize: 11,
-                  color: AppTheme.fg,
-                ),
+                style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
                 onChanged: onChanged,
               ),
             ),

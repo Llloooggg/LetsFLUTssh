@@ -142,8 +142,8 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                     Row(
                       children: [
                         Expanded(
-                          child: _field('Host', _hostCtrl,
-                              hint: '192.168.1.1', required: true),
+                          child: _field('Host *', _hostCtrl,
+                              hint: '192.168.1.1', validator: _requiredValidator),
                         ),
                         const SizedBox(width: 12),
                         SizedBox(
@@ -162,8 +162,8 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _field('Username', _userCtrl,
-                        hint: 'root', required: true),
+                    _field('Username *', _userCtrl,
+                        hint: 'root', validator: _requiredValidator),
                     const SizedBox(height: 12),
                     _field('Password', _passwordCtrl,
                         hint: '••••••••',
@@ -317,11 +317,13 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
     );
   }
 
+  static String? _requiredValidator(String? v) =>
+      v == null || v.trim().isEmpty ? 'Required' : null;
+
   Widget _field(
     String label,
     TextEditingController controller, {
     String? hint,
-    bool required = false,
     bool obscure = false,
     Widget? suffixIcon,
     TextInputType? keyboardType,
@@ -333,7 +335,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
         Padding(
           padding: const EdgeInsets.only(bottom: 4),
           child: Text(
-            (required ? '$label *' : label).toUpperCase(),
+            label.toUpperCase(),
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 10,
@@ -349,10 +351,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
             controller: controller,
             obscureText: obscure,
             keyboardType: keyboardType,
-            validator: validator ??
-                (required
-                    ? (v) => v == null || v.trim().isEmpty ? 'Required' : null
-                    : null),
+            validator: validator,
             style: TextStyle(
               fontFamily: 'JetBrains Mono',
               fontSize: 11,

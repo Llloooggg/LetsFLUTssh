@@ -780,7 +780,6 @@ class _ConnectionBar extends StatelessWidget {
     final onCompanion = isTerminal ? onOpenSftp : onOpenSsh;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
     final dimColor = scheme.onSurface.withValues(alpha: 0.6);
     final faintColor = scheme.onSurface.withValues(alpha: 0.45);
 
@@ -807,11 +806,7 @@ class _ConnectionBar extends StatelessWidget {
               children: [
                 Text(
                   conn.isConnected ? 'Connected' : 'Disconnected',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10,
-                    color: dimColor,
-                  ),
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: dimColor),
                 ),
                 const SizedBox(width: 6),
                 Text('·', style: TextStyle(fontSize: 10, color: faintColor)),
@@ -819,11 +814,7 @@ class _ConnectionBar extends StatelessWidget {
                 Flexible(
                   child: Text(
                     '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
-                    style: TextStyle(
-                      fontFamily: 'JetBrains Mono',
-                      fontSize: 10,
-                      color: dimColor,
-                    ),
+                    style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 10, color: dimColor),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -831,47 +822,41 @@ class _ConnectionBar extends StatelessWidget {
             ),
           ),
           if (onCompanion != null)
-            Tooltip(
-              message: isTerminal ? 'Files' : 'Terminal',
-              child: HoverRegion(
-                onTap: onCompanion,
-                builder: (hovered) => Container(
-                  height: 18,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                    color: btnColor.withValues(
-                      alpha: hovered ? 0x25 / 255.0 : 0x18 / 255.0,
-                    ),
-                    border: Border.all(
-                      color: btnColor.withValues(
-                        alpha: hovered ? 0x60 / 255.0 : 0x40 / 255.0,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isTerminal ? Icons.folder_open : Icons.terminal,
-                        size: 11,
-                        color: btnColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isTerminal ? 'Files' : 'Terminal',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: btnColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            _companionButton(isTerminal, onCompanion, scheme),
         ],
+      ),
+    );
+  }
+
+  Widget _companionButton(bool isTerminal, VoidCallback onTap, ColorScheme scheme) {
+    final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
+    final label = isTerminal ? 'Files' : 'Terminal';
+    final icon = isTerminal ? Icons.folder_open : Icons.terminal;
+    return Tooltip(
+      message: label,
+      child: HoverRegion(
+        onTap: onTap,
+        builder: (hovered) => Container(
+          height: 18,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: btnColor.withValues(alpha: hovered ? 0x25 / 255.0 : 0x18 / 255.0),
+            border: Border.all(
+              color: btnColor.withValues(alpha: hovered ? 0x60 / 255.0 : 0x40 / 255.0),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 11, color: btnColor),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w500, color: btnColor),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

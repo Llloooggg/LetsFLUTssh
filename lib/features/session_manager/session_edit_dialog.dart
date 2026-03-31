@@ -329,9 +329,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         Row(
           children: [
             Expanded(
-              child: _styledField('Host', _hostCtrl,
+              child: _styledField('Host *', _hostCtrl,
                   hint: '192.168.1.1',
-                  required: true),
+                  validator: _requiredValidator),
             ),
             const SizedBox(width: 12),
             SizedBox(
@@ -350,8 +350,8 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           ],
         ),
         const SizedBox(height: 12),
-        _styledField('Username', _userCtrl,
-            hint: 'root', required: true),
+        _styledField('Username *', _userCtrl,
+            hint: 'root', validator: _requiredValidator),
         const SizedBox(height: 12),
         _buildGroupField(),
       ],
@@ -461,9 +461,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   }
 
   Widget _buildPasswordField() {
-    return _styledField('Password', _passwordCtrl,
+    return _styledField('Password *', _passwordCtrl,
         hint: '••••••••',
-        required: true,
+        validator: _requiredValidator,
         obscure: _obscurePassword,
         suffixIcon: GestureDetector(
           onTap: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -703,11 +703,13 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   // ── Styled field helper ──
 
+  static String? _requiredValidator(String? v) =>
+      v == null || v.trim().isEmpty ? 'Required' : null;
+
   Widget _styledField(
     String label,
     TextEditingController controller, {
     String? hint,
-    bool required = false,
     bool obscure = false,
     Widget? suffixIcon,
     TextInputType? keyboardType,
@@ -716,16 +718,14 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _FieldLabel(required ? '$label *' : label),
+        _FieldLabel(label),
         _StyledInput(
           controller: controller,
           hint: hint,
           obscure: obscure,
           suffixIcon: suffixIcon,
           keyboardType: keyboardType,
-          validator: validator ?? (required
-              ? (v) => v == null || v.trim().isEmpty ? 'Required' : null
-              : null),
+          validator: validator,
         ),
       ],
     );
