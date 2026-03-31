@@ -99,7 +99,7 @@ make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
 
-See [CLAUDE.md](../CLAUDE.md) for architecture details and coding conventions.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation (module structure, data flows, API references, design decisions).
 
 ## Commit Messages
 

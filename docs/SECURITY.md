@@ -54,6 +54,8 @@ The following areas are in scope:
 - **Least Privilege** — all workflows default to read-only token permissions (`permissions: read-all`), jobs explicitly request only what they need
 - **OpenSSF Best Practices** — project meets [OpenSSF Best Practices](https://www.bestpractices.dev/projects/12283) passing criteria
 
+For detailed technical documentation on the security model (credential encryption, TOFU, .lfs format, error sanitization), see [ARCHITECTURE.md §13 Security Model](ARCHITECTURE.md#13-security-model).
+
 ### Out of scope
 
 - Vulnerabilities in upstream dependencies (`dartssh2`, `pointycastle`, `xterm`) — please report those to their maintainers directly
