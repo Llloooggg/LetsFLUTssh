@@ -184,8 +184,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final mobile = isMobilePlatform;
 
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      color: AppTheme.bg1,
+      color: scheme.surfaceContainerLow,
       child: Column(
       children: [
         if (_selectMode && mobile)
@@ -762,11 +763,12 @@ class _PanelHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
@@ -777,7 +779,7 @@ class _PanelHeader extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.2,
-              color: AppTheme.fgFaint,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
             ),
           ),
           const Spacer(),
@@ -875,18 +877,20 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dimColor = scheme.onSurface.withValues(alpha: 0.45);
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Container(
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: AppTheme.bg3,
-          border: Border.all(color: AppTheme.borderLight),
+          color: scheme.surfaceContainerHigh,
+          border: Border.all(color: scheme.outlineVariant),
         ),
         child: Row(
           children: [
-            Icon(Icons.search, size: 12, color: AppTheme.fgFaint),
+            Icon(Icons.search, size: 12, color: dimColor),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
@@ -895,7 +899,7 @@ class _SearchBar extends StatelessWidget {
                   hintStyle: TextStyle(
                     fontFamily: 'JetBrains Mono',
                     fontSize: 11,
-                    color: AppTheme.fgFaint,
+                    color: dimColor,
                   ),
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
@@ -904,7 +908,7 @@ class _SearchBar extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'JetBrains Mono',
                   fontSize: 11,
-                  color: AppTheme.fg,
+                  color: scheme.onSurface,
                 ),
                 onChanged: onChanged,
               ),
@@ -912,7 +916,7 @@ class _SearchBar extends StatelessWidget {
             if (value.isNotEmpty)
               GestureDetector(
                 onTap: () => onChanged(''),
-                child: Icon(Icons.close, size: 12, color: AppTheme.fgFaint),
+                child: Icon(Icons.close, size: 12, color: dimColor),
               ),
           ],
         ),
@@ -966,25 +970,27 @@ class _SidebarFooter extends ConsumerWidget {
     final activeCount = connections.where((c) => c.isConnected).length;
     final savedCount = ref.watch(sessionProvider).length;
 
+    final theme = Theme.of(context);
+    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.45);
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: AppTheme.border)),
+        border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
           Icon(Icons.wifi, size: 10,
-              color: activeCount > 0 ? AppTheme.green : AppTheme.fgFaint),
+              color: activeCount > 0 ? AppTheme.green : dimColor),
           const SizedBox(width: 6),
           Text(
             '$activeCount active',
-            style: AppFonts.inter(fontSize: 10, color: AppTheme.fgFaint),
+            style: AppFonts.inter(fontSize: 10, color: dimColor),
           ),
           const Spacer(),
           Text(
             '$savedCount saved',
-            style: AppFonts.inter(fontSize: 10, color: AppTheme.fgFaint),
+            style: AppFonts.inter(fontSize: 10, color: dimColor),
           ),
         ],
       ),

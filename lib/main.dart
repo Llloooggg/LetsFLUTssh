@@ -131,6 +131,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       themeMode: themeMode,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      themeAnimationDuration: Duration.zero,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         return MediaQuery(
@@ -426,7 +427,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 },
                 child: Container(
                   width: 3,
-                  color: AppTheme.bg0,
+                  color: Theme.of(context).dividerColor,
                 ),
               ),
             ),
@@ -757,14 +758,17 @@ class _StatusBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final version = ref.watch(appVersionProvider);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dimColor = scheme.onSurface.withValues(alpha: 0.45);
 
     return Container(
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: AppTheme.bg0,
+        color: scheme.surfaceContainerLowest,
         border: Border(
-          top: BorderSide(color: AppTheme.border),
+          top: BorderSide(color: theme.dividerColor),
         ),
       ),
       child: Row(
@@ -775,7 +779,7 @@ class _StatusBar extends ConsumerWidget {
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 10,
-              color: AppTheme.fgFaint,
+              color: dimColor,
             ),
           ),
           const SizedBox(width: 12),
@@ -784,7 +788,7 @@ class _StatusBar extends ConsumerWidget {
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 10,
-              color: AppTheme.fgFaint,
+              color: dimColor,
             ),
           ),
           const SizedBox(width: 12),
@@ -793,7 +797,7 @@ class _StatusBar extends ConsumerWidget {
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 10,
-              color: AppTheme.fgFaint,
+              color: dimColor,
             ),
           ),
         ],
@@ -826,14 +830,18 @@ class _ConnectionBarState extends State<_ConnectionBar> {
     final cfg = conn.sshConfig;
     final isTerminal = widget.activeTab.kind == TabKind.terminal;
     final onCompanion = isTerminal ? widget.onOpenSftp : widget.onOpenSsh;
-    final btnColor = isTerminal ? AppTheme.yellow : AppTheme.accent;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
+    final dimColor = scheme.onSurface.withValues(alpha: 0.6);
+    final faintColor = scheme.onSurface.withValues(alpha: 0.45);
 
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        color: scheme.surfaceContainerHigh,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
@@ -842,7 +850,7 @@ class _ConnectionBarState extends State<_ConnectionBar> {
             height: 5,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: conn.isConnected ? AppTheme.green : AppTheme.fgFaint,
+              color: conn.isConnected ? AppTheme.green : faintColor,
             ),
           ),
           const SizedBox(width: 6),
@@ -855,11 +863,11 @@ class _ConnectionBarState extends State<_ConnectionBar> {
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 10,
-                    color: AppTheme.fgDim,
+                    color: dimColor,
                   ),
                 ),
                 const SizedBox(width: 6),
-                Text('·', style: TextStyle(fontSize: 10, color: AppTheme.fgFaint)),
+                Text('·', style: TextStyle(fontSize: 10, color: faintColor)),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
@@ -867,7 +875,7 @@ class _ConnectionBarState extends State<_ConnectionBar> {
                     style: TextStyle(
                       fontFamily: 'JetBrains Mono',
                       fontSize: 10,
-                      color: AppTheme.fgDim,
+                      color: dimColor,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),

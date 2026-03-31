@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
-
 /// Shown when no tabs are open.
 class WelcomeScreen extends StatelessWidget {
   final VoidCallback onNewSession;
@@ -10,21 +8,21 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dimColor = scheme.onSurface.withValues(alpha: 0.6);
+    final faintColor = scheme.onSurface.withValues(alpha: 0.4);
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Terminal icon in 48×48 bg3 container
           Container(
             width: 48,
             height: 48,
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: AppTheme.bg3),
-            child: Icon(
-              Icons.terminal,
-              size: 22,
-              color: AppTheme.fgFaint,
-            ),
+            decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
+            child: Icon(Icons.terminal, size: 22, color: faintColor),
           ),
           const SizedBox(height: 16),
           Text(
@@ -32,7 +30,7 @@ class WelcomeScreen extends StatelessWidget {
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 13,
-              color: AppTheme.fgDim,
+              color: dimColor,
             ),
           ),
           const SizedBox(height: 4),
@@ -41,7 +39,7 @@ class WelcomeScreen extends StatelessWidget {
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 11,
-              color: AppTheme.fgFaint,
+              color: faintColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -60,18 +58,16 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
               style: TextButton.styleFrom(
-                backgroundColor: AppTheme.accent,
+                backgroundColor: scheme.primary,
                 shape: const RoundedRectangleBorder(),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          // Shortcuts table
           const _ShortcutRow(keys: 'Ctrl+N', description: 'New Terminal'),
           const SizedBox(height: 6),
-          const _ShortcutRow(
-              keys: 'Ctrl+Shift+N', description: 'New File Transfer'),
+          const _ShortcutRow(keys: 'Ctrl+Shift+N', description: 'New File Transfer'),
           const SizedBox(height: 6),
           const _ShortcutRow(keys: 'Ctrl+B', description: 'Toggle Sidebar'),
           const SizedBox(height: 6),
@@ -90,6 +86,10 @@ class _ShortcutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dimColor = scheme.onSurface.withValues(alpha: 0.6);
+    final faintColor = scheme.onSurface.withValues(alpha: 0.4);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -98,15 +98,15 @@ class _ShortcutRow extends StatelessWidget {
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: AppTheme.bg3,
-            border: Border.all(color: AppTheme.borderLight),
+            color: scheme.surfaceContainerHigh,
+            border: Border.all(color: scheme.outlineVariant),
           ),
           child: Text(
             keys,
             style: TextStyle(
               fontFamily: 'JetBrains Mono',
               fontSize: 9,
-              color: AppTheme.fgDim,
+              color: dimColor,
             ),
           ),
         ),
@@ -116,7 +116,7 @@ class _ShortcutRow extends StatelessWidget {
           style: TextStyle(
             fontFamily: 'Inter',
             fontSize: 10,
-            color: AppTheme.fgFaint,
+            color: faintColor,
           ),
         ),
       ],
