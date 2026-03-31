@@ -73,12 +73,12 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 
 ### Commits
 
-- **Claude does not commit or push unless the user explicitly asks.** When asked — scope matches what was said: "commit" = commit only, "commit and push" = commit + push (auto-tag handles the rest). When the user asks to do multiple fixes — commit each fix immediately after finishing it (see below), don't wait for the whole batch
+- **Claude does not commit or push unless the user explicitly asks.** When asked — scope matches what was said: "commit" = commit only, "commit and push" = commit + push (auto-tag handles the rest). For multiple fixes — see "HARD STOP between fixes" rule below
 - **Every commit that affects the shipped app MUST include a version bump** in `pubspec.yaml` (the only source of truth — `package_info_plus` reads it at runtime). Includes: `lib/`, platform configs, native code, assets, build settings. Patch for bugfix/refactor, minor for new feature, major for breaking change. No exceptions
 - Format: `type: short description` — types: `feat`, `fix`, `refactor` (app changes), `test`, `docs`, `chore`, `ci` (non-app)
 - **Commit messages drive auto-changelog** — `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements. Keep messages user-readable. If commit has both app changes and docs — prefix describes the app change only
 - **One fix / one commit** — each logical change is a separate commit. Do not bundle unrelated fixes
-- **Commit immediately after each fix** — when working on multiple fixes, commit each one right after finishing it (code + tests + version bump + doc update), then start the next. Never accumulate and batch-commit at the end
+- **HARD STOP between fixes** — when working on multiple fixes, the workflow is strictly sequential: implement fix → write tests → bump version → update docs → `make analyze` → commit. **Do NOT start the next fix until the current one is committed.** This is a blocking gate, not a suggestion. Starting the next fix before committing the current one is a rule violation — it leads to tangled changes in shared files and painful commit splitting
 - Repository is **public** on GitHub
 
 ### Work Style
