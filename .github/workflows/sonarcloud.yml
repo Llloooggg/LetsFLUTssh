@@ -25,11 +25,11 @@ jobs:
       actions: read
       contents: read
     steps:
-      - name: Checkout for manual dispatch (no coverage)
-        if: github.event_name == 'workflow_dispatch' && inputs.ci-run-id == ''
+      - name: Checkout repository (for SCM data)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Download SonarCloud source artifact
         if: github.event_name != 'workflow_dispatch' || inputs.ci-run-id != ''
