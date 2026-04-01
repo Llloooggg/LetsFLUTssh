@@ -261,24 +261,31 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
-      child: ClippedRow(
-        children: [
-          Text(
-            ctrl.label.toUpperCase(),
-            style: AppFonts.inter(
-              fontSize: AppFonts.xs,
-              fontWeight: FontWeight.w600,
-              color: labelColor,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(child: _buildBreadcrumb()),
-          const SizedBox(width: 4),
-          _navButton(Icons.arrow_back, ctrl.canGoBack ? ctrl.goBack : null, 'Back'),
-          _navButton(Icons.arrow_forward, ctrl.canGoForward ? ctrl.goForward : null, 'Forward'),
-          _navButton(Icons.arrow_upward, ctrl.navigateUp, 'Up'),
-          _navButton(Icons.refresh, ctrl.refresh, 'Refresh'),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showNav = constraints.maxWidth > 160;
+          return Row(
+            children: [
+              Text(
+                ctrl.label.toUpperCase(),
+                style: AppFonts.inter(
+                  fontSize: AppFonts.xs,
+                  fontWeight: FontWeight.w600,
+                  color: labelColor,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: _buildBreadcrumb()),
+              if (showNav) ...[
+                const SizedBox(width: 4),
+                _navButton(Icons.arrow_back, ctrl.canGoBack ? ctrl.goBack : null, 'Back'),
+                _navButton(Icons.arrow_forward, ctrl.canGoForward ? ctrl.goForward : null, 'Forward'),
+                _navButton(Icons.arrow_upward, ctrl.navigateUp, 'Up'),
+                _navButton(Icons.refresh, ctrl.refresh, 'Refresh'),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -294,7 +301,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final rootLabel = isWindows && parts.isNotEmpty ? parts[0] : null;
     final navParts = isWindows ? parts.skip(1).toList() : parts;
 
-    return ClippedRow(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
       children: [
         InkWell(
           onTap: () => ctrl.navigateTo(rootPath),
@@ -304,11 +313,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         ),
         for (var i = 0; i < navParts.length; i++) ...[
           Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint)),
-          Flexible(
-            child: InkWell(
-              onTap: () => _navigateToPart(isWindows, parts, navParts, i),
-              child: Text(
-                navParts[i],
+          InkWell(
+            onTap: () => _navigateToPart(isWindows, parts, navParts, i),
+            child: Text(
+              navParts[i],
                 style: AppFonts.mono(
                   fontSize: AppFonts.xs,
                   color: i == navParts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
@@ -316,7 +324,6 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
         ],
         const SizedBox(width: 4),
         InkWell(
@@ -327,6 +334,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           child: Icon(Icons.edit, size: 9, color: AppTheme.fgFaint),
         ),
       ],
+      ),
     );
   }
 
