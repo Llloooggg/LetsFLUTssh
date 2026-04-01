@@ -69,6 +69,11 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
                   final natural = constraints.maxWidth / tabs.length;
                   final tabW = natural.clamp(minTabW, maxTabW);
 
+                  // Space remaining after all tab items.
+                  final tabsWidth = tabW * tabs.length;
+                  final endZoneW =
+                      (constraints.maxWidth - tabsWidth).clamp(24.0, double.infinity);
+
                   return Listener(
                     onPointerSignal: _onPointerSignal,
                     child: SingleChildScrollView(
@@ -78,21 +83,20 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
                         children: [
                           for (int index = 0; index < tabs.length; index++)
                             _buildDragTarget(tabs, index, tabState, tabW),
-                          // Drop zone at the end — allows dragging to last position
+                          // Drop zone fills remaining space (min 24px when scrolling)
                           DragTarget<TabEntry>(
                             onWillAcceptWithDetails: (_) => true,
                             onAcceptWithDetails: (d) {
                               final oldIdx =
                                   tabs.indexWhere((t) => t.id == d.data.id);
-                              final lastIdx = tabs.length - 1;
-                              if (oldIdx >= 0 && oldIdx != lastIdx) {
+                              if (oldIdx >= 0 && oldIdx != tabs.length - 1) {
                                 ref
                                     .read(tabProvider.notifier)
-                                    .swapTabs(oldIdx, lastIdx);
+                                    .reorderTabs(oldIdx, tabs.length);
                               }
                             },
                             builder: (context, candidates, _) => Container(
-                              width: 24,
+                              width: endZoneW,
                               height: 32,
                               decoration: candidates.isNotEmpty
                                   ? BoxDecoration(
@@ -131,7 +135,7 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
       onAcceptWithDetails: (d) {
         final oldIdx = tabs.indexWhere((t) => t.id == d.data.id);
         if (oldIdx >= 0 && oldIdx != index) {
-          ref.read(tabProvider.notifier).swapTabs(oldIdx, index);
+          ref.read(tabProvider.notifier).reorderTabs(oldIdx, index);
         }
       },
       builder: (context, candidates, rejected) {
