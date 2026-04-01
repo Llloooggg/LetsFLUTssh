@@ -249,6 +249,53 @@ void main() {
     });
   });
 
+  group('SshKeyboardBar — layout', () {
+    testWidgets('main row keys are inside a horizontal ListView', (tester) async {
+      await tester.pumpWidget(buildApp(onInput: (_) {}));
+      // The main row should contain a horizontal ListView for scrollable keys
+      final listViews = find.byType(ListView);
+      expect(listViews, findsOneWidget);
+      final listView = tester.widget<ListView>(listViews.first);
+      expect(listView.scrollDirection, Axis.horizontal);
+    });
+
+    testWidgets('Fn button is outside scrollable area', (tester) async {
+      await tester.pumpWidget(buildApp(onInput: (_) {}));
+      // Fn should always be visible — it's in the outer Row, not inside ListView
+      expect(find.text('Fn'), findsOneWidget);
+
+      // Fn button should be a direct descendant of the main Row, not ListView
+      final fnFinder = find.text('Fn');
+      final fnWidget = tester.element(fnFinder);
+      // Walk up to find if Fn is inside a ListView — it should NOT be
+      bool insideListView = false;
+      fnWidget.visitAncestorElements((element) {
+        if (element.widget is ListView) {
+          insideListView = true;
+          return false;
+        }
+        // Stop at the main Container (height 48)
+        if (element.widget is Container) return false;
+        return true;
+      });
+      expect(insideListView, isFalse);
+    });
+
+    testWidgets('F-keys row appears with its own ListView when Fn active', (tester) async {
+      await tester.pumpWidget(buildApp(onInput: (_) {}));
+
+      // Initially one ListView (main row)
+      expect(find.byType(ListView), findsOneWidget);
+
+      // Tap Fn to show F-key row
+      await tester.tap(find.text('Fn'));
+      await tester.pump();
+
+      // Now two ListViews (F-keys row + main row)
+      expect(find.byType(ListView), findsNWidgets(2));
+    });
+  });
+
   group('SshKeyboardBar — applyModifiers for system keyboard', () {
     testWidgets('applyModifiers returns raw data when no modifier active', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
