@@ -99,7 +99,19 @@ make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation (module structure, data flows, API references, design decisions).
+For detailed technical documentation see [ARCHITECTURE.md](ARCHITECTURE.md) — module structure, data models, API references, state management, data flows, and design decisions.
+
+## Coding Conventions
+
+- **Logging** — `AppLogger.instance.log(message, name: 'Tag')`, never `print()`/`debugPrint()` — [§7 Utilities API](ARCHITECTURE.md#7-utilities--public-api-reference)
+- **State** — all state via Riverpod providers, no global mutable state — [§4 State Management](ARCHITECTURE.md#4-state-management--riverpod)
+- **Models** — immutable with `copyWith`, `==`, `hashCode`, `toJson`/`fromJson` — [§10 Data Models](ARCHITECTURE.md#10-data-models)
+- **Theme** — OneDark, semantic color constants, no hardcoded `Colors` — [§8 Theme](ARCHITECTURE.md#8-theme-system)
+- **Font sizes** — use `AppFonts.tiny`/`xxs`/`xs`/`sm`/`md`/`lg`/`xl` (platform-aware), never hardcode `fontSize` — [§8 Theme](ARCHITECTURE.md#8-theme-system)
+- **Border radius** — use `AppTheme.radiusSm`/`radiusMd`/`radiusLg`, never hardcode `BorderRadius.circular(N)` — [§8 Theme](ARCHITECTURE.md#8-theme-system)
+- **Buttons** — `AppIconButton` for icon buttons, `HoverRegion` for custom hover. Never use bare `IconButton` or `InkWell` — [§6 Widgets API](ARCHITECTURE.md#6-widgets--public-api-reference)
+- **Credentials** — `CredentialStore` (AES-256-GCM), never plain JSON — [§3.6 Security](ARCHITECTURE.md#36-security--encryption-coresecurity)
+- **Testing** — one test file per source file, DI hooks for testability — [§14 Testing Patterns](ARCHITECTURE.md#14-testing-patterns--di-hooks)
 
 ## Commit Messages
 
@@ -161,14 +173,17 @@ Bump the `version:` field in `pubspec.yaml` — it is the single source of truth
 
 ## CI/CD Pipeline
 
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| `ci.yml` | Push to `main`, PRs | Analyze, test (with coverage), outdated deps, commit-lint |
-| `sonarcloud.yml` | After CI succeeds (`workflow_run`) | Code quality + coverage analysis (separate from CI) |
-| `build.yml` | Tag `v*` push, manual | Preflight (waits for CI + SonarCloud + OSV-Scanner), builds all platforms, creates GitHub Release |
-| `dependabot-release.yml` | Dependabot PR merged | Auto patch-bump + commit for pub dependency updates |
-| `dependabot-tag.yml` | After CI succeeds (`workflow_run`) | Creates tag on dependency bump commits → triggers build |
-| `osv-scanner.yml` | pubspec changes, weekly | Dependency CVE scanning |
+Every push and PR is checked by multiple pipelines. For the full workflow graph and detailed descriptions see [§15 CI/CD Pipeline](ARCHITECTURE.md#15-cicd-pipeline).
+
+| Workflow | Purpose |
+|----------|---------|
+| `ci.yml` | Analyze, test, coverage, commit-lint, dependency review |
+| `sonarcloud.yml` | Code quality + coverage (after CI succeeds) |
+| `osv-scanner.yml` | Dependency CVE scanning (`pubspec.lock`) |
+| `codeql.yml` | GitHub Actions security analysis |
+| `semgrep.yml` | SAST scan — static security analysis of Dart code |
+| `scorecard.yml` | OpenSSF supply chain assessment |
+| `build.yml` | Build all platforms + GitHub Release (on tag) |
 
 **Dependabot auto-releases:** when Dependabot merges a Dart dependency update (`pub` ecosystem), the pipeline automatically bumps the patch version and pushes a commit. CI runs on that commit; if it passes, a tag is created and the full build + release pipeline triggers. If CI fails — no tag, no release, just a commit on main to fix. GitHub Actions updates are auto-merged but do not trigger a release (they don't affect the shipped app).
 
