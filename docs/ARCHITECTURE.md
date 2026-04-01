@@ -1161,6 +1161,11 @@ abstract final class AppTheme {
   static Color folderIcon;         // yellow
   static Color searchHighlight;    // bright yellow
 
+  // Border radius scale
+  static const radiusSm;  // 2 px — inputs, buttons, small elements
+  static const radiusMd;  // 4 px — cards, containers, default rounding
+  static const radiusLg;  // 6 px — toasts, mobile elements, larger containers
+
   // Theme factory
   static ThemeData dark();
   static ThemeData light();
@@ -1188,6 +1193,8 @@ abstract final class AppFonts {
 Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/fonts/`.
 
 **Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware: mobile gets +2 px automatically for touch readability.
+
+**Rule:** Never use hardcoded `BorderRadius.circular(N)` or `BorderRadius.zero` — always use `AppTheme.radiusSm`, `radiusMd`, or `radiusLg`. Exception: pill-shaped elements (e.g. toggle tracks) that need full rounding.
 
 ---
 

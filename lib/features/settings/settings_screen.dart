@@ -146,7 +146,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: AppTheme.radiusLg,
         side: BorderSide(color: theme.dividerColor),
       ),
       child: ExpansionTile(
@@ -1385,11 +1385,11 @@ class _InputField extends StatelessWidget {
           fillColor: AppTheme.bg3,
           contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppTheme.radiusSm,
             borderSide: BorderSide(color: AppTheme.borderLight),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppTheme.radiusSm,
             borderSide: BorderSide(color: AppTheme.accent),
           ),
         ),
@@ -1721,9 +1721,9 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
             return Container(
               width: double.infinity,
               height: availableHeight.clamp(200.0, double.infinity),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: bg,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: AppTheme.radiusLg,
               ),
               padding: const EdgeInsets.all(8),
               child: SingleChildScrollView(

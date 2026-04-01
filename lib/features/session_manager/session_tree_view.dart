@@ -447,12 +447,12 @@ class _SessionTreeViewState extends State<SessionTreeView>
     final totalCount = widget.selectedIds.length + widget.selectedGroupPaths.length;
     return Material(
       elevation: 4,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: AppTheme.radiusMd,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: AppTheme.radiusMd,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

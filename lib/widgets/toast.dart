@@ -150,13 +150,13 @@ class _ToastWidget extends StatelessWidget {
             label: '${level.name}: $message',
             child: Material(
               elevation: 6,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: AppTheme.radiusLg,
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 360),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: AppTheme.radiusLg,
                   border: Border(left: BorderSide(color: color, width: 3)),
                 ),
                 child: Row(
@@ -176,7 +176,7 @@ class _ToastWidget extends StatelessWidget {
                       onTap: onDismiss,
                       size: 14,
                       boxSize: 20,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: AppTheme.radiusMd,
                     ),
                   ],
                 ),

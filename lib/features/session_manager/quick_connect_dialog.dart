@@ -113,7 +113,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                   height: 3,
                   decoration: BoxDecoration(
                     color: AppTheme.bg4,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: AppTheme.radiusSm,
                   ),
                 ),
               ),
@@ -369,19 +369,19 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.borderLight),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.borderLight),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.accent),
               ),
               errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.red),
               ),
               suffixIcon: suffixIcon != null

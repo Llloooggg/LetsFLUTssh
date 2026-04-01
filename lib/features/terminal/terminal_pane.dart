@@ -442,11 +442,11 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
                 fillColor: AppTheme.bg3,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.borderLight),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.accent),
                 ),
                 hintText: 'Search...',

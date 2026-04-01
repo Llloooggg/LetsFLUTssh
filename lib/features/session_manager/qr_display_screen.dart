@@ -46,9 +46,9 @@ class QrDisplayScreen extends StatelessWidget {
               // QR code with white background for reliable scanning
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: AppTheme.radiusLg,
                 ),
                 child: QrImageView(
                   data: data,
@@ -93,7 +93,7 @@ class QrDisplayScreen extends StatelessWidget {
                   color: isDark
                       ? theme.colorScheme.surfaceContainerHigh
                       : theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: AppTheme.radiusLg,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

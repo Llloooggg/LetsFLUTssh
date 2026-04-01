@@ -85,6 +85,14 @@ abstract final class AppTheme {
   static Color get hover       => isDark ? _hoverColor : const Color(0x08000000);
   static Color get active      => isDark ? _activeColor : const Color(0x0F000000);
 
+  // ── Border radius scale ──
+  /// 2 px — inputs, buttons, small elements.
+  static const radiusSm = BorderRadius.all(Radius.circular(2));
+  /// 4 px — cards, containers, default rounding.
+  static const radiusMd = BorderRadius.all(Radius.circular(4));
+  /// 6 px — toasts, mobile elements, larger containers.
+  static const radiusLg = BorderRadius.all(Radius.circular(6));
+
   static ThemeData dark() {
     const scheme = ColorScheme(
       brightness: Brightness.dark,
@@ -146,6 +154,7 @@ abstract final class AppTheme {
       popupMenuTheme: const PopupMenuThemeData(
         color: _bg1,
         shape: RoundedRectangleBorder(
+          borderRadius: radiusSm,
           side: BorderSide(color: _borderLight),
         ),
         menuPadding: EdgeInsets.symmetric(vertical: 4),
@@ -153,6 +162,7 @@ abstract final class AppTheme {
       dialogTheme: const DialogThemeData(
         backgroundColor: _bg2,
         shape: RoundedRectangleBorder(
+          borderRadius: radiusSm,
           side: BorderSide(color: _borderLight),
         ),
       ),
@@ -165,15 +175,15 @@ abstract final class AppTheme {
         filled: true,
         fillColor: _bg3,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: radiusSm,
           borderSide: BorderSide(color: _borderLight),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: radiusSm,
           borderSide: BorderSide(color: _borderLight),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: radiusSm,
           borderSide: BorderSide(color: _accent, width: 1.5),
         ),
         hintStyle: TextStyle(color: _fgFaint),
@@ -190,14 +200,14 @@ abstract final class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: _accent,
           foregroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(),
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: _fg,
           side: const BorderSide(color: _borderLight),
-          shape: const RoundedRectangleBorder(),
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -207,7 +217,7 @@ abstract final class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: _accent,
           foregroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(),
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
@@ -221,7 +231,9 @@ abstract final class AppTheme {
             return _fg;
           }),
           side: WidgetStateProperty.all(const BorderSide(color: _borderLight)),
-          shape: WidgetStateProperty.all(const RoundedRectangleBorder()),
+          shape: WidgetStateProperty.all(
+            const RoundedRectangleBorder(borderRadius: radiusSm),
+          ),
           visualDensity: VisualDensity.compact,
         ),
       ),
@@ -256,6 +268,7 @@ abstract final class AppTheme {
         decoration: BoxDecoration(
           color: _bg0,
           border: Border.all(color: _borderLight),
+          borderRadius: radiusSm,
         ),
         textStyle: TextStyle(
           fontFamily: 'Inter',
@@ -269,7 +282,7 @@ abstract final class AppTheme {
         labelStyle: const TextStyle(color: _fg),
         secondaryLabelStyle: const TextStyle(color: _accent),
         side: const BorderSide(color: _border),
-        shape: const RoundedRectangleBorder(),
+        shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         deleteIconColor: _fgDim,
         checkmarkColor: _accent,
       ),
@@ -345,12 +358,14 @@ abstract final class AppTheme {
       popupMenuTheme: const PopupMenuThemeData(
         color: Colors.white,
         shape: RoundedRectangleBorder(
+          borderRadius: radiusSm,
           side: BorderSide(color: _lightBorder),
         ),
       ),
       dialogTheme: const DialogThemeData(
         backgroundColor: _lightBg,
         shape: RoundedRectangleBorder(
+          borderRadius: radiusSm,
           side: BorderSide(color: _lightBorder),
         ),
       ),
@@ -363,15 +378,15 @@ abstract final class AppTheme {
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: radiusSm,
           borderSide: BorderSide(color: _lightBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: radiusSm,
           borderSide: BorderSide(color: _lightBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: radiusSm,
           borderSide: BorderSide(color: _lightBlue, width: 1.5),
         ),
         hintStyle: TextStyle(color: _lightGutter),
@@ -388,14 +403,14 @@ abstract final class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: _lightBlue,
           foregroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(),
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: _lightFg,
           side: const BorderSide(color: _lightBorder),
-          shape: const RoundedRectangleBorder(),
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -405,7 +420,7 @@ abstract final class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: _lightBlue,
           foregroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(),
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
@@ -419,7 +434,9 @@ abstract final class AppTheme {
             return _lightFg;
           }),
           side: WidgetStateProperty.all(const BorderSide(color: _lightBorder)),
-          shape: WidgetStateProperty.all(const RoundedRectangleBorder()),
+          shape: WidgetStateProperty.all(
+            const RoundedRectangleBorder(borderRadius: radiusSm),
+          ),
           visualDensity: VisualDensity.compact,
         ),
       ),
@@ -454,6 +471,7 @@ abstract final class AppTheme {
         decoration: BoxDecoration(
           color: _lightFg,
           border: Border.all(color: _lightBorder),
+          borderRadius: radiusSm,
         ),
         textStyle: TextStyle(color: _lightBg, fontSize: AppFonts.md),
       ),
@@ -463,7 +481,7 @@ abstract final class AppTheme {
         labelStyle: const TextStyle(color: _lightFg),
         secondaryLabelStyle: const TextStyle(color: _lightBlue),
         side: const BorderSide(color: _lightBorder),
-        shape: const RoundedRectangleBorder(),
+        shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         deleteIconColor: _lightGutter,
         checkmarkColor: _lightBlue,
       ),

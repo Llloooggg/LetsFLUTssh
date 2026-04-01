@@ -103,7 +103,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: AppTheme.connecting.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: AppTheme.radiusLg,
                   border: Border.all(color: AppTheme.connecting.withValues(alpha: 0.3)),
                 ),
                 child: Text(
