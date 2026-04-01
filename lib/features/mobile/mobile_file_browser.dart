@@ -7,6 +7,7 @@ import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import '../../widgets/app_icon_button.dart';
 import '../file_browser/file_browser_controller.dart';
 import '../file_browser/file_pane_dialogs.dart';
 import '../file_browser/sftp_initializer.dart';
@@ -144,10 +145,12 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _activeCtrl.refresh,
-                    icon: const Icon(Icons.refresh, size: 20),
-                    visualDensity: VisualDensity.compact,
+                  AppIconButton(
+                    icon: Icons.refresh,
+                    size: 20,
+                    boxSize: 36,
+                    onTap: _activeCtrl.refresh,
+                    tooltip: 'Refresh',
                   ),
                 ],
               ),
@@ -157,13 +160,19 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                 height: 40,
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: _activeCtrl.canGoBack ? _activeCtrl.goBack : null,
-                      icon: const Icon(Icons.arrow_back, size: 22),
+                    AppIconButton(
+                      icon: Icons.arrow_back,
+                      size: 22,
+                      boxSize: 36,
+                      onTap: _activeCtrl.canGoBack ? _activeCtrl.goBack : null,
+                      tooltip: 'Back',
                     ),
-                    IconButton(
-                      onPressed: _activeCtrl.navigateUp,
-                      icon: const Icon(Icons.arrow_upward, size: 22),
+                    AppIconButton(
+                      icon: Icons.arrow_upward,
+                      size: 22,
+                      boxSize: 36,
+                      onTap: _activeCtrl.navigateUp,
+                      tooltip: 'Up',
                     ),
                     const SizedBox(width: 4),
                     Expanded(
@@ -302,23 +311,31 @@ class _MobileFileListState extends State<MobileFileList> {
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: _exitSelectionMode,
-            icon: const Icon(Icons.close, size: 20),
+          AppIconButton(
+            icon: Icons.close,
+            size: 20,
+            boxSize: 36,
+            onTap: _exitSelectionMode,
+            tooltip: 'Cancel selection',
           ),
           Text('${ctrl.selected.length} selected', style: TextStyle(fontSize: AppFonts.lg)),
           const Spacer(),
-          IconButton(
-            onPressed: () {
+          AppIconButton(
+            icon: Icons.swap_horiz,
+            size: 20,
+            boxSize: 36,
+            onTap: () {
               widget.onTransferMultiple(ctrl.selectedEntries);
               _exitSelectionMode();
             },
-            icon: const Icon(Icons.swap_horiz, size: 20),
             tooltip: 'Transfer',
           ),
-          IconButton(
-            onPressed: () => _confirmDelete(context, ctrl.selectedEntries),
-            icon: const Icon(Icons.delete, size: 20),
+          AppIconButton(
+            icon: Icons.delete,
+            size: 20,
+            boxSize: 36,
+            color: AppTheme.disconnected,
+            onTap: () => _confirmDelete(context, ctrl.selectedEntries),
             tooltip: 'Delete',
           ),
         ],

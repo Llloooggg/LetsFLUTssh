@@ -915,6 +915,7 @@ AppIconButton({
   double boxSize = 26,
   Color? color,
   Color? hoverColor,
+  Color? backgroundColor,      // permanent bg (e.g. mobile buttons)
   bool active = false,         // active state highlight
   BorderRadius? borderRadius,
 })

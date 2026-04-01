@@ -210,6 +210,77 @@ void main() {
       );
     });
 
+    testWidgets('backgroundColor shows when not hovered or active',
+        (tester) async {
+      await tester.pumpWidget(buildApp(
+        AppIconButton(
+          icon: Icons.settings,
+          onTap: () {},
+          backgroundColor: AppTheme.bg3,
+        ),
+      ));
+
+      final container = tester.widget<Container>(
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (container.decoration as BoxDecoration?)?.color,
+        AppTheme.bg3,
+      );
+    });
+
+    testWidgets('hover overrides backgroundColor', (tester) async {
+      await tester.pumpWidget(buildApp(
+        AppIconButton(
+          icon: Icons.settings,
+          onTap: () {},
+          backgroundColor: AppTheme.bg3,
+        ),
+      ));
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(tester.getCenter(find.byType(AppIconButton)));
+      await tester.pump();
+
+      final container = tester.widget<Container>(
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (container.decoration as BoxDecoration?)?.color,
+        AppTheme.hover,
+      );
+    });
+
+    testWidgets('active overrides backgroundColor', (tester) async {
+      await tester.pumpWidget(buildApp(
+        AppIconButton(
+          icon: Icons.settings,
+          onTap: () {},
+          backgroundColor: AppTheme.bg3,
+          active: true,
+        ),
+      ));
+
+      final container = tester.widget<Container>(
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (container.decoration as BoxDecoration?)?.color,
+        AppTheme.active,
+      );
+    });
+
     testWidgets('disabled button does not show hover bg', (tester) async {
       await tester.pumpWidget(buildApp(
         const AppIconButton(icon: Icons.close), // onTap is null = disabled

@@ -9,6 +9,7 @@ import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import '../session_manager/session_connect.dart';
 import '../session_manager/session_panel.dart';
+import '../../widgets/app_icon_button.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_controller.dart';
 import '../tabs/tab_model.dart';
@@ -98,20 +99,14 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                     );
                   }),
                   const Spacer(),
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: IconButton(
-                      onPressed: () => SettingsScreen.show(context),
-                      padding: EdgeInsets.zero,
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppTheme.bg3,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: AppTheme.radiusLg,
-                        ),
-                      ),
-                      icon: Icon(Icons.settings, size: 15, color: AppTheme.fgDim),
-                    ),
+                  AppIconButton(
+                    icon: Icons.settings,
+                    size: 15,
+                    boxSize: 32,
+                    backgroundColor: AppTheme.bg3,
+                    borderRadius: AppTheme.radiusLg,
+                    onTap: () => SettingsScreen.show(context),
+                    tooltip: 'Settings',
                   ),
                 ],
               ),
