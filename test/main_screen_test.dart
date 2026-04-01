@@ -381,7 +381,7 @@ void main() {
       expect(sftpButton, findsNothing);
     });
 
-    testWidgets('settings button opens settings screen', (tester) async {
+    testWidgets('settings button toggles to settings mode', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
@@ -390,7 +390,9 @@ void main() {
       await tester.tap(settingsButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('Settings'), findsWidgets);
+      // Settings sidebar header and section labels are visible
+      expect(find.text('SETTINGS'), findsOneWidget);
+      expect(find.text('Appearance'), findsWidgets);
     });
   });
 
