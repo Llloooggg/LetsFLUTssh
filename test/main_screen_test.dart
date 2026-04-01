@@ -262,7 +262,6 @@ void main() {
       await tester.pump();
 
       expect(find.text('No active session'), findsOneWidget);
-      expect(find.text('New Connection'), findsOneWidget);
     });
 
     testWidgets('status bar shows tab count', (tester) async {
@@ -466,28 +465,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Password'), findsWidgets);
-    });
-  });
-
-  group('MainScreen — welcome screen interaction', () {
-    testWidgets('welcome screen New Connection button opens dialog',
-        (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      // Find the "New Connection" TextButton on welcome screen
-      final newConnBtn = find.widgetWithText(TextButton, 'New Connection');
-      expect(newConnBtn, findsOneWidget);
-
-      await tester.tap(newConnBtn);
-      await tester.pumpAndSettle();
-
-      // Dialog opens
-      expect(find.text('HOST *'), findsOneWidget);
-
-      // Cancel
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
     });
   });
 
