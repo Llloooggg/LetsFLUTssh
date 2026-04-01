@@ -113,8 +113,8 @@ class _SessionTreeViewState extends State<SessionTreeView>
 
   static final bool _mobile = isMobilePlatform;
   double get _rowHeight => _mobile ? 48.0 : 28.0;
-  double get _fontSize => _mobile ? 15.0 : 11.0;
-  double get _subFontSize => _mobile ? 12.0 : 9.0;
+  double get _fontSize => AppFonts.sm;
+  double get _subFontSize => AppFonts.tiny;
   double get _iconSize => _mobile ? 20.0 : 12.0;
   double get _authIconSize => _mobile ? 18.0 : 12.0;
 
