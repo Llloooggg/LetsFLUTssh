@@ -1772,7 +1772,10 @@ Non-code commit (test/docs/ci/chore)
 
 ### SDK Constraints
 
-See `pubspec.yaml` → `environment` section for exact SDK constraints.
+- **Flutter** ≥ 3.41.0 (stable channel)
+- **Dart** ≥ 3.11.3 (ships with Flutter ≥ 3.41.0)
+
+See `pubspec.yaml` → `environment` section for the canonical constraint. Run `flutter --version` to check.
 
 ### Lint Rules
 

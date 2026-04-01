@@ -4,7 +4,7 @@
 
 **Prerequisites:**
 
-- [Flutter SDK](https://flutter.dev/docs/get-started/install) 3.x (Dart 3.x included)
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) **≥ 3.41.0** (ships Dart ≥ 3.11.3)
 - Platform-specific toolchain (see below)
 
 ### Linux (Debian/Ubuntu)
