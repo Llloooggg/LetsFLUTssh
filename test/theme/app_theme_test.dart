@@ -148,24 +148,24 @@ void main() {
   });
 
   group('border radius constants', () {
-    test('radiusSm is 2px', () {
+    test('radiusSm is 4px', () {
       expect(
         AppTheme.radiusSm,
-        const BorderRadius.all(Radius.circular(2)),
-      );
-    });
-
-    test('radiusMd is 4px', () {
-      expect(
-        AppTheme.radiusMd,
         const BorderRadius.all(Radius.circular(4)),
       );
     });
 
-    test('radiusLg is 6px', () {
+    test('radiusMd is 6px', () {
+      expect(
+        AppTheme.radiusMd,
+        const BorderRadius.all(Radius.circular(6)),
+      );
+    });
+
+    test('radiusLg is 8px', () {
       expect(
         AppTheme.radiusLg,
-        const BorderRadius.all(Radius.circular(6)),
+        const BorderRadius.all(Radius.circular(8)),
       );
     });
 
@@ -203,6 +203,78 @@ void main() {
       final theme = AppTheme.dark();
       final shape = theme.chipTheme.shape as RoundedRectangleBorder;
       expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('dark text button shape uses radiusSm', () {
+      final theme = AppTheme.dark();
+      final shape = theme.textButtonTheme.style!.shape!.resolve({}) as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('light text button shape uses radiusSm', () {
+      final theme = AppTheme.light();
+      final shape = theme.textButtonTheme.style!.shape!.resolve({}) as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('dark icon button shape uses radiusSm', () {
+      final theme = AppTheme.dark();
+      final shape = theme.iconButtonTheme.style!.shape!.resolve({}) as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('light icon button shape uses radiusSm', () {
+      final theme = AppTheme.light();
+      final shape = theme.iconButtonTheme.style!.shape!.resolve({}) as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('dark checkbox shape uses radiusSm', () {
+      final theme = AppTheme.dark();
+      final shape = theme.checkboxTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('light checkbox shape uses radiusSm', () {
+      final theme = AppTheme.light();
+      final shape = theme.checkboxTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('dark card shape uses radiusSm', () {
+      final theme = AppTheme.dark();
+      final shape = theme.cardTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('light card shape uses radiusSm', () {
+      final theme = AppTheme.light();
+      final shape = theme.cardTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('dark snackBar shape uses radiusSm', () {
+      final theme = AppTheme.dark();
+      final shape = theme.snackBarTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('light snackBar shape uses radiusSm', () {
+      final theme = AppTheme.light();
+      final shape = theme.snackBarTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('dark bottomSheet has rounded top corners', () {
+      final theme = AppTheme.dark();
+      final shape = theme.bottomSheetTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, const BorderRadius.vertical(top: Radius.circular(8)));
+    });
+
+    test('light bottomSheet has rounded top corners', () {
+      final theme = AppTheme.light();
+      final shape = theme.bottomSheetTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, const BorderRadius.vertical(top: Radius.circular(8)));
     });
   });
 
