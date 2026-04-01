@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../../widgets/clipped_row.dart';
 
 /// File extensions grouped by type for icon/color mapping.
 const _imageExts = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'};
@@ -121,9 +122,7 @@ class FileRow extends StatelessWidget {
           height: 26,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           color: isSelected ? AppTheme.selection : null,
-          child: Flex(
-            direction: Axis.horizontal,
-            clipBehavior: Clip.hardEdge,
+          child: ClippedRow(
             children: [
               Icon(
                 fileIcon(entry),

@@ -12,6 +12,7 @@ import 'core/import/import_service.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
+import 'widgets/clipped_row.dart';
 import 'widgets/cross_marquee_controller.dart';
 import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
@@ -782,9 +783,7 @@ class _ConnectionBar extends StatelessWidget {
         color: scheme.surfaceContainerHigh,
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
-      child: Flex(
-        direction: Axis.horizontal,
-        clipBehavior: Clip.hardEdge,
+      child: ClippedRow(
         children: [
           Container(
             width: 5,
