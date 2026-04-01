@@ -159,11 +159,22 @@ abstract final class AppTheme {
         ),
         menuPadding: EdgeInsets.symmetric(vertical: 4),
       ),
-      dialogTheme: const DialogThemeData(
+      dialogTheme: DialogThemeData(
         backgroundColor: _bg2,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: radiusSm,
           side: BorderSide(color: _borderLight),
+        ),
+        titleTextStyle: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: AppFonts.lg,
+          fontWeight: FontWeight.w600,
+          color: _fg,
+        ),
+        contentTextStyle: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: AppFonts.sm,
+          color: _fg,
         ),
       ),
       textSelectionTheme: TextSelectionThemeData(
@@ -362,11 +373,22 @@ abstract final class AppTheme {
           side: BorderSide(color: _lightBorder),
         ),
       ),
-      dialogTheme: const DialogThemeData(
+      dialogTheme: DialogThemeData(
         backgroundColor: _lightBg,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: radiusSm,
           side: BorderSide(color: _lightBorder),
+        ),
+        titleTextStyle: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: AppFonts.lg,
+          fontWeight: FontWeight.w600,
+          color: _lightFg,
+        ),
+        contentTextStyle: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: AppFonts.sm,
+          color: _lightFg,
         ),
       ),
       textSelectionTheme: TextSelectionThemeData(
