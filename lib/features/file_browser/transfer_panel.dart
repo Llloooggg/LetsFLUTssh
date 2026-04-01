@@ -70,7 +70,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                     : BorderSide.none,
               ),
             ),
-            child: Row(
+            child: Flex(
+              direction: Axis.horizontal,
+              clipBehavior: Clip.hardEdge,
               children: [
                 Icon(
                   _expanded ? Icons.expand_more : Icons.chevron_right,
@@ -224,7 +226,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         color: AppTheme.bg0,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
-      child: Row(
+      child: Flex(
+        direction: Axis.horizontal,
+        clipBehavior: Clip.hardEdge,
         children: [
           Icon(Icons.circle, size: 5, color: AppTheme.green),
           const SizedBox(width: 6),
