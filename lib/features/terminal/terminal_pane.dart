@@ -435,7 +435,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
               controller: _searchController,
               focusNode: _searchFocusNode,
               autofocus: true,
-              style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
+              style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
               decoration: InputDecoration(
                 isDense: true,
                 filled: true,
@@ -450,11 +450,11 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
                   borderSide: BorderSide(color: AppTheme.accent),
                 ),
                 hintText: 'Search...',
-                hintStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgFaint),
+                hintStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
                 suffixText: _totalMatches > 0
                     ? '${_currentMatchIndex + 1}/$_totalMatches'
                     : null,
-                suffixStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgDim),
+                suffixStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgDim),
               ),
               onChanged: (_) => _debouncedSearch(),
               onSubmitted: (_) => _nextMatch(),

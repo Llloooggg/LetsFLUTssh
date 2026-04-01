@@ -106,19 +106,19 @@ class _HostKeyDialogWidget extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppTheme.connecting.withValues(alpha: 0.3)),
                 ),
-                child: const Text(
+                child: Text(
                   'WARNING: The host key for this server has changed. '
                   'This could indicate a man-in-the-middle attack, '
                   'or the server may have been reinstalled.',
-                  style: TextStyle(fontSize: 13),
+                  style: TextStyle(fontSize: AppFonts.lg),
                 ),
               ),
               const SizedBox(height: 16),
             ] else
-              const Text(
+              Text(
                 'The authenticity of this host cannot be established. '
                 'Are you sure you want to continue connecting?',
-                style: TextStyle(fontSize: 13),
+                style: TextStyle(fontSize: AppFonts.lg),
               ),
             const SizedBox(height: 12),
             _InfoRow(label: 'Host', value: '$host:$port'),
@@ -133,7 +133,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
                   child: Text(
                     'Fingerprint',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppFonts.md,
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
@@ -141,9 +141,9 @@ class _HostKeyDialogWidget extends StatelessWidget {
                 Expanded(
                   child: SelectableText(
                     fingerprint,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 12,
+                      fontSize: AppFonts.md,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -201,7 +201,7 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppFonts.md,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
@@ -209,7 +209,7 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: AppFonts.lg, fontWeight: FontWeight.w500),
           ),
         ),
       ],

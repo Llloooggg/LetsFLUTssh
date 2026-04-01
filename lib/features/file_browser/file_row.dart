@@ -133,7 +133,7 @@ class FileRow extends StatelessWidget {
                 child: Text(
                   entry.name,
                   style: AppFonts.mono(
-                    fontSize: 11,
+                    fontSize: AppFonts.sm,
                     color: entry.isDir ? AppTheme.fg : AppTheme.fgDim,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -146,7 +146,7 @@ class FileRow extends StatelessWidget {
                   entry.isDir
                       ? (folderSizeText ?? '')
                       : formatSize(entry.size),
-                  style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                 ),
               ),
               _colDivider(),
@@ -154,7 +154,7 @@ class FileRow extends StatelessWidget {
                 width: modifiedWidth,
                 child: Text(
                   formatTimestamp(entry.modTime),
-                  style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                 ),
               ),
               _colDivider(),
@@ -162,7 +162,7 @@ class FileRow extends StatelessWidget {
                 width: modeWidth,
                 child: Text(
                   entry.modeString,
-                  style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                 ),
               ),
               if (entry.owner.isNotEmpty) ...[
@@ -171,7 +171,7 @@ class FileRow extends StatelessWidget {
                   width: ownerWidth,
                   child: Text(
                     entry.owner,
-                    style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

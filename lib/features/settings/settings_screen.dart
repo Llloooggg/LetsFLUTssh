@@ -149,7 +149,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
       ),
       child: ExpansionTile(
         leading: Icon(widget.icon, size: 20),
-        title: Text(widget.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+        title: Text(widget.title, style: TextStyle(fontSize: AppFonts.lg, fontWeight: FontWeight.w500)),
         initiallyExpanded: _expanded,
         onExpansionChanged: (v) => setState(() => _expanded = v),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -199,9 +199,8 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
                   const SizedBox(width: 12),
                   Text(
                     'Settings',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13,
+                    style: AppFonts.inter(
+                      fontSize: AppFonts.lg,
                       fontWeight: FontWeight.w600,
                       color: scheme.onSurface,
                     ),
@@ -251,18 +250,18 @@ class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> 
                     data: ListTileThemeData(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      titleTextStyle: TextStyle(
-                        fontFamily: 'Inter', fontSize: 11, color: scheme.onSurface,
+                      titleTextStyle: AppFonts.inter(
+                        fontSize: AppFonts.sm, color: scheme.onSurface,
                       ),
-                      subtitleTextStyle: TextStyle(
-                        fontFamily: 'Inter', fontSize: 10, color: scheme.onSurfaceVariant,
+                      subtitleTextStyle: AppFonts.inter(
+                        fontSize: AppFonts.xs, color: scheme.onSurfaceVariant,
                       ),
-                      leadingAndTrailingTextStyle: TextStyle(
-                        fontFamily: 'Inter', fontSize: 10, color: scheme.onSurface.withValues(alpha: 0.45),
+                      leadingAndTrailingTextStyle: AppFonts.inter(
+                        fontSize: AppFonts.xs, color: scheme.onSurface.withValues(alpha: 0.45),
                       ),
                     ),
                     child: DefaultTextStyle(
-                      style: AppFonts.inter(fontSize: 11, color: scheme.onSurface),
+                      style: AppFonts.inter(fontSize: AppFonts.sm, color: scheme.onSurface),
                       child: ListView(
                         key: ValueKey(_selectedIndex),
                         padding: const EdgeInsets.all(24),
@@ -332,9 +331,8 @@ class _NavItemState extends State<_NavItem> {
                 child: Text(
                   widget.label,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.sm,
                     fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
                     color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
                   ),
@@ -376,9 +374,8 @@ class _ResetButtonState extends State<_ResetButton> {
                 child: Text(
                   'Reset to Defaults',
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.xs,
                     color: AppTheme.red,
                   ),
                 ),
@@ -764,7 +761,7 @@ class _ExportImportTile extends ConsumerWidget {
               ? 'Add new sessions, keep existing'
               : 'Replace all sessions with imported',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: AppFonts.md,
             color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
@@ -974,7 +971,7 @@ class _UpdateSection extends ConsumerWidget {
           title: const Text('Update check failed'),
           subtitle: Text(
             updateState.error ?? 'Unknown error',
-            style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+            style: TextStyle(fontSize: AppFonts.md, color: theme.colorScheme.error),
           ),
           contentPadding: EdgeInsets.zero,
         );
@@ -1063,7 +1060,7 @@ class _UpdateSection extends ConsumerWidget {
           title: const Text('Download complete'),
           subtitle: Text(
             updateState.downloadedPath ?? '',
-            style: const TextStyle(fontSize: 12),
+            style: TextStyle(fontSize: AppFonts.md),
             overflow: TextOverflow.ellipsis,
           ),
           contentPadding: EdgeInsets.zero,
@@ -1110,7 +1107,7 @@ class _AboutSection extends ConsumerWidget {
             _githubUrl,
             style: TextStyle(
               color: theme.colorScheme.primary,
-              fontSize: 13,
+              fontSize: AppFonts.xs,
             ),
           ),
           contentPadding: EdgeInsets.zero,
@@ -1138,9 +1135,8 @@ class _SectionHeader extends StatelessWidget {
       ),
       child: Text(
         title,
-        style: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 12,
+        style: AppFonts.inter(
+          fontSize: AppFonts.md,
           fontWeight: FontWeight.w600,
           color: AppTheme.accent,
         ),
@@ -1171,7 +1167,7 @@ class _SettingsRow extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: AppFonts.inter(fontSize: 11, color: AppTheme.fg),
+                style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
               ),
             ),
             const SizedBox(width: 24),
@@ -1259,7 +1255,7 @@ class _SegmentControl extends StatelessWidget {
             child: Text(
               labels[i],
               style: AppFonts.inter(
-                fontSize: 11,
+                fontSize: AppFonts.sm,
                 fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                 color: isSelected ? Colors.white : AppTheme.fgDim,
               ),
@@ -1325,7 +1321,7 @@ class _SliderField extends StatelessWidget {
         const SizedBox(width: 12),
         Text(
           format(value),
-          style: AppFonts.mono(fontSize: 11, color: AppTheme.fgDim),
+          style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgDim),
         ),
       ],
     );
@@ -1391,7 +1387,7 @@ class _InputField extends StatelessWidget {
         initialValue: initialValue,
         keyboardType: keyboardType,
         textAlign: TextAlign.center,
-        style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
+        style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
         decoration: InputDecoration(
           isDense: true,
           filled: true,
@@ -1550,7 +1546,7 @@ class _DataPathTile extends StatelessWidget {
         return ListTile(
           leading: const Icon(Icons.folder_special, size: 20),
           title: const Text('Data Location'),
-          subtitle: Text(path, style: const TextStyle(fontSize: 12)),
+          subtitle: Text(path, style: TextStyle(fontSize: AppFonts.md)),
           contentPadding: EdgeInsets.zero,
           onTap: () {
             Clipboard.setData(ClipboardData(text: path));
@@ -1694,7 +1690,7 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
           children: [
             Icon(Icons.circle, size: 8, color: fg),
             const SizedBox(width: 6),
-            Text('Live Log', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
+            Text('Live Log', style: TextStyle(fontSize: AppFonts.md, color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
             const Spacer(),
             AppIconButton(
               icon: Icons.copy,
@@ -1743,7 +1739,7 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
                 controller: _scrollController,
                 child: SelectableText(
                   _content.isEmpty ? '(no log entries yet)' : _content,
-                  style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: fg, height: 1.4),
+                  style: TextStyle(fontSize: AppFonts.sm, fontFamily: 'monospace', color: fg, height: 1.4),
                 ),
               ),
             );

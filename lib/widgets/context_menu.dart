@@ -244,7 +244,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                   item.label ?? '',
                   style: TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 11,
+                    fontSize: AppFonts.sm,
                     color: fgColor,
                   ),
                 ),
@@ -258,7 +258,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                     item.shortcut!,
                     style: TextStyle(
                       fontFamily: 'JetBrains Mono',
-                      fontSize: 9,
+                      fontSize: AppFonts.xxs,
                       color: shortcutFg,
                     ),
                   ),

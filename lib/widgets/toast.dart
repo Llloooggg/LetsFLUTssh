@@ -167,7 +167,7 @@ class _ToastWidget extends StatelessWidget {
                     Flexible(
                       child: Text(
                         message,
-                        style: const TextStyle(fontSize: 13),
+                        style: TextStyle(fontSize: AppFonts.lg),
                       ),
                     ),
                     const SizedBox(width: 8),

@@ -244,7 +244,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           Text(
             ctrl.label.toUpperCase(),
             style: AppFonts.inter(
-              fontSize: 10,
+              fontSize: AppFonts.xs,
               fontWeight: FontWeight.w600,
               color: labelColor,
             ),
@@ -277,17 +277,17 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         InkWell(
           onTap: () => ctrl.navigateTo(rootPath),
           child: rootLabel != null
-              ? Text(rootLabel, style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint))
+              ? Text(rootLabel, style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint))
               : Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
         ),
         for (var i = 0; i < navParts.length; i++) ...[
-          Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint)),
+          Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint)),
           InkWell(
             onTap: () => _navigateToPart(isWindows, parts, navParts, i),
             child: Text(
               navParts[i],
               style: AppFonts.mono(
-                fontSize: 10,
+                fontSize: AppFonts.xs,
                 color: i == navParts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
               ),
               overflow: TextOverflow.ellipsis,
@@ -326,7 +326,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         controller: _pathController,
         focusNode: _pathFocusNode,
         autofocus: true,
-        style: AppFonts.mono(fontSize: 10, color: AppTheme.fg),
+        style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fg),
         decoration: InputDecoration(
           isDense: true,
           filled: true,
@@ -341,7 +341,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
             borderSide: BorderSide(color: AppTheme.accent),
           ),
           hintText: ctrl.currentPath,
-          hintStyle: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+          hintStyle: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
         ),
         onSubmitted: (val) {
           setState(() => _editingPath = false);
@@ -369,7 +369,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
   Widget _buildColumnHeaders(ThemeData theme) {
     final headerStyle = AppFonts.inter(
-      fontSize: 10,
+      fontSize: AppFonts.xs,
       fontWeight: FontWeight.w500,
       color: AppTheme.fgFaint,
     );
@@ -537,12 +537,12 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           const SizedBox(height: 12),
           Text(
             'Connection error',
-            style: AppFonts.inter(fontSize: 13, color: AppTheme.fgDim),
+            style: AppFonts.inter(fontSize: AppFonts.lg, color: AppTheme.fgDim),
           ),
           const SizedBox(height: 4),
           Text(
             ctrl.error!,
-            style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint),
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -556,7 +556,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               child: Text(
                 'Retry',
                 style: AppFonts.inter(
-                  fontSize: 11,
+                  fontSize: AppFonts.sm,
                   fontWeight: FontWeight.w500,
                   color: AppTheme.fgDim,
                 ),
@@ -579,7 +579,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       child: Center(
         child: Text(
           'Empty directory',
-          style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint),
+          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
         ),
       ),
     );
@@ -689,7 +689,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               dragEntries.length > 1
                   ? '${dragEntries.length} items'
                   : entry.name,
-              style: const TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: AppFonts.md),
             ),
           ],
         ),
@@ -702,7 +702,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   Widget _buildFooter(ThemeData theme) {
     final count = ctrl.entries.length;
     final selCount = ctrl.selected.length;
-    final style = AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint);
+    final style = AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint);
 
     return Container(
       height: 22,

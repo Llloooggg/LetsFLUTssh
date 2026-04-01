@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../features/settings/export_import.dart';
+import '../theme/app_theme.dart';
 
 /// Result from the LFS import password dialog.
 typedef LfsImportDialogResult = ({String password, ImportMode mode});
@@ -47,7 +48,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
   @override
   Widget build(BuildContext context) {
     final subtleStyle = TextStyle(
-      fontSize: 12,
+      fontSize: AppFonts.md,
       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
     );
 
