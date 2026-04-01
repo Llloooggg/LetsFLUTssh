@@ -1615,7 +1615,7 @@ Uses `mockito` + `@GenerateMocks`. Generated mocks: `*.mocks.dart`.
 
 Two branches: **`dev`** (daily work) and **`main`** (releases only).
 
-- All app development happens on `dev`. Push freely — CI, SonarCloud, OSV-Scanner run on every push. No tags, no builds, no releases.
+- All app development happens on `dev`. Push freely — CI, SonarCloud, OSV-Scanner, Semgrep run on every push. No tags, no builds, no releases.
 - To release: merge `dev` → `main`. Everything is automatic: CI → auto-tag → build → release.
 - Never push app changes directly to `main`. Dependabot PRs and CI/docs-only fixes are exceptions.
 
@@ -1632,6 +1632,7 @@ push to dev (daily work)
   │
   ├─► osv-scanner.yml      (paths: pubspec.*)
   ├─► codeql.yml           (paths: .github/**)
+  ├─► semgrep.yml          (paths: lib/, test/)
   └─► (no tags, no builds, no releases)
 
 merge dev → main (release)
@@ -1650,7 +1651,8 @@ merge dev → main (release)
   │                       → GitHub Release + SLSA attestation
   │
   ├─► scorecard.yml        (OpenSSF Scorecard)
-  └─► codeql.yml           (Actions analysis)
+  ├─► codeql.yml           (Actions analysis)
+  └─► semgrep.yml          (SAST — Dart code scanning)
 
 Dependabot PR merged (into main)
   │
@@ -1678,6 +1680,7 @@ Non-code PR (docs/test/ci)
 | `osv-scanner.yml` | push pubspec.* / weekly | main, dev | CVE scan (pubspec.lock) | No (optional in preflight) |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 | `codeql.yml` | push .github/ / weekly | main, dev | GitHub Actions analysis | No |
+| `semgrep.yml` | push lib/, test/ / weekly | main, dev | SAST scan (Dart code) | No |
 | `dependabot-release.yml` | PR closed (dependabot) | main | Patch bump after dep merge | — |
 | `dependabot-tag.yml` | workflow_run[CI] + chore(deps) | main | Tag after dep bump | — |
 | `dependabot-automerge.yml` | PR (dependabot) | main | Auto-merge patch/minor | — |
