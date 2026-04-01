@@ -361,6 +361,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     Session session,
     Offset position,
   ) {
+    if (isMobilePlatform) {
+      _showMobileSessionSheet(context, ref, session);
+      return;
+    }
     showAppContextMenu(
       context: context,
       position: position,
@@ -391,12 +395,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           shortcut: 'Ctrl+D',
           onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
         ),
-        if (isMobilePlatform)
-          ContextMenuItem(
-            label: 'Move to...',
-            icon: Icons.drive_file_move,
-            onTap: () => _moveSession(context, ref, session),
-          ),
         const ContextMenuItem.divider(),
         ContextMenuItem(
           label: 'Delete',
@@ -406,6 +404,76 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           onTap: () => _confirmDelete(context, ref, session),
         ),
       ],
+    );
+  }
+
+  void _showMobileSessionSheet(BuildContext context, WidgetRef ref, Session session) {
+    final label = session.label.isNotEmpty ? session.label : session.displayName;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (session.host.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    session.host,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Icon(Icons.terminal, color: AppTheme.blue),
+                title: const Text('Terminal'),
+                onTap: () { Navigator.pop(ctx); widget.onConnect(session); },
+              ),
+              if (widget.onSftpConnect != null)
+                ListTile(
+                  leading: Icon(Icons.folder, color: AppTheme.yellow),
+                  title: const Text('Files'),
+                  onTap: () { Navigator.pop(ctx); widget.onSftpConnect?.call(session); },
+                ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Edit Connection'),
+                onTap: () { Navigator.pop(ctx); _editSession(context, ref, session); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text('Duplicate'),
+                onTap: () { Navigator.pop(ctx); ref.read(sessionProvider.notifier).duplicate(session.id); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_file_move),
+                title: const Text('Move to...'),
+                onTap: () { Navigator.pop(ctx); _moveSession(context, ref, session); },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.delete, color: AppTheme.disconnected),
+                title: const Text('Delete', style: TextStyle(color: AppTheme.disconnected)),
+                onTap: () { Navigator.pop(ctx); _confirmDelete(context, ref, session); },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -477,6 +545,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     String groupPath,
     Offset position,
   ) {
+    if (isMobilePlatform) {
+      _showMobileGroupSheet(context, ref, groupPath);
+      return;
+    }
     showAppContextMenu(
       context: context,
       position: position,
@@ -507,6 +579,55 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           ),
         ],
       ],
+    );
+  }
+
+  void _showMobileGroupSheet(BuildContext context, WidgetRef ref, String groupPath) {
+    final folderName = groupPath.isEmpty ? 'Root' : groupPath.split('/').last;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Text(
+                  folderName,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text('New Connection'),
+                onTap: () { Navigator.pop(ctx); _addSessionInGroup(context, ref, groupPath); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.create_new_folder),
+                title: const Text('New Folder'),
+                onTap: () { Navigator.pop(ctx); _createFolder(context, ref, groupPath); },
+              ),
+              if (groupPath.isNotEmpty) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.drive_file_rename_outline),
+                  title: const Text('Rename Group'),
+                  onTap: () { Navigator.pop(ctx); _renameFolder(context, ref, groupPath); },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete, color: AppTheme.disconnected),
+                  title: const Text('Delete Group', style: TextStyle(color: AppTheme.disconnected)),
+                  onTap: () { Navigator.pop(ctx); _confirmDeleteFolder(context, ref, groupPath); },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 
