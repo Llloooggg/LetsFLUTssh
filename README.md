@@ -39,7 +39,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 | **Android** | 7.0+ (API 24) | primary test platform |
 | **Linux** | x64, GTK 3 | occasionally tested |
 | **macOS** | 10.15+ (Intel + Apple Silicon) | occasionally tested |
-| **iOS** | 13.0+ | builds provided as-is |
+| **iOS** | 13.0+ | not built (no Apple hardware) |
 
 ## Installation
 
