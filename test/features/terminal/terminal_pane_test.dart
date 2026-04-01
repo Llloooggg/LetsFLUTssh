@@ -434,7 +434,7 @@ void main() {
       }).first;
       final boxDeco = container.decoration as BoxDecoration;
       final border = boxDeco.border as Border;
-      expect(border.top.width, 0.5);
+      expect(border.top.width, 1.0);
     });
 
     testWidgets('unfocused pane has divider border color when hasMultiplePanes', (tester) async {
@@ -461,7 +461,7 @@ void main() {
       }).first;
       final boxDeco = container.decoration as BoxDecoration;
       final border = boxDeco.border as Border;
-      expect(border.top.width, 0.5);
+      expect(border.top.width, 1.0);
     });
 
     testWidgets('single pane (hasMultiplePanes=false) has no border', (tester) async {
@@ -2285,6 +2285,98 @@ void main() {
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform, null,
       );
+    });
+  });
+
+  group('TerminalPane — focus border', () {
+    testWidgets('focused pane with multiple panes shows accent border', (tester) async {
+      final conn = _testConnection(id: 'focus-border-1');
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              hasMultiplePanes: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the Container with BoxDecoration that has the border
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final borderContainer = containers.where((c) {
+        final dec = c.decoration;
+        if (dec is BoxDecoration && dec.border is Border) {
+          final border = dec.border! as Border;
+          return border.top.color == AppTheme.accent;
+        }
+        return false;
+      });
+      expect(borderContainer, isNotEmpty, reason: 'focused pane should have accent border');
+    });
+
+    testWidgets('unfocused pane with multiple panes shows bg0 border', (tester) async {
+      final conn = _testConnection(id: 'focus-border-2');
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: false,
+              hasMultiplePanes: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final borderContainer = containers.where((c) {
+        final dec = c.decoration;
+        if (dec is BoxDecoration && dec.border is Border) {
+          final border = dec.border! as Border;
+          return border.top.color == AppTheme.bg0;
+        }
+        return false;
+      });
+      expect(borderContainer, isNotEmpty, reason: 'unfocused pane should have bg0 border');
+    });
+
+    testWidgets('single pane has no border', (tester) async {
+      final conn = _testConnection(id: 'focus-border-3');
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              hasMultiplePanes: false,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final borderContainer = containers.where((c) {
+        final dec = c.decoration;
+        if (dec is BoxDecoration && dec.border != null) {
+          return true;
+        }
+        return false;
+      });
+      expect(borderContainer, isEmpty, reason: 'single pane should have no border');
     });
   });
 }
