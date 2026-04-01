@@ -674,10 +674,13 @@ class _Toolbar extends StatelessWidget {
           )
         else
           AppIconButton(
-            icon: Icons.view_sidebar,
+            icon: sidebarOpen
+                ? Icons.chevron_left
+                : Icons.chevron_right,
             onTap: onToggleSidebar,
-            tooltip: 'Sidebar (Ctrl+B)',
-            active: sidebarOpen,
+            tooltip: sidebarOpen
+                ? 'Hide Sidebar (Ctrl+B)'
+                : 'Show Sidebar (Ctrl+B)',
           ),
         const Spacer(),
         if (isTerminalTab) ...[
