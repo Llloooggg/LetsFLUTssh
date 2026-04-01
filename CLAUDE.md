@@ -89,6 +89,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 - Easy data transfer between devices — `.lfs` archive format → [§3.9 Import](docs/ARCHITECTURE.md#39-import-coreimport)
 - Session grouping — tree with nested subfolders (e.g. `Production/Web/nginx1`) → [§3.4 Sessions](docs/ARCHITECTURE.md#34-session-management-coresession)
 - **Cross-platform verification** — Android change → also check iOS; Windows change → also check Linux + macOS. Verify all sibling platforms before committing → [§12 Platform-Specific](docs/ARCHITECTURE.md#12-platform-specific-behavior)
+- **Best practices by default** — always implement using best practices. If the user's request leads to a hacky or suboptimal solution, push back and propose a best-practice alternative. Explain why. Only implement a hacky approach if the user explicitly confirms after hearing the alternative
 
 ### Versioning & Tagging
 
