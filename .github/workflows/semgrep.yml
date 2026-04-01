@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Run Semgrep
-        run: semgrep scan --config auto --sarif --sarif-output=semgrep.sarif --include='*.dart' --verbose lib/ test/ 2>&1 | tail -50
+        run: semgrep scan --config auto --sarif --sarif-output=semgrep.sarif lib/ test/
 
       - name: Upload SARIF results
         if: always()

@@ -1,0 +1,2 @@
+# Override default semgrepignore to include test/ in scanning.
+# Default patterns exclude test/ directories — we want them scanned.
