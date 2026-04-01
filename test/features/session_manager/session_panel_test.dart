@@ -29,24 +29,24 @@ class _PrePopulatedSessionNotifier extends SessionNotifier {
 /// A fake SessionStore that doesn't use path_provider.
 class FakeSessionStore extends SessionStore {
   final List<Session> _fakeSessions;
-  final Set<String> _fakeEmptyGroups;
+  final Set<String> _fakeEmptyFolders;
 
   FakeSessionStore({
     List<Session>? sessions,
-    Set<String>? emptyGroups,
+    Set<String>? emptyFolders,
   })  : _fakeSessions = sessions ?? [],
-        _fakeEmptyGroups = emptyGroups ?? {};
+        _fakeEmptyFolders = emptyFolders ?? {};
 
   @override
   List<Session> get sessions => List.unmodifiable(_fakeSessions);
 
   @override
-  Set<String> get emptyGroups => Set.unmodifiable(_fakeEmptyGroups);
+  Set<String> get emptyFolders => Set.unmodifiable(_fakeEmptyFolders);
 
   @override
-  List<String> groups() {
+  List<String> folders() {
     final g = _fakeSessions
-        .map((s) => s.group)
+        .map((s) => s.folder)
         .where((g) => g.isNotEmpty)
         .toSet()
         .toList();
@@ -55,22 +55,22 @@ class FakeSessionStore extends SessionStore {
   }
 
   @override
-  int countSessionsInGroup(String groupPath) {
+  int countSessionsInFolder(String groupPath) {
     return _fakeSessions
         .where(
-            (s) => s.group == groupPath || s.group.startsWith('$groupPath/'))
+            (s) => s.folder == groupPath || s.folder.startsWith('$groupPath/'))
         .length;
   }
 
   @override
-  List<Session> byGroup(String group) {
-    return _fakeSessions.where((s) => s.group == group).toList();
+  List<Session> byFolder(String folder) {
+    return _fakeSessions.where((s) => s.folder == folder).toList();
   }
 
   @override
   Future<Session> duplicateSession(String id) async {
     final original = _fakeSessions.firstWhere((s) => s.id == id);
-    final copy = Session(label: '${original.label} (copy)', group: original.group, server: ServerAddress(host: original.host, port: original.port, user: original.user), auth: SessionAuth(authType: original.authType));
+    final copy = Session(label: '${original.label} (copy)', folder: original.folder, server: ServerAddress(host: original.host, port: original.port, user: original.user), auth: SessionAuth(authType: original.authType));
     _fakeSessions.add(copy);
     return copy;
   }
@@ -83,34 +83,34 @@ class FakeSessionStore extends SessionStore {
   @override
   Future<void> deleteAll() async {
     _fakeSessions.clear();
-    _fakeEmptyGroups.clear();
+    _fakeEmptyFolders.clear();
   }
 
   @override
-  Future<void> deleteGroup(String groupPath) async {
+  Future<void> deleteFolder(String groupPath) async {
     _fakeSessions.removeWhere(
-        (s) => s.group == groupPath || s.group.startsWith('$groupPath/'));
-    _fakeEmptyGroups.remove(groupPath);
+        (s) => s.folder == groupPath || s.folder.startsWith('$groupPath/'));
+    _fakeEmptyFolders.remove(groupPath);
   }
 
   @override
-  Future<void> addEmptyGroup(String groupPath) async {
-    _fakeEmptyGroups.add(groupPath);
+  Future<void> addEmptyFolder(String groupPath) async {
+    _fakeEmptyFolders.add(groupPath);
   }
 
   @override
-  Future<void> renameGroup(String oldPath, String newPath) async {
+  Future<void> renameFolder(String oldPath, String newPath) async {
     // Move sessions
     for (var i = 0; i < _fakeSessions.length; i++) {
       final s = _fakeSessions[i];
-      if (s.group == oldPath) {
-        _fakeSessions[i] = Session(id: s.id, label: s.label, group: newPath, server: ServerAddress(host: s.host, port: s.port, user: s.user));
-      } else if (s.group.startsWith('$oldPath/')) {
-        _fakeSessions[i] = Session(id: s.id, label: s.label, group: s.group.replaceFirst(oldPath, newPath), server: ServerAddress(host: s.host, port: s.port, user: s.user));
+      if (s.folder == oldPath) {
+        _fakeSessions[i] = Session(id: s.id, label: s.label, folder: newPath, server: ServerAddress(host: s.host, port: s.port, user: s.user));
+      } else if (s.folder.startsWith('$oldPath/')) {
+        _fakeSessions[i] = Session(id: s.id, label: s.label, folder: s.folder.replaceFirst(oldPath, newPath), server: ServerAddress(host: s.host, port: s.port, user: s.user));
       }
     }
-    _fakeEmptyGroups.remove(oldPath);
-    _fakeEmptyGroups.add(newPath);
+    _fakeEmptyFolders.remove(oldPath);
+    _fakeEmptyFolders.add(newPath);
   }
 
   @override
@@ -128,16 +128,16 @@ class FakeSessionStore extends SessionStore {
   }
 
   @override
-  Future<void> moveSession(String sessionId, String newGroup) async {
+  Future<void> moveSession(String sessionId, String newFolder) async {
     final idx = _fakeSessions.indexWhere((s) => s.id == sessionId);
     if (idx >= 0) {
       final s = _fakeSessions[idx];
-      _fakeSessions[idx] = Session(id: s.id, label: s.label, group: newGroup, server: ServerAddress(host: s.host, port: s.port, user: s.user));
+      _fakeSessions[idx] = Session(id: s.id, label: s.label, folder: newFolder, server: ServerAddress(host: s.host, port: s.port, user: s.user));
     }
   }
 
   @override
-  Future<void> moveGroup(String groupPath, String newParent) async {
+  Future<void> moveFolder(String groupPath, String newParent) async {
     // Simplified stub
   }
 
@@ -147,11 +147,11 @@ class FakeSessionStore extends SessionStore {
   }
 
   @override
-  Future<void> moveMultiple(Set<String> ids, String newGroup) async {
+  Future<void> moveMultiple(Set<String> ids, String newFolder) async {
     for (var i = 0; i < _fakeSessions.length; i++) {
       if (ids.contains(_fakeSessions[i].id)) {
         final s = _fakeSessions[i];
-        _fakeSessions[i] = Session(id: s.id, label: s.label, group: newGroup, server: ServerAddress(host: s.host, port: s.port, user: s.user));
+        _fakeSessions[i] = Session(id: s.id, label: s.label, folder: newFolder, server: ServerAddress(host: s.host, port: s.port, user: s.user));
       }
     }
   }
@@ -160,13 +160,13 @@ class FakeSessionStore extends SessionStore {
   Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async => {};
 
   @override
-  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyGroups, [Map<String, CredentialData> credentials = const {}]) async {
+  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyFolders, [Map<String, CredentialData> credentials = const {}]) async {
     _fakeSessions
       ..clear()
       ..addAll(sessions);
-    _fakeEmptyGroups
+    _fakeEmptyFolders
       ..clear()
-      ..addAll(emptyGroups);
+      ..addAll(emptyFolders);
   }
 }
 
@@ -175,24 +175,24 @@ void main() {
 
   setUp(() {
     testSessions = [
-      Session(id: '1', label: 'web1', group: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
-      Session(id: '2', label: 'db1', group: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
-      Session(id: '3', label: 'staging', group: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
+      Session(id: '1', label: 'web1', folder: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
+      Session(id: '2', label: 'db1', folder: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
+      Session(id: '3', label: 'staging', folder: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
     ];
   });
 
   Widget buildApp({
     List<Session>? sessions,
-    Set<String>? emptyGroups,
+    Set<String>? emptyFolders,
     void Function(Session)? onConnect,
     void Function(SSHConfig)? onQuickConnect,
     void Function(Session)? onSftpConnect,
   }) {
     final sessionList = sessions ?? testSessions;
     final store =
-        FakeSessionStore(sessions: sessionList, emptyGroups: emptyGroups);
+        FakeSessionStore(sessions: sessionList, emptyFolders: emptyFolders);
     final tree = SessionTree.build(sessionList,
-        emptyGroups: emptyGroups ?? const {});
+        emptyFolders: emptyFolders ?? const {});
 
     return ProviderScope(
       overrides: [
@@ -265,23 +265,23 @@ void main() {
       expect(find.text('10.0.1.1'), findsOneWidget);
     });
 
-    testWidgets('renders group folder icons', (tester) async {
+    testWidgets('renders folder icons', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Groups show folder icon
+      // Folders show folder icon
       expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
-    testWidgets('renders expand/collapse chevrons for groups', (tester) async {
+    testWidgets('renders expand/collapse chevrons for folders', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Groups have expand_more when expanded
+      // Folders have expand_more when expanded
       expect(find.byIcon(Icons.expand_more), findsWidgets);
     });
 
-    testWidgets('shows session count on groups', (tester) async {
+    testWidgets('shows session count on folders', (tester) async {
       await tester.pumpWidget(buildApp());
-      // Production group has 2 sessions (web1 + db1 in subgroup)
+      // Production folder has 2 sessions (web1 + db1 in subfolder)
       expect(find.text('2'), findsOneWidget);
-      // DB subgroup has 1 session
+      // DB subfolder has 1 session
       expect(find.text('1'), findsOneWidget);
     });
 
@@ -291,14 +291,14 @@ void main() {
     });
 
     testWidgets('renders terminal icon for key auth session', (tester) async {
-      final keySession = Session(id: '4', label: 'key-server', group: '', server: const ServerAddress(host: '10.0.0.5', user: 'ubuntu'), auth: const SessionAuth(authType: AuthType.key));
+      final keySession = Session(id: '4', label: 'key-server', folder: '', server: const ServerAddress(host: '10.0.0.5', user: 'ubuntu'), auth: const SessionAuth(authType: AuthType.key));
       await tester.pumpWidget(buildApp(sessions: [keySession]));
       expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
     testWidgets('renders terminal icon for keyWithPassword auth session',
         (tester) async {
-      final keyPassSession = Session(id: '5', label: 'key-pass-server', group: '', server: const ServerAddress(host: '10.0.0.6', user: 'user'), auth: const SessionAuth(authType: AuthType.keyWithPassword));
+      final keyPassSession = Session(id: '5', label: 'key-pass-server', folder: '', server: const ServerAddress(host: '10.0.0.6', user: 'user'), auth: const SessionAuth(authType: AuthType.keyWithPassword));
       await tester.pumpWidget(buildApp(sessions: [keyPassSession]));
       expect(find.byIcon(Icons.terminal), findsWidgets);
     });
@@ -494,16 +494,16 @@ void main() {
     });
   });
 
-  group('SessionPanel — group context menu', () {
-    testWidgets('right-click on group shows group context menu',
+  group('SessionPanel — folder context menu', () {
+    testWidgets('right-click on folder shows folder context menu',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      // Right-click on group
-      final groupText = find.text('Production');
-      expect(groupText, findsOneWidget);
-      final center = tester.getCenter(groupText);
+      // Right-click on folder
+      final folderText = find.text('Production');
+      expect(folderText, findsOneWidget);
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -515,18 +515,18 @@ void main() {
 
       expect(find.text('New Connection'), findsOneWidget);
       expect(find.text('New Folder'), findsOneWidget);
-      expect(find.text('Rename Group'), findsOneWidget);
-      expect(find.text('Delete Group'), findsOneWidget);
+      expect(find.text('Rename Folder'), findsOneWidget);
+      expect(find.text('Delete Folder'), findsOneWidget);
     });
 
-    testWidgets('group expand/collapse toggles on tap', (tester) async {
+    testWidgets('folder expand/collapse toggles on tap', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       // Initially expanded, so children are visible
       expect(find.text('web1'), findsOneWidget);
 
-      // Tap the group to collapse
+      // Tap the folder to collapse
       await tester.tap(find.text('Production').first);
       await tester.pumpAndSettle();
 
@@ -625,14 +625,14 @@ void main() {
   });
 
   group('SessionPanel — Delete folder confirmation', () {
-    testWidgets('Delete Folder from group context menu shows confirmation',
+    testWidgets('Delete Folder from folder context menu shows confirmation',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      // Right-click on Production group
-      final groupText = find.text('Production');
-      final center = tester.getCenter(groupText);
+      // Right-click on Production folder
+      final folderText = find.text('Production');
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -642,7 +642,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Delete Group'));
+      await tester.tap(find.text('Delete Folder'));
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Folder'), findsWidgets);
@@ -653,29 +653,29 @@ void main() {
     });
   });
 
-  group('SessionPanel — empty groups', () {
-    testWidgets('renders empty group folders', (tester) async {
+  group('SessionPanel — empty folders', () {
+    testWidgets('renders empty folders', (tester) async {
       await tester.pumpWidget(buildApp(
         sessions: [],
-        emptyGroups: {'EmptyFolder'},
+        emptyFolders: {'EmptyFolder'},
       ));
       // With sessions empty, the empty state is shown. But with
       // filteredSessionTreeProvider override, we need to override the tree too.
       // Since buildApp already handles this, we just check the tree renders.
-      // The buildApp builds tree from sessions+emptyGroups.
-      // With no sessions but an emptyGroup, tree should have the group node.
+      // The buildApp builds tree from sessions+emptyFolders.
+      // With no sessions but an emptyFolder, tree should have the folder node.
       // However the panel shows _EmptyState when sessions list isEmpty.
       // So we need at least one session.
-      // Let's test differently - one session + an empty group.
+      // Let's test differently - one session + an empty folder.
     });
 
-    testWidgets('renders empty group alongside sessions', (tester) async {
+    testWidgets('renders empty folder alongside sessions', (tester) async {
       final sessions = [
-        Session(id: '1', label: 'web1', group: '', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
+        Session(id: '1', label: 'web1', folder: '', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
       ];
       await tester.pumpWidget(buildApp(
         sessions: sessions,
-        emptyGroups: {'EmptyFolder'},
+        emptyFolders: {'EmptyFolder'},
       ));
       await tester.pumpAndSettle();
 
@@ -792,13 +792,13 @@ void main() {
   });
 
   group('SessionPanel — Rename folder', () {
-    testWidgets('Rename from group context menu opens rename dialog',
+    testWidgets('Rename from folder context menu opens rename dialog',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      final groupText = find.text('Production');
-      final center = tester.getCenter(groupText);
+      final folderText = find.text('Production');
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -808,7 +808,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename Group'));
+      await tester.tap(find.text('Rename Folder'));
       await tester.pumpAndSettle();
 
       expect(find.text('Rename Folder'), findsOneWidget);
@@ -820,14 +820,14 @@ void main() {
     });
   });
 
-  group('SessionPanel — New Session from group context', () {
-    testWidgets('New Session from group context opens edit dialog',
+  group('SessionPanel — New Session from folder context', () {
+    testWidgets('New Session from folder context opens edit dialog',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      final groupText = find.text('Production');
-      final center = tester.getCenter(groupText);
+      final folderText = find.text('Production');
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -898,34 +898,34 @@ void main() {
   });
 
   group('SessionPanel — Delete Folder confirmation', () {
-    testWidgets('Delete Folder from group context menu shows confirmation', (tester) async {
+    testWidgets('Delete Folder from folder context menu shows confirmation', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       // Right-click on empty area (background) — we use the staging session area
       // but right-click on the background. Let's right-click the 'Sessions' header area.
       // Actually, the background context menu is triggered on the tree view background.
-      // We can trigger by right-clicking on the staging row with group context.
+      // We can trigger by right-clicking on the staging row with folder context.
       // Better: right-click directly on the tree's empty space — we need to find
-      // a spot after all sessions. Instead, use the group context menu on root:
+      // a spot after all sessions. Instead, use the folder context menu on root:
       // In the test, the filteredSessionTreeProvider is overridden, so background
-      // right-click is on the tree area. Let's test via _showGroupContextMenu('', ...).
-      // Actually, the root group context menu is shown when right-clicking the tree background.
+      // right-click is on the tree area. Let's test via _showFolderContextMenu('', ...).
+      // Actually, the root folder context menu is shown when right-clicking the tree background.
       // Since we have sessions, the 'delete_all' item should appear.
       // The easiest approach: use an offset on the tree view area.
 
       // The SessionTreeView has onBackgroundContextMenu callback that fires
       // when the tree background is right-clicked. In practice, this is hard to
-      // trigger reliably in test. Instead, let's test via the group context menu
-      // on an actual group, then check the group menu items.
+      // trigger reliably in test. Instead, let's test via the folder context menu
+      // on an actual folder, then check the folder menu items.
       //
-      // But _confirmDeleteAll is triggered from the root ("") group menu.
-      // Let's test it indirectly by checking the group menu has 'Delete All Sessions'.
+      // But _confirmDeleteAll is triggered from the root ("") folder menu.
+      // Let's test it indirectly by checking the folder menu has 'Delete All Sessions'.
 
       // For now, test that Delete Folder confirmation for Production works and
       // exercises the _confirmDeleteFolder path with session count.
-      final groupText = find.text('Production');
-      final center = tester.getCenter(groupText);
+      final folderText = find.text('Production');
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -936,7 +936,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Confirm Delete Folder
-      await tester.tap(find.text('Delete Group'));
+      await tester.tap(find.text('Delete Folder'));
       await tester.pumpAndSettle();
 
       // Dialog should show
@@ -991,14 +991,14 @@ void main() {
     });
   });
 
-  group('SessionPanel — New Folder in group context', () {
-    testWidgets('New Folder from group context creates subfolder', (tester) async {
+  group('SessionPanel — New Folder in folder context', () {
+    testWidgets('New Folder from folder context creates subfolder', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       // Right-click on Production group
-      final groupText = find.text('Production');
-      final center = tester.getCenter(groupText);
+      final folderText = find.text('Production');
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -1024,8 +1024,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Right-click on Production group
-      final groupText = find.text('Production');
-      final center = tester.getCenter(groupText);
+      final folderText = find.text('Production');
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -1036,7 +1036,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open Rename dialog
-      await tester.tap(find.text('Rename Group'));
+      await tester.tap(find.text('Rename Folder'));
       await tester.pumpAndSettle();
 
       // Change name
@@ -1079,7 +1079,7 @@ void main() {
   group('SessionPanel — move session dialog', () {
     testWidgets('Move context menu opens Move to Folder dialog', (tester) async {
       await tester.pumpWidget(buildApp(
-        emptyGroups: {'Archive'},
+        emptyFolders: {'Archive'},
         onSftpConnect: (_) {},
       ));
       await tester.pumpAndSettle();
@@ -1112,7 +1112,7 @@ void main() {
 
     testWidgets('Move dialog — selecting a folder moves session', (tester) async {
       await tester.pumpWidget(buildApp(
-        emptyGroups: {'Archive'},
+        emptyFolders: {'Archive'},
         onSftpConnect: (_) {},
       ));
       await tester.pumpAndSettle();
@@ -1251,8 +1251,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open New Session dialog via group context menu
-      final groupText = find.text('Production');
-      final center = tester.getCenter(groupText);
+      final folderText = find.text('Production');
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -1289,8 +1289,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open New Session dialog via group context menu
-      final groupText = find.text('Production');
-      final center = tester.getCenter(groupText);
+      final folderText = find.text('Production');
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -1381,8 +1381,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Right-click on Production to open context menu
-      final groupText = find.text('Production');
-      final center = tester.getCenter(groupText);
+      final folderText = find.text('Production');
+      final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -1392,7 +1392,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename Group'));
+      await tester.tap(find.text('Rename Folder'));
       await tester.pumpAndSettle();
 
       // Change name and submit via Enter
@@ -1426,7 +1426,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Look for Rename in the context menu
-      final renameItem = find.text('Rename Group');
+      final renameItem = find.text('Rename Folder');
       if (renameItem.evaluate().isNotEmpty) {
         await tester.tap(renameItem);
         await tester.pumpAndSettle();
@@ -1447,7 +1447,7 @@ void main() {
   group('SessionPanel — delete dialog with empty label', () {
     testWidgets('delete dialog uses displayName when label is empty',
         (tester) async {
-      final noLabelSession = Session(id: '10', label: '', group: '', server: const ServerAddress(host: '10.0.0.10', user: 'admin'));
+      final noLabelSession = Session(id: '10', label: '', folder: '', server: const ServerAddress(host: '10.0.0.10', user: 'admin'));
       await tester.pumpWidget(buildApp(
         sessions: [noLabelSession],
         onSftpConnect: (_) {},
@@ -1478,16 +1478,16 @@ void main() {
   });
 
   group('SessionPanel — delete empty folder no count warning', () {
-    testWidgets('delete folder dialog for empty group hides session count',
+    testWidgets('delete folder dialog for empty folder hides session count',
         (tester) async {
       await tester.pumpWidget(
-        buildApp(emptyGroups: {'EmptyGroup'}),
+        buildApp(emptyFolders: {'EmptyGroup'}),
       );
       await tester.pumpAndSettle();
 
-      final emptyGroupFinder = find.text('EmptyGroup');
-      if (emptyGroupFinder.evaluate().isNotEmpty) {
-        final center = tester.getCenter(emptyGroupFinder);
+      final emptyFolderFinder = find.text('EmptyGroup');
+      if (emptyFolderFinder.evaluate().isNotEmpty) {
+        final center = tester.getCenter(emptyFolderFinder);
         final gesture = await tester.createGesture(
           kind: PointerDeviceKind.mouse,
           buttons: kSecondaryMouseButton,
@@ -1497,7 +1497,7 @@ void main() {
         await gesture.up();
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Delete Group'));
+        await tester.tap(find.text('Delete Folder'));
         await tester.pumpAndSettle();
 
         expect(find.text('Delete Folder'), findsOneWidget);
@@ -1525,7 +1525,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename Group'));
+      await tester.tap(find.text('Rename Folder'));
       await tester.pumpAndSettle();
 
       final textField =
@@ -1572,11 +1572,11 @@ void main() {
     });
   });
 
-  group('SessionPanel — empty groups in folder validation', () {
+  group('SessionPanel — empty folders in folder validation', () {
     testWidgets('empty groups are included in folder name validation',
         (tester) async {
       await tester.pumpWidget(
-        buildApp(emptyGroups: {'Archive', 'Archive/Old'}),
+        buildApp(emptyFolders: {'Archive', 'Archive/Old'}),
       );
       await tester.pumpAndSettle();
 
@@ -1617,7 +1617,7 @@ void main() {
       expect(find.text('staging'), findsWidgets);
     });
 
-    testWidgets('dismissing group context menu does nothing',
+    testWidgets('dismissing folder context menu does nothing',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
@@ -1673,7 +1673,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename Group'));
+      await tester.tap(find.text('Rename Folder'));
       await tester.pumpAndSettle();
 
       final textField = find.byType(TextField).last;
@@ -1689,7 +1689,7 @@ void main() {
     testWidgets('renaming to existing name shows error, fixing clears it',
         (tester) async {
       await tester.pumpWidget(
-        buildApp(emptyGroups: {'Staging'}),
+        buildApp(emptyFolders: {'Staging'}),
       );
       await tester.pumpAndSettle();
 
@@ -1703,7 +1703,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rename Group'));
+      await tester.tap(find.text('Rename Folder'));
       await tester.pumpAndSettle();
 
       final textField = find.byType(TextField).last;
@@ -1768,7 +1768,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Delete Group'));
+      await tester.tap(find.text('Delete Folder'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Cancel'));
@@ -1805,8 +1805,8 @@ void main() {
     });
   });
 
-  group('SessionPanel — drag session to group (onSessionMoved)', () {
-    testWidgets('dragging a session onto a group calls moveSession',
+  group('SessionPanel — drag session to folder (onSessionMoved)', () {
+    testWidgets('dragging a session onto a folder calls moveSession',
         (tester) async {
       // Use sessions where staging is at root and Production is a group
       await tester.pumpWidget(buildApp());
@@ -1839,8 +1839,8 @@ void main() {
     });
   });
 
-  group('SessionPanel — drag group to root (onGroupMoved)', () {
-    testWidgets('dragging a group to root area triggers onGroupMoved',
+  group('SessionPanel — drag folder to root (onFolderMoved)', () {
+    testWidgets('dragging a folder to root area triggers onFolderMoved',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
@@ -1869,7 +1869,7 @@ void main() {
     });
   });
 
-  group('SessionPanel — onSessionMoved/onGroupMoved callbacks via SessionTreeView', () {
+  group('SessionPanel — onSessionMoved/onFolderMoved callbacks via SessionTreeView', () {
     testWidgets('onSessionMoved callback calls moveSession on notifier',
         (tester) async {
       await tester.pumpWidget(buildApp());
@@ -1888,18 +1888,18 @@ void main() {
       expect(find.byType(SessionPanel), findsOneWidget);
     });
 
-    testWidgets('onGroupMoved callback calls moveGroup on notifier',
+    testWidgets('onFolderMoved callback calls moveFolder on notifier',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      // Find the SessionTreeView and invoke its onGroupMoved callback directly
+      // Find the SessionTreeView and invoke its onFolderMoved callback directly
       final treeView = tester.widget<SessionTreeView>(
         find.byType(SessionTreeView),
       );
 
-      // Call onGroupMoved to move Production/DB to root
-      treeView.onGroupMoved!('Production/DB', '');
+      // Call onFolderMoved to move Production/DB to root
+      treeView.onFolderMoved!('Production/DB', '');
       await tester.pumpAndSettle();
 
       // The panel should still render without error
@@ -1950,7 +1950,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(buildApp(
         onSftpConnect: (_) {},
-        emptyGroups: {'Archive'},
+        emptyFolders: {'Archive'},
       ));
       await tester.pumpAndSettle();
 
@@ -1964,9 +1964,9 @@ void main() {
       expect(find.text('Move to Folder'), findsOneWidget);
       // Should show root option
       expect(find.text('/ (root)'), findsOneWidget);
-      // Should show Production group (in tree + in dialog)
+      // Should show Production folder (in tree + in dialog)
       expect(find.text('Production'), findsWidgets);
-      // Should show Archive (empty group) — may appear in tree and dialog
+      // Should show Archive (empty folder) — may appear in tree and dialog
       expect(find.descendant(
         of: find.byType(AlertDialog),
         matching: find.text('Archive'),
@@ -1985,12 +1985,12 @@ void main() {
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
 
-      // Current group (Production) should have a check icon
+      // Current folder (Production) should have a check icon
       expect(find.byIcon(Icons.check), findsOneWidget);
 
       // Root has home icon
       expect(find.byIcon(Icons.home), findsOneWidget);
-      // Non-root groups have folder icons
+      // Non-root folders have folder icons
       expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
@@ -2004,7 +2004,7 @@ void main() {
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
 
-      // Tap the current group (Production) in the dialog — should be disabled
+      // Tap the current folder (Production) in the dialog — should be disabled
       // Find Production inside the dialog (there are multiple 'Production' texts)
       final dialogProductionTiles = find.descendant(
         of: find.byType(AlertDialog),
@@ -2054,7 +2054,7 @@ void main() {
       expect(find.text('Move to Folder'), findsNothing);
     });
 
-    testWidgets('Move dialog — root session shows root as current group',
+    testWidgets('Move dialog — root session shows root as current folder',
         (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
@@ -2064,17 +2064,17 @@ void main() {
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
 
-      // Root should be current group (has check icon), since staging.group == ''
+      // Root should be current folder (has check icon), since staging.folder == ''
       expect(find.byIcon(Icons.check), findsOneWidget);
 
-      // Tapping root should be disabled (current group)
+      // Tapping root should be disabled (current folder)
       await tester.tap(find.text('/ (root)'));
       await tester.pumpAndSettle();
 
       // Dialog should still be open
       expect(find.text('Move to Folder'), findsOneWidget);
 
-      // Tapping a different group should close dialog
+      // Tapping a different folder should close dialog
       final dialogProduction = find.descendant(
         of: find.byType(AlertDialog),
         matching: find.text('Production'),
@@ -2085,7 +2085,7 @@ void main() {
       expect(find.text('Move to Folder'), findsNothing);
     });
 
-    testWidgets('Move dialog shows Production/DB as selectable group',
+    testWidgets('Move dialog shows Production/DB as selectable folder',
         (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
@@ -2332,7 +2332,7 @@ void main() {
       expect(find.byType(Checkbox), findsNothing);
     });
 
-    testWidgets('marquee selection with groups tracks selectedGroupPaths', (tester) async {
+    testWidgets('marquee selection with folders tracks selectedFolderPaths', (tester) async {
       await tester.pumpWidget(buildApp());
 
       final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
@@ -2340,10 +2340,10 @@ void main() {
       await tester.pump();
 
       expect(state.selectedIds, equals({'1'}));
-      expect(state.selectedGroupPaths, equals({'Production/Web'}));
+      expect(state.selectedFolderPaths, equals({'Production/Web'}));
     });
 
-    testWidgets('clearDesktopSelection clears both sessions and groups', (tester) async {
+    testWidgets('clearDesktopSelection clears both sessions and folders', (tester) async {
       await tester.pumpWidget(buildApp());
 
       final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
@@ -2351,14 +2351,14 @@ void main() {
       await tester.pump();
 
       expect(state.selectedIds, isNotEmpty);
-      expect(state.selectedGroupPaths, isNotEmpty);
+      expect(state.selectedFolderPaths, isNotEmpty);
 
       // Simulate clicking empty area — triggers clear via tree view pointer up
       state.setMarqueeSelection({});
       await tester.pump();
 
       expect(state.selectedIds, isEmpty);
-      expect(state.selectedGroupPaths, isEmpty);
+      expect(state.selectedFolderPaths, isEmpty);
     });
   });
 }

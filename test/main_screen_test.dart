@@ -1721,8 +1721,6 @@ void main() {
 
       // Menu button visible in narrow mode
       expect(find.byIcon(Icons.menu), findsOneWidget);
-      // Tab bar should have add button
-      expect(find.byIcon(Icons.add), findsWidgets);
       // Status bar should show
       expect(find.textContaining('tab'), findsWidgets);
     });

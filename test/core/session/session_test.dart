@@ -34,12 +34,12 @@ void main() {
       expect(s.displayName, 'root@example.com:2222');
     });
 
-    test('fullPath with group', () {
-      final s = Session(label: 'nginx', group: 'Production/Web', server: const ServerAddress(host: 'x', user: 'r'));
+    test('fullPath with folder', () {
+      final s = Session(label: 'nginx', folder: 'Production/Web', server: const ServerAddress(host: 'x', user: 'r'));
       expect(s.fullPath, 'Production/Web/nginx');
     });
 
-    test('fullPath without group', () {
+    test('fullPath without folder', () {
       final s = Session(label: 'nginx', server: const ServerAddress(host: 'x', user: 'r'));
       expect(s.fullPath, 'nginx');
     });
@@ -53,11 +53,11 @@ void main() {
     });
 
     test('JSON roundtrip', () {
-      final s = Session(label: 'prod', group: 'Servers/Web', server: const ServerAddress(host: 'example.com', port: 2222, user: 'admin'), auth: const SessionAuth(authType: AuthType.key, keyPath: '/home/.ssh/id_rsa'));
+      final s = Session(label: 'prod', folder: 'Servers/Web', server: const ServerAddress(host: 'example.com', port: 2222, user: 'admin'), auth: const SessionAuth(authType: AuthType.key, keyPath: '/home/.ssh/id_rsa'));
       final json = s.toJson();
       final restored = Session.fromJson(json);
       expect(restored.label, 'prod');
-      expect(restored.group, 'Servers/Web');
+      expect(restored.folder, 'Servers/Web');
       expect(restored.host, 'example.com');
       expect(restored.port, 2222);
       expect(restored.user, 'admin');
@@ -170,9 +170,9 @@ void main() {
       expect(a, isNot(equals(b)));
     });
 
-    test('different group makes not equal', () {
-      final a = Session(id: 'x', label: 'a', group: 'A', server: const ServerAddress(host: 'h', user: 'u'));
-      final b = Session(id: 'x', label: 'a', group: 'B', server: const ServerAddress(host: 'h', user: 'u'));
+    test('different folder makes not equal', () {
+      final a = Session(id: 'x', label: 'a', folder: 'A', server: const ServerAddress(host: 'h', user: 'u'));
+      final b = Session(id: 'x', label: 'a', folder: 'B', server: const ServerAddress(host: 'h', user: 'u'));
       expect(a, isNot(equals(b)));
     });
 

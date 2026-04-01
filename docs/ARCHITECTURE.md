@@ -287,7 +287,7 @@ class TransferManager {
 | File | Class | Purpose |
 |------|-------|---------|
 | `session.dart` | `Session`, `ServerAddress`, `SessionAuth`, `AuthType` | Session model with all fields |
-| `session_store.dart` | `SessionStore` | CRUD, JSON persistence, search, groups, plaintext→encrypted migration |
+| `session_store.dart` | `SessionStore` | CRUD, JSON persistence, search, folders, plaintext→encrypted migration |
 | `session_tree.dart` | `SessionTree`, `TreeNode` | Hierarchical tree built from flat session list |
 | `session_history.dart` | `SessionHistory` | Undo/redo snapshots (stores credentials separately) |
 | `qr_codec.dart` | `QrCodec` | Session encoding/decoding for QR (no secrets, max ~2000 bytes) |
@@ -298,7 +298,7 @@ class TransferManager {
 class Session {
   final String id;            // UUID
   final String label;         // display name
-  final String group;         // folder path: "Production/Web" (separator /)
+  final String folder;        // folder path: "Production/Web" (separator /)
   final ServerAddress server; // host, port, user
   final SessionAuth auth;     // authType, password, keyPath, keyData, passphrase
   final DateTime createdAt;
@@ -315,7 +315,7 @@ class Session {
 #### SessionStore — persistence
 
 ```
-sessions.json  ← metadata (label, group, host, port, user, timestamps)
+sessions.json  ← metadata (label, folder, host, port, user, timestamps)
                   Does NOT contain passwords/keys
 credentials.enc ← encrypted credentials (AES-256-GCM)
                   Keyed by session.id
@@ -332,13 +332,13 @@ class SessionStore {
   void update(Session session);
   void delete(String id);
   void bulkDelete(List<String> ids);
-  List<Session> search(String query);  // by label, group, host, user
+  List<Session> search(String query);  // by label, folder, host, user
 
-  List<String> get groups;        // all unique groups
-  List<String> get emptyGroups;   // groups without sessions
-  void addEmptyGroup(String path);
-  void renameGroup(String oldPath, String newPath);
-  void deleteGroup(String path);
+  List<String> get folders;       // all unique folders
+  List<String> get emptyFolders;  // folders without sessions
+  void addEmptyFolder(String path);
+  void renameFolder(String oldPath, String newPath);
+  void deleteFolder(String path);
 }
 ```
 
@@ -348,9 +348,9 @@ class SessionStore {
 
 ```dart
 class SessionTree {
-  static List<TreeNode> build(List<Session> sessions, List<String> emptyGroups);
+  static List<TreeNode> build(List<Session> sessions, List<String> emptyFolders);
   // Builds hierarchy: "Production/Web/nginx" → [Production] → [Web] → [nginx]
-  // Empty group folders are included in the tree
+  // Empty folders are included in the tree
 }
 
 sealed class TreeNode {
@@ -777,9 +777,9 @@ class FilePaneController extends ChangeNotifier {
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `session_panel.dart` | `SessionPanel` | Sidebar: tree view + search + actions + bulk select |
-| `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop |
-| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form |
+| `session_panel.dart` | `SessionPanel` | Sidebar: tree view + search + actions + bulk select. Header has "New Folder" and "New Connection" buttons |
+| `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data |
+| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form (no folder field — folder is set via sidebar context) |
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → SSHConfig → ConnectionManager |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session |
@@ -812,7 +812,7 @@ class SessionConnect {
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder; end drop zone fills remaining space |
+| `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder; hidden when no tabs are open |
 | `tab_controller.dart` | `TabNotifier` | State: open, close (+ disconnect orphaned), reorder, select |
 | `tab_model.dart` | `TabEntry`, `TabKind` | Tab model (id, label, connection, kind) |
 | `welcome_screen.dart` | `WelcomeScreen` | Minimal empty state — icon, heading, subtitle; no buttons or shortcuts |
@@ -961,7 +961,7 @@ AppDivider({
 })
 AppDivider.indented({Color? color})  // indent = 8, endIndent = 8
 ```
-**Replaces bare `Divider(height: 1)` everywhere.** Standardises height (1 px), thickness (1 px), and color. Use `.indented()` for group separators in menus.
+**Replaces bare `Divider(height: 1)` everywhere.** Standardises height (1 px), thickness (1 px), and color. Use `.indented()` for folder separators in menus.
 
 ### SplitView
 
@@ -1351,7 +1351,7 @@ Streams → UI updates (TransferPanel)
 Session {
   id: String              // UUID v4
   label: String           // display name
-  group: String           // folder path: "Production/Web" (/ separator)
+  folder: String           // folder path: "Production/Web" (/ separator)
   server: ServerAddress {
     host: String
     port: int             // default 22
