@@ -37,6 +37,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     return Container(
       color: AppTheme.bg1,
       child: Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         // Drag handle
         if (_expanded)
@@ -121,9 +122,11 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         // Column headers + transfer list
         if (_expanded) ...[
           _buildColumnHeaders(),
-          SizedBox(
-            height: _panelHeight,
-            child: _buildTransferList(historyAsync, ref),
+          Flexible(
+            child: SizedBox(
+              height: _panelHeight,
+              child: _buildTransferList(historyAsync, ref),
+            ),
           ),
           _buildFooter(ref),
         ],
