@@ -710,7 +710,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: AppTheme.bg0,
+        color: AppTheme.bg3,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
