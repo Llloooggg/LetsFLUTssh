@@ -1,3 +1,5 @@
+import '../core/ssh/errors.dart';
+
 /// Format byte size to human-readable string.
 String formatSize(int bytes) {
   if (bytes < 1024) return '$bytes B';
@@ -25,9 +27,23 @@ String formatDuration(Duration d) {
 String _pad(int n) => n.toString().padLeft(2, '0');
 
 /// Sanitize error messages to English — strips OS-locale text from
-/// FileSystemException and other system errors, replacing with the
-/// English OS error code description.
+/// FileSystemException, SocketException, and SSH errors, replacing with
+/// the English OS error code description.
+///
+/// For [SSHError] subtypes the English [SSHError.message] is preserved and
+/// only the wrapped [SSHError.cause] is sanitized (it may contain
+/// OS-locale text from SocketException / FileSystemException).
 String sanitizeError(Object error) {
+  // SSHError chain: keep English message, sanitize cause recursively.
+  if (error is SSHError) {
+    if (error.cause == null) return error.message;
+    final cause = sanitizeError(error.cause!);
+    if (cause.isNotEmpty && cause != error.message) {
+      return '${error.message} ($cause)';
+    }
+    return error.message;
+  }
+
   final msg = error.toString();
 
   // FileSystemException: "OS Error: <localized text>, errno = N"
@@ -45,7 +61,8 @@ String sanitizeError(Object error) {
   }
 
   // SocketException / HttpException: strip localized OS error
-  final osErrorMatch = RegExp(r'OS Error:\s*[^,]+,\s*errno\s*=\s*(\d+)').firstMatch(msg);
+  final osErrorMatch =
+      RegExp(r'OS Error:\s*[^,]+,\s*errno\s*=\s*(\d+)').firstMatch(msg);
   if (osErrorMatch != null) {
     final errno = int.parse(osErrorMatch.group(1)!);
     final english = _errnoMessages[errno];
@@ -56,6 +73,7 @@ String sanitizeError(Object error) {
 }
 
 const _errnoMessages = <int, String>{
+  // POSIX / Linux
   1: 'Operation not permitted',
   2: 'No such file or directory',
   3: 'No such process',
@@ -74,7 +92,27 @@ const _errnoMessages = <int, String>{
   32: 'Broken pipe',
   36: 'File name too long',
   39: 'Directory not empty',
+  98: 'Address already in use',
+  99: 'Cannot assign requested address',
+  100: 'Network is down',
+  101: 'Network is unreachable',
+  104: 'Connection reset by peer',
   110: 'Connection timed out',
   111: 'Connection refused',
+  112: 'Host is down',
   113: 'No route to host',
+  // Windows Winsock (WSA*)
+  10013: 'Permission denied',
+  10048: 'Address already in use',
+  10049: 'Cannot assign requested address',
+  10050: 'Network is down',
+  10051: 'Network is unreachable',
+  10053: 'Connection aborted',
+  10054: 'Connection reset by peer',
+  10056: 'Already connected',
+  10057: 'Not connected',
+  10060: 'Connection timed out',
+  10061: 'Connection refused',
+  10064: 'Host is down',
+  10065: 'No route to host',
 };

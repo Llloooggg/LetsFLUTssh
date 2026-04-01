@@ -1145,7 +1145,7 @@ static Future<void> paste(Terminal terminal);
 String formatSize(int bytes);         // "1.5 MB"
 String formatTimestamp(DateTime dt);   // "2024-01-15 14:30"
 String formatDuration(Duration d);    // "2m 15s"
-String sanitizeError(Object error);   // strips OS-specific text, 80 errno codes
+String sanitizeError(Object error);   // strips OS-locale text, handles SSHError chain, 43 errno codes (POSIX + Winsock)
 ```
 
 ---
@@ -1567,8 +1567,11 @@ Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 
 ### Error sanitization
 
-- `sanitizeError()` strips file paths from error messages
-- 80 errno codes → English messages (instead of OS-localized)
+- `sanitizeError()` translates OS-locale error text to English using errno codes
+- Handles `SSHError` chain: preserves English `message`, sanitizes `cause` recursively
+- 43 errno codes mapped (30 POSIX/Linux + 13 Windows Winsock)
+- Unknown errno → original OS text preserved as-is
+- Applied in: `ConnectionManager`, `TerminalTab.reconnect()`, `TransferManager` (+ path stripping)
 
 ---
 
