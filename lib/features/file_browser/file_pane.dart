@@ -260,7 +260,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        border: AppTheme.borderBottom,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -743,7 +743,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: AppTheme.bg3,
-        border: Border(top: BorderSide(color: AppTheme.border)),
+        border: AppTheme.borderTop,
       ),
       child: ClippedRow(
         children: [

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import 'app_divider.dart';
 
 
 /// A single context menu item — either a normal item or a divider.
@@ -194,13 +195,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                     children: [
                       for (int i = 0; i < widget.items.length; i++)
                         widget.items[i].divider
-                            ? Divider(
-                                height: 1,
-                                thickness: 1,
-                                indent: 8,
-                                endIndent: 8,
-                                color: AppTheme.border,
-                              )
+                            ? const AppDivider.indented()
                             : _buildItem(i),
                     ],
                   ),

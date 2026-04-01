@@ -1192,6 +1192,11 @@ abstract final class AppTheme {
   static Color folderIcon;         // yellow
   static Color searchHighlight;    // bright yellow
 
+  // Section border helpers (brightness-aware)
+  static BorderSide get borderSide;  // BorderSide(color: border)
+  static Border get borderTop;       // Border(top: borderSide)
+  static Border get borderBottom;    // Border(bottom: borderSide)
+
   // Border radius scale
   static const radiusSm;  // 4 px — inputs, buttons, small elements
   static const radiusMd;  // 6 px — cards, containers, default rounding

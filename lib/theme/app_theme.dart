@@ -85,6 +85,13 @@ abstract final class AppTheme {
   static Color get hover       => isDark ? _hoverColor : const Color(0x08000000);
   static Color get active      => isDark ? _activeColor : const Color(0x0F000000);
 
+  // ── Section border helpers ──
+  // Brightness-aware single-side borders for container edges (headers,
+  // footers, toolbars). Use in BoxDecoration.border.
+  static BorderSide get borderSide => BorderSide(color: border);
+  static Border get borderTop => Border(top: borderSide);
+  static Border get borderBottom => Border(bottom: borderSide);
+
   // ── Border radius scale ──
   /// 4 px — inputs, buttons, small elements.
   static const radiusSm = BorderRadius.all(Radius.circular(4));
