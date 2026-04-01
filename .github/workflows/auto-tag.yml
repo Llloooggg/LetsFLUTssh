@@ -1,14 +1,11 @@
 name: Auto-Tag Release
 
-# Triggers after CI completes on main. Scans all commits between the
-# latest existing tag and HEAD. If any commit is feat/fix/refactor and
-# bumped the version, creates an annotated tag on the LAST such commit
-# so Build & Release can run automatically.
+# Triggers after CI completes on main. Reads the version from
+# pubspec.yaml and creates an annotated tag if it doesn't exist yet.
 #
-# Supports [skip-release] marker in any commit message to suppress
-# tagging for the entire push (useful for test deployments).
+# Only app-affecting commits (feat/fix/refactor) bump the version,
+# so docs/test/ci-only pushes naturally get skipped (tag already exists).
 #
-# This replaces the manual `make tag` step for app-affecting commits.
 # Dependabot commits are handled separately by dependabot-tag.yml.
 
 on:
@@ -29,64 +26,16 @@ jobs:
       group: auto-tag-release
       cancel-in-progress: false
     steps:
-      - name: Scan push commits and create tag if needed
+      - name: Create tag if version is new
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          HEAD_SHA="$COMMIT_SHA"
+          SHA="$COMMIT_SHA"
           REPO="${{ github.repository }}"
 
-          # Find the latest existing version tag as comparison base
-          LATEST_TAG=$(gh api "repos/${REPO}/tags?per_page=1" --jq '.[0].name // empty')
-
-          if [ -z "$LATEST_TAG" ]; then
-            echo "No existing tags — scanning all commits up to ${HEAD_SHA}"
-            # List last 50 commits (enough for any reasonable push)
-            COMMITS=$(gh api "repos/${REPO}/commits?sha=${HEAD_SHA}&per_page=50" \
-              --jq '.[].sha')
-          else
-            echo "Latest tag: ${LATEST_TAG} — scanning commits since then"
-            COMMITS=$(gh api "repos/${REPO}/compare/${LATEST_TAG}...${HEAD_SHA}" \
-              --jq '.commits[].sha')
-          fi
-
-          if [ -z "$COMMITS" ]; then
-            echo "No commits found between ${LATEST_TAG:-root} and ${HEAD_SHA} — skipping"
-            exit 0
-          fi
-
-          # Check for [skip-release] marker in ANY commit in the range
-          for SHA in $COMMITS; do
-            MSG=$(gh api "repos/${REPO}/commits/${SHA}" --jq '.commit.message')
-            if echo "$MSG" | grep -qi '\[skip-release\]'; then
-              echo "Found [skip-release] in commit ${SHA} — skipping tag creation"
-              exit 0
-            fi
-          done
-
-          # Walk commits (oldest → newest) and find the LAST feat/fix/refactor
-          TARGET_SHA=""
-          for SHA in $COMMITS; do
-            MSG=$(gh api "repos/${REPO}/commits/${SHA}" --jq '.commit.message')
-            PREFIX=$(echo "$MSG" | head -1 | sed -n 's/^\([a-z]*\):.*/\1/p')
-            case "$PREFIX" in
-              feat|fix|refactor)
-                TARGET_SHA="$SHA"
-                echo "Candidate: ${SHA} (${PREFIX})"
-                ;;
-            esac
-          done
-
-          if [ -z "$TARGET_SHA" ]; then
-            echo "No feat/fix/refactor commits in push — skipping"
-            exit 0
-          fi
-
-          echo "Selected commit for tagging: ${TARGET_SHA}"
-
-          # Read version from pubspec.yaml at the target commit
-          VER=$(gh api "repos/${REPO}/contents/pubspec.yaml?ref=${TARGET_SHA}" \
+          # Read version from pubspec.yaml at the CI commit
+          VER=$(gh api "repos/${REPO}/contents/pubspec.yaml?ref=${SHA}" \
             --jq '.content' | base64 -d | grep '^version:' | sed 's/version: *//;s/+.*//')
           TAG="v${VER}"
 
@@ -95,21 +44,21 @@ jobs:
             exit 0
           fi
 
-          # Bail out if tag already exists
+          # Skip if tag already exists (idempotent)
           if gh api "repos/${REPO}/git/refs/tags/${TAG}" >/dev/null 2>&1; then
             echo "Tag ${TAG} already exists — skipping"
             exit 0
           fi
 
-          echo "Creating tag ${TAG} for commit ${TARGET_SHA}..."
+          echo "Creating tag ${TAG} for commit ${SHA}..."
 
           # Create annotated tag object
           TAG_SHA=$(gh api "repos/${REPO}/git/tags" \
-            -f tag="$TAG" -f message="$TAG" -f object="$TARGET_SHA" -f type="commit" \
+            -f tag="$TAG" -f message="$TAG" -f object="$SHA" -f type="commit" \
             --jq '.sha')
 
           # Create tag ref
           gh api "repos/${REPO}/git/refs" \
             -f ref="refs/tags/${TAG}" -f sha="$TAG_SHA"
 
-          echo "Created tag ${TAG} -> ${TARGET_SHA}"
+          echo "Created tag ${TAG} -> ${SHA}"

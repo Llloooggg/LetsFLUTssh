@@ -73,13 +73,13 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 
 ### Commits
 
-- **Claude does not commit or push unless the user explicitly asks.** When asked — scope matches what was said: "commit" = commit only, "commit and push" = commit + push (auto-tag handles the rest). For multiple fixes — see "HARD STOP between fixes" rule below
+- **Claude does not commit or push unless the user explicitly asks.** When asked — scope matches what was said: "commit" = commit only, "commit and push" = commit + push. For multiple fixes — see "HARD STOP between fixes" rule below
 - **Every commit that affects the shipped app MUST include a version bump** in `pubspec.yaml` (the only source of truth — `package_info_plus` reads it at runtime). Includes: `lib/`, platform configs, native code, assets, build settings. Patch for bugfix/refactor, minor for new feature, major for breaking change. No exceptions
 - Format: `type: short description` — types: `feat`, `fix`, `refactor` (app changes), `test`, `docs`, `chore`, `ci` (non-app)
 - **Commit messages drive auto-changelog** — `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements. Keep messages user-readable. If commit has both app changes and docs — prefix describes the app change only
 - **One fix / one commit** — each logical change is a separate commit. Do not bundle unrelated fixes
 - **HARD STOP between fixes** — when working on multiple fixes, the workflow is strictly sequential: implement fix → write tests → bump version → update docs → `make analyze` → commit. **Do NOT start the next fix until the current one is committed.** This is a blocking gate, not a suggestion. Starting the next fix before committing the current one is a rule violation — it leads to tangled changes in shared files and painful commit splitting
-- **Green CI before pushing app changes** — run `make test` before pushing. If pre-existing test failures exist, fix them first in a separate `fix:` commit with version bump, push, confirm CI is green, then push your app change. Never push a `feat:`/`fix:`/`refactor:` commit on top of red CI — auto-tag only fires after successful CI, so a failed pipeline blocks all subsequent releases until the tests are fixed
+- **Green CI before merging to main** — run `make test` before pushing to dev. If pre-existing test failures exist, fix them first in a separate `fix:` commit with version bump. Never merge to main with failing CI on dev — auto-tag fires after successful CI on main, so a failed pipeline blocks the release
 - Repository is **public** on GitHub
 
 ### Work Style
@@ -93,30 +93,37 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 - **Best practices by default** — always implement using best practices. If the user's request leads to a hacky or suboptimal solution, push back and propose a best-practice alternative. Explain why. Only implement a hacky approach if the user explicitly confirms after hearing the alternative
 - **Think systemically, not literally** — when given an instruction, consider its full scope and side effects. Don't blindly execute a narrow change — think about what else is affected (related code, docs, formatting, consistency). Apply the intent behind the request, not just the letter
 
+### Branching & Release Flow
+
+Two branches: `dev` (daily work) and `main` (releases only).
+
+**Daily work** — push everything to `dev`. CI, SonarCloud, OSV-Scanner run on every push. No tags, no builds, no releases.
+
+**Release** — merge `dev` into `main`. Everything is automatic: CI on main → auto-tag reads version from pubspec.yaml → creates tag → build → release.
+
+**Rule:** never push directly to `main` (except Dependabot PRs and CI/docs-only fixes). All app work goes through `dev` → `main` merge.
+
+**Claude default branch is `dev`.** Always work on `dev` unless the user explicitly says otherwise. If on `main` — switch to `dev` before making changes.
+
 ### Versioning & Tagging
 
 Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature), major (breaking).
 
 **No bump needed for:** tests, docs, CI, linter fixes. **Bump IS needed for:** any `lib/` change (including logging), platform configs, native code, assets.
 
-**Tagging — fully automated via `auto-tag.yml`.** Just `git push` — CI → auto-tag → build → release. Details: [§15 CI/CD Pipeline](docs/ARCHITECTURE.md#15-cicd-pipeline)
+**Tagging — fully automated via `auto-tag.yml`.** Merge to main → CI → auto-tag → build → release. Details: [§15 CI/CD Pipeline](docs/ARCHITECTURE.md#15-cicd-pipeline)
 
 | Scenario                    | What to do                                                          |
 | --------------------------- | ------------------------------------------------------------------- |
-| App change (feat/fix/refac) | `git push` — auto-tag handles it                                   |
-| App change + tests/docs     | `git push` — auto-tag finds the app commit even if docs/tests come after |
-| Tests/docs/CI only          | `git push` — no tag, no release (correct behavior)                  |
-| Push without release        | Add `[skip-release]` to any commit message in the push              |
-| Dependabot deps             | Auto: merge → version bump → CI → `dependabot-tag.yml`             |
-| Failed build (re-trigger)   | `gh workflow run build.yml --ref v{VERSION}` (manual dispatch — preflight warns if Sonar/OSV not found, then proceeds) |
+| App change (feat/fix/refac) | Merge `dev` → `main` — auto-tag handles it                         |
+| Tests/docs/CI only          | Merge to `main` — no new version, no tag, no release                |
+| Dependabot deps             | Auto: PR to main → merge → version bump → CI → `dependabot-tag.yml`|
+| Manual build                | `gh workflow run build.yml` — preflight triggers CI if needed       |
+| Failed build (re-trigger)   | `gh workflow run build.yml --ref v{VERSION}`                        |
 
 `make tag` exists as a **manual fallback only**. Normal flow never needs it.
 
 - By default Claude only reminds about tagging — does **not** run `make tag` unless user explicitly asks
-
-**Batch-push safe.** auto-tag scans ALL commits between the latest tag and HEAD — not just HEAD. If the push contains a `feat:`/`fix:`/`refactor:` commit followed by `test:`/`docs:` commits, the tag is placed on the last app-change commit. Order doesn't matter.
-
-**`[skip-release]`** — add this marker anywhere in any commit message in the push to suppress tagging entirely. Useful for pushing app changes without triggering a release (e.g. test deployments). Version bump still required per project rules.
 
 ### Post-change checklist
 
@@ -127,7 +134,7 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 ### Dependencies & Building
 
 - Latest **stable** versions only — no beta/dev/pre-release. No OS-level deps (`apt install`/`brew install`)
-- **Always build via Makefile** — `make run`, `make build-linux`, `make test`, `make analyze`. Never call `flutter build`/`flutter run` directly. Full target list: [§15.3 Makefile Targets](docs/ARCHITECTURE.md#153-makefile-targets)
+- **Always build via Makefile** — `make run`, `make build-linux`, `make test`, `make analyze`. Never call `flutter build`/`flutter run` directly. Full target list: [§15.4 Makefile Targets](docs/ARCHITECTURE.md#154-makefile-targets)
 - **Always use Context7 MCP** for library/API docs — don't guess APIs, look them up
 - **Pin external downloads in CI** — any `wget`/`curl` in workflows must use a specific release version (not rolling tags like `continuous`) and verify SHA256 checksum after download
 
