@@ -62,7 +62,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             height: 24,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: AppTheme.bg3,
+              color: AppTheme.bg0,
               border: Border(
                 top: BorderSide(color: AppTheme.border),
                 bottom: _expanded
