@@ -62,7 +62,6 @@ class WelcomeScreen extends StatelessWidget {
               ),
               style: TextButton.styleFrom(
                 backgroundColor: scheme.primary,
-                shape: const RoundedRectangleBorder(),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
             ),

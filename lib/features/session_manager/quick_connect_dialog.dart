@@ -17,7 +17,6 @@ class QuickConnectDialog extends StatefulWidget {
     return showModalBottomSheet<SSHConfig>(
       context: context,
       backgroundColor: AppTheme.bg1,
-      shape: const RoundedRectangleBorder(),
       isScrollControlled: true,
       builder: (_) => const QuickConnectDialog(),
     );

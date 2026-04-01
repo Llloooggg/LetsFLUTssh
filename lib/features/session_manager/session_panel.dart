@@ -754,7 +754,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }) {
     return Dialog(
       backgroundColor: AppTheme.bg1,
-      shape: const RoundedRectangleBorder(),
       insetPadding: const EdgeInsets.all(24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360),

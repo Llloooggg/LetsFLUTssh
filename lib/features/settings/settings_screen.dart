@@ -559,7 +559,6 @@ class _ExportImportTile extends ConsumerWidget {
                 obscureText: true,
                 decoration: const InputDecoration(
                   labelText: 'Master Password',
-                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 8),
@@ -568,7 +567,6 @@ class _ExportImportTile extends ConsumerWidget {
                 obscureText: true,
                 decoration: const InputDecoration(
                   labelText: 'Confirm Password',
-                  border: OutlineInputBorder(),
                 ),
               ),
             ],
@@ -703,7 +701,6 @@ class _ExportImportTile extends ConsumerWidget {
           controller: pathCtrl,
           decoration: const InputDecoration(
             labelText: 'Path to .lfs file',
-            border: OutlineInputBorder(),
             hintText: '/path/to/export.lfs',
           ),
         ),
@@ -713,7 +710,6 @@ class _ExportImportTile extends ConsumerWidget {
           obscureText: true,
           decoration: const InputDecoration(
             labelText: 'Master Password',
-            border: OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 12),
