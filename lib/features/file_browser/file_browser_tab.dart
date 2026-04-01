@@ -112,11 +112,21 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       return const Center(child: Text('Controllers not initialized'));
     }
 
-    return Column(
-      children: [
-        Expanded(child: _buildDualPane(context, local, remote)),
-        const TransferPanel(),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Minimum height for the dual pane area.
+        const minDualPaneHeight = 80.0;
+        final maxTransferHeight = (constraints.maxHeight - minDualPaneHeight).clamp(0.0, double.infinity);
+        return Column(
+          children: [
+            Expanded(child: _buildDualPane(context, local, remote)),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxTransferHeight),
+              child: const TransferPanel(),
+            ),
+          ],
+        );
+      },
     );
   }
 
