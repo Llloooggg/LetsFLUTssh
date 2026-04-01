@@ -79,6 +79,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 - **Commit messages drive auto-changelog** — `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements. Keep messages user-readable. If commit has both app changes and docs — prefix describes the app change only
 - **One fix / one commit** — each logical change is a separate commit. Do not bundle unrelated fixes
 - **HARD STOP between fixes** — when working on multiple fixes, the workflow is strictly sequential: implement fix → write tests → bump version → update docs → `make analyze` → commit. **Do NOT start the next fix until the current one is committed.** This is a blocking gate, not a suggestion. Starting the next fix before committing the current one is a rule violation — it leads to tangled changes in shared files and painful commit splitting
+- **Green CI before pushing app changes** — run `make test` before pushing. If pre-existing test failures exist, fix them first in a separate `fix:` commit with version bump, push, confirm CI is green, then push your app change. Never push a `feat:`/`fix:`/`refactor:` commit on top of red CI — auto-tag only fires after successful CI, so a failed pipeline blocks all subsequent releases until the tests are fixed
 - Repository is **public** on GitHub
 
 ### Work Style
