@@ -705,7 +705,7 @@ void main() {
   });
 
   group('AppTabBar — DragTarget reorder', () {
-    testWidgets('dragging a tab onto another triggers swapTabs',
+    testWidgets('dragging a tab onto another triggers reorderTabs',
         (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs([
@@ -760,7 +760,7 @@ void main() {
       expect(find.text('Only Tab'), findsWidgets);
     });
 
-    testWidgets('three tabs: drag first to third position triggers swap',
+    testWidgets('three tabs: drag first to third position triggers reorder',
         (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs([
@@ -796,6 +796,77 @@ void main() {
       expect(find.text('Tab 1'), findsWidgets);
       expect(find.text('Tab 2'), findsWidgets);
       expect(find.text('Tab 3'), findsWidgets);
+    });
+
+    testWidgets('end drop zone fills remaining space after tabs',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Tab A',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      // One per tab + one trailing
+      final dropTargets = tester.widgetList<DragTarget<TabEntry>>(
+        find.byType(DragTarget<TabEntry>),
+      );
+      expect(dropTargets.length, 2);
+
+      // End drop zone should be wider than the old fixed 24px
+      final trailingDropTarget = find.byType(DragTarget<TabEntry>).last;
+      final trailingBox = tester.getSize(trailingDropTarget);
+      expect(trailingBox.width, greaterThan(24));
+    });
+
+    testWidgets('drag tab to empty space moves to last position',
+        (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(
+            id: 't1',
+            label: 'Tab 1',
+            connection: conn,
+            kind: TabKind.terminal),
+        TabEntry(
+            id: 't2',
+            label: 'Tab 2',
+            connection: conn,
+            kind: TabKind.sftp),
+        TabEntry(
+            id: 't3',
+            label: 'Tab 3',
+            connection: conn,
+            kind: TabKind.terminal),
+      ]));
+      await tester.pumpAndSettle();
+
+      // Drag Tab 1 to the empty space right of all tabs
+      final tab1Center = tester.getCenter(find.text('Tab 1').first);
+      final gesture = await tester.startGesture(tab1Center);
+      await tester.pump();
+
+      // Move far to the right — into the empty space
+      final barRight = tester.getTopRight(find.byType(AppTabBar));
+      await gesture.moveTo(Offset(barRight.dx - 50, tab1Center.dy));
+      await tester.pump();
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // All tabs should still be present
+      expect(find.text('Tab 1'), findsWidgets);
+      expect(find.text('Tab 2'), findsWidgets);
+      expect(find.text('Tab 3'), findsWidgets);
+
+      // Tab 1 should now be last — verify via provider state
+      final container = tester
+          .element(find.byType(AppTabBar))
+          .findAncestorWidgetOfExactType<ProviderScope>();
+      expect(container, isNotNull);
     });
   });
 

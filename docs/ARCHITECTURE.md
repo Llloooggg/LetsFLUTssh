@@ -812,7 +812,7 @@ class SessionConnect {
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder |
+| `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder; end drop zone fills remaining space |
 | `tab_controller.dart` | `TabNotifier` | State: open, close (+ disconnect orphaned), reorder, select |
 | `tab_model.dart` | `TabEntry`, `TabKind` | Tab model (id, label, connection, kind) |
 | `welcome_screen.dart` | `WelcomeScreen` | Screen shown when no tabs are open |
