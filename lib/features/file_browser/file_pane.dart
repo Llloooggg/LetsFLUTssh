@@ -408,32 +408,18 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
     Widget headerCell(String label, SortColumn column, {double? width, TextAlign? textAlign}) {
       final isActive = ctrl.sortColumn == column;
+      final sortSuffix = isActive ? (ctrl.sortAscending ? ' ↑' : ' ↓') : '';
       return InkWell(
         onTap: () => ctrl.setSort(column),
         child: SizedBox(
           width: width,
-          child: Row(
-            mainAxisSize: width != null ? MainAxisSize.min : MainAxisSize.max,
-            mainAxisAlignment: textAlign == TextAlign.right
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
-            children: [
-              Flexible(
-                child: Text(
-                  label,
-                  style: isActive
-                      ? headerStyle.copyWith(color: AppTheme.accent)
-                      : headerStyle,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (isActive)
-                Icon(
-                  ctrl.sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                  size: 10,
-                  color: AppTheme.accent,
-                ),
-            ],
+          child: Text(
+            '$label$sortSuffix',
+            style: isActive
+                ? headerStyle.copyWith(color: AppTheme.accent)
+                : headerStyle,
+            overflow: TextOverflow.ellipsis,
+            textAlign: textAlign,
           ),
         ),
       );

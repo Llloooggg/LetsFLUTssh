@@ -307,7 +307,7 @@ void main() {
       expect(find.text('REMOTE'), findsOneWidget);
       expect(find.byIcon(Icons.arrow_back), findsOneWidget);
       expect(find.byIcon(Icons.arrow_forward), findsOneWidget);
-      expect(find.byIcon(Icons.arrow_upward), findsWidgets);
+      expect(find.textContaining('↑'), findsWidgets);
       expect(find.byIcon(Icons.refresh), findsOneWidget);
     });
 
@@ -393,10 +393,10 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      expect(find.text('Name'), findsOneWidget);
-      expect(find.text('Size'), findsOneWidget);
-      expect(find.text('Modified'), findsOneWidget);
-      expect(find.text('Mode'), findsOneWidget);
+      expect(find.textContaining('Name'), findsOneWidget);
+      expect(find.textContaining('Size'), findsOneWidget);
+      expect(find.textContaining('Modified'), findsOneWidget);
+      expect(find.textContaining('Mode'), findsOneWidget);
     });
 
     testWidgets('clicking column header changes sort', (tester) async {
@@ -410,7 +410,7 @@ void main() {
 
       expect(ctrl.sortColumn, SortColumn.name);
 
-      await tester.tap(find.text('Size'));
+      await tester.tap(find.textContaining('Size'));
       await tester.pump();
       expect(ctrl.sortColumn, SortColumn.size);
       expect(ctrl.sortAscending, isTrue);
@@ -427,11 +427,11 @@ void main() {
 
       expect(ctrl.sortAscending, isTrue);
 
-      await tester.tap(find.text('Name'));
+      await tester.tap(find.textContaining('Name'));
       await tester.pump();
       expect(ctrl.sortAscending, isFalse);
 
-      await tester.tap(find.text('Name'));
+      await tester.tap(find.textContaining('Name'));
       await tester.pump();
       expect(ctrl.sortAscending, isTrue);
     });
@@ -445,7 +445,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      await tester.tap(find.text('Modified'));
+      await tester.tap(find.textContaining('Modified'));
       await tester.pump();
       expect(ctrl.sortColumn, SortColumn.modified);
     });
@@ -459,7 +459,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      await tester.tap(find.text('Mode'));
+      await tester.tap(find.textContaining('Mode'));
       await tester.pump();
       expect(ctrl.sortColumn, SortColumn.mode);
     });
@@ -473,11 +473,11 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      expect(find.byIcon(Icons.arrow_upward), findsWidgets);
+      expect(find.textContaining('↑'), findsWidgets);
 
-      await tester.tap(find.text('Name'));
+      await tester.tap(find.textContaining('Name'));
       await tester.pump();
-      expect(find.byIcon(Icons.arrow_downward), findsWidgets);
+      expect(find.textContaining('↓'), findsWidgets);
     });
   });
 
