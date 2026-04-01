@@ -305,12 +305,20 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       scrollDirection: Axis.horizontal,
       child: Row(
       children: [
-        InkWell(
-          onTap: () => ctrl.navigateTo(rootPath),
-          child: rootLabel != null
-              ? Text(rootLabel, style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint))
-              : Icon(Icons.home, size: 10, color: AppTheme.fgFaint),
-        ),
+        if (rootLabel != null)
+          InkWell(
+            onTap: () => ctrl.navigateTo(rootPath),
+            child: Text(rootLabel, style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint)),
+          )
+        else
+          AppIconButton(
+            icon: Icons.home,
+            onTap: () => ctrl.navigateTo(rootPath),
+            tooltip: 'Root',
+            size: 11,
+            boxSize: 20,
+            color: AppTheme.fgFaint,
+          ),
         for (var i = 0; i < navParts.length; i++) ...[
           Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint)),
           InkWell(
@@ -325,13 +333,16 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               ),
             ),
         ],
-        const SizedBox(width: 4),
-        InkWell(
+        AppIconButton(
+          icon: Icons.edit,
           onTap: () {
             _pathController.text = ctrl.currentPath;
             setState(() => _editingPath = true);
           },
-          child: Icon(Icons.edit, size: 9, color: AppTheme.fgFaint),
+          tooltip: 'Edit Path',
+          size: 11,
+          boxSize: 20,
+          color: AppTheme.fgFaint,
         ),
       ],
       ),
