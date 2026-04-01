@@ -960,14 +960,17 @@ class _PanelHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            'SESSIONS',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: AppFonts.sm,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.2,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+          Flexible(
+            child: Text(
+              'SESSIONS',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: AppFonts.sm,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const Spacer(),
@@ -1169,10 +1172,12 @@ class _SidebarFooter extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            '$savedCount saved',
-            overflow: TextOverflow.ellipsis,
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
+          Flexible(
+            child: Text(
+              '$savedCount saved',
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
+            ),
           ),
         ],
       ),

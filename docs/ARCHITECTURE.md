@@ -1464,6 +1464,21 @@ AppConfig {
 - No foreground service (iOS background modes)
 - Sandbox file access
 
+### Desktop window constraints
+
+All desktop platforms enforce a minimum window size of **480 × 360** logical pixels to prevent layout overflow:
+
+| Platform | File | Mechanism |
+|----------|------|-----------|
+| Windows | `windows/runner/win32_window.cpp` | `WM_GETMINMAXINFO` with DPI scaling |
+| Linux | `linux/runner/my_application.cc` | `gtk_window_set_geometry_hints` (`GDK_HINT_MIN_SIZE`) |
+| macOS | `macos/Runner/MainFlutterWindow.swift` | `NSWindow.contentMinSize` |
+
+Additionally, internal resizable elements (sidebar, file browser columns, split panes) use overflow-safe patterns:
+- **Sidebar text** (`_SidebarFooter`, `_PanelHeader`, session tree rows): `Flexible` / `Expanded` with `TextOverflow.ellipsis`
+- **File browser columns** (`FileRow`, column headers): `Flex(clipBehavior: Clip.hardEdge)` — clips instead of yellow-stripe overflow when fixed-width columns exceed pane width
+- **Transfer panel rows**: same `Flex(clipBehavior: Clip.hardEdge)` pattern
+
 ### Windows specifics
 
 - `hardwareKeyboardOnly: true` — xterm TextInputClient bug

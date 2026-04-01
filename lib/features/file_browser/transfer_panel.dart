@@ -193,7 +193,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       height: 20,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       color: AppTheme.bg3,
-      child: Row(
+      child: Flex(
+        direction: Axis.horizontal,
+        clipBehavior: Clip.hardEdge,
         children: [
           SizedBox(width: 16, child: Text('#', style: style)),
           const SizedBox(width: 4),
@@ -254,7 +256,9 @@ class _HistoryRow extends StatelessWidget {
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
+      child: Flex(
+        direction: Axis.horizontal,
+        clipBehavior: Clip.hardEdge,
         children: [
           // Status icon
           SizedBox(
@@ -357,7 +361,9 @@ class _ActiveRow extends StatelessWidget {
         Container(
           height: 22,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
+          child: Flex(
+            direction: Axis.horizontal,
+            clipBehavior: Clip.hardEdge,
             children: [
               // Direction icon
               SizedBox(
@@ -393,9 +399,13 @@ class _ActiveRow extends StatelessWidget {
                     ),
                     if (!isQueued && entry.message.isNotEmpty) ...[
                       const SizedBox(width: 4),
-                      Text(
-                        entry.message,
-                        style: AppFonts.mono(fontSize: AppFonts.tiny, color: AppTheme.accent),
+                      Flexible(
+                        flex: 0,
+                        child: Text(
+                          entry.message,
+                          style: AppFonts.mono(fontSize: AppFonts.tiny, color: AppTheme.accent),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ],
