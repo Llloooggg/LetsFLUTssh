@@ -138,7 +138,7 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
         - Per-file: `curl -s "https://sonarcloud.io/api/measures/component_tree?component=Llloooggg_LetsFLUTssh&metricKeys=uncovered_lines,coverage&strategy=leaves&ps=50&s=metric&metricSort=uncovered_lines&asc=false"`
 - **Code must be testable by design** — extract pure logic from SSH/platform/I/O deps. DI over hardcoded `ref.read()`. Interfaces for file ops. Dialog returns data, service processes it. Pure functions over closures. No duplicate logic across files. DI hooks: [§14 Testing Patterns](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks)
 - **One test file per source file** — no `_extra_test` sprawl. Add to existing test file. Parallel agents: zero overlap in file assignments
-- **Parallel agents** — only `git add` files YOU changed. Run only your own test file, never `make test`. Leave untracked/modified files from other agents alone
+- **Parallel agents** — only `git add` files YOU changed. **Do NOT run tests** — neither your own test file nor `make test`. Leave untracked/modified files from other agents alone. **Testing is the main process's job** — after all sub-agents finish, the main process runs `make test` once to validate everything together
 - **Version gatekeeper** — before suggesting commit, check if version bump needed. If yes — remind. If no — say so explicitly
 
 ## Key Design Principles
