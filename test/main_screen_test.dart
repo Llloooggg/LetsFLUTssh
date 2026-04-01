@@ -357,7 +357,7 @@ void main() {
       // Session panel should be visible
       expect(find.text('SESSIONS'), findsOneWidget);
       // Toolbar should have Sidebar toggle button
-      expect(find.byTooltip('Sidebar (Ctrl+B)'), findsOneWidget);
+      expect(find.byTooltip('Hide Sidebar (Ctrl+B)'), findsOneWidget);
     });
 
     testWidgets('wide layout shows welcome screen when no tabs', (tester) async {
@@ -1786,14 +1786,14 @@ void main() {
   });
 
   group('MainScreen — sidebar toggle', () {
-    testWidgets('wide layout shows view_sidebar button', (tester) async {
+    testWidgets('wide layout shows sidebar toggle button', (tester) async {
       await tester.pumpWidget(buildApp(width: 1000));
       await tester.pump();
 
-      expect(find.byTooltip('Sidebar (Ctrl+B)'), findsOneWidget);
+      expect(find.byTooltip('Hide Sidebar (Ctrl+B)'), findsOneWidget);
     });
 
-    testWidgets('view_sidebar button not shown on narrow layout', (tester) async {
+    testWidgets('sidebar toggle not shown on narrow layout', (tester) async {
       tester.view.physicalSize = const Size(500, 600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1809,7 +1809,7 @@ void main() {
       ));
       await tester.pump();
 
-      expect(find.byTooltip('Sidebar (Ctrl+B)'), findsNothing);
+      expect(find.byTooltip('Hide Sidebar (Ctrl+B)'), findsNothing);
     });
 
     testWidgets('Ctrl+B shortcut toggles sidebar', (tester) async {
