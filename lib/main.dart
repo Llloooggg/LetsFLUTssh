@@ -195,6 +195,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       if (next.status == UpdateStatus.updateAvailable && next.info != null) {
         final skipped = ref.read(configProvider).skippedVersion;
         if (skipped != null && skipped == next.info!.latestVersion) return;
+
+        // A newer version supersedes the previously skipped one — clear stale skip.
+        if (skipped != null) {
+          ref.read(configProvider.notifier).update(
+            (c) => c.withSkippedVersion(null),
+          );
+        }
+
         _updateDialogShown = true;
         final ctx = navigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {

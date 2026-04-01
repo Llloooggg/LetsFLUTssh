@@ -2375,6 +2375,93 @@ void main() {
       expect(find.textContaining('Network error'), findsWidgets);
       Toast.clearAllForTest();
     });
+
+    testWidgets('shows Skip This Version button when not skipped', (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.updateAvailable,
+          info: UpdateInfo(
+            latestVersion: '2.0.0',
+            currentVersion: '1.5.0',
+            releaseUrl: 'https://github.com/releases',
+            assetUrl:
+                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
+          ),
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.text('Skip This Version'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Skip This Version'), findsOneWidget);
+      expect(find.text('Unskip'), findsNothing);
+    });
+
+    testWidgets('shows Unskip button when version is skipped', (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialConfig: AppConfig.defaults.withSkippedVersion('2.0.0'),
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.updateAvailable,
+          info: UpdateInfo(
+            latestVersion: '2.0.0',
+            currentVersion: '1.5.0',
+            releaseUrl: 'https://github.com/releases',
+            assetUrl:
+                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
+          ),
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.text('Unskip'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Unskip'), findsOneWidget);
+      expect(find.text('Skip This Version'), findsNothing);
+    });
+
+    testWidgets('subtitle does not show skipped label', (tester) async {
+      await tester.pumpWidget(buildUpdateApp(
+        initialConfig: AppConfig.defaults.withSkippedVersion('2.0.0'),
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.updateAvailable,
+          info: UpdateInfo(
+            latestVersion: '2.0.0',
+            currentVersion: '1.5.0',
+            releaseUrl: 'https://github.com/releases',
+          ),
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.text('Current: v1.5.0'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Current: v1.5.0'), findsOneWidget);
+      expect(find.textContaining('skipped'), findsNothing);
+    });
+
+    testWidgets('stale skip shows Skip button for new version', (tester) async {
+      // Skipped v2.0.0, but v3.0.0 is now available — skip doesn't match
+      await tester.pumpWidget(buildUpdateApp(
+        initialConfig: AppConfig.defaults.withSkippedVersion('2.0.0'),
+        initialUpdateState: const UpdateState(
+          status: UpdateStatus.updateAvailable,
+          info: UpdateInfo(
+            latestVersion: '3.0.0',
+            currentVersion: '1.5.0',
+            releaseUrl: 'https://github.com/releases',
+            assetUrl:
+                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v3.0.0/file.AppImage',
+          ),
+        ),
+      ));
+      await tester.scrollUntilVisible(
+        find.text('Skip This Version'), 200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Skip This Version'), findsOneWidget);
+      expect(find.text('Unskip'), findsNothing);
+      expect(find.text('Version 3.0.0 available'), findsOneWidget);
+    });
   });
 
   // ---------------------------------------------------------------------------
