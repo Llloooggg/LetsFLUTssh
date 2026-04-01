@@ -1610,56 +1610,78 @@ Uses `mockito` + `@GenerateMocks`. Generated mocks: `*.mocks.dart`.
 
 ## 15. CI/CD Pipeline
 
-### 15.1 Workflow Graph
+### 15.1 Branching Model
+
+Two branches: **`dev`** (daily work) and **`main`** (releases only).
+
+- All app development happens on `dev`. Push freely — CI, SonarCloud, OSV-Scanner run on every push. No tags, no builds, no releases.
+- To release: merge `dev` → `main`. Everything is automatic: CI → auto-tag → build → release.
+- Never push app changes directly to `main`. Dependabot PRs and CI/docs-only fixes are exceptions.
+
+### 15.2 Workflow Graph
 
 ```
-git push (feat/fix/refactor) to main
+push to dev (daily work)
   │
   ├─► ci.yml              (paths: lib/, test/, pubspec.*)
-  │     analyze + test + coverage + sonar-source artifact
+  │     analyze + test + coverage
   │           │
-  │           ├─► sonarcloud.yml    (workflow_run[CI], main only)
-  │           │     quality scan (warn-only in build preflight)
-  │           │
-  │           └─► auto-tag.yml      (workflow_run[CI])
-  │                 scans all commits since last tag
-  │                 last feat/fix/refactor → tag v{VERSION}
-  │                 [skip-release] in any commit → no tag
-  │                       │
-  │                       └─► build.yml      (tags: v*)
-  │                             preflight: CI ✓ + OSV ✓ + Sonar (warn)
-  │                             → build all platforms
-  │                             → GitHub Release + SLSA attestation
+  │           └─► sonarcloud.yml    (workflow_run[CI])
+  │                 quality scan on dev branch
   │
-  ├─► scorecard.yml        (on: push) — OpenSSF Scorecard
-  └─► codeql.yml           (on: push) — Actions analysis
+  ├─► osv-scanner.yml      (paths: pubspec.*)
+  ├─► codeql.yml           (paths: .github/**)
+  └─► (no tags, no builds, no releases)
 
-Dependabot PR merged
+merge dev → main (release)
+  │
+  ├─► ci.yml               (analyze + test + coverage)
+  │     │
+  │     ├─► sonarcloud.yml  (quality scan — badges point here)
+  │     │
+  │     └─► auto-tag.yml    (workflow_run[CI])
+  │           reads version from pubspec.yaml
+  │           tag exists → skip / new version → create tag
+  │                 │
+  │                 └─► build.yml      (tags: v*)
+  │                       preflight: CI on SHA? yes → check / no → trigger ci.yml
+  │                       → build all platforms
+  │                       → GitHub Release + SLSA attestation
+  │
+  ├─► scorecard.yml        (OpenSSF Scorecard)
+  └─► codeql.yml           (Actions analysis)
+
+Dependabot PR merged (into main)
   │
   └─► dependabot-release.yml → patch bump → commit
         └─► ci.yml → dependabot-tag.yml → build.yml → Release
 
-Non-code commit (test/docs/ci/chore)
+Manual build
+  │
+  └─► gh workflow run build.yml
+        preflight: no CI on SHA → triggers ci.yml → waits → build
+
+Non-code PR (docs/test/ci)
   └─► ci-skip.yml → success for required checks (no tag, no release)
 ```
 
-### 15.2 Workflow Catalog
+### 15.3 Workflow Catalog
 
-| Workflow | Trigger | Purpose | Blocks release? |
-|----------|---------|---------|-----------------|
-| `ci.yml` | push/PR (lib/, test/, pubspec.*) | analyze + test + coverage | Yes (required) |
-| `ci-skip.yml` | PR (non-code paths) | No-op success for required checks | — |
-| `auto-tag.yml` | workflow_run[CI] success | Scans all push commits, tags last feat/fix/refactor. `[skip-release]` suppresses | — |
-| `build.yml` | push tag v* / manual | Preflight + build all platforms + release | — |
-| `sonarcloud.yml` | workflow_run[CI] / manual | Quality + coverage scan | No (warn-only) |
-| `osv-scanner.yml` | push pubspec.* / weekly | CVE scan (pubspec.lock) | Yes (required) |
-| `scorecard.yml` | push / weekly | OpenSSF supply chain assessment | No |
-| `codeql.yml` | push .github/ / weekly | GitHub Actions analysis | No |
-| `dependabot-release.yml` | PR closed (dependabot) | Patch bump after dep merge | — |
-| `dependabot-tag.yml` | workflow_run[CI] + chore(deps) | Tag after dep bump | — |
-| `dependabot-automerge.yml` | PR (dependabot) | Auto-merge patch/minor | — |
+| Workflow | Trigger | Branches | Purpose | Blocks release? |
+|----------|---------|----------|---------|-----------------|
+| `ci.yml` | push/PR (lib/, test/, pubspec.*) | main, dev | analyze + test + coverage | Yes (required) |
+| `ci-skip.yml` | PR (non-code paths) | main, dev | No-op success for required checks | — |
+| `auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
+| `build.yml` | push tag v* / manual | — | Preflight (triggers CI if missing) + build all platforms + release | — |
+| `sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
+| `osv-scanner.yml` | push pubspec.* / weekly | main, dev | CVE scan (pubspec.lock) | No (optional in preflight) |
+| `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
+| `codeql.yml` | push .github/ / weekly | main, dev | GitHub Actions analysis | No |
+| `dependabot-release.yml` | PR closed (dependabot) | main | Patch bump after dep merge | — |
+| `dependabot-tag.yml` | workflow_run[CI] + chore(deps) | main | Tag after dep bump | — |
+| `dependabot-automerge.yml` | PR (dependabot) | main | Auto-merge patch/minor | — |
 
-### 15.3 Makefile Targets
+### 15.4 Makefile Targets
 
 #### Development
 

@@ -10,7 +10,7 @@ name: CI Skip
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths-ignore:
       - 'lib/**'
       - 'test/**'

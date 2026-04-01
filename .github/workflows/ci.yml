@@ -3,7 +3,7 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'lib/**'
       - 'test/**'
@@ -16,7 +16,7 @@ on:
       - 'macos/**'
       - 'windows/**'
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'lib/**'
       - 'test/**'
