@@ -1916,14 +1916,11 @@ void main() {
       debugMobilePlatformOverride = null;
     });
 
-    testWidgets('Move to... item appears in context menu on mobile',
-        (tester) async {
-      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
-      await tester.pumpAndSettle();
-
-      // Right-click on staging session
-      final sessionText = find.text('staging');
-      final center = tester.getCenter(sessionText);
+    // Helper: right-click to trigger onSessionContextMenu (tree view's _mobile
+    // is static final=false in test env, so long-press won't fire; right-click
+    // invokes the same callback which then routes to the mobile bottom sheet).
+    Future<void> rightClick(WidgetTester tester, Finder target) async {
+      final center = tester.getCenter(target);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -1932,9 +1929,21 @@ void main() {
       await gesture.down(center);
       await gesture.up();
       await tester.pumpAndSettle();
+    }
 
-      // Move to... item should appear on mobile
+    testWidgets('Move to... item appears in bottom sheet on mobile',
+        (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Right-click triggers onSessionContextMenu → bottom sheet on mobile
+      await rightClick(tester, find.text('staging'));
+
+      // Move to... item should appear in bottom sheet
       expect(find.text('Move to...'), findsOneWidget);
+      // Other actions should also be present
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.text('Files'), findsOneWidget);
     });
 
     testWidgets('Move to... opens move dialog with groups',
@@ -1945,17 +1954,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Right-click on web1 session (in Production group)
-      final sessionText = find.text('web1');
-      final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.addPointer(location: center);
-      await gesture.down(center);
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await rightClick(tester, find.text('web1'));
 
       // Tap Move to...
       await tester.tap(find.text('Move to...'));
@@ -1981,17 +1980,7 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      // Right-click on web1 (in Production group)
-      final sessionText = find.text('web1');
-      final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.addPointer(location: center);
-      await gesture.down(center);
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await rightClick(tester, find.text('web1'));
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2010,17 +1999,7 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      // Right-click on web1 (in Production group)
-      final sessionText = find.text('web1');
-      final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.addPointer(location: center);
-      await gesture.down(center);
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await rightClick(tester, find.text('web1'));
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2044,17 +2023,7 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      // Right-click on web1 (in Production group)
-      final sessionText = find.text('web1');
-      final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.addPointer(location: center);
-      await gesture.down(center);
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await rightClick(tester, find.text('web1'));
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2072,17 +2041,7 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      // Right-click on web1
-      final sessionText = find.text('web1');
-      final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.addPointer(location: center);
-      await gesture.down(center);
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await rightClick(tester, find.text('web1'));
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2100,17 +2059,7 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      // Right-click on staging (root group, group == '')
-      final sessionText = find.text('staging');
-      final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.addPointer(location: center);
-      await gesture.down(center);
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await rightClick(tester, find.text('staging'));
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2141,17 +2090,7 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      // Right-click on staging (root group)
-      final sessionText = find.text('staging');
-      final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.addPointer(location: center);
-      await gesture.down(center);
-      await gesture.up();
-      await tester.pumpAndSettle();
+      await rightClick(tester, find.text('staging'));
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
