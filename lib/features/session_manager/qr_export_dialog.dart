@@ -12,26 +12,26 @@ import '../../widgets/app_divider.dart';
 /// a disclaimer about credentials, and Export All / Show QR buttons.
 class QrExportDialog extends StatefulWidget {
   final List<Session> sessions;
-  final Set<String> emptyGroups;
+  final Set<String> emptyFolders;
 
   const QrExportDialog({
     super.key,
     required this.sessions,
-    required this.emptyGroups,
+    required this.emptyFolders,
   });
 
   /// Show the export dialog. Returns the QR payload string, or null if cancelled.
   static Future<String?> show(
     BuildContext context, {
     required List<Session> sessions,
-    required Set<String> emptyGroups,
+    required Set<String> emptyFolders,
   }) {
     return showDialog<String>(
       context: context,
       animationStyle: AnimationStyle.noAnimation,
       builder: (_) => QrExportDialog(
         sessions: sessions,
-        emptyGroups: emptyGroups,
+        emptyFolders: emptyFolders,
       ),
     );
   }
@@ -52,11 +52,11 @@ class _QrExportDialogState extends State<QrExportDialog> {
   List<Session> get _selectedSessions =>
       widget.sessions.where((s) => _selectedIds.contains(s.id)).toList();
 
-  Set<String> get _relevantEmptyGroups {
-    final selectedGroups = _selectedSessions.map((s) => s.group).toSet();
-    return widget.emptyGroups.where((g) {
-      // Include empty group if it or its parent is relevant
-      return selectedGroups.any((sg) => sg.startsWith(g) || g.startsWith(sg)) ||
+  Set<String> get _relevantEmptyFolders {
+    final selectedFolders = _selectedSessions.map((s) => s.folder).toSet();
+    return widget.emptyFolders.where((g) {
+      // Include empty folder if it or its parent is relevant
+      return selectedFolders.any((sf) => sf.startsWith(g) || g.startsWith(sf)) ||
           _selectedIds.length == widget.sessions.length;
     }).toSet();
   }
@@ -71,7 +71,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
       ? 0
       : calculateQrPayloadSize(
           _selectedSessions,
-          emptyGroups: _relevantEmptyGroups,
+          emptyFolders: _relevantEmptyFolders,
         );
 
   bool get _fitsInQr => _payloadSize <= qrMaxPayloadBytes;
@@ -98,30 +98,30 @@ class _QrExportDialogState extends State<QrExportDialog> {
     });
   }
 
-  void _toggleGroup(String groupPath) {
-    final groupSessionIds = widget.sessions
-        .where((s) => s.group == groupPath || s.group.startsWith('$groupPath/'))
+  void _toggleFolder(String folderPath) {
+    final folderSessionIds = widget.sessions
+        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
         .map((s) => s.id)
         .toSet();
-    final allSelected = groupSessionIds.every(_selectedIds.contains);
+    final allSelected = folderSessionIds.every(_selectedIds.contains);
     setState(() {
       if (allSelected) {
-        _selectedIds.removeAll(groupSessionIds);
+        _selectedIds.removeAll(folderSessionIds);
       } else {
-        _selectedIds.addAll(groupSessionIds);
+        _selectedIds.addAll(folderSessionIds);
       }
     });
   }
 
-  bool? _isGroupPartial(String groupPath) {
-    final groupSessionIds = widget.sessions
-        .where((s) => s.group == groupPath || s.group.startsWith('$groupPath/'))
+  bool? _isFolderPartial(String folderPath) {
+    final folderSessionIds = widget.sessions
+        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
         .map((s) => s.id)
         .toSet();
-    if (groupSessionIds.isEmpty) return false;
-    final selectedCount = groupSessionIds.where(_selectedIds.contains).length;
+    if (folderSessionIds.isEmpty) return false;
+    final selectedCount = folderSessionIds.where(_selectedIds.contains).length;
     if (selectedCount == 0) return false;
-    if (selectedCount == groupSessionIds.length) return true;
+    if (selectedCount == folderSessionIds.length) return true;
     return null; // partial
   }
 
@@ -131,15 +131,15 @@ class _QrExportDialogState extends State<QrExportDialog> {
       _showTooLargeSnackbar();
       return;
     }
-    _popWithDeepLink(_allSelected ? widget.emptyGroups : _relevantEmptyGroups);
+    _popWithDeepLink(_allSelected ? widget.emptyFolders : _relevantEmptyFolders);
   }
 
   void _showQr() {
-    _popWithDeepLink(_relevantEmptyGroups);
+    _popWithDeepLink(_relevantEmptyFolders);
   }
 
-  void _popWithDeepLink(Set<String> groups) {
-    final payload = encodeSessionsForQr(_selectedSessions, emptyGroups: groups);
+  void _popWithDeepLink(Set<String> folders) {
+    final payload = encodeSessionsForQr(_selectedSessions, emptyFolders: folders);
     Navigator.of(context).pop(wrapInDeepLink(payload));
   }
 
@@ -155,7 +155,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tree = SessionTree.build(widget.sessions, emptyGroups: widget.emptyGroups);
+    final tree = SessionTree.build(widget.sessions, emptyFolders: widget.emptyFolders);
     final sizePercent = qrMaxPayloadBytes > 0
         ? (_payloadSize / qrMaxPayloadBytes).clamp(0.0, 1.0)
         : 0.0;
@@ -275,17 +275,17 @@ class _QrExportDialogState extends State<QrExportDialog> {
   }
 
   Widget _buildGroupItem(SessionTreeNode node, int depth) {
-    final tristate = _isGroupPartial(node.fullPath);
+    final tristate = _isFolderPartial(node.fullPath);
     return Padding(
       padding: EdgeInsets.only(left: depth * 20.0),
       child: InkWell(
-        onTap: () => _toggleGroup(node.fullPath),
+        onTap: () => _toggleFolder(node.fullPath),
         child: Row(
           children: [
             Checkbox(
               value: tristate,
               tristate: true,
-              onChanged: (_) => _toggleGroup(node.fullPath),
+              onChanged: (_) => _toggleFolder(node.fullPath),
             ),
             const Icon(Icons.folder, size: 16),
             const SizedBox(width: 4),

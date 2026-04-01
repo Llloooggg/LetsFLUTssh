@@ -42,14 +42,14 @@ void main() {
   Session makeSession({
     String? id,
     String label = 'test',
-    String group = '',
+    String folder = '',
     String host = 'example.com',
     String user = 'root',
     String password = '',
     String keyData = '',
     String passphrase = '',
   }) {
-    return Session(id: id ?? 'test-${DateTime.now().microsecondsSinceEpoch}', label: label, group: group, server: ServerAddress(host: host, user: user), auth: SessionAuth(password: password, keyData: keyData, passphrase: passphrase));
+    return Session(id: id ?? 'test-${DateTime.now().microsecondsSinceEpoch}', label: label, folder: folder, server: ServerAddress(host: host, user: user), auth: SessionAuth(password: password, keyData: keyData, passphrase: passphrase));
   }
 
   group('SessionStore — load with no data', () {
@@ -217,44 +217,44 @@ void main() {
     });
   });
 
-  group('SessionStore — empty groups', () {
-    test('empty groups persist in memory', () async {
+  group('SessionStore — empty folders', () {
+    test('empty folders persist in memory', () async {
       final store = SessionStore();
       await store.load();
-      await store.addEmptyGroup('Production/Cache');
-      await store.addEmptyGroup('Archive');
+      await store.addEmptyFolder('Production/Cache');
+      await store.addEmptyFolder('Archive');
 
-      expect(store.emptyGroups, contains('Production/Cache'));
-      expect(store.emptyGroups, contains('Archive'));
+      expect(store.emptyFolders, contains('Production/Cache'));
+      expect(store.emptyFolders, contains('Archive'));
     });
 
-    test('remove empty group from memory', () async {
+    test('remove empty folder from memory', () async {
       final store = SessionStore();
       await store.load();
-      await store.addEmptyGroup('ToRemove');
-      await store.addEmptyGroup('ToKeep');
-      await store.removeEmptyGroup('ToRemove');
+      await store.addEmptyFolder('ToRemove');
+      await store.addEmptyFolder('ToKeep');
+      await store.removeEmptyFolder('ToRemove');
 
-      expect(store.emptyGroups, isNot(contains('ToRemove')));
-      expect(store.emptyGroups, contains('ToKeep'));
+      expect(store.emptyFolders, isNot(contains('ToRemove')));
+      expect(store.emptyFolders, contains('ToKeep'));
     });
 
-    test('empty groups file is written to disk', () async {
+    test('empty folders file is written to disk', () async {
       final store = SessionStore();
       await store.load();
-      await store.addEmptyGroup('TestGroup');
+      await store.addEmptyFolder('TestFolder');
 
       final file = File('${tempDir.path}/empty_groups.json');
       expect(await file.exists(), isTrue);
       final content = await file.readAsString();
-      expect(content, contains('TestGroup'));
+      expect(content, contains('TestFolder'));
     });
 
-    test('addEmptyGroup with empty string is no-op', () async {
+    test('addEmptyFolder with empty string is no-op', () async {
       final store = SessionStore();
       await store.load();
-      await store.addEmptyGroup('');
-      expect(store.emptyGroups, isEmpty);
+      await store.addEmptyFolder('');
+      expect(store.emptyFolders, isEmpty);
     });
   });
 
@@ -282,24 +282,24 @@ void main() {
   });
 
   group('SessionStore — move operations', () {
-    test('moveSession changes group', () async {
+    test('moveSession changes folder', () async {
       final store = SessionStore();
       await store.load();
-      final session = makeSession(id: 'mv-1', label: 'movable', group: 'A');
+      final session = makeSession(id: 'mv-1', label: 'movable', folder: 'A');
       await store.add(session);
       await store.moveSession('mv-1', 'B');
 
-      expect(store.sessions.first.group, 'B');
+      expect(store.sessions.first.folder, 'B');
     });
 
-    test('moveGroup moves folder to new parent', () async {
+    test('moveFolder moves folder to new parent', () async {
       final store = SessionStore();
       await store.load();
-      final session = makeSession(id: 'mg-1', label: 's1', group: 'Prod/Web');
+      final session = makeSession(id: 'mg-1', label: 's1', folder: 'Prod/Web');
       await store.add(session);
-      await store.moveGroup('Prod/Web', 'Staging');
+      await store.moveFolder('Prod/Web', 'Staging');
 
-      expect(store.sessions.first.group, 'Staging/Web');
+      expect(store.sessions.first.folder, 'Staging/Web');
     });
   });
 
@@ -307,9 +307,9 @@ void main() {
     test('deleteMultiple removes selected sessions', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'bm-1', label: 's1', group: 'A'));
-      await store.add(makeSession(id: 'bm-2', label: 's2', group: 'A'));
-      await store.add(makeSession(id: 'bm-3', label: 's3', group: 'B'));
+      await store.add(makeSession(id: 'bm-1', label: 's1', folder: 'A'));
+      await store.add(makeSession(id: 'bm-2', label: 's2', folder: 'A'));
+      await store.add(makeSession(id: 'bm-3', label: 's3', folder: 'B'));
       await store.deleteMultiple({'bm-1', 'bm-3'});
 
       expect(store.sessions, hasLength(1));
@@ -325,41 +325,41 @@ void main() {
       expect(store.sessions, hasLength(1));
     });
 
-    test('moveMultiple moves selected sessions to new group', () async {
+    test('moveMultiple moves selected sessions to new folder', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'mm-1', label: 's1', group: 'A'));
-      await store.add(makeSession(id: 'mm-2', label: 's2', group: 'A'));
-      await store.add(makeSession(id: 'mm-3', label: 's3', group: 'B'));
+      await store.add(makeSession(id: 'mm-1', label: 's1', folder: 'A'));
+      await store.add(makeSession(id: 'mm-2', label: 's2', folder: 'A'));
+      await store.add(makeSession(id: 'mm-3', label: 's3', folder: 'B'));
       await store.moveMultiple({'mm-1', 'mm-3'}, 'C');
 
-      final moved = store.sessions.where((s) => s.group == 'C').toList();
+      final moved = store.sessions.where((s) => s.folder == 'C').toList();
       expect(moved, hasLength(2));
       expect(moved.map((s) => s.id).toSet(), {'mm-1', 'mm-3'});
-      expect(store.sessions.firstWhere((s) => s.id == 'mm-2').group, 'A');
+      expect(store.sessions.firstWhere((s) => s.id == 'mm-2').folder, 'A');
     });
 
     test('moveMultiple with empty set is no-op', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'mm-4', label: 's4', group: 'X'));
+      await store.add(makeSession(id: 'mm-4', label: 's4', folder: 'X'));
       await store.moveMultiple({}, 'Y');
 
-      expect(store.sessions.first.group, 'X');
+      expect(store.sessions.first.folder, 'X');
     });
   });
 
-  group('SessionStore — deleteGroup and deleteAll', () {
-    test('deleteGroup removes sessions in group', () async {
+  group('SessionStore — deleteFolder and deleteAll', () {
+    test('deleteFolder removes sessions in folder', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'dg-1', label: 's1', group: 'Prod'));
-      await store.add(makeSession(id: 'dg-2', label: 's2', group: 'Prod/Web'));
-      await store.add(makeSession(id: 'dg-3', label: 's3', group: 'Dev'));
-      await store.deleteGroup('Prod');
+      await store.add(makeSession(id: 'dg-1', label: 's1', folder: 'Prod'));
+      await store.add(makeSession(id: 'dg-2', label: 's2', folder: 'Prod/Web'));
+      await store.add(makeSession(id: 'dg-3', label: 's3', folder: 'Dev'));
+      await store.deleteFolder('Prod');
 
       expect(store.sessions, hasLength(1));
-      expect(store.sessions.first.group, 'Dev');
+      expect(store.sessions.first.folder, 'Dev');
     });
 
     test('deleteAll clears everything', () async {
@@ -367,11 +367,11 @@ void main() {
       await store.load();
       await store.add(makeSession(id: 'da-1', label: 's1'));
       await store.add(makeSession(id: 'da-2', label: 's2'));
-      await store.addEmptyGroup('G1');
+      await store.addEmptyFolder('G1');
       await store.deleteAll();
 
       expect(store.sessions, isEmpty);
-      expect(store.emptyGroups, isEmpty);
+      expect(store.emptyFolders, isEmpty);
     });
   });
 
@@ -396,52 +396,52 @@ void main() {
       expect(results.first.label, 'nginx');
     });
 
-    test('groups returns sorted unique groups', () async {
+    test('folders returns sorted unique folders', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'g-1', label: 's1', group: 'B'));
-      await store.add(makeSession(id: 'g-2', label: 's2', group: 'A'));
-      await store.add(makeSession(id: 'g-3', label: 's3', group: 'B'));
+      await store.add(makeSession(id: 'g-1', label: 's1', folder: 'B'));
+      await store.add(makeSession(id: 'g-2', label: 's2', folder: 'A'));
+      await store.add(makeSession(id: 'g-3', label: 's3', folder: 'B'));
 
-      expect(store.groups(), ['A', 'B']);
+      expect(store.folders(), ['A', 'B']);
     });
 
-    test('byGroup returns sessions in specific group', () async {
+    test('byFolder returns sessions in specific folder', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'bg-1', label: 's1', group: 'X'));
-      await store.add(makeSession(id: 'bg-2', label: 's2', group: 'Y'));
+      await store.add(makeSession(id: 'bg-1', label: 's1', folder: 'X'));
+      await store.add(makeSession(id: 'bg-2', label: 's2', folder: 'Y'));
 
-      final result = store.byGroup('X');
+      final result = store.byFolder('X');
       expect(result, hasLength(1));
-      expect(result.first.group, 'X');
+      expect(result.first.folder, 'X');
     });
 
-    test('countSessionsInGroup counts group and subgroups', () async {
+    test('countSessionsInFolder counts folder and subfolders', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'cnt-1', label: 's1', group: 'P'));
-      await store.add(makeSession(id: 'cnt-2', label: 's2', group: 'P/Web'));
+      await store.add(makeSession(id: 'cnt-1', label: 's1', folder: 'P'));
+      await store.add(makeSession(id: 'cnt-2', label: 's2', folder: 'P/Web'));
 
-      expect(store.countSessionsInGroup('P'), 2);
-      expect(store.countSessionsInGroup('P/Web'), 1);
-      expect(store.countSessionsInGroup('None'), 0);
+      expect(store.countSessionsInFolder('P'), 2);
+      expect(store.countSessionsInFolder('P/Web'), 1);
+      expect(store.countSessionsInFolder('None'), 0);
     });
   });
 
-  group('SessionStore — renameGroup', () {
-    test('renameGroup updates sessions and empty groups', () async {
+  group('SessionStore — renameFolder', () {
+    test('renameFolder updates sessions and empty folders', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'rn-1', label: 's1', group: 'Old'));
-      await store.add(makeSession(id: 'rn-2', label: 's2', group: 'Old/Sub'));
-      await store.addEmptyGroup('Old/Empty');
-      await store.renameGroup('Old', 'New');
+      await store.add(makeSession(id: 'rn-1', label: 's1', folder: 'Old'));
+      await store.add(makeSession(id: 'rn-2', label: 's2', folder: 'Old/Sub'));
+      await store.addEmptyFolder('Old/Empty');
+      await store.renameFolder('Old', 'New');
 
-      expect(store.sessions[0].group, 'New');
-      expect(store.sessions[1].group, 'New/Sub');
-      expect(store.emptyGroups, contains('New/Empty'));
-      expect(store.emptyGroups, isNot(contains('Old/Empty')));
+      expect(store.sessions[0].folder, 'New');
+      expect(store.sessions[1].folder, 'New/Sub');
+      expect(store.emptyFolders, contains('New/Empty'));
+      expect(store.emptyFolders, isNot(contains('Old/Empty')));
     });
   });
 
@@ -468,24 +468,24 @@ void main() {
     });
   });
 
-  group('SessionStore — renameGroup with empty groups exact match', () {
-    test('renameGroup renames exact empty group match', () async {
+  group('SessionStore — renameFolder with empty folders exact match', () {
+    test('renameFolder renames exact empty folder match', () async {
       final store = SessionStore();
       await store.load();
-      // Add an empty group that exactly matches the old path
-      await store.addEmptyGroup('Old');
-      await store.addEmptyGroup('Old/Sub');
-      await store.renameGroup('Old', 'New');
+      // Add an empty folder that exactly matches the old path
+      await store.addEmptyFolder('Old');
+      await store.addEmptyFolder('Old/Sub');
+      await store.renameFolder('Old', 'New');
 
-      expect(store.emptyGroups, contains('New'));
-      expect(store.emptyGroups, contains('New/Sub'));
-      expect(store.emptyGroups, isNot(contains('Old')));
-      expect(store.emptyGroups, isNot(contains('Old/Sub')));
+      expect(store.emptyFolders, contains('New'));
+      expect(store.emptyFolders, contains('New/Sub'));
+      expect(store.emptyFolders, isNot(contains('Old')));
+      expect(store.emptyFolders, isNot(contains('Old/Sub')));
     });
   });
 
-  group('SessionStore — loadEmptyGroups with valid data', () {
-    test('empty groups file loads correctly', () async {
+  group('SessionStore — loadEmptyFolders with valid data', () {
+    test('empty folders file loads correctly', () async {
       // Write both sessions.json (so load() doesn't return early) and empty_groups.json
       final sessFile = File('${tempDir.path}/sessions.json');
       await sessFile.parent.create(recursive: true);
@@ -496,83 +496,83 @@ void main() {
 
       final store = SessionStore();
       await store.load();
-      expect(store.emptyGroups, contains('GroupA'));
-      expect(store.emptyGroups, contains('GroupB'));
+      expect(store.emptyFolders, contains('GroupA'));
+      expect(store.emptyFolders, contains('GroupB'));
     });
   });
 
-  group('SessionStore — moveGroup edge cases', () {
-    test('moveGroup to own subtree is no-op', () async {
+  group('SessionStore — moveFolder edge cases', () {
+    test('moveFolder to own subtree is no-op', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'mg-2', label: 's1', group: 'A/B'));
-      await store.moveGroup('A', 'A/B');
+      await store.add(makeSession(id: 'mg-2', label: 's1', folder: 'A/B'));
+      await store.moveFolder('A', 'A/B');
 
       // Should not move into own subtree
-      expect(store.sessions.first.group, 'A/B');
+      expect(store.sessions.first.folder, 'A/B');
     });
 
-    test('moveGroup with empty groupPath is no-op', () async {
+    test('moveFolder with empty folderPath is no-op', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'mg-3', label: 's1', group: 'X'));
-      await store.moveGroup('', 'Y');
+      await store.add(makeSession(id: 'mg-3', label: 's1', folder: 'X'));
+      await store.moveFolder('', 'Y');
 
-      expect(store.sessions.first.group, 'X');
+      expect(store.sessions.first.folder, 'X');
     });
 
-    test('moveGroup when already at target is no-op', () async {
+    test('moveFolder when already at target is no-op', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'mg-4', label: 's1', group: 'Parent/Child'));
-      await store.moveGroup('Parent/Child', 'Parent');
+      await store.add(makeSession(id: 'mg-4', label: 's1', folder: 'Parent/Child'));
+      await store.moveFolder('Parent/Child', 'Parent');
 
       // Child under Parent => same path, no-op
-      expect(store.sessions.first.group, 'Parent/Child');
+      expect(store.sessions.first.folder, 'Parent/Child');
     });
 
-    test('moveGroup to root', () async {
+    test('moveFolder to root', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'mg-5', label: 's1', group: 'Parent/Sub'));
-      await store.moveGroup('Parent/Sub', '');
+      await store.add(makeSession(id: 'mg-5', label: 's1', folder: 'Parent/Sub'));
+      await store.moveFolder('Parent/Sub', '');
 
-      expect(store.sessions.first.group, 'Sub');
+      expect(store.sessions.first.folder, 'Sub');
     });
   });
 
-  group('SessionStore — deleteGroup removes empty groups under path', () {
-    test('deleteGroup also removes empty groups under deleted path', () async {
+  group('SessionStore — deleteFolder removes empty folders under path', () {
+    test('deleteFolder also removes empty folders under deleted path', () async {
       final store = SessionStore();
       await store.load();
-      await store.addEmptyGroup('Prod');
-      await store.addEmptyGroup('Prod/Cache');
-      await store.add(makeSession(id: 'dg-e1', label: 's', group: 'Prod'));
-      await store.deleteGroup('Prod');
+      await store.addEmptyFolder('Prod');
+      await store.addEmptyFolder('Prod/Cache');
+      await store.add(makeSession(id: 'dg-e1', label: 's', folder: 'Prod'));
+      await store.deleteFolder('Prod');
 
-      expect(store.emptyGroups, isNot(contains('Prod')));
-      expect(store.emptyGroups, isNot(contains('Prod/Cache')));
+      expect(store.emptyFolders, isNot(contains('Prod')));
+      expect(store.emptyFolders, isNot(contains('Prod/Cache')));
       expect(store.sessions, isEmpty);
     });
   });
 
-  group('SessionStore — renameGroup edge cases', () {
-    test('renameGroup with empty oldPath is no-op', () async {
+  group('SessionStore — renameFolder edge cases', () {
+    test('renameFolder with empty oldPath is no-op', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'rn-e1', label: 's1', group: 'A'));
-      await store.renameGroup('', 'B');
+      await store.add(makeSession(id: 'rn-e1', label: 's1', folder: 'A'));
+      await store.renameFolder('', 'B');
 
-      expect(store.sessions.first.group, 'A');
+      expect(store.sessions.first.folder, 'A');
     });
 
-    test('renameGroup same old and new is no-op', () async {
+    test('renameFolder same old and new is no-op', () async {
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(id: 'rn-e2', label: 's1', group: 'A'));
-      await store.renameGroup('A', 'A');
+      await store.add(makeSession(id: 'rn-e2', label: 's1', folder: 'A'));
+      await store.renameFolder('A', 'A');
 
-      expect(store.sessions.first.group, 'A');
+      expect(store.sessions.first.folder, 'A');
     });
   });
 
@@ -589,7 +589,7 @@ void main() {
 
       final store = SessionStore();
       await store.load();
-      expect(store.emptyGroups, isEmpty);
+      expect(store.emptyFolders, isEmpty);
     });
 
     test('corrupted sessions.json loads gracefully', () async {
@@ -744,40 +744,40 @@ void main() {
       await store.load();
 
       // Add initial data
-      final s1 = Session(id: 'a', label: 'A', group: '', server: const ServerAddress(host: 'h', user: 'u'));
-      final s2 = Session(id: 'b', label: 'B', group: 'G', server: const ServerAddress(host: 'h2', user: 'u'));
+      final s1 = Session(id: 'a', label: 'A', folder: '', server: const ServerAddress(host: 'h', user: 'u'));
+      final s2 = Session(id: 'b', label: 'B', folder: 'G', server: const ServerAddress(host: 'h2', user: 'u'));
       await store.add(s1);
       await store.add(s2);
-      await store.addEmptyGroup('EmptyFolder');
+      await store.addEmptyFolder('EmptyFolder');
       expect(store.sessions.length, 2);
 
       // Snapshot state
       final snapSessions = List.of(store.sessions);
-      final snapGroups = Set.of(store.emptyGroups);
+      final snapFolders = Set.of(store.emptyFolders);
 
       // Delete everything
       await store.deleteAll();
       expect(store.sessions, isEmpty);
-      expect(store.emptyGroups, isEmpty);
+      expect(store.emptyFolders, isEmpty);
 
       // Restore from snapshot
-      await store.restoreSnapshot(snapSessions, snapGroups);
+      await store.restoreSnapshot(snapSessions, snapFolders);
       expect(store.sessions.length, 2);
       expect(store.sessions.map((s) => s.id).toSet(), {'a', 'b'});
-      expect(store.emptyGroups, contains('EmptyFolder'));
+      expect(store.emptyFolders, contains('EmptyFolder'));
     });
 
     test('restored state persists to disk', () async {
       final store = SessionStore();
       await store.load();
 
-      final s1 = Session(id: 'x', label: 'X', group: '', server: const ServerAddress(host: 'h', user: 'u'));
+      final s1 = Session(id: 'x', label: 'X', folder: '', server: const ServerAddress(host: 'h', user: 'u'));
       await store.add(s1);
       final snap = List.of(store.sessions);
-      final snapGroups = Set.of(store.emptyGroups);
+      final snapFolders = Set.of(store.emptyFolders);
 
       await store.deleteAll();
-      await store.restoreSnapshot(snap, snapGroups);
+      await store.restoreSnapshot(snap, snapFolders);
 
       // Reload from disk
       final store2 = SessionStore();

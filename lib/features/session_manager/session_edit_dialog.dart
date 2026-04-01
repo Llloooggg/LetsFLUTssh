@@ -33,30 +33,26 @@ class SaveResult extends SessionDialogResult {
 /// In edit mode, shows 2 buttons: Cancel | Save
 class SessionEditDialog extends StatefulWidget {
   final Session? session; // null = create new
-  final List<String> existingGroups;
-  final String? defaultGroup;
+  final String? defaultFolder;
 
   const SessionEditDialog({
     super.key,
     this.session,
-    this.existingGroups = const [],
-    this.defaultGroup,
+    this.defaultFolder,
   });
 
   /// Show dialog. Returns [SessionDialogResult] or null on cancel.
   static Future<SessionDialogResult?> show(
     BuildContext context, {
     Session? session,
-    List<String> existingGroups = const [],
-    String? defaultGroup,
+    String? defaultFolder,
   }) {
     return showDialog<SessionDialogResult>(
       context: context,
       animationStyle: AnimationStyle.noAnimation,
       builder: (_) => SessionEditDialog(
         session: session,
-        existingGroups: existingGroups,
-        defaultGroup: defaultGroup,
+        defaultFolder: defaultFolder,
       ),
     );
   }
@@ -68,7 +64,7 @@ class SessionEditDialog extends StatefulWidget {
 class _SessionEditDialogState extends State<SessionEditDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _labelCtrl;
-  late final TextEditingController _groupCtrl;
+  late final TextEditingController _folderCtrl;
   late final TextEditingController _hostCtrl;
   late final TextEditingController _portCtrl;
   late final TextEditingController _userCtrl;
@@ -82,7 +78,6 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   bool _showKeyText = false;
   bool _keyDragging = false;
   String? _keyError;
-  TextEditingController? _autoCompleteCtrl;
   int _tabIndex = 0;
 
   bool get _isEditing => widget.session != null;
@@ -92,7 +87,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     super.initState();
     final s = widget.session;
     _labelCtrl = TextEditingController(text: s?.label ?? '');
-    _groupCtrl = TextEditingController(text: s?.group ?? widget.defaultGroup ?? '');
+    _folderCtrl = TextEditingController(text: s?.folder ?? widget.defaultFolder ?? '');
     _hostCtrl = TextEditingController(text: s?.host ?? '');
     _portCtrl = TextEditingController(text: '${s?.port ?? 22}');
     _userCtrl = TextEditingController(text: s?.user ?? '');
@@ -107,7 +102,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   @override
   void dispose() {
     _labelCtrl.dispose();
-    _groupCtrl.dispose();
+    _folderCtrl.dispose();
     _hostCtrl.dispose();
     _portCtrl.dispose();
     _userCtrl.dispose();
@@ -123,7 +118,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     if (_isEditing) {
       return widget.session!.copyWith(
         label: _labelCtrl.text.trim(),
-        group: _groupCtrl.text.trim(),
+        folder: _folderCtrl.text.trim(),
         server: widget.session!.server.copyWith(
           host: _hostCtrl.text.trim(),
           port: int.tryParse(_portCtrl.text.trim()) ?? 22,
@@ -140,7 +135,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     }
     return Session(
       label: _labelCtrl.text.trim(),
-      group: _groupCtrl.text.trim(),
+      folder: _folderCtrl.text.trim(),
       server: ServerAddress(
         host: _hostCtrl.text.trim(),
         port: int.tryParse(_portCtrl.text.trim()) ?? 22,
@@ -352,39 +347,6 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         const SizedBox(height: 12),
         _styledField('Username *', _userCtrl,
             hint: 'root', validator: _requiredValidator),
-        const SizedBox(height: 12),
-        _buildGroupField(),
-      ],
-    );
-  }
-
-  Widget _buildGroupField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _FieldLabel('Group'),
-        Autocomplete<String>(
-          initialValue: TextEditingValue(text: _groupCtrl.text),
-          optionsBuilder: (value) {
-            if (value.text.isEmpty) return widget.existingGroups;
-            return widget.existingGroups.where(
-              (g) => g.toLowerCase().contains(value.text.toLowerCase()),
-            );
-          },
-          onSelected: (value) => _groupCtrl.text = value,
-          fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-            if (_autoCompleteCtrl != controller) {
-              _autoCompleteCtrl = controller;
-              controller.text = _groupCtrl.text;
-              controller.addListener(() => _groupCtrl.text = controller.text);
-            }
-            return _StyledInput(
-              controller: controller,
-              focusNode: focusNode,
-              hint: 'Production/Web',
-            );
-          },
-        ),
       ],
     );
   }
@@ -757,7 +719,6 @@ class _FieldLabel extends StatelessWidget {
 /// Styled text input matching the mockup.
 class _StyledInput extends StatelessWidget {
   final TextEditingController controller;
-  final FocusNode? focusNode;
   final String? hint;
   final bool obscure;
   final Widget? suffixIcon;
@@ -766,7 +727,6 @@ class _StyledInput extends StatelessWidget {
 
   const _StyledInput({
     required this.controller,
-    this.focusNode,
     this.hint,
     this.obscure = false,
     this.suffixIcon,
@@ -778,7 +738,6 @@ class _StyledInput extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      focusNode: focusNode,
       obscureText: obscure,
       keyboardType: keyboardType,
       validator: validator,

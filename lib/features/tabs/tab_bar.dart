@@ -17,9 +17,7 @@ import 'tab_model.dart';
 /// Tabs shrink when space is tight and scroll with the mouse wheel when they
 /// reach their minimum width.
 class AppTabBar extends ConsumerStatefulWidget {
-  final VoidCallback onNewSession;
-
-  const AppTabBar({super.key, required this.onNewSession});
+  const AppTabBar({super.key});
 
   @override
   ConsumerState<AppTabBar> createState() => _AppTabBarState();
@@ -58,63 +56,57 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
         color: scheme.surfaceContainerLow,
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
-      child: Row(
-        children: [
-          if (tabs.isNotEmpty)
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const maxTabW = 180.0;
-                  const minTabW = 80.0;
-                  final natural = constraints.maxWidth / tabs.length;
-                  final tabW = natural.clamp(minTabW, maxTabW);
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const maxTabW = 180.0;
+          const minTabW = 80.0;
+          final natural = constraints.maxWidth / tabs.length;
+          final tabW = natural.clamp(minTabW, maxTabW);
 
-                  return Listener(
-                    onPointerSignal: _onPointerSignal,
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (int index = 0; index < tabs.length; index++)
-                            _buildDragTarget(tabs, index, tabState, tabW),
-                          // Drop zone at the end — allows dragging to last position
-                          DragTarget<TabEntry>(
-                            onWillAcceptWithDetails: (_) => true,
-                            onAcceptWithDetails: (d) {
-                              final oldIdx =
-                                  tabs.indexWhere((t) => t.id == d.data.id);
-                              final lastIdx = tabs.length - 1;
-                              if (oldIdx >= 0 && oldIdx != lastIdx) {
-                                ref
-                                    .read(tabProvider.notifier)
-                                    .swapTabs(oldIdx, lastIdx);
-                              }
-                            },
-                            builder: (context, candidates, _) => Container(
-                              width: 24,
-                              height: 32,
-                              decoration: candidates.isNotEmpty
-                                  ? BoxDecoration(
-                                      border: Border(
-                                        left: BorderSide(
-                                            color: AppTheme.accent, width: 2),
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                          ),
-                        ],
-                      ),
+          // Space remaining after all tab items.
+          final tabsWidth = tabW * tabs.length;
+          final endZoneW =
+              (constraints.maxWidth - tabsWidth).clamp(24.0, double.infinity);
+
+          return Listener(
+            onPointerSignal: _onPointerSignal,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (int index = 0; index < tabs.length; index++)
+                    _buildDragTarget(tabs, index, tabState, tabW),
+                  // Drop zone fills remaining space (min 24px when scrolling)
+                  DragTarget<TabEntry>(
+                    onWillAcceptWithDetails: (_) => true,
+                    onAcceptWithDetails: (d) {
+                      final oldIdx =
+                          tabs.indexWhere((t) => t.id == d.data.id);
+                      if (oldIdx >= 0 && oldIdx != tabs.length - 1) {
+                        ref
+                            .read(tabProvider.notifier)
+                            .reorderTabs(oldIdx, tabs.length);
+                      }
+                    },
+                    builder: (context, candidates, _) => Container(
+                      width: endZoneW,
+                      height: 32,
+                      decoration: candidates.isNotEmpty
+                          ? BoxDecoration(
+                              border: Border(
+                                left: BorderSide(
+                                    color: AppTheme.accent, width: 2),
+                              ),
+                            )
+                          : null,
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
-            )
-          else
-            const Spacer(),
-          _PlusButton(onPressed: widget.onNewSession),
-        ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -131,7 +123,7 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
       onAcceptWithDetails: (d) {
         final oldIdx = tabs.indexWhere((t) => t.id == d.data.id);
         if (oldIdx >= 0 && oldIdx != index) {
-          ref.read(tabProvider.notifier).swapTabs(oldIdx, index);
+          ref.read(tabProvider.notifier).reorderTabs(oldIdx, index);
         }
       },
       builder: (context, candidates, rejected) {
@@ -325,23 +317,6 @@ class _TabItemState extends State<_TabItem> {
           child: content,
         );
       },
-    );
-  }
-}
-
-class _PlusButton extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const _PlusButton({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppIconButton(
-      icon: Icons.add,
-      onTap: onPressed,
-      size: 12,
-      boxSize: 32,
-      color: AppTheme.fgFaint,
     );
   }
 }

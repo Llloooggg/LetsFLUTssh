@@ -1,10 +1,10 @@
 import 'session.dart';
 
-/// A node in the session tree — either a group folder or a session leaf.
+/// A node in the session tree — either a folder or a session leaf.
 class SessionTreeNode {
   final String name;
   final String fullPath;
-  final Session? session; // null for group nodes
+  final Session? session; // null for folder nodes
   final List<SessionTreeNode> children;
   bool expanded;
 
@@ -24,23 +24,23 @@ class SessionTreeNode {
   bool get isSession => session != null;
 }
 
-/// Builds a tree structure from a flat list of sessions using group paths.
+/// Builds a tree structure from a flat list of sessions using folder paths.
 ///
-/// Example: session with group "Production/Web" and label "nginx1"
+/// Example: session with folder "Production/Web" and label "nginx1"
 /// → Production → Web → nginx1 (leaf)
 class SessionTree {
   /// Build tree from flat session list.
   ///
-  /// [emptyGroups] — group paths that should appear even without sessions.
+  /// [emptyFolders] — folder paths that should appear even without sessions.
   static List<SessionTreeNode> build(
     List<Session> sessions, {
-    Set<String> emptyGroups = const {},
+    Set<String> emptyFolders = const {},
   }) {
     final root = <SessionTreeNode>[];
 
-    // Create nodes for empty groups first.
-    for (final groupPath in emptyGroups) {
-      _ensureGroupPath(root, groupPath);
+    // Create nodes for empty folders first.
+    for (final folderPath in emptyFolders) {
+      _ensureFolderPath(root, folderPath);
     }
 
     for (final session in sessions) {
@@ -51,13 +51,13 @@ class SessionTree {
     return root;
   }
 
-  /// Navigate/create all intermediate group nodes for [groupPath]
-  /// and return the children list of the deepest group.
-  static List<SessionTreeNode> _ensureGroupPath(
+  /// Navigate/create all intermediate folder nodes for [folderPath]
+  /// and return the children list of the deepest folder.
+  static List<SessionTreeNode> _ensureFolderPath(
     List<SessionTreeNode> root,
-    String groupPath,
+    String folderPath,
   ) {
-    final parts = groupPath.split('/');
+    final parts = folderPath.split('/');
     var currentChildren = root;
     var currentPath = '';
     for (final part in parts) {
@@ -81,16 +81,16 @@ class SessionTree {
         ? session.label
         : session.displayName;
 
-    if (session.group.isEmpty) {
-      // Top-level session (no group)
+    if (session.folder.isEmpty) {
+      // Top-level session (no folder)
       root.add(SessionTreeNode(
         name: name,
         fullPath: session.label,
         session: session,
       ));
     } else {
-      // Add session as leaf under the deepest group
-      final parent = _ensureGroupPath(root, session.group);
+      // Add session as leaf under the deepest folder
+      final parent = _ensureFolderPath(root, session.folder);
       parent.add(SessionTreeNode(
         name: name,
         fullPath: session.fullPath,
@@ -106,8 +106,8 @@ class SessionTree {
     return null;
   }
 
-  /// Sort: groups first (alphabetical), then sessions (alphabetical).
-  /// Also computes sessionCount for each group node.
+  /// Sort: folders first (alphabetical), then sessions (alphabetical).
+  /// Also computes sessionCount for each folder node.
   static void _sortTree(List<SessionTreeNode> nodes) {
     nodes.sort((a, b) {
       if (a.isGroup && b.isSession) return -1;

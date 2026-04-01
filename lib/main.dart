@@ -195,6 +195,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       if (next.status == UpdateStatus.updateAvailable && next.info != null) {
         final skipped = ref.read(configProvider).skippedVersion;
         if (skipped != null && skipped == next.info!.latestVersion) return;
+
+        // A newer version supersedes the previously skipped one — clear stale skip.
+        if (skipped != null) {
+          ref.read(configProvider.notifier).update(
+            (c) => c.withSkippedVersion(null),
+          );
+        }
+
         _updateDialogShown = true;
         final ctx = navigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
@@ -451,10 +459,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final isTerminalTab = activeTab?.kind == TabKind.terminal;
     final content = activeTab != null
         ? _buildTabContent(tabState)
-        : WelcomeScreen(onNewSession: () => _newSession(context, ref));
+        : const WelcomeScreen();
     return Column(
       children: [
-        AppTabBar(onNewSession: () => _newSession(context, ref)),
+        if (tabState.tabs.isNotEmpty) const AppTabBar(),
         if (activeTab != null)
           _ConnectionBar(
             activeTab: activeTab,
@@ -479,7 +487,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return _Toolbar(
       sidebarOpen: _sidebarOpen,
       onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
-      onNewSession: () => _newSession(context, ref),
       showMenuButton: isNarrow,
       isTerminalTab: canSplit,
       onSplitVertical: canSplit
@@ -542,11 +549,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       SessionConnect.connectTerminal(context, ref, session);
 
   Future<void> _newSession(BuildContext context, WidgetRef ref) async {
-    final store = ref.read(sessionStoreProvider);
-    final result = await SessionEditDialog.show(
-      context,
-      existingGroups: store.groups(),
-    );
+    final result = await SessionEditDialog.show(context);
     if (result == null || !context.mounted) return;
     switch (result) {
       case ConnectOnlyResult(:final config):
@@ -566,8 +569,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     for (final session in data.sessions) {
       await ref.read(sessionProvider.notifier).add(session);
     }
-    for (final group in data.emptyGroups) {
-      await ref.read(sessionProvider.notifier).addEmptyGroup(group);
+    for (final folder in data.emptyFolders) {
+      await ref.read(sessionProvider.notifier).addEmptyFolder(folder);
     }
 
     if (ctx.mounted) {
@@ -640,7 +643,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 class _Toolbar extends StatelessWidget {
   final bool sidebarOpen;
   final VoidCallback onToggleSidebar;
-  final VoidCallback onNewSession;
   final bool showMenuButton;
   final bool isTerminalTab;
   final VoidCallback? onSplitVertical;
@@ -651,7 +653,6 @@ class _Toolbar extends StatelessWidget {
   const _Toolbar({
     required this.sidebarOpen,
     required this.onToggleSidebar,
-    required this.onNewSession,
     this.showMenuButton = false,
     this.isTerminalTab = false,
     this.onSplitVertical,

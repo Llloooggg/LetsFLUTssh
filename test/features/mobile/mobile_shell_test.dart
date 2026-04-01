@@ -925,6 +925,54 @@ void main() {
     });
 
 
+    testWidgets('tab bar and companion button share bg1 background', (tester) async {
+      final conn = Connection(
+        id: 'conn-bg',
+        label: 'BG Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: null,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
+              _buildTabState((b) => b.addTerminalTab(conn)),
+            )),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // The companion button (Files) and tab chips should share
+      // a parent Container with bg1 background
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final bg1Containers = containers.where((c) {
+        final dec = c.decoration;
+        if (dec is BoxDecoration) {
+          return dec.color == AppTheme.bg1;
+        }
+        return false;
+      });
+      expect(bg1Containers, isNotEmpty,
+          reason: 'tab bar area should have bg1 background');
+    });
+
     testWidgets('badge shows terminal tab count', (tester) async {
       final conn = Connection(
         id: 'conn-3',

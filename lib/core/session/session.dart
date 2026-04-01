@@ -51,7 +51,7 @@ class SessionAuth extends SshAuth {
 class Session {
   final String id;
   final String label;
-  final String group; // path like "Production/Web"
+  final String folder; // path like "Production/Web"
   final ServerAddress server;
   final SessionAuth auth;
   final DateTime createdAt;
@@ -64,7 +64,7 @@ class Session {
   Session({
     String? id,
     required this.label,
-    this.group = '',
+    this.folder = '',
     required this.server,
     this.auth = const SessionAuth(),
     DateTime? createdAt,
@@ -96,8 +96,8 @@ class Session {
   String get displayName =>
       label.isNotEmpty ? '$label ($user@$host)' : '$user@$host:$port';
 
-  /// Full group path with label for tree display.
-  String get fullPath => group.isNotEmpty ? '$group/$label' : label;
+  /// Full folder path with label for tree display.
+  String get fullPath => folder.isNotEmpty ? '$folder/$label' : label;
 
   /// Convert to SSHConfig for connecting.
   SSHConfig toSSHConfig() {
@@ -122,7 +122,7 @@ class Session {
 
   Session copyWith({
     String? label,
-    String? group,
+    String? folder,
     ServerAddress? server,
     SessionAuth? auth,
     bool? incomplete,
@@ -133,7 +133,7 @@ class Session {
     return Session(
       id: id,
       label: label ?? this.label,
-      group: group ?? this.group,
+      folder: folder ?? this.folder,
       server: server ?? this.server,
       auth: newAuth,
       createdAt: createdAt,
@@ -146,7 +146,7 @@ class Session {
   Session duplicate() {
     return Session(
       label: '$label (copy)',
-      group: group,
+      folder: folder,
       server: server,
       auth: auth,
       incomplete: incomplete,
@@ -157,7 +157,7 @@ class Session {
   Map<String, dynamic> toJson() => {
     'id': id,
     'label': label,
-    'group': group,
+    'folder': folder,
     'host': host,
     'port': port,
     'user': user,
@@ -182,19 +182,19 @@ class Session {
       other is Session &&
           id == other.id &&
           label == other.label &&
-          group == other.group &&
+          folder == other.folder &&
           server == other.server &&
           auth == other.auth &&
           incomplete == other.incomplete;
 
   @override
-  int get hashCode => Object.hash(id, label, group, server, auth, incomplete);
+  int get hashCode => Object.hash(id, label, folder, server, auth, incomplete);
 
   factory Session.fromJson(Map<String, dynamic> json) {
     return Session(
       id: json['id'] as String,
       label: json['label'] as String? ?? '',
-      group: json['group'] as String? ?? '',
+      folder: json['folder'] as String? ?? json['group'] as String? ?? '',
       server: ServerAddress(
         host: json['host'] as String,
         port: json['port'] as int? ?? 22,

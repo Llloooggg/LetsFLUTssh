@@ -9,13 +9,13 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 /// Fake SessionStore that works in-memory without path_provider.
 class FakeSessionStore extends SessionStore {
   final List<Session> _fakeSessions = [];
-  final Set<String> _fakeEmptyGroups = {};
+  final Set<String> _fakeEmptyFolders = {};
 
   @override
   List<Session> get sessions => List.unmodifiable(_fakeSessions);
 
   @override
-  Set<String> get emptyGroups => Set.unmodifiable(_fakeEmptyGroups);
+  Set<String> get emptyFolders => Set.unmodifiable(_fakeEmptyFolders);
 
   @override
   Future<List<Session>> load() async => _fakeSessions;
@@ -39,71 +39,71 @@ class FakeSessionStore extends SessionStore {
   @override
   Future<Session> duplicateSession(String id) async {
     final original = _fakeSessions.firstWhere((s) => s.id == id);
-    final copy = Session(id: '${original.id}-copy', label: '${original.label} (Copy)', group: original.group, server: ServerAddress(host: original.host, port: original.port, user: original.user));
+    final copy = Session(id: '${original.id}-copy', label: '${original.label} (Copy)', folder: original.folder, server: ServerAddress(host: original.host, port: original.port, user: original.user));
     _fakeSessions.add(copy);
     return copy;
   }
 
   @override
-  Future<void> addEmptyGroup(String groupPath) async {
-    _fakeEmptyGroups.add(groupPath);
+  Future<void> addEmptyFolder(String groupPath) async {
+    _fakeEmptyFolders.add(groupPath);
   }
 
   @override
-  Future<void> renameGroup(String oldPath, String newPath) async {
+  Future<void> renameFolder(String oldPath, String newPath) async {
     for (var i = 0; i < _fakeSessions.length; i++) {
       final s = _fakeSessions[i];
-      if (s.group == oldPath || s.group.startsWith('$oldPath/')) {
+      if (s.folder == oldPath || s.folder.startsWith('$oldPath/')) {
         _fakeSessions[i] = s.copyWith(
-          group: s.group.replaceFirst(oldPath, newPath),
+          folder: s.folder.replaceFirst(oldPath, newPath),
         );
       }
     }
-    if (_fakeEmptyGroups.remove(oldPath)) {
-      _fakeEmptyGroups.add(newPath);
+    if (_fakeEmptyFolders.remove(oldPath)) {
+      _fakeEmptyFolders.add(newPath);
     }
   }
 
   @override
-  Future<void> deleteGroup(String groupPath) async {
+  Future<void> deleteFolder(String groupPath) async {
     _fakeSessions.removeWhere(
-      (s) => s.group == groupPath || s.group.startsWith('$groupPath/'),
+      (s) => s.folder == groupPath || s.folder.startsWith('$groupPath/'),
     );
-    _fakeEmptyGroups.remove(groupPath);
+    _fakeEmptyFolders.remove(groupPath);
   }
 
   @override
   Future<void> deleteAll() async {
     _fakeSessions.clear();
-    _fakeEmptyGroups.clear();
+    _fakeEmptyFolders.clear();
   }
 
   @override
   Future<void> moveSession(String sessionId, String newGroup) async {
     final idx = _fakeSessions.indexWhere((s) => s.id == sessionId);
     if (idx >= 0) {
-      _fakeSessions[idx] = _fakeSessions[idx].copyWith(group: newGroup);
+      _fakeSessions[idx] = _fakeSessions[idx].copyWith(folder: newGroup);
     }
   }
 
   @override
-  Future<void> moveGroup(String groupPath, String newParent) async {
+  Future<void> moveFolder(String groupPath, String newParent) async {
     final name = groupPath.split('/').last;
     final newPath = newParent.isEmpty ? name : '$newParent/$name';
-    await renameGroup(groupPath, newPath);
+    await renameFolder(groupPath, newPath);
   }
 
   @override
   Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async => {};
 
   @override
-  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyGroups, [Map<String, CredentialData> credentials = const {}]) async {
+  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyFolders, [Map<String, CredentialData> credentials = const {}]) async {
     _fakeSessions
       ..clear()
       ..addAll(sessions);
-    _fakeEmptyGroups
+    _fakeEmptyFolders
       ..clear()
-      ..addAll(emptyGroups);
+      ..addAll(emptyFolders);
   }
 
 }
@@ -112,11 +112,11 @@ void main() {
   Session makeSession({
     String id = 's1',
     String label = 'Test',
-    String group = '',
+    String folder = '',
     String host = '10.0.0.1',
     String user = 'root',
   }) {
-    return Session(id: id, label: label, group: group, server: ServerAddress(host: host, user: user));
+    return Session(id: id, label: label, folder: folder, server: ServerAddress(host: host, user: user));
   }
 
   group('SessionNotifier', () {
@@ -174,44 +174,44 @@ void main() {
       expect(notifier.state.length, 2);
     });
 
-    test('addEmptyGroup adds group', () async {
-      await notifier.addEmptyGroup('Production/Web');
-      expect(store.emptyGroups, contains('Production/Web'));
+    test('addEmptyFolder adds folder', () async {
+      await notifier.addEmptyFolder('Production/Web');
+      expect(store.emptyFolders, contains('Production/Web'));
     });
 
-    test('renameGroup renames sessions in group', () async {
-      await notifier.add(makeSession(id: 's1', group: 'Old'));
-      await notifier.renameGroup('Old', 'New');
-      expect(notifier.state.first.group, 'New');
+    test('renameFolder renames sessions in folder', () async {
+      await notifier.add(makeSession(id: 's1', folder: 'Old'));
+      await notifier.renameFolder('Old', 'New');
+      expect(notifier.state.first.folder, 'New');
     });
 
-    test('deleteGroup removes group and sessions', () async {
-      await notifier.add(makeSession(id: 's1', group: 'ToDelete'));
-      await notifier.add(makeSession(id: 's2', group: 'Keep'));
-      await notifier.deleteGroup('ToDelete');
+    test('deleteFolder removes folder and sessions', () async {
+      await notifier.add(makeSession(id: 's1', folder: 'ToDelete'));
+      await notifier.add(makeSession(id: 's2', folder: 'Keep'));
+      await notifier.deleteFolder('ToDelete');
       expect(notifier.state.length, 1);
-      expect(notifier.state.first.group, 'Keep');
+      expect(notifier.state.first.folder, 'Keep');
     });
 
     test('deleteAll clears everything', () async {
       await notifier.add(makeSession(id: 's1'));
       await notifier.add(makeSession(id: 's2'));
-      await notifier.addEmptyGroup('Group');
+      await notifier.addEmptyFolder('Group');
       await notifier.deleteAll();
       expect(notifier.state, isEmpty);
-      expect(store.emptyGroups, isEmpty);
+      expect(store.emptyFolders, isEmpty);
     });
 
-    test('moveSession changes group', () async {
-      await notifier.add(makeSession(id: 's1', group: 'Old'));
+    test('moveSession changes folder', () async {
+      await notifier.add(makeSession(id: 's1', folder: 'Old'));
       await notifier.moveSession('s1', 'New');
-      expect(notifier.state.first.group, 'New');
+      expect(notifier.state.first.folder, 'New');
     });
 
-    test('moveGroup changes group path', () async {
-      await notifier.add(makeSession(id: 's1', group: 'A'));
-      await notifier.moveGroup('A', 'Parent');
-      expect(notifier.state.first.group, 'Parent/A');
+    test('moveFolder changes folder path', () async {
+      await notifier.add(makeSession(id: 's1', folder: 'A'));
+      await notifier.moveFolder('A', 'Parent');
+      expect(notifier.state.first.folder, 'Parent/A');
     });
   });
 
@@ -291,7 +291,7 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(sessionProvider.notifier);
-      await notifier.add(makeSession(id: 's1', group: 'Web'));
+      await notifier.add(makeSession(id: 's1', folder: 'Web'));
       final tree = container.read(sessionTreeProvider);
       expect(tree, isNotEmpty);
     });

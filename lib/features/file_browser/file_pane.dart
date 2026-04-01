@@ -856,7 +856,6 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           ContextMenuItem(
             label: 'Rename',
             icon: Icons.edit,
-            shortcut: 'F2',
             onTap: () => _showRenameDialog(context, entry),
           ),
         ContextMenuItem(
