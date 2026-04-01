@@ -1,10 +1,5 @@
 # LetsFLUTssh — Architecture & Technical Reference
 
-> Single source of truth for architecture, modules, APIs, data flows, and design decisions.
-> CLAUDE.md links here — when code changes, **update the corresponding sections**.
-
----
-
 ## Table of Contents
 
 - [1. High-Level Overview](#1-high-level-overview)
