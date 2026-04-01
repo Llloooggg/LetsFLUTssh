@@ -27,6 +27,7 @@ class AppIconButton extends StatelessWidget {
   final double boxSize;
   final Color? color;
   final Color? hoverColor;
+  final Color? backgroundColor;
   final bool active;
   final BorderRadius? borderRadius;
 
@@ -39,6 +40,7 @@ class AppIconButton extends StatelessWidget {
     this.boxSize = 26,
     this.color,
     this.hoverColor,
+    this.backgroundColor,
     this.active = false,
     this.borderRadius,
   });
@@ -58,7 +60,7 @@ class AppIconButton extends StatelessWidget {
         } else if (hovered && onTap != null) {
           bg = hoverColor ?? AppTheme.hover;
         } else {
-          bg = Colors.transparent;
+          bg = backgroundColor ?? Colors.transparent;
         }
         return Container(
           width: boxSize,
