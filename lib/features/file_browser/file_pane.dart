@@ -365,11 +365,11 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           fillColor: AppTheme.bg3,
           contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppTheme.radiusSm,
             borderSide: BorderSide(color: AppTheme.borderLight),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppTheme.radiusSm,
             borderSide: BorderSide(color: AppTheme.accent),
           ),
           hintText: ctrl.currentPath,
@@ -695,12 +695,12 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   ) {
     return Material(
       elevation: 4,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: AppTheme.radiusMd,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: AppTheme.radiusMd,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

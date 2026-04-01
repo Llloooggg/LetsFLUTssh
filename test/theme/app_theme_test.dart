@@ -147,6 +147,65 @@ void main() {
     });
   });
 
+  group('border radius constants', () {
+    test('radiusSm is 2px', () {
+      expect(
+        AppTheme.radiusSm,
+        const BorderRadius.all(Radius.circular(2)),
+      );
+    });
+
+    test('radiusMd is 4px', () {
+      expect(
+        AppTheme.radiusMd,
+        const BorderRadius.all(Radius.circular(4)),
+      );
+    });
+
+    test('radiusLg is 6px', () {
+      expect(
+        AppTheme.radiusLg,
+        const BorderRadius.all(Radius.circular(6)),
+      );
+    });
+
+    test('dark dialog shape uses radiusSm', () {
+      final theme = AppTheme.dark();
+      final shape = theme.dialogTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('light dialog shape uses radiusSm', () {
+      final theme = AppTheme.light();
+      final shape = theme.dialogTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('dark input decoration uses radiusSm', () {
+      final theme = AppTheme.dark();
+      final border = theme.inputDecorationTheme.border as OutlineInputBorder;
+      expect(border.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('light input decoration uses radiusSm', () {
+      final theme = AppTheme.light();
+      final border = theme.inputDecorationTheme.border as OutlineInputBorder;
+      expect(border.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('dark popup menu shape uses radiusSm', () {
+      final theme = AppTheme.dark();
+      final shape = theme.popupMenuTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+
+    test('dark chip shape uses radiusSm', () {
+      final theme = AppTheme.dark();
+      final shape = theme.chipTheme.shape as RoundedRectangleBorder;
+      expect(shape.borderRadius, AppTheme.radiusSm);
+    });
+  });
+
   group('semantic colors', () {
     test('connected is green', () {
       expect(AppTheme.connected, const Color(0xFF98C379));

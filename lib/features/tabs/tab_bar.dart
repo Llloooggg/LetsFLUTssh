@@ -287,7 +287,7 @@ class _TabItemState extends State<_TabItem> {
                       size: 12,
                       boxSize: 20,
                       hoverColor: AppTheme.red.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: AppTheme.radiusMd,
                     ),
                   ),
                 ),

@@ -800,23 +800,23 @@ class _StyledInput extends StatelessWidget {
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppTheme.radiusSm,
           borderSide: BorderSide(color: AppTheme.borderLight),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppTheme.radiusSm,
           borderSide: BorderSide(color: AppTheme.borderLight),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppTheme.radiusSm,
           borderSide: BorderSide(color: AppTheme.accent),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppTheme.radiusSm,
           borderSide: BorderSide(color: AppTheme.red),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppTheme.radiusSm,
           borderSide: BorderSide(color: AppTheme.red),
         ),
         errorStyle: TextStyle(

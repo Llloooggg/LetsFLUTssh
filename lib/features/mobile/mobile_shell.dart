@@ -67,7 +67,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                     height: 28,
                     decoration: BoxDecoration(
                       color: AppTheme.accent,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: AppTheme.radiusLg,
                     ),
                     child: const Icon(Icons.terminal, size: 14, color: Colors.white),
                   ),
@@ -106,8 +106,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                       padding: EdgeInsets.zero,
                       style: IconButton.styleFrom(
                         backgroundColor: AppTheme.bg3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: AppTheme.radiusLg,
                         ),
                       ),
                       icon: Icon(Icons.settings, size: 15, color: AppTheme.fgDim),
@@ -445,7 +445,7 @@ class _MobileTerminalPage extends ConsumerWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: AppTheme.bg3,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: AppTheme.radiusLg,
               ),
               child: Icon(Icons.terminal, size: 22, color: AppTheme.fgFaint),
             ),
@@ -517,7 +517,7 @@ class _MobileSftpPage extends ConsumerWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: AppTheme.bg3,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: AppTheme.radiusLg,
               ),
               child: Icon(Icons.folder, size: 22, color: AppTheme.fgFaint),
             ),
@@ -608,7 +608,7 @@ class _MobileCompanionButtonState extends State<_MobileCompanionButton> {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: widget.color.withValues(alpha: alpha),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: AppTheme.radiusMd,
           border: Border.all(
             color: widget.color.withValues(alpha: borderAlpha),
           ),

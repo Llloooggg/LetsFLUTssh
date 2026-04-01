@@ -173,13 +173,13 @@ class _KeyButton extends StatelessWidget {
         color: isActive
             ? theme.colorScheme.primary.withValues(alpha: 0.3)
             : theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: AppTheme.radiusLg,
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
             onTap();
           },
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: AppTheme.radiusLg,
           child: Container(
             constraints: const BoxConstraints(minWidth: 38),
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -233,13 +233,13 @@ class _ModifierButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 2),
       child: Material(
         color: bg,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: AppTheme.radiusLg,
         child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
             onTap();
           },
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: AppTheme.radiusLg,
           child: Container(
             constraints: const BoxConstraints(minWidth: 42),
             padding: const EdgeInsets.symmetric(horizontal: 8),
