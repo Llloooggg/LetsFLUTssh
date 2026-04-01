@@ -158,8 +158,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final Border? border;
     if (!widget.hasMultiplePanes) {
       border = null;
+    } else if (widget.isFocused) {
+      border = Border.all(color: AppTheme.accent, width: 1.0);
     } else {
-      border = Border.all(color: AppTheme.bg0, width: 0.5);
+      border = Border.all(color: AppTheme.bg0, width: 1.0);
     }
 
     return GestureDetector(
