@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/utils/format.dart';
 
 void main() {
@@ -54,6 +57,169 @@ void main() {
 
     test('hours and minutes', () {
       expect(formatDuration(const Duration(hours: 1, minutes: 30)), '1h 30m');
+    });
+  });
+
+  group('sanitizeError', () {
+    group('plain exceptions (no errno)', () {
+      test('returns toString for generic exception', () {
+        expect(sanitizeError(Exception('something broke')),
+            'Exception: something broke');
+      });
+
+      test('returns toString for string error', () {
+        expect(sanitizeError('plain error'), 'plain error');
+      });
+    });
+
+    group('errno-based errors', () {
+      test('translates known Linux errno from FileSystemException', () {
+        const e = FileSystemException(
+          'Cannot open file',
+          '/tmp/test.txt',
+          OSError('Отказано в доступе', 13),
+        );
+        expect(sanitizeError(e), 'Permission denied: /tmp/test.txt');
+      });
+
+      test('translates known Linux errno without path', () {
+        const e = SocketException(
+          'Connection failed',
+          osError: OSError('Соединение отклонено', 111),
+        );
+        expect(sanitizeError(e), 'Connection refused');
+      });
+
+      test('translates Windows Winsock errno', () {
+        const e = SocketException(
+          'Connection failed',
+          osError: OSError('Подключение отклонено', 10061),
+        );
+        expect(sanitizeError(e), 'Connection refused');
+      });
+
+      test('translates connection timed out (Linux)', () {
+        const e = SocketException(
+          'Connect',
+          osError: OSError('Время ожидания истекло', 110),
+        );
+        expect(sanitizeError(e), 'Connection timed out');
+      });
+
+      test('translates connection timed out (Windows)', () {
+        const e = SocketException(
+          'Connect',
+          osError: OSError('Timeout', 10060),
+        );
+        expect(sanitizeError(e), 'Connection timed out');
+      });
+
+      test('returns original message for unknown errno', () {
+        const e = SocketException(
+          'Something',
+          osError: OSError('Unknown error', 99999),
+        );
+        // No match — returns original toString
+        expect(sanitizeError(e), e.toString());
+      });
+
+      test('translates connection reset (Linux)', () {
+        const e = SocketException(
+          'Read failed',
+          osError: OSError('Сброс соединения', 104),
+        );
+        expect(sanitizeError(e), 'Connection reset by peer');
+      });
+
+      test('translates no route to host (Windows)', () {
+        const e = SocketException(
+          'Connect',
+          osError: OSError('Нет маршрута', 10065),
+        );
+        expect(sanitizeError(e), 'No route to host');
+      });
+    });
+
+    group('SSHError subtypes', () {
+      test('returns message for SSHError without cause', () {
+        const e = ConnectError('Failed to connect to host:22');
+        expect(sanitizeError(e), 'Failed to connect to host:22');
+      });
+
+      test('sanitizes SSHError cause with errno', () {
+        const e = ConnectError('Failed to connect to host:22',
+            SocketException(
+              'Connection failed',
+              osError: OSError('Соединение отклонено', 111),
+            ));
+        expect(sanitizeError(e),
+            'Failed to connect to host:22 (Connection refused)');
+      });
+
+      test('sanitizes SSHError cause with Windows errno', () {
+        const e = ConnectError('Failed to connect to host:22',
+            SocketException(
+              'Connection failed',
+              osError: OSError('Подключение отклонено', 10061),
+            ));
+        expect(sanitizeError(e),
+            'Failed to connect to host:22 (Connection refused)');
+      });
+
+      test('preserves SSHError message when cause has unknown errno', () {
+        const e = ConnectError('Failed to connect to host:22',
+            SocketException(
+              'Something',
+              osError: OSError('Unknown', 99999),
+            ));
+        // Cause not sanitized — falls through to toString
+        expect(sanitizeError(e), startsWith('Failed to connect to host:22 ('));
+      });
+
+      test('handles AuthError with cause', () {
+        final cause = Exception('bad key format');
+        final e = AuthError('Authentication failed for user@host', cause);
+        expect(sanitizeError(e),
+            'Authentication failed for user@host (Exception: bad key format)');
+      });
+
+      test('handles nested SSHError chain', () {
+        const e = ConnectError('Failed to connect to host:22',
+            ConnectError('TCP connect failed',
+                SocketException(
+                  'OS Error',
+                  osError: OSError('Нет маршрута', 113),
+                )));
+        expect(sanitizeError(e),
+            'Failed to connect to host:22 (TCP connect failed (No route to host))');
+      });
+
+      test('SSHError with same message as cause collapses', () {
+        const e = ConnectError('Connection failed',
+            ConnectError('Connection failed'));
+        expect(sanitizeError(e), 'Connection failed');
+      });
+    });
+
+    group('FileSystemException with path', () {
+      test('includes path in sanitized message', () {
+        const e = FileSystemException(
+          'Cannot delete',
+          '/home/user/file.txt',
+          OSError('Нет такого файла', 2),
+        );
+        expect(sanitizeError(e),
+            'No such file or directory: /home/user/file.txt');
+      });
+
+      test('handles read-only file system', () {
+        const e = FileSystemException(
+          'Cannot write',
+          '/mnt/readonly/file',
+          OSError('Только для чтения', 30),
+        );
+        expect(sanitizeError(e), 'Read-only file system: /mnt/readonly/file');
+      });
     });
   });
 }

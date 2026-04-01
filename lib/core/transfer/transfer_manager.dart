@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import 'transfer_task.dart';
 
@@ -271,10 +272,12 @@ class TransferManager {
     }
   }
 
-  /// Strip absolute file paths from error messages to avoid leaking
-  /// directory structure in UI.
+  /// Sanitize error for UI display: translate OS-locale errno messages to
+  /// English, then strip absolute file paths to avoid leaking directory
+  /// structure.
   String _sanitizeError(Object e) {
-    return e.toString().replaceAll(RegExp(r'(?:[/\\][^\s/\\]+)+'), '<path>');
+    return sanitizeError(e)
+        .replaceAll(RegExp(r'(?:[/\\][^\s/\\]+)+'), '<path>');
   }
 
   void _notify() {
