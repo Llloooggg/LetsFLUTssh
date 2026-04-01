@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/ssh/ssh_client.dart';
+import '../../core/ssh/ssh_config.dart';
+import '../../providers/session_provider.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/error_state.dart';
@@ -15,7 +18,7 @@ import 'tiling_view.dart';
 /// Factory for reconnecting SSH — injectable for testing.
 typedef ReconnectFactory = Future<void> Function(Connection connection);
 
-class TerminalTab extends StatefulWidget {
+class TerminalTab extends ConsumerStatefulWidget {
   final String tabId;
   final Connection connection;
   final VoidCallback? onDisconnected;
@@ -35,7 +38,7 @@ class TerminalTab extends StatefulWidget {
   TerminalTabState createState() => TerminalTabState();
 }
 
-class TerminalTabState extends State<TerminalTab> {
+class TerminalTabState extends ConsumerState<TerminalTab> {
   late SplitNode _root;
   late String _focusedPaneId;
   final Map<String, Connection> _paneConnections = {};
@@ -90,12 +93,36 @@ class TerminalTabState extends State<TerminalTab> {
     setState(() => _root = newRoot);
   }
 
+  /// Re-read the session from the store and update the connection's SSHConfig.
+  /// Returns the (possibly updated) config to use for reconnection.
+  SSHConfig _refreshConfig() {
+    final sessionId = widget.connection.sessionId;
+    if (sessionId == null) return widget.connection.sshConfig;
+
+    final sessions = ref.read(sessionProvider);
+    final idx = sessions.indexWhere((s) => s.id == sessionId);
+    if (idx == -1) {
+      AppLogger.instance.log(
+        'Session $sessionId not found in store, using cached config',
+        name: 'TerminalTab',
+      );
+      return widget.connection.sshConfig;
+    }
+
+    final freshConfig = sessions[idx].toSSHConfig();
+    widget.connection.sshConfig = freshConfig;
+    return freshConfig;
+  }
+
   @visibleForTesting
   Future<void> reconnect() async {
     setState(() {
       _connectionError = null;
       _connectionReady = false;
     });
+
+    // Re-read session from store to pick up any config changes (e.g. added key).
+    _refreshConfig();
 
     try {
       if (widget.reconnectFactory != null) {

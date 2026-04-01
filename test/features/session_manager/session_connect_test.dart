@@ -21,11 +21,12 @@ class _FailingConnectionManager extends ConnectionManager {
   _FailingConnectionManager(this.error) : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(SSHConfig config, {String? label}) {
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
     return Connection(
       id: 'conn-fail',
       label: label ?? config.displayName,
       sshConfig: config,
+      sessionId: sessionId,
       state: SSHConnectionState.disconnected,
       connectionError: error.toString(),
     );
@@ -36,16 +37,19 @@ class _FailingConnectionManager extends ConnectionManager {
 /// without real network calls.
 class _FakeConnectionManager extends ConnectionManager {
   String? lastLabel;
+  String? lastSessionId;
 
   _FakeConnectionManager() : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(SSHConfig config, {String? label}) {
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
     lastLabel = label;
+    lastSessionId = sessionId;
     return Connection(
       id: 'fake-conn-1',
       label: label ?? config.displayName,
       sshConfig: config,
+      sessionId: sessionId,
       state: SSHConnectionState.connected,
     );
   }
@@ -158,6 +162,42 @@ void main() {
 
       // The label should be passed to connect()
       expect(fakeManager.lastLabel, 'My Server');
+
+      fakeManager.dispose();
+    });
+
+    testWidgets('passes session ID to connection manager', (tester) async {
+      final fakeManager = _FakeConnectionManager();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectionManagerProvider.overrideWithValue(fakeManager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(id: 'sess-42', label: 'Test', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+                      SessionConnect.connectTerminal(context, ref, session);
+                    },
+                    child: const Text('Connect'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(fakeManager.lastSessionId, 'sess-42');
 
       fakeManager.dispose();
     });

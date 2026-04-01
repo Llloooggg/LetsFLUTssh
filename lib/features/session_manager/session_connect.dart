@@ -51,6 +51,7 @@ class SessionConnect {
     return manager.connectAsync(
       config,
       label: session.label.isNotEmpty ? session.label : session.displayName,
+      sessionId: session.id,
     );
   }
 

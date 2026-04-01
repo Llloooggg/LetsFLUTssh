@@ -50,12 +50,13 @@ class ConnectionManager {
   /// Create a connection and start connecting in the background.
   /// Returns the Connection immediately (in `connecting` state).
   /// The connection transitions to `connected` or `disconnected` asynchronously.
-  Connection connectAsync(SSHConfig config, {String? label}) {
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
     final id = _uuid.v4();
     final conn = Connection(
       id: id,
       label: label ?? config.displayName,
       sshConfig: config,
+      sessionId: sessionId,
       knownHosts: knownHosts,
       state: SSHConnectionState.connecting,
     );

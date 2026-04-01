@@ -7,14 +7,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:letsflutssh/core/connection/connection.dart';
+import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/terminal/terminal_pane.dart';
 import 'package:letsflutssh/features/terminal/split_node.dart';
 import 'package:letsflutssh/features/terminal/terminal_tab.dart';
 import 'package:letsflutssh/features/terminal/tiling_view.dart';
+import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
 import '../../core/ssh/shell_helper_test.mocks.dart';
+
+/// SessionNotifier pre-populated with sessions for testing.
+class _TestSessionNotifier extends SessionNotifier {
+  final List<Session> _initial;
+  _TestSessionNotifier(this._initial);
+
+  @override
+  List<Session> build() => List.of(_initial);
+}
 
 void main() {
   group('TerminalTab — always renders TilingView', () {
@@ -1235,6 +1246,178 @@ void main() {
 
       // Tree now has 3 panes: original vertical split + new horizontal
       expect(find.byType(TerminalPane), findsNWidgets(3));
+    });
+  });
+
+  group('TerminalTab — reconnect refreshes config from session store', () {
+    testWidgets('reconnect uses updated SSHConfig when session was edited',
+        (tester) async {
+      // Session with initial password
+      final session = Session(
+        id: 'sess-1',
+        label: 'Test',
+        server: const ServerAddress(host: 'old.host', user: 'root'),
+        auth: const SessionAuth(password: 'old-pass'),
+      );
+
+      // Updated session with key added
+      final updatedSession = session.copyWith(
+        server: const ServerAddress(host: 'new.host', user: 'admin'),
+        auth: const SessionAuth(
+          authType: AuthType.key,
+          keyData: 'ssh-rsa AAAA...',
+        ),
+      );
+
+      // Connection created from original session
+      final conn = Connection(
+        id: 'conn-1',
+        label: 'Test',
+        sshConfig: session.toSSHConfig(),
+        sessionId: 'sess-1',
+      );
+
+      // Track the config used during reconnect
+      SSHConfig? capturedConfig;
+      final key = GlobalKey<TerminalTabState>();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            // Pre-populate session store with the UPDATED session
+            sessionProvider.overrideWith(() =>
+                _TestSessionNotifier([updatedSession])),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TerminalTab(
+                  key: key,
+                  tabId: 'tab-refresh',
+                  connection: conn,
+                  reconnectFactory: (c) async {
+                    // Capture the config AFTER _refreshConfig() was called
+                    capturedConfig = c.sshConfig;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Trigger reconnect — should refresh config from store first
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
+
+      // The connection's sshConfig should now reflect the updated session
+      expect(conn.sshConfig.host, 'new.host');
+      expect(conn.sshConfig.user, 'admin');
+      expect(conn.sshConfig.auth.keyData, 'ssh-rsa AAAA...');
+      // The factory should have received the updated config
+      expect(capturedConfig, isNotNull);
+      expect(capturedConfig!.host, 'new.host');
+    });
+
+    testWidgets('reconnect falls back to cached config when session deleted',
+        (tester) async {
+      // Connection with sessionId pointing to a non-existent session
+      final conn = Connection(
+        id: 'conn-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'cached.host', user: 'cached-user'),
+        ),
+        sessionId: 'deleted-session',
+      );
+
+      SSHConfig? capturedConfig;
+      final key = GlobalKey<TerminalTabState>();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            // Empty session store — session was deleted
+            sessionProvider.overrideWith(() => _TestSessionNotifier([])),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TerminalTab(
+                  key: key,
+                  tabId: 'tab-fallback',
+                  connection: conn,
+                  reconnectFactory: (c) async {
+                    capturedConfig = c.sshConfig;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
+
+      // Should fall back to the original cached config
+      expect(capturedConfig, isNotNull);
+      expect(capturedConfig!.host, 'cached.host');
+      expect(capturedConfig!.user, 'cached-user');
+    });
+
+    testWidgets('reconnect skips config refresh for quick-connect (no sessionId)',
+        (tester) async {
+      // Quick-connect connection — no sessionId
+      final conn = Connection(
+        id: 'conn-3',
+        label: 'Quick',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'quick.host', user: 'quick-user'),
+        ),
+      );
+
+      SSHConfig? capturedConfig;
+      final key = GlobalKey<TerminalTabState>();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TerminalTab(
+                  key: key,
+                  tabId: 'tab-quick',
+                  connection: conn,
+                  reconnectFactory: (c) async {
+                    capturedConfig = c.sshConfig;
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
+
+      // Should use original config unchanged
+      expect(capturedConfig, isNotNull);
+      expect(capturedConfig!.host, 'quick.host');
+      expect(capturedConfig!.user, 'quick-user');
     });
   });
 }

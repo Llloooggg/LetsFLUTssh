@@ -383,7 +383,8 @@ class SessionNode extends TreeNode {
 class Connection {
   final String id;           // UUID (tab-specific)
   final String label;
-  final SSHConfig sshConfig;
+  SSHConfig sshConfig;       // mutable — refreshed from session store on reconnect
+  final String? sessionId;   // links back to saved Session (null for quick-connect)
   SSHConnection? sshConnection;
   SSHConnectionState state;  // disconnected | connecting | connected
   String? connectionError;
@@ -401,7 +402,7 @@ class Connection {
 class ConnectionManager {
   ConnectionManager({KnownHostsManager? knownHosts, connectionFactory});
 
-  Future<Connection> connectAsync(SSHConfig config, {String? label});
+  Future<Connection> connectAsync(SSHConfig config, {String? label, String? sessionId});
   void disconnect(String connectionId);
   void disconnectAll();
 
@@ -1263,6 +1264,8 @@ _doConnect():                         │
      └── completeReady()
 ```
 
+**Reconnect flow:** When a terminal tab reconnects (user clicks "Reconnect" after disconnect), `TerminalTab._refreshConfig()` re-reads the `Session` from `sessionProvider` using `Connection.sessionId` and updates `Connection.sshConfig` before creating a new `SSHConnection`. This ensures reconnect picks up any session edits (e.g. added keys, changed password). Quick-connect tabs (`sessionId == null`) use the original config.
+
 ### 9.2 SFTP Init Flow
 
 ```
@@ -1372,7 +1375,8 @@ Session {
 Connection {
   id: String              // UUID (bound to tab)
   label: String
-  sshConfig: SSHConfig
+  sshConfig: SSHConfig    // mutable — refreshed from session store on reconnect
+  sessionId: String?      // links back to saved Session (null for quick-connect)
   sshConnection: SSHConnection?
   state: SSHConnectionState  // disconnected | connecting | connected
   connectionError: String?
