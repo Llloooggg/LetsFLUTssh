@@ -158,24 +158,26 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
           children: [
             SizedBox(
               width: leftWidth,
-              child: FilePane(
-                controller: local,
-                paneId: 'local',
-                showFolderSizes: showFolderSizes,
-                crossMarquee: widget.crossMarquee,
-                onTransfer: (entry) => _upload(entry),
-                onTransferMultiple: (entries) {
-                  for (final e in entries) {
-                    _upload(e);
-                  }
-                },
-                onDropReceived: (entries) {
-                  for (final e in entries) {
-                    _download(e);
-                  }
-                },
-                onOsDropReceived: (paths) => _osDropToLocal(paths),
-                onPaneActivated: () => remote.clearSelection(),
+              child: ClipRect(
+                child: FilePane(
+                  controller: local,
+                  paneId: 'local',
+                  showFolderSizes: showFolderSizes,
+                  crossMarquee: widget.crossMarquee,
+                  onTransfer: (entry) => _upload(entry),
+                  onTransferMultiple: (entries) {
+                    for (final e in entries) {
+                      _upload(e);
+                    }
+                  },
+                  onDropReceived: (entries) {
+                    for (final e in entries) {
+                      _download(e);
+                    }
+                  },
+                  onOsDropReceived: (paths) => _osDropToLocal(paths),
+                  onPaneActivated: () => remote.clearSelection(),
+                ),
               ),
             ),
             MouseRegion(
@@ -191,23 +193,25 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
               ),
             ),
             Expanded(
-              child: FilePane(
-                controller: remote,
-                paneId: 'remote',
-                showFolderSizes: showFolderSizes,
-                onTransfer: (entry) => _download(entry),
-                onTransferMultiple: (entries) {
-                  for (final e in entries) {
-                    _download(e);
-                  }
-                },
-                onDropReceived: (entries) {
-                  for (final e in entries) {
-                    _upload(e);
-                  }
-                },
-                onOsDropReceived: (paths) => _osDropToRemote(paths),
-                onPaneActivated: () => local.clearSelection(),
+              child: ClipRect(
+                child: FilePane(
+                  controller: remote,
+                  paneId: 'remote',
+                  showFolderSizes: showFolderSizes,
+                  onTransfer: (entry) => _download(entry),
+                  onTransferMultiple: (entries) {
+                    for (final e in entries) {
+                      _download(e);
+                    }
+                  },
+                  onDropReceived: (entries) {
+                    for (final e in entries) {
+                      _upload(e);
+                    }
+                  },
+                  onOsDropReceived: (paths) => _osDropToRemote(paths),
+                  onPaneActivated: () => local.clearSelection(),
+                ),
               ),
             ),
           ],
