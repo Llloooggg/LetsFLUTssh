@@ -9,7 +9,7 @@ import 'package:letsflutssh/utils/platform.dart';
 void main() {
   SessionDialogResult? dialogResult;
 
-  Widget buildApp({Session? session, List<String> existingGroups = const [], String? defaultGroup}) {
+  Widget buildApp({Session? session, String? defaultFolder}) {
     dialogResult = null;
     return MaterialApp(
       home: Scaffold(
@@ -19,8 +19,7 @@ void main() {
               dialogResult = await SessionEditDialog.show(
                 context,
                 session: session,
-                existingGroups: existingGroups,
-                defaultGroup: defaultGroup,
+                defaultFolder: defaultFolder,
               );
             },
             child: const Text('Open'),
@@ -66,7 +65,6 @@ void main() {
 
       // Connection tab is active by default
       expect(find.text('SESSION NAME'), findsOneWidget);
-      expect(find.text('GROUP'), findsOneWidget);
       expect(find.text('HOST *'), findsOneWidget);
       expect(find.text('PORT'), findsOneWidget);
       expect(find.text('USERNAME *'), findsOneWidget);
@@ -485,67 +483,6 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — group autocomplete', () {
-    testWidgets('group field shows autocomplete suggestions', (tester) async {
-      await tester.pumpWidget(buildApp(existingGroups: ['Production', 'Staging', 'Dev']));
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-
-      // The group field should show suggestions
-      expect(find.text('GROUP'), findsOneWidget);
-      final groupField = find.byType(Autocomplete<String>);
-      expect(groupField, findsOneWidget);
-
-      // Type to filter — find the TextFormField inside the Autocomplete
-      final textField = find.descendant(of: groupField, matching: find.byType(TextFormField));
-      await tester.enterText(textField, 'Prod');
-      await tester.pumpAndSettle();
-
-      // Production should appear as suggestion
-      expect(find.text('Production'), findsWidgets);
-    });
-
-    testWidgets('selecting autocomplete suggestion fills group field', (tester) async {
-      await tester.pumpWidget(buildApp(existingGroups: ['Production', 'Staging']));
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-
-      final groupField = find.byType(Autocomplete<String>);
-      final textField = find.descendant(of: groupField, matching: find.byType(TextFormField));
-      await tester.enterText(textField, 'Stag');
-      await tester.pumpAndSettle();
-
-      // Tap the "Staging" suggestion from autocomplete
-      final suggestion = find.text('Staging');
-      if (suggestion.evaluate().length > 1) {
-        // Tap the last one (the suggestion, not the field text)
-        await tester.tap(suggestion.last);
-      } else {
-        await tester.tap(suggestion);
-      }
-      await tester.pumpAndSettle();
-
-      // Field should now contain 'Staging'
-      expect(find.text('Staging'), findsWidgets);
-    });
-
-    testWidgets('empty text shows all groups', (tester) async {
-      await tester.pumpWidget(buildApp(existingGroups: ['Alpha', 'Beta']));
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-
-      // Focus the group field — all options should appear
-      final groupField = find.byType(Autocomplete<String>);
-      final textField = find.descendant(of: groupField, matching: find.byType(TextFormField));
-      await tester.tap(textField);
-      await tester.pumpAndSettle();
-
-      // Both options should be listed in the autocomplete overlay
-      expect(find.text('Alpha'), findsWidgets);
-      expect(find.text('Beta'), findsWidgets);
-    });
-  });
-
   group('SessionEditDialog — port validation', () {
     testWidgets('invalid port shows error', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -581,8 +518,8 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — defaultGroup parameter', () {
-    testWidgets('defaultGroup pre-fills group field', (tester) async {
+  group('SessionEditDialog — defaultFolder parameter', () {
+    testWidgets('defaultFolder is applied to saved session', (tester) async {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: Builder(
@@ -590,7 +527,7 @@ void main() {
               onPressed: () async {
                 dialogResult = await SessionEditDialog.show(
                   context,
-                  defaultGroup: 'Production/Web',
+                  defaultFolder: 'Production/Web',
                 );
               },
               child: const Text('Open'),
@@ -601,8 +538,14 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Group field should have the default group
-      expect(find.text('Production/Web'), findsWidgets);
+      // Fill required fields and save
+      await fillRequiredFields(tester);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(dialogResult, isA<SaveResult>());
+      final session = (dialogResult as SaveResult).session;
+      expect(session.folder, 'Production/Web');
     });
   });
 
@@ -656,7 +599,7 @@ void main() {
     });
 
     testWidgets('fields pre-populated from session', (tester) async {
-      final session = Session(label: 'my-server', group: 'Production', server: const ServerAddress(host: '192.168.1.1', port: 2222, user: 'admin'));
+      final session = Session(label: 'my-server', folder: 'Production', server: const ServerAddress(host: '192.168.1.1', port: 2222, user: 'admin'));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1059,12 +1002,11 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — new session with group', () {
+  group('SessionEditDialog — new session with folder', () {
     testWidgets('Connect for new session returns ConnectOnlyResult',
         (tester) async {
       await tester.pumpWidget(buildApp(
-        existingGroups: ['Production'],
-        defaultGroup: 'Production',
+        defaultFolder: 'Production',
       ));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();

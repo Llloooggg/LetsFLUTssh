@@ -31,7 +31,7 @@ class SessionNotifier extends Notifier<List<Session>> {
     Map<String, CredentialData> credentials = const {},
   }) => SessionSnapshot(
     sessions: List.of(_store.sessions),
-    emptyGroups: Set.of(_store.emptyGroups),
+    emptyFolders: Set.of(_store.emptyFolders),
     description: description,
     credentials: credentials,
   );
@@ -73,22 +73,22 @@ class SessionNotifier extends Notifier<List<Session>> {
   Future<void> update(Session session) => _run('update session', () => _store.update(session));
   Future<void> delete(String id) => _runUndoableDelete('delete session', {id}, () => _store.delete(id));
   Future<Session> duplicate(String id) => _run('duplicate session', () => _store.duplicateSession(id));
-  Future<void> addEmptyGroup(String groupPath) => _run('add group', () => _store.addEmptyGroup(groupPath));
-  Future<void> renameGroup(String oldPath, String newPath) => _runUndoable('rename group', () => _store.renameGroup(oldPath, newPath));
-  Future<void> deleteGroup(String groupPath) {
+  Future<void> addEmptyFolder(String folderPath) => _run('add folder', () => _store.addEmptyFolder(folderPath));
+  Future<void> renameFolder(String oldPath, String newPath) => _runUndoable('rename folder', () => _store.renameFolder(oldPath, newPath));
+  Future<void> deleteFolder(String folderPath) {
     final ids = _store.sessions
-        .where((s) => s.group == groupPath || s.group.startsWith('$groupPath/'))
+        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
         .map((s) => s.id).toSet();
-    return _runUndoableDelete('delete group', ids, () => _store.deleteGroup(groupPath));
+    return _runUndoableDelete('delete folder', ids, () => _store.deleteFolder(folderPath));
   }
   Future<void> deleteAll() {
     final ids = _store.sessions.map((s) => s.id).toSet();
     return _runUndoableDelete('delete all', ids, () => _store.deleteAll());
   }
-  Future<void> moveSession(String sessionId, String newGroup) => _runUndoable('move session', () => _store.moveSession(sessionId, newGroup));
-  Future<void> moveGroup(String groupPath, String newParent) => _runUndoable('move group', () => _store.moveGroup(groupPath, newParent));
+  Future<void> moveSession(String sessionId, String newFolder) => _runUndoable('move session', () => _store.moveSession(sessionId, newFolder));
+  Future<void> moveFolder(String folderPath, String newParent) => _runUndoable('move folder', () => _store.moveFolder(folderPath, newParent));
   Future<void> deleteMultiple(Set<String> ids) => _runUndoableDelete('delete multiple', ids, () => _store.deleteMultiple(ids));
-  Future<void> moveMultiple(Set<String> ids, String newGroup) => _runUndoable('move multiple', () => _store.moveMultiple(ids, newGroup));
+  Future<void> moveMultiple(Set<String> ids, String newFolder) => _runUndoable('move multiple', () => _store.moveMultiple(ids, newFolder));
 
   Future<SessionSnapshot> _snapshotWithCreds(String description) async {
     final ids = _store.sessions.map((s) => s.id).toSet();
@@ -100,7 +100,7 @@ class SessionNotifier extends Notifier<List<Session>> {
     final current = await _snapshotWithCreds('current');
     final restored = _history.undo(current);
     if (restored == null) return false;
-    await _store.restoreSnapshot(restored.sessions, restored.emptyGroups, restored.credentials);
+    await _store.restoreSnapshot(restored.sessions, restored.emptyFolders, restored.credentials);
     state = _store.sessions;
     return true;
   }
@@ -109,7 +109,7 @@ class SessionNotifier extends Notifier<List<Session>> {
     final current = await _snapshotWithCreds('current');
     final restored = _history.redo(current);
     if (restored == null) return false;
-    await _store.restoreSnapshot(restored.sessions, restored.emptyGroups, restored.credentials);
+    await _store.restoreSnapshot(restored.sessions, restored.emptyFolders, restored.credentials);
     state = _store.sessions;
     return true;
   }
@@ -119,7 +119,7 @@ class SessionNotifier extends Notifier<List<Session>> {
 final sessionTreeProvider = Provider<List<SessionTreeNode>>((ref) {
   final sessions = ref.watch(sessionProvider);
   final store = ref.watch(sessionStoreProvider);
-  return SessionTree.build(sessions, emptyGroups: store.emptyGroups);
+  return SessionTree.build(sessions, emptyFolders: store.emptyFolders);
 });
 
 /// Search query state.
@@ -145,5 +145,5 @@ final filteredSessionsProvider = Provider<List<Session>>((ref) {
 final filteredSessionTreeProvider = Provider<List<SessionTreeNode>>((ref) {
   final sessions = ref.watch(filteredSessionsProvider);
   final store = ref.watch(sessionStoreProvider);
-  return SessionTree.build(sessions, emptyGroups: store.emptyGroups);
+  return SessionTree.build(sessions, emptyFolders: store.emptyFolders);
 });

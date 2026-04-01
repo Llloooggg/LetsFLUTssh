@@ -9,35 +9,35 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 /// Covers session_tree_view.dart uncovered lines:
 /// - Line 137: mobile long-press background context menu
-/// - Line 206: mobile long-press group context menu
-/// - Line 267: _buildGroupTile mobile branch (no drag)
-/// - Lines 310-312: DragTarget onLeave for group
+/// - Line 206: mobile long-press folder context menu
+/// - Line 267: _buildFolderTile mobile branch (no drag)
+/// - Lines 310-312: DragTarget onLeave for folder
 /// - Line 335: mobile long-press session context menu
 /// - Line 342: mobile single-tap connects
 ///
 /// Note: On desktop test environment, isMobilePlatform is false.
 /// We cover the DragTarget onMove/onLeave hover state (lines 146-154
-/// for root, 305-313 for group) through drag gestures.
+/// for root, 305-313 for folder) through drag gestures.
 void main() {
   Session makeSession({
     required String label,
-    String group = '',
+    String folder = '',
     AuthType authType = AuthType.password,
     String host = 'h',
     String user = 'u',
   }) {
-    return Session(label: label, group: group, server: ServerAddress(host: host, user: user), auth: SessionAuth(authType: authType));
+    return Session(label: label, folder: folder, server: ServerAddress(host: host, user: user), auth: SessionAuth(authType: authType));
   }
 
   Widget buildTreeView({
     required List<SessionTreeNode> tree,
     void Function(Session, Offset)? onSessionContextMenu,
-    void Function(String, Offset)? onGroupContextMenu,
+    void Function(String, Offset)? onFolderContextMenu,
     void Function(Offset)? onBackgroundContextMenu,
     void Function(Session)? onSessionTap,
     void Function(Session)? onSessionDoubleTap,
     void Function(String, String)? onSessionMoved,
-    void Function(String, String)? onGroupMoved,
+    void Function(String, String)? onFolderMoved,
   }) {
     return MaterialApp(
       theme: AppTheme.dark(),
@@ -50,10 +50,10 @@ void main() {
             onSessionTap: onSessionTap,
             onSessionDoubleTap: onSessionDoubleTap,
             onSessionContextMenu: onSessionContextMenu,
-            onGroupContextMenu: onGroupContextMenu,
+            onFolderContextMenu: onFolderContextMenu,
             onBackgroundContextMenu: onBackgroundContextMenu,
             onSessionMoved: onSessionMoved,
-            onGroupMoved: onGroupMoved,
+            onFolderMoved: onFolderMoved,
           ),
         ),
       ),
@@ -64,8 +64,8 @@ void main() {
       () {
     testWidgets('dragging session into root area sets drop target, leaving clears it',
         (tester) async {
-      final s = makeSession(label: 'Srv', group: 'GroupA');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final s = makeSession(label: 'Srv', folder: 'GroupA');
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       String? movedId;
       String? movedTarget;
@@ -76,7 +76,7 @@ void main() {
           movedId = id;
           movedTarget = target;
         },
-        onGroupMoved: (_, _) {},
+        onFolderMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -107,19 +107,19 @@ void main() {
     });
   });
 
-  group('SessionTreeView — group DragTarget onMove/onLeave (lines 305-313)',
+  group('SessionTreeView — folder DragTarget onMove/onLeave (lines 305-313)',
       () {
     testWidgets(
-        'dragging session over group sets hover, moving away clears it',
+        'dragging session over folder sets hover, moving away clears it',
         (tester) async {
-      final s1 = makeSession(label: 'S1', group: 'GroupA');
-      final s2 = makeSession(label: 'S2', group: 'GroupB');
-      final tree = SessionTree.build([s1, s2], emptyGroups: const {});
+      final s1 = makeSession(label: 'S1', folder: 'GroupA');
+      final s2 = makeSession(label: 'S2', folder: 'GroupB');
+      final tree = SessionTree.build([s1, s2], emptyFolders: const {});
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
         onSessionMoved: (_, _) {},
-        onGroupMoved: (_, _) {},
+        onFolderMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -128,14 +128,14 @@ void main() {
       final gesture = await tester.startGesture(s1Center);
       await tester.pump(const Duration(milliseconds: 600));
 
-      // Move to GroupB — triggers group DragTarget onMove (lines 305-308)
-      final groupBCenter = tester.getCenter(find.text('GroupB'));
-      await gesture.moveTo(groupBCenter);
+      // Move to GroupB — triggers folder DragTarget onMove (lines 305-308)
+      final folderBCenter = tester.getCenter(find.text('GroupB'));
+      await gesture.moveTo(folderBCenter);
       await tester.pump();
 
       // Move away from GroupB — triggers onLeave (lines 310-313)
-      final groupACenter = tester.getCenter(find.text('GroupA'));
-      await gesture.moveTo(groupACenter);
+      final folderACenter = tester.getCenter(find.text('GroupA'));
+      await gesture.moveTo(folderACenter);
       await tester.pump();
 
       // Drop
@@ -146,17 +146,17 @@ void main() {
     });
   });
 
-  group('SessionTreeView — group DragTarget drop decoration', () {
-    testWidgets('hovering over group shows highlight decoration',
+  group('SessionTreeView — folder DragTarget drop decoration', () {
+    testWidgets('hovering over folder shows highlight decoration',
         (tester) async {
-      final s1 = makeSession(label: 'HoverSrv', group: 'Origin');
-      final s2 = makeSession(label: 'Peer', group: 'Target');
-      final tree = SessionTree.build([s1, s2], emptyGroups: const {});
+      final s1 = makeSession(label: 'HoverSrv', folder: 'Origin');
+      final s2 = makeSession(label: 'Peer', folder: 'Target');
+      final tree = SessionTree.build([s1, s2], emptyFolders: const {});
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
         onSessionMoved: (_, _) {},
-        onGroupMoved: (_, _) {},
+        onFolderMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -165,7 +165,7 @@ void main() {
       final gesture = await tester.startGesture(srvCenter);
       await tester.pump(const Duration(milliseconds: 600));
 
-      // Move onto Target group
+      // Move onto Target folder
       final targetCenter = tester.getCenter(find.text('Target'));
       await gesture.moveTo(targetCenter);
       await tester.pump();
@@ -195,7 +195,7 @@ void main() {
     testWidgets('right-click on background triggers callback',
         (tester) async {
       final s = makeSession(label: 'Srv');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       Offset? bgPosition;
       await tester.pumpWidget(buildTreeView(
@@ -223,20 +223,20 @@ void main() {
     });
   });
 
-  group('SessionTreeView — group right-click calls onGroupContextMenu', () {
-    testWidgets('right-click on group calls onGroupContextMenu',
+  group('SessionTreeView — folder right-click calls onFolderContextMenu', () {
+    testWidgets('right-click on folder calls onFolderContextMenu',
         (tester) async {
-      final s = makeSession(label: 'Srv', group: 'MyGroup');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final s = makeSession(label: 'Srv', folder: 'MyGroup');
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
-      String? ctxGroup;
+      String? ctxFolder;
       await tester.pumpWidget(buildTreeView(
         tree: tree,
-        onGroupContextMenu: (group, _) => ctxGroup = group,
+        onFolderContextMenu: (folder, _) => ctxFolder = folder,
       ));
       await tester.pump();
 
-      // Right-click on group
+      // Right-click on folder
       final center = tester.getCenter(find.text('MyGroup'));
       final gesture = await tester.startGesture(
         center,
@@ -246,7 +246,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(ctxGroup, 'MyGroup');
+      expect(ctxFolder, 'MyGroup');
     });
   });
 
@@ -255,7 +255,7 @@ void main() {
     testWidgets('right-click on session calls onSessionContextMenu',
         (tester) async {
       final s = makeSession(label: 'RightClickSrv');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       Session? ctxSession;
       await tester.pumpWidget(buildTreeView(
@@ -279,19 +279,19 @@ void main() {
   });
 
   group('SessionTreeView — _canAcceptDrop edge cases', () {
-    testWidgets('dragging group onto its own subtree is rejected',
+    testWidgets('dragging folder onto its own subtree is rejected',
         (tester) async {
-      // Group A contains B. Dragging A onto B should be rejected
+      // Folder A contains B. Dragging A onto B should be rejected
       // because B starts with A/.
-      final s = makeSession(label: 'deep', group: 'A/B');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final s = makeSession(label: 'deep', folder: 'A/B');
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       String? movedPath;
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
         onSessionMoved: (_, _) {},
-        onGroupMoved: (path, parent) {
+        onFolderMoved: (path, parent) {
           movedPath = path;
         },
       ));
@@ -313,12 +313,12 @@ void main() {
       expect(movedPath, isNull);
     });
 
-    testWidgets('dragging group onto its current parent falls through to root',
+    testWidgets('dragging folder onto its current parent falls through to root',
         (tester) async {
       // B's parent is A. Dragging B onto A should be rejected by A's
       // DragTarget. The drop may fall through to the root DragTarget.
-      final s = makeSession(label: 'srv', group: 'A/B');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final s = makeSession(label: 'srv', folder: 'A/B');
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       String? movedPath;
       String? movedParent;
@@ -326,7 +326,7 @@ void main() {
       await tester.pumpWidget(buildTreeView(
         tree: tree,
         onSessionMoved: (_, _) {},
-        onGroupMoved: (path, parent) {
+        onFolderMoved: (path, parent) {
           movedPath = path;
           movedParent = parent;
         },
@@ -345,7 +345,7 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      // The group DragTarget for A rejects (same parent), but the root
+      // The folder DragTarget for A rejects (same parent), but the root
       // DragTarget may accept. Either way, no crash.
       if (movedPath != null) {
         // If root accepted it, the target should not be 'A'
@@ -355,11 +355,11 @@ void main() {
     });
   });
 
-  group('SessionTreeView — session drop on own group rejected', () {
+  group('SessionTreeView — session drop on own folder rejected', () {
     testWidgets('session in GroupA dropped on GroupA falls through to root',
         (tester) async {
-      final s = makeSession(label: 'InGroup', group: 'GroupA');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final s = makeSession(label: 'InGroup', folder: 'GroupA');
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       String? movedId;
       String? movedTarget;
@@ -369,7 +369,7 @@ void main() {
           movedId = id;
           movedTarget = target;
         },
-        onGroupMoved: (_, _) {},
+        onFolderMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -378,15 +378,15 @@ void main() {
       final gesture = await tester.startGesture(center);
       await tester.pump(const Duration(milliseconds: 600));
 
-      // Drop on GroupA (same group — group DragTarget rejects, root may accept)
-      final groupCenter = tester.getCenter(find.text('GroupA'));
-      await gesture.moveTo(groupCenter);
+      // Drop on GroupA (same folder — folder DragTarget rejects, root may accept)
+      final folderCenter = tester.getCenter(find.text('GroupA'));
+      await gesture.moveTo(folderCenter);
       await tester.pump();
       await gesture.up();
       await tester.pumpAndSettle();
 
-      // GroupA's DragTarget rejects same-group drop. Root DragTarget
-      // may accept since root ('') != session's group ('GroupA').
+      // GroupA's DragTarget rejects same-folder drop. Root DragTarget
+      // may accept since root ('') != session's folder ('GroupA').
       if (movedId != null) {
         expect(movedTarget, '');
       }
@@ -394,20 +394,20 @@ void main() {
   });
 
   group('SessionTreeView — drag feedback rendering', () {
-    testWidgets('group draggable feedback shows group name',
+    testWidgets('folder draggable feedback shows folder name',
         (tester) async {
-      final s = makeSession(label: 'S', group: 'DragGroup');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final s = makeSession(label: 'S', folder: 'DragGroup');
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
         onSessionMoved: (_, _) {},
-        onGroupMoved: (_, _) {},
+        onFolderMoved: (_, _) {},
       ));
       await tester.pump();
 
-      final groupCenter = tester.getCenter(find.text('DragGroup'));
-      final gesture = await tester.startGesture(groupCenter);
+      final folderCenter = tester.getCenter(find.text('DragGroup'));
+      final gesture = await tester.startGesture(folderCenter);
       await tester.pump(const Duration(milliseconds: 600));
       await gesture.moveBy(const Offset(0, 50));
       await tester.pump();
@@ -421,12 +421,12 @@ void main() {
     testWidgets('session draggable feedback shows session name',
         (tester) async {
       final s = makeSession(label: 'DragSrv', authType: AuthType.key);
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
         onSessionMoved: (_, _) {},
-        onGroupMoved: (_, _) {},
+        onFolderMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -442,15 +442,15 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('group becomes transparent when being dragged',
+    testWidgets('folder becomes transparent when being dragged',
         (tester) async {
-      final s = makeSession(label: 'S', group: 'OpacityGrp');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final s = makeSession(label: 'S', folder: 'OpacityGrp');
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       await tester.pumpWidget(buildTreeView(
         tree: tree,
         onSessionMoved: (_, _) {},
-        onGroupMoved: (_, _) {},
+        onFolderMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -470,8 +470,8 @@ void main() {
   group('SessionTreeView — drop session on root calls onSessionMoved', () {
     testWidgets('dropping session on root background calls onSessionMoved',
         (tester) async {
-      final s = makeSession(label: 'MoveSrv', group: 'OldGroup');
-      final tree = SessionTree.build([s], emptyGroups: const {});
+      final s = makeSession(label: 'MoveSrv', folder: 'OldGroup');
+      final tree = SessionTree.build([s], emptyFolders: const {});
 
       String? movedId;
       String? movedTarget;
@@ -482,7 +482,7 @@ void main() {
           movedId = id;
           movedTarget = target;
         },
-        onGroupMoved: (_, _) {},
+        onFolderMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -503,12 +503,12 @@ void main() {
     });
   });
 
-  group('SessionTreeView — drop session onto different group', () {
-    testWidgets('dropping session onto different group calls onSessionMoved',
+  group('SessionTreeView — drop session onto different folder', () {
+    testWidgets('dropping session onto different folder calls onSessionMoved',
         (tester) async {
-      final s1 = makeSession(label: 'S1', group: 'GroupA');
-      final s2 = makeSession(label: 'S2', group: 'GroupB');
-      final tree = SessionTree.build([s1, s2], emptyGroups: const {});
+      final s1 = makeSession(label: 'S1', folder: 'GroupA');
+      final s2 = makeSession(label: 'S2', folder: 'GroupB');
+      final tree = SessionTree.build([s1, s2], emptyFolders: const {});
 
       String? movedId;
       String? movedTarget;
@@ -519,7 +519,7 @@ void main() {
           movedId = id;
           movedTarget = target;
         },
-        onGroupMoved: (_, _) {},
+        onFolderMoved: (_, _) {},
       ));
       await tester.pump();
 
@@ -527,8 +527,8 @@ void main() {
       final gesture = await tester.startGesture(s1Center);
       await tester.pump(const Duration(milliseconds: 600));
 
-      final groupBCenter = tester.getCenter(find.text('GroupB'));
-      await gesture.moveTo(groupBCenter);
+      final folderBCenter = tester.getCenter(find.text('GroupB'));
+      await gesture.moveTo(folderBCenter);
       await tester.pump();
       await gesture.up();
       await tester.pumpAndSettle();

@@ -1,24 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bordered_box.dart';
 
 /// Shown when no tabs are open.
 class WelcomeScreen extends StatelessWidget {
-  final VoidCallback onNewSession;
-
-  const WelcomeScreen({super.key, required this.onNewSession});
+  const WelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     final dimColor = scheme.onSurface.withValues(alpha: 0.6);
     final faintColor = scheme.onSurface.withValues(alpha: 0.4);
 
     return Center(
-      child: SingleChildScrollView(
-        child: Column(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
@@ -46,82 +41,8 @@ class WelcomeScreen extends StatelessWidget {
               color: faintColor,
             ),
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 30,
-            child: TextButton.icon(
-              onPressed: onNewSession,
-              icon: const Icon(Icons.add, size: 13, color: Colors.white),
-              label: Text(
-                'New Connection',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: AppFonts.sm,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
-                ),
-              ),
-              style: TextButton.styleFrom(
-                backgroundColor: scheme.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const _ShortcutRow(keys: 'Ctrl+N', description: 'New Terminal'),
-          const SizedBox(height: 6),
-          const _ShortcutRow(keys: 'Ctrl+Shift+N', description: 'New File Transfer'),
-          const SizedBox(height: 6),
-          const _ShortcutRow(keys: 'Ctrl+B', description: 'Toggle Sidebar'),
-          const SizedBox(height: 6),
-          const _ShortcutRow(keys: 'Ctrl+,', description: 'Settings'),
         ],
       ),
-      ),
-    );
-  }
-}
-
-class _ShortcutRow extends StatelessWidget {
-  final String keys;
-  final String description;
-
-  const _ShortcutRow({required this.keys, required this.description});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final dimColor = scheme.onSurface.withValues(alpha: 0.6);
-    final faintColor = scheme.onSurface.withValues(alpha: 0.4);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AppBorderedBox(
-          constraints: const BoxConstraints(minWidth: 90),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          color: scheme.surfaceContainerHigh,
-          borderColor: scheme.outlineVariant,
-          child: Text(
-            keys,
-            style: TextStyle(
-              fontFamily: 'JetBrains Mono',
-              fontSize: AppFonts.xxs,
-              color: dimColor,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          description,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: AppFonts.xs,
-            color: faintColor,
-          ),
-        ),
-      ],
     );
   }
 }

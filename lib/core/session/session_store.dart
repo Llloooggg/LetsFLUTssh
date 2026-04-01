@@ -17,14 +17,14 @@ class SessionStore {
   static const _fileName = 'sessions.json';
 
   final List<Session> _sessions = [];
-  final Set<String> _emptyGroups = {};
+  final Set<String> _emptyFolders = {};
   final CredentialStore _credStore = CredentialStore();
   late final String _filePath;
   late final String _groupsFilePath;
   bool _initialized = false;
 
   List<Session> get sessions => List.unmodifiable(_sessions);
-  Set<String> get emptyGroups => Set.unmodifiable(_emptyGroups);
+  Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);
 
   Future<void> init() async {
     if (_initialized) return;
@@ -50,8 +50,8 @@ class SessionStore {
       AppLogger.instance.log('Failed to load sessions, starting fresh', name: 'SessionStore', error: e);
     }
 
-    // Load empty groups
-    await _loadEmptyGroups();
+    // Load empty folders
+    await _loadEmptyFolders();
 
     return _sessions;
   }
@@ -169,58 +169,58 @@ class SessionStore {
     await _credStore.saveAll(allCreds);
   }
 
-  Future<void> _loadEmptyGroups() async {
+  Future<void> _loadEmptyFolders() async {
     await init();
     final file = File(_groupsFilePath);
     if (!await file.exists()) return;
     try {
       final content = await file.readAsString();
       final list = jsonDecode(content) as List;
-      _emptyGroups
+      _emptyFolders
         ..clear()
         ..addAll(list.cast<String>());
     } catch (e) {
-      AppLogger.instance.log('Failed to load empty groups', name: 'SessionStore', error: e);
+      AppLogger.instance.log('Failed to load empty folders', name: 'SessionStore', error: e);
     }
   }
 
-  Future<void> _saveEmptyGroups() async {
+  Future<void> _saveEmptyFolders() async {
     await init();
-    await writeFileAtomic(_groupsFilePath, jsonEncode(_emptyGroups.toList()));
+    await writeFileAtomic(_groupsFilePath, jsonEncode(_emptyFolders.toList()));
   }
 
-  /// Add an empty group folder (persists even without sessions).
-  Future<void> addEmptyGroup(String groupPath) async {
-    if (groupPath.isEmpty) return;
-    _emptyGroups.add(groupPath);
-    await _saveEmptyGroups();
+  /// Add an empty folder (persists even without sessions).
+  Future<void> addEmptyFolder(String folderPath) async {
+    if (folderPath.isEmpty) return;
+    _emptyFolders.add(folderPath);
+    await _saveEmptyFolders();
   }
 
-  /// Remove an empty group (called when no longer needed).
-  Future<void> removeEmptyGroup(String groupPath) async {
-    _emptyGroups.remove(groupPath);
-    await _saveEmptyGroups();
+  /// Remove an empty folder (called when no longer needed).
+  Future<void> removeEmptyFolder(String folderPath) async {
+    _emptyFolders.remove(folderPath);
+    await _saveEmptyFolders();
   }
 
-  /// Rename a group and all its subgroups.
-  /// Updates sessions and empty groups with the old path prefix.
-  Future<void> renameGroup(String oldPath, String newPath) async {
+  /// Rename a folder and all its subfolders.
+  /// Updates sessions and empty folders with the old path prefix.
+  Future<void> renameFolder(String oldPath, String newPath) async {
     if (oldPath.isEmpty || newPath.isEmpty || oldPath == newPath) return;
 
-    // Update sessions: exact match or subgroup (oldPath/...)
+    // Update sessions: exact match or subfolder (oldPath/...)
     for (int i = 0; i < _sessions.length; i++) {
       final s = _sessions[i];
-      if (s.group == oldPath) {
-        _sessions[i] = s.copyWith(group: newPath);
-      } else if (s.group.startsWith('$oldPath/')) {
-        _sessions[i] = s.copyWith(group: newPath + s.group.substring(oldPath.length));
+      if (s.folder == oldPath) {
+        _sessions[i] = s.copyWith(folder: newPath);
+      } else if (s.folder.startsWith('$oldPath/')) {
+        _sessions[i] = s.copyWith(folder: newPath + s.folder.substring(oldPath.length));
       }
     }
 
-    // Update empty groups
+    // Update empty folders
     final toRemove = <String>[];
     final toAdd = <String>[];
-    for (final g in _emptyGroups) {
+    for (final g in _emptyFolders) {
       if (g == oldPath) {
         toRemove.add(g);
         toAdd.add(newPath);
@@ -229,19 +229,19 @@ class SessionStore {
         toAdd.add(newPath + g.substring(oldPath.length));
       }
     }
-    _emptyGroups.removeAll(toRemove);
-    _emptyGroups.addAll(toAdd);
+    _emptyFolders.removeAll(toRemove);
+    _emptyFolders.addAll(toAdd);
 
-    await Future.wait([_save(), _saveEmptyGroups()]);
+    await Future.wait([_save(), _saveEmptyFolders()]);
   }
 
-  /// Delete a group: remove all sessions and empty groups under this path.
-  Future<void> deleteGroup(String groupPath) async {
-    if (groupPath.isEmpty) return;
+  /// Delete a folder: remove all sessions and empty folders under this path.
+  Future<void> deleteFolder(String folderPath) async {
+    if (folderPath.isEmpty) return;
 
-    // Delete sessions in this group and subgroups
+    // Delete sessions in this folder and subfolders
     final toDelete = _sessions
-        .where((s) => s.group == groupPath || s.group.startsWith('$groupPath/'))
+        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
         .map((s) => s.id)
         .toList();
     for (final id in toDelete) {
@@ -249,22 +249,22 @@ class SessionStore {
       await _credStore.delete(id);
     }
 
-    // Remove empty groups under this path
-    _emptyGroups.removeWhere(
-      (g) => g == groupPath || g.startsWith('$groupPath/'),
+    // Remove empty folders under this path
+    _emptyFolders.removeWhere(
+      (g) => g == folderPath || g.startsWith('$folderPath/'),
     );
 
-    await Future.wait([_save(), _saveEmptyGroups()]);
+    await Future.wait([_save(), _saveEmptyFolders()]);
   }
 
-  /// Delete all sessions and empty groups.
+  /// Delete all sessions and empty folders.
   Future<void> deleteAll() async {
     for (final s in _sessions) {
       await _credStore.delete(s.id);
     }
     _sessions.clear();
-    _emptyGroups.clear();
-    await Future.wait([_save(), _saveEmptyGroups()]);
+    _emptyFolders.clear();
+    await Future.wait([_save(), _saveEmptyFolders()]);
   }
 
   /// Load credentials for the given session IDs.
@@ -277,20 +277,20 @@ class SessionStore {
     };
   }
 
-  /// Replace sessions and empty groups with the given state and persist.
+  /// Replace sessions and empty folders with the given state and persist.
   /// Optionally restores credentials for sessions that were deleted.
   Future<void> restoreSnapshot(
     List<Session> sessions,
-    Set<String> emptyGroups, [
+    Set<String> emptyFolders, [
     Map<String, CredentialData> credentials = const {},
   ]) async {
     _sessions
       ..clear()
       ..addAll(sessions);
-    _emptyGroups
+    _emptyFolders
       ..clear()
-      ..addAll(emptyGroups);
-    await Future.wait([_save(), _saveEmptyGroups()]);
+      ..addAll(emptyFolders);
+    await Future.wait([_save(), _saveEmptyFolders()]);
     if (credentials.isNotEmpty) {
       final all = await _credStore.loadAllSafe();
       all.addAll(credentials);
@@ -298,10 +298,10 @@ class SessionStore {
     }
   }
 
-  /// Count sessions in a group and its subgroups.
-  int countSessionsInGroup(String groupPath) {
+  /// Count sessions in a folder and its subfolders.
+  int countSessionsInFolder(String folderPath) {
     return _sessions
-        .where((s) => s.group == groupPath || s.group.startsWith('$groupPath/'))
+        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
         .length;
   }
 
@@ -337,12 +337,12 @@ class SessionStore {
     }
   }
 
-  /// Move multiple sessions to a new group in a single save.
-  Future<void> moveMultiple(Set<String> ids, String newGroup) async {
+  /// Move multiple sessions to a new folder in a single save.
+  Future<void> moveMultiple(Set<String> ids, String newFolder) async {
     if (ids.isEmpty) return;
     for (var i = 0; i < _sessions.length; i++) {
       if (ids.contains(_sessions[i].id)) {
-        _sessions[i] = _sessions[i].copyWith(group: newGroup);
+        _sessions[i] = _sessions[i].copyWith(folder: newFolder);
       }
     }
     await _save();
@@ -365,40 +365,40 @@ class SessionStore {
     return copy;
   }
 
-  /// Move a session to a different group.
-  Future<void> moveSession(String sessionId, String newGroup) async {
+  /// Move a session to a different folder.
+  Future<void> moveSession(String sessionId, String newFolder) async {
     final idx = _sessions.indexWhere((s) => s.id == sessionId);
     if (idx < 0) return;
-    _sessions[idx] = _sessions[idx].copyWith(group: newGroup);
+    _sessions[idx] = _sessions[idx].copyWith(folder: newFolder);
     await _save();
   }
 
-  /// Move a group (and all its sessions/subgroups) under a new parent.
-  /// [groupPath] — current full path, [newParent] — new parent path ('' for root).
-  Future<void> moveGroup(String groupPath, String newParent) async {
-    if (groupPath.isEmpty) return;
-    final folderName = groupPath.split('/').last;
+  /// Move a folder (and all its sessions/subfolders) under a new parent.
+  /// [folderPath] — current full path, [newParent] — new parent path ('' for root).
+  Future<void> moveFolder(String folderPath, String newParent) async {
+    if (folderPath.isEmpty) return;
+    final folderName = folderPath.split('/').last;
     final newPath = newParent.isEmpty ? folderName : '$newParent/$folderName';
-    if (newPath == groupPath) return;
+    if (newPath == folderPath) return;
     // Prevent moving into own subtree
-    if (newPath.startsWith('$groupPath/')) return;
+    if (newPath.startsWith('$folderPath/')) return;
 
-    await renameGroup(groupPath, newPath);
+    await renameFolder(folderPath, newPath);
   }
 
-  /// Unique group paths sorted alphabetically.
-  List<String> groups() {
-    final g = _sessions.map((s) => s.group).where((g) => g.isNotEmpty).toSet().toList();
+  /// Unique folder paths sorted alphabetically.
+  List<String> folders() {
+    final g = _sessions.map((s) => s.folder).where((g) => g.isNotEmpty).toSet().toList();
     g.sort();
     return g;
   }
 
-  /// Sessions in a specific group.
-  List<Session> byGroup(String group) {
-    return _sessions.where((s) => s.group == group).toList();
+  /// Sessions in a specific folder.
+  List<Session> byFolder(String folder) {
+    return _sessions.where((s) => s.folder == folder).toList();
   }
 
-  /// Search sessions by label, group, or host.
+  /// Search sessions by label, folder, or host.
   List<Session> search(String query) => filterSessions(_sessions, query);
 
   /// Filter a session list by query. Static so providers can reuse
@@ -408,7 +408,7 @@ class SessionStore {
     final q = query.toLowerCase();
     return sessions.where((s) {
       return s.label.toLowerCase().contains(q) ||
-          s.group.toLowerCase().contains(q) ||
+          s.folder.toLowerCase().contains(q) ||
           s.host.toLowerCase().contains(q) ||
           s.user.toLowerCase().contains(q);
     }).toList();

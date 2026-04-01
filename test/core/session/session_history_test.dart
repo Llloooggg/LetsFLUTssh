@@ -6,15 +6,15 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 void main() {
   late SessionHistory history;
 
-  Session makeSession(String id, {String group = ''}) => Session(
+  Session makeSession(String id, {String folder = ''}) => Session(
     id: id,
     label: 'test-$id',
-    group: group,
+    folder: folder,
     server: const ServerAddress(host: '10.0.0.1', user: 'root'),
   );
 
-  SessionSnapshot makeSnap(List<Session> sessions, {Set<String> groups = const {}, String desc = 'op'}) =>
-      SessionSnapshot(sessions: sessions, emptyGroups: groups, description: desc);
+  SessionSnapshot makeSnap(List<Session> sessions, {Set<String> folders = const {}, String desc = 'op'}) =>
+      SessionSnapshot(sessions: sessions, emptyFolders: folders, description: desc);
 
   setUp(() {
     history = SessionHistory();
@@ -130,23 +130,23 @@ void main() {
       expect(count, 50);
     });
 
-    test('preserves empty groups in snapshot', () {
-      final snap = makeSnap([makeSession('1')], groups: {'Production', 'Dev'}, desc: 'with groups');
+    test('preserves empty folders in snapshot', () {
+      final snap = makeSnap([makeSession('1')], folders: {'Production', 'Dev'}, desc: 'with folders');
       history.pushUndo(snap);
       final restored = history.undo(makeSnap([], desc: 'current'));
-      expect(restored!.emptyGroups, {'Production', 'Dev'});
+      expect(restored!.emptyFolders, {'Production', 'Dev'});
     });
   });
 
   group('SessionSnapshot', () {
-    test('holds sessions and groups', () {
+    test('holds sessions and folders', () {
       final snap = SessionSnapshot(
         sessions: [makeSession('1')],
-        emptyGroups: {'A/B'},
+        emptyFolders: {'A/B'},
         description: 'test',
       );
       expect(snap.sessions.length, 1);
-      expect(snap.emptyGroups, {'A/B'});
+      expect(snap.emptyFolders, {'A/B'});
       expect(snap.description, 'test');
     });
   });

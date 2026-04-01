@@ -9,14 +9,14 @@ void main() {
     String host = 'example.com',
     int port = 22,
     String user = 'root',
-    String group = '',
+    String folder = '',
     AuthType authType = AuthType.password,
     String password = 'secret',
   }) {
     return Session(
       label: label,
       server: ServerAddress(host: host, port: port, user: user),
-      group: group,
+      folder: folder,
       auth: SessionAuth(authType: authType, password: password),
     );
   }
@@ -41,8 +41,8 @@ void main() {
       expect(json, contains('"p":2222'));
     });
 
-    test('encodes group', () {
-      final sessions = [makeSession(group: 'Production/Web')];
+    test('encodes folder', () {
+      final sessions = [makeSession(folder: 'Production/Web')];
       final json = encodeSessionsForQr(sessions);
       expect(json, contains('"g":"Production/Web"'));
     });
@@ -59,15 +59,15 @@ void main() {
       expect(json, isNot(contains('"a":')));
     });
 
-    test('encodes empty groups', () {
+    test('encodes empty folders', () {
       final sessions = [makeSession()];
-      final json = encodeSessionsForQr(sessions, emptyGroups: {'Staging', 'Dev'});
+      final json = encodeSessionsForQr(sessions, emptyFolders: {'Staging', 'Dev'});
       expect(json, contains('"eg":'));
       expect(json, contains('Staging'));
       expect(json, contains('Dev'));
     });
 
-    test('omits empty groups key when none provided', () {
+    test('omits empty folders key when none provided', () {
       final sessions = [makeSession()];
       final json = encodeSessionsForQr(sessions);
       expect(json, isNot(contains('"eg"')));
@@ -96,10 +96,10 @@ void main() {
   group('decodeSessionsFromQr', () {
     test('roundtrip encode/decode preserves session data', () {
       final sessions = [
-        makeSession(label: 'nginx', host: 'prod.com', port: 2222, user: 'deploy', group: 'Production'),
+        makeSession(label: 'nginx', host: 'prod.com', port: 2222, user: 'deploy', folder: 'Production'),
         makeSession(label: 'api', host: 'api.com', user: 'admin'),
       ];
-      final json = encodeSessionsForQr(sessions, emptyGroups: {'Staging'});
+      final json = encodeSessionsForQr(sessions, emptyFolders: {'Staging'});
       final result = decodeSessionsFromQr(json);
 
       expect(result, isNotNull);
@@ -108,11 +108,11 @@ void main() {
       expect(result.sessions[0].host, 'prod.com');
       expect(result.sessions[0].port, 2222);
       expect(result.sessions[0].user, 'deploy');
-      expect(result.sessions[0].group, 'Production');
+      expect(result.sessions[0].folder, 'Production');
       expect(result.sessions[1].label, 'api');
       expect(result.sessions[1].host, 'api.com');
       expect(result.sessions[1].port, 22);
-      expect(result.emptyGroups, {'Staging'});
+      expect(result.emptyFolders, {'Staging'});
     });
 
     test('decoded sessions are marked as incomplete', () {
@@ -162,7 +162,7 @@ void main() {
       expect(result.sessions[0].user, 'user');
       expect(result.sessions[0].label, '');
       expect(result.sessions[0].port, 22);
-      expect(result.sessions[0].group, '');
+      expect(result.sessions[0].folder, '');
       expect(result.sessions[0].authType, AuthType.password);
     });
 
@@ -172,15 +172,15 @@ void main() {
 
       expect(result, isNotNull);
       expect(result!.sessions, isEmpty);
-      expect(result.emptyGroups, isEmpty);
+      expect(result.emptyFolders, isEmpty);
     });
 
-    test('handles no empty groups key', () {
+    test('handles no empty folders key', () {
       const json = '{"v":1,"s":[{"h":"h","u":"u"}]}';
       final result = decodeSessionsFromQr(json);
 
       expect(result, isNotNull);
-      expect(result!.emptyGroups, isEmpty);
+      expect(result!.emptyFolders, isEmpty);
     });
 
     test('decodes auth type key', () {
@@ -225,11 +225,11 @@ void main() {
       expect(calculateQrPayloadSize(three), greaterThan(calculateQrPayloadSize(one)));
     });
 
-    test('size increases with empty groups', () {
+    test('size increases with empty folders', () {
       final sessions = [makeSession()];
-      final withoutGroups = calculateQrPayloadSize(sessions);
-      final withGroups = calculateQrPayloadSize(sessions, emptyGroups: {'A', 'B', 'C'});
-      expect(withGroups, greaterThan(withoutGroups));
+      final withoutFolders = calculateQrPayloadSize(sessions);
+      final withFolders = calculateQrPayloadSize(sessions, emptyFolders: {'A', 'B', 'C'});
+      expect(withFolders, greaterThan(withoutFolders));
     });
   });
 
@@ -249,9 +249,9 @@ void main() {
 
     test('roundtrip wrap/unwrap preserves data', () {
       final sessions = [
-        makeSession(label: 'nginx', host: 'prod.com', port: 2222, user: 'deploy', group: 'Prod'),
+        makeSession(label: 'nginx', host: 'prod.com', port: 2222, user: 'deploy', folder: 'Prod'),
       ];
-      final payload = encodeSessionsForQr(sessions, emptyGroups: {'Staging'});
+      final payload = encodeSessionsForQr(sessions, emptyFolders: {'Staging'});
       final url = wrapInDeepLink(payload);
       final result = decodeImportUri(Uri.parse(url));
 
@@ -260,7 +260,7 @@ void main() {
       expect(result.sessions[0].label, 'nginx');
       expect(result.sessions[0].host, 'prod.com');
       expect(result.sessions[0].port, 2222);
-      expect(result.emptyGroups, {'Staging'});
+      expect(result.emptyFolders, {'Staging'});
     });
 
     test('base64url encoded — no +/= issues in URL', () {

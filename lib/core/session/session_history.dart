@@ -4,14 +4,14 @@ import 'session.dart';
 /// Snapshot of session state for undo/redo.
 class SessionSnapshot {
   final List<Session> sessions;
-  final Set<String> emptyGroups;
+  final Set<String> emptyFolders;
   final String description;
   /// Credentials saved before deletion — restored on undo.
   final Map<String, CredentialData> credentials;
 
   SessionSnapshot({
     required this.sessions,
-    required this.emptyGroups,
+    required this.emptyFolders,
     required this.description,
     this.credentials = const {},
   });
