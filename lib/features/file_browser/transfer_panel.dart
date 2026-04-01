@@ -5,6 +5,7 @@ import '../../core/transfer/transfer_task.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../../widgets/clipped_row.dart';
 
 /// Collapsible bottom panel showing transfer progress and history.
 class TransferPanel extends ConsumerStatefulWidget {
@@ -70,9 +71,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                     : BorderSide.none,
               ),
             ),
-            child: Flex(
-              direction: Axis.horizontal,
-              clipBehavior: Clip.hardEdge,
+            child: ClippedRow(
               children: [
                 Icon(
                   _expanded ? Icons.expand_more : Icons.chevron_right,
@@ -195,9 +194,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       height: 20,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       color: AppTheme.bg3,
-      child: Flex(
-        direction: Axis.horizontal,
-        clipBehavior: Clip.hardEdge,
+      child: ClippedRow(
         children: [
           SizedBox(width: 16, child: Text('#', style: style)),
           const SizedBox(width: 4),
@@ -226,9 +223,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         color: AppTheme.bg0,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
-      child: Flex(
-        direction: Axis.horizontal,
-        clipBehavior: Clip.hardEdge,
+      child: ClippedRow(
         children: [
           Icon(Icons.circle, size: 5, color: AppTheme.green),
           const SizedBox(width: 6),
@@ -260,9 +255,7 @@ class _HistoryRow extends StatelessWidget {
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Flex(
-        direction: Axis.horizontal,
-        clipBehavior: Clip.hardEdge,
+      child: ClippedRow(
         children: [
           // Status icon
           SizedBox(
@@ -365,9 +358,7 @@ class _ActiveRow extends StatelessWidget {
         Container(
           height: 22,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Flex(
-            direction: Axis.horizontal,
-            clipBehavior: Clip.hardEdge,
+          child: ClippedRow(
             children: [
               // Direction icon
               SizedBox(

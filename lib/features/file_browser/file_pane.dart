@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/clipped_row.dart';
 import '../../utils/format.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/cross_marquee_controller.dart';
@@ -239,9 +240,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
-      child: Flex(
-        direction: Axis.horizontal,
-        clipBehavior: Clip.hardEdge,
+      child: ClippedRow(
         children: [
           Text(
             ctrl.label.toUpperCase(),
@@ -274,9 +273,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final rootLabel = isWindows && parts.isNotEmpty ? parts[0] : null;
     final navParts = isWindows ? parts.skip(1).toList() : parts;
 
-    return Flex(
-      direction: Axis.horizontal,
-      clipBehavior: Clip.hardEdge,
+    return ClippedRow(
       children: [
         InkWell(
           onTap: () => ctrl.navigateTo(rootPath),
@@ -440,9 +437,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       color: AppTheme.bg3,
-      child: Flex(
-        direction: Axis.horizontal,
-        clipBehavior: Clip.hardEdge,
+      child: ClippedRow(
         children: [
           const SizedBox(width: 20), // icon space
           Expanded(child: headerCell('Name', SortColumn.name)),
@@ -719,9 +714,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         color: AppTheme.bg3,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
-      child: Flex(
-        direction: Axis.horizontal,
-        clipBehavior: Clip.hardEdge,
+      child: ClippedRow(
         children: [
           Flexible(
             child: Text('$count items, ${formatSize(ctrl.totalFileSize)}', style: style, overflow: TextOverflow.ellipsis),

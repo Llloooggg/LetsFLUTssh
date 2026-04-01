@@ -900,6 +900,10 @@ Desktop layout shell shared by the main screen and settings. Provides the consis
 
 State class `AppShellState` exposes `sidebarWidth` getter. Sidebar width is managed internally and persists as long as the widget stays mounted.
 
+### ClippedRow
+
+Drop-in `Row` replacement that clips overflowing children instead of showing yellow-and-black debug stripes. Extends `Flex` with `direction: Axis.horizontal` and `clipBehavior: Clip.hardEdge`. Use in any row whose parent can be resized (sidebar, split panes, column headers, status bars).
+
 ### AppIconButton
 
 ```dart
@@ -1475,9 +1479,9 @@ All desktop platforms enforce a minimum window size of **480 × 360** logical pi
 | macOS | `macos/Runner/MainFlutterWindow.swift` | `NSWindow.contentMinSize` |
 
 Additionally, internal resizable elements (sidebar, file browser columns, split panes) use overflow-safe patterns:
+- **`ClippedRow`** (`widgets/clipped_row.dart`): drop-in `Row` replacement that clips overflow via `Flex(clipBehavior: Clip.hardEdge)`. Used in file browser rows, column headers, breadcrumb paths, connection bar, and transfer panel
 - **Sidebar text** (`_SidebarFooter`, `_PanelHeader`, session tree rows): `Flexible` / `Expanded` with `TextOverflow.ellipsis`
-- **File browser columns** (`FileRow`, column headers): `Flex(clipBehavior: Clip.hardEdge)` — clips instead of yellow-stripe overflow when fixed-width columns exceed pane width
-- **Transfer panel rows**: same `Flex(clipBehavior: Clip.hardEdge)` pattern
+- **Welcome screen**: `SingleChildScrollView` prevents vertical overflow on small windows
 
 ### Windows specifics
 
