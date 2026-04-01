@@ -86,12 +86,12 @@ abstract final class AppTheme {
   static Color get active      => isDark ? _activeColor : const Color(0x0F000000);
 
   // ── Border radius scale ──
-  /// 2 px — inputs, buttons, small elements.
-  static const radiusSm = BorderRadius.all(Radius.circular(2));
-  /// 4 px — cards, containers, default rounding.
-  static const radiusMd = BorderRadius.all(Radius.circular(4));
-  /// 6 px — toasts, mobile elements, larger containers.
-  static const radiusLg = BorderRadius.all(Radius.circular(6));
+  /// 4 px — inputs, buttons, small elements.
+  static const radiusSm = BorderRadius.all(Radius.circular(4));
+  /// 6 px — cards, containers, default rounding.
+  static const radiusMd = BorderRadius.all(Radius.circular(6));
+  /// 8 px — toasts, mobile elements, larger containers.
+  static const radiusLg = BorderRadius.all(Radius.circular(8));
 
   static ThemeData dark() {
     const scheme = ColorScheme(
@@ -222,7 +222,10 @@ abstract final class AppTheme {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: _accent),
+        style: TextButton.styleFrom(
+          foregroundColor: _accent,
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -300,6 +303,36 @@ abstract final class AppTheme {
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.all(const Color(0x667F848E)),
         radius: Radius.zero,
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: const RoundedRectangleBorder(borderRadius: radiusSm),
+        side: const BorderSide(color: _fgDim),
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return _accent;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(Colors.white),
+      ),
+      cardTheme: const CardThemeData(
+        color: _bg3,
+        shape: RoundedRectangleBorder(borderRadius: radiusSm),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        backgroundColor: _bg3,
+        contentTextStyle: TextStyle(color: _fg),
+        shape: RoundedRectangleBorder(borderRadius: radiusSm),
+        behavior: SnackBarBehavior.floating,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: _bg2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+        ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: _accent,
@@ -436,7 +469,10 @@ abstract final class AppTheme {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: _lightBlue),
+        style: TextButton.styleFrom(
+          foregroundColor: _lightBlue,
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -510,6 +546,36 @@ abstract final class AppTheme {
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.all(const Color(0x669D9D9F)),
         radius: Radius.zero,
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: const RoundedRectangleBorder(borderRadius: radiusSm),
+        side: const BorderSide(color: _lightGutter),
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return _lightBlue;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(Colors.white),
+      ),
+      cardTheme: const CardThemeData(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: radiusSm),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        backgroundColor: _lightFg,
+        contentTextStyle: TextStyle(color: _lightBg),
+        shape: RoundedRectangleBorder(borderRadius: radiusSm),
+        behavior: SnackBarBehavior.floating,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: _lightBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+        ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: _lightBlue,

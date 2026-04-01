@@ -607,7 +607,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         alignLabelWithHint: true,
       ),
       maxLines: 5,
-      style: TextStyle(fontFamily: 'monospace', fontSize: AppFonts.sm),
+      style: AppFonts.mono(fontSize: AppFonts.xs),
     );
   }
 

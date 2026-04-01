@@ -1162,9 +1162,9 @@ abstract final class AppTheme {
   static Color searchHighlight;    // bright yellow
 
   // Border radius scale
-  static const radiusSm;  // 2 px — inputs, buttons, small elements
-  static const radiusMd;  // 4 px — cards, containers, default rounding
-  static const radiusLg;  // 6 px — toasts, mobile elements, larger containers
+  static const radiusSm;  // 4 px — inputs, buttons, small elements
+  static const radiusMd;  // 6 px — cards, containers, default rounding
+  static const radiusLg;  // 8 px — toasts, mobile elements, larger containers
 
   // Theme factory
   static ThemeData dark();
