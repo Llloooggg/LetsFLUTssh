@@ -179,11 +179,11 @@ class _QrExportDialogState extends State<QrExportDialog> {
                 children: [
                   Icon(Icons.info_outline, size: 16, color: theme.colorScheme.primary),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Passwords and SSH keys are NOT included.\n'
                       'Imported sessions will need credentials filled in.',
-                      style: TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: AppFonts.md),
                     ),
                   ),
                 ],
@@ -203,7 +203,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
                   ),
                   Text(
                     'Select All (${_selectedIds.length}/${widget.sessions.length})',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: AppFonts.lg),
                   ),
                 ],
               ),
@@ -224,7 +224,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
             Text(
               'Payload: ${(_payloadSize / 1024).toStringAsFixed(1)} KB / '
               '${(qrMaxPayloadBytes / 1024).toStringAsFixed(1)} KB max',
-              style: TextStyle(fontSize: 12, color: sizeColor),
+              style: TextStyle(fontSize: AppFonts.md, color: sizeColor),
             ),
             const SizedBox(height: 4),
             LinearProgressIndicator(
@@ -237,7 +237,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
               const SizedBox(height: 8),
               Text(
                 'Too large — deselect some sessions or use .lfs file export.',
-                style: TextStyle(fontSize: 12, color: AppTheme.disconnectedColor(theme.brightness)),
+                style: TextStyle(fontSize: AppFonts.md, color: AppTheme.disconnectedColor(theme.brightness)),
               ),
             ],
           ],
@@ -291,7 +291,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
             Expanded(
               child: Text(
                 node.name,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: AppFonts.lg, fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -318,14 +318,14 @@ class _QrExportDialogState extends State<QrExportDialog> {
             Expanded(
               child: Text(
                 session.label.isNotEmpty ? session.label : session.displayName,
-                style: const TextStyle(fontSize: 13),
+                style: TextStyle(fontSize: AppFonts.lg),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             Text(
               '${session.user}@${session.host}',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppFonts.sm,
                 color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ),

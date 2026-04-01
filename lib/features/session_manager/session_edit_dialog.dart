@@ -252,7 +252,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
             _isEditing ? 'Edit Connection' : 'New Connection',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 12,
+              fontSize: AppFonts.md,
               fontWeight: FontWeight.w600,
               color: AppTheme.fg,
             ),
@@ -307,7 +307,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
               label,
               style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 11,
+                fontSize: AppFonts.sm,
                 fontWeight: FontWeight.w500,
                 color: active ? AppTheme.fg : AppTheme.fgFaint,
               ),
@@ -440,7 +440,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
               label,
               style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 11,
+                fontSize: AppFonts.sm,
                 fontWeight: FontWeight.w500,
                 color: active ? AppTheme.accent : AppTheme.fgDim,
               ),
@@ -486,7 +486,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
             _keyError!,
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 10,
+              fontSize: AppFonts.xs,
               color: AppTheme.red,
             ),
           ),
@@ -592,7 +592,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         icon: Icon(_showKeyText ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 16),
         label: Text(
           _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
-          style: const TextStyle(fontSize: 12),
+          style: TextStyle(fontSize: AppFonts.md),
         ),
       ),
     );
@@ -607,7 +607,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         alignLabelWithHint: true,
       ),
       maxLines: 5,
-      style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+      style: TextStyle(fontFamily: 'monospace', fontSize: AppFonts.sm),
     );
   }
 
@@ -644,7 +644,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           'No additional options yet',
           style: TextStyle(
             fontFamily: 'Inter',
-            fontSize: 11,
+            fontSize: AppFonts.sm,
             color: AppTheme.fgFaint,
           ),
         ),
@@ -692,7 +692,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           label,
           style: TextStyle(
             fontFamily: 'Inter',
-            fontSize: 11,
+            fontSize: AppFonts.sm,
             fontWeight: bg != null ? FontWeight.w500 : null,
             color: fg ?? AppTheme.fgDim,
           ),
@@ -745,7 +745,7 @@ class _FieldLabel extends StatelessWidget {
         text.toUpperCase(),
         style: TextStyle(
           fontFamily: 'Inter',
-          fontSize: 10,
+          fontSize: AppFonts.xs,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.8,
           color: AppTheme.fgFaint,
@@ -785,14 +785,14 @@ class _StyledInput extends StatelessWidget {
       validator: validator,
       style: TextStyle(
         fontFamily: 'JetBrains Mono',
-        fontSize: 11,
+        fontSize: AppFonts.sm,
         color: AppTheme.fg,
       ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
           fontFamily: 'JetBrains Mono',
-          fontSize: 11,
+          fontSize: AppFonts.sm,
           color: AppTheme.fgFaint,
         ),
         filled: true,
@@ -821,7 +821,7 @@ class _StyledInput extends StatelessWidget {
         ),
         errorStyle: TextStyle(
           fontFamily: 'Inter',
-          fontSize: 10,
+          fontSize: AppFonts.xs,
           color: AppTheme.red,
           height: 1.2,
         ),

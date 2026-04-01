@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/platform.dart' as plat;
+
 /// OneDark-inspired color palette for the app.
 ///
 /// Dark theme: Atom OneDark Pro colors with indigo accent.
@@ -238,9 +240,9 @@ abstract final class AppTheme {
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: _accent, fontSize: 12);
+            return TextStyle(color: _accent, fontSize: AppFonts.md);
           }
-          return const TextStyle(color: _fgDim, fontSize: 12);
+          return TextStyle(color: _fgDim, fontSize: AppFonts.md);
         }),
       ),
       sliderTheme: const SliderThemeData(
@@ -255,9 +257,9 @@ abstract final class AppTheme {
           color: _bg0,
           border: Border.all(color: _borderLight),
         ),
-        textStyle: const TextStyle(
+        textStyle: TextStyle(
           fontFamily: 'Inter',
-          fontSize: 10,
+          fontSize: AppFonts.xs,
           color: _fg,
         ),
       ),
@@ -436,9 +438,9 @@ abstract final class AppTheme {
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: _lightBlue, fontSize: 12);
+            return TextStyle(color: _lightBlue, fontSize: AppFonts.md);
           }
-          return const TextStyle(color: _lightGutter, fontSize: 12);
+          return TextStyle(color: _lightGutter, fontSize: AppFonts.md);
         }),
       ),
       sliderTheme: const SliderThemeData(
@@ -453,7 +455,7 @@ abstract final class AppTheme {
           color: _lightFg,
           border: Border.all(color: _lightBorder),
         ),
-        textStyle: const TextStyle(color: _lightBg, fontSize: 12),
+        textStyle: TextStyle(color: _lightBg, fontSize: AppFonts.md),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: Colors.white,
@@ -520,9 +522,37 @@ abstract final class AppTheme {
 ///
 /// Returns plain [TextStyle] objects with [fontFamily] set.
 /// Fonts are bundled as assets in `assets/fonts/`.
+///
+/// Platform-aware size constants: mobile gets +2 px for touch readability.
+/// Use [tiny]–[xl] instead of hardcoded fontSize values.
 abstract final class AppFonts {
   static const _inter = 'Inter';
   static const _mono = 'JetBrains Mono';
+
+  static final bool _mobile = plat.isMobilePlatform;
+
+  // ── Platform-aware size scale (desktop / mobile) ──
+
+  /// 8 / 10 — transfer errors, smallest fine print.
+  static double get tiny => _mobile ? 10.0 : 8.0;
+
+  /// 9 / 11 — keyboard shortcuts, status badges.
+  static double get xxs => _mobile ? 11.0 : 9.0;
+
+  /// 10 / 12 — captions, subtitles, metadata, file details.
+  static double get xs => _mobile ? 12.0 : 10.0;
+
+  /// 11 / 13 — body text, inputs, default UI text.
+  static double get sm => _mobile ? 13.0 : 11.0;
+
+  /// 12 / 14 — section headers, form labels.
+  static double get md => _mobile ? 14.0 : 12.0;
+
+  /// 13 / 15 — dialog titles, sub-headings, toasts.
+  static double get lg => _mobile ? 15.0 : 13.0;
+
+  /// 16 / 18 — page headings.
+  static double get xl => _mobile ? 18.0 : 16.0;
 
   static TextStyle inter({
     double? fontSize,

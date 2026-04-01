@@ -125,7 +125,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                   child: Text(
                     'Quick Connect',
                     style: AppFonts.inter(
-                      fontSize: 13,
+                      fontSize: AppFonts.lg,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.fgBright,
                     ),
@@ -192,8 +192,8 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           alignLabelWithHint: true,
                         ),
                         maxLines: 5,
-                        style: const TextStyle(
-                            fontFamily: 'monospace', fontSize: 11),
+                        style: TextStyle(
+                            fontFamily: 'monospace', fontSize: AppFonts.sm),
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -230,7 +230,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           child: Text(
                             'Cancel',
                             style: AppFonts.inter(
-                              fontSize: 12,
+                              fontSize: AppFonts.md,
                               fontWeight: FontWeight.w500,
                               color: AppTheme.fgDim,
                             ),
@@ -249,7 +249,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           child: Text(
                             'Connect',
                             style: AppFonts.inter(
-                              fontSize: 12,
+                              fontSize: AppFonts.md,
                               fontWeight: FontWeight.w500,
                               color: Colors.white,
                             ),
@@ -311,7 +311,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
         ),
         label: Text(
           _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
-          style: const TextStyle(fontSize: 12),
+          style: TextStyle(fontSize: AppFonts.md),
         ),
       ),
     );
@@ -338,7 +338,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
             label.toUpperCase(),
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 10,
+              fontSize: AppFonts.xs,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.8,
               color: AppTheme.fgFaint,
@@ -354,14 +354,14 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
             validator: validator,
             style: TextStyle(
               fontFamily: 'JetBrains Mono',
-              fontSize: 11,
+              fontSize: AppFonts.sm,
               color: AppTheme.fg,
             ),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(
                 fontFamily: 'JetBrains Mono',
-                fontSize: 11,
+                fontSize: AppFonts.sm,
                 color: AppTheme.fgFaint,
               ),
               filled: true,

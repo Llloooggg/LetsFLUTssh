@@ -1140,12 +1140,23 @@ abstract final class AppTheme {
 
 ```dart
 abstract final class AppFonts {
+  // Platform-aware size scale (desktop / mobile, +2 px on mobile)
+  static double get tiny;  //  8 / 10 — transfer errors, smallest fine print
+  static double get xxs;   //  9 / 11 — keyboard shortcuts, status badges
+  static double get xs;    // 10 / 12 — captions, subtitles, metadata
+  static double get sm;    // 11 / 13 — body text, inputs, default UI text
+  static double get md;    // 12 / 14 — section headers, form labels
+  static double get lg;    // 13 / 15 — dialog titles, sub-headings, toasts
+  static double get xl;    // 16 / 18 — page headings
+
   static TextStyle inter({fontSize, fontWeight, color, height});  // UI text
   static TextStyle mono({fontSize, fontWeight, color});            // Code/data
 }
 ```
 
 Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/fonts/`.
+
+**Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware: mobile gets +2 px automatically for touch readability.
 
 ---
 

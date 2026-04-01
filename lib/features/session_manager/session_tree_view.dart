@@ -461,7 +461,7 @@ class _SessionTreeViewState extends State<SessionTreeView>
             const SizedBox(width: 4),
             Text(
               isBulk ? '$totalCount items' : label,
-              style: const TextStyle(fontSize: 11),
+              style: TextStyle(fontSize: AppFonts.sm),
             ),
           ],
         ),
@@ -704,7 +704,7 @@ class _SessionTreeViewState extends State<SessionTreeView>
         session.host,
         style: TextStyle(
           fontFamily: 'JetBrains Mono',
-          fontSize: 9,
+          fontSize: AppFonts.xxs,
           color: AppTheme.fgFaint,
         ),
       ),

@@ -169,7 +169,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                     Expanded(
                       child: Text(
                         _activeCtrl.currentPath,
-                        style: const TextStyle(fontSize: 13),
+                        style: TextStyle(fontSize: AppFonts.lg),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -306,7 +306,7 @@ class _MobileFileListState extends State<MobileFileList> {
             onPressed: _exitSelectionMode,
             icon: const Icon(Icons.close, size: 20),
           ),
-          Text('${ctrl.selected.length} selected', style: const TextStyle(fontSize: 13)),
+          Text('${ctrl.selected.length} selected', style: TextStyle(fontSize: AppFonts.lg)),
           const Spacer(),
           IconButton(
             onPressed: () {
@@ -356,11 +356,11 @@ class _MobileFileListState extends State<MobileFileList> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(entry.name, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
+                  Text(entry.name, style: TextStyle(fontSize: AppFonts.md), overflow: TextOverflow.ellipsis),
                   if (!entry.isDir)
                     Text(
                       formatSize(entry.size),
-                      style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                      style: TextStyle(fontSize: AppFonts.sm, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                     ),
                 ],
               ),
@@ -368,7 +368,7 @@ class _MobileFileListState extends State<MobileFileList> {
             if (!_selectionMode)
               Text(
                 entry.modeString,
-                style: TextStyle(fontSize: 11, fontFamily: 'monospace', color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                style: TextStyle(fontSize: AppFonts.sm, fontFamily: 'monospace', color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
               ),
           ],
         ),

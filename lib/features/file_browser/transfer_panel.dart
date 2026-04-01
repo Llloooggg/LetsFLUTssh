@@ -81,7 +81,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                 Text(
                   'Transfers:',
                   style: AppFonts.inter(
-                    fontSize: 10,
+                    fontSize: AppFonts.xs,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.fgDim,
                   ),
@@ -90,18 +90,18 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                 if (status != null) ...[
                   Text(
                     '${status.running} active',
-                    style: AppFonts.inter(fontSize: 10, color: AppTheme.accent),
+                    style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.accent),
                   ),
                   Text(
                     ', ${status.queued} queued',
-                    style: AppFonts.inter(fontSize: 10, color: AppTheme.fgDim),
+                    style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
                   ),
                 ],
                 const Spacer(),
                 historyAsync.when(
                   data: (history) => Text(
                     '${history.length} in history',
-                    style: AppFonts.inter(fontSize: 9, color: AppTheme.fgFaint),
+                    style: AppFonts.inter(fontSize: AppFonts.xxs, color: AppTheme.fgFaint),
                   ),
                   loading: SizedBox.shrink,
                   error: (_, _) => const SizedBox.shrink(),
@@ -161,7 +161,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           return Center(
             child: Text(
               'No transfers yet',
-              style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint),
+              style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
             ),
           );
         }
@@ -184,7 +184,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
 
   Widget _buildColumnHeaders() {
     final style = AppFonts.inter(
-      fontSize: 9,
+      fontSize: AppFonts.xxs,
       fontWeight: FontWeight.w500,
       color: AppTheme.fgFaint,
     );
@@ -229,11 +229,11 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           if (status != null)
             Text(
               '${status.running} active · ${status.queued} queued',
-              style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+              style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
             ),
           Text(
             ' · $historyCount in hist',
-            style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+            style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
           ),
         ],
       ),
@@ -280,7 +280,7 @@ class _HistoryRow extends StatelessWidget {
             flex: 2,
             child: Text(
               entry.name,
-              style: AppFonts.mono(fontSize: 10, color: AppTheme.fgDim),
+              style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgDim),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -291,7 +291,7 @@ class _HistoryRow extends StatelessWidget {
               message: isUpload ? entry.sourcePath : entry.targetPath,
               child: Text(
                 _shortenPath(isUpload ? entry.sourcePath : entry.targetPath),
-                style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -303,7 +303,7 @@ class _HistoryRow extends StatelessWidget {
               message: isUpload ? entry.targetPath : entry.sourcePath,
               child: Text(
                 _shortenPath(isUpload ? entry.targetPath : entry.sourcePath),
-                style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -313,7 +313,7 @@ class _HistoryRow extends StatelessWidget {
             width: 56,
             child: Text(
               entry.sizeBytes > 0 ? formatSize(entry.sizeBytes) : '',
-              style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+              style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
               textAlign: TextAlign.right,
             ),
           ),
@@ -322,7 +322,7 @@ class _HistoryRow extends StatelessWidget {
             width: 50,
             child: Text(
               entry.duration != null ? formatDuration(entry.duration!) : '',
-              style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+              style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
             ),
           ),
         ],
@@ -387,7 +387,7 @@ class _ActiveRow extends StatelessWidget {
                     Flexible(
                       child: Text(
                         entry.name,
-                        style: AppFonts.mono(fontSize: 10, color: AppTheme.fg),
+                        style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fg),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -395,7 +395,7 @@ class _ActiveRow extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         entry.message,
-                        style: AppFonts.mono(fontSize: 8, color: AppTheme.accent),
+                        style: AppFonts.mono(fontSize: AppFonts.tiny, color: AppTheme.accent),
                       ),
                     ],
                   ],
@@ -408,7 +408,7 @@ class _ActiveRow extends StatelessWidget {
                   message: isUpload ? entry.sourcePath : entry.targetPath,
                   child: Text(
                     _HistoryRow._shortenPath(isUpload ? entry.sourcePath : entry.targetPath),
-                    style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -420,7 +420,7 @@ class _ActiveRow extends StatelessWidget {
                   message: isUpload ? entry.targetPath : entry.sourcePath,
                   child: Text(
                     _HistoryRow._shortenPath(isUpload ? entry.targetPath : entry.sourcePath),
-                    style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -430,7 +430,7 @@ class _ActiveRow extends StatelessWidget {
                 width: 56,
                 child: Text(
                   isQueued ? 'Queued' : '${entry.percent.toStringAsFixed(0)}%',
-                  style: AppFonts.mono(fontSize: 10, color: AppTheme.accent),
+                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.accent),
                   textAlign: TextAlign.right,
                 ),
               ),
@@ -439,7 +439,7 @@ class _ActiveRow extends StatelessWidget {
                 width: 50,
                 child: Text(
                   entry.message,
-                  style: AppFonts.mono(fontSize: 10, color: AppTheme.fgFaint),
+                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

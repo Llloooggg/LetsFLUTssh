@@ -159,5 +159,6 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 - Immutable models with copyWith, ==, hashCode, toJson/fromJson → [§10 Data Models](docs/ARCHITECTURE.md#10-data-models)
 - Credentials in `CredentialStore` (AES-256-GCM), NOT in plain JSON → [§3.6 Security](docs/ARCHITECTURE.md#36-security--encryption-coresecurity)
 - OneDark theme: centralized in `app_theme.dart`, semantic color constants, no hardcoded Colors → [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
+- **Font sizes** — never hardcode `fontSize` numbers. Use `AppFonts.tiny`/`xxs`/`xs`/`sm`/`md`/`lg`/`xl` — they are platform-aware (mobile +2 px). See [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
 - **Buttons & hover** — `AppIconButton` for all icon buttons (rectangular hover, no splash, disabled dimming). `HoverRegion` for custom hover containers (builder pattern). Never use bare `IconButton`, `InkWell` for buttons, or manual `MouseRegion`+`GestureDetector`+`setState(_hovered)`. Exception: `context_menu.dart` (centralized keyboard nav state) → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
 - `.lfs` export format: `[salt 32B] [iv 12B] [encrypted ZIP + GCM tag]`, merge/replace import modes → [§3.9 Import](docs/ARCHITECTURE.md#39-import-coreimport)

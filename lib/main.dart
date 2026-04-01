@@ -239,7 +239,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 200),
             child: SingleChildScrollView(
-              child: Text(info.changelog!, style: const TextStyle(fontSize: 13)),
+              child: Text(info.changelog!, style: TextStyle(fontSize: AppFonts.lg)),
             ),
           ),
         ],
@@ -735,7 +735,7 @@ class _StatusBar extends ConsumerWidget {
             '${tabState.tabs.length} tabs',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 10,
+              fontSize: AppFonts.xs,
               color: dimColor,
             ),
           ),
@@ -790,15 +790,15 @@ class _ConnectionBar extends StatelessWidget {
               children: [
                 Text(
                   conn.isConnected ? 'Connected' : 'Disconnected',
-                  style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: dimColor),
+                  style: TextStyle(fontFamily: 'Inter', fontSize: AppFonts.xs, color: dimColor),
                 ),
                 const SizedBox(width: 6),
-                Text('·', style: TextStyle(fontSize: 10, color: faintColor)),
+                Text('·', style: TextStyle(fontSize: AppFonts.xs, color: faintColor)),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
                     '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
-                    style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 10, color: dimColor),
+                    style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: AppFonts.xs, color: dimColor),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -836,7 +836,7 @@ class _ConnectionBar extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 label,
-                style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w500, color: btnColor),
+                style: TextStyle(fontFamily: 'Inter', fontSize: AppFonts.xs, fontWeight: FontWeight.w500, color: btnColor),
               ),
             ],
           ),

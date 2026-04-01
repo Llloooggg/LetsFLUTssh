@@ -75,7 +75,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                   Text(
                     'LetsFLUTssh',
                     style: AppFonts.inter(
-                      fontSize: 14,
+                      fontSize: AppFonts.md,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.fgBright,
                     ),
@@ -88,11 +88,11 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                       TextSpan(children: [
                         TextSpan(
                           text: '$activeCount active',
-                          style: AppFonts.inter(fontSize: 10, color: AppTheme.green),
+                          style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.green),
                         ),
                         TextSpan(
                           text: ' · $savedCount saved',
-                          style: AppFonts.inter(fontSize: 10, color: AppTheme.fgFaint),
+                          style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
                         ),
                       ]),
                     );
@@ -386,7 +386,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                         Text(
                           tab.label,
                           style: AppFonts.inter(
-                            fontSize: 11,
+                            fontSize: AppFonts.sm,
                             color: isActive ? AppTheme.fg : AppTheme.fgDim,
                           ),
                         ),
@@ -445,9 +445,9 @@ class _MobileTerminalPage extends ConsumerWidget {
               child: Icon(Icons.terminal, size: 22, color: AppTheme.fgFaint),
             ),
             const SizedBox(height: 12),
-            Text('No active terminals', style: AppFonts.inter(fontSize: 13, color: AppTheme.fgDim)),
+            Text('No active terminals', style: AppFonts.inter(fontSize: AppFonts.lg, color: AppTheme.fgDim)),
             const SizedBox(height: 4),
-            Text('Connect from Sessions tab', style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint)),
+            Text('Connect from Sessions tab', style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint)),
           ],
         ),
       );
@@ -517,9 +517,9 @@ class _MobileSftpPage extends ConsumerWidget {
               child: Icon(Icons.folder, size: 22, color: AppTheme.fgFaint),
             ),
             const SizedBox(height: 12),
-            Text('No active file browsers', style: AppFonts.inter(fontSize: 13, color: AppTheme.fgDim)),
+            Text('No active file browsers', style: AppFonts.inter(fontSize: AppFonts.lg, color: AppTheme.fgDim)),
             const SizedBox(height: 4),
-            Text('Use "SFTP" from Sessions', style: AppFonts.inter(fontSize: 11, color: AppTheme.fgFaint)),
+            Text('Use "SFTP" from Sessions', style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint)),
           ],
         ),
       );
@@ -616,7 +616,7 @@ class _MobileCompanionButtonState extends State<_MobileCompanionButton> {
             Text(
               widget.label,
               style: AppFonts.inter(
-                fontSize: 11,
+                fontSize: AppFonts.sm,
                 fontWeight: FontWeight.w500,
                 color: widget.color,
               ),

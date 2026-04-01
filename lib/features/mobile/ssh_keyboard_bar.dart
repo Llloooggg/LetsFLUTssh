@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../theme/app_theme.dart';
 import 'ssh_key_sequences.dart';
 
 /// Virtual SSH keyboard bar — provides keys missing from mobile keyboards.
@@ -188,7 +189,7 @@ class _KeyButton extends StatelessWidget {
                 : Text(
                     label!,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AppFonts.lg,
                       fontWeight: FontWeight.w500,
                       color: theme.colorScheme.onSurface,
                     ),
@@ -246,7 +247,7 @@ class _ModifierButton extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: AppFonts.lg,
                 fontWeight: FontWeight.w600,
                 color: fg,
               ),

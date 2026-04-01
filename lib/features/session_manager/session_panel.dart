@@ -421,7 +421,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Text(
                   label,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -431,7 +431,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   child: Text(
                     session.host,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AppFonts.lg,
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
@@ -596,7 +596,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Text(
                   folderName,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -772,9 +772,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
+                    style: AppFonts.inter(
+                      fontSize: AppFonts.md,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.fg,
                     ),
@@ -797,7 +796,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                     'FOLDER NAME',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 10,
+                      fontSize: AppFonts.xs,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.8,
                       color: AppTheme.fgFaint,
@@ -807,10 +806,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   TextFormField(
                     controller: nameCtrl,
                     autofocus: true,
-                    style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
+                    style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
                     decoration: InputDecoration(
                       hintText: hintText,
-                      hintStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgFaint),
+                      hintStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
                       filled: true,
                       fillColor: AppTheme.bg3,
                       isDense: true,
@@ -832,9 +831,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                         borderSide: BorderSide(color: AppTheme.red),
                       ),
                       errorText: errorText,
-                      errorStyle: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 10,
+                      errorStyle: AppFonts.inter(
+                        fontSize: AppFonts.xs,
                         color: AppTheme.red,
                       ),
                     ),
@@ -866,9 +864,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                       alignment: Alignment.center,
                       child: Text(
                         'Cancel',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
+                        style: AppFonts.inter(
+                          fontSize: AppFonts.sm,
                           color: AppTheme.fgDim,
                         ),
                       ),
@@ -888,9 +885,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                       ),
                       child: Text(
                         confirmLabel,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
+                        style: AppFonts.inter(
+                          fontSize: AppFonts.sm,
                           fontWeight: FontWeight.w500,
                           color: errorText == null ? Colors.white : AppTheme.fgFaint,
                         ),
@@ -923,7 +919,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             const SizedBox(height: 8),
             Text(
               'This will also delete $sessionCount session(s) inside.',
-              style: const TextStyle(color: AppTheme.disconnected, fontSize: 13),
+              style: TextStyle(color: AppTheme.disconnected, fontSize: AppFonts.lg),
             ),
           ],
         ],
@@ -968,7 +964,7 @@ class _PanelHeader extends StatelessWidget {
             'SESSIONS',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 11,
+              fontSize: AppFonts.sm,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.2,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
@@ -1024,7 +1020,7 @@ class _SelectActionBar extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '$selectedCount selected',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+            style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
           ),
           const Spacer(),
           AppIconButton(
@@ -1083,7 +1079,7 @@ class _SearchBar extends StatelessWidget {
               child: TextField(
                 decoration: InputDecoration(
                   hintText: 'Filter...',
-                  hintStyle: AppFonts.mono(fontSize: 11, color: AppTheme.fgFaint),
+                  hintStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
@@ -1091,7 +1087,7 @@ class _SearchBar extends StatelessWidget {
                   focusedBorder: InputBorder.none,
                   filled: false,
                 ),
-                style: AppFonts.mono(fontSize: 11, color: AppTheme.fg),
+                style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
                 onChanged: onChanged,
               ),
             ),
@@ -1127,7 +1123,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             'No saved sessions',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppFonts.md,
               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
             ),
           ),
@@ -1135,7 +1131,7 @@ class _EmptyState extends StatelessWidget {
           TextButton.icon(
             onPressed: onAdd,
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add Session', style: TextStyle(fontSize: 12)),
+            label: Text('Add Session', style: TextStyle(fontSize: AppFonts.md)),
           ),
         ],
       ),
@@ -1167,12 +1163,12 @@ class _SidebarFooter extends ConsumerWidget {
           const SizedBox(width: 6),
           Text(
             '$activeCount active',
-            style: AppFonts.inter(fontSize: 10, color: dimColor),
+            style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
           ),
           const Spacer(),
           Text(
             '$savedCount saved',
-            style: AppFonts.inter(fontSize: 10, color: dimColor),
+            style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
           ),
         ],
       ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../theme/app_theme.dart';
+
 /// Full-screen display of a QR code for scanning by another device.
 class QrDisplayScreen extends StatelessWidget {
   final String data;
@@ -80,7 +82,7 @@ class QrDisplayScreen extends StatelessWidget {
                 'that has LetsFLUTssh installed.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: AppFonts.lg,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
@@ -98,9 +100,9 @@ class QrDisplayScreen extends StatelessWidget {
                   children: [
                     Icon(Icons.info_outline, size: 14, color: theme.colorScheme.primary),
                     const SizedBox(width: 6),
-                    const Text(
+                    Text(
                       'No passwords or keys are in this QR code',
-                      style: TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: AppFonts.md),
                     ),
                   ],
                 ),

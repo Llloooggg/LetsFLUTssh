@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_theme.dart';
+
 /// Shown when no tabs are open.
 class WelcomeScreen extends StatelessWidget {
   final VoidCallback onNewSession;
@@ -29,7 +31,7 @@ class WelcomeScreen extends StatelessWidget {
             'No active session',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 13,
+              fontSize: AppFonts.lg,
               color: dimColor,
             ),
           ),
@@ -38,7 +40,7 @@ class WelcomeScreen extends StatelessWidget {
             'Create a new connection or select one from the sidebar',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 11,
+              fontSize: AppFonts.sm,
               color: faintColor,
             ),
           ),
@@ -48,11 +50,11 @@ class WelcomeScreen extends StatelessWidget {
             child: TextButton.icon(
               onPressed: onNewSession,
               icon: const Icon(Icons.add, size: 13, color: Colors.white),
-              label: const Text(
+              label: Text(
                 'New Connection',
                 style: TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 11,
+                  fontSize: AppFonts.sm,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
                 ),
@@ -105,7 +107,7 @@ class _ShortcutRow extends StatelessWidget {
             keys,
             style: TextStyle(
               fontFamily: 'JetBrains Mono',
-              fontSize: 9,
+              fontSize: AppFonts.xxs,
               color: dimColor,
             ),
           ),
@@ -115,7 +117,7 @@ class _ShortcutRow extends StatelessWidget {
           description,
           style: TextStyle(
             fontFamily: 'Inter',
-            fontSize: 10,
+            fontSize: AppFonts.xs,
             color: faintColor,
           ),
         ),

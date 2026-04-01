@@ -269,7 +269,7 @@ class _TabItemState extends State<_TabItem> {
                     widget.tab.label,
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 11,
+                      fontSize: AppFonts.sm,
                       color: widget.isActive ? AppTheme.fg : AppTheme.fgDim,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -374,7 +374,7 @@ class _DragChip extends StatelessWidget {
             tab.label,
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 11,
+              fontSize: AppFonts.sm,
               color: AppTheme.fg,
             ),
           ),
