@@ -743,6 +743,8 @@ class _StatusBar extends ConsumerWidget {
       child: Row(
         children: [
           const Spacer(),
+          _ActiveCount(dimColor: dimColor),
+          const SizedBox(width: 12),
           Text(
             '${tabState.tabs.length} tabs',
             style: TextStyle(
@@ -753,6 +755,35 @@ class _StatusBar extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ActiveCount extends ConsumerWidget {
+  final Color dimColor;
+
+  const _ActiveCount({required this.dimColor});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    final activeCount = connections.where((c) => c.isConnected).length;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.wifi, size: 10,
+            color: activeCount > 0 ? AppTheme.green : dimColor),
+        const SizedBox(width: 4),
+        Text(
+          '$activeCount active',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: AppFonts.xs,
+            color: dimColor,
+          ),
+        ),
+      ],
     );
   }
 }
