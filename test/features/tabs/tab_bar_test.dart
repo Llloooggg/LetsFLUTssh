@@ -47,7 +47,7 @@ void main() {
       ],
       child: MaterialApp(
         theme: AppTheme.dark(),
-        home: Scaffold(body: AppTabBar(onNewSession: () {})),
+        home: const Scaffold(body: AppTabBar()),
       ),
     );
   }
@@ -58,7 +58,7 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             theme: AppTheme.dark(),
-            home: Scaffold(body: AppTabBar(onNewSession: () {})),
+            home: const Scaffold(body: AppTabBar()),
           ),
         ),
       );
@@ -100,29 +100,6 @@ void main() {
       ]));
       await tester.pumpAndSettle();
       expect(find.text('SFTP'), findsNothing);
-    });
-
-    testWidgets('plus button triggers onNewSession callback', (tester) async {
-      var called = false;
-      final conn = makeConn();
-      final initialState = TabState(tabs: [
-        TabEntry(id: 't1', label: 'Tab', connection: conn, kind: TabKind.terminal),
-      ], activeIndex: 0);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(initialState)),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: Scaffold(body: AppTabBar(onNewSession: () { called = true; })),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.add));
-      await tester.pumpAndSettle();
-      expect(called, isTrue);
     });
 
     testWidgets('renders close button', (tester) async {
@@ -695,7 +672,7 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             theme: AppTheme.dark(),
-            home: Scaffold(body: AppTabBar(onNewSession: () {})),
+            home: const Scaffold(body: AppTabBar()),
           ),
         ),
       );

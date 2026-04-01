@@ -10,16 +10,16 @@ void main() {
     String host = 'example.com',
     int port = 22,
     String user = 'root',
-    String group = '',
+    String folder = '',
   }) {
     return Session(
       label: label,
       server: ServerAddress(host: host, port: port, user: user),
-      group: group,
+      folder: folder,
     );
   }
 
-  Widget buildApp({required List<Session> sessions, Set<String> emptyGroups = const {}}) {
+  Widget buildApp({required List<Session> sessions, Set<String> emptyFolders = const {}}) {
     return MaterialApp(
       home: Scaffold(
         body: Builder(
@@ -27,7 +27,7 @@ void main() {
             onPressed: () => QrExportDialog.show(
               context,
               sessions: sessions,
-              emptyGroups: emptyGroups,
+              emptyFolders: emptyFolders,
             ),
             child: const Text('Open'),
           ),
@@ -70,11 +70,11 @@ void main() {
       expect(find.text('api'), findsOneWidget);
     });
 
-    testWidgets('shows group folders', (tester) async {
+    testWidgets('shows folders', (tester) async {
       final sessions = [
-        makeSession(label: 'web1', group: 'Production'),
+        makeSession(label: 'web1', folder: 'Production'),
       ];
-      await tester.pumpWidget(buildApp(sessions: sessions, emptyGroups: {'Production'}));
+      await tester.pumpWidget(buildApp(sessions: sessions, emptyFolders: {'Production'}));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
@@ -165,7 +165,7 @@ void main() {
                 result = await QrExportDialog.show(
                   context,
                   sessions: [makeSession()],
-                  emptyGroups: const {},
+                  emptyFolders: const {},
                 );
               },
               child: const Text('Open'),
@@ -212,11 +212,11 @@ void main() {
       expect(find.textContaining('2/2)'), findsOneWidget);
     });
 
-    testWidgets('toggling group toggles all sessions in group', (tester) async {
+    testWidgets('toggling folder toggles all sessions in folder', (tester) async {
       final sessions = [
-        makeSession(label: 'web1', host: 'a.com', group: 'Prod'),
-        makeSession(label: 'web2', host: 'b.com', group: 'Prod'),
-        makeSession(label: 'dev1', host: 'c.com', group: 'Dev'),
+        makeSession(label: 'web1', host: 'a.com', folder: 'Prod'),
+        makeSession(label: 'web2', host: 'b.com', folder: 'Prod'),
+        makeSession(label: 'dev1', host: 'c.com', folder: 'Dev'),
       ];
       await tester.pumpWidget(buildApp(sessions: sessions));
       await tester.tap(find.text('Open'));
@@ -224,7 +224,7 @@ void main() {
 
       expect(find.textContaining('3/3)'), findsOneWidget);
 
-      // Tap Prod group to deselect it
+      // Tap Prod folder to deselect it
       await tester.tap(find.text('Prod'));
       await tester.pumpAndSettle();
 
@@ -247,7 +247,7 @@ void main() {
                 result = await QrExportDialog.show(
                   context,
                   sessions: [makeSession()],
-                  emptyGroups: const {},
+                  emptyFolders: const {},
                 );
               },
               child: const Text('Open'),
@@ -270,9 +270,9 @@ void main() {
       expect(result, startsWith('letsflutssh://import?d='));
     });
 
-    testWidgets('Export All with empty groups passes all empty groups', (tester) async {
+    testWidgets('Export All with empty folders passes all empty folders', (tester) async {
       String? result;
-      final sessions = [makeSession(label: 'srv', group: 'Prod')];
+      final sessions = [makeSession(label: 'srv', folder: 'Prod')];
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: Builder(
@@ -281,7 +281,7 @@ void main() {
                 result = await QrExportDialog.show(
                   context,
                   sessions: sessions,
-                  emptyGroups: {'EmptyFolder'},
+                  emptyFolders: {'EmptyFolder'},
                 );
               },
               child: const Text('Open'),

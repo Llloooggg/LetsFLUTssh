@@ -1505,7 +1505,7 @@ class _QrExportTile extends ConsumerWidget {
     final deepLink = await QrExportDialog.show(
       context,
       sessions: sessions,
-      emptyGroups: store.emptyGroups,
+      emptyFolders: store.emptyFolders,
     );
     if (deepLink == null || !context.mounted) return;
 

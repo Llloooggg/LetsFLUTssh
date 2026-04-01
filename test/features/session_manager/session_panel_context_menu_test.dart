@@ -25,27 +25,27 @@ class _PrePopulatedSessionNotifier extends SessionNotifier {
 }
 
 /// Covers session_panel.dart lines 60-196:
-/// - onSessionMoved / onGroupMoved callbacks (lines 60-65)
+/// - onSessionMoved / onFolderMoved callbacks (lines 60-65)
 /// - _handleDialogResult (lines 72-80)
 /// - _showContextMenu + _handleSessionMenuAction (lines 92-148)
-/// - _moveSession + _buildMoveGroupTile (lines 151-197)
+/// - _moveSession + _buildMoveFolderTile (lines 151-197)
 
 class _FakeStore extends SessionStore {
   final List<Session> _s;
   final Set<String> _eg;
 
-  _FakeStore({List<Session>? sessions, Set<String>? emptyGroups})
+  _FakeStore({List<Session>? sessions, Set<String>? emptyFolders})
       : _s = sessions ?? [],
-        _eg = emptyGroups ?? {};
+        _eg = emptyFolders ?? {};
 
   @override
   List<Session> get sessions => List.unmodifiable(_s);
   @override
-  Set<String> get emptyGroups => Set.unmodifiable(_eg);
+  Set<String> get emptyFolders => Set.unmodifiable(_eg);
   @override
-  List<String> groups() {
+  List<String> folders() {
     final g = _s
-        .map((s) => s.group)
+        .map((s) => s.folder)
         .where((g) => g.isNotEmpty)
         .toSet()
         .toList()
@@ -54,15 +54,15 @@ class _FakeStore extends SessionStore {
   }
 
   @override
-  int countSessionsInGroup(String gp) =>
-      _s.where((s) => s.group == gp || s.group.startsWith('$gp/')).length;
+  int countSessionsInFolder(String gp) =>
+      _s.where((s) => s.folder == gp || s.folder.startsWith('$gp/')).length;
   @override
-  List<Session> byGroup(String group) =>
-      _s.where((s) => s.group == group).toList();
+  List<Session> byFolder(String folder) =>
+      _s.where((s) => s.folder == folder).toList();
   @override
   Future<Session> duplicateSession(String id) async {
     final o = _s.firstWhere((s) => s.id == id);
-    final c = Session(label: '${o.label} (copy)', group: o.group, server: ServerAddress(host: o.host, port: o.port, user: o.user), auth: SessionAuth(authType: o.authType));
+    final c = Session(label: '${o.label} (copy)', folder: o.folder, server: ServerAddress(host: o.host, port: o.port, user: o.user), auth: SessionAuth(authType: o.authType));
     _s.add(c);
     return c;
   }
@@ -76,18 +76,18 @@ class _FakeStore extends SessionStore {
   }
 
   @override
-  Future<void> deleteGroup(String gp) async {
-    _s.removeWhere((s) => s.group == gp || s.group.startsWith('$gp/'));
+  Future<void> deleteFolder(String gp) async {
+    _s.removeWhere((s) => s.folder == gp || s.folder.startsWith('$gp/'));
     _eg.remove(gp);
   }
 
   @override
-  Future<void> addEmptyGroup(String gp) async => _eg.add(gp);
+  Future<void> addEmptyFolder(String gp) async => _eg.add(gp);
   @override
-  Future<void> renameGroup(String old, String newP) async {
+  Future<void> renameFolder(String old, String newP) async {
     for (var i = 0; i < _s.length; i++) {
-      if (_s[i].group == old) {
-        _s[i] = Session(id: _s[i].id, label: _s[i].label, group: newP, server: ServerAddress(host: _s[i].host, port: _s[i].port, user: _s[i].user));
+      if (_s[i].folder == old) {
+        _s[i] = Session(id: _s[i].id, label: _s[i].label, folder: newP, server: ServerAddress(host: _s[i].host, port: _s[i].port, user: _s[i].user));
       }
     }
   }
@@ -105,22 +105,22 @@ class _FakeStore extends SessionStore {
   }
 
   @override
-  Future<void> moveSession(String id, String newGroup) async {
+  Future<void> moveSession(String id, String newFolder) async {
     final idx = _s.indexWhere((s) => s.id == id);
     if (idx >= 0) {
       final s = _s[idx];
-      _s[idx] = Session(id: s.id, label: s.label, group: newGroup, server: ServerAddress(host: s.host, port: s.port, user: s.user));
+      _s[idx] = Session(id: s.id, label: s.label, folder: newFolder, server: ServerAddress(host: s.host, port: s.port, user: s.user));
     }
   }
 
   @override
-  Future<void> moveGroup(String gp, String newParent) async {}
+  Future<void> moveFolder(String gp, String newParent) async {}
   @override
   Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async => {};
   @override
-  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyGroups, [Map<String, CredentialData> credentials = const {}]) async {
+  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyFolders, [Map<String, CredentialData> credentials = const {}]) async {
     _s..clear()..addAll(sessions);
-    _eg..clear()..addAll(emptyGroups);
+    _eg..clear()..addAll(emptyFolders);
   }
 }
 
@@ -129,23 +129,23 @@ void main() {
 
   setUp(() {
     testSessions = [
-      Session(id: '1', label: 'web1', group: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
-      Session(id: '2', label: 'db1', group: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin')),
-      Session(id: '3', label: 'staging', group: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy')),
+      Session(id: '1', label: 'web1', folder: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
+      Session(id: '2', label: 'db1', folder: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin')),
+      Session(id: '3', label: 'staging', folder: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy')),
     ];
   });
 
   Widget buildApp({
     List<Session>? sessions,
-    Set<String>? emptyGroups,
+    Set<String>? emptyFolders,
     void Function(Session)? onConnect,
     void Function(SSHConfig)? onQuickConnect,
     void Function(Session)? onSftpConnect,
   }) {
     final sessionList = sessions ?? testSessions;
-    final store = _FakeStore(sessions: sessionList, emptyGroups: emptyGroups);
+    final store = _FakeStore(sessions: sessionList, emptyFolders: emptyFolders);
     final tree = SessionTree.build(sessionList,
-        emptyGroups: emptyGroups ?? const {});
+        emptyFolders: emptyFolders ?? const {});
 
     return ProviderScope(
       overrides: [
@@ -304,14 +304,14 @@ void main() {
   });
 
   group('SessionPanel — delete folder confirm (lines 462-501)', () {
-    testWidgets('delete folder with confirm triggers deleteGroup',
+    testWidgets('delete folder with confirm triggers deleteFolder',
         (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
       await rightClick(tester, find.text('Production'));
 
-      await tester.tap(find.text('Delete Group'));
+      await tester.tap(find.text('Delete Folder'));
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Folder'), findsOneWidget);
@@ -435,8 +435,8 @@ void main() {
     });
   });
 
-  group('SessionPanel — _addSessionInGroup (lines 309-318)', () {
-    testWidgets('New Session from group context opens dialog with default group',
+  group('SessionPanel — _addSessionInFolder (lines 309-318)', () {
+    testWidgets('New Session from folder context opens dialog with default folder',
         (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
@@ -463,7 +463,7 @@ void main() {
 
       await rightClick(tester, find.text('Production'));
 
-      await tester.tap(find.text('Rename Group'));
+      await tester.tap(find.text('Rename Folder'));
       await tester.pumpAndSettle();
 
       expect(find.text('Rename Folder'), findsOneWidget);
