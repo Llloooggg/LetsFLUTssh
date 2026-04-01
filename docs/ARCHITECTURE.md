@@ -935,6 +935,24 @@ HoverRegion({
 ```
 **Replaces `MouseRegion` + `GestureDetector` + `setState(_hovered)`.** Exception: `context_menu.dart` (keyboard nav state).
 
+### AppBorderedBox
+
+```dart
+AppBorderedBox({
+  required Widget child,
+  Color? borderColor,           // default: AppTheme.borderLight
+  Color? color,                 // background color
+  BorderRadius? borderRadius,   // default: AppTheme.radiusSm
+  double borderWidth = 1,
+  EdgeInsetsGeometry? padding,
+  double? height,
+  double? width,
+  BoxConstraints? constraints,
+  AlignmentGeometry? alignment,
+})
+```
+**Replaces manual `BoxDecoration(border: Border.all(...))` patterns.** Guarantees `borderRadius` is always applied — prevents sharp-corner containers. Use this instead of hand-coded `Container` + `BoxDecoration` with `Border.all`.
+
 ### SplitView
 
 ```dart

@@ -186,6 +186,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                 decoration: BoxDecoration(
                   color: AppTheme.bg1,
                   border: Border.all(color: AppTheme.borderLight),
+                  borderRadius: AppTheme.radiusSm,
                 ),
                 child: IntrinsicWidth(
                   child: Column(

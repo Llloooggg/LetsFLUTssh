@@ -7,6 +7,7 @@ import '../../core/import/key_file_helper.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
@@ -423,13 +424,11 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     final active = _authType == type;
     return GestureDetector(
       onTap: () => setState(() => _authType = type),
-      child: Container(
+      child: AppBorderedBox(
         height: 30,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: active ? AppTheme.selection : AppTheme.bg3,
-          border: Border.all(color: active ? AppTheme.accent : AppTheme.borderLight),
-        ),
+        color: active ? AppTheme.selection : AppTheme.bg3,
+        borderColor: active ? AppTheme.accent : AppTheme.borderLight,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -569,6 +568,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           border: _keyDragging
               ? Border.all(color: AppTheme.accent, width: 2)
               : null,
+          borderRadius: AppTheme.radiusSm,
         ),
         child: _keyDragging
             ? SizedBox(

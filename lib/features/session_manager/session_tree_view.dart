@@ -440,6 +440,7 @@ class _SessionTreeViewState extends State<SessionTreeView>
       border: isDropTarget
           ? Border.all(color: theme.colorScheme.primary, width: 1)
           : null,
+      borderRadius: AppTheme.radiusSm,
     );
   }
 

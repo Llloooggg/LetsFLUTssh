@@ -839,6 +839,7 @@ class _ConnectionBar extends StatelessWidget {
             border: Border.all(
               color: btnColor.withValues(alpha: hovered ? 0x60 / 255.0 : 0x40 / 255.0),
             ),
+            borderRadius: AppTheme.radiusSm,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

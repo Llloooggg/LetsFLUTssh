@@ -227,6 +227,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                       color: theme.colorScheme.primary,
                       width: 2,
                     ),
+                    borderRadius: AppTheme.radiusSm,
                     color: theme.colorScheme.primary.withValues(alpha: 0.08),
                   )
                 : null,
@@ -781,6 +782,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                     color: Theme.of(context).colorScheme.primary,
                     width: 2,
                   ),
+                  borderRadius: AppTheme.radiusSm,
                   color: Theme.of(context)
                       .colorScheme
                       .primary
