@@ -339,81 +339,86 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
         itemCount: widget.filteredTabs.length,
-        itemBuilder: (context, index) {
-          final tab = widget.filteredTabs[index];
-          final isActive = tab.id == widget.activeTab.id;
-          final isConnected = tab.connection.isConnected;
-          final isTerminal = tab.kind == TabKind.terminal;
-          final iconColor = isActive
-              ? (isTerminal ? AppTheme.blue : AppTheme.yellow)
-              : AppTheme.fgFaint;
-          return GestureDetector(
-            onTap: () {
-              final globalIdx = widget.tabState.tabs.indexOf(tab);
-              ref.read(tabProvider.notifier).selectTab(globalIdx);
-            },
-            child: SizedBox(
+        itemBuilder: (context, index) =>
+            _buildTabChip(widget.filteredTabs[index]),
+      ),
+    );
+  }
+
+  Widget _buildTabChip(TabEntry tab) {
+    final isActive = tab.id == widget.activeTab.id;
+    final isConnected = tab.connection.isConnected;
+    final isTerminal = tab.kind == TabKind.terminal;
+    final iconColor = _tabIconColor(isActive: isActive, isTerminal: isTerminal);
+    return GestureDetector(
+      onTap: () {
+        final globalIdx = widget.tabState.tabs.indexOf(tab);
+        ref.read(tabProvider.notifier).selectTab(globalIdx);
+      },
+      child: SizedBox(
+        height: 32,
+        child: Stack(
+          children: [
+            Container(
               height: 32,
-              child: Stack(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: isActive ? AppTheme.bg2 : Colors.transparent,
+                border: Border(
+                  right: BorderSide(color: AppTheme.border),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    height: 32,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    width: 5,
+                    height: 5,
                     decoration: BoxDecoration(
-                      color: isActive ? AppTheme.bg2 : Colors.transparent,
-                      border: Border(
-                        right: BorderSide(color: AppTheme.border),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 5,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isConnected ? AppTheme.green : AppTheme.fgFaint,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          isTerminal ? Icons.terminal : Icons.folder,
-                          size: 12,
-                          color: iconColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          tab.label,
-                          style: AppFonts.inter(
-                            fontSize: AppFonts.sm,
-                            color: isActive ? AppTheme.fg : AppTheme.fgDim,
-                          ),
-                        ),
-                        if (isActive) ...[
-                          const SizedBox(width: 4),
-                          GestureDetector(
-                            onTap: () => ref.read(tabProvider.notifier).closeTab(tab.id),
-                            child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
-                          ),
-                        ],
-                      ],
+                      shape: BoxShape.circle,
+                      color: isConnected ? AppTheme.green : AppTheme.fgFaint,
                     ),
                   ),
-                  if (isActive)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: SizedBox(height: 2, child: ColoredBox(color: AppTheme.accent)),
+                  const SizedBox(width: 4),
+                  Icon(
+                    isTerminal ? Icons.terminal : Icons.folder,
+                    size: 12,
+                    color: iconColor,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    tab.label,
+                    style: AppFonts.inter(
+                      fontSize: AppFonts.sm,
+                      color: isActive ? AppTheme.fg : AppTheme.fgDim,
                     ),
+                  ),
+                  if (isActive) ...[
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+                      child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
+                    ),
+                  ],
                 ],
               ),
             ),
-          );
-        },
+            if (isActive)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SizedBox(height: 2, child: ColoredBox(color: AppTheme.accent)),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  static Color _tabIconColor({required bool isActive, required bool isTerminal}) {
+    if (!isActive) return AppTheme.fgFaint;
+    return isTerminal ? AppTheme.blue : AppTheme.yellow;
   }
 }
 
