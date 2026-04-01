@@ -562,7 +562,8 @@ Key: PBKDF2-SHA256(password, salt, 600000 iterations)
 class UpdateService {
   // Checks GitHub Releases API
   // Compares current version with latest release
-  // User can skip a version (skippedVersion in config)
+  // User can skip a version (skippedVersion in config).
+  // Stale skip auto-clears when a newer version supersedes the skipped one.
 }
 ```
 

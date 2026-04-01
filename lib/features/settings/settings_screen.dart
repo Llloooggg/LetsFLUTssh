@@ -981,11 +981,7 @@ class _UpdateSection extends ConsumerWidget {
         ListTile(
           leading: const Icon(Icons.system_update, size: 20),
           title: Text('Version ${info.latestVersion} available'),
-          subtitle: Text(
-            isSkipped
-                ? 'Current: v${info.currentVersion} (skipped)'
-                : 'Current: v${info.currentVersion}',
-          ),
+          subtitle: Text('Current: v${info.currentVersion}'),
           contentPadding: EdgeInsets.zero,
         ),
         Padding(
