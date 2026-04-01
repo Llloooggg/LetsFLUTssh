@@ -182,7 +182,7 @@ void main() {
       expect(find.text('Empty directory'), findsOneWidget);
     });
 
-    testWidgets('empty directory text has font size 11', (tester) async {
+    testWidgets('empty directory text uses AppFonts.sm', (tester) async {
       final fs = _MockFS({'/home': []});
       final ctrl = FilePaneController(fs: fs, label: 'Local');
       await ctrl.init();
@@ -191,7 +191,7 @@ void main() {
       await tester.pump();
 
       final textWidget = tester.widget<Text>(find.text('Empty directory'));
-      expect(textWidget.style?.fontSize, 11);
+      expect(textWidget.style?.fontSize, AppFonts.sm);
     });
   });
 

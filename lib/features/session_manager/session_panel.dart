@@ -1161,13 +1161,17 @@ class _SidebarFooter extends ConsumerWidget {
           Icon(Icons.wifi, size: 10,
               color: activeCount > 0 ? AppTheme.green : dimColor),
           const SizedBox(width: 6),
-          Text(
-            '$activeCount active',
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
+          Flexible(
+            child: Text(
+              '$activeCount active',
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
+            ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           Text(
             '$savedCount saved',
+            overflow: TextOverflow.ellipsis,
             style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
           ),
         ],
