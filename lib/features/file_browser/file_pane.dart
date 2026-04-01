@@ -73,6 +73,22 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   double _modeColWidth = 65;
   double _ownerColWidth = 50;
 
+  /// Determine which data columns fit within [width], hiding from right to left.
+  ({bool size, bool modified, bool mode, bool owner}) _visibleColumns(double width) {
+    const base = 36.0; // icon(20) + padding(16)
+    final hasOwner = ctrl.entries.any((e) => e.owner.isNotEmpty);
+    final s = 10 + _sizeColWidth;
+    final m = 10 + _modifiedColWidth;
+    final d = 10 + _modeColWidth;
+    final o = hasOwner ? 10 + _ownerColWidth : 0.0;
+    final avail = width - base;
+    if (avail >= s + m + d + o) return (size: true, modified: true, mode: true, owner: hasOwner);
+    if (avail >= s + m + d) return (size: true, modified: true, mode: true, owner: false);
+    if (avail >= s + m) return (size: true, modified: true, mode: false, owner: false);
+    if (avail >= s) return (size: true, modified: false, mode: false, owner: false);
+    return (size: false, modified: false, mode: false, owner: false);
+  }
+
   FilePaneController get ctrl => widget.controller;
 
   static IconData _dragIcon(List<FileEntry> entries, FileEntry entry) {
@@ -214,13 +230,18 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                     color: theme.colorScheme.primary.withValues(alpha: 0.08),
                   )
                 : null,
-            child: Column(
-              children: [
-                _buildHeader(theme),
-                _buildColumnHeaders(theme),
-                Expanded(child: _buildDropTarget(_buildFileList(theme))),
-                _buildFooter(theme),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final cols = _visibleColumns(constraints.maxWidth);
+                return Column(
+                  children: [
+                    _buildHeader(theme),
+                    _buildColumnHeaders(theme, cols),
+                    Expanded(child: _buildDropTarget(_buildFileList(theme, cols))),
+                    _buildFooter(theme),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -370,7 +391,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
   // ── Column headers ──
 
-  Widget _buildColumnHeaders(ThemeData theme) {
+  Widget _buildColumnHeaders(ThemeData theme, ({bool size, bool modified, bool mode, bool owner}) cols) {
     final headerStyle = AppFonts.inter(
       fontSize: AppFonts.xs,
       fontWeight: FontWeight.w500,
@@ -410,8 +431,6 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       );
     }
 
-    final hasOwner = ctrl.entries.any((e) => e.owner.isNotEmpty);
-
     Widget colHandle(void Function(double dx) onDrag) {
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -437,17 +456,23 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       color: AppTheme.bg3,
-      child: ClippedRow(
+      child: Row(
         children: [
           const SizedBox(width: 20), // icon space
           Expanded(child: headerCell('Name', SortColumn.name)),
-          colHandle((dx) => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 200)),
-          headerCell('Size', SortColumn.size, width: _sizeColWidth),
-          colHandle((dx) => _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, 200)),
-          headerCell('Modified', SortColumn.modified, width: _modifiedColWidth),
-          colHandle((dx) => _modeColWidth = (_modeColWidth - dx).clamp(50, 200)),
-          headerCell('Mode', SortColumn.mode, width: _modeColWidth),
-          if (hasOwner) ...[
+          if (cols.size) ...[
+            colHandle((dx) => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 200)),
+            headerCell('Size', SortColumn.size, width: _sizeColWidth),
+          ],
+          if (cols.modified) ...[
+            colHandle((dx) => _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, 200)),
+            headerCell('Modified', SortColumn.modified, width: _modifiedColWidth),
+          ],
+          if (cols.mode) ...[
+            colHandle((dx) => _modeColWidth = (_modeColWidth - dx).clamp(50, 200)),
+            headerCell('Mode', SortColumn.mode, width: _modeColWidth),
+          ],
+          if (cols.owner) ...[
             colHandle((dx) => _ownerColWidth = (_ownerColWidth - dx).clamp(40, 200)),
             headerCell('Owner', SortColumn.owner, width: _ownerColWidth),
           ],
@@ -513,7 +538,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
   // ── File list ──
 
-  Widget _buildFileList(ThemeData theme) {
+  Widget _buildFileList(ThemeData theme, ({bool size, bool modified, bool mode, bool owner}) cols) {
     if (ctrl.loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -523,7 +548,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     if (ctrl.entries.isEmpty) {
       return _buildEmptyState();
     }
-    return _buildFileListContent(theme);
+    return _buildFileListContent(theme, cols);
   }
 
   Widget _buildErrorState(ThemeData theme) {
@@ -588,7 +613,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     );
   }
 
-  Widget _buildFileListContent(ThemeData theme) {
+  Widget _buildFileListContent(ThemeData theme, ({bool size, bool modified, bool mode, bool owner}) cols) {
     return Listener(
       onPointerDown: handleMarqueePointerDown,
       onPointerMove: handleMarqueePointerMove,
@@ -604,7 +629,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               itemCount: ctrl.entries.length,
               itemExtent: _rowHeight,
               itemBuilder: (context, index) =>
-                  _buildFileListItem(context, index, theme),
+                  _buildFileListItem(context, index, theme, cols),
             ),
             if (marqueeVisible)
               buildMarqueeOverlay(theme.colorScheme.primary),
@@ -614,7 +639,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     );
   }
 
-  Widget _buildFileListItem(BuildContext context, int index, ThemeData theme) {
+  Widget _buildFileListItem(BuildContext context, int index, ThemeData theme, ({bool size, bool modified, bool mode, bool owner}) cols) {
     final entry = ctrl.entries[index];
     final isSelected = ctrl.selected.contains(entry.path);
 
@@ -633,10 +658,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final row = FileRow(
       entry: entry,
       isSelected: isSelected,
-      sizeWidth: _sizeColWidth,
-      modifiedWidth: _modifiedColWidth,
-      modeWidth: _modeColWidth,
-      ownerWidth: _ownerColWidth,
+      sizeWidth: cols.size ? _sizeColWidth : 0,
+      modifiedWidth: cols.modified ? _modifiedColWidth : 0,
+      modeWidth: cols.mode ? _modeColWidth : 0,
+      ownerWidth: cols.owner ? _ownerColWidth : 0,
       folderSizeText: folderSizeText,
       onTap: () => ctrl.selectSingle(entry.path),
       onCtrlTap: () => ctrl.toggleSelect(entry.path),

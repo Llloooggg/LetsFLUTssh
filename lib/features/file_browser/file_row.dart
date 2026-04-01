@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
-import '../../widgets/clipped_row.dart';
 
 /// File extensions grouped by type for icon/color mapping.
 const _imageExts = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'};
@@ -122,7 +121,7 @@ class FileRow extends StatelessWidget {
           height: 26,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           color: isSelected ? AppTheme.selection : null,
-          child: ClippedRow(
+          child: Row(
             children: [
               Icon(
                 fileIcon(entry),
@@ -140,33 +139,39 @@ class FileRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              _colDivider(),
-              SizedBox(
-                width: sizeWidth,
-                child: Text(
-                  entry.isDir
-                      ? (folderSizeText ?? '')
-                      : formatSize(entry.size),
-                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+              if (sizeWidth > 0) ...[
+                _colDivider(),
+                SizedBox(
+                  width: sizeWidth,
+                  child: Text(
+                    entry.isDir
+                        ? (folderSizeText ?? '')
+                        : formatSize(entry.size),
+                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                  ),
                 ),
-              ),
-              _colDivider(),
-              SizedBox(
-                width: modifiedWidth,
-                child: Text(
-                  formatTimestamp(entry.modTime),
-                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+              ],
+              if (modifiedWidth > 0) ...[
+                _colDivider(),
+                SizedBox(
+                  width: modifiedWidth,
+                  child: Text(
+                    formatTimestamp(entry.modTime),
+                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                  ),
                 ),
-              ),
-              _colDivider(),
-              SizedBox(
-                width: modeWidth,
-                child: Text(
-                  entry.modeString,
-                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+              ],
+              if (modeWidth > 0) ...[
+                _colDivider(),
+                SizedBox(
+                  width: modeWidth,
+                  child: Text(
+                    entry.modeString,
+                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                  ),
                 ),
-              ),
-              if (entry.owner.isNotEmpty) ...[
+              ],
+              if (ownerWidth > 0 && entry.owner.isNotEmpty) ...[
                 _colDivider(),
                 SizedBox(
                   width: ownerWidth,

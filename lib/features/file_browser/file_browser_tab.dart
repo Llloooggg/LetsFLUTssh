@@ -151,6 +151,21 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
+
+        // Too narrow for dual pane — show hint instead of empty clipped panes.
+        if (maxWidth < 250) {
+          return Center(
+            child: Text(
+              'Resize window to view files',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: AppFonts.sm,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
+          );
+        }
+
         final leftWidth = (_splitRatio * maxWidth)
             .clamp(100.0, maxWidth - 100);
 
