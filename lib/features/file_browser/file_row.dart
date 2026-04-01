@@ -148,6 +148,8 @@ class FileRow extends StatelessWidget {
                         ? (folderSizeText ?? '')
                         : formatSize(entry.size),
                     style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],
@@ -158,6 +160,8 @@ class FileRow extends StatelessWidget {
                   child: Text(
                     formatTimestamp(entry.modTime),
                     style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],
@@ -168,6 +172,8 @@ class FileRow extends StatelessWidget {
                   child: Text(
                     entry.modeString,
                     style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],
