@@ -128,7 +128,6 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               child: _buildTransferList(historyAsync, ref),
             ),
           ),
-          _buildFooter(ref),
         ],
       ],
     ),
@@ -213,36 +212,6 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     );
   }
 
-  Widget _buildFooter(WidgetRef ref) {
-    final statusAsync = ref.watch(transferStatusProvider);
-    final status = statusAsync.value;
-    final historyAsync = ref.watch(transferHistoryProvider);
-    final historyCount = historyAsync.value?.length ?? 0;
-
-    return Container(
-      height: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg0,
-        border: AppTheme.borderTop,
-      ),
-      child: ClippedRow(
-        children: [
-          Icon(Icons.circle, size: 5, color: AppTheme.green),
-          const SizedBox(width: 6),
-          if (status != null)
-            Text(
-              '${status.running} active · ${status.queued} queued',
-              style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
-            ),
-          Text(
-            ' · $historyCount in hist',
-            style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _HistoryRow extends StatelessWidget {
