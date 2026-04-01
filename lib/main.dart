@@ -459,7 +459,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final isTerminalTab = activeTab?.kind == TabKind.terminal;
     final content = activeTab != null
         ? _buildTabContent(tabState)
-        : WelcomeScreen(onNewSession: () => _newSession(context, ref));
+        : const WelcomeScreen();
     return Column(
       children: [
         AppTabBar(onNewSession: () => _newSession(context, ref)),

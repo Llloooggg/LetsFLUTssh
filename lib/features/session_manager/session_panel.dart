@@ -388,13 +388,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         ContextMenuItem(
           label: 'Edit Connection',
           icon: Icons.settings,
-          shortcut: 'E',
           onTap: () => _editSession(context, ref, session),
         ),
         ContextMenuItem(
           label: 'Duplicate',
           icon: Icons.copy,
-          shortcut: 'Ctrl+D',
           onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
         ),
         const ContextMenuItem.divider(),
@@ -402,7 +400,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           label: 'Delete',
           icon: Icons.delete,
           color: AppTheme.red,
-          shortcut: 'Del',
           onTap: () => _confirmDelete(context, ref, session),
         ),
       ],
@@ -570,7 +567,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           ContextMenuItem(
             label: 'Rename Group',
             icon: Icons.drive_file_rename_outline,
-            shortcut: 'F2',
             onTap: () => _renameFolder(context, ref, groupPath),
           ),
           ContextMenuItem(
