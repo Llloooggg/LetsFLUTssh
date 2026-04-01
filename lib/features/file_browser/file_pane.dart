@@ -239,7 +239,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
-      child: Row(
+      child: Flex(
+        direction: Axis.horizontal,
+        clipBehavior: Clip.hardEdge,
         children: [
           Text(
             ctrl.label.toUpperCase(),
@@ -272,7 +274,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final rootLabel = isWindows && parts.isNotEmpty ? parts[0] : null;
     final navParts = isWindows ? parts.skip(1).toList() : parts;
 
-    return Row(
+    return Flex(
+      direction: Axis.horizontal,
+      clipBehavior: Clip.hardEdge,
       children: [
         InkWell(
           onTap: () => ctrl.navigateTo(rootPath),
@@ -282,15 +286,17 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         ),
         for (var i = 0; i < navParts.length; i++) ...[
           Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint)),
-          InkWell(
-            onTap: () => _navigateToPart(isWindows, parts, navParts, i),
-            child: Text(
-              navParts[i],
-              style: AppFonts.mono(
-                fontSize: AppFonts.xs,
-                color: i == navParts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
+          Flexible(
+            child: InkWell(
+              onTap: () => _navigateToPart(isWindows, parts, navParts, i),
+              child: Text(
+                navParts[i],
+                style: AppFonts.mono(
+                  fontSize: AppFonts.xs,
+                  color: i == navParts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -713,12 +719,18 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         color: AppTheme.bg3,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
-      child: Row(
+      child: Flex(
+        direction: Axis.horizontal,
+        clipBehavior: Clip.hardEdge,
         children: [
-          Text('$count items, ${formatSize(ctrl.totalFileSize)}', style: style),
+          Flexible(
+            child: Text('$count items, ${formatSize(ctrl.totalFileSize)}', style: style, overflow: TextOverflow.ellipsis),
+          ),
           if (selCount > 0) ...[
             const SizedBox(width: 8),
-            Text('($selCount selected)', style: style),
+            Flexible(
+              child: Text('($selCount selected)', style: style, overflow: TextOverflow.ellipsis),
+            ),
           ],
         ],
       ),

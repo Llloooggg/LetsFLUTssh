@@ -782,7 +782,9 @@ class _ConnectionBar extends StatelessWidget {
         color: scheme.surfaceContainerHigh,
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
-      child: Row(
+      child: Flex(
+        direction: Axis.horizontal,
+        clipBehavior: Clip.hardEdge,
         children: [
           Container(
             width: 5,
@@ -794,23 +796,22 @@ class _ConnectionBar extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Row(
-              children: [
-                Text(
-                  conn.isConnected ? 'Connected' : 'Disconnected',
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                  text: conn.isConnected ? 'Connected' : 'Disconnected',
                   style: TextStyle(fontFamily: 'Inter', fontSize: AppFonts.xs, color: dimColor),
                 ),
-                const SizedBox(width: 6),
-                Text('·', style: TextStyle(fontSize: AppFonts.xs, color: faintColor)),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
-                    style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: AppFonts.xs, color: dimColor),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                TextSpan(
+                  text: ' · ',
+                  style: TextStyle(fontSize: AppFonts.xs, color: faintColor),
                 ),
-              ],
+                TextSpan(
+                  text: '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
+                  style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: AppFonts.xs, color: dimColor),
+                ),
+              ]),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           if (onCompanion != null)
