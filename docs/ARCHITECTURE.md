@@ -1140,14 +1140,14 @@ abstract final class AppTheme {
 
 ```dart
 abstract final class AppFonts {
-  // Platform-aware size scale (desktop / mobile, +2 px on mobile)
-  static double get tiny;  //  8 / 10 — transfer errors, smallest fine print
-  static double get xxs;   //  9 / 11 — keyboard shortcuts, status badges
-  static double get xs;    // 10 / 12 — captions, subtitles, metadata
-  static double get sm;    // 11 / 13 — body text, inputs, default UI text
-  static double get md;    // 12 / 14 — section headers, form labels
-  static double get lg;    // 13 / 15 — dialog titles, sub-headings, toasts
-  static double get xl;    // 16 / 18 — page headings
+  // Platform-aware size scale (desktop / mobile)
+  static double get tiny;  // 10 / 10 — transfer errors, smallest fine print
+  static double get xxs;   // 11 / 11 — keyboard shortcuts, status badges
+  static double get xs;    // 12 / 13 — captions, subtitles, metadata
+  static double get sm;    // 13 / 14 — body text, inputs, default UI text
+  static double get md;    // 14 / 14 — section headers, form labels
+  static double get lg;    // 16 / 15 — dialog titles, sub-headings, toasts
+  static double get xl;    // 19 / 18 — page headings
 
   static TextStyle inter({fontSize, fontWeight, color, height});  // UI text
   static TextStyle mono({fontSize, fontWeight, color});            // Code/data

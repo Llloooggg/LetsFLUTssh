@@ -533,26 +533,26 @@ abstract final class AppFonts {
 
   // ── Platform-aware size scale (desktop / mobile) ──
 
-  /// 8 / 10 — transfer errors, smallest fine print.
-  static double get tiny => _mobile ? 10.0 : 8.0;
+  /// 10 / 10 — transfer errors, smallest fine print.
+  static double get tiny => 10.0;
 
-  /// 9 / 11 — keyboard shortcuts, status badges.
-  static double get xxs => _mobile ? 11.0 : 9.0;
+  /// 11 / 11 — keyboard shortcuts, status badges.
+  static double get xxs => 11.0;
 
-  /// 10 / 12 — captions, subtitles, metadata, file details.
-  static double get xs => _mobile ? 12.0 : 10.0;
+  /// 12 / 13 — captions, subtitles, metadata, file details.
+  static double get xs => _mobile ? 13.0 : 12.0;
 
-  /// 11 / 13 — body text, inputs, default UI text.
-  static double get sm => _mobile ? 13.0 : 11.0;
+  /// 13 / 14 — body text, inputs, default UI text.
+  static double get sm => _mobile ? 14.0 : 13.0;
 
-  /// 12 / 14 — section headers, form labels.
-  static double get md => _mobile ? 14.0 : 12.0;
+  /// 14 / 14 — section headers, form labels.
+  static double get md => 14.0;
 
-  /// 13 / 15 — dialog titles, sub-headings, toasts.
-  static double get lg => _mobile ? 15.0 : 13.0;
+  /// 16 / 15 — dialog titles, sub-headings, toasts.
+  static double get lg => _mobile ? 15.0 : 16.0;
 
-  /// 16 / 18 — page headings.
-  static double get xl => _mobile ? 18.0 : 16.0;
+  /// 19 / 18 — page headings.
+  static double get xl => _mobile ? 18.0 : 19.0;
 
   static TextStyle inter({
     double? fontSize,
