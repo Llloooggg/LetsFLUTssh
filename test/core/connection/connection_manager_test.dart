@@ -149,6 +149,18 @@ void main() {
       expect(conn.label, config.displayName);
     });
 
+    test('connect stores sessionId when provided', () {
+      const config = SSHConfig(server: ServerAddress(host: '127.0.0.1', port: 1, user: 'test'), timeoutSec: 1);
+      final conn = manager.connectAsync(config, sessionId: 'sess-123');
+      expect(conn.sessionId, 'sess-123');
+    });
+
+    test('connect has null sessionId by default', () {
+      const config = SSHConfig(server: ServerAddress(host: '127.0.0.1', port: 1, user: 'test'), timeoutSec: 1);
+      final conn = manager.connectAsync(config);
+      expect(conn.sessionId, isNull);
+    });
+
     test('onChange emits during connect lifecycle', () async {
       var emitCount = 0;
       final sub = manager.onChange.listen((_) => emitCount++);

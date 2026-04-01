@@ -13,7 +13,11 @@ enum SSHConnectionState { disconnected, connecting, connected }
 class Connection {
   final String id;
   final String label;
-  final SSHConfig sshConfig;
+  SSHConfig sshConfig;
+
+  /// Session ID from the store — used to re-read fresh config on reconnect.
+  /// Null for quick-connect sessions (no saved session).
+  final String? sessionId;
 
   /// Known hosts manager — retained for reconnect after disconnect.
   final KnownHostsManager knownHosts;
@@ -32,6 +36,7 @@ class Connection {
     required this.id,
     required this.label,
     required this.sshConfig,
+    this.sessionId,
     KnownHostsManager? knownHosts,
     this.sshConnection,
     this.state = SSHConnectionState.disconnected,

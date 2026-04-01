@@ -47,5 +47,28 @@ void main() {
       expect(conn.sshConfig.host, '10.0.0.1');
       expect(conn.sshConfig.user, 'root');
     });
+
+    test('sessionId defaults to null', () {
+      expect(conn.sessionId, isNull);
+    });
+
+    test('stores sessionId when provided', () {
+      final connWithSession = Connection(
+        id: 'test-2',
+        label: 'Server',
+        sshConfig: const SSHConfig(server: ServerAddress(host: '10.0.0.1', user: 'root')),
+        sessionId: 'session-abc',
+      );
+      expect(connWithSession.sessionId, 'session-abc');
+    });
+
+    test('sshConfig can be updated', () {
+      const newConfig = SSHConfig(
+        server: ServerAddress(host: '192.168.1.1', user: 'admin'),
+      );
+      conn.sshConfig = newConfig;
+      expect(conn.sshConfig.host, '192.168.1.1');
+      expect(conn.sshConfig.user, 'admin');
+    });
   });
 }

@@ -79,11 +79,12 @@ class _FailingConnectionManager extends ConnectionManager {
       : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(SSHConfig config, {String? label}) {
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
     final conn = Connection(
       id: 'conn-fail',
       label: label ?? config.displayName,
       sshConfig: config,
+      sessionId: sessionId,
       state: SSHConnectionState.disconnected,
       connectionError: error.toString(),
     );
@@ -96,11 +97,12 @@ class _SuccessConnectionManager extends ConnectionManager {
   _SuccessConnectionManager() : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(SSHConfig config, {String? label}) {
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
     return Connection(
       id: 'conn-success',
       label: label ?? config.displayName,
       sshConfig: config,
+      sessionId: sessionId,
       sshConnection: null,
       state: SSHConnectionState.connected,
     );
