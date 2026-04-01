@@ -323,11 +323,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.bg1,
-        border: AppTheme.borderBottom,
-      ),
+    return SizedBox(
       height: 32,
       child: ListView.builder(
         controller: _scrollController,
@@ -459,27 +455,33 @@ class _MobileTerminalPage extends ConsumerWidget {
 
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _MobileTabChipBar(
-                tabState: tabState,
-                filteredTabs: termTabs,
-                activeTab: activeTermTab,
-              ),
-            ),
-            if (onOpenSftp != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _MobileCompanionButton(
-                  label: 'Files',
-                  icon: Icons.folder_open,
-                  color: AppTheme.yellow,
-                  tooltip: 'Open SFTP Browser',
-                  onTap: onOpenSftp!,
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.bg1,
+            border: AppTheme.borderBottom,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _MobileTabChipBar(
+                  tabState: tabState,
+                  filteredTabs: termTabs,
+                  activeTab: activeTermTab,
                 ),
               ),
-          ],
+              if (onOpenSftp != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _MobileCompanionButton(
+                    label: 'Files',
+                    icon: Icons.folder_open,
+                    color: AppTheme.yellow,
+                    tooltip: 'Open SFTP Browser',
+                    onTap: onOpenSftp!,
+                  ),
+                ),
+            ],
+          ),
         ),
         Expanded(
           child: MobileTerminalView(
@@ -531,27 +533,33 @@ class _MobileSftpPage extends ConsumerWidget {
 
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _MobileTabChipBar(
-                tabState: tabState,
-                filteredTabs: sftpTabs,
-                activeTab: activeSftpTab,
-              ),
-            ),
-            if (onOpenSsh != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _MobileCompanionButton(
-                  label: 'Terminal',
-                  icon: Icons.terminal,
-                  color: AppTheme.blue,
-                  tooltip: 'Open SSH Terminal',
-                  onTap: onOpenSsh!,
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.bg1,
+            border: AppTheme.borderBottom,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _MobileTabChipBar(
+                  tabState: tabState,
+                  filteredTabs: sftpTabs,
+                  activeTab: activeSftpTab,
                 ),
               ),
-          ],
+              if (onOpenSsh != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _MobileCompanionButton(
+                    label: 'Terminal',
+                    icon: Icons.terminal,
+                    color: AppTheme.blue,
+                    tooltip: 'Open SSH Terminal',
+                    onTap: onOpenSsh!,
+                  ),
+                ),
+            ],
+          ),
         ),
         Expanded(
           child: MobileFileBrowser(
