@@ -961,17 +961,14 @@ class _PanelHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Flexible(
-            child: Text(
-              'SESSIONS',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: AppFonts.sm,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-              ),
-              overflow: TextOverflow.ellipsis,
+          Text(
+            'SESSIONS',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: AppFonts.sm,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
             ),
           ),
           const Spacer(),
@@ -1145,8 +1142,6 @@ class _SidebarFooter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connections = ref.watch(connectionsProvider).value ?? [];
-    final activeCount = connections.where((c) => c.isConnected).length;
     final savedCount = ref.watch(sessionProvider).length;
 
     final theme = Theme.of(context);
@@ -1159,17 +1154,6 @@ class _SidebarFooter extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.wifi, size: 10,
-              color: activeCount > 0 ? AppTheme.green : dimColor),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              '$activeCount active',
-              overflow: TextOverflow.ellipsis,
-              style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
-            ),
-          ),
-          const Spacer(),
           Text(
             '$savedCount saved',
             style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
