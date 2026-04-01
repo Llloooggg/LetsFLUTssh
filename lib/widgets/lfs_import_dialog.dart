@@ -65,7 +65,6 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
             autofocus: true,
             decoration: const InputDecoration(
               labelText: 'Master Password',
-              border: OutlineInputBorder(),
             ),
             onSubmitted: (v) {
               if (v.isNotEmpty) {

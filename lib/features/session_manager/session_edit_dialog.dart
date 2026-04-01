@@ -205,7 +205,6 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppTheme.bg1,
-      shape: const RoundedRectangleBorder(),
       insetPadding: const EdgeInsets.all(24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
