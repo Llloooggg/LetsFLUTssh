@@ -207,6 +207,62 @@ void main() {
       expect(doubleTapped, isTrue);
     });
 
+    testWidgets('columns use ellipsis overflow', (tester) async {
+      await tester.pumpWidget(buildApp(FileRow(
+        entry: FileEntry(
+          name: 'file.txt',
+          path: '/file.txt',
+          size: 1048576,
+          mode: 0x1FF, // rwxrwxrwx
+          modTime: now,
+          isDir: false,
+          owner: 'longownername',
+        ),
+        isSelected: false,
+        sizeWidth: 55,
+        modifiedWidth: 105,
+        modeWidth: 65,
+        ownerWidth: 50,
+        onTap: () {},
+        onCtrlTap: () {},
+        onDoubleTap: () {},
+        onContextMenu: (_) {},
+      )));
+      // All column Text widgets should have ellipsis overflow
+      final texts = tester.widgetList<Text>(find.byType(Text));
+      final ellipsisTexts = texts.where(
+        (t) => t.overflow == TextOverflow.ellipsis,
+      );
+      // name(1) + size(1) + modified(1) + mode(1) + owner(1) = 5
+      expect(ellipsisTexts.length, 5);
+    });
+
+    testWidgets('columns hidden when width is zero', (tester) async {
+      await tester.pumpWidget(buildApp(FileRow(
+        entry: FileEntry(
+          name: 'file.txt',
+          path: '/file.txt',
+          size: 1024,
+          mode: 0x1A4,
+          modTime: now,
+          isDir: false,
+        ),
+        isSelected: false,
+        sizeWidth: 0,
+        modifiedWidth: 0,
+        modeWidth: 0,
+        ownerWidth: 0,
+        onTap: () {},
+        onCtrlTap: () {},
+        onDoubleTap: () {},
+        onContextMenu: (_) {},
+      )));
+      // Only the name text should be present
+      expect(find.text('file.txt'), findsOneWidget);
+      // Size, mode texts should not appear
+      expect(find.text('1.0 KB'), findsNothing);
+    });
+
     testWidgets('selected row has highlighted background', (tester) async {
       await tester.pumpWidget(buildApp(FileRow(
         entry: FileEntry(
