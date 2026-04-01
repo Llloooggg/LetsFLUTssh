@@ -409,8 +409,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       BuildContext context, BoxConstraints constraints, TabState tabState) {
     final isNarrow = constraints.maxWidth < 600;
     final activeTab = tabState.activeTab;
-    final connected = activeTab?.connection.isConnected ?? false;
-    final isTerminalTab = activeTab?.kind == TabKind.terminal;
     final inSettings = _mode == ShellMode.settings;
 
     final Widget sidebar;
@@ -429,58 +427,78 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
         crossMarquee: _crossMarquee,
       );
-      final content = activeTab != null
-          ? _buildTabContent(tabState)
-          : WelcomeScreen(onNewSession: () => _newSession(context, ref));
-      body = Column(
-        children: [
-          AppTabBar(onNewSession: () => _newSession(context, ref)),
-          if (activeTab != null)
-            _ConnectionBar(
-              activeTab: activeTab,
-              onOpenSftp: (isTerminalTab && connected)
-                  ? () => _openSftp(ref, activeTab.connection)
-                  : null,
-              onOpenSsh: (activeTab.kind == TabKind.sftp && connected)
-                  ? () => _openSsh(ref, activeTab.connection)
-                  : null,
-            ),
-          Expanded(child: content),
-        ],
-      );
+      body = _buildSessionBody(context, tabState, activeTab);
     }
 
     return AppShell(
-      toolbar: _Toolbar(
-        sidebarOpen: _sidebarOpen,
-        onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
-        onNewSession: () => _newSession(context, ref),
-        showMenuButton: isNarrow,
-        isTerminalTab: !inSettings && isTerminalTab,
-        onSplitVertical: !inSettings && isTerminalTab
-            ? () {
-                _terminalKeys[activeTab!.id]
-                    ?.currentState
-                    ?.splitFocused(SplitDirection.vertical);
-                setState(() {});
-              }
-            : null,
-        onSplitHorizontal: !inSettings && isTerminalTab
-            ? () {
-                _terminalKeys[activeTab!.id]
-                    ?.currentState
-                    ?.splitFocused(SplitDirection.horizontal);
-                setState(() {});
-              }
-            : null,
-        onSettings: _toggleSettings,
+      toolbar: _buildToolbar(
+        isNarrow: isNarrow,
         inSettings: inSettings,
+        activeTab: activeTab,
       ),
       sidebar: sidebar,
       sidebarOpen: _sidebarOpen,
       useDrawer: isNarrow,
       body: body,
       statusBar: inSettings ? null : _StatusBar(tabState: tabState),
+    );
+  }
+
+  Widget _buildSessionBody(
+      BuildContext context, TabState tabState, TabEntry? activeTab) {
+    final connected = activeTab?.connection.isConnected ?? false;
+    final isTerminalTab = activeTab?.kind == TabKind.terminal;
+    final content = activeTab != null
+        ? _buildTabContent(tabState)
+        : WelcomeScreen(onNewSession: () => _newSession(context, ref));
+    return Column(
+      children: [
+        AppTabBar(onNewSession: () => _newSession(context, ref)),
+        if (activeTab != null)
+          _ConnectionBar(
+            activeTab: activeTab,
+            onOpenSftp: (isTerminalTab && connected)
+                ? () => _openSftp(ref, activeTab.connection)
+                : null,
+            onOpenSsh: (activeTab.kind == TabKind.sftp && connected)
+                ? () => _openSsh(ref, activeTab.connection)
+                : null,
+          ),
+        Expanded(child: content),
+      ],
+    );
+  }
+
+  _Toolbar _buildToolbar({
+    required bool isNarrow,
+    required bool inSettings,
+    required TabEntry? activeTab,
+  }) {
+    final canSplit = !inSettings && activeTab?.kind == TabKind.terminal;
+    return _Toolbar(
+      sidebarOpen: _sidebarOpen,
+      onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
+      onNewSession: () => _newSession(context, ref),
+      showMenuButton: isNarrow,
+      isTerminalTab: canSplit,
+      onSplitVertical: canSplit
+          ? () {
+              _terminalKeys[activeTab!.id]
+                  ?.currentState
+                  ?.splitFocused(SplitDirection.vertical);
+              setState(() {});
+            }
+          : null,
+      onSplitHorizontal: canSplit
+          ? () {
+              _terminalKeys[activeTab!.id]
+                  ?.currentState
+                  ?.splitFocused(SplitDirection.horizontal);
+              setState(() {});
+            }
+          : null,
+      onSettings: _toggleSettings,
+      inSettings: inSettings,
     );
   }
 
