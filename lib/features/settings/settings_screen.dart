@@ -193,14 +193,17 @@ class SettingsSidebar extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                Text(
-                  'SETTINGS',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: AppFonts.sm,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                Flexible(
+                  child: Text(
+                    'SETTINGS',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: AppFonts.sm,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

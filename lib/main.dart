@@ -839,12 +839,13 @@ class _ConnectionBar extends StatelessWidget {
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(icon, size: 11, color: btnColor),
               const SizedBox(width: 4),
               Text(
                 label,
-                style: TextStyle(fontFamily: 'Inter', fontSize: AppFonts.xs, fontWeight: FontWeight.w500, color: btnColor),
+                style: TextStyle(fontFamily: 'Inter', fontSize: AppFonts.xs, fontWeight: FontWeight.w500, color: btnColor, height: 1.0),
               ),
             ],
           ),

@@ -10,6 +10,9 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    // Minimum window size to prevent layout overflow.
+    self.contentMinSize = NSSize(width: 480, height: 360)
+
     super.awakeFromNib()
   }
 }

@@ -572,12 +572,15 @@ class _SessionTreeViewState extends State<SessionTreeView>
           overflow: TextOverflow.ellipsis,
         ),
       ),
-      Text(
-        '${node.sessionCount}',
-        style: TextStyle(
-          fontSize: _subFontSize,
-          color: AppTheme.fgFaint,
-          fontFeatures: const [FontFeature.tabularFigures()],
+      Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Text(
+          '${node.sessionCount}',
+          style: TextStyle(
+            fontSize: _subFontSize,
+            color: AppTheme.fgFaint,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
       ),
     ];
@@ -677,17 +680,6 @@ class _SessionTreeViewState extends State<SessionTreeView>
         ),
         const SizedBox(width: 6),
       ],
-      Expanded(
-        child: Text(
-          node.name,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: _fontSize,
-            color: isConnected ? AppTheme.fg : AppTheme.fgDim,
-          ),
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
       if (session.incomplete)
         Padding(
           padding: const EdgeInsets.only(right: 4),
@@ -700,12 +692,33 @@ class _SessionTreeViewState extends State<SessionTreeView>
             ),
           ),
         ),
-      Text(
-        session.host,
-        style: TextStyle(
-          fontFamily: 'JetBrains Mono',
-          fontSize: AppFonts.xxs,
-          color: AppTheme.fgFaint,
+      Expanded(
+        child: Row(
+          children: [
+            Flexible(
+              child: Text(
+                node.name,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: _fontSize,
+                  color: isConnected ? AppTheme.fg : AppTheme.fgDim,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                session.host,
+                style: TextStyle(
+                  fontFamily: 'JetBrains Mono',
+                  fontSize: AppFonts.xxs,
+                  color: AppTheme.fgFaint,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     ];

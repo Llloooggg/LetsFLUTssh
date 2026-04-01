@@ -121,7 +121,9 @@ class FileRow extends StatelessWidget {
           height: 26,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           color: isSelected ? AppTheme.selection : null,
-          child: Row(
+          child: Flex(
+            direction: Axis.horizontal,
+            clipBehavior: Clip.hardEdge,
             children: [
               Icon(
                 fileIcon(entry),
