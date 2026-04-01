@@ -16,7 +16,8 @@ class WelcomeScreen extends StatelessWidget {
     final faintColor = scheme.onSurface.withValues(alpha: 0.4);
 
     return Center(
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
@@ -75,6 +76,7 @@ class WelcomeScreen extends StatelessWidget {
           const SizedBox(height: 6),
           const _ShortcutRow(keys: 'Ctrl+,', description: 'Settings'),
         ],
+      ),
       ),
     );
   }
