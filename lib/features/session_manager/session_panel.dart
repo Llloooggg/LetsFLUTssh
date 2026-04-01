@@ -1169,13 +1169,10 @@ class _SidebarFooter extends ConsumerWidget {
               style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
             ),
           ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              '$savedCount saved',
-              overflow: TextOverflow.ellipsis,
-              style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
-            ),
+          const Spacer(),
+          Text(
+            '$savedCount saved',
+            style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
           ),
         ],
       ),
