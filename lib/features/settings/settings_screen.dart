@@ -57,9 +57,14 @@ List<_Section> _buildSections() => [
 ///
 /// Each section watches only its own config fields via `select()` to avoid
 /// unnecessary rebuilds when unrelated settings change.
+/// Settings screen — mobile only (pushed as a route).
+///
+/// On desktop, settings are embedded directly in [AppShell] via
+/// [SettingsSidebar] and [SettingsContent] — no route navigation needed.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  /// Push the mobile settings screen.
   static Future<void> show(BuildContext context) {
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -72,10 +77,7 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (plat.isMobilePlatform) {
-      return const _MobileSettingsScreen();
-    }
-    return const _DesktopSettingsScreen();
+    return const _MobileSettingsScreen();
   }
 }
 
@@ -160,124 +162,110 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
   }
 }
 
-/// Desktop: navigation rail on the left, content pane on the right.
-class _DesktopSettingsScreen extends ConsumerStatefulWidget {
-  const _DesktopSettingsScreen();
+/// Desktop settings sidebar — nav items + reset button.
+///
+/// Designed to be embedded in [AppShell]'s sidebar slot so it shares
+/// the same resizable panel and visual frame as the sessions sidebar.
+class SettingsSidebar extends ConsumerWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+
+  const SettingsSidebar({
+    super.key,
+    required this.selectedIndex,
+    required this.onSelect,
+  });
 
   @override
-  ConsumerState<_DesktopSettingsScreen> createState() => _DesktopSettingsScreenState();
-}
-
-class _DesktopSettingsScreenState extends ConsumerState<_DesktopSettingsScreen> {
-  int _selectedIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final sections = _buildSections();
-
-    return Scaffold(
-      body: Column(
+    final theme = Theme.of(context);
+    return Container(
+      color: theme.colorScheme.surfaceContainerLow,
+      child: Column(
         children: [
-          // ── Header ──
-          Builder(builder: (context) {
-            final theme = Theme.of(context);
-            final scheme = theme.colorScheme;
-            return Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerLow,
-                border: Border(bottom: BorderSide(color: theme.dividerColor)),
-              ),
-              child: Row(
-                children: [
-                  AppIconButton(
-                    icon: Icons.arrow_back,
-                    onTap: () => Navigator.of(context).pop(),
-                    size: 16,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Settings',
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.lg,
-                      fontWeight: FontWeight.w600,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-          // ── Body ──
-          Expanded(
+          // Header — matches SessionPanel _PanelHeader style
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: theme.dividerColor)),
+            ),
             child: Row(
               children: [
-                // ── Left nav ──
-                Container(
-                  width: 160,
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          itemCount: sections.length,
-                          itemBuilder: (context, index) {
-                            final section = sections[index];
-                            final selected = index == _selectedIndex;
-                            return _NavItem(
-                              icon: section.icon,
-                              label: section.title,
-                              selected: selected,
-                              onTap: () => setState(() => _selectedIndex = index),
-                            );
-                          },
-                        ),
-                      ),
-                      _ResetButton(
-                        onTap: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
-                      ),
-                    ],
+                Text(
+                  'SETTINGS',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: AppFonts.sm,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
                   ),
-                ),
-                VerticalDivider(width: 1, thickness: 1, color: Theme.of(context).dividerColor),
-                // ── Content pane ──
-                Expanded(
-                  child: Builder(builder: (context) {
-                    final scheme = Theme.of(context).colorScheme;
-                    return ListTileTheme(
-                    data: ListTileThemeData(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      titleTextStyle: AppFonts.inter(
-                        fontSize: AppFonts.sm, color: scheme.onSurface,
-                      ),
-                      subtitleTextStyle: AppFonts.inter(
-                        fontSize: AppFonts.xs, color: scheme.onSurfaceVariant,
-                      ),
-                      leadingAndTrailingTextStyle: AppFonts.inter(
-                        fontSize: AppFonts.xs, color: scheme.onSurface.withValues(alpha: 0.45),
-                      ),
-                    ),
-                    child: DefaultTextStyle(
-                      style: AppFonts.inter(fontSize: AppFonts.sm, color: scheme.onSurface),
-                      child: ListView(
-                        key: ValueKey(_selectedIndex),
-                        padding: const EdgeInsets.all(24),
-                        children: [
-                          _SectionHeader(title: sections[_selectedIndex].title),
-                          sections[_selectedIndex].builder(),
-                        ],
-                      ),
-                    ),
-                  );
-                  }),
                 ),
               ],
             ),
           ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: sections.length,
+              itemBuilder: (context, index) {
+                final section = sections[index];
+                return _NavItem(
+                  icon: section.icon,
+                  label: section.title,
+                  selected: index == selectedIndex,
+                  onTap: () => onSelect(index),
+                );
+              },
+            ),
+          ),
+          _ResetButton(
+            onTap: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Desktop settings content pane — shows the selected section.
+///
+/// Designed to be embedded in [AppShell]'s body slot.
+class SettingsContent extends StatelessWidget {
+  final int selectedIndex;
+
+  const SettingsContent({super.key, required this.selectedIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    final sections = _buildSections();
+    final scheme = Theme.of(context).colorScheme;
+    return ListTileTheme(
+      data: ListTileThemeData(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        titleTextStyle: AppFonts.inter(
+          fontSize: AppFonts.sm, color: scheme.onSurface,
+        ),
+        subtitleTextStyle: AppFonts.inter(
+          fontSize: AppFonts.xs, color: scheme.onSurfaceVariant,
+        ),
+        leadingAndTrailingTextStyle: AppFonts.inter(
+          fontSize: AppFonts.xs, color: scheme.onSurface.withValues(alpha: 0.45),
+        ),
+      ),
+      child: DefaultTextStyle(
+        style: AppFonts.inter(fontSize: AppFonts.sm, color: scheme.onSurface),
+        child: ListView(
+          key: ValueKey(selectedIndex),
+          padding: const EdgeInsets.all(24),
+          children: [
+            _SectionHeader(title: sections[selectedIndex].title),
+            sections[selectedIndex].builder(),
+          ],
+        ),
       ),
     );
   }
