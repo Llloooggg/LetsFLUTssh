@@ -954,6 +954,18 @@ AppBorderedBox({
 ```
 **Replaces manual `BoxDecoration(border: Border.all(...))` patterns.** Guarantees `borderRadius` is always applied — prevents sharp-corner containers. Use this instead of hand-coded `Container` + `BoxDecoration` with `Border.all`.
 
+### AppDivider
+
+```dart
+AppDivider({
+  double indent = 0,
+  double endIndent = 0,
+  Color? color,                  // default: AppTheme.border
+})
+AppDivider.indented({Color? color})  // indent = 8, endIndent = 8
+```
+**Replaces bare `Divider(height: 1)` everywhere.** Standardises height (1 px), thickness (1 px), and color. Use `.indented()` for group separators in menus.
+
 ### SplitView
 
 ```dart
@@ -1603,7 +1615,9 @@ git push (feat/fix/refactor) to main
   │           │     quality scan (warn-only in build preflight)
   │           │
   │           └─► auto-tag.yml      (workflow_run[CI])
-  │                 HEAD = feat/fix/refactor → tag v{VERSION}
+  │                 scans all commits since last tag
+  │                 last feat/fix/refactor → tag v{VERSION}
+  │                 [skip-release] in any commit → no tag
   │                       │
   │                       └─► build.yml      (tags: v*)
   │                             preflight: CI ✓ + OSV ✓ + Sonar (warn)
@@ -1628,7 +1642,7 @@ Non-code commit (test/docs/ci/chore)
 |----------|---------|---------|-----------------|
 | `ci.yml` | push/PR (lib/, test/, pubspec.*) | analyze + test + coverage | Yes (required) |
 | `ci-skip.yml` | PR (non-code paths) | No-op success for required checks | — |
-| `auto-tag.yml` | workflow_run[CI] success | Creates git tag for feat/fix/refactor | — |
+| `auto-tag.yml` | workflow_run[CI] success | Scans all push commits, tags last feat/fix/refactor. `[skip-release]` suppresses | — |
 | `build.yml` | push tag v* / manual | Preflight + build all platforms + release | — |
 | `sonarcloud.yml` | workflow_run[CI] / manual | Quality + coverage scan | No (warn-only) |
 | `osv-scanner.yml` | push pubspec.* / weekly | CVE scan (pubspec.lock) | Yes (required) |

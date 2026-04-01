@@ -103,8 +103,9 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 | Scenario                    | What to do                                                          |
 | --------------------------- | ------------------------------------------------------------------- |
 | App change (feat/fix/refac) | `git push` — auto-tag handles it                                   |
-| App change + tests/docs     | Bundle tests/docs into the app commit, OR make sure the app commit is pushed last |
+| App change + tests/docs     | `git push` — auto-tag finds the app commit even if docs/tests come after |
 | Tests/docs/CI only          | `git push` — no tag, no release (correct behavior)                  |
+| Push without release        | Add `[skip-release]` to any commit message in the push              |
 | Dependabot deps             | Auto: merge → version bump → CI → `dependabot-tag.yml`             |
 | Failed build (re-trigger)   | `gh workflow run build.yml --ref v{VERSION}` (manual dispatch — preflight warns if Sonar/OSV not found, then proceeds) |
 
@@ -112,7 +113,9 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 
 - By default Claude only reminds about tagging — does **not** run `make tag` unless user explicitly asks
 
-**HEAD must be a taggable commit.** auto-tag only inspects the HEAD commit message. If HEAD is `test:`, `docs:`, `ci:`, or `chore:` — no tag is created even if prior commits have version bumps.
+**Batch-push safe.** auto-tag scans ALL commits between the latest tag and HEAD — not just HEAD. If the push contains a `feat:`/`fix:`/`refactor:` commit followed by `test:`/`docs:` commits, the tag is placed on the last app-change commit. Order doesn't matter.
+
+**`[skip-release]`** — add this marker anywhere in any commit message in the push to suppress tagging entirely. Useful for pushing app changes without triggering a release (e.g. test deployments). Version bump still required per project rules.
 
 ### Post-change checklist
 
