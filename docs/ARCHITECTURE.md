@@ -854,7 +854,7 @@ class TabEntry {
 | `mobile_shell.dart` | `MobileShell` | Bottom navigation: Sessions / Terminal / SFTP |
 | `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal + keyboard bar |
 | `mobile_file_browser.dart` | `MobileFileBrowser` | Single-pane SFTP (toggle local/remote) |
-| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn |
+| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn. Main row is horizontally scrollable (`ListView`); Fn button is fixed at right edge |
 | `ssh_key_sequences.dart` | — | Escape sequences for keys |
 
 **Architectural difference:** Mobile is NOT a responsive version of desktop. It's a separate `features/mobile/` module with different interaction patterns (bottom nav instead of sidebar+tabs, long-press instead of right-click, swipe navigation).

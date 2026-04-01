@@ -92,52 +92,51 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
           padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Row(
             children: [
-              // Esc
-              _KeyButton(label: 'Esc', onTap: () => _send(SshKeySequences.escape)),
-              // Tab
-              _KeyButton(label: 'Tab', onTap: () => _send(SshKeySequences.tab)),
-              // Ctrl (sticky)
-              _ModifierButton(
-                label: 'Ctrl',
-                state: _ctrl,
-                onTap: () => setState(() => _toggleModifier(
-                  _ctrl, (s) => _ctrl = s,
-                )),
+              // Scrollable keys
+              Expanded(
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _KeyButton(label: 'Esc', onTap: () => _send(SshKeySequences.escape)),
+                    _KeyButton(label: 'Tab', onTap: () => _send(SshKeySequences.tab)),
+                    _ModifierButton(
+                      label: 'Ctrl',
+                      state: _ctrl,
+                      onTap: () => setState(() => _toggleModifier(
+                        _ctrl, (s) => _ctrl = s,
+                      )),
+                    ),
+                    _ModifierButton(
+                      label: 'Alt',
+                      state: _alt,
+                      onTap: () => setState(() => _toggleModifier(
+                        _alt, (s) => _alt = s,
+                      )),
+                    ),
+                    _KeyButton(
+                      icon: Icons.keyboard_arrow_left,
+                      onTap: () => _send(SshKeySequences.arrowLeft),
+                    ),
+                    _KeyButton(
+                      icon: Icons.keyboard_arrow_up,
+                      onTap: () => _send(SshKeySequences.arrowUp),
+                    ),
+                    _KeyButton(
+                      icon: Icons.keyboard_arrow_down,
+                      onTap: () => _send(SshKeySequences.arrowDown),
+                    ),
+                    _KeyButton(
+                      icon: Icons.keyboard_arrow_right,
+                      onTap: () => _send(SshKeySequences.arrowRight),
+                    ),
+                    _KeyButton(label: '|', onTap: () => _send('|')),
+                    _KeyButton(label: '~', onTap: () => _send('~')),
+                    _KeyButton(label: '/', onTap: () => _send('/')),
+                    _KeyButton(label: '-', onTap: () => _send('-')),
+                  ],
+                ),
               ),
-              // Alt (sticky)
-              _ModifierButton(
-                label: 'Alt',
-                state: _alt,
-                onTap: () => setState(() => _toggleModifier(
-                  _alt, (s) => _alt = s,
-                )),
-              ),
-              const SizedBox(width: 2),
-              // Arrow keys
-              _KeyButton(
-                icon: Icons.keyboard_arrow_left,
-                onTap: () => _send(SshKeySequences.arrowLeft),
-              ),
-              _KeyButton(
-                icon: Icons.keyboard_arrow_up,
-                onTap: () => _send(SshKeySequences.arrowUp),
-              ),
-              _KeyButton(
-                icon: Icons.keyboard_arrow_down,
-                onTap: () => _send(SshKeySequences.arrowDown),
-              ),
-              _KeyButton(
-                icon: Icons.keyboard_arrow_right,
-                onTap: () => _send(SshKeySequences.arrowRight),
-              ),
-              const SizedBox(width: 2),
-              // Common special chars
-              _KeyButton(label: '|', onTap: () => _send('|')),
-              _KeyButton(label: '~', onTap: () => _send('~')),
-              _KeyButton(label: '/', onTap: () => _send('/')),
-              _KeyButton(label: '-', onTap: () => _send('-')),
-              const Spacer(),
-              // F-keys toggle
+              // Fn toggle — fixed at right edge, always visible
               _KeyButton(
                 label: 'Fn',
                 isActive: _showFnKeys,
