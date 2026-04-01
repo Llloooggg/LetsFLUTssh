@@ -58,7 +58,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               height: 44,
               decoration: BoxDecoration(
                 color: AppTheme.bg1,
-                border: Border(bottom: BorderSide(color: AppTheme.border)),
+                border: AppTheme.borderBottom,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Row(
@@ -326,7 +326,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.bg1,
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        border: AppTheme.borderBottom,
       ),
       height: 32,
       child: ListView.builder(

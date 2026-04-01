@@ -244,7 +244,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        border: AppTheme.borderBottom,
       ),
       child: Row(
         children: [
@@ -274,7 +274,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   Widget _buildTabBar() {
     return Container(
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        border: AppTheme.borderBottom,
       ),
       child: Row(
         children: [
@@ -658,7 +658,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: AppTheme.border)),
+        border: AppTheme.borderTop,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,

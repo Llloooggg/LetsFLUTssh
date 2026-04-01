@@ -66,9 +66,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             decoration: BoxDecoration(
               color: AppTheme.bg0,
               border: Border(
-                top: BorderSide(color: AppTheme.border),
+                top: AppTheme.borderSide,
                 bottom: _expanded
-                    ? BorderSide(color: AppTheme.border)
+                    ? AppTheme.borderSide
                     : BorderSide.none,
               ),
             ),
@@ -224,7 +224,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AppTheme.bg0,
-        border: Border(top: BorderSide(color: AppTheme.border)),
+        border: AppTheme.borderTop,
       ),
       child: ClippedRow(
         children: [

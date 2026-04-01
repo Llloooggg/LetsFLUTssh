@@ -8,6 +8,7 @@ import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';
+import '../../widgets/app_divider.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/context_menu.dart';
 import '../../utils/platform.dart';
@@ -437,7 +438,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                     ),
                   ),
                 ),
-              const Divider(height: 1),
+              const AppDivider(),
               ListTile(
                 leading: Icon(Icons.terminal, color: AppTheme.blue),
                 title: const Text('Terminal'),
@@ -449,7 +450,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   title: const Text('Files'),
                   onTap: () { Navigator.pop(ctx); widget.onSftpConnect?.call(session); },
                 ),
-              const Divider(height: 1),
+              const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.settings),
                 title: const Text('Edit Connection'),
@@ -465,7 +466,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 title: const Text('Move to...'),
                 onTap: () { Navigator.pop(ctx); _moveSession(context, ref, session); },
               ),
-              const Divider(height: 1),
+              const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.delete, color: AppTheme.disconnected),
                 title: const Text('Delete', style: TextStyle(color: AppTheme.disconnected)),
@@ -601,7 +602,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Divider(height: 1),
+              const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.add),
                 title: const Text('New Connection'),
@@ -613,7 +614,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 onTap: () { Navigator.pop(ctx); _createFolder(context, ref, groupPath); },
               ),
               if (groupPath.isNotEmpty) ...[
-                const Divider(height: 1),
+                const AppDivider(),
                 ListTile(
                   leading: const Icon(Icons.drive_file_rename_outline),
                   title: const Text('Rename Group'),
@@ -766,7 +767,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppTheme.border)),
+                border: AppTheme.borderBottom,
               ),
               child: Row(
                 children: [
@@ -851,7 +852,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: AppTheme.border)),
+                border: AppTheme.borderTop,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,

@@ -4,6 +4,7 @@ import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_divider.dart';
 
 /// Dialog for selecting sessions to export via QR code.
 ///
@@ -208,7 +209,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
                 ],
               ),
             ),
-            const Divider(height: 1),
+            const AppDivider(),
 
             // Session tree with checkboxes
             Flexible(

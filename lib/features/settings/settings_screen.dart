@@ -1119,7 +1119,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        border: AppTheme.borderBottom,
       ),
       child: Text(
         title,

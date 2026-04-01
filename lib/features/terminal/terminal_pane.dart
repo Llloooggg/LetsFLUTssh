@@ -426,7 +426,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: AppTheme.bg1,
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
+        border: AppTheme.borderBottom,
       ),
       child: Row(
         children: [
