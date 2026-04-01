@@ -20,6 +20,7 @@ import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/toast.dart';
@@ -1252,11 +1253,8 @@ class _SegmentControl extends StatelessWidget {
       );
     }
 
-    return Container(
+    return AppBorderedBox(
       height: 26,
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.borderLight),
-      ),
       child: Row(mainAxisSize: MainAxisSize.min, children: children),
     );
   }

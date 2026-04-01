@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bordered_box.dart';
 
 /// Shown when no tabs are open.
 class WelcomeScreen extends StatelessWidget {
@@ -96,14 +97,12 @@ class _ShortcutRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
+        AppBorderedBox(
           constraints: const BoxConstraints(minWidth: 90),
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            border: Border.all(color: scheme.outlineVariant),
-          ),
+          color: scheme.surfaceContainerHigh,
+          borderColor: scheme.outlineVariant,
           child: Text(
             keys,
             style: TextStyle(

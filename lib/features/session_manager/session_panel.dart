@@ -7,6 +7,7 @@ import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/context_menu.dart';
 import '../../utils/platform.dart';
@@ -1066,13 +1067,10 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: Container(
+      child: AppBorderedBox(
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppTheme.bg3,
-          border: Border.all(color: AppTheme.borderLight),
-        ),
+        color: AppTheme.bg3,
         child: Row(
           children: [
             Icon(Icons.search, size: 12, color: AppTheme.fgFaint),
