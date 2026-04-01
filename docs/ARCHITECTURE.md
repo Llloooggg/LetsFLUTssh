@@ -839,10 +839,16 @@ class TabEntry {
 
 ### 5.5 Settings (`features/settings/`)
 
-| File | Purpose |
-|------|---------|
-| `settings_screen.dart` | Full settings UI: terminal, SSH, UI, logging, updates |
-| `export_import.dart` | Export/import .lfs archives (UI + logic) |
+| File | Class | Purpose |
+|------|-------|---------|
+| `settings_screen.dart` | `SettingsScreen` | Mobile-only route (collapsible sections in a scrollable list) |
+| `settings_screen.dart` | `SettingsSidebar` | Desktop nav panel — embedded in `AppShell`'s sidebar slot |
+| `settings_screen.dart` | `SettingsContent` | Desktop content pane — embedded in `AppShell`'s body slot |
+| `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
+
+**Desktop:** Settings are embedded directly in `MainScreen` via `ShellMode`. The toolbar settings button toggles between `ShellMode.sessions` and `ShellMode.settings` — no route navigation. `SettingsSidebar` + `SettingsContent` replace the session panel and tab area while sharing the same `AppShell` frame (sidebar width preserved).
+
+**Mobile:** `SettingsScreen` is pushed as a route with collapsible `ExpansionTile` sections.
 
 ---
 
@@ -872,6 +878,27 @@ if (isMobilePlatform) {
 ---
 
 ## 6. Widgets — Public API Reference
+
+### AppShell
+
+```dart
+AppShell({
+  required Widget toolbar,        // content inside the decorated toolbar container
+  double toolbarHeight = 34,      // toolbar container height
+  Widget? sidebar,                // left panel content (null → no sidebar)
+  double initialSidebarWidth = 220,
+  double minSidebarWidth = 140,
+  double maxSidebarWidth = 400,
+  bool sidebarOpen = true,        // inline visibility toggle
+  bool useDrawer = false,         // true → sidebar becomes a Drawer (narrow viewports)
+  double drawerWidth = 280,
+  required Widget body,           // main content between toolbar and status bar
+  Widget? statusBar,              // optional bottom bar
+})
+```
+Desktop layout shell shared by the main screen and settings. Provides the consistent visual frame: decorated toolbar (surfaceContainerLow + bottom border), resizable sidebar with drag divider, main body area, and optional status bar. On narrow viewports, set `useDrawer: true` to render the sidebar as a pull-out `Drawer` instead of an inline panel.
+
+State class `AppShellState` exposes `sidebarWidth` getter. Sidebar width is managed internally and persists as long as the widget stays mounted.
 
 ### AppIconButton
 

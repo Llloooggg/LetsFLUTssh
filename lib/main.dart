@@ -14,6 +14,7 @@ import 'widgets/host_key_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/cross_marquee_controller.dart';
 import 'widgets/app_icon_button.dart';
+import 'widgets/app_shell.dart';
 import 'widgets/hover_region.dart';
 import 'widgets/toast.dart';
 import 'features/file_browser/file_browser_tab.dart';
@@ -151,6 +152,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   }
 }
 
+/// Which content the desktop shell is currently showing.
+enum ShellMode { sessions, settings }
+
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
@@ -163,7 +167,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final _crossMarquee = CrossMarqueeController();
   bool _updateDialogShown = false;
   bool _sidebarOpen = true;
-  double _sidebarWidth = 220;
+  ShellMode _mode = ShellMode.sessions;
+  int _settingsIndex = 0;
   final Map<String, GlobalKey<TerminalTabState>> _terminalKeys = {};
 
   GlobalKey<TerminalTabState> _keyForTab(String tabId) =>
@@ -370,7 +375,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       },
       // Settings
       const SingleActivator(LogicalKeyboardKey.comma, control: true): () {
-        SettingsScreen.show(context);
+        _toggleSettings();
       },
     };
   }
@@ -392,100 +397,90 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
   }
 
+  void _toggleSettings() {
+    setState(() {
+      _mode = _mode == ShellMode.settings
+          ? ShellMode.sessions
+          : ShellMode.settings;
+    });
+  }
+
   Widget _buildDesktopLayout(
       BuildContext context, BoxConstraints constraints, TabState tabState) {
     final isNarrow = constraints.maxWidth < 600;
-    final sessionPanel = SessionPanel(
-      onConnect: (session) => _connectSession(context, ref, session),
-      onQuickConnect: (config) => SessionConnect.connectConfig(context, ref, config),
-      onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-      crossMarquee: _crossMarquee,
-    );
-
-    final content = tabState.activeTab != null
-        ? _buildTabContent(tabState)
-        : WelcomeScreen(
-            onNewSession: () => _newSession(context, ref),
-          );
-
-    final rightSide = _buildRightSide(tabState, content, isNarrow);
-
-    if (isNarrow) {
-      return Scaffold(
-        drawer: Drawer(width: 280, child: SafeArea(child: sessionPanel)),
-        body: rightSide,
-      );
-    }
-
-    return Scaffold(
-      body: Row(
-        children: [
-          if (_sidebarOpen) ...[
-            SizedBox(width: _sidebarWidth, child: sessionPanel),
-            MouseRegion(
-              cursor: SystemMouseCursors.resizeColumn,
-              child: GestureDetector(
-                onHorizontalDragUpdate: (d) {
-                  setState(() {
-                    _sidebarWidth = (_sidebarWidth + d.delta.dx).clamp(140.0, 400.0);
-                  });
-                },
-                child: Container(
-                  width: 3,
-                  color: Theme.of(context).dividerColor,
-                ),
-              ),
-            ),
-          ],
-          Expanded(child: rightSide),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRightSide(TabState tabState, Widget content, bool isNarrow) {
     final activeTab = tabState.activeTab;
     final connected = activeTab?.connection.isConnected ?? false;
     final isTerminalTab = activeTab?.kind == TabKind.terminal;
-    return Column(
-      children: [
-        _Toolbar(
-          sidebarOpen: _sidebarOpen,
-          onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
-          onNewSession: () => _newSession(context, ref),
-          showMenuButton: isNarrow,
-          isTerminalTab: isTerminalTab,
-          onSplitVertical: isTerminalTab
-              ? () {
-                  _terminalKeys[activeTab!.id]
-                      ?.currentState
-                      ?.splitFocused(SplitDirection.vertical);
-                  setState(() {});
-                }
-              : null,
-          onSplitHorizontal: isTerminalTab
-              ? () {
-                  _terminalKeys[activeTab!.id]
-                      ?.currentState
-                      ?.splitFocused(SplitDirection.horizontal);
-                  setState(() {});
-                }
-              : null,
-        ),
-        AppTabBar(onNewSession: () => _newSession(context, ref)),
-        if (activeTab != null)
-          _ConnectionBar(
-            activeTab: activeTab,
-            onOpenSftp: (isTerminalTab && connected)
-                ? () => _openSftp(ref, activeTab.connection)
-                : null,
-            onOpenSsh: (activeTab.kind == TabKind.sftp && connected)
-                ? () => _openSsh(ref, activeTab.connection)
-                : null,
-          ),
-        Expanded(child: content),
-        _StatusBar(tabState: tabState),
-      ],
+    final inSettings = _mode == ShellMode.settings;
+
+    final Widget sidebar;
+    final Widget body;
+
+    if (inSettings) {
+      sidebar = SettingsSidebar(
+        selectedIndex: _settingsIndex,
+        onSelect: (i) => setState(() => _settingsIndex = i),
+      );
+      body = SettingsContent(selectedIndex: _settingsIndex);
+    } else {
+      sidebar = SessionPanel(
+        onConnect: (session) => _connectSession(context, ref, session),
+        onQuickConnect: (config) => SessionConnect.connectConfig(context, ref, config),
+        onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+        crossMarquee: _crossMarquee,
+      );
+      final content = activeTab != null
+          ? _buildTabContent(tabState)
+          : WelcomeScreen(onNewSession: () => _newSession(context, ref));
+      body = Column(
+        children: [
+          AppTabBar(onNewSession: () => _newSession(context, ref)),
+          if (activeTab != null)
+            _ConnectionBar(
+              activeTab: activeTab,
+              onOpenSftp: (isTerminalTab && connected)
+                  ? () => _openSftp(ref, activeTab.connection)
+                  : null,
+              onOpenSsh: (activeTab.kind == TabKind.sftp && connected)
+                  ? () => _openSsh(ref, activeTab.connection)
+                  : null,
+            ),
+          Expanded(child: content),
+        ],
+      );
+    }
+
+    return AppShell(
+      toolbar: _Toolbar(
+        sidebarOpen: _sidebarOpen,
+        onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
+        onNewSession: () => _newSession(context, ref),
+        showMenuButton: isNarrow,
+        isTerminalTab: !inSettings && isTerminalTab,
+        onSplitVertical: !inSettings && isTerminalTab
+            ? () {
+                _terminalKeys[activeTab!.id]
+                    ?.currentState
+                    ?.splitFocused(SplitDirection.vertical);
+                setState(() {});
+              }
+            : null,
+        onSplitHorizontal: !inSettings && isTerminalTab
+            ? () {
+                _terminalKeys[activeTab!.id]
+                    ?.currentState
+                    ?.splitFocused(SplitDirection.horizontal);
+                setState(() {});
+              }
+            : null,
+        onSettings: _toggleSettings,
+        inSettings: inSettings,
+      ),
+      sidebar: sidebar,
+      sidebarOpen: _sidebarOpen,
+      useDrawer: isNarrow,
+      body: body,
+      statusBar: inSettings ? null : _StatusBar(tabState: tabState),
     );
   }
 
@@ -631,6 +626,8 @@ class _Toolbar extends StatelessWidget {
   final bool isTerminalTab;
   final VoidCallback? onSplitVertical;
   final VoidCallback? onSplitHorizontal;
+  final VoidCallback onSettings;
+  final bool inSettings;
 
   const _Toolbar({
     required this.sidebarOpen,
@@ -640,58 +637,51 @@ class _Toolbar extends StatelessWidget {
     this.isTerminalTab = false,
     this.onSplitVertical,
     this.onSplitHorizontal,
+    required this.onSettings,
+    this.inSettings = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Container(
-      height: 34,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 2),
-          if (showMenuButton)
-            AppIconButton(
-              icon: Icons.menu,
-              onTap: () => Scaffold.of(context).openDrawer(),
-              tooltip: 'Sessions',
-              color: AppTheme.fgDim,
-            )
-          else
-            AppIconButton(
-              icon: Icons.view_sidebar,
-              onTap: onToggleSidebar,
-              tooltip: 'Sidebar (Ctrl+B)',
-              active: sidebarOpen,
-            ),
-          const Spacer(),
-          if (isTerminalTab) ...[
-            AppIconButton(
-              icon: Icons.vertical_split,
-              onTap: onSplitVertical,
-              tooltip: 'Split Vertical (Ctrl+\\)',
-            ),
-            AppIconButton(
-              icon: Icons.horizontal_split,
-              onTap: onSplitHorizontal,
-              tooltip: 'Split Horizontal (Ctrl+Shift+\\)',
-            ),
-            _Divider(),
-          ] else
-            _Divider(),
+    return Row(
+      children: [
+        const SizedBox(width: 2),
+        if (showMenuButton)
           AppIconButton(
-            icon: Icons.settings,
-            onTap: () => SettingsScreen.show(context),
-            tooltip: 'Settings',
+            icon: Icons.menu,
+            onTap: () => Scaffold.of(context).openDrawer(),
+            tooltip: 'Sessions',
+            color: AppTheme.fgDim,
+          )
+        else
+          AppIconButton(
+            icon: Icons.view_sidebar,
+            onTap: onToggleSidebar,
+            tooltip: 'Sidebar (Ctrl+B)',
+            active: sidebarOpen,
           ),
-          const SizedBox(width: 2),
-        ],
-      ),
+        const Spacer(),
+        if (isTerminalTab) ...[
+          AppIconButton(
+            icon: Icons.vertical_split,
+            onTap: onSplitVertical,
+            tooltip: 'Split Vertical (Ctrl+\\)',
+          ),
+          AppIconButton(
+            icon: Icons.horizontal_split,
+            onTap: onSplitHorizontal,
+            tooltip: 'Split Horizontal (Ctrl+Shift+\\)',
+          ),
+          _Divider(),
+        ] else
+          _Divider(),
+        AppIconButton(
+          icon: inSettings ? Icons.arrow_back : Icons.settings,
+          onTap: onSettings,
+          tooltip: inSettings ? 'Back' : 'Settings',
+        ),
+        const SizedBox(width: 2),
+      ],
     );
   }
 }

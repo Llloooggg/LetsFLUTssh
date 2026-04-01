@@ -2380,7 +2380,9 @@ void main() {
   // ---------------------------------------------------------------------------
   // Desktop two-column layout
   // ---------------------------------------------------------------------------
-  group('SettingsScreen — desktop layout', () {
+  group('SettingsSidebar + SettingsContent — desktop embedded widgets', () {
+    int selectedIndex = 0;
+
     Widget buildDesktopApp({AppConfig? initialConfig}) {
       final config = initialConfig ?? AppConfig.defaults;
       return ProviderScope(
@@ -2392,7 +2394,24 @@ void main() {
         ],
         child: MaterialApp(
           theme: AppTheme.dark(),
-          home: const SettingsScreen(),
+          home: StatefulBuilder(
+            builder: (context, setState) => Scaffold(
+              body: Row(
+                children: [
+                  SizedBox(
+                    width: 200,
+                    child: SettingsSidebar(
+                      selectedIndex: selectedIndex,
+                      onSelect: (i) => setState(() => selectedIndex = i),
+                    ),
+                  ),
+                  Expanded(
+                    child: SettingsContent(selectedIndex: selectedIndex),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       );
     }
@@ -2400,6 +2419,7 @@ void main() {
     setUp(() {
       plat.debugMobilePlatformOverride = false;
       plat.debugDesktopPlatformOverride = true;
+      selectedIndex = 0;
     });
 
     testWidgets('renders nav rail with all section labels', (tester) async {
@@ -2418,7 +2438,6 @@ void main() {
 
     testWidgets('first section is selected by default', (tester) async {
       await tester.pumpWidget(buildDesktopApp());
-      // Appearance content should be visible (header + nav = 2 instances)
       expect(find.text('Appearance'), findsNWidgets(2));
       expect(find.text('Theme'), findsOneWidget);
       expect(find.text('Terminal Font Size'), findsOneWidget);
@@ -2456,9 +2475,9 @@ void main() {
       expect(find.text('Reset to Defaults'), findsOneWidget);
     });
 
-    testWidgets('has VerticalDivider between nav and content', (tester) async {
+    testWidgets('renders SETTINGS header in sidebar', (tester) async {
       await tester.pumpWidget(buildDesktopApp());
-      expect(find.byType(VerticalDivider), findsOneWidget);
+      expect(find.text('SETTINGS'), findsOneWidget);
     });
   });
 }
