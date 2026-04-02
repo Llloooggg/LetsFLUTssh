@@ -382,7 +382,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     final isConnected = tab.connection.isConnected;
     final isTerminal = tab.kind == TabKind.terminal;
     final iconColor = _tabIconColor(isActive: isActive, isTerminal: isTerminal);
-    return GestureDetector(
+    Widget chip = GestureDetector(
       onTap: () {
         final globalIdx = widget.tabState.tabs.indexOf(tab);
         ref.read(tabProvider.notifier).selectTab(globalIdx);
@@ -446,6 +446,10 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
         ),
       ),
     );
+    if (!isActive) {
+      chip = Opacity(opacity: 0.5, child: chip);
+    }
+    return chip;
   }
 
   static Color _tabIconColor({required bool isActive, required bool isTerminal}) {
