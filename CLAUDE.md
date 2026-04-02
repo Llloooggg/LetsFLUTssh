@@ -103,6 +103,8 @@ Two branches: `dev` (daily work) and `main` (releases only).
 
 **Rule:** never push directly to `main` (except Dependabot PRs and CI/docs-only fixes). All app work goes through `dev` → `main` merge.
 
+**Merging dev → main** — always create PR with `--auto` flag (`gh pr create ... && gh pr merge --auto --merge`). The PR will merge automatically once all required checks pass (`ci`, `osv-scan`, `semgrep-scan`, `codeql-scan`). After merge, sync dev with main: `git fetch origin main && git merge origin/main`.
+
 **Claude default branch is `dev`.** Always work on `dev` unless the user explicitly says otherwise. If on `main` — switch to `dev` before making changes.
 
 ### Versioning & Tagging
