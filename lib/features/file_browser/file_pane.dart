@@ -7,6 +7,7 @@ import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/clipped_row.dart';
+import '../../widgets/column_resize_handle.dart';
 import '../../utils/format.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/cross_marquee_controller.dart';
@@ -486,27 +487,6 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       );
     }
 
-    Widget colHandle(void Function(double dx) onDrag) {
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragUpdate: (d) => setState(() => onDrag(d.delta.dx)),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.resizeColumn,
-          child: SizedBox(
-            width: 10,
-            height: 24,
-            child: Center(
-              child: Container(
-                width: 1,
-                height: 14,
-                color: AppTheme.fgFaint.withValues(alpha: 0.4),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -517,19 +497,19 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           const SizedBox(width: 20), // icon space
           Expanded(child: headerCell('Name', SortColumn.name)),
           if (cols.size) ...[
-            colHandle((dx) => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 200)),
+            ColumnResizeHandle(onDrag: (dx) => setState(() => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 200))),
             headerCell('Size', SortColumn.size, width: _sizeColWidth),
           ],
           if (cols.modified) ...[
-            colHandle((dx) => _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, 200)),
+            ColumnResizeHandle(onDrag: (dx) => setState(() => _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, 200))),
             headerCell('Modified', SortColumn.modified, width: _modifiedColWidth),
           ],
           if (cols.mode) ...[
-            colHandle((dx) => _modeColWidth = (_modeColWidth - dx).clamp(50, 200)),
+            ColumnResizeHandle(onDrag: (dx) => setState(() => _modeColWidth = (_modeColWidth - dx).clamp(50, 200))),
             headerCell('Mode', SortColumn.mode, width: _modeColWidth),
           ],
           if (cols.owner) ...[
-            colHandle((dx) => _ownerColWidth = (_ownerColWidth - dx).clamp(40, 200)),
+            ColumnResizeHandle(onDrag: (dx) => setState(() => _ownerColWidth = (_ownerColWidth - dx).clamp(40, 200))),
             headerCell('Owner', SortColumn.owner, width: _ownerColWidth),
           ],
         ],
