@@ -37,6 +37,18 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     ref.watch(connectionsProvider);
     final hasActiveTabs = tabState.tabs.isNotEmpty;
 
+    // Auto-switch to Sessions when last tab of current type closes
+    if (_navIndex == 1 && _terminalTabCount(tabState) == 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _navIndex = 0);
+      });
+    }
+    if (_navIndex == 2 && _sftpTabCount(tabState) == 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _navIndex = 0);
+      });
+    }
+
     return PopScope(
       canPop: !hasActiveTabs && _navIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
@@ -156,7 +168,11 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         height: 56,
         backgroundColor: AppTheme.bg1,
         selectedIndex: _navIndex,
-        onDestinationSelected: (i) => setState(() => _navIndex = i),
+        onDestinationSelected: (i) {
+          if (i == 1 && _terminalTabCount(tabState) == 0) return;
+          if (i == 2 && _sftpTabCount(tabState) == 0) return;
+          setState(() => _navIndex = i);
+        },
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.dns_outlined),
@@ -164,10 +180,13 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             label: 'Sessions',
           ),
           NavigationDestination(
-            icon: Badge(
-              isLabelVisible: _terminalTabCount(tabState) > 0,
-              label: Text('${_terminalTabCount(tabState)}'),
-              child: const Icon(Icons.terminal_outlined),
+            icon: Opacity(
+              opacity: _terminalTabCount(tabState) > 0 ? 1.0 : 0.4,
+              child: Badge(
+                isLabelVisible: _terminalTabCount(tabState) > 0,
+                label: Text('${_terminalTabCount(tabState)}'),
+                child: const Icon(Icons.terminal_outlined),
+              ),
             ),
             selectedIcon: Badge(
               isLabelVisible: _terminalTabCount(tabState) > 0,
@@ -177,10 +196,13 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             label: 'Terminal',
           ),
           NavigationDestination(
-            icon: Badge(
-              isLabelVisible: _sftpTabCount(tabState) > 0,
-              label: Text('${_sftpTabCount(tabState)}'),
-              child: const Icon(Icons.folder_outlined),
+            icon: Opacity(
+              opacity: _sftpTabCount(tabState) > 0 ? 1.0 : 0.4,
+              child: Badge(
+                isLabelVisible: _sftpTabCount(tabState) > 0,
+                label: Text('${_sftpTabCount(tabState)}'),
+                child: const Icon(Icons.folder_outlined),
+              ),
             ),
             selectedIcon: Badge(
               isLabelVisible: _sftpTabCount(tabState) > 0,
