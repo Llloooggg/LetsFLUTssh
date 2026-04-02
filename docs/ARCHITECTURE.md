@@ -832,6 +832,8 @@ class TabEntry {
 
 **IndexedStack:** Tabs are rendered via `IndexedStack` — all tabs stay in memory, only the current one is visible. This preserves terminal state when switching tabs.
 
+**Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background (subtle but visible against the surrounding area). All tabs have a `AppTheme.borderLight` right border as separator. Text: `AppTheme.fg` for active, `AppTheme.fgDim` for inactive. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive.
+
 **Connection lifecycle:** When all tabs referencing a connection are closed, `TabNotifier` automatically disconnects the orphaned connection via `ConnectionManager.disconnect()`. This keeps the active session count accurate.
 
 ---
