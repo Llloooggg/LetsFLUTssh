@@ -232,9 +232,9 @@ class _TabItemState extends State<_TabItem> {
             height: 32,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              color: widget.isActive ? AppTheme.bg2 : Colors.transparent,
+              color: widget.isActive ? AppTheme.bg2 : AppTheme.bg1,
               border: Border(
-                right: BorderSide(color: AppTheme.border),
+                right: BorderSide(color: AppTheme.borderLight),
               ),
             ),
             child: Row(
