@@ -72,6 +72,10 @@ class SessionTreeView extends StatefulWidget {
   /// IDs of sessions that currently have an active connection.
   final Set<String> connectedSessionIds;
 
+  /// Called when a session is selected (single-click on desktop).
+  /// Used by parent to track the focused session for keyboard shortcuts.
+  final void Function(String sessionId)? onSessionSelected;
+
   const SessionTreeView({
     super.key,
     required this.tree,
@@ -93,6 +97,7 @@ class SessionTreeView extends StatefulWidget {
     this.onMarqueeEnd,
     this.crossMarquee,
     this.connectedSessionIds = const {},
+    this.onSessionSelected,
   });
 
   @override
@@ -111,7 +116,7 @@ class _SessionTreeViewState extends State<SessionTreeView>
   bool get _hasBulkSelection =>
       widget.selectedIds.length + widget.selectedFolderPaths.length > 1;
 
-  static final bool _mobile = isMobilePlatform;
+  bool get _mobile => isMobilePlatform;
   double get _rowHeight => _mobile ? 48.0 : 28.0;
   double get _fontSize => AppFonts.sm;
   double get _subFontSize => AppFonts.tiny;
@@ -641,6 +646,7 @@ class _SessionTreeViewState extends State<SessionTreeView>
       return;
     }
     setState(() => _selectedSessionId = session.id);
+    widget.onSessionSelected?.call(session.id);
     if (_mobile) {
       widget.onSessionDoubleTap?.call(session);
     } else {

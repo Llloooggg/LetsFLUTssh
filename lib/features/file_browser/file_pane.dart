@@ -25,6 +25,12 @@ class FilePane extends StatefulWidget {
   final void Function(FileEntry entry)? onTransfer;
   final void Function(List<FileEntry> entries)? onTransferMultiple;
 
+  /// Called when the user presses Ctrl+C to copy selected entries.
+  final VoidCallback? onCopy;
+
+  /// Called when the user presses Ctrl+V to paste from clipboard.
+  final VoidCallback? onPaste;
+
   /// Called when files are dropped onto this pane from the other pane.
   final void Function(List<FileEntry> entries)? onDropReceived;
 
@@ -48,6 +54,8 @@ class FilePane extends StatefulWidget {
     this.paneId = '',
     this.onTransfer,
     this.onTransferMultiple,
+    this.onCopy,
+    this.onPaste,
     this.onDropReceived,
     this.onOsDropReceived,
     this.onPaneActivated,
@@ -182,10 +190,46 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    if (event.logicalKey != LogicalKeyboardKey.delete) return KeyEventResult.ignored;
-    if (ctrl.selected.isEmpty) return KeyEventResult.ignored;
-    _confirmDelete(context, ctrl.selectedEntries);
-    return KeyEventResult.handled;
+
+    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed
+        .intersection({LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.controlRight})
+        .isNotEmpty;
+
+    // Ctrl shortcuts
+    if (isCtrl) {
+      if (event.logicalKey == LogicalKeyboardKey.keyA) {
+        ctrl.selectAll();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyC) {
+        if (ctrl.selected.isNotEmpty) widget.onCopy?.call();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyV) {
+        widget.onPaste?.call();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // Non-modifier shortcuts
+    if (event.logicalKey == LogicalKeyboardKey.delete) {
+      if (ctrl.selected.isEmpty) return KeyEventResult.ignored;
+      _confirmDelete(context, ctrl.selectedEntries);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.f2) {
+      if (ctrl.selected.length == 1) {
+        _showRenameDialog(context, ctrl.selectedEntries.first);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.f5) {
+      ctrl.refresh();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   void _onChanged() {
@@ -461,7 +505,8 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      color: AppTheme.bg3,
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(color: AppTheme.bg3),
       child: Row(
         children: [
           const SizedBox(width: 20), // icon space

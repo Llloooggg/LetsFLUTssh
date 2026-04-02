@@ -91,6 +91,8 @@ void main() {
     void Function(List<FileEntry>)? onDropReceived,
     void Function(List<String>)? onOsDropReceived,
     VoidCallback? onPaneActivated,
+    VoidCallback? onCopy,
+    VoidCallback? onPaste,
     CrossMarqueeController? crossMarquee,
   }) {
     return MaterialApp(
@@ -104,6 +106,8 @@ void main() {
             paneId: paneId,
             onTransfer: onTransfer,
             onTransferMultiple: onTransferMultiple,
+            onCopy: onCopy,
+            onPaste: onPaste,
             onDropReceived: onDropReceived,
             onOsDropReceived: onOsDropReceived,
             onPaneActivated: onPaneActivated,
@@ -1048,6 +1052,127 @@ void main() {
       await tester.pump();
 
       expect(find.textContaining('Delete "'), findsNothing);
+    });
+
+    testWidgets('Ctrl+A selects all files', (tester) async {
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Tap + wait past double-tap timeout to avoid pending timers
+      await tester.tap(find.text('a.txt'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(ctrl.selected.length, entries.length);
+    });
+
+    testWidgets('F2 opens rename dialog for single selection', (tester) async {
+      final entries = [
+        FileEntry(name: 'rename_me.txt', path: '/home/rename_me.txt',
+            size: 100, mode: 0x81A4, modTime: now, isDir: false),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      await tester.tap(find.text('rename_me.txt'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+      ctrl.selectSingle('/home/rename_me.txt');
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pumpAndSettle();
+
+      // Dialog title "Rename" + context menu label "Rename" may both exist
+      expect(find.textContaining('Rename'), findsWidgets);
+    });
+
+    testWidgets('F5 refreshes the file list', (tester) async {
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      var notifyCount = 0;
+      ctrl.addListener(() => notifyCount++);
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      await tester.tap(find.text('a.txt'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      final before = notifyCount;
+      await tester.sendKeyEvent(LogicalKeyboardKey.f5);
+      await tester.pumpAndSettle();
+
+      expect(notifyCount, greaterThan(before));
+    });
+
+    testWidgets('Ctrl+C calls onCopy callback', (tester) async {
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      var copyCalled = false;
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onCopy: () => copyCalled = true,
+      ));
+      await tester.pump();
+
+      await tester.tap(find.text('a.txt'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+      ctrl.selectSingle('/home/a.txt');
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(copyCalled, isTrue);
+    });
+
+    testWidgets('Ctrl+V calls onPaste callback', (tester) async {
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      var pasteCalled = false;
+
+      await tester.pumpWidget(buildApp(
+        controller: ctrl,
+        onPaste: () => pasteCalled = true,
+      ));
+      await tester.pump();
+
+      await tester.tap(find.text('a.txt'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(pasteCalled, isTrue);
     });
   });
 

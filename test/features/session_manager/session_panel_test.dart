@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/credential_store.dart';
@@ -309,7 +310,7 @@ void main() {
       await tester.pumpWidget(buildApp(sessions: []));
       expect(find.text('No saved sessions'), findsOneWidget);
       expect(find.text('Add Session'), findsOneWidget);
-      expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.dns_outlined), findsWidgets);
     });
 
     testWidgets('empty state has add button with icon', (tester) async {
@@ -1916,28 +1917,14 @@ void main() {
       debugMobilePlatformOverride = null;
     });
 
-    // Helper: right-click to trigger onSessionContextMenu (tree view's _mobile
-    // is static final=false in test env, so long-press won't fire; right-click
-    // invokes the same callback which then routes to the mobile bottom sheet).
-    Future<void> rightClick(WidgetTester tester, Finder target) async {
-      final center = tester.getCenter(target);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.addPointer(location: center);
-      await gesture.down(center);
-      await gesture.up();
-      await tester.pumpAndSettle();
-    }
-
     testWidgets('Move to... item appears in bottom sheet on mobile',
         (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      // Right-click triggers onSessionContextMenu → bottom sheet on mobile
-      await rightClick(tester, find.text('staging'));
+      // Long-press triggers bottom sheet on mobile
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
 
       // Move to... item should appear in bottom sheet
       expect(find.text('Move to...'), findsOneWidget);
@@ -1954,7 +1941,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      await rightClick(tester, find.text('web1'));
+      await tester.longPress(find.text('web1'));
+      await tester.pumpAndSettle();
 
       // Tap Move to...
       await tester.tap(find.text('Move to...'));
@@ -1980,7 +1968,8 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      await rightClick(tester, find.text('web1'));
+      await tester.longPress(find.text('web1'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -1999,7 +1988,8 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      await rightClick(tester, find.text('web1'));
+      await tester.longPress(find.text('web1'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2023,7 +2013,8 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      await rightClick(tester, find.text('web1'));
+      await tester.longPress(find.text('web1'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2041,7 +2032,8 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      await rightClick(tester, find.text('web1'));
+      await tester.longPress(find.text('web1'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2059,7 +2051,8 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      await rightClick(tester, find.text('staging'));
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2090,7 +2083,8 @@ void main() {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
-      await rightClick(tester, find.text('staging'));
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Move to...'));
       await tester.pumpAndSettle();
@@ -2111,22 +2105,52 @@ void main() {
     setUp(() => debugMobilePlatformOverride = true);
     tearDown(() => debugMobilePlatformOverride = null);
 
-    testWidgets('Select button appears in header when sessions exist', (tester) async {
+    testWidgets('no checklist icon in header (select via bottom sheet)', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.byIcon(Icons.checklist), findsOneWidget);
-    });
-
-    testWidgets('Select button hidden when no sessions', (tester) async {
-      await tester.pumpWidget(buildApp(sessions: []));
+      // Checklist icon removed from header — select mode enters via long-press bottom sheet
       expect(find.byIcon(Icons.checklist), findsNothing);
     });
 
-    testWidgets('tapping Select shows action bar', (tester) async {
+    testWidgets('long-press session shows bottom sheet with Select option', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+
+      // Long-press a session to show bottom sheet
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Bottom sheet should have a Select option
+      expect(find.widgetWithText(ListTile, 'Select'), findsOneWidget);
+    });
+
+    testWidgets('Select in bottom sheet enters select mode with item pre-checked', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Ensure "Select" is visible and tap it
+      final selectTile = find.widgetWithText(ListTile, 'Select');
+      await tester.ensureVisible(selectTile);
+      await tester.pumpAndSettle();
+      await tester.tap(selectTile);
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(state.selectMode, isTrue);
+      expect(state.selectedIds, contains('3'));
+      expect(find.text('1 selected'), findsOneWidget);
+    });
+
+    testWidgets('enterSelectModeWithSession shows action bar', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+
+      state.enterSelectModeWithSession('1');
       await tester.pump();
 
-      expect(find.text('0 selected'), findsOneWidget);
+      expect(find.text('1 selected'), findsOneWidget);
       expect(find.byIcon(Icons.select_all), findsOneWidget);
       expect(find.byIcon(Icons.drive_file_move), findsOneWidget);
       expect(find.byIcon(Icons.delete), findsOneWidget);
@@ -2137,18 +2161,38 @@ void main() {
       await tester.pumpWidget(buildApp());
       expect(find.text('SESSIONS'), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.checklist));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
       await tester.pump();
 
       // Header title should be gone
       expect(find.text('SESSIONS'), findsNothing);
     });
 
+    testWidgets('action bar height matches panel header (36px)', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
+      await tester.pump();
+
+      // Find the action bar container by its "selected" text
+      final selectedText = find.text('1 selected');
+      expect(selectedText, findsOneWidget);
+
+      // Verify rendered height of the action bar container
+      final actionBarBox = tester.getSize(
+        find.ancestor(of: selectedText, matching: find.byType(Container)).first,
+      );
+      expect(actionBarBox.height, 36.0);
+    });
+
     testWidgets('Cancel exits select mode', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.tap(find.byIcon(Icons.checklist));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
       await tester.pump();
-      expect(find.text('0 selected'), findsOneWidget);
+      expect(find.text('1 selected'), findsOneWidget);
 
       // Tap close/cancel
       await tester.tap(find.byIcon(Icons.close));
@@ -2156,14 +2200,15 @@ void main() {
 
       // Back to normal mode
       expect(find.text('SESSIONS'), findsOneWidget);
-      expect(find.text('0 selected'), findsNothing);
+      expect(find.text('1 selected'), findsNothing);
     });
 
     testWidgets('checkboxes appear in select mode', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.byType(Checkbox), findsNothing);
 
-      await tester.tap(find.byIcon(Icons.checklist));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
       await tester.pump();
 
       // Should have checkboxes for each session (3 in testSessions)
@@ -2172,25 +2217,26 @@ void main() {
 
     testWidgets('tapping session in select mode toggles checkbox', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.tap(find.byIcon(Icons.checklist));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
       await tester.pump();
-
-      // Tap first session
-      await tester.tap(find.text('web1'));
-      await tester.pump();
-
       expect(find.text('1 selected'), findsOneWidget);
 
-      // Tap again to deselect
-      await tester.tap(find.text('web1'));
+      // Tap another session to select it too
+      await tester.tap(find.text('staging'));
       await tester.pump();
+      expect(find.text('2 selected'), findsOneWidget);
 
-      expect(find.text('0 selected'), findsOneWidget);
+      // Tap again to deselect
+      await tester.tap(find.text('staging'));
+      await tester.pump();
+      expect(find.text('1 selected'), findsOneWidget);
     });
 
     testWidgets('Select All selects all sessions', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.tap(find.byIcon(Icons.checklist));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.select_all));
@@ -2201,11 +2247,8 @@ void main() {
 
     testWidgets('Delete shows confirm dialog', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.tap(find.byIcon(Icons.checklist));
-      await tester.pump();
-
-      // Select one session
-      await tester.tap(find.text('web1'));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
       await tester.pump();
 
       // Tap delete
@@ -2218,10 +2261,8 @@ void main() {
 
     testWidgets('Move shows folder dialog', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.tap(find.byIcon(Icons.checklist));
-      await tester.pump();
-
-      await tester.tap(find.text('staging'));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('3');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.drive_file_move));
@@ -2232,12 +2273,11 @@ void main() {
 
     testWidgets('Delete confirm deletes sessions and exits select mode', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.tap(find.byIcon(Icons.checklist));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
       await tester.pump();
 
-      // Select sessions
-      await tester.tap(find.text('web1'));
-      await tester.pump();
+      // Select another session
       await tester.tap(find.text('staging'));
       await tester.pump();
       expect(find.text('2 selected'), findsOneWidget);
@@ -2256,10 +2296,8 @@ void main() {
 
     testWidgets('Move confirm moves sessions and exits select mode', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.tap(find.byIcon(Icons.checklist));
-      await tester.pump();
-
-      await tester.tap(find.text('staging'));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('3');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.drive_file_move));
@@ -2275,10 +2313,8 @@ void main() {
 
     testWidgets('Move cancel keeps select mode', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.tap(find.byIcon(Icons.checklist));
-      await tester.pump();
-
-      await tester.tap(find.text('staging'));
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('3');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.drive_file_move));
@@ -2299,23 +2335,27 @@ void main() {
       expect(state.selectMode, isFalse);
       expect(state.selectedIds, isEmpty);
 
-      await tester.tap(find.byIcon(Icons.checklist));
+      state.enterSelectModeWithSession('1');
       await tester.pump();
 
       expect(state.selectMode, isTrue);
+      expect(state.selectedIds, contains('1'));
+    });
 
-      await tester.tap(find.text('web1'));
+    testWidgets('enterSelectModeWithFolder pre-checks folder', (tester) async {
+      await tester.pumpWidget(buildApp());
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithFolder('Production');
       await tester.pump();
 
-      expect(state.selectedIds, contains('1'));
+      expect(state.selectMode, isTrue);
+      expect(state.selectedFolderPaths, contains('Production'));
+      expect(state.selectedIds, isEmpty);
     });
   });
 
   group('SessionPanel — desktop marquee selection', () {
-    testWidgets('Select button hidden on desktop', (tester) async {
-      await tester.pumpWidget(buildApp());
-      expect(find.byIcon(Icons.checklist), findsNothing);
-    });
 
     testWidgets('marquee selection highlights rows without action bar', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -2359,6 +2399,146 @@ void main() {
 
       expect(state.selectedIds, isEmpty);
       expect(state.selectedFolderPaths, isEmpty);
+    });
+  });
+
+  group('SessionPanel — keyboard shortcuts', () {
+    tearDown(() => debugMobilePlatformOverride = null);
+
+    testWidgets('Ctrl+C sets copied session, Ctrl+V triggers duplicate', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Tap a session — wait past double-tap timeout so single-tap fires
+      await tester.tap(find.text('web1'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(panelState.focusedSessionId, '1');
+
+      // Copy stores the session ID
+      panelState.copyFocusedSession();
+
+      // Paste duplicates — verify via provider state change
+      panelState.pasteCopiedSession();
+      await tester.pumpAndSettle();
+
+      // The provider should now have 4 sessions (3 original + 1 copy)
+      final container = ProviderScope.containerOf(tester.element(find.byType(SessionPanel)));
+      final updatedSessions = container.read(sessionProvider);
+      expect(updatedSessions.length, 4);
+      expect(updatedSessions.any((s) => s.label.contains('(copy)')), isTrue);
+    });
+
+    testWidgets('Delete key opens delete confirmation for focused session', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('staging'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(state.focusedSessionId, '3');
+
+      state.deleteFocusedSession();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Session'), findsOneWidget);
+    });
+
+    testWidgets('F2 opens edit dialog for focused session', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('web1'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(state.focusedSessionId, '1');
+
+      state.editFocusedSession();
+      await tester.pumpAndSettle();
+
+      // Edit dialog should open with session data
+      expect(find.text('10.0.0.1'), findsWidgets);
+    });
+
+    testWidgets('Delete key ignored when no session focused', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Don't tap any session — no focus
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      // No delete dialog
+      expect(find.textContaining('Delete "'), findsNothing);
+    });
+
+    testWidgets('Ctrl+V ignored when nothing copied', (tester) async {
+      debugMobilePlatformOverride = false;
+      final sessions = [
+        Session(id: '1', label: 'only', folder: '', server: const ServerAddress(host: '1.2.3.4', user: 'u'), auth: const SessionAuth(authType: AuthType.password)),
+      ];
+      await tester.pumpWidget(buildApp(sessions: sessions));
+      await tester.pumpAndSettle();
+
+      // Ctrl+V without prior Ctrl+C
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Still just one session
+      expect(find.textContaining('(copy)'), findsNothing);
+    });
+  });
+
+  group('SessionPanel — sidebar footer', () {
+    testWidgets('footer shows saved count with dns icon', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.text('3'), findsOneWidget);
+      expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
+    });
+
+    testWidgets('footer shows active count with wifi icon', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.byIcon(Icons.wifi), findsOneWidget);
+    });
+
+    testWidgets('footer shows tab count with tab icon', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
+    });
+
+    testWidgets('footer has saved left, active and tabs right',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      final savedRight =
+          tester.getTopRight(find.byIcon(Icons.dns_outlined));
+      final wifiLeft = tester.getTopLeft(find.byIcon(Icons.wifi));
+      expect(wifiLeft.dx, greaterThan(savedRight.dx));
+    });
+
+    testWidgets('footer shows tooltips on indicators', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.byTooltip('Saved sessions'), findsOneWidget);
+      expect(find.byTooltip('Active connections'), findsOneWidget);
+      expect(find.byTooltip('Open tabs'), findsOneWidget);
+    });
+
+    testWidgets('footer updates when sessions change', (tester) async {
+      await tester.pumpWidget(buildApp(sessions: []));
+      final textWidgets = tester.widgetList<Text>(find.text('0'));
+      // 3 zeros: saved=0, active=0, tabs=0.
+      expect(textWidgets.length, 3);
     });
   });
 }

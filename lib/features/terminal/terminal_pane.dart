@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -126,6 +127,14 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   }
 
   @override
+  void didUpdateWidget(covariant TerminalPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isFocused && !widget.isFocused) {
+      _terminalController.clearSelection();
+    }
+  }
+
+  @override
   void dispose() {
     _shellConn?.close();
     _terminalController.dispose();
@@ -155,38 +164,37 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
 
-    final Border? border;
-    if (!widget.hasMultiplePanes) {
-      border = null;
-    } else if (widget.isFocused) {
-      border = Border.all(color: AppTheme.accent, width: 1.0);
-    } else {
-      border = Border.all(color: AppTheme.bg0, width: 1.0);
-    }
-
+    // No border on panes — the 4px divider in TilingView separates them.
     return GestureDetector(
       onTap: widget.onFocused,
-      child: Container(
-        decoration: border != null ? BoxDecoration(border: border) : null,
-        child: CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): toggleSearch,
-            const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
-          },
-          child: Column(
-            children: [
-              ValueListenableBuilder<bool>(
-                valueListenable: _showSearch,
-                builder: (context, show, _) {
-                  if (!show) return const SizedBox.shrink();
-                  return TerminalSearchBar(
-                    terminal: _terminal,
-                    terminalController: _terminalController,
-                    onClose: _closeSearch,
-                  );
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): toggleSearch,
+          const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
+        },
+        child: Column(
+          children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: _showSearch,
+              builder: (context, show, _) {
+                if (!show) return const SizedBox.shrink();
+                return TerminalSearchBar(
+                  terminal: _terminal,
+                  terminalController: _terminalController,
+                  onClose: _closeSearch,
+                );
+              },
+            ),
+            Expanded(
+              // Listener intercepts right-click before xterm's gesture
+              // detector, so the context menu works even when the terminal
+              // is in mouse mode (e.g. htop, vim).
+              child: Listener(
+                onPointerDown: (event) {
+                  if (event.buttons == kSecondaryButton) {
+                    _showContextMenu(context, event.position);
+                  }
                 },
-              ),
-              Expanded(
                 child: TerminalView(
                   _terminal,
                   controller: _terminalController,
@@ -224,11 +232,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                     fontSize: fontSize,
                     fontFamily: 'JetBrains Mono',
                   ),
-                  onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

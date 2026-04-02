@@ -112,11 +112,12 @@ void main() {
       await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Name'), findsOneWidget);
-      expect(find.text('Local'), findsOneWidget);
-      expect(find.text('Remote'), findsOneWidget);
-      expect(find.text('Size'), findsOneWidget);
-      expect(find.text('Duration'), findsOneWidget);
+      expect(find.textContaining('Name'), findsOneWidget);
+      expect(find.textContaining('Local'), findsOneWidget);
+      expect(find.textContaining('Remote'), findsOneWidget);
+      expect(find.textContaining('Size'), findsOneWidget);
+      // Time column has default sort arrow (descending)
+      expect(find.textContaining('Time'), findsOneWidget);
     });
 
     testWidgets('shows "No transfers yet" when expanded with empty history', (tester) async {
@@ -509,6 +510,138 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('10'), findsWidgets);
+    });
+
+    testWidgets('column headers have resizable drag handles', (tester) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      // Find column resize handles (resizeColumn cursor)
+      final resizeHandles = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
+      );
+      // 4 column dividers: Local, Remote, Size, Time
+      expect(resizeHandles, findsNWidgets(4));
+    });
+
+    testWidgets('dragging column handle resizes column', (tester) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      final resizeHandles = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
+      );
+      // Drag first handle (before Local column)
+      await tester.drag(resizeHandles.first, const Offset(30, 0));
+      await tester.pumpAndSettle();
+
+      // Panel should still render properly
+      expect(find.text('Name'), findsOneWidget);
+    });
+
+    testWidgets('clicking column header toggles sort', (tester) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'alpha.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/alpha.txt',
+          targetPath: '/remote/alpha.txt',
+          status: TransferStatus.completed,
+          sizeBytes: 100,
+          createdAt: DateTime(2024, 1, 1),
+        ),
+        HistoryEntry(
+          id: '2',
+          name: 'beta.txt',
+          direction: TransferDirection.download,
+          sourcePath: '/remote/beta.txt',
+          targetPath: '/local/beta.txt',
+          status: TransferStatus.completed,
+          sizeBytes: 200,
+          createdAt: DateTime(2024, 1, 2),
+        ),
+      ];
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      // Default sort is Time descending — Name has no arrow
+      expect(find.text('Name'), findsOneWidget);
+
+      // Click Name header to sort by name
+      await tester.tap(find.text('Name'));
+      await tester.pumpAndSettle();
+
+      // Name should now show ascending arrow
+      expect(find.textContaining('Name'), findsOneWidget);
+      expect(find.textContaining('↑'), findsOneWidget);
+
+      // Click Name again to reverse
+      await tester.tap(find.textContaining('Name'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('↓'), findsOneWidget);
+    });
+
+    testWidgets('shows timestamp in Time column for history entry', (tester) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'timed.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/timed.txt',
+          targetPath: '/remote/timed.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime(2024, 3, 15, 14, 30),
+          startedAt: DateTime(2024, 3, 15, 14, 30),
+          endedAt: DateTime(2024, 3, 15, 14, 30, 5),
+        ),
+      ];
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      // Should show formatted timestamp with duration
+      expect(find.textContaining('2024-03-15'), findsOneWidget);
+      expect(find.textContaining('5s'), findsOneWidget);
+    });
+
+    testWidgets('column dividers visible in expanded rows', (tester) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'file.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/file.txt',
+          targetPath: '/remote/file.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      // Column dividers are 10px wide SizedBoxes containing a 1px Container
+      // Each history row has 4 dividers (before Local, Remote, Size, Time)
+      // Plus header has 4 resize handles
+      expect(find.text('file.txt'), findsOneWidget);
     });
 
     testWidgets('does not show clear history button when collapsed', (tester) async {

@@ -1,3 +1,5 @@
+import 'dart:io' show exit;
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/connection/connection.dart';
 import 'core/deeplink/deeplink_handler.dart';
+import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
 import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
@@ -45,10 +48,25 @@ import 'utils/platform.dart' as plat;
 /// (e.g., host key verification during SSH handshake).
 final navigatorKey = GlobalKey<NavigatorState>();
 
+/// Single-instance lock — kept alive for the process lifetime.
+/// The OS releases the file lock automatically on exit (even on crash).
+@visibleForTesting
+SingleInstance? singleInstanceLock;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppLogger.instance.init();
   AppLogger.instance.log('App starting', name: 'App');
+
+  if (plat.isDesktopPlatform) {
+    singleInstanceLock = SingleInstance();
+    final acquired = await singleInstanceLock!.acquire();
+    if (!acquired) {
+      runApp(const _AlreadyRunningApp());
+      return;
+    }
+  }
+
   runApp(const ProviderScope(child: LetsFLUTsshApp()));
 }
 
@@ -444,12 +462,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         isNarrow: isNarrow,
         inSettings: inSettings,
         activeTab: activeTab,
+        showTabs: !inSettings && tabState.tabs.isNotEmpty,
       ),
       sidebar: sidebar,
       sidebarOpen: _sidebarOpen,
       useDrawer: isNarrow,
       body: body,
-      statusBar: inSettings ? null : _StatusBar(tabState: tabState),
+      statusBar: null,
     );
   }
 
@@ -462,7 +481,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         : const WelcomeScreen();
     return Column(
       children: [
-        if (tabState.tabs.isNotEmpty) const AppTabBar(),
         if (activeTab != null)
           _ConnectionBar(
             activeTab: activeTab,
@@ -482,6 +500,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     required bool isNarrow,
     required bool inSettings,
     required TabEntry? activeTab,
+    bool showTabs = false,
   }) {
     final canSplit = !inSettings && activeTab?.kind == TabKind.terminal;
     return _Toolbar(
@@ -507,6 +526,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           : null,
       onSettings: _toggleSettings,
       inSettings: inSettings,
+      tabBar: showTabs ? const AppTabBar(embedded: true) : null,
     );
   }
 
@@ -649,6 +669,7 @@ class _Toolbar extends StatelessWidget {
   final VoidCallback? onSplitHorizontal;
   final VoidCallback onSettings;
   final bool inSettings;
+  final Widget? tabBar;
 
   const _Toolbar({
     required this.sidebarOpen,
@@ -659,6 +680,7 @@ class _Toolbar extends StatelessWidget {
     this.onSplitHorizontal,
     required this.onSettings,
     this.inSettings = false,
+    this.tabBar,
   });
 
   @override
@@ -683,7 +705,10 @@ class _Toolbar extends StatelessWidget {
                 ? 'Hide Sidebar (Ctrl+B)'
                 : 'Show Sidebar (Ctrl+B)',
           ),
-        const Spacer(),
+        if (tabBar != null)
+          Expanded(child: tabBar!)
+        else
+          const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
             icon: Icons.vertical_split,
@@ -717,74 +742,6 @@ class _Divider extends StatelessWidget {
       height: 16,
       margin: const EdgeInsets.symmetric(horizontal: 4),
       color: Theme.of(context).colorScheme.outlineVariant,
-    );
-  }
-}
-
-class _StatusBar extends ConsumerWidget {
-  final TabState tabState;
-
-  const _StatusBar({required this.tabState});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final dimColor = scheme.onSurface.withValues(alpha: 0.45);
-
-    return Container(
-      height: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
-        border: Border(
-          top: BorderSide(color: theme.dividerColor),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Spacer(),
-          _ActiveCount(dimColor: dimColor),
-          const SizedBox(width: 12),
-          Text(
-            '${tabState.tabs.length} tabs',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: AppFonts.xs,
-              color: dimColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActiveCount extends ConsumerWidget {
-  final Color dimColor;
-
-  const _ActiveCount({required this.dimColor});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final connections = ref.watch(connectionsProvider).value ?? [];
-    final activeCount = connections.where((c) => c.isConnected).length;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.wifi, size: 10,
-            color: activeCount > 0 ? AppTheme.green : dimColor),
-        const SizedBox(width: 4),
-        Text(
-          '$activeCount active',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: AppFonts.xs,
-            color: dimColor,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -882,6 +839,39 @@ class _ConnectionBar extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(fontFamily: 'Inter', fontSize: AppFonts.xs, fontWeight: FontWeight.w500, color: btnColor, height: 1.0),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Minimal app shown when another instance is already running.
+class _AlreadyRunningApp extends StatelessWidget {
+  const _AlreadyRunningApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(useMaterial3: true),
+      home: Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.block, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'Another instance of LetsFLUTssh is already running.',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => exit(0),
+                child: const Text('OK'),
               ),
             ],
           ),

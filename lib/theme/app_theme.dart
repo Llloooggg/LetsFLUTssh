@@ -59,15 +59,15 @@ abstract final class AppTheme {
   static bool get isDark => _brightness == Brightness.dark;
 
   // ── Public brightness-aware colors ──
-  static Color get bg0 => isDark ? _bg0 : const Color(0xFFE8E8E8);
+  static Color get bg0 => isDark ? _bg0 : const Color(0xFFDCDCDD);
   static Color get bg1 => isDark ? _bg1 : _lightSurface;
   static Color get bg2 => isDark ? _bg2 : _lightBg;
   static Color get bg3 => isDark ? _bg3 : _lightSelection;
   static Color get bg4 => isDark ? _bg4 : _lightBorder;
 
   static Color get fg       => isDark ? _fg : _lightFg;
-  static Color get fgDim    => isDark ? _fgDim : _lightGutter;
-  static Color get fgFaint  => isDark ? _fgFaint : const Color(0xFFB0B0B4);
+  static Color get fgDim    => isDark ? _fgDim : const Color(0xFF696C77);
+  static Color get fgFaint  => isDark ? _fgFaint : const Color(0xFF8C8F96);
   static Color get fgBright => isDark ? _fgBright : const Color(0xFF232529);
 
   static Color get accent => isDark ? _accent : _lightBlue;
@@ -79,11 +79,11 @@ abstract final class AppTheme {
   static Color get cyan   => isDark ? _cyan : const Color(0xFF0184BC);
   static Color get purple => isDark ? _purple : _lightPurple;
 
-  static Color get border      => isDark ? _border : _lightBorder;
-  static Color get borderLight => isDark ? _borderLight : _lightSelection;
-  static Color get selection   => isDark ? _selectionColor : const Color(0x1F4078F2);
-  static Color get hover       => isDark ? _hoverColor : const Color(0x08000000);
-  static Color get active      => isDark ? _activeColor : const Color(0x0F000000);
+  static Color get border      => isDark ? _border : const Color(0xFFC4C4C6);
+  static Color get borderLight => isDark ? _borderLight : _lightBorder;
+  static Color get selection   => isDark ? _selectionColor : const Color(0x2A4078F2);
+  static Color get hover       => isDark ? _hoverColor : const Color(0x12000000);
+  static Color get active      => isDark ? _activeColor : const Color(0x1A000000);
 
   // ── Section border helpers ──
   // Brightness-aware single-side borders for container edges (headers,
@@ -511,7 +511,7 @@ abstract final class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: _lightSurface,
-        indicatorColor: _lightBlue.withValues(alpha: 0.15),
+        indicatorColor: _lightBlue.withValues(alpha: 0.2),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return const IconThemeData(color: _lightBlue);
@@ -542,7 +542,7 @@ abstract final class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: Colors.white,
-        selectedColor: _lightBlue.withValues(alpha: 0.15),
+        selectedColor: _lightBlue.withValues(alpha: 0.2),
         labelStyle: const TextStyle(color: _lightFg),
         secondaryLabelStyle: const TextStyle(color: _lightBlue),
         side: const BorderSide(color: _lightBorder),
@@ -551,7 +551,7 @@ abstract final class AppTheme {
         checkmarkColor: _lightBlue,
       ),
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(const Color(0x669D9D9F)),
+        thumbColor: WidgetStateProperty.all(const Color(0x88888C96)),
         radius: Radius.zero,
       ),
       iconButtonTheme: IconButtonThemeData(

@@ -99,6 +99,7 @@ lib/
 │   ├── config/                       # App configuration
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
+│   ├── single_instance/              # Single-instance lock (desktop)
 │   └── update/                       # Update checking
 ├── features/                         # UI modules
 │   ├── terminal/                     # Terminal with tiling
@@ -109,6 +110,7 @@ lib/
 │   └── mobile/                       # Mobile version (bottom nav)
 ├── providers/                        # Riverpod providers (global state)
 ├── widgets/                          # Reusable UI components
+│   ├── status_indicator.dart         # Icon + count indicator with tooltip
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -278,6 +280,16 @@ class TransferManager {
 
 **Cancellation:** Marks the task as cancelled; on the next progress callback invocation the flag is checked and CancelException is thrown.
 
+#### TransferPanel — UI
+
+The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsible bottom panel unified with the file browser table pattern:
+
+- **Resizable columns** — Local, Remote, Size, and Time columns have drag handles (same `colHandle` pattern as `FilePane`)
+- **Column dividers** — Vertical 1px dividers between columns (same `_colDivider` as `FileRow`)
+- **Sorting** — Click column headers to sort history entries. Default: Time descending. Enum: `TransferSortColumn` (name, local, remote, size, time)
+- **Time column** — Replaces old Duration column. Shows `formatTimestamp` + `(formatDuration)` for completed entries. Tooltip shows created/started/ended/duration breakdown
+- **Left-aligned sizes** — Size column uses default left alignment (no `textAlign: TextAlign.right`)
+
 ---
 
 ### 3.4 Session Management (`core/session/`)
@@ -343,6 +355,8 @@ class SessionStore {
 ```
 
 **Safety on load:** If CredentialStore fails to decrypt — skips credential merge instead of overwriting. Prevents loss of encrypted data.
+
+**Save order:** `_save()` writes credentials (encrypted) FIRST, then session metadata (JSON). This prevents a crash from leaving sessions.json ahead of credentials.enc. If credential save fails, session file is still persisted and credentials retry on next save.
 
 #### SessionTree
 
@@ -707,7 +721,58 @@ TerminalPane(connection, paneId)
 
 **Why `hardwareKeyboardOnly: true` on desktop:** xterm TextInputClient is broken on Windows — causes input duplication.
 
-**Focus indicator:** When multiple panes exist, the focused pane has an `AppTheme.accent` border (1 px) while unfocused panes have an `AppTheme.bg0` border (1 px). Single-pane layout has no border. This makes the toolbar split buttons predictable — user always knows which pane will be split.
+**Focus indicator:** No border is drawn on panes — the 4 px divider in `TilingView` already separates them visually. The focused pane is identifiable by the active cursor and toolbar highlight.
+
+**Context menu:** Right-click is handled by a `Listener(onPointerDown:)` wrapping `TerminalView`, not by xterm's `onSecondaryTapUp`. This ensures the context menu works even when the terminal is in mouse mode (htop, vim, etc.), because `Listener` operates at the raw pointer level before xterm's gesture detector can consume the event.
+
+#### Keyboard Shortcuts
+
+Terminal uses `Ctrl+Shift+` prefix to avoid conflicts with terminal escape sequences (Ctrl+C = SIGINT). Other panels use classic shortcuts since they don't contain a terminal.
+
+**Global** (`main.dart` — `CallbackShortcuts`):
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+N | New session dialog |
+| Ctrl+W | Close active tab |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab |
+| Ctrl+B | Toggle sidebar |
+| Ctrl+\\ / Ctrl+Shift+\\ | Split terminal vertical / horizontal |
+| Ctrl+, | Toggle settings |
+
+**Terminal** (`terminal_pane.dart`):
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+Shift+C | Copy selection |
+| Ctrl+Shift+V | Paste clipboard |
+| Ctrl+Shift+F | Toggle search bar |
+| Escape | Close search bar |
+
+**SFTP file browser** (`file_pane.dart` — `Focus.onKeyEvent`):
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+A | Select all files |
+| Ctrl+C | Copy selected entries to SFTP clipboard |
+| Ctrl+V | Paste — transfer clipboard entries to this pane |
+| F2 | Rename (single selection) |
+| F5 | Refresh |
+| Delete | Delete selected files |
+
+SFTP clipboard is managed by `FileBrowserTab` — stores entries + source pane ID. Ctrl+C in local pane → Ctrl+V in remote pane = upload (and vice versa). Separate from session clipboard.
+
+**Session panel** (`session_panel.dart` — `Focus.onKeyEvent`):
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+C | Copy focused session to session clipboard |
+| Ctrl+V | Paste — duplicate copied session |
+| Ctrl+Z / Ctrl+Y | Undo / redo session changes |
+| F2 | Edit focused session |
+| Delete | Delete focused session |
+
+Session clipboard stores a session ID. Ctrl+V duplicates that session via `SessionNotifier.duplicate()`. Independent from SFTP clipboard.
 
 ---
 
@@ -723,7 +788,7 @@ TerminalPane(connection, paneId)
 | `file_row.dart` | `FileRow` | Row in the file table |
 | `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort |
 | `sftp_initializer.dart` | `SFTPInitializer` | SFTP initialization factory (injectable) |
-| `transfer_panel.dart` | `TransferPanel` | Bottom panel: progress + history |
+| `transfer_panel.dart` | `TransferPanel` | Bottom panel: progress + history (resizable columns, sorting, column dividers) |
 | `transfer_helpers.dart` | — | Transfer helper functions |
 | `file_actions.dart` | — | Upload/download/delete/rename/mkdir actions |
 
@@ -781,7 +846,7 @@ class FilePaneController extends ChangeNotifier {
 |------|-------|---------|
 | `session_panel.dart` | `SessionPanel` | Sidebar: tree view + search + actions + bulk select. Header has "New Folder" and "New Connection" buttons |
 | `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data |
-| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form (no folder field — folder is set via sidebar context) |
+| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab always shows all fields (password + key); auth type selector (Password/SSH Key/Both) controls validation: Password requires password, Key requires key file or PEM, Both requires at least one |
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → SSHConfig → ConnectionManager |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session |
@@ -814,7 +879,7 @@ class SessionConnect {
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder; hidden when no tabs are open |
+| `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder; embedded in toolbar on desktop (`embedded: true`), hidden when no tabs are open |
 | `tab_controller.dart` | `TabNotifier` | State: open, close (+ disconnect orphaned), reorder, select |
 | `tab_model.dart` | `TabEntry`, `TabKind` | Tab model (id, label, connection, kind) |
 | `welcome_screen.dart` | `WelcomeScreen` | Minimal empty state — icon, heading, subtitle; no buttons or shortcuts |
@@ -831,6 +896,8 @@ class TabEntry {
 ```
 
 **IndexedStack:** Tabs are rendered via `IndexedStack` — all tabs stay in memory, only the current one is visible. This preserves terminal state when switching tabs.
+
+**Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background (subtle but visible against the surrounding area). All tabs have a `AppTheme.borderLight` right border as separator. Text: `AppTheme.fg` for active, `AppTheme.fgDim` for inactive. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive.
 
 **Connection lifecycle:** When all tabs referencing a connection are closed, `TabNotifier` automatically disconnects the orphaned connection via `ConnectionManager.disconnect()`. This keeps the active session count accurate.
 
@@ -862,6 +929,14 @@ class TabEntry {
 | `ssh_key_sequences.dart` | — | Escape sequences for keys |
 
 **Architectural difference:** Mobile is NOT a responsive version of desktop. It's a separate `features/mobile/` module with different interaction patterns (bottom nav instead of sidebar+tabs, long-press instead of right-click, swipe navigation).
+
+**Mobile session panel interactions:**
+- **Single tap** on session → connects immediately (no double-tap needed)
+- **Long-press** on session → bottom sheet context menu: Terminal, Files, Edit, Duplicate, Move, Delete, **Select**
+- **Long-press** on folder → bottom sheet: New Connection, New Folder, Rename, Delete, **Select**
+- **Select** action in bottom sheet → enters multi-select mode with that item pre-checked. Further taps toggle items. Bulk actions (Select All, Move, Delete, Cancel) in `_SelectActionBar` (height: 36 px, matching `_PanelHeader`). No checklist icon in header — multi-select is entered exclusively through the bottom sheet.
+
+**Nav guard:** Terminal and Files destinations are disabled (dimmed, tap blocked) when no tabs of that type exist. If the user is on Terminal/Files and the last tab closes, auto-switches to Sessions.
 
 **Shared styling with desktop:** Mobile tab chips match desktop's rectangular tab style (top accent bar, colored icons — blue for terminal, yellow for SFTP, connection status dot). SSH↔SFTP companion buttons (`_MobileCompanionButton`) mirror desktop's `_companionButton` styling (colored background, border, icon + label). Active/saved session count is shown only in the global header bar (not duplicated in the session panel footer). The tab chip bar and companion button share a parent `Container` with `AppTheme.bg1` background + bottom border, ensuring consistent background across both elements.
 
@@ -896,6 +971,8 @@ AppShell({
 })
 ```
 Desktop layout shell shared by the main screen and settings. Provides the consistent visual frame: decorated toolbar (surfaceContainerLow + bottom border), resizable sidebar with drag divider, main body area, and optional status bar. On narrow viewports, set `useDrawer: true` to render the sidebar as a pull-out `Drawer` instead of an inline panel.
+
+**Toolbar layout:** `[sidebar toggle | AppTabBar (embedded) | split buttons | settings]`. Tabs are embedded directly in the toolbar row via `AppTabBar(embedded: true)` to save vertical space. When no tabs are open or in settings mode, the tab area is replaced by a `Spacer`.
 
 State class `AppShellState` exposes `sidebarWidth` getter. Sidebar width is managed internally and persists as long as the widget stays mounted.
 
@@ -1085,6 +1162,21 @@ mixin MarqueeMixin<T extends StatefulWidget> on State<T> {
 }
 ```
 
+### StatusIndicator
+
+```dart
+StatusIndicator({
+  required IconData icon,     // Icon to display
+  required int count,         // Numeric count next to the icon
+  required String tooltip,    // Tooltip text on hover
+  Color? iconColor,           // Override icon color (default: dim)
+})
+```
+
+Compact icon + number indicator with tooltip. Used in sidebar footer to display session/connection/tab counts. Reusable for any status bar needing icon + count pairs.
+
+**File:** `lib/widgets/status_indicator.dart`
+
 ---
 
 ## 7. Utilities — Public API Reference
@@ -1165,22 +1257,24 @@ abstract final class AppTheme {
   static void setBrightness(Brightness brightness);
   static bool get isDark;
 
-  // Backgrounds (dark → light)
-  static Color get bg0;     // toolbar, status bar      (dark: #1B1D23)
-  static Color get bg1;     // sidebar, dialogs         (dark: #1E2127)
-  static Color get bg2;     // main content             (dark: #282C34)
-  static Color get bg3;     // inputs, rows             (dark: #2C313A)
-  static Color get bg4;     // hover on bg3             (dark: #333842)
+  // Backgrounds (dark / light)
+  static Color get bg0;     // toolbar, status bar      (#1B1D23 / #DCDCDD)
+  static Color get bg1;     // sidebar, dialogs         (#1E2127 / #F0F0F0)
+  static Color get bg2;     // main content             (#282C34 / #FAFAFA)
+  static Color get bg3;     // inputs, rows             (#2C313A / #E5E5E6)
+  static Color get bg4;     // hover on bg3             (#333842 / #D3D3D3)
 
   // Foreground
-  static Color get fg;       // main text               (dark: #ABB2BF)
-  static Color get fgDim;   // secondary text
-  static Color get fgFaint; // disabled text
-  static Color get fgBright;// emphasized text
+  static Color get fg;       // main text               (#ABB2BF / #383A42)
+  static Color get fgDim;   // secondary text           (#7F848E / #696C77)
+  static Color get fgFaint; // disabled text            (#5C6370 / #8C8F96)
+  static Color get fgBright;// emphasized text           (#CDD3DE / #232529)
 
   // Semantic colors
   static Color get accent, blue, green, red, yellow, orange, cyan, purple;
-  static Color get border, borderLight, selection, hover, active;
+  static Color get border;      // main dividers        (#1B1D23 / #C4C4C6)
+  static Color get borderLight; // inputs, cards        (#2C313A / #D3D3D3)
+  static Color get selection, hover, active;
 
   // Connection status
   static Color connected;          // green
@@ -1360,8 +1454,8 @@ Session {
     user: String
   }
   auth: SessionAuth {
-    authType: AuthType    // password | key | keyWithPassword
-    password: String      // empty if not password auth
+    authType: AuthType    // password | key | keyWithPassword (Both)
+    password: String      // empty if not used
     keyPath: String       // key file path (or ~)
     keyData: String       // PEM text (paste)
     passphrase: String    // for the key
@@ -1470,6 +1564,7 @@ AppConfig {
 | Known hosts | `known_hosts` | No | SSH standard | Yes |
 | Logs | `logs/letsflutssh.log` | No | Text | No |
 | Transfer history | In-memory | N/A | — | — |
+| Instance lock | `app.lock` | No | PID text | No (OS-managed) |
 
 **Location:** `path_provider` → `getApplicationSupportDirectory()`
 - Linux: `~/.local/share/letsflutssh/`
@@ -1499,6 +1594,7 @@ AppConfig {
 | Home directory | `HOME` / `USERPROFILE` | `EXTERNAL_STORAGE` / `/storage/emulated/0` |
 | Drag & drop | desktop_drop + inter-pane | None |
 | Deep links | `app_links` (URL scheme) | `app_links` (URL scheme + file intents) |
+| Single instance | File lock (`app.lock`) | OS-managed natively |
 | Font scaling | UI scale in settings | Pinch-to-zoom terminal |
 
 ### Android specifics
@@ -1527,6 +1623,21 @@ Additionally, internal resizable elements (sidebar, file browser columns, split 
 - **`ClippedRow`** (`widgets/clipped_row.dart`): drop-in `Row` replacement that clips overflow via `Flex(clipBehavior: Clip.hardEdge)`. Used in file browser rows, column headers, breadcrumb paths, connection bar, and transfer panel
 - **Sidebar text** (`_SidebarFooter`, `_PanelHeader`, session tree rows): `Flexible` / `Expanded` with `TextOverflow.ellipsis`
 - **Welcome screen**: `SingleChildScrollView` prevents vertical overflow on small windows
+
+### Single-instance protection (desktop only)
+
+Prevents multiple app instances from running simultaneously, which would corrupt shared config/session files.
+
+**Mechanism:** exclusive file lock via `RandomAccessFile.lock(FileLock.exclusive)` on `app.lock` in the app data directory (`getApplicationSupportDirectory()`). The OS kernel automatically releases the lock when the process exits (even on crash), so there are no stale lock files.
+
+**Flow:**
+1. `main()` → `SingleInstance.acquire()` before `runApp()`
+2. If lock acquired → proceed normally
+3. If lock fails → show `_AlreadyRunningApp` (minimal dialog: "Another instance is already running" + OK button → `exit(0)`)
+
+**Mobile:** skipped — Android/iOS manage single instance natively.
+
+**File:** `core/single_instance/single_instance.dart`
 
 ### Windows specifics
 

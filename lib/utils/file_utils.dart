@@ -15,7 +15,9 @@ Future<void> writeFileAtomic(String path, String content) async {
     await tmp.writeAsString(content);
     restrictFilePermissions(tmp.path);
     await tmp.rename(path);
-  } catch (_) {
+  } catch (e) {
+    AppLogger.instance.log(
+      'Atomic write failed for $path: $e', name: 'FileUtils');
     try { await tmp.delete(); } catch (_) {}
     rethrow;
   }
@@ -30,7 +32,9 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
     await tmp.writeAsBytes(bytes);
     restrictFilePermissions(tmp.path);
     await tmp.rename(path);
-  } catch (_) {
+  } catch (e) {
+    AppLogger.instance.log(
+      'Atomic byte write failed for $path: $e', name: 'FileUtils');
     try { await tmp.delete(); } catch (_) {}
     rethrow;
   }

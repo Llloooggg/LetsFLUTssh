@@ -296,12 +296,13 @@ class _NavItem extends StatefulWidget {
 class _NavItemState extends State<_NavItem> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return HoverRegion(
       onTap: widget.onTap,
       builder: (hovered) {
         final Color bg;
         if (widget.selected) {
-          bg = AppTheme.selection;
+          bg = theme.colorScheme.primary.withValues(alpha: 0.15);
         } else if (hovered) {
           bg = AppTheme.hover;
         } else {
@@ -316,7 +317,7 @@ class _NavItemState extends State<_NavItem> {
               Icon(
                 widget.icon,
                 size: 13,
-                color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+                color: widget.selected ? AppTheme.fg : AppTheme.fgDim,
               ),
               const SizedBox(width: 8),
               Flexible(
@@ -325,8 +326,7 @@ class _NavItemState extends State<_NavItem> {
                   overflow: TextOverflow.ellipsis,
                   style: AppFonts.inter(
                     fontSize: AppFonts.sm,
-                    fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
-                    color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+                    color: widget.selected ? AppTheme.fg : AppTheme.fgDim,
                   ),
                 ),
               ),
@@ -522,18 +522,16 @@ class _ExportImportTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
-        ListTile(
-          leading: const Icon(Icons.upload_file, size: 20),
-          title: const Text('Export Data'),
-          subtitle: const Text('Save sessions, config, and keys to encrypted .lfs file'),
-          contentPadding: EdgeInsets.zero,
+        _ActionTile(
+          icon: Icons.upload_file,
+          title: 'Export Data',
+          subtitle: 'Save sessions, config, and keys to encrypted .lfs file',
           onTap: () => _showExportDialog(context, ref),
         ),
-        ListTile(
-          leading: const Icon(Icons.download, size: 20),
-          title: const Text('Import Data'),
-          subtitle: const Text('Load data from .lfs file'),
-          contentPadding: EdgeInsets.zero,
+        _ActionTile(
+          icon: Icons.download,
+          title: 'Import Data',
+          subtitle: 'Load data from .lfs file',
           onTap: () => _showImportDialog(context, ref),
         ),
       ],
@@ -1134,6 +1132,54 @@ class _SectionHeader extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════
 
 /// Generic settings row: [label Inter 11px fg flex] [control], minHeight 36.
+/// Tappable tile for data actions (export, import, QR) — styled to match
+/// _SettingsRow but with icon, subtitle, and tap handler.
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return HoverRegion(
+      onTap: onTap,
+      builder: (hovered) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        color: hovered ? AppTheme.hover : null,
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: AppTheme.fgDim),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+                  ),
+                  Text(
+                    subtitle,
+                    style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SettingsRow extends StatelessWidget {
   final String label;
   final Widget child;
@@ -1486,11 +1532,10 @@ class _QrExportTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListTile(
-      leading: const Icon(Icons.qr_code, size: 20),
-      title: const Text('Share via QR Code'),
-      subtitle: const Text('Export sessions to QR for scanning by another device'),
-      contentPadding: EdgeInsets.zero,
+    return _ActionTile(
+      icon: Icons.qr_code,
+      title: 'Share via QR Code',
+      subtitle: 'Export sessions to QR for scanning by another device',
       onTap: () => _showQrExport(context, ref),
     );
   }
@@ -1524,11 +1569,10 @@ class _DataPathTile extends StatelessWidget {
       future: getApplicationSupportDirectory(),
       builder: (context, snapshot) {
         final path = snapshot.data?.path ?? '...';
-        return ListTile(
-          leading: const Icon(Icons.folder_special, size: 20),
-          title: const Text('Data Location'),
-          subtitle: Text(path, style: TextStyle(fontSize: AppFonts.md)),
-          contentPadding: EdgeInsets.zero,
+        return _ActionTile(
+          icon: Icons.folder_special,
+          title: 'Data Location',
+          subtitle: path,
           onTap: () {
             Clipboard.setData(ClipboardData(text: path));
             Toast.show(context, message: 'Path copied to clipboard', level: ToastLevel.info);

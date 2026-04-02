@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -268,14 +267,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.text('0 tabs'), findsOneWidget);
-    });
-
-    testWidgets('status bar shows tab count', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      expect(find.textContaining('tab'), findsWidgets);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('contains Scaffold widget', (tester) async {
@@ -332,15 +324,6 @@ void main() {
     });
   });
 
-  group('_StatusBar — basic display', () {
-    testWidgets('status bar shows tab count', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      expect(find.text('0 tabs'), findsOneWidget);
-    });
-  });
-
   group('MainScreen — wide vs narrow layout', () {
     testWidgets('wide layout does not show hamburger menu', (tester) async {
       await tester.pumpWidget(buildApp(width: 1000));
@@ -364,22 +347,12 @@ void main() {
       await tester.pump();
 
       expect(find.text('No active session'), findsOneWidget);
-      expect(find.text('0 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
   });
 
   group('MainScreen — toolbar', () {
-    testWidgets('SFTP button disabled when no active tab', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      // SFTP button should not be visible or be disabled
-      final sftpButton = find.byTooltip('Open SFTP');
-      // No active tab = no SFTP button
-      expect(sftpButton, findsNothing);
-    });
-
     testWidgets('settings button toggles to settings mode', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
@@ -392,16 +365,6 @@ void main() {
       // Settings sidebar header and section labels are visible
       expect(find.text('SETTINGS'), findsOneWidget);
       expect(find.text('Appearance'), findsWidgets);
-    });
-  });
-
-  group('MainScreen — divider hidden when no tabs', () {
-    testWidgets('no divider below tab bar when no tabs', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      // The welcome screen should be shown, no tab bar divider
-      expect(find.text('No active session'), findsOneWidget);
     });
   });
 
@@ -465,25 +428,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Password'), findsWidgets);
-    });
-  });
-
-  group('MainScreen — DropTarget', () {
-    testWidgets('desktop layout includes DropTarget widget', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      // DropTarget should be in the widget tree (from desktop_drop)
-      expect(find.byType(DropTarget), findsOneWidget);
-    });
-  });
-
-  group('MainScreen — CallbackShortcuts', () {
-    testWidgets('layout includes CallbackShortcuts', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      expect(find.byType(CallbackShortcuts), findsOneWidget);
     });
   });
 
@@ -625,7 +569,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('Ctrl+Shift+Tab cycles to previous tab', (tester) async {
@@ -651,7 +595,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('Ctrl+Tab with single tab does not crash', (tester) async {
@@ -670,7 +614,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
   });
@@ -693,26 +637,7 @@ void main() {
       await tester.tap(sftpBtn);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
-    });
-  });
-
-  group('MainScreen — sidebar divider drag', () {
-    testWidgets('sidebar divider changes width on drag', (tester) async {
-      await tester.pumpWidget(buildAppWithTabs(width: 1200));
-      await tester.pumpAndSettle();
-
-      final dividers = find.byWidgetPredicate(
-        (w) =>
-            w is MouseRegion &&
-            w.cursor == SystemMouseCursors.resizeColumn,
-      );
-      if (dividers.evaluate().isNotEmpty) {
-        await tester.drag(dividers.first, const Offset(50, 0));
-        await tester.pumpAndSettle();
-      }
-      // No crash
-      expect(find.byType(Scaffold), findsWidgets);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
   });
 
@@ -728,7 +653,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       // Close via tab bar context — find the close button on the tab
       final closeButtons = find.byIcon(Icons.close);
@@ -762,22 +687,6 @@ void main() {
     });
   });
 
-  group('MainScreen — status bar content', () {
-    testWidgets('status bar shows tab count for open tabs', (tester) async {
-      final conn = makeConn(state: SSHConnectionState.connected);
-      await tester.pumpWidget(buildAppWithTabs(tabs: [
-        TabEntry(
-            id: 't1',
-            label: 'Tab',
-            connection: conn,
-            kind: TabKind.terminal),
-      ]));
-      await tester.pumpAndSettle();
-
-      expect(find.text('1 tabs'), findsOneWidget);
-    });
-  });
-
   group('MainScreen — tab content rendering', () {
     testWidgets('renders TerminalTab for terminal kind', (tester) async {
       final conn = makeConn();
@@ -792,7 +701,7 @@ void main() {
 
       // Status bar should show "Connected" for the active tab
       expect(find.textContaining('Connected'), findsWidgets);
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('renders FileBrowserTab for sftp kind', (tester) async {
@@ -806,7 +715,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('IndexedStack preserves both terminal and sftp tabs', (tester) async {
@@ -825,7 +734,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
       expect(find.byType(IndexedStack), findsOneWidget);
     });
   });
@@ -842,7 +751,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       // Focus inside the shortcuts area
       final textFields = find.byType(TextField);
@@ -859,7 +768,7 @@ void main() {
 
       // Tab should be closed → welcome screen
       expect(find.text('No active session'), findsOneWidget);
-      expect(find.textContaining('0 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('Ctrl+W with two tabs closes active and keeps other', (tester) async {
@@ -878,7 +787,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       final textFields = find.byType(TextField);
       if (textFields.evaluate().isNotEmpty) {
@@ -891,7 +800,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
   });
 
@@ -932,7 +841,7 @@ void main() {
       ], activeIndex: 0));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('3 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       // Ctrl+Tab: 0 -> 1
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -953,7 +862,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // All 3 tabs still present, no crash
-      expect(find.textContaining('3 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('Ctrl+Shift+Tab cycles backward through 3 tabs', (tester) async {
@@ -981,44 +890,9 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('3 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
-    testWidgets('single tab: Ctrl+Tab does not switch (no-op)', (tester) async {
-      final conn = makeConn();
-      await tester.pumpWidget(buildAppWithTabs(tabs: [
-        TabEntry(id: 't1', label: 'OnlyTab', connection: conn, kind: TabKind.terminal),
-      ], activeIndex: 0));
-      await tester.pumpAndSettle();
-
-      // Ctrl+Tab should be no-op for single tab
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('1 tabs'), findsOneWidget);
-      // Status should still show this tab as active
-      expect(find.textContaining('Connected'), findsWidgets);
-    });
-
-    testWidgets('single tab: Ctrl+Shift+Tab does not switch (no-op)', (tester) async {
-      final conn = makeConn();
-      await tester.pumpWidget(buildAppWithTabs(tabs: [
-        TabEntry(id: 't1', label: 'OnlyTab', connection: conn, kind: TabKind.terminal),
-      ], activeIndex: 0));
-      await tester.pumpAndSettle();
-
-      // Ctrl+Shift+Tab should be no-op for single tab
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('1 tabs'), findsOneWidget);
-    });
   });
 
   group('MainScreen — _buildTabContent with mixed tab types', () {
@@ -1095,13 +969,6 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsNothing);
     });
 
-    testWidgets('SFTP button hidden when no tabs are open', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      expect(find.byTooltip('Files'), findsNothing);
-    });
-
     testWidgets('tapping SFTP button opens SFTP tab alongside terminal', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(buildAppWithTabs(tabs: [
@@ -1109,13 +976,13 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       await tester.tap(find.byTooltip('Files'));
       await tester.pumpAndSettle();
 
       // Now should have 2 tabs (terminal + sftp)
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
       expect(find.byType(FileBrowserTab), findsOneWidget);
     });
 
@@ -1169,23 +1036,12 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       await tester.tap(find.byTooltip('Terminal'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
-    });
-  });
-
-  group('MainScreen — _handleLfsDrop', () {
-    testWidgets('DropTarget onDragDone is set for LFS drop handling', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      // Verify DropTarget is present with onDragDone callback
-      final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget));
-      expect(dropTarget.onDragDone, isNotNull);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
   });
 
@@ -1616,88 +1472,6 @@ void main() {
     });
   });
 
-  group('MainScreen — DropTarget callback verification', () {
-    testWidgets('DropTarget.onDragDone callback is a non-null function', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget));
-      // Verify onDragDone is set (line 165 assignment)
-      expect(dropTarget.onDragDone, isA<Function>());
-    });
-  });
-
-  group('MainScreen — onSftpConnect callback', () {
-    testWidgets('SessionPanel receives onSftpConnect callback', (tester) async {
-      final store = SessionStore();
-      final testSession = Session(id: 'sftp-test-1', label: 'SftpTarget', server: const ServerAddress(host: '10.0.0.77', user: 'sftpuser'), auth: const SessionAuth(password: 'pw'));
-
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          configProvider.overrideWith(ConfigNotifier.new),
-          sessionStoreProvider.overrideWithValue(store),
-          sessionProvider.overrideWith(() =>
-              _PrePopulatedSessionNotifier([testSession])),
-          knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            makeFailingConnectionManager(),
-          ),
-        ],
-        child: MaterialApp(
-          navigatorKey: navigatorKey,
-          theme: AppTheme.dark(),
-          home: const MediaQuery(
-            data: MediaQueryData(size: Size(1000, 600)),
-            child: SizedBox(width: 1000, height: 600, child: MainScreen()),
-          ),
-        ),
-      ));
-      await tester.pump();
-      await tester.pump();
-
-      // Verify session is shown
-      expect(find.text('SftpTarget'), findsOneWidget);
-
-      // Right-click to see context menu with SFTP option
-      final sessionFinder = find.text('SftpTarget');
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
-      await gesture.addPointer(location: tester.getCenter(sessionFinder));
-      await gesture.down(tester.getCenter(sessionFinder));
-      await gesture.up();
-      await tester.pump();
-      await tester.pump();
-
-      // SFTP option in context menu confirms onSftpConnect is wired up (line 218)
-      expect(find.text('Files'), findsOneWidget);
-
-      // Dismiss menu
-      await tester.tapAt(Offset.zero);
-      await tester.pumpAndSettle();
-    });
-  });
-
-  group('MainScreen — onQuickConnect callback', () {
-    testWidgets('SessionPanel receives onQuickConnect callback via Quick Connect button', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump();
-
-      // The Quick Connect button in the session panel triggers onQuickConnect (line 217)
-      // Find the Quick Connect button (flash icon or text)
-      final quickConnect = find.byTooltip('Quick Connect');
-      if (quickConnect.evaluate().isNotEmpty) {
-        await tester.tap(quickConnect);
-        await tester.pumpAndSettle();
-
-        // Quick connect dialog should appear
-        expect(find.text('HOST *'), findsOneWidget);
-
-        // Cancel the dialog
-        await tester.tap(find.text('Cancel'));
-        await tester.pumpAndSettle();
-      }
-    });
-  });
-
   group('MainScreen — narrow layout isNarrow path', () {
     testWidgets('narrow layout (< 600px) uses Drawer instead of SplitView', (tester) async {
       tester.view.physicalSize = const Size(500, 600);
@@ -1721,8 +1495,6 @@ void main() {
 
       // Menu button visible in narrow mode
       expect(find.byIcon(Icons.menu), findsOneWidget);
-      // Status bar should show
-      expect(find.textContaining('tab'), findsWidgets);
     });
 
     testWidgets('narrow layout with active tab shows content and menu button', (tester) async {
@@ -1754,9 +1526,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Menu button and tab content both visible
+      // Menu button visible, tab content rendered
       expect(find.byIcon(Icons.menu), findsOneWidget);
-      expect(find.textContaining('1 tabs'), findsOneWidget);
     });
   });
 

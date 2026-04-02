@@ -7,6 +7,9 @@ import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/clipped_row.dart';
 
+/// Sort columns for the transfer table.
+enum TransferSortColumn { name, local, remote, size, time }
+
 /// Collapsible bottom panel showing transfer progress and history.
 class TransferPanel extends ConsumerStatefulWidget {
   const TransferPanel({super.key});
@@ -19,6 +22,16 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
   bool _expanded = false;
   bool _wasRunning = false;
   double _panelHeight = 200;
+
+  // Resizable column widths
+  double _localColWidth = 140;
+  double _remoteColWidth = 140;
+  double _sizeColWidth = 56;
+  double _timeColWidth = 105;
+
+  // Sorting
+  TransferSortColumn _sortColumn = TransferSortColumn.time;
+  bool _sortAscending = false;
 
   @override
   Widget build(BuildContext context) {
@@ -168,21 +181,75 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             ),
           );
         }
-        final totalCount = active.length + history.length;
+        final sorted = _sortHistory(history);
+        final totalCount = active.length + sorted.length;
         return ListView.builder(
           itemCount: totalCount,
           itemExtent: 24,
           itemBuilder: (context, index) {
             if (index < active.length) {
-              return _ActiveRow(entry: active[index]);
+              return _ActiveRow(
+                entry: active[index],
+                localWidth: _localColWidth,
+                remoteWidth: _remoteColWidth,
+                sizeWidth: _sizeColWidth,
+                timeWidth: _timeColWidth,
+              );
             }
-            return _HistoryRow(entry: history[index - active.length]);
+            return _HistoryRow(
+              entry: sorted[index - active.length],
+              localWidth: _localColWidth,
+              remoteWidth: _remoteColWidth,
+              sizeWidth: _sizeColWidth,
+              timeWidth: _timeColWidth,
+            );
           },
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
     );
+  }
+
+  List<HistoryEntry> _sortHistory(List<HistoryEntry> history) {
+    final sorted = List<HistoryEntry>.from(history);
+    sorted.sort((a, b) {
+      int cmp;
+      switch (_sortColumn) {
+        case TransferSortColumn.name:
+          cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case TransferSortColumn.local:
+          final aLocal = a.direction == TransferDirection.upload
+              ? a.sourcePath : a.targetPath;
+          final bLocal = b.direction == TransferDirection.upload
+              ? b.sourcePath : b.targetPath;
+          cmp = aLocal.compareTo(bLocal);
+        case TransferSortColumn.remote:
+          final aRemote = a.direction == TransferDirection.upload
+              ? a.targetPath : a.sourcePath;
+          final bRemote = b.direction == TransferDirection.upload
+              ? b.targetPath : b.sourcePath;
+          cmp = aRemote.compareTo(bRemote);
+        case TransferSortColumn.size:
+          cmp = a.sizeBytes.compareTo(b.sizeBytes);
+        case TransferSortColumn.time:
+          cmp = (a.endedAt ?? a.startedAt ?? a.createdAt)
+              .compareTo(b.endedAt ?? b.startedAt ?? b.createdAt);
+      }
+      return _sortAscending ? cmp : -cmp;
+    });
+    return sorted;
+  }
+
+  void _setSort(TransferSortColumn column) {
+    setState(() {
+      if (_sortColumn == column) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortColumn = column;
+        _sortAscending = true;
+      }
+    });
   }
 
   Widget _buildColumnHeaders() {
@@ -192,21 +259,65 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       color: AppTheme.fgFaint,
     );
 
+    Widget headerCell(String label, TransferSortColumn column, {double? width}) {
+      final isActive = _sortColumn == column;
+      final sortSuffix = isActive ? (_sortAscending ? ' ↑' : ' ↓') : '';
+      return InkWell(
+        onTap: () => _setSort(column),
+        child: SizedBox(
+          width: width,
+          child: Text(
+            '$label$sortSuffix',
+            style: isActive
+                ? style.copyWith(color: AppTheme.accent)
+                : style,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      );
+    }
+
+    Widget colHandle(void Function(double dx) onDrag) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragUpdate: (d) => setState(() => onDrag(d.delta.dx)),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.resizeColumn,
+          child: SizedBox(
+            width: 10,
+            height: 24,
+            child: Center(
+              child: Container(
+                width: 1,
+                height: 14,
+                color: AppTheme.fgFaint.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
-      height: 20,
+      height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      color: AppTheme.bg3,
-      child: ClippedRow(
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(color: AppTheme.bg3),
+      child: Row(
         children: [
           SizedBox(width: 16, child: Text('#', style: style)),
           const SizedBox(width: 4),
           SizedBox(width: 20, child: Text('', style: style)),
           const SizedBox(width: 4),
-          Expanded(flex: 2, child: Text('Name', style: style)),
-          Expanded(flex: 2, child: Text('Local', style: style)),
-          Expanded(flex: 2, child: Text('Remote', style: style)),
-          SizedBox(width: 56, child: Text('Size', style: style, textAlign: TextAlign.right)),
-          SizedBox(width: 50, child: Text('Duration', style: style)),
+          Expanded(child: headerCell('Name', TransferSortColumn.name)),
+          colHandle((dx) => _localColWidth = (_localColWidth + dx).clamp(60, 300)),
+          headerCell('Local', TransferSortColumn.local, width: _localColWidth),
+          colHandle((dx) => _remoteColWidth = (_remoteColWidth + dx).clamp(60, 300)),
+          headerCell('Remote', TransferSortColumn.remote, width: _remoteColWidth),
+          colHandle((dx) => _sizeColWidth = (_sizeColWidth + dx).clamp(40, 150)),
+          headerCell('Size', TransferSortColumn.size, width: _sizeColWidth),
+          colHandle((dx) => _timeColWidth = (_timeColWidth + dx).clamp(60, 200)),
+          headerCell('Time', TransferSortColumn.time, width: _timeColWidth),
         ],
       ),
     );
@@ -214,10 +325,33 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
 
 }
 
+/// Column divider line matching the file browser dividers.
+Widget _colDivider() {
+  return SizedBox(
+    width: 10,
+    child: Center(
+      child: Container(
+        width: 1,
+        color: AppTheme.fgFaint.withValues(alpha: 0.15),
+      ),
+    ),
+  );
+}
+
 class _HistoryRow extends StatelessWidget {
   final HistoryEntry entry;
+  final double localWidth;
+  final double remoteWidth;
+  final double sizeWidth;
+  final double timeWidth;
 
-  const _HistoryRow({required this.entry});
+  const _HistoryRow({
+    required this.entry,
+    required this.localWidth,
+    required this.remoteWidth,
+    required this.sizeWidth,
+    required this.timeWidth,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -229,7 +363,7 @@ class _HistoryRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: ClippedRow(
         children: [
-          // Status icon
+          // Direction icon
           SizedBox(
             width: 16,
             child: Icon(
@@ -250,7 +384,6 @@ class _HistoryRow extends StatelessWidget {
           const SizedBox(width: 4),
           // Name
           Expanded(
-            flex: 2,
             child: Text(
               entry.name,
               style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgDim),
@@ -258,8 +391,9 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           // Local path
-          Expanded(
-            flex: 2,
+          _colDivider(),
+          SizedBox(
+            width: localWidth,
             child: Tooltip(
               message: isUpload ? entry.sourcePath : entry.targetPath,
               child: Text(
@@ -270,8 +404,9 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           // Remote path
-          Expanded(
-            flex: 2,
+          _colDivider(),
+          SizedBox(
+            width: remoteWidth,
             child: Tooltip(
               message: isUpload ? entry.targetPath : entry.sourcePath,
               child: Text(
@@ -282,25 +417,55 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           // Size
+          _colDivider(),
           SizedBox(
-            width: 56,
+            width: sizeWidth,
             child: Text(
               entry.sizeBytes > 0 ? formatSize(entry.sizeBytes) : '',
               style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
-              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Duration
+          // Time
+          _colDivider(),
           SizedBox(
-            width: 50,
-            child: Text(
-              entry.duration != null ? formatDuration(entry.duration!) : '',
-              style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+            width: timeWidth,
+            child: Tooltip(
+              message: _timeTooltip(entry),
+              child: Text(
+                _timeDisplay(entry),
+                style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  static String _timeDisplay(HistoryEntry entry) {
+    final ts = entry.endedAt ?? entry.startedAt ?? entry.createdAt;
+    final dur = entry.duration;
+    if (dur != null) {
+      return '${formatTimestamp(ts)} (${formatDuration(dur)})';
+    }
+    return formatTimestamp(ts);
+  }
+
+  static String _timeTooltip(HistoryEntry entry) {
+    final parts = <String>[];
+    parts.add('Created: ${formatTimestamp(entry.createdAt)}');
+    if (entry.startedAt != null) {
+      parts.add('Started: ${formatTimestamp(entry.startedAt!)}');
+    }
+    if (entry.endedAt != null) {
+      parts.add('Ended: ${formatTimestamp(entry.endedAt!)}');
+    }
+    if (entry.duration != null) {
+      parts.add('Duration: ${formatDuration(entry.duration!)}');
+    }
+    return parts.join('\n');
   }
 
   /// Shorten a path to just the last 2 segments for display.
@@ -316,8 +481,18 @@ class _HistoryRow extends StatelessWidget {
 /// Row for an active or queued transfer.
 class _ActiveRow extends StatelessWidget {
   final ActiveEntry entry;
+  final double localWidth;
+  final double remoteWidth;
+  final double sizeWidth;
+  final double timeWidth;
 
-  const _ActiveRow({required this.entry});
+  const _ActiveRow({
+    required this.entry,
+    required this.localWidth,
+    required this.remoteWidth,
+    required this.sizeWidth,
+    required this.timeWidth,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -354,7 +529,6 @@ class _ActiveRow extends StatelessWidget {
               const SizedBox(width: 4),
               // Name + speed
               Expanded(
-                flex: 2,
                 child: Row(
                   children: [
                     Flexible(
@@ -379,8 +553,9 @@ class _ActiveRow extends StatelessWidget {
                 ),
               ),
               // Local path
-              Expanded(
-                flex: 2,
+              _colDivider(),
+              SizedBox(
+                width: localWidth,
                 child: Tooltip(
                   message: isUpload ? entry.sourcePath : entry.targetPath,
                   child: Text(
@@ -391,8 +566,9 @@ class _ActiveRow extends StatelessWidget {
                 ),
               ),
               // Remote path
-              Expanded(
-                flex: 2,
+              _colDivider(),
+              SizedBox(
+                width: remoteWidth,
                 child: Tooltip(
                   message: isUpload ? entry.targetPath : entry.sourcePath,
                   child: Text(
@@ -403,17 +579,19 @@ class _ActiveRow extends StatelessWidget {
                 ),
               ),
               // Progress
+              _colDivider(),
               SizedBox(
-                width: 56,
+                width: sizeWidth,
                 child: Text(
                   isQueued ? 'Queued' : '${entry.percent.toStringAsFixed(0)}%',
                   style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.accent),
-                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               // Message
+              _colDivider(),
               SizedBox(
-                width: 50,
+                width: timeWidth,
                 child: Text(
                   entry.message,
                   style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),

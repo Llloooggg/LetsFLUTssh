@@ -14,6 +14,8 @@ import '../../widgets/context_menu.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/cross_marquee_controller.dart';
+import '../../widgets/status_indicator.dart';
+import '../tabs/tab_controller.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
@@ -39,6 +41,7 @@ class SessionPanel extends ConsumerStatefulWidget {
 }
 
 class SessionPanelState extends ConsumerState<SessionPanel> {
+  final _focusNode = FocusNode();
   bool _selectMode = false;
   final _selectedIds = <String>{};
   final _selectedFolderPaths = <String>{};
@@ -46,6 +49,15 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   @visibleForTesting
   bool marqueeInProgress = false;
 
+  // Focused session for keyboard shortcuts (single-click selection).
+  String? _focusedSessionId;
+  // Session clipboard — Ctrl+C stores the session ID, Ctrl+V duplicates it.
+  String? _copiedSessionId;
+
+  @visibleForTesting
+  FocusNode get focusNode => _focusNode;
+  @visibleForTesting
+  String? get focusedSessionId => _focusedSessionId;
   @visibleForTesting
   bool get selectMode => _selectMode;
   @visibleForTesting
@@ -72,12 +84,32 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   @visibleForTesting
   void simulateMarqueeEnd() => setState(() => marqueeInProgress = false);
 
-  void _enterSelectMode() {
+  @visibleForTesting
+  void enterSelectModeWithSession(String sessionId) {
+    setState(() {
+      _selectMode = true;
+      _selectedIds
+        ..clear()
+        ..add(sessionId);
+      _selectedFolderPaths.clear();
+    });
+  }
+
+  @visibleForTesting
+  void enterSelectModeWithFolder(String folderPath) {
     setState(() {
       _selectMode = true;
       _selectedIds.clear();
-      _selectedFolderPaths.clear();
+      _selectedFolderPaths
+        ..clear()
+        ..add(folderPath);
     });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
   }
 
   void _exitSelectMode() {
@@ -208,31 +240,85 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   /// Build set of session IDs that have an active connection.
   Set<String> _connectedSessionIds(WidgetRef ref) {
     final connections = ref.watch(connectionsProvider).value ?? [];
-    final activeConfigs = connections
-        .where((c) => c.isConnected)
-        .map((c) => '${c.sshConfig.host}:${c.sshConfig.effectivePort}:${c.sshConfig.user}')
+    return connections
+        .where((c) => c.isConnected && c.sessionId != null)
+        .map((c) => c.sessionId!)
         .toSet();
-    final sessions = ref.watch(sessionProvider);
-    return {
-      for (final s in sessions)
-        if (activeConfigs.contains('${s.server.host}:${s.port}:${s.server.user}'))
-          s.id,
-    };
+  }
+
+  /// Copy the focused session to the clipboard.
+  @visibleForTesting
+  void copyFocusedSession() {
+    if (_focusedSessionId != null) {
+      _copiedSessionId = _focusedSessionId;
+    }
+  }
+
+  /// Paste (duplicate) the copied session.
+  @visibleForTesting
+  void pasteCopiedSession() {
+    if (_copiedSessionId != null) {
+      ref.read(sessionProvider.notifier).duplicate(_copiedSessionId!);
+    }
+  }
+
+  /// Delete the focused session (shows confirmation dialog).
+  @visibleForTesting
+  void deleteFocusedSession() {
+    final id = _focusedSessionId;
+    if (id == null) return;
+    final sessions = ref.read(sessionProvider);
+    final session = sessions.where((s) => s.id == id).firstOrNull;
+    if (session == null) return;
+    _confirmDelete(context, ref, session);
+  }
+
+  /// Edit the focused session (shows edit dialog).
+  @visibleForTesting
+  void editFocusedSession() {
+    final id = _focusedSessionId;
+    if (id == null) return;
+    final sessions = ref.read(sessionProvider);
+    final session = sessions.where((s) => s.id == id).firstOrNull;
+    if (session == null) return;
+    _editSession(context, ref, session);
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final ctrl = HardwareKeyboard.instance.logicalKeysPressed
+    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed
         .intersection({LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.controlRight})
         .isNotEmpty;
-    if (!ctrl) return KeyEventResult.ignored;
 
-    if (event.logicalKey == LogicalKeyboardKey.keyZ) {
-      ref.read(sessionProvider.notifier).undo();
+    if (isCtrl) {
+      if (event.logicalKey == LogicalKeyboardKey.keyZ) {
+        ref.read(sessionProvider.notifier).undo();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyY) {
+        ref.read(sessionProvider.notifier).redo();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyC) {
+        copyFocusedSession();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyV) {
+        pasteCopiedSession();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // Non-modifier shortcuts
+    if (event.logicalKey == LogicalKeyboardKey.delete) {
+      if (_focusedSessionId == null) return KeyEventResult.ignored;
+      deleteFocusedSession();
       return KeyEventResult.handled;
     }
-    if (event.logicalKey == LogicalKeyboardKey.keyY) {
-      ref.read(sessionProvider.notifier).redo();
+    if (event.logicalKey == LogicalKeyboardKey.f2) {
+      if (_focusedSessionId == null) return KeyEventResult.ignored;
+      editFocusedSession();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -248,6 +334,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final scheme = Theme.of(context).colorScheme;
     return Focus(
+      focusNode: _focusNode,
       autofocus: false,
       onKeyEvent: _onKeyEvent,
       child: Container(
@@ -267,7 +354,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           _PanelHeader(
             onAddSession: () => _addSession(context, ref),
             onAddFolder: () => _createFolder(context, ref, ''),
-            onSelect: mobile && !isEmpty ? _enterSelectMode : null,
           ),
           // Search bar
           _SearchBar(
@@ -291,6 +377,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   onToggleFolderSelected: _toggleFolderSelected,
                   crossMarquee: widget.crossMarquee,
                   onSessionDoubleTap: widget.onConnect,
+                  onSessionSelected: (id) {
+                    _focusedSessionId = id;
+                    _focusNode.requestFocus();
+                  },
                   onSessionContextMenu: (session, position) {
                     _showContextMenu(context, ref, session, position);
                   },
@@ -466,6 +556,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 title: const Text('Delete', style: TextStyle(color: AppTheme.disconnected)),
                 onTap: () { Navigator.pop(ctx); _confirmDelete(context, ref, session); },
               ),
+              const AppDivider(),
+              ListTile(
+                leading: const Icon(Icons.checklist),
+                title: const Text('Select'),
+                onTap: () { Navigator.pop(ctx); enterSelectModeWithSession(session.id); },
+              ),
             ],
           ),
         ),
@@ -615,6 +711,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   leading: const Icon(Icons.delete, color: AppTheme.disconnected),
                   title: const Text('Delete Folder', style: TextStyle(color: AppTheme.disconnected)),
                   onTap: () { Navigator.pop(ctx); _confirmDeleteFolder(context, ref, folderPath); },
+                ),
+                const AppDivider(),
+                ListTile(
+                  leading: const Icon(Icons.checklist),
+                  title: const Text('Select'),
+                  onTap: () { Navigator.pop(ctx); enterSelectModeWithFolder(folderPath); },
                 ),
               ],
             ],
@@ -936,12 +1038,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 class _PanelHeader extends StatelessWidget {
   final VoidCallback onAddSession;
   final VoidCallback onAddFolder;
-  final VoidCallback? onSelect;
-
   const _PanelHeader({
     required this.onAddSession,
     required this.onAddFolder,
-    this.onSelect,
   });
 
   @override
@@ -968,13 +1067,6 @@ class _PanelHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (onSelect != null)
-            AppIconButton(
-              icon: Icons.checklist,
-              onTap: onSelect,
-              tooltip: 'Select',
-              size: 18,
-            ),
           AppIconButton(
             icon: Icons.create_new_folder,
             onTap: onAddFolder,
@@ -1014,7 +1106,8 @@ class _SelectActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.1),
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
@@ -1146,20 +1239,38 @@ class _SidebarFooter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final savedCount = ref.watch(sessionProvider).length;
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    final activeCount = connections.where((c) => c.isConnected).length;
+    final tabState = ref.watch(tabProvider);
+    final tabCount = tabState.tabs.length;
 
     final theme = Theme.of(context);
-    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.45);
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
-          Text(
-            '$savedCount saved',
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
+          StatusIndicator(
+            icon: Icons.dns_outlined,
+            count: savedCount,
+            tooltip: 'Saved sessions',
+          ),
+          const Spacer(),
+          StatusIndicator(
+            icon: Icons.wifi,
+            count: activeCount,
+            tooltip: 'Active connections',
+            iconColor: activeCount > 0 ? AppTheme.green : null,
+          ),
+          const SizedBox(width: 10),
+          StatusIndicator(
+            icon: Icons.tab_outlined,
+            count: tabCount,
+            tooltip: 'Open tabs',
           ),
         ],
       ),

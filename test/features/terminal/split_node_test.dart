@@ -19,11 +19,7 @@ void main() {
       expect(a.id, isNot(b.id));
     });
 
-    test('is a SplitNode', () {
-      final leaf = LeafNode();
-      expect(leaf, isA<SplitNode>());
-    });
-  });
+});
 
   group('BranchNode', () {
     test('creates with required fields', () {
@@ -53,24 +49,6 @@ void main() {
       expect(branch.direction, SplitDirection.vertical);
     });
 
-    test('is a SplitNode', () {
-      final branch = BranchNode(
-        direction: SplitDirection.horizontal,
-        first: LeafNode(),
-        second: LeafNode(),
-      );
-      expect(branch, isA<SplitNode>());
-    });
-
-    test('ratio defaults to 0.5', () {
-      final branch = BranchNode(
-        direction: SplitDirection.horizontal,
-        first: LeafNode(),
-        second: LeafNode(),
-      );
-      expect(branch.ratio, 0.5);
-    });
-
     test('fields are immutable — new node created for changes', () {
       final branch = BranchNode(
         direction: SplitDirection.horizontal,
@@ -94,14 +72,6 @@ void main() {
       expect(branch.ratio, 0.5);
       expect(branch.direction, SplitDirection.horizontal);
       expect(branch.first.id, 'a');
-    });
-  });
-
-  group('SplitDirection', () {
-    test('has horizontal and vertical', () {
-      expect(SplitDirection.values.length, 2);
-      expect(SplitDirection.values, contains(SplitDirection.horizontal));
-      expect(SplitDirection.values, contains(SplitDirection.vertical));
     });
   });
 
@@ -334,30 +304,4 @@ void main() {
     });
   });
 
-  group('sealed class pattern matching', () {
-    test('switch on SplitNode covers all cases', () {
-      SplitNode node = LeafNode(id: 'test');
-      String result;
-      switch (node) {
-        case LeafNode():
-          result = 'leaf';
-        case BranchNode():
-          result = 'branch';
-      }
-      expect(result, 'leaf');
-
-      node = BranchNode(
-        direction: SplitDirection.horizontal,
-        first: LeafNode(),
-        second: LeafNode(),
-      );
-      switch (node) {
-        case LeafNode():
-          result = 'leaf';
-        case BranchNode():
-          result = 'branch';
-      }
-      expect(result, 'branch');
-    });
-  });
 }

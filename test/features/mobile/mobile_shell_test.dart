@@ -154,47 +154,28 @@ void main() {
       expect(find.byIcon(Icons.settings), findsAtLeast(1));
     });
 
-    testWidgets('switches to Terminal page on nav tap', (tester) async {
+    testWidgets('Terminal nav tap blocked when no tabs', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Tap Terminal destination
+      // Tap Terminal destination — blocked (no tabs)
       await tester.tap(find.text('Terminal'));
       await tester.pumpAndSettle();
 
-      // Terminal empty state
-      expect(find.text('No active terminals'), findsOneWidget);
-      expect(find.text('Connect from Sessions tab'), findsOneWidget);
-
-      // FAB should not be visible on terminal page
-      expect(find.byType(FloatingActionButton), findsNothing);
+      // Should stay on Sessions page (not switch)
+      expect(find.text('No active terminals'), findsNothing);
     });
 
-    testWidgets('switches to Files page on nav tap', (tester) async {
+    testWidgets('Files nav tap blocked when no tabs', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Tap Files destination
+      // Tap Files destination — blocked (no tabs)
       await tester.tap(find.text('Files'));
       await tester.pumpAndSettle();
 
-      // SFTP empty state
-      expect(find.text('No active file browsers'), findsOneWidget);
-    });
-
-    testWidgets('navigates back to Sessions from Terminal', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-      await tester.pumpAndSettle();
-
-      // Go to Terminal
-      await tester.tap(find.text('Terminal'));
-      await tester.pumpAndSettle();
-      expect(find.text('No active terminals'), findsOneWidget);
-
-      // Go back to Sessions
-      await tester.tap(find.text('Sessions'));
-      await tester.pumpAndSettle();
-      expect(find.byType(IndexedStack), findsOneWidget);
+      // Should stay on Sessions page (not switch)
+      expect(find.text('No active file browsers'), findsNothing);
     });
 
     testWidgets('shows terminal tab chips when tabs exist', (tester) async {
@@ -344,26 +325,28 @@ void main() {
       expect(find.byType(FloatingActionButton), findsNothing);
     });
 
-    testWidgets('SFTP page shows empty state with hint text', (tester) async {
+    testWidgets('SFTP nav is disabled when no SFTP tabs', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
+      // Tap Files — should be blocked (no tabs)
       await tester.tap(find.text('Files'));
       await tester.pumpAndSettle();
 
-      expect(find.text('No active file browsers'), findsOneWidget);
-      expect(find.text('Use "SFTP" from Sessions'), findsOneWidget);
+      // Should remain on Sessions, not Files
+      expect(find.text('No active file browsers'), findsNothing);
     });
 
-    testWidgets('terminal page shows empty state with hint text', (tester) async {
+    testWidgets('Terminal nav is disabled when no terminal tabs', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
+      // Tap Terminal — should be blocked (no tabs)
       await tester.tap(find.text('Terminal'));
       await tester.pumpAndSettle();
 
-      expect(find.text('No active terminals'), findsOneWidget);
-      expect(find.text('Connect from Sessions tab'), findsOneWidget);
+      // Should remain on Sessions, not Terminal
+      expect(find.text('No active terminals'), findsNothing);
     });
 
     testWidgets('settings button opens settings screen', (tester) async {
@@ -419,8 +402,8 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      // After closing, should show empty state
-      expect(find.text('No active file browsers'), findsOneWidget);
+      // After closing last SFTP tab, auto-switches to Sessions
+      expect(find.text('No active file browsers'), findsNothing);
     });
 
     testWidgets('SFTP tab chip onPressed selects that tab', (tester) async {
