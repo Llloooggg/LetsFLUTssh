@@ -82,7 +82,7 @@ void main() {
       expect(find.text('METHOD'), findsOneWidget);
       expect(find.text('Password'), findsWidgets); // auth button + field
       expect(find.text('SSH Key'), findsOneWidget);
-      expect(find.text('Key+Pass'), findsOneWidget);
+      expect(find.text('Both'), findsOneWidget);
     });
 
     testWidgets('action buttons present for new session', (tester) async {
@@ -117,15 +117,13 @@ void main() {
       expect(find.text('New Connection'), findsNothing);
     });
 
-    testWidgets('switching to Key auth shows key fields', (tester) async {
+    testWidgets('auth tab shows key fields in any mode', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await switchToAuth(tester);
-      await tester.tap(find.text('SSH Key'));
-      await tester.pumpAndSettle();
-
+      // Default is Password — key fields still visible
       expect(find.text('Select Key File'), findsOneWidget);
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
@@ -382,21 +380,21 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — Key+Pass auth', () {
-    testWidgets('Key+Pass shows both password and key fields', (tester) async {
+  group('SessionEditDialog — Both auth', () {
+    testWidgets('Both shows both password and key fields', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await switchToAuth(tester);
-      await tester.tap(find.text('Key+Pass'));
+      await tester.tap(find.text('Both'));
       await tester.pumpAndSettle();
 
       expect(find.text('Password'), findsWidgets); // segment label + field
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
-    testWidgets('Connect with Key+Pass auth', (tester) async {
+    testWidgets('Connect with Both auth', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -404,7 +402,7 @@ void main() {
       await fillRequiredFields(tester);
 
       await switchToAuth(tester);
-      await tester.tap(find.text('Key+Pass'));
+      await tester.tap(find.text('Both'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
@@ -464,22 +462,16 @@ void main() {
 
       await switchToAuth(tester);
 
-      // Scroll to password area
-      await tester.scrollUntilVisible(
-        find.byIcon(Icons.visibility),
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      // Both password and passphrase have visibility icons — find first one (password).
+      final visibilityIcons = find.byIcon(Icons.visibility);
+      expect(visibilityIcons, findsNWidgets(2));
 
-      // Find visibility icon and tap it
-      final visibilityIcon = find.byIcon(Icons.visibility);
-      expect(visibilityIcon, findsOneWidget);
-
-      await tester.tap(visibilityIcon);
+      await tester.tap(visibilityIcons.first);
       await tester.pumpAndSettle();
 
-      // Now it should show visibility_off
+      // Password toggled off, passphrase still on → one visibility + one visibility_off.
       expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+      expect(find.byIcon(Icons.visibility), findsOneWidget);
     });
   });
 
@@ -853,7 +845,7 @@ void main() {
   });
 
   group('SessionEditDialog — auth type switching', () {
-    testWidgets('switching to Key+Pass shows both password and key fields',
+    testWidgets('switching to Both shows both password and key fields',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
@@ -864,14 +856,14 @@ void main() {
       // Password auth is default — password field visible
       expect(fieldByHint('••••••••'), findsOneWidget);
 
-      await tester.tap(find.text('Key+Pass'));
+      await tester.tap(find.text('Both'));
       await tester.pumpAndSettle();
 
       expect(fieldByHint('••••••••'), findsOneWidget);
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
-    testWidgets('Key auth hides password TextFormField', (tester) async {
+    testWidgets('Key auth shows password as optional', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -880,13 +872,109 @@ void main() {
       await tester.tap(find.text('SSH Key'));
       await tester.pumpAndSettle();
 
+      // All fields always visible — password without required marker.
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
-      expect(fieldByHint('••••••••'), findsNothing);
+      expect(fieldByHint('••••••••'), findsOneWidget);
+      expect(find.text('PASSWORD'), findsOneWidget);
+      expect(find.text('PASSWORD *'), findsNothing);
+    });
+  });
+
+  group('SessionEditDialog — Both auth validation', () {
+    testWidgets('Both with nothing filled shows auth error', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Fill host + user only (no password)
+      await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
+      await tester.enterText(fieldByHint('root'), 'user');
+
+      await switchToAuth(tester);
+      await tester.tap(find.text('Both'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Provide a password, key file, or PEM text'),
+          findsOneWidget);
+      expect(dialogResult, isNull);
+    });
+
+    testWidgets('Both with password only connects', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
+      await tester.enterText(fieldByHint('root'), 'user');
+
+      await switchToAuth(tester);
+      await tester.tap(find.text('Both'));
+      await tester.pumpAndSettle();
+      await tester.enterText(fieldByHint('••••••••'), 'secret');
+
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(dialogResult, isA<ConnectOnlyResult>());
+      final result = dialogResult as ConnectOnlyResult;
+      expect(result.config.password, 'secret');
+    });
+
+    testWidgets('Password mode requires password', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
+      await tester.enterText(fieldByHint('root'), 'user');
+
+      // Default is Password — try to connect without password
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      // Dialog stays open — password is required
+      expect(dialogResult, isNull);
+      expect(find.text('New Connection'), findsOneWidget);
+
+      // Switch to Auth tab — error should be visible
+      await switchToAuth(tester);
+      expect(find.text('Required'), findsOneWidget);
+    });
+
+    testWidgets('password field shows required marker only in password mode',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await switchToAuth(tester);
+      // Default is Password — should have "*"
+      expect(find.text('PASSWORD *'), findsOneWidget);
+
+      // Switch to Both — no "*" on password
+      await tester.tap(find.text('Both'));
+      await tester.pumpAndSettle();
+      expect(find.text('PASSWORD *'), findsNothing);
+      expect(find.text('PASSWORD'), findsOneWidget);
+
+      // Switch to SSH Key — no "*" on password
+      await tester.tap(find.text('SSH Key'));
+      await tester.pumpAndSettle();
+      expect(find.text('PASSWORD *'), findsNothing);
+      expect(find.text('PASSWORD'), findsOneWidget);
+
+      // Back to Password — "*" returns
+      await tester.tap(find.text('Password'));
+      await tester.pumpAndSettle();
+      expect(find.text('PASSWORD *'), findsOneWidget);
     });
   });
 
   group('SessionEditDialog — editing keyWithPassword session', () {
-    testWidgets('editing Key+Pass session shows both password and key fields',
+    testWidgets('editing Both session shows both password and key fields',
         (tester) async {
       final session = Session(label: 'kp-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.keyWithPassword, password: 'secret', keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'kp123'));
       await tester.pumpWidget(buildApp(session: session));
@@ -945,8 +1033,8 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — Connect with Key+Pass all fields', () {
-    testWidgets('Connect with Key+Pass auth includes all fields',
+  group('SessionEditDialog — Connect with Both all fields', () {
+    testWidgets('Connect with Both auth includes all fields',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
@@ -955,7 +1043,7 @@ void main() {
       await fillRequiredFields(tester);
 
       await switchToAuth(tester);
-      await tester.tap(find.text('Key+Pass'));
+      await tester.tap(find.text('Both'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
@@ -1137,15 +1225,15 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — password visibility in Key+Pass mode', () {
-    testWidgets('toggling password visibility in Key+Pass mode',
+  group('SessionEditDialog — password visibility in Both mode', () {
+    testWidgets('toggling password visibility in Both mode',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await switchToAuth(tester);
-      await tester.tap(find.text('Key+Pass'));
+      await tester.tap(find.text('Both'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
@@ -1164,14 +1252,14 @@ void main() {
       expect(find.byIcon(Icons.visibility_off), findsWidgets);
     });
 
-    testWidgets('toggling passphrase visibility in Key+Pass mode',
+    testWidgets('toggling passphrase visibility in Both mode',
         (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       await switchToAuth(tester);
-      await tester.tap(find.text('Key+Pass'));
+      await tester.tap(find.text('Both'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
@@ -1191,8 +1279,8 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — Key+Pass with PEM key data', () {
-    testWidgets('Connect with Key+Pass auth preserves keyData', (tester) async {
+  group('SessionEditDialog — Both with PEM key data', () {
+    testWidgets('Connect with Both auth preserves keyData', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1200,12 +1288,12 @@ void main() {
       await fillRequiredFields(tester);
 
       await switchToAuth(tester);
-      await tester.tap(find.text('Key+Pass'));
+      await tester.tap(find.text('Both'));
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
 
-      // Fill password (required for Key+Pass)
+      // Fill password (required for Both)
       await tester.scrollUntilVisible(
         fieldByHint('••••••••'),
         100,
