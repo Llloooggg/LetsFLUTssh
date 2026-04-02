@@ -673,6 +673,7 @@ Notifier.state updated → all dependent providers recompute → UI rebuilds
 |------|-------|---------|
 | `terminal_tab.dart` | `TerminalTab` | Container: manages split tree, reconnect, shortcuts |
 | `terminal_pane.dart` | `TerminalPane` | Single terminal: xterm widget + SSH shell pipe |
+| `cursor_overlay.dart` | `CursorTextOverlay` | Paints inverted character on block cursor (xterm overlay) |
 | `tiling_view.dart` | `TilingView` | Recursive split tree renderer |
 | `split_node.dart` | `SplitNode`, `LeafNode`, `BranchNode` | Sealed class for split tree |
 
@@ -1262,7 +1263,11 @@ String sanitizeError(Object error);   // strips OS-locale text, handles SSHError
 
 ### AppTheme
 
+Dark theme: **OneDark Pro** (binaryify/OneDark-Pro) exact hex values.
+Light theme: **Atom One Light** (official) exact hex values.
+
 Brightness-aware: all getters return the appropriate color based on current `_brightness`.
+Every color in the UI MUST come from this class — no hardcoded hex or `Colors.*` outside `app_theme.dart`.
 
 ```dart
 abstract final class AppTheme {
@@ -1270,23 +1275,32 @@ abstract final class AppTheme {
   static bool get isDark;
 
   // Backgrounds (dark / light)
-  static Color get bg0;     // toolbar, status bar      (#1B1D23 / #DCDCDD)
-  static Color get bg1;     // sidebar, dialogs         (#1E2127 / #F0F0F0)
-  static Color get bg2;     // main content             (#282C34 / #FAFAFA)
-  static Color get bg3;     // inputs, rows             (#2C313A / #E5E5E6)
-  static Color get bg4;     // hover on bg3             (#333842 / #D3D3D3)
+  static Color get bg0;     // deepest surface           (#1B1D23 / #DBDBDC)
+  static Color get bg1;     // sidebar, status bar       (#21252B / #EAEBEB)
+  static Color get bg2;     // main content              (#282C34 / #FAFAFA)
+  static Color get bg3;     // inputs, selection         (#2C313A / #E5E5E6)
+  static Color get bg4;     // hover, inactive selection (#323842 / #DBDBDC)
 
   // Foreground
-  static Color get fg;       // main text               (#ABB2BF / #383A42)
-  static Color get fgDim;   // secondary text           (#7F848E / #696C77)
-  static Color get fgFaint; // disabled text            (#5C6370 / #8C8F96)
-  static Color get fgBright;// emphasized text           (#CDD3DE / #232529)
+  static Color get fg;       // main text                (#ABB2BF / #383A42)
+  static Color get fgDim;    // secondary text           (#7F848E / #696C77)
+  static Color get fgFaint;  // disabled text            (#5C6370 / #A0A1A7)
+  static Color get fgBright; // emphasized text          (#D7DAE0 / #232424)
 
-  // Semantic colors
+  // Accent & syntax hues
   static Color get accent, blue, green, red, yellow, orange, cyan, purple;
-  static Color get border;      // main dividers        (#1B1D23 / #C4C4C6)
-  static Color get borderLight; // inputs, cards        (#2C313A / #D3D3D3)
+  static Color get border;      // hard dividers         (#181A1F / #DBDBDC)
+  static Color get borderLight; // panel borders         (#3E4452 / #DBDBDC)
   static Color get selection, hover, active;
+  static Color get onAccent;    // text on accent bg     (#F8FAFD / #FFFFFF)
+
+  // Terminal ANSI colors (OneDark Pro terminal palette / One Light syntax)
+  static Color get termBlack, termRed, termGreen, termYellow;
+  static Color get termBlue, termMagenta, termCyan, termWhite;
+  static Color get termBrightBlack, termBrightRed, termBrightGreen, termBrightYellow;
+  static Color get termBrightBlue, termBrightMagenta, termBrightCyan, termBrightWhite;
+  static Color get termCursor;     // block cursor color (#528BFF / #526FFF)
+  static Color get termSelection;  // mouse selection    (#677696 @ 38% / #4078F2 @ 38%)
 
   // Connection status
   static Color connected;          // green
@@ -1295,7 +1309,8 @@ abstract final class AppTheme {
 
   // Special
   static Color folderIcon;         // yellow
-  static Color searchHighlight;    // bright yellow
+  static Color get searchHighlight;// terminal search bg (#FFFF2B / #FFD700)
+  static Color get searchHitFg;    // search hit text
 
   // Section border helpers (brightness-aware)
   static BorderSide get borderSide;  // BorderSide(color: border)

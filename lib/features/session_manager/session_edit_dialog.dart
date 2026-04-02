@@ -679,11 +679,11 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           if (_isEditing) ...[
             _footerButton('Save', bg: AppTheme.bg4, fg: AppTheme.fg, onTap: _save),
             const SizedBox(width: 8),
-            _footerButton('Save & Connect', bg: AppTheme.accent, fg: Colors.white, onTap: () => _save(connect: true)),
+            _footerButton('Save & Connect', bg: AppTheme.accent, fg: AppTheme.onAccent, onTap: () => _save(connect: true)),
           ] else ...[
             _footerButton('Save', bg: AppTheme.bg4, fg: AppTheme.fg, onTap: _save),
             const SizedBox(width: 8),
-            _footerButton('Connect', bg: AppTheme.accent, fg: Colors.white, onTap: _connectOnly),
+            _footerButton('Connect', bg: AppTheme.accent, fg: AppTheme.onAccent, onTap: _connectOnly),
           ],
         ],
       ),

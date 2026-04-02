@@ -997,7 +997,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                         style: AppFonts.inter(
                           fontSize: AppFonts.sm,
                           fontWeight: FontWeight.w500,
-                          color: errorText == null ? Colors.white : AppTheme.fgFaint,
+                          color: errorText == null ? AppTheme.onAccent : AppTheme.fgFaint,
                         ),
                       ),
                     ),

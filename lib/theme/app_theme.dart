@@ -2,50 +2,135 @@ import 'package:flutter/material.dart';
 
 import '../utils/platform.dart' as plat;
 
-/// OneDark-inspired color palette for the app.
+/// Centralized color palette for the app.
 ///
-/// Dark theme: Atom OneDark Pro colors with indigo accent.
-/// Light theme: Atom One Light colors.
+/// Dark theme: **OneDark Pro** (VS Code) — exact hex values.
+/// Light theme: **Atom One Light** — exact hex values.
+///
+/// Every color in the UI MUST come from this class.  No hardcoded
+/// `Color(0x…)`, `Colors.*` or hex literals outside of this file.
 abstract final class AppTheme {
-  // ── Dark palette (private) ──
-  static const _bg0 = Color(0xFF1B1D23); // toolbar, status bar, drag handles
-  static const _bg1 = Color(0xFF1E2127); // sidebar, dialogs, app bar
-  static const _bg2 = Color(0xFF282C34); // main content area
-  static const _bg3 = Color(0xFF2C313A); // inputs, rows, badges
-  static const _bg4 = Color(0xFF333842); // toggle-off, hover on bg3
+  // ══════════════════════════════════════════════════════════════════
+  //  DARK — OneDark Pro (binaryify/OneDark-Pro)
+  // ══════════════════════════════════════════════════════════════════
 
-  static const _fg      = Color(0xFFABB2BF);
-  static const _fgDim   = Color(0xFF7F848E);
-  static const _fgFaint = Color(0xFF5C6370);
-  static const _fgBright = Color(0xFFCDD3DE);
+  // ── Backgrounds (darkest → lightest) ──
+  static const _bg0 = Color(0xFF1B1D23); // peek view, deepest surface
+  static const _bg1 = Color(0xFF21252B); // sidebar, status bar, widgets
+  static const _bg2 = Color(0xFF282C34); // editor / main content
+  static const _bg3 = Color(0xFF2C313A); // active selection, inputs
+  static const _bg4 = Color(0xFF323842); // hover, inactive selection
 
-  static const _accent = Color(0xFF4D78CC);
-  static const _blue   = Color(0xFF61AFEF);
-  static const _green  = Color(0xFF98C379);
-  static const _red    = Color(0xFFE06C75);
-  static const _yellow = Color(0xFFE5C07B);
-  static const _orange = Color(0xFFD19A66);
-  static const _cyan   = Color(0xFF56B6C2);
-  static const _purple = Color(0xFFC678DD);
+  // ── Foregrounds ──
+  static const _fg       = Color(0xFFABB2BF); // mono-1, default text
+  static const _fgDim    = Color(0xFF7F848E); // comments (italic)
+  static const _fgFaint  = Color(0xFF5C6370); // comments, quote markup
+  static const _fgBright = Color(0xFFD7DAE0); // activity-bar fg, highlights
 
-  static const _border      = Color(0xFF1B1D23); // = bg0, main dividers
-  static const _borderLight = Color(0xFF2C313A); // = bg3, inputs, cards
-  static const _selectionColor = Color(0x1F4D78CC); // rgba(77,120,204,0.12)
-  static const _hoverColor     = Color(0x08FFFFFF); // rgba(255,255,255,0.03)
-  static const _activeColor    = Color(0x0FFFFFFF); // rgba(255,255,255,0.06)
+  // ── Accent & syntax hues ──
+  static const _accent = Color(0xFF4D78CC); // badge / status-bar-item
+  static const _blue   = Color(0xFF61AFEF); // hue-2: functions
+  static const _green  = Color(0xFF98C379); // hue-4: strings
+  static const _red    = Color(0xFFE06C75); // hue-5: variables / tags
+  static const _yellow = Color(0xFFE5C07B); // hue-6-2: classes / types
+  static const _orange = Color(0xFFD19A66); // hue-6: constants / numbers
+  static const _cyan   = Color(0xFF56B6C2); // hue-1: operators / support
+  static const _purple = Color(0xFFC678DD); // hue-3: keywords / storage
 
-  // ── One Light palette (private) ──
-  static const _lightBg        = Color(0xFFFAFAFA);
-  static const _lightFg        = Color(0xFF383A42);
-  static const _lightBlue      = Color(0xFF4078F2);
-  static const _lightGreen     = Color(0xFF50A14F);
-  static const _lightRed       = Color(0xFFE45649);
-  static const _lightYellow    = Color(0xFFC18401);
-  static const _lightPurple    = Color(0xFFA626A4);
-  static const _lightGutter    = Color(0xFF9D9D9F);
-  static const _lightSelection = Color(0xFFE5E5E6);
-  static const _lightBorder    = Color(0xFFD3D3D3);
-  static const _lightSurface   = Color(0xFFF0F0F0);
+  // ── Borders & interactive states ──
+  static const _border      = Color(0xFF181A1F); // editor group, tab borders
+  static const _borderLight = Color(0xFF3E4452); // panel border, focus border
+  static const _selectionColor = Color(0x1F4D78CC); // accent @ 12 %
+  static const _hoverColor     = Color(0x08FFFFFF); // white @ 3 %
+  static const _activeColor    = Color(0x0FFFFFFF); // white @ 6 %
+
+  // ── On-accent (text on accent-colored backgrounds) ──
+  static const _onAccent = Color(0xFFF8FAFD); // badge fg
+
+  // ── Scrollbar ──
+  static const _scrollThumb = Color(0x667F848E); // fgDim @ 40 %
+
+  // ── Terminal cursor & selection ──
+  static const _termCursorColor     = Color(0xFF528BFF); // OneDark Pro syntax-accent
+  static const _termSelectionColor  = Color(0x60677696); // OneDark Pro editor.selectionBackground
+
+  // ── Terminal ANSI (OneDark Pro terminal.*) ──
+  static const _termBlack       = Color(0xFF3F4451);
+  static const _termRed         = Color(0xFFE05561);
+  static const _termGreen       = Color(0xFF8CC265);
+  static const _termYellow      = Color(0xFFD18F52);
+  static const _termBlue        = Color(0xFF4AA5F0);
+  static const _termMagenta     = Color(0xFFC162DE);
+  static const _termCyan        = Color(0xFF42B3C2);
+  static const _termWhite       = Color(0xFFD7DAE0);
+  static const _termBrightBlack = Color(0xFF4F5666);
+  static const _termBrightRed   = Color(0xFFFF616E);
+  static const _termBrightGreen = Color(0xFFA5E075);
+  static const _termBrightYellow  = Color(0xFFF0A45D);
+  static const _termBrightBlue   = Color(0xFF4DC4FF);
+  static const _termBrightMagenta = Color(0xFFDE73FF);
+  static const _termBrightCyan   = Color(0xFF4CD1E0);
+  static const _termBrightWhite  = Color(0xFFE6E6E6);
+
+  // ══════════════════════════════════════════════════════════════════
+  //  LIGHT — Atom One Light (official)
+  // ══════════════════════════════════════════════════════════════════
+
+  // ── Backgrounds ──
+  static const _lightBg        = Color(0xFFFAFAFA); // level-2, editor
+  static const _lightSurface   = Color(0xFFEAEBEB); // level-3, sidebar
+  static const _lightBg0       = Color(0xFFDBDBDC); // bg-selected, deepest
+  static const _lightSelection = Color(0xFFE5E5E6); // syntax selection
+
+  // ── Foregrounds ──
+  static const _lightFg        = Color(0xFF383A42); // mono-1
+  static const _lightFgDim     = Color(0xFF696C77); // mono-2
+  static const _lightFgFaint   = Color(0xFFA0A1A7); // mono-3
+  static const _lightFgBright  = Color(0xFF232424); // text-highlight
+
+  // ── Accent & syntax hues ──
+  static const _lightBlue      = Color(0xFF4078F2); // hue-2
+  static const _lightGreen     = Color(0xFF50A14F); // hue-4
+  static const _lightRed       = Color(0xFFE45649); // hue-5
+  static const _lightYellow    = Color(0xFFC18401); // hue-6-2
+  static const _lightOrange    = Color(0xFF986801); // hue-6
+  static const _lightCyan      = Color(0xFF0184BC); // hue-1
+  static const _lightPurple    = Color(0xFFA626A4); // hue-3
+
+  // ── Borders & interactive states ──
+  static const _lightBorder    = Color(0xFFDBDBDC); // ui-border
+  static const _lightGutter    = Color(0xFF9D9D9F); // gutter text
+
+  // ── Level-1 surface (inputs, cards, popups — lightest bg) ──
+  static const _lightLevel1    = Color(0xFFFFFFFF);
+
+  // ── On-accent ──
+  static const _lightOnAccent  = Color(0xFFFFFFFF);
+
+  // ── Terminal cursor & selection ──
+  static const _lightTermCursorColor    = Color(0xFF526FFF); // One Light syntax-accent
+  static const _lightTermSelectionColor = Color(0x604078F2); // lightBlue @ 38 %
+
+  // ── Scrollbar ──
+  static const _lightScrollThumb = Color(0x88696C77); // fgDim @ 53 %
+
+  // ── Terminal ANSI (derived from One Light syntax palette) ──
+  static const _lightTermBlack       = Color(0xFF383A42);
+  static const _lightTermRed         = Color(0xFFE45649);
+  static const _lightTermGreen       = Color(0xFF50A14F);
+  static const _lightTermYellow      = Color(0xFFC18401);
+  static const _lightTermBlue        = Color(0xFF4078F2);
+  static const _lightTermMagenta     = Color(0xFFA626A4);
+  static const _lightTermCyan        = Color(0xFF0184BC);
+  static const _lightTermWhite       = Color(0xFFFAFAFA);
+  static const _lightTermBrightBlack = Color(0xFF696C77);
+  static const _lightTermBrightRed   = Color(0xFFE45649);
+  static const _lightTermBrightGreen = Color(0xFF50A14F);
+  static const _lightTermBrightYellow  = Color(0xFFC18401);
+  static const _lightTermBrightBlue   = Color(0xFF4078F2);
+  static const _lightTermBrightMagenta = Color(0xFFA626A4);
+  static const _lightTermBrightCyan   = Color(0xFF0184BC);
+  static const _lightTermBrightWhite  = Color(0xFFFFFFFF);
 
   // ── Brightness-aware state ──
   // Set by the app root widget when the theme mode changes.
@@ -59,31 +144,63 @@ abstract final class AppTheme {
   static bool get isDark => _brightness == Brightness.dark;
 
   // ── Public brightness-aware colors ──
-  static Color get bg0 => isDark ? _bg0 : const Color(0xFFDCDCDD);
+
+  // Backgrounds
+  static Color get bg0 => isDark ? _bg0 : _lightBg0;
   static Color get bg1 => isDark ? _bg1 : _lightSurface;
   static Color get bg2 => isDark ? _bg2 : _lightBg;
   static Color get bg3 => isDark ? _bg3 : _lightSelection;
   static Color get bg4 => isDark ? _bg4 : _lightBorder;
 
+  // Foregrounds
   static Color get fg       => isDark ? _fg : _lightFg;
-  static Color get fgDim    => isDark ? _fgDim : const Color(0xFF696C77);
-  static Color get fgFaint  => isDark ? _fgFaint : const Color(0xFF8C8F96);
-  static Color get fgBright => isDark ? _fgBright : const Color(0xFF232529);
+  static Color get fgDim    => isDark ? _fgDim : _lightFgDim;
+  static Color get fgFaint  => isDark ? _fgFaint : _lightFgFaint;
+  static Color get fgBright => isDark ? _fgBright : _lightFgBright;
 
+  // Accent & hues
   static Color get accent => isDark ? _accent : _lightBlue;
   static Color get blue   => isDark ? _blue : _lightBlue;
   static Color get green  => isDark ? _green : _lightGreen;
   static Color get red    => isDark ? _red : _lightRed;
   static Color get yellow => isDark ? _yellow : _lightYellow;
-  static Color get orange => isDark ? _orange : const Color(0xFFA06B2C);
-  static Color get cyan   => isDark ? _cyan : const Color(0xFF0184BC);
+  static Color get orange => isDark ? _orange : _lightOrange;
+  static Color get cyan   => isDark ? _cyan : _lightCyan;
   static Color get purple => isDark ? _purple : _lightPurple;
 
-  static Color get border      => isDark ? _border : const Color(0xFFC4C4C6);
+  // Borders & interactive
+  static Color get border      => isDark ? _border : _lightBorder;
   static Color get borderLight => isDark ? _borderLight : _lightBorder;
   static Color get selection   => isDark ? _selectionColor : const Color(0x2A4078F2);
   static Color get hover       => isDark ? _hoverColor : const Color(0x12000000);
   static Color get active      => isDark ? _activeColor : const Color(0x1A000000);
+
+  /// Text color for accent-colored backgrounds (buttons, badges, toggles).
+  static Color get onAccent => isDark ? _onAccent : _lightOnAccent;
+
+  // ── Terminal ANSI colors ──
+  static Color get termBlack       => isDark ? _termBlack : _lightTermBlack;
+  static Color get termRed         => isDark ? _termRed : _lightTermRed;
+  static Color get termGreen       => isDark ? _termGreen : _lightTermGreen;
+  static Color get termYellow      => isDark ? _termYellow : _lightTermYellow;
+  static Color get termBlue        => isDark ? _termBlue : _lightTermBlue;
+  static Color get termMagenta     => isDark ? _termMagenta : _lightTermMagenta;
+  static Color get termCyan        => isDark ? _termCyan : _lightTermCyan;
+  static Color get termWhite       => isDark ? _termWhite : _lightTermWhite;
+  static Color get termBrightBlack => isDark ? _termBrightBlack : _lightTermBrightBlack;
+  static Color get termBrightRed   => isDark ? _termBrightRed : _lightTermBrightRed;
+  static Color get termBrightGreen => isDark ? _termBrightGreen : _lightTermBrightGreen;
+  static Color get termBrightYellow  => isDark ? _termBrightYellow : _lightTermBrightYellow;
+  static Color get termBrightBlue   => isDark ? _termBrightBlue : _lightTermBrightBlue;
+  static Color get termBrightMagenta => isDark ? _termBrightMagenta : _lightTermBrightMagenta;
+  static Color get termBrightCyan   => isDark ? _termBrightCyan : _lightTermBrightCyan;
+  static Color get termBrightWhite  => isDark ? _termBrightWhite : _lightTermBrightWhite;
+
+  /// Terminal block-cursor color (semi-transparent so text shows through).
+  static Color get termCursor    => isDark ? _termCursorColor : _lightTermCursorColor;
+
+  /// Terminal mouse-selection highlight.
+  static Color get termSelection => isDark ? _termSelectionColor : _lightTermSelectionColor;
 
   // ── Section border helpers ──
   // Brightness-aware single-side borders for container edges (headers,
@@ -104,7 +221,7 @@ abstract final class AppTheme {
     const scheme = ColorScheme(
       brightness: Brightness.dark,
       primary: _accent,
-      onPrimary: Colors.white,
+      onPrimary: _onAccent,
       primaryContainer: Color(0xFF1C3566),
       onPrimaryContainer: _accent,
       secondary: _green,
@@ -217,7 +334,7 @@ abstract final class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: _accent,
-          foregroundColor: Colors.white,
+          foregroundColor: _onAccent,
           shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
@@ -237,7 +354,7 @@ abstract final class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: _accent,
-          foregroundColor: Colors.white,
+          foregroundColor: _onAccent,
           shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
@@ -248,7 +365,7 @@ abstract final class AppTheme {
             return _bg3;
           }),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) return Colors.white;
+            if (states.contains(WidgetState.selected)) return _onAccent;
             return _fg;
           }),
           side: WidgetStateProperty.all(const BorderSide(color: _borderLight)),
@@ -308,7 +425,7 @@ abstract final class AppTheme {
         checkmarkColor: _accent,
       ),
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(const Color(0x667F848E)),
+        thumbColor: WidgetStateProperty.all(_scrollThumb),
         radius: Radius.zero,
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -323,7 +440,7 @@ abstract final class AppTheme {
           if (states.contains(WidgetState.selected)) return _accent;
           return Colors.transparent;
         }),
-        checkColor: WidgetStateProperty.all(Colors.white),
+        checkColor: WidgetStateProperty.all(_onAccent),
       ),
       cardTheme: const CardThemeData(
         color: _bg3,
@@ -352,24 +469,24 @@ abstract final class AppTheme {
     const scheme = ColorScheme(
       brightness: Brightness.light,
       primary: _lightBlue,
-      onPrimary: Colors.white,
+      onPrimary: _lightOnAccent,
       primaryContainer: Color(0xFFD4E4FF),
       onPrimaryContainer: _lightBlue,
       secondary: _lightGreen,
-      onSecondary: Colors.white,
+      onSecondary: _lightOnAccent,
       secondaryContainer: Color(0xFFD4F0D4),
       onSecondaryContainer: _lightGreen,
       tertiary: _lightPurple,
-      onTertiary: Colors.white,
+      onTertiary: _lightOnAccent,
       tertiaryContainer: Color(0xFFF0D4F0),
       onTertiaryContainer: _lightPurple,
       error: _lightRed,
-      onError: Colors.white,
+      onError: _lightOnAccent,
       errorContainer: Color(0xFFFFDAD6),
       onErrorContainer: _lightRed,
       surface: _lightBg,
       onSurface: _lightFg,
-      surfaceContainerLowest: Colors.white,
+      surfaceContainerLowest: _lightLevel1,
       surfaceContainerLow: _lightSurface,
       surfaceContainer: _lightBg,
       surfaceContainerHigh: _lightSelection,
@@ -407,7 +524,7 @@ abstract final class AppTheme {
         scrolledUnderElevation: 0,
       ),
       popupMenuTheme: const PopupMenuThemeData(
-        color: Colors.white,
+        color: _lightLevel1,
         shape: RoundedRectangleBorder(
           borderRadius: radiusSm,
           side: BorderSide(color: _lightBorder),
@@ -438,7 +555,7 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: const InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: _lightLevel1,
         border: OutlineInputBorder(
           borderRadius: radiusSm,
           borderSide: BorderSide(color: _lightBorder),
@@ -464,7 +581,7 @@ abstract final class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: _lightBlue,
-          foregroundColor: Colors.white,
+          foregroundColor: _lightOnAccent,
           shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
@@ -484,7 +601,7 @@ abstract final class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: _lightBlue,
-          foregroundColor: Colors.white,
+          foregroundColor: _lightOnAccent,
           shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
@@ -492,10 +609,10 @@ abstract final class AppTheme {
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) return _lightBlue;
-            return Colors.white;
+            return _lightLevel1;
           }),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) return Colors.white;
+            if (states.contains(WidgetState.selected)) return _lightOnAccent;
             return _lightFg;
           }),
           side: WidgetStateProperty.all(const BorderSide(color: _lightBorder)),
@@ -529,7 +646,7 @@ abstract final class AppTheme {
         activeTrackColor: _lightBlue,
         thumbColor: _lightBlue,
         inactiveTrackColor: _lightSelection,
-        overlayColor: Color(0x224078F2),
+        overlayColor: Color(0x2A4078F2), // lightBlue @ 16 %
       ),
       tooltipTheme: TooltipThemeData(
         waitDuration: const Duration(milliseconds: 400),
@@ -541,7 +658,7 @@ abstract final class AppTheme {
         textStyle: TextStyle(color: _lightBg, fontSize: AppFonts.md),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: Colors.white,
+        backgroundColor: _lightLevel1,
         selectedColor: _lightBlue.withValues(alpha: 0.2),
         labelStyle: const TextStyle(color: _lightFg),
         secondaryLabelStyle: const TextStyle(color: _lightBlue),
@@ -551,7 +668,7 @@ abstract final class AppTheme {
         checkmarkColor: _lightBlue,
       ),
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(const Color(0x88888C96)),
+        thumbColor: WidgetStateProperty.all(_lightScrollThumb),
         radius: Radius.zero,
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -566,10 +683,10 @@ abstract final class AppTheme {
           if (states.contains(WidgetState.selected)) return _lightBlue;
           return Colors.transparent;
         }),
-        checkColor: WidgetStateProperty.all(Colors.white),
+        checkColor: WidgetStateProperty.all(_lightOnAccent),
       ),
       cardTheme: const CardThemeData(
-        color: Colors.white,
+        color: _lightLevel1,
         shape: RoundedRectangleBorder(borderRadius: radiusSm),
       ),
       snackBarTheme: const SnackBarThemeData(
@@ -593,24 +710,28 @@ abstract final class AppTheme {
 
   // ── Semantic colors for use across the app ──
 
-  /// OneDark green — connected, success.
+  /// Green — connected, success.
   static const Color connected = _green;
 
-  /// OneDark yellow/orange — connecting, warning.
+  /// Yellow/orange — connecting, warning.
   static const Color connecting = _yellow;
 
-  /// OneDark red — disconnected, error.
+  /// Red — disconnected, error.
   static const Color disconnected = _red;
 
-  /// OneDark cyan — info, accents.
+  /// Cyan — info, accents.
   static const Color info = _cyan;
 
   /// Folder icon color.
   static const Color folderIcon = _yellow;
 
-  /// Terminal search highlight.
-  static const Color searchHighlight = Color(0xFFFFFF2B);
-  static const Color searchHighlightLight = Color(0xFFFFD700);
+  /// Terminal search highlight backgrounds.
+  static const Color _searchHighlightDark  = Color(0xFFFFFF2B);
+  static const Color _searchHighlightLight = Color(0xFFFFD700);
+  static Color get searchHighlight => isDark ? _searchHighlightDark : _searchHighlightLight;
+
+  /// Terminal search hit foreground — high-contrast text on colored bg.
+  static Color get searchHitFg => isDark ? _termBrightWhite : _lightFgBright;
 
   /// Light-theme variants.
   static const Color connectedLight = _lightGreen;
