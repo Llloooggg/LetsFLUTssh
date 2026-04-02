@@ -344,6 +344,8 @@ class SessionStore {
 
 **Safety on load:** If CredentialStore fails to decrypt — skips credential merge instead of overwriting. Prevents loss of encrypted data.
 
+**Save order:** `_save()` writes credentials (encrypted) FIRST, then session metadata (JSON). This prevents a crash from leaving sessions.json ahead of credentials.enc. If credential save fails, session file is still persisted and credentials retry on next save.
+
 #### SessionTree
 
 ```dart
