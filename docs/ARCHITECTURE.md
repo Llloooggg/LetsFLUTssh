@@ -1636,7 +1636,7 @@ push to dev/main or PR
   │                 reads version from pubspec.yaml
   │                 tag exists → skip / new version → create tag
   │                       │
-  │                       └─► release.yml    (tags: v*)
+  │                       └─► build-release.yml    "Build & Release"  (tags: v*)
   │                             build all platforms
   │                             → GitHub Release + SLSA attestation
   │
@@ -1648,11 +1648,11 @@ push to dev/main or PR
 Dependabot PR merged (into main)
   │
   └─► dependabot-auto.yml → auto-merge + patch bump → commit
-        └─► ci.yml → auto-tag.yml → release.yml → Release
+        └─► ci.yml → auto-tag.yml → build-release.yml → Release
 
 Manual build
   │
-  └─► gh workflow run release.yml
+  └─► gh workflow run build-release.yml
         CI not passed? → fail immediately (no polling)
 ```
 
@@ -1662,7 +1662,7 @@ Manual build
 |----------|---------|----------|---------|-----------------|
 | `ci.yml` | push/PR (all paths) | main, dev | analyze + test + coverage | Yes (required) |
 | `auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
-| `release.yml` | push tag v* / manual | — | Build all platforms + release | — |
+| `build-release.yml` | push tag v* / manual | — | Build all platforms + release | — |
 | `sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
 | `dependabot-auto.yml` | PR (dependabot) | main | Auto-merge patch/minor + version bump | — |
 | `security-osv.yml` | push pubspec.* / PR (all) / weekly | main, dev | CVE scan (pubspec.lock) | Yes on PR |
