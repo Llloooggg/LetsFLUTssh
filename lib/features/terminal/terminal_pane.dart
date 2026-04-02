@@ -73,11 +73,20 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   @visibleForTesting
   ValueNotifier<bool> get showSearchNotifier => _showSearch;
 
+  /// Exposed for testing — access the xterm Terminal instance.
+  @visibleForTesting
+  Terminal get terminal => _terminal;
+
+  /// Exposed for testing — access the TerminalController.
+  @visibleForTesting
+  TerminalController get terminalController => _terminalController;
+
   @override
   void initState() {
     super.initState();
     _terminal = Terminal(maxLines: ref.read(configProvider).scrollback);
     _terminalController = TerminalController();
+    HardwareKeyboard.instance.addHandler(_onShiftToggle);
     _connectAndOpenShell();
   }
 
@@ -136,10 +145,23 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onShiftToggle);
     _shellConn?.close();
     _terminalController.dispose();
     _showSearch.dispose();
     super.dispose();
+  }
+
+  /// When the terminal app has enabled mouse mode (e.g. htop, vim), holding
+  /// Shift bypasses mouse forwarding so the user can select text locally.
+  /// Standard terminal-emulator behaviour (xterm, GNOME Terminal, etc.).
+  bool _onShiftToggle(KeyEvent event) {
+    final shouldSuspend = HardwareKeyboard.instance.isShiftPressed &&
+        _terminal.mouseMode != MouseMode.none;
+    if (_terminalController.suspendedPointerInputs != shouldSuspend) {
+      _terminalController.setSuspendPointerInput(shouldSuspend);
+    }
+    return false; // never consume the key event
   }
 
   /// Toggle search bar visibility. Exposed for testing — in production
