@@ -6,6 +6,7 @@ import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/clipped_row.dart';
+import '../../widgets/column_resize_handle.dart';
 
 /// Sort columns for the transfer table.
 enum TransferSortColumn { name, local, remote, size, time }
@@ -277,27 +278,6 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       );
     }
 
-    Widget colHandle(void Function(double dx) onDrag) {
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragUpdate: (d) => setState(() => onDrag(d.delta.dx)),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.resizeColumn,
-          child: SizedBox(
-            width: 10,
-            height: 24,
-            child: Center(
-              child: Container(
-                width: 1,
-                height: 14,
-                color: AppTheme.fgFaint.withValues(alpha: 0.4),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -310,13 +290,13 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           SizedBox(width: 20, child: Text('', style: style)),
           const SizedBox(width: 4),
           Expanded(child: headerCell('Name', TransferSortColumn.name)),
-          colHandle((dx) => _localColWidth = (_localColWidth + dx).clamp(60, 300)),
+          ColumnResizeHandle(onDrag: (dx) => setState(() => _localColWidth = (_localColWidth - dx).clamp(60, 300))),
           headerCell('Local', TransferSortColumn.local, width: _localColWidth),
-          colHandle((dx) => _remoteColWidth = (_remoteColWidth + dx).clamp(60, 300)),
+          ColumnResizeHandle(onDrag: (dx) => setState(() => _remoteColWidth = (_remoteColWidth - dx).clamp(60, 300))),
           headerCell('Remote', TransferSortColumn.remote, width: _remoteColWidth),
-          colHandle((dx) => _sizeColWidth = (_sizeColWidth + dx).clamp(40, 150)),
+          ColumnResizeHandle(onDrag: (dx) => setState(() => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 150))),
           headerCell('Size', TransferSortColumn.size, width: _sizeColWidth),
-          colHandle((dx) => _timeColWidth = (_timeColWidth + dx).clamp(60, 200)),
+          ColumnResizeHandle(onDrag: (dx) => setState(() => _timeColWidth = (_timeColWidth - dx).clamp(60, 200))),
           headerCell('Time', TransferSortColumn.time, width: _timeColWidth),
         ],
       ),
