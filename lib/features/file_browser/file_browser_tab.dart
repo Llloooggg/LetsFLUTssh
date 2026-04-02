@@ -168,16 +168,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
         // Too narrow for dual pane — show hint instead of empty clipped panes.
         if (maxWidth < 250) {
-          return Center(
-            child: Text(
-              'Resize window to view files',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: AppFonts.sm,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-            ),
-          );
+          return _buildTooNarrowHint(context);
         }
 
         final leftWidth = (_splitRatio * maxWidth)
@@ -188,80 +179,33 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
             SizedBox(
               width: leftWidth,
               child: ClipRect(
-                child: FilePane(
+                child: _buildFilePane(
                   controller: local,
                   paneId: 'local',
                   showFolderSizes: showFolderSizes,
                   crossMarquee: widget.crossMarquee,
-                  onTransfer: (entry) => _upload(entry),
-                  onTransferMultiple: (entries) {
-                    for (final e in entries) {
-                      _upload(e);
-                    }
-                  },
-                  onCopy: () => setState(() {
-                    _clipboardEntries = List.of(local.selectedEntries);
-                    _clipboardSourcePane = 'local';
-                  }),
-                  onPaste: () {
-                    final entries = _clipboardEntries;
-                    if (entries == null || entries.isEmpty) return;
-                    if (_clipboardSourcePane == 'remote') {
-                      for (final e in entries) { _download(e); }
-                    }
-                  },
-                  onDropReceived: (entries) {
-                    for (final e in entries) {
-                      _download(e);
-                    }
-                  },
-                  onOsDropReceived: (paths) => _osDropToLocal(paths),
-                  onPaneActivated: () => remote.clearSelection(),
+                  transferAction: _upload,
+                  dropAction: _download,
+                  oppositeSourcePane: 'remote',
+                  pasteAction: _download,
+                  onOsDropReceived: _osDropToLocal,
+                  otherController: remote,
                 ),
               ),
             ),
-            MouseRegion(
-              cursor: SystemMouseCursors.resizeColumn,
-              child: GestureDetector(
-                onHorizontalDragUpdate: (d) {
-                  setState(() {
-                    _splitRatio = ((_splitRatio * maxWidth + d.delta.dx) / maxWidth)
-                        .clamp(0.2, 0.8);
-                  });
-                },
-                child: Container(width: 3, color: AppTheme.bg0),
-              ),
-            ),
+            _buildDivider(maxWidth),
             Expanded(
               child: ClipRect(
-                child: FilePane(
+                child: _buildFilePane(
                   controller: remote,
                   paneId: 'remote',
                   showFolderSizes: showFolderSizes,
-                  onTransfer: (entry) => _download(entry),
-                  onTransferMultiple: (entries) {
-                    for (final e in entries) {
-                      _download(e);
-                    }
-                  },
-                  onCopy: () => setState(() {
-                    _clipboardEntries = List.of(remote.selectedEntries);
-                    _clipboardSourcePane = 'remote';
-                  }),
-                  onPaste: () {
-                    final entries = _clipboardEntries;
-                    if (entries == null || entries.isEmpty) return;
-                    if (_clipboardSourcePane == 'local') {
-                      for (final e in entries) { _upload(e); }
-                    }
-                  },
-                  onDropReceived: (entries) {
-                    for (final e in entries) {
-                      _upload(e);
-                    }
-                  },
-                  onOsDropReceived: (paths) => _osDropToRemote(paths),
-                  onPaneActivated: () => local.clearSelection(),
+                  transferAction: _download,
+                  dropAction: _upload,
+                  oppositeSourcePane: 'local',
+                  pasteAction: _upload,
+                  onOsDropReceived: _osDropToRemote,
+                  otherController: local,
                 ),
               ),
             ),
@@ -269,6 +213,71 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         );
       },
     );
+  }
+
+  Widget _buildTooNarrowHint(BuildContext context) {
+    return Center(
+      child: Text(
+        'Resize window to view files',
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: AppFonts.sm,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider(double maxWidth) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeColumn,
+      child: GestureDetector(
+        onHorizontalDragUpdate: (d) {
+          setState(() {
+            _splitRatio = ((_splitRatio * maxWidth + d.delta.dx) / maxWidth)
+                .clamp(0.2, 0.8);
+          });
+        },
+        child: Container(width: 3, color: AppTheme.bg0),
+      ),
+    );
+  }
+
+  FilePane _buildFilePane({
+    required FilePaneController controller,
+    required String paneId,
+    required bool showFolderSizes,
+    required void Function(FileEntry) transferAction,
+    required void Function(FileEntry) dropAction,
+    required String oppositeSourcePane,
+    required void Function(FileEntry) pasteAction,
+    required void Function(List<String>) onOsDropReceived,
+    required FilePaneController otherController,
+    CrossMarqueeController? crossMarquee,
+  }) {
+    return FilePane(
+      controller: controller,
+      paneId: paneId,
+      showFolderSizes: showFolderSizes,
+      crossMarquee: crossMarquee,
+      onTransfer: transferAction,
+      onTransferMultiple: (entries) => entries.forEach(transferAction),
+      onCopy: () => setState(() {
+        _clipboardEntries = List.of(controller.selectedEntries);
+        _clipboardSourcePane = paneId;
+      }),
+      onPaste: () => _pasteFromClipboard(oppositeSourcePane, pasteAction),
+      onDropReceived: (entries) => entries.forEach(dropAction),
+      onOsDropReceived: onOsDropReceived,
+      onPaneActivated: () => otherController.clearSelection(),
+    );
+  }
+
+  void _pasteFromClipboard(String expectedSource, void Function(FileEntry) action) {
+    final entries = _clipboardEntries;
+    if (entries == null || entries.isEmpty) return;
+    if (_clipboardSourcePane != expectedSource) return;
+    entries.forEach(action);
   }
 
   void _upload(FileEntry entry) {
