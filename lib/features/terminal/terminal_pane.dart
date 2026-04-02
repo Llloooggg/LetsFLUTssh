@@ -155,80 +155,69 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
 
-    final Border? border;
-    if (!widget.hasMultiplePanes) {
-      border = null;
-    } else if (widget.isFocused) {
-      border = Border.all(color: AppTheme.accent, width: 1.0);
-    } else {
-      border = Border.all(color: AppTheme.bg0, width: 1.0);
-    }
-
+    // No border on panes — the 4px divider in TilingView separates them.
     return GestureDetector(
       onTap: widget.onFocused,
-      child: Container(
-        decoration: border != null ? BoxDecoration(border: border) : null,
-        child: CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): toggleSearch,
-            const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
-          },
-          child: Column(
-            children: [
-              ValueListenableBuilder<bool>(
-                valueListenable: _showSearch,
-                builder: (context, show, _) {
-                  if (!show) return const SizedBox.shrink();
-                  return TerminalSearchBar(
-                    terminal: _terminal,
-                    terminalController: _terminalController,
-                    onClose: _closeSearch,
-                  );
-                },
-              ),
-              Expanded(
-                child: TerminalView(
-                  _terminal,
-                  controller: _terminalController,
-                  autofocus: widget.isFocused,
-                  hardwareKeyboardOnly: plat.isDesktopPlatform,
-                  onKeyEvent: _handleTerminalKey,
-                  backgroundOpacity: 1.0,
-                  padding: const EdgeInsets.all(4),
-                  theme: TerminalTheme(
-                    cursor: AppTheme.accent,
-                    selection: AppTheme.selection,
-                    foreground: AppTheme.fg,
-                    background: AppTheme.bg2,
-                    black: const Color(0xFF1B1D23),
-                    red: AppTheme.red,
-                    green: AppTheme.green,
-                    yellow: AppTheme.yellow,
-                    blue: AppTheme.blue,
-                    magenta: AppTheme.purple,
-                    cyan: AppTheme.cyan,
-                    white: AppTheme.fg,
-                    brightBlack: AppTheme.fgFaint,
-                    brightRed: AppTheme.red,
-                    brightGreen: AppTheme.green,
-                    brightYellow: AppTheme.yellow,
-                    brightBlue: AppTheme.blue,
-                    brightMagenta: AppTheme.purple,
-                    brightCyan: AppTheme.cyan,
-                    brightWhite: AppTheme.fgBright,
-                    searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
-                    searchHitBackgroundCurrent: AppTheme.accent,
-                    searchHitForeground: Colors.white,
-                  ),
-                  textStyle: TerminalStyle(
-                    fontSize: fontSize,
-                    fontFamily: 'JetBrains Mono',
-                  ),
-                  onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): toggleSearch,
+          const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
+        },
+        child: Column(
+          children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: _showSearch,
+              builder: (context, show, _) {
+                if (!show) return const SizedBox.shrink();
+                return TerminalSearchBar(
+                  terminal: _terminal,
+                  terminalController: _terminalController,
+                  onClose: _closeSearch,
+                );
+              },
+            ),
+            Expanded(
+              child: TerminalView(
+                _terminal,
+                controller: _terminalController,
+                autofocus: widget.isFocused,
+                hardwareKeyboardOnly: plat.isDesktopPlatform,
+                onKeyEvent: _handleTerminalKey,
+                backgroundOpacity: 1.0,
+                padding: const EdgeInsets.all(4),
+                theme: TerminalTheme(
+                  cursor: AppTheme.accent,
+                  selection: AppTheme.selection,
+                  foreground: AppTheme.fg,
+                  background: AppTheme.bg2,
+                  black: const Color(0xFF1B1D23),
+                  red: AppTheme.red,
+                  green: AppTheme.green,
+                  yellow: AppTheme.yellow,
+                  blue: AppTheme.blue,
+                  magenta: AppTheme.purple,
+                  cyan: AppTheme.cyan,
+                  white: AppTheme.fg,
+                  brightBlack: AppTheme.fgFaint,
+                  brightRed: AppTheme.red,
+                  brightGreen: AppTheme.green,
+                  brightYellow: AppTheme.yellow,
+                  brightBlue: AppTheme.blue,
+                  brightMagenta: AppTheme.purple,
+                  brightCyan: AppTheme.cyan,
+                  brightWhite: AppTheme.fgBright,
+                  searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+                  searchHitBackgroundCurrent: AppTheme.accent,
+                  searchHitForeground: Colors.white,
                 ),
+                textStyle: TerminalStyle(
+                  fontSize: fontSize,
+                  fontFamily: 'JetBrains Mono',
+                ),
+                onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
