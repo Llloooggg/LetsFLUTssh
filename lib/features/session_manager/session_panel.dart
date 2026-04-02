@@ -83,11 +83,25 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   @visibleForTesting
   void simulateMarqueeEnd() => setState(() => marqueeInProgress = false);
 
-  void _enterSelectMode() {
+  @visibleForTesting
+  void enterSelectModeWithSession(String sessionId) {
+    setState(() {
+      _selectMode = true;
+      _selectedIds
+        ..clear()
+        ..add(sessionId);
+      _selectedFolderPaths.clear();
+    });
+  }
+
+  @visibleForTesting
+  void enterSelectModeWithFolder(String folderPath) {
     setState(() {
       _selectMode = true;
       _selectedIds.clear();
-      _selectedFolderPaths.clear();
+      _selectedFolderPaths
+        ..clear()
+        ..add(folderPath);
     });
   }
 
@@ -339,7 +353,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           _PanelHeader(
             onAddSession: () => _addSession(context, ref),
             onAddFolder: () => _createFolder(context, ref, ''),
-            onSelect: mobile && !isEmpty ? _enterSelectMode : null,
           ),
           // Search bar
           _SearchBar(
@@ -542,6 +555,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 title: const Text('Delete', style: TextStyle(color: AppTheme.disconnected)),
                 onTap: () { Navigator.pop(ctx); _confirmDelete(context, ref, session); },
               ),
+              const AppDivider(),
+              ListTile(
+                leading: const Icon(Icons.checklist),
+                title: const Text('Select'),
+                onTap: () { Navigator.pop(ctx); enterSelectModeWithSession(session.id); },
+              ),
             ],
           ),
         ),
@@ -691,6 +710,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   leading: const Icon(Icons.delete, color: AppTheme.disconnected),
                   title: const Text('Delete Folder', style: TextStyle(color: AppTheme.disconnected)),
                   onTap: () { Navigator.pop(ctx); _confirmDeleteFolder(context, ref, folderPath); },
+                ),
+                const AppDivider(),
+                ListTile(
+                  leading: const Icon(Icons.checklist),
+                  title: const Text('Select'),
+                  onTap: () { Navigator.pop(ctx); enterSelectModeWithFolder(folderPath); },
                 ),
               ],
             ],
@@ -1012,12 +1037,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 class _PanelHeader extends StatelessWidget {
   final VoidCallback onAddSession;
   final VoidCallback onAddFolder;
-  final VoidCallback? onSelect;
-
   const _PanelHeader({
     required this.onAddSession,
     required this.onAddFolder,
-    this.onSelect,
   });
 
   @override
@@ -1044,13 +1066,6 @@ class _PanelHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (onSelect != null)
-            AppIconButton(
-              icon: Icons.checklist,
-              onTap: onSelect,
-              tooltip: 'Select',
-              size: 18,
-            ),
           AppIconButton(
             icon: Icons.create_new_folder,
             onTap: onAddFolder,
@@ -1090,7 +1105,8 @@ class _SelectActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.1),
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
