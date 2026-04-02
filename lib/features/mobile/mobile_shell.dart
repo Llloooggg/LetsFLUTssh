@@ -177,62 +177,95 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     );
   }
 
-  NavigationBar _buildBottomNav(TabState tabState) {
+  Widget _buildBottomNav(TabState tabState) {
     final termCount = _terminalTabCount(tabState);
     final sftpCount = _sftpTabCount(tabState);
-    return NavigationBar(
+    return Container(
       height: 56,
-      backgroundColor: AppTheme.bg1,
-      selectedIndex: _navIndex,
-      onDestinationSelected: (i) {
-        if (i == 1 && termCount == 0) return;
-        if (i == 2 && sftpCount == 0) return;
-        setState(() => _navIndex = i);
-      },
-      destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.dns_outlined),
-          selectedIcon: Icon(Icons.dns),
-          label: 'Sessions',
-        ),
-        _buildBadgedDestination(
-          count: termCount,
-          icon: Icons.terminal_outlined,
-          selectedIcon: Icons.terminal,
-          label: 'Terminal',
-        ),
-        _buildBadgedDestination(
-          count: sftpCount,
-          icon: Icons.folder_outlined,
-          selectedIcon: Icons.folder,
-          label: 'Files',
-        ),
-      ],
+      decoration: BoxDecoration(
+        color: AppTheme.bg1,
+        border: Border(top: BorderSide(color: AppTheme.border)),
+      ),
+      child: Row(
+        children: [
+          _buildNavItem(
+            index: 0,
+            icon: Icons.dns_outlined,
+            activeIcon: Icons.dns,
+            label: 'Sessions',
+          ),
+          _buildNavItem(
+            index: 1,
+            icon: Icons.terminal_outlined,
+            activeIcon: Icons.terminal,
+            label: 'Terminal',
+            badgeCount: termCount,
+          ),
+          _buildNavItem(
+            index: 2,
+            icon: Icons.folder_outlined,
+            activeIcon: Icons.folder,
+            label: 'Files',
+            badgeCount: sftpCount,
+          ),
+        ],
+      ),
     );
   }
 
-  NavigationDestination _buildBadgedDestination({
-    required int count,
+  Widget _buildNavItem({
+    required int index,
     required IconData icon,
-    required IconData selectedIcon,
+    required IconData activeIcon,
     required String label,
+    int? badgeCount,
   }) {
-    final hasItems = count > 0;
-    return NavigationDestination(
-      icon: Opacity(
-        opacity: hasItems ? 1.0 : 0.4,
-        child: Badge(
-          isLabelVisible: hasItems,
-          label: Text('$count'),
-          child: Icon(icon),
+    final isSelected = _navIndex == index;
+    final isDisabled = badgeCount != null && badgeCount == 0;
+    final opacity = isDisabled ? 0.4 : 1.0;
+    final labelColor = isSelected
+        ? AppTheme.fg
+        : isDisabled
+            ? AppTheme.fgFaint
+            : AppTheme.fgDim;
+
+    Widget iconWidget = Icon(
+      isSelected ? activeIcon : icon,
+      size: 24,
+      color: labelColor,
+    );
+    if (badgeCount != null && badgeCount > 0) {
+      iconWidget = Badge(
+        label: Text('$badgeCount'),
+        child: iconWidget,
+      );
+    }
+
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: isDisabled
+            ? null
+            : () => setState(() => _navIndex = index),
+        child: Opacity(
+          opacity: opacity,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              iconWidget,
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.xs,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: labelColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      selectedIcon: Badge(
-        isLabelVisible: hasItems,
-        label: Text('$count'),
-        child: Icon(selectedIcon),
-      ),
-      label: label,
     );
   }
 
