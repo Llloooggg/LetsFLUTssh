@@ -52,6 +52,10 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   String? _error;
   double _splitRatio = 0.5;
 
+  // SFTP clipboard for Ctrl+C / Ctrl+V across panes.
+  List<FileEntry>? _clipboardEntries;
+  String? _clipboardSourcePane;
+
   FilePaneController? get _localCtrl => _sftp?.localCtrl;
   FilePaneController? get _remoteCtrl => _sftp?.remoteCtrl;
   SFTPService? get _sftpService => _sftp?.sftpService;
@@ -195,6 +199,17 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                       _upload(e);
                     }
                   },
+                  onCopy: () => setState(() {
+                    _clipboardEntries = List.of(local.selectedEntries);
+                    _clipboardSourcePane = 'local';
+                  }),
+                  onPaste: () {
+                    final entries = _clipboardEntries;
+                    if (entries == null || entries.isEmpty) return;
+                    if (_clipboardSourcePane == 'remote') {
+                      for (final e in entries) { _download(e); }
+                    }
+                  },
                   onDropReceived: (entries) {
                     for (final e in entries) {
                       _download(e);
@@ -227,6 +242,17 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                   onTransferMultiple: (entries) {
                     for (final e in entries) {
                       _download(e);
+                    }
+                  },
+                  onCopy: () => setState(() {
+                    _clipboardEntries = List.of(remote.selectedEntries);
+                    _clipboardSourcePane = 'remote';
+                  }),
+                  onPaste: () {
+                    final entries = _clipboardEntries;
+                    if (entries == null || entries.isEmpty) return;
+                    if (_clipboardSourcePane == 'local') {
+                      for (final e in entries) { _upload(e); }
                     }
                   },
                   onDropReceived: (entries) {

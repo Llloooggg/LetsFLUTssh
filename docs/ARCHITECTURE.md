@@ -723,6 +723,55 @@ TerminalPane(connection, paneId)
 
 **Context menu:** Right-click is handled by a `Listener(onPointerDown:)` wrapping `TerminalView`, not by xterm's `onSecondaryTapUp`. This ensures the context menu works even when the terminal is in mouse mode (htop, vim, etc.), because `Listener` operates at the raw pointer level before xterm's gesture detector can consume the event.
 
+#### Keyboard Shortcuts
+
+Terminal uses `Ctrl+Shift+` prefix to avoid conflicts with terminal escape sequences (Ctrl+C = SIGINT). Other panels use classic shortcuts since they don't contain a terminal.
+
+**Global** (`main.dart` — `CallbackShortcuts`):
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+N | New session dialog |
+| Ctrl+W | Close active tab |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab |
+| Ctrl+B | Toggle sidebar |
+| Ctrl+\\ / Ctrl+Shift+\\ | Split terminal vertical / horizontal |
+| Ctrl+, | Toggle settings |
+
+**Terminal** (`terminal_pane.dart`):
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+Shift+C | Copy selection |
+| Ctrl+Shift+V | Paste clipboard |
+| Ctrl+Shift+F | Toggle search bar |
+| Escape | Close search bar |
+
+**SFTP file browser** (`file_pane.dart` — `Focus.onKeyEvent`):
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+A | Select all files |
+| Ctrl+C | Copy selected entries to SFTP clipboard |
+| Ctrl+V | Paste — transfer clipboard entries to this pane |
+| F2 | Rename (single selection) |
+| F5 | Refresh |
+| Delete | Delete selected files |
+
+SFTP clipboard is managed by `FileBrowserTab` — stores entries + source pane ID. Ctrl+C in local pane → Ctrl+V in remote pane = upload (and vice versa). Separate from session clipboard.
+
+**Session panel** (`session_panel.dart` — `Focus.onKeyEvent`):
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+C | Copy focused session to session clipboard |
+| Ctrl+V | Paste — duplicate copied session |
+| Ctrl+Z / Ctrl+Y | Undo / redo session changes |
+| F2 | Edit focused session |
+| Delete | Delete focused session |
+
+Session clipboard stores a session ID. Ctrl+V duplicates that session via `SessionNotifier.duplicate()`. Independent from SFTP clipboard.
+
 ---
 
 ### 5.2 File Browser (`features/file_browser/`)
