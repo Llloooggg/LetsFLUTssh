@@ -14,6 +14,7 @@ import '../../widgets/context_menu.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/cross_marquee_controller.dart';
+import '../../widgets/status_indicator.dart';
 import '../tabs/tab_controller.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
@@ -1244,8 +1245,6 @@ class _SidebarFooter extends ConsumerWidget {
     final tabCount = tabState.tabs.length;
 
     final theme = Theme.of(context);
-    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.45);
-    final style = AppFonts.inter(fontSize: AppFonts.xs, color: dimColor);
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1255,17 +1254,24 @@ class _SidebarFooter extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              '$savedCount saved · $activeCount active · $tabCount tabs',
-              style: style,
-              overflow: TextOverflow.ellipsis,
-            ),
+          StatusIndicator(
+            icon: Icons.dns_outlined,
+            count: savedCount,
+            tooltip: 'Saved sessions',
           ),
-          if (activeCount > 0) ...[
-            const SizedBox(width: 6),
-            Icon(Icons.wifi, size: 10, color: AppTheme.green),
-          ],
+          const Spacer(),
+          StatusIndicator(
+            icon: Icons.wifi,
+            count: activeCount,
+            tooltip: 'Active connections',
+            iconColor: activeCount > 0 ? AppTheme.green : null,
+          ),
+          const SizedBox(width: 10),
+          StatusIndicator(
+            icon: Icons.tab_outlined,
+            count: tabCount,
+            tooltip: 'Open tabs',
+          ),
         ],
       ),
     );
