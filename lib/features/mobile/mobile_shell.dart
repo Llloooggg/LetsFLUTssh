@@ -6,6 +6,7 @@ import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../theme/app_theme.dart';
 import '../session_manager/session_connect.dart';
 import '../session_manager/session_panel.dart';
@@ -35,6 +36,11 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 
     // Watch connection state changes so SFTP button updates when connect finishes
     ref.watch(connectionsProvider);
+
+    // Force rebuild when theme changes — static AppTheme colors update via
+    // setBrightness() in the app root, but this widget must re-run build()
+    // to pick up the new values.
+    ref.watch(themeModeProvider);
 
     _autoSwitchToSessionsIfNeeded(tabState);
 
