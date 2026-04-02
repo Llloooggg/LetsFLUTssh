@@ -99,6 +99,7 @@ lib/
 │   ├── config/                       # App configuration
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
+│   ├── single_instance/              # Single-instance lock (desktop)
 │   └── update/                       # Update checking
 ├── features/                         # UI modules
 │   ├── terminal/                     # Terminal with tiling
@@ -1545,6 +1546,7 @@ AppConfig {
 | Known hosts | `known_hosts` | No | SSH standard | Yes |
 | Logs | `logs/letsflutssh.log` | No | Text | No |
 | Transfer history | In-memory | N/A | — | — |
+| Instance lock | `app.lock` | No | PID text | No (OS-managed) |
 
 **Location:** `path_provider` → `getApplicationSupportDirectory()`
 - Linux: `~/.local/share/letsflutssh/`
@@ -1574,6 +1576,7 @@ AppConfig {
 | Home directory | `HOME` / `USERPROFILE` | `EXTERNAL_STORAGE` / `/storage/emulated/0` |
 | Drag & drop | desktop_drop + inter-pane | None |
 | Deep links | `app_links` (URL scheme) | `app_links` (URL scheme + file intents) |
+| Single instance | File lock (`app.lock`) | OS-managed natively |
 | Font scaling | UI scale in settings | Pinch-to-zoom terminal |
 
 ### Android specifics
@@ -1602,6 +1605,21 @@ Additionally, internal resizable elements (sidebar, file browser columns, split 
 - **`ClippedRow`** (`widgets/clipped_row.dart`): drop-in `Row` replacement that clips overflow via `Flex(clipBehavior: Clip.hardEdge)`. Used in file browser rows, column headers, breadcrumb paths, connection bar, and transfer panel
 - **Sidebar text** (`_SidebarFooter`, `_PanelHeader`, session tree rows): `Flexible` / `Expanded` with `TextOverflow.ellipsis`
 - **Welcome screen**: `SingleChildScrollView` prevents vertical overflow on small windows
+
+### Single-instance protection (desktop only)
+
+Prevents multiple app instances from running simultaneously, which would corrupt shared config/session files.
+
+**Mechanism:** exclusive file lock via `RandomAccessFile.lock(FileLock.exclusive)` on `app.lock` in the app data directory (`getApplicationSupportDirectory()`). The OS kernel automatically releases the lock when the process exits (even on crash), so there are no stale lock files.
+
+**Flow:**
+1. `main()` → `SingleInstance.acquire()` before `runApp()`
+2. If lock acquired → proceed normally
+3. If lock fails → show `_AlreadyRunningApp` (minimal dialog: "Another instance is already running" + OK button → `exit(0)`)
+
+**Mobile:** skipped — Android/iOS manage single instance natively.
+
+**File:** `core/single_instance/single_instance.dart`
 
 ### Windows specifics
 
