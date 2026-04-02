@@ -928,8 +928,10 @@ class TabEntry {
 | `mobile_shell.dart` | `MobileShell` | Bottom navigation: Sessions / Terminal / SFTP |
 | `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal + keyboard bar |
 | `mobile_file_browser.dart` | `MobileFileBrowser` | Single-pane SFTP (toggle local/remote) |
-| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn. Main row is horizontally scrollable (`ListView`); Fn button is fixed at right edge |
+| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Select. Main row is horizontally scrollable (`ListView`); Select + Fn buttons are fixed at right edge |
 | `ssh_key_sequences.dart` | — | Escape sequences for keys |
+
+**Text selection (mobile):** The Select button (📋 icon, fixed at right edge of keyboard bar) toggles text-select mode. When active, `TerminalController.setSuspendPointerInput(true)` prevents mouse events from reaching the TUI app, so the user can drag-select text for copying. Copying via the context menu auto-exits select mode (`exitSelectMode()`). Long-press word selection (built into xterm's `LongPressGestureRecognizer`) works independently of select mode.
 
 **Architectural difference:** Mobile is NOT a responsive version of desktop. It's a separate `features/mobile/` module with different interaction patterns (bottom nav instead of sidebar+tabs, long-press instead of right-click, swipe navigation).
 

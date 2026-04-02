@@ -13,7 +13,14 @@ class SshKeyboardBar extends StatefulWidget {
   /// Called when the bar produces input to send to the terminal.
   final void Function(String data) onInput;
 
-  const SshKeyboardBar({super.key, required this.onInput});
+  /// Called when text-select mode is toggled on/off.
+  final ValueChanged<bool>? onSelectModeChanged;
+
+  const SshKeyboardBar({
+    super.key,
+    required this.onInput,
+    this.onSelectModeChanged,
+  });
 
   @override
   State<SshKeyboardBar> createState() => SshKeyboardBarState();
@@ -25,6 +32,17 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
   _ModifierState _ctrl = _ModifierState.off;
   _ModifierState _alt = _ModifierState.off;
   bool _showFnKeys = false;
+  bool _selectMode = false;
+
+  /// Whether text-select mode is active.
+  bool get selectMode => _selectMode;
+
+  /// Exit text-select mode programmatically (e.g. after copy).
+  void exitSelectMode() {
+    if (!_selectMode) return;
+    setState(() => _selectMode = false);
+    widget.onSelectModeChanged?.call(false);
+  }
 
   /// Apply active Ctrl/Alt modifiers to [data] and consume one-shot modifiers.
   ///
@@ -136,7 +154,15 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
                   ],
                 ),
               ),
-              // Fn toggle — fixed at right edge, always visible
+              // Select + Fn toggles — fixed at right edge, always visible
+              _KeyButton(
+                icon: Icons.select_all,
+                isActive: _selectMode,
+                onTap: () {
+                  setState(() => _selectMode = !_selectMode);
+                  widget.onSelectModeChanged?.call(_selectMode);
+                },
+              ),
               _KeyButton(
                 label: 'Fn',
                 isActive: _showFnKeys,
