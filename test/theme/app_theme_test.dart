@@ -438,4 +438,41 @@ void main() {
       expect(AppTheme.folderColor(Brightness.light), const Color(0xFFC18401));
     });
   });
+
+  group('light brightness-aware getters', () {
+    setUp(() => AppTheme.setBrightness(Brightness.light));
+    tearDown(() => AppTheme.setBrightness(Brightness.dark));
+
+    test('bg0 is darker toolbar gray', () {
+      expect(AppTheme.bg0, const Color(0xFFDCDCDD));
+    });
+
+    test('fgDim has good contrast against light bg', () {
+      expect(AppTheme.fgDim, const Color(0xFF696C77));
+    });
+
+    test('fgFaint has readable contrast against light bg', () {
+      expect(AppTheme.fgFaint, const Color(0xFF8C8F96));
+    });
+
+    test('border is visible on light surfaces', () {
+      expect(AppTheme.border, const Color(0xFFC4C4C6));
+    });
+
+    test('borderLight uses light border for inputs', () {
+      expect(AppTheme.borderLight, const Color(0xFFD3D3D3));
+    });
+
+    test('selection has higher alpha than dark', () {
+      expect(AppTheme.selection, const Color(0x2A4078F2));
+    });
+
+    test('hover is perceptible on light background', () {
+      expect(AppTheme.hover, const Color(0x12000000));
+    });
+
+    test('active is perceptible on light background', () {
+      expect(AppTheme.active, const Color(0x1A000000));
+    });
+  });
 }

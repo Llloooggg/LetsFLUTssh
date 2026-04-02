@@ -1167,22 +1167,24 @@ abstract final class AppTheme {
   static void setBrightness(Brightness brightness);
   static bool get isDark;
 
-  // Backgrounds (dark → light)
-  static Color get bg0;     // toolbar, status bar      (dark: #1B1D23)
-  static Color get bg1;     // sidebar, dialogs         (dark: #1E2127)
-  static Color get bg2;     // main content             (dark: #282C34)
-  static Color get bg3;     // inputs, rows             (dark: #2C313A)
-  static Color get bg4;     // hover on bg3             (dark: #333842)
+  // Backgrounds (dark / light)
+  static Color get bg0;     // toolbar, status bar      (#1B1D23 / #DCDCDD)
+  static Color get bg1;     // sidebar, dialogs         (#1E2127 / #F0F0F0)
+  static Color get bg2;     // main content             (#282C34 / #FAFAFA)
+  static Color get bg3;     // inputs, rows             (#2C313A / #E5E5E6)
+  static Color get bg4;     // hover on bg3             (#333842 / #D3D3D3)
 
   // Foreground
-  static Color get fg;       // main text               (dark: #ABB2BF)
-  static Color get fgDim;   // secondary text
-  static Color get fgFaint; // disabled text
-  static Color get fgBright;// emphasized text
+  static Color get fg;       // main text               (#ABB2BF / #383A42)
+  static Color get fgDim;   // secondary text           (#7F848E / #696C77)
+  static Color get fgFaint; // disabled text            (#5C6370 / #8C8F96)
+  static Color get fgBright;// emphasized text           (#CDD3DE / #232529)
 
   // Semantic colors
   static Color get accent, blue, green, red, yellow, orange, cyan, purple;
-  static Color get border, borderLight, selection, hover, active;
+  static Color get border;      // main dividers        (#1B1D23 / #C4C4C6)
+  static Color get borderLight; // inputs, cards        (#2C313A / #D3D3D3)
+  static Color get selection, hover, active;
 
   // Connection status
   static Color connected;          // green
