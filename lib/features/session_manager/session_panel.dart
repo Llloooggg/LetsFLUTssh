@@ -335,7 +335,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   Widget build(BuildContext context) {
     final tree = ref.watch(filteredSessionTreeProvider);
     final searchQuery = ref.watch(sessionSearchProvider);
-    final isEmpty = ref.watch(sessionProvider.select((s) => s.isEmpty));
+    final isEmpty = tree.isEmpty;
 
     final mobile = isMobilePlatform;
 

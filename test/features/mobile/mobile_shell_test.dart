@@ -14,6 +14,7 @@ import 'package:letsflutssh/features/tabs/tab_controller.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
+import 'package:letsflutssh/providers/theme_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
@@ -954,6 +955,81 @@ void main() {
       });
       expect(bg1Containers, isNotEmpty,
           reason: 'tab bar area should have bg1 background');
+    });
+
+    testWidgets('rebuilds with new colors when theme changes', (tester) async {
+      // Start with dark theme
+      AppTheme.setBrightness(Brightness.dark);
+      final darkBg1 = AppTheme.bg1;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            // Start with dark theme
+            themeModeProvider.overrideWithValue(ThemeMode.dark),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            darkTheme: AppTheme.dark(),
+            themeMode: ThemeMode.dark,
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // App bar should use dark bg1
+      final darkContainers = tester.widgetList<Container>(find.byType(Container));
+      final hasDarkBg1 = darkContainers.any((c) {
+        final dec = c.decoration;
+        return dec is BoxDecoration && dec.color == darkBg1;
+      });
+      expect(hasDarkBg1, isTrue, reason: 'app bar should use dark bg1');
+
+      // Switch to light theme — rebuild widget tree with new overrides
+      AppTheme.setBrightness(Brightness.light);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            themeModeProvider.overrideWithValue(ThemeMode.light),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            darkTheme: AppTheme.dark(),
+            themeMode: ThemeMode.light,
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // After theme change, MobileShell should rebuild with light colors
+      final lightBg1 = AppTheme.bg1;
+      expect(lightBg1, isNot(equals(darkBg1)),
+          reason: 'light bg1 should differ from dark bg1');
+
+      final lightContainers = tester.widgetList<Container>(find.byType(Container));
+      final hasLightBg1 = lightContainers.any((c) {
+        final dec = c.decoration;
+        return dec is BoxDecoration && dec.color == lightBg1;
+      });
+      expect(hasLightBg1, isTrue,
+          reason: 'app bar should use light bg1 after theme change');
+
+      // Restore dark theme for other tests
+      AppTheme.setBrightness(Brightness.dark);
     });
 
     testWidgets('badge shows terminal tab count', (tester) async {

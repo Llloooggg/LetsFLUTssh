@@ -319,6 +319,16 @@ void main() {
       expect(addButton, findsOneWidget);
       expect(find.byIcon(Icons.add), findsWidgets);
     });
+
+    testWidgets('shows tree view when empty folders exist without sessions',
+        (tester) async {
+      await tester.pumpWidget(
+        buildApp(sessions: [], emptyFolders: {'Staging'}),
+      );
+      // Should show the folder, not the empty state
+      expect(find.text('No saved sessions'), findsNothing);
+      expect(find.text('Staging'), findsOneWidget);
+    });
   });
 
   group('SessionPanel — search bar', () {

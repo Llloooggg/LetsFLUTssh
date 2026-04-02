@@ -844,6 +844,55 @@ void main() {
     });
   });
 
+  group('SessionEditDialog — validation switches to correct tab', () {
+    testWidgets('switches to Connection tab when username is empty and on Auth tab',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Fill host but leave username empty
+      await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
+      // Fill password on Auth tab
+      await switchToAuth(tester);
+      await tester.enterText(fieldByHint('••••••••'), 'secret');
+      await tester.pumpAndSettle();
+
+      // Stay on Auth tab and press Connect
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      // Should switch to Connection tab and show the error
+      expect(find.text('Required'), findsOneWidget);
+      expect(dialogResult, isNull);
+      // Connection tab content should be visible (Username field with hint)
+      expect(fieldByHint('root'), findsOneWidget);
+    });
+
+    testWidgets('switches to Connection tab when host is empty and on Auth tab',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Fill username but leave host empty
+      await tester.enterText(fieldByHint('root'), 'user');
+      // Fill password on Auth tab
+      await switchToAuth(tester);
+      await tester.enterText(fieldByHint('••••••••'), 'secret');
+      await tester.pumpAndSettle();
+
+      // Stay on Auth tab and press Connect
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Required'), findsOneWidget);
+      expect(dialogResult, isNull);
+      // Connection tab content should be visible
+      expect(fieldByHint('192.168.1.1'), findsOneWidget);
+    });
+  });
+
   group('SessionEditDialog — auth type switching', () {
     testWidgets('switching to Both shows both password and key fields',
         (tester) async {
