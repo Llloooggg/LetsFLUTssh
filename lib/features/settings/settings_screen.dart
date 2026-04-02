@@ -296,12 +296,13 @@ class _NavItem extends StatefulWidget {
 class _NavItemState extends State<_NavItem> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return HoverRegion(
       onTap: widget.onTap,
       builder: (hovered) {
         final Color bg;
         if (widget.selected) {
-          bg = AppTheme.selection;
+          bg = theme.colorScheme.primary.withValues(alpha: 0.15);
         } else if (hovered) {
           bg = AppTheme.hover;
         } else {
@@ -316,7 +317,7 @@ class _NavItemState extends State<_NavItem> {
               Icon(
                 widget.icon,
                 size: 13,
-                color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+                color: widget.selected ? AppTheme.fg : AppTheme.fgDim,
               ),
               const SizedBox(width: 8),
               Flexible(
@@ -325,8 +326,7 @@ class _NavItemState extends State<_NavItem> {
                   overflow: TextOverflow.ellipsis,
                   style: AppFonts.inter(
                     fontSize: AppFonts.sm,
-                    fontWeight: widget.selected ? FontWeight.w500 : FontWeight.normal,
-                    color: widget.selected ? AppTheme.accent : AppTheme.fgDim,
+                    color: widget.selected ? AppTheme.fg : AppTheme.fgDim,
                   ),
                 ),
               ),
