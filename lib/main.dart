@@ -449,7 +449,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       sidebarOpen: _sidebarOpen,
       useDrawer: isNarrow,
       body: body,
-      statusBar: inSettings ? null : _StatusBar(tabState: tabState),
+      statusBar: null,
     );
   }
 
@@ -717,74 +717,6 @@ class _Divider extends StatelessWidget {
       height: 16,
       margin: const EdgeInsets.symmetric(horizontal: 4),
       color: Theme.of(context).colorScheme.outlineVariant,
-    );
-  }
-}
-
-class _StatusBar extends ConsumerWidget {
-  final TabState tabState;
-
-  const _StatusBar({required this.tabState});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final dimColor = scheme.onSurface.withValues(alpha: 0.45);
-
-    return Container(
-      height: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
-        border: Border(
-          top: BorderSide(color: theme.dividerColor),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Spacer(),
-          _ActiveCount(dimColor: dimColor),
-          const SizedBox(width: 12),
-          Text(
-            '${tabState.tabs.length} tabs',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: AppFonts.xs,
-              color: dimColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActiveCount extends ConsumerWidget {
-  final Color dimColor;
-
-  const _ActiveCount({required this.dimColor});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final connections = ref.watch(connectionsProvider).value ?? [];
-    final activeCount = connections.where((c) => c.isConnected).length;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.wifi, size: 10,
-            color: activeCount > 0 ? AppTheme.green : dimColor),
-        const SizedBox(width: 4),
-        Text(
-          '$activeCount active',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: AppFonts.xs,
-            color: dimColor,
-          ),
-        ),
-      ],
     );
   }
 }
