@@ -1751,10 +1751,10 @@ push to dev/main or PR
   │                             build all platforms
   │                             → GitHub Release + SLSA attestation
   │
-  ├─► security-osv.yml        (main push + PR + weekly)
-  ├─► security-codeql.yml     (main push + PR + weekly)
-  ├─► security-semgrep.yml    (main push + PR + weekly)
-  └─► security-scorecard.yml  (main push + weekly)
+  ├─► osv.yml                 (main push + PR + weekly)
+  ├─► codeql.yml              (main push + PR + weekly)
+  ├─► semgrep.yml             (main push + PR + weekly)
+  └─► scorecard.yml            (main push + weekly)
 
 Dependabot PR merged (into main)
   │
@@ -1776,10 +1776,10 @@ Manual build
 | `build-release.yml` | push tag v* / manual | — | Build all platforms + release | — |
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
 | `dependabot-auto.yml` | PR (dependabot) | main | Auto-merge patch/minor + version bump | — |
-| `security-osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
-| `security-codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
-| `security-semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
-| `security-scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
+| `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
+| `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
+| `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
+| `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 
 ### 15.4 Makefile Targets
 
