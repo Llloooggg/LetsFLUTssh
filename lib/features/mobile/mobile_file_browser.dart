@@ -414,6 +414,7 @@ class _MobileFileListState extends State<MobileFileList> {
   }
 
   void _showEntryActions(BuildContext context, FileEntry entry) {
+    ctrl.selectSingle(entry.path);
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
