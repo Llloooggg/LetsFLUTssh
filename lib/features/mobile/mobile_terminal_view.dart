@@ -179,7 +179,14 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
             ),
           ),
         ),
-        SshKeyboardBar(key: _keyboardKey, onInput: _onKeyboardInput),
+        SshKeyboardBar(
+          key: _keyboardKey,
+          onInput: _onKeyboardInput,
+          onSelectModeChanged: (active) {
+            _terminalController.setSuspendPointerInput(active);
+            if (!active) _terminalController.clearSelection();
+          },
+        ),
       ],
     );
   }
@@ -194,7 +201,10 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           ContextMenuItem(
             label: 'Copy',
             icon: Icons.copy,
-            onTap: () => TerminalClipboard.copy(_terminal, _terminalController),
+            onTap: () {
+              TerminalClipboard.copy(_terminal, _terminalController);
+              _keyboardKey.currentState?.exitSelectMode();
+            },
           ),
         ContextMenuItem(
           label: 'Paste',
