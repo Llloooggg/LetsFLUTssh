@@ -1629,10 +1629,10 @@ push to dev/main or PR
   ├─► ci.yml                 (always runs — no path filters)
   │     analyze + test + coverage
   │           │
-  │           ├─► sonarcloud.yml     (workflow_run[CI], non-fork only)
+  │           ├─► ci-sonarcloud.yml   (workflow_run[CI], non-fork only)
   │           │     quality + coverage scan
   │           │
-  │           └─► auto-tag.yml       (workflow_run[CI], main only)
+  │           └─► ci-auto-tag.yml     (workflow_run[CI], main only)
   │                 reads version from pubspec.yaml
   │                 tag exists → skip / new version → create tag
   │                       │
@@ -1648,7 +1648,7 @@ push to dev/main or PR
 Dependabot PR merged (into main)
   │
   └─► dependabot-auto.yml → auto-merge + patch bump → commit
-        └─► ci.yml → auto-tag.yml → build-release.yml → Release
+        └─► ci.yml → ci-auto-tag.yml → build-release.yml → Release
 
 Manual build
   │
@@ -1661,9 +1661,9 @@ Manual build
 | Workflow | Trigger | Branches | Purpose | Blocks release? |
 |----------|---------|----------|---------|-----------------|
 | `ci.yml` | push/PR (all paths) | main, dev | analyze + test + coverage | Yes (required) |
-| `auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
+| `ci-auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
 | `build-release.yml` | push tag v* / manual | — | Build all platforms + release | — |
-| `sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
+| `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
 | `dependabot-auto.yml` | PR (dependabot) | main | Auto-merge patch/minor + version bump | — |
 | `security-osv.yml` | push pubspec.* / PR (all) / weekly | main, dev | CVE scan (pubspec.lock) | Yes on PR |
 | `security-codeql.yml` | push .github/ / PR (all) / weekly | main, dev | GitHub Actions analysis | Yes on PR |
