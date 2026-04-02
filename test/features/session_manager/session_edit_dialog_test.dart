@@ -252,6 +252,22 @@ void main() {
       expect(result.connect, isFalse);
     });
 
+    testWidgets('Save & Connect returns SaveResult with connect=true', (tester) async {
+      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
+      await tester.pumpWidget(buildApp(session: session));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.host, '10.0.0.1');
+      expect(result.session.user, 'root');
+      expect(result.connect, isTrue);
+    });
+
     testWidgets('Save preserves edited fields', (tester) async {
       final session = Session(label: 'old-label', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
       await tester.pumpWidget(buildApp(session: session));
@@ -669,7 +685,7 @@ void main() {
       expect(result.connect, isFalse);
     });
 
-    testWidgets('edit mode has Save and Cancel buttons only', (tester) async {
+    testWidgets('edit mode has Save, Save & Connect and Cancel buttons', (tester) async {
       final session = Session(label: 'edit-me', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password));
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
@@ -677,8 +693,8 @@ void main() {
 
       expect(find.text('Edit Connection'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
+      expect(find.text('Save & Connect'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
-      expect(find.text('Connect'), findsNothing);
       expect(find.text('Connect'), findsNothing);
     });
   });
