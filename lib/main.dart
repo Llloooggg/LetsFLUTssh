@@ -1,3 +1,5 @@
+import 'dart:io' show exit;
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/connection/connection.dart';
 import 'core/deeplink/deeplink_handler.dart';
+import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
 import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
@@ -45,10 +48,25 @@ import 'utils/platform.dart' as plat;
 /// (e.g., host key verification during SSH handshake).
 final navigatorKey = GlobalKey<NavigatorState>();
 
+/// Single-instance lock — kept alive for the process lifetime.
+/// The OS releases the file lock automatically on exit (even on crash).
+@visibleForTesting
+SingleInstance? singleInstanceLock;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppLogger.instance.init();
   AppLogger.instance.log('App starting', name: 'App');
+
+  if (plat.isDesktopPlatform) {
+    singleInstanceLock = SingleInstance();
+    final acquired = await singleInstanceLock!.acquire();
+    if (!acquired) {
+      runApp(const _AlreadyRunningApp());
+      return;
+    }
+  }
+
   runApp(const ProviderScope(child: LetsFLUTsshApp()));
 }
 
@@ -814,6 +832,39 @@ class _ConnectionBar extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(fontFamily: 'Inter', fontSize: AppFonts.xs, fontWeight: FontWeight.w500, color: btnColor, height: 1.0),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Minimal app shown when another instance is already running.
+class _AlreadyRunningApp extends StatelessWidget {
+  const _AlreadyRunningApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(useMaterial3: true),
+      home: Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.block, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'Another instance of LetsFLUTssh is already running.',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => exit(0),
+                child: const Text('OK'),
               ),
             ],
           ),
