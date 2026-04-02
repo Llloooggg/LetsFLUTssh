@@ -138,20 +138,21 @@ class SessionStore {
     await writeFileAtomic(_filePath, content);
   }
 
-  /// Save session metadata + credentials to their respective stores.
+  /// Save credentials first, then session metadata.
   ///
-  /// Both saves are attempted together. If credential save fails,
-  /// the session file is still persisted (credentials remain in memory
-  /// and will be retried on next save).
+  /// Credentials are saved before sessions so that on crash/restart
+  /// the encrypted store is never behind the session file. If credential
+  /// save fails, session file is still persisted (credentials remain in
+  /// memory and will be retried on next save).
   Future<void> _save() async {
-    await _saveSessionFile();
     try {
       await _saveCredentials();
     } catch (e) {
-      AppLogger.instance.log('Credential save failed, '
-          'session file was saved — credentials will retry on next save',
+      AppLogger.instance.log('Credential save failed — '
+          'credentials remain in memory and will retry on next save',
           name: 'SessionStore', error: e);
     }
+    await _saveSessionFile();
   }
 
   /// Save all credentials to encrypted store.
