@@ -3,9 +3,7 @@ name: Security / CodeQL
 on:
   workflow_dispatch:
   push:
-    branches: [main, dev]
-    paths:
-      - '.github/**'
+    branches: [main]
   pull_request:
     branches: [main, dev]
   schedule:
