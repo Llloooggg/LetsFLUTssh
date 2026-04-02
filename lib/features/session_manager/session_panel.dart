@@ -40,6 +40,7 @@ class SessionPanel extends ConsumerStatefulWidget {
 }
 
 class SessionPanelState extends ConsumerState<SessionPanel> {
+  final _focusNode = FocusNode();
   bool _selectMode = false;
   final _selectedIds = <String>{};
   final _selectedFolderPaths = <String>{};
@@ -47,6 +48,15 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   @visibleForTesting
   bool marqueeInProgress = false;
 
+  // Focused session for keyboard shortcuts (single-click selection).
+  String? _focusedSessionId;
+  // Session clipboard — Ctrl+C stores the session ID, Ctrl+V duplicates it.
+  String? _copiedSessionId;
+
+  @visibleForTesting
+  FocusNode get focusNode => _focusNode;
+  @visibleForTesting
+  String? get focusedSessionId => _focusedSessionId;
   @visibleForTesting
   bool get selectMode => _selectMode;
   @visibleForTesting
@@ -79,6 +89,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       _selectedIds.clear();
       _selectedFolderPaths.clear();
     });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
   }
 
   void _exitSelectMode() {
@@ -215,19 +231,79 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         .toSet();
   }
 
+  /// Copy the focused session to the clipboard.
+  @visibleForTesting
+  void copyFocusedSession() {
+    if (_focusedSessionId != null) {
+      _copiedSessionId = _focusedSessionId;
+    }
+  }
+
+  /// Paste (duplicate) the copied session.
+  @visibleForTesting
+  void pasteCopiedSession() {
+    if (_copiedSessionId != null) {
+      ref.read(sessionProvider.notifier).duplicate(_copiedSessionId!);
+    }
+  }
+
+  /// Delete the focused session (shows confirmation dialog).
+  @visibleForTesting
+  void deleteFocusedSession() {
+    final id = _focusedSessionId;
+    if (id == null) return;
+    final sessions = ref.read(sessionProvider);
+    final session = sessions.where((s) => s.id == id).firstOrNull;
+    if (session == null) return;
+    _confirmDelete(context, ref, session);
+  }
+
+  /// Edit the focused session (shows edit dialog).
+  @visibleForTesting
+  void editFocusedSession() {
+    final id = _focusedSessionId;
+    if (id == null) return;
+    final sessions = ref.read(sessionProvider);
+    final session = sessions.where((s) => s.id == id).firstOrNull;
+    if (session == null) return;
+    _editSession(context, ref, session);
+  }
+
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final ctrl = HardwareKeyboard.instance.logicalKeysPressed
+    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed
         .intersection({LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.controlRight})
         .isNotEmpty;
-    if (!ctrl) return KeyEventResult.ignored;
 
-    if (event.logicalKey == LogicalKeyboardKey.keyZ) {
-      ref.read(sessionProvider.notifier).undo();
+    if (isCtrl) {
+      if (event.logicalKey == LogicalKeyboardKey.keyZ) {
+        ref.read(sessionProvider.notifier).undo();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyY) {
+        ref.read(sessionProvider.notifier).redo();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyC) {
+        copyFocusedSession();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyV) {
+        pasteCopiedSession();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // Non-modifier shortcuts
+    if (event.logicalKey == LogicalKeyboardKey.delete) {
+      if (_focusedSessionId == null) return KeyEventResult.ignored;
+      deleteFocusedSession();
       return KeyEventResult.handled;
     }
-    if (event.logicalKey == LogicalKeyboardKey.keyY) {
-      ref.read(sessionProvider.notifier).redo();
+    if (event.logicalKey == LogicalKeyboardKey.f2) {
+      if (_focusedSessionId == null) return KeyEventResult.ignored;
+      editFocusedSession();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -243,6 +319,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final scheme = Theme.of(context).colorScheme;
     return Focus(
+      focusNode: _focusNode,
       autofocus: false,
       onKeyEvent: _onKeyEvent,
       child: Container(
@@ -286,6 +363,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   onToggleFolderSelected: _toggleFolderSelected,
                   crossMarquee: widget.crossMarquee,
                   onSessionDoubleTap: widget.onConnect,
+                  onSessionSelected: (id) {
+                    _focusedSessionId = id;
+                    _focusNode.requestFocus();
+                  },
                   onSessionContextMenu: (session, position) {
                     _showContextMenu(context, ref, session, position);
                   },

@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/credential_store.dart';
@@ -2359,6 +2360,105 @@ void main() {
 
       expect(state.selectedIds, isEmpty);
       expect(state.selectedFolderPaths, isEmpty);
+    });
+  });
+
+  group('SessionPanel — keyboard shortcuts', () {
+    tearDown(() => debugMobilePlatformOverride = null);
+
+    testWidgets('Ctrl+C sets copied session, Ctrl+V triggers duplicate', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Tap a session — wait past double-tap timeout so single-tap fires
+      await tester.tap(find.text('web1'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(panelState.focusedSessionId, '1');
+
+      // Copy stores the session ID
+      panelState.copyFocusedSession();
+
+      // Paste duplicates — verify via provider state change
+      panelState.pasteCopiedSession();
+      await tester.pumpAndSettle();
+
+      // The provider should now have 4 sessions (3 original + 1 copy)
+      final container = ProviderScope.containerOf(tester.element(find.byType(SessionPanel)));
+      final updatedSessions = container.read(sessionProvider);
+      expect(updatedSessions.length, 4);
+      expect(updatedSessions.any((s) => s.label.contains('(copy)')), isTrue);
+    });
+
+    testWidgets('Delete key opens delete confirmation for focused session', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('staging'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(state.focusedSessionId, '3');
+
+      state.deleteFocusedSession();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Session'), findsOneWidget);
+    });
+
+    testWidgets('F2 opens edit dialog for focused session', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('web1'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(state.focusedSessionId, '1');
+
+      state.editFocusedSession();
+      await tester.pumpAndSettle();
+
+      // Edit dialog should open with session data
+      expect(find.text('10.0.0.1'), findsWidgets);
+    });
+
+    testWidgets('Delete key ignored when no session focused', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Don't tap any session — no focus
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      // No delete dialog
+      expect(find.textContaining('Delete "'), findsNothing);
+    });
+
+    testWidgets('Ctrl+V ignored when nothing copied', (tester) async {
+      debugMobilePlatformOverride = false;
+      final sessions = [
+        Session(id: '1', label: 'only', folder: '', server: const ServerAddress(host: '1.2.3.4', user: 'u'), auth: const SessionAuth(authType: AuthType.password)),
+      ];
+      await tester.pumpWidget(buildApp(sessions: sessions));
+      await tester.pumpAndSettle();
+
+      // Ctrl+V without prior Ctrl+C
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Still just one session
+      expect(find.textContaining('(copy)'), findsNothing);
     });
   });
 }
