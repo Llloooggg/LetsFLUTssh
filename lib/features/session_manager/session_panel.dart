@@ -208,16 +208,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   /// Build set of session IDs that have an active connection.
   Set<String> _connectedSessionIds(WidgetRef ref) {
     final connections = ref.watch(connectionsProvider).value ?? [];
-    final activeConfigs = connections
-        .where((c) => c.isConnected)
-        .map((c) => '${c.sshConfig.host}:${c.sshConfig.effectivePort}:${c.sshConfig.user}')
+    return connections
+        .where((c) => c.isConnected && c.sessionId != null)
+        .map((c) => c.sessionId!)
         .toSet();
-    final sessions = ref.watch(sessionProvider);
-    return {
-      for (final s in sessions)
-        if (activeConfigs.contains('${s.server.host}:${s.port}:${s.server.user}'))
-          s.id,
-    };
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {

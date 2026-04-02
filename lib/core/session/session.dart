@@ -145,10 +145,15 @@ class Session {
   /// Create a duplicate with new ID and "(copy)" suffix.
   Session duplicate() {
     return Session(
-      label: '$label (copy)',
+      label: label.isNotEmpty ? '$label (copy)' : '',
       folder: folder,
-      server: server,
-      auth: auth,
+      server: ServerAddress(host: host, port: port, user: user),
+      auth: SessionAuth(
+        password: password,
+        keyPath: auth.keyPath,
+        keyData: keyData,
+        passphrase: passphrase,
+      ),
       incomplete: incomplete,
     );
   }
