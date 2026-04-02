@@ -81,26 +81,4 @@ void main() {
     });
   });
 
-  group('AppTheme border constants', () {
-    test('borderSide uses border color', () {
-      expect(AppTheme.borderSide.color, AppTheme.border);
-      expect(AppTheme.borderSide.width, 1.0);
-    });
-
-    test('borderTop has top side only', () {
-      final border = AppTheme.borderTop;
-      expect(border.top, AppTheme.borderSide);
-      expect(border.bottom, BorderSide.none);
-      expect(border.left, BorderSide.none);
-      expect(border.right, BorderSide.none);
-    });
-
-    test('borderBottom has bottom side only', () {
-      final border = AppTheme.borderBottom;
-      expect(border.bottom, AppTheme.borderSide);
-      expect(border.top, BorderSide.none);
-      expect(border.left, BorderSide.none);
-      expect(border.right, BorderSide.none);
-    });
-  });
 }

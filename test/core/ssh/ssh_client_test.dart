@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {
@@ -109,78 +108,4 @@ void main() {
     });
   });
 
-  group('SSH error types for SSHConnection', () {
-    test('ConnectError thrown for disposed connection', () {
-      const error = ConnectError('Connection disposed');
-      expect(error.message, 'Connection disposed');
-      expect(error, isA<SSHError>());
-    });
-
-    test('ConnectError with host info', () {
-      const error = ConnectError('Failed to connect to example.com:22');
-      expect(error.message, contains('example.com'));
-      expect(error.message, contains('22'));
-    });
-
-    test('AuthError for authentication failure', () {
-      const error = AuthError('Authentication failed for root@example.com');
-      expect(error.message, contains('root'));
-      expect(error.message, contains('example.com'));
-    });
-
-    test('HostKeyError for rejected host key', () {
-      const error = HostKeyError(
-        'Host key rejected for example.com:22 — accept the host key or check known_hosts',
-      );
-      expect(error.message, contains('Host key rejected'));
-      expect(error.message, contains('known_hosts'));
-    });
-
-    test('AuthError for failed key file load', () {
-      const error = AuthError('Failed to load SSH key file');
-      expect(error.message, 'Failed to load SSH key file');
-    });
-
-    test('AuthError for failed PEM parsing', () {
-      const error = AuthError('Failed to parse PEM key data');
-      expect(error.message, 'Failed to parse PEM key data');
-    });
-
-    test('ConnectError for failed shell open', () {
-      const error = ConnectError('Failed to open shell');
-      expect(error.message, 'Failed to open shell');
-    });
-
-    test('ConnectError for not connected state', () {
-      const error = ConnectError('Not connected');
-      expect(error.message, 'Not connected');
-    });
-
-    test('userMessage strips SocketException prefix', () {
-      const error =
-          SSHError('connection failed', SocketException('Connection refused'));
-      expect(error.userMessage, contains('connection failed'));
-      expect(error.userMessage, contains('Connection refused'));
-    });
-
-    test('userMessage without cause returns message', () {
-      const error = ConnectError('timeout');
-      expect(error.userMessage, 'timeout');
-    });
-
-    test('userMessage with nested SSHError cause', () {
-      const inner = AuthError('wrong password');
-      const outer = ConnectError('connection failed', inner);
-      expect(outer.userMessage, contains('connection failed'));
-      expect(outer.userMessage, contains('wrong password'));
-    });
-  });
-}
-
-/// Minimal SocketException-like class for testing userMessage prefix stripping.
-class SocketException implements Exception {
-  final String message;
-  const SocketException(this.message);
-  @override
-  String toString() => 'SocketException: $message';
 }

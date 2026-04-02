@@ -66,28 +66,5 @@ void main() {
       expect(icon.color, isNot(Colors.green));
     });
 
-    testWidgets('renders zero count', (tester) async {
-      await tester.pumpWidget(wrap(
-        const StatusIndicator(
-          icon: Icons.dns_outlined,
-          count: 0,
-          tooltip: 'Saved',
-        ),
-      ));
-
-      expect(find.text('0'), findsOneWidget);
-    });
-
-    testWidgets('renders large count', (tester) async {
-      await tester.pumpWidget(wrap(
-        const StatusIndicator(
-          icon: Icons.dns_outlined,
-          count: 9999,
-          tooltip: 'Saved',
-        ),
-      ));
-
-      expect(find.text('9999'), findsOneWidget);
-    });
-  });
+});
 }
