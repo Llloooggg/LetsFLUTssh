@@ -461,7 +461,8 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     return Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      color: AppTheme.bg3,
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(color: AppTheme.bg3),
       child: Row(
         children: [
           const SizedBox(width: 20), // icon space

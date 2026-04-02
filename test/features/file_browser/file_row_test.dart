@@ -237,6 +237,57 @@ void main() {
       expect(ellipsisTexts.length, 5);
     });
 
+    testWidgets('row container uses Clip.hardEdge', (tester) async {
+      await tester.pumpWidget(buildApp(FileRow(
+        entry: FileEntry(
+          name: 'file.txt',
+          path: '/file.txt',
+          size: 1024,
+          mode: 0x1A4,
+          modTime: now,
+          isDir: false,
+        ),
+        isSelected: false,
+        sizeWidth: 55,
+        modifiedWidth: 105,
+        modeWidth: 65,
+        ownerWidth: 50,
+        onTap: () {},
+        onCtrlTap: () {},
+        onDoubleTap: () {},
+        onContextMenu: (_) {},
+      )));
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final clipped = containers.where((c) => c.clipBehavior == Clip.hardEdge);
+      expect(clipped, isNotEmpty, reason: 'FileRow should clip overflow');
+    });
+
+    testWidgets('name column has Tooltip', (tester) async {
+      await tester.pumpWidget(buildApp(FileRow(
+        entry: FileEntry(
+          name: 'very_long_filename_that_overflows.txt',
+          path: '/very_long_filename_that_overflows.txt',
+          size: 1024,
+          mode: 0x1A4,
+          modTime: now,
+          isDir: false,
+        ),
+        isSelected: false,
+        sizeWidth: 55,
+        modifiedWidth: 105,
+        modeWidth: 0,
+        ownerWidth: 0,
+        onTap: () {},
+        onCtrlTap: () {},
+        onDoubleTap: () {},
+        onContextMenu: (_) {},
+      )));
+      expect(
+        find.byTooltip('very_long_filename_that_overflows.txt'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('columns hidden when width is zero', (tester) async {
       await tester.pumpWidget(buildApp(FileRow(
         entry: FileEntry(

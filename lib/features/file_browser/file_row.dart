@@ -120,7 +120,10 @@ class FileRow extends StatelessWidget {
         child: Container(
           height: 26,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          color: isSelected ? AppTheme.selection : null,
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(
+            color: isSelected ? AppTheme.selection : null,
+          ),
           child: Row(
             children: [
               Icon(
@@ -130,13 +133,17 @@ class FileRow extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: Text(
-                  entry.name,
-                  style: AppFonts.mono(
-                    fontSize: AppFonts.sm,
-                    color: entry.isDir ? AppTheme.fg : AppTheme.fgDim,
+                child: Tooltip(
+                  message: entry.name,
+                  waitDuration: const Duration(milliseconds: 600),
+                  child: Text(
+                    entry.name,
+                    style: AppFonts.mono(
+                      fontSize: AppFonts.sm,
+                      color: entry.isDir ? AppTheme.fg : AppTheme.fgDim,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (sizeWidth > 0) ...[
