@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -185,44 +186,53 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
               },
             ),
             Expanded(
-              child: TerminalView(
-                _terminal,
-                controller: _terminalController,
-                autofocus: widget.isFocused,
-                hardwareKeyboardOnly: plat.isDesktopPlatform,
-                onKeyEvent: _handleTerminalKey,
-                backgroundOpacity: 1.0,
-                padding: const EdgeInsets.all(4),
-                theme: TerminalTheme(
-                  cursor: AppTheme.accent,
-                  selection: AppTheme.selection,
-                  foreground: AppTheme.fg,
-                  background: AppTheme.bg2,
-                  black: const Color(0xFF1B1D23),
-                  red: AppTheme.red,
-                  green: AppTheme.green,
-                  yellow: AppTheme.yellow,
-                  blue: AppTheme.blue,
-                  magenta: AppTheme.purple,
-                  cyan: AppTheme.cyan,
-                  white: AppTheme.fg,
-                  brightBlack: AppTheme.fgFaint,
-                  brightRed: AppTheme.red,
-                  brightGreen: AppTheme.green,
-                  brightYellow: AppTheme.yellow,
-                  brightBlue: AppTheme.blue,
-                  brightMagenta: AppTheme.purple,
-                  brightCyan: AppTheme.cyan,
-                  brightWhite: AppTheme.fgBright,
-                  searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
-                  searchHitBackgroundCurrent: AppTheme.accent,
-                  searchHitForeground: Colors.white,
+              // Listener intercepts right-click before xterm's gesture
+              // detector, so the context menu works even when the terminal
+              // is in mouse mode (e.g. htop, vim).
+              child: Listener(
+                onPointerDown: (event) {
+                  if (event.buttons == kSecondaryButton) {
+                    _showContextMenu(context, event.position);
+                  }
+                },
+                child: TerminalView(
+                  _terminal,
+                  controller: _terminalController,
+                  autofocus: widget.isFocused,
+                  hardwareKeyboardOnly: plat.isDesktopPlatform,
+                  onKeyEvent: _handleTerminalKey,
+                  backgroundOpacity: 1.0,
+                  padding: const EdgeInsets.all(4),
+                  theme: TerminalTheme(
+                    cursor: AppTheme.accent,
+                    selection: AppTheme.selection,
+                    foreground: AppTheme.fg,
+                    background: AppTheme.bg2,
+                    black: const Color(0xFF1B1D23),
+                    red: AppTheme.red,
+                    green: AppTheme.green,
+                    yellow: AppTheme.yellow,
+                    blue: AppTheme.blue,
+                    magenta: AppTheme.purple,
+                    cyan: AppTheme.cyan,
+                    white: AppTheme.fg,
+                    brightBlack: AppTheme.fgFaint,
+                    brightRed: AppTheme.red,
+                    brightGreen: AppTheme.green,
+                    brightYellow: AppTheme.yellow,
+                    brightBlue: AppTheme.blue,
+                    brightMagenta: AppTheme.purple,
+                    brightCyan: AppTheme.cyan,
+                    brightWhite: AppTheme.fgBright,
+                    searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+                    searchHitBackgroundCurrent: AppTheme.accent,
+                    searchHitForeground: Colors.white,
+                  ),
+                  textStyle: TerminalStyle(
+                    fontSize: fontSize,
+                    fontFamily: 'JetBrains Mono',
+                  ),
                 ),
-                textStyle: TerminalStyle(
-                  fontSize: fontSize,
-                  fontFamily: 'JetBrains Mono',
-                ),
-                onSecondaryTapUp: (details, _) => _showContextMenu(context, details.globalPosition),
               ),
             ),
           ],
