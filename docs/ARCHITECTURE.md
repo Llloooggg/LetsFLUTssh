@@ -278,6 +278,16 @@ class TransferManager {
 
 **Cancellation:** Marks the task as cancelled; on the next progress callback invocation the flag is checked and CancelException is thrown.
 
+#### TransferPanel — UI
+
+The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsible bottom panel unified with the file browser table pattern:
+
+- **Resizable columns** — Local, Remote, Size, and Time columns have drag handles (same `colHandle` pattern as `FilePane`)
+- **Column dividers** — Vertical 1px dividers between columns (same `_colDivider` as `FileRow`)
+- **Sorting** — Click column headers to sort history entries. Default: Time descending. Enum: `TransferSortColumn` (name, local, remote, size, time)
+- **Time column** — Replaces old Duration column. Shows `formatTimestamp` + `(formatDuration)` for completed entries. Tooltip shows created/started/ended/duration breakdown
+- **Left-aligned sizes** — Size column uses default left alignment (no `textAlign: TextAlign.right`)
+
 ---
 
 ### 3.4 Session Management (`core/session/`)
@@ -727,7 +737,7 @@ TerminalPane(connection, paneId)
 | `file_row.dart` | `FileRow` | Row in the file table |
 | `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort |
 | `sftp_initializer.dart` | `SFTPInitializer` | SFTP initialization factory (injectable) |
-| `transfer_panel.dart` | `TransferPanel` | Bottom panel: progress + history |
+| `transfer_panel.dart` | `TransferPanel` | Bottom panel: progress + history (resizable columns, sorting, column dividers) |
 | `transfer_helpers.dart` | — | Transfer helper functions |
 | `file_actions.dart` | — | Upload/download/delete/rename/mkdir actions |
 
