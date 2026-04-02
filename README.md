@@ -5,10 +5,10 @@
 [![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](LICENSE)<br>
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12283/badge)](https://www.bestpractices.dev/projects/12283)<br>
 [![CI](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml)
-[![Build](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build.yml)<br>
-[![OSV-Scanner](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv-scanner.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv-scanner.yml)
-[![CodeQL](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/codeql.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/codeql.yml)
-[![Semgrep](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/semgrep.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/semgrep.yml)<br>
+[![Build](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build-release.yml/badge.svg?event=push)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build-release.yml)<br>
+[![OSV-Scanner](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/security-osv.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/security-osv.yml)
+[![CodeQL](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/security-codeql.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/security-codeql.yml)
+[![Semgrep](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/security-semgrep.yml/badge.svg)](https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/security-semgrep.yml)<br>
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh)
