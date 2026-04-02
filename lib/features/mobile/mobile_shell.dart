@@ -98,7 +98,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               color: AppTheme.accent,
               borderRadius: AppTheme.radiusLg,
             ),
-            child: const Icon(Icons.terminal, size: 14, color: Colors.white),
+            child: Icon(Icons.terminal, size: 14, color: AppTheme.onAccent),
           ),
           const SizedBox(width: 8),
           Text(

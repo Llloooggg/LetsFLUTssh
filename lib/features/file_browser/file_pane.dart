@@ -891,7 +891,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         ContextMenuItem(
           label: hasMultiple ? 'Delete ${selectedEntries.length} items' : 'Delete',
           icon: Icons.delete,
-          color: const Color(0xFFE06C75),
+          color: AppTheme.red,
           onTap: () => _confirmDelete(context, selectedEntries),
         ),
       ],
