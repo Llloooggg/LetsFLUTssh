@@ -138,8 +138,7 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.byType(NavigationBar), findsOneWidget);
-      // "Sessions" appears in both nav bar and session panel header
+      // Custom bottom nav bar renders 3 labelled items
       expect(find.text('Sessions'), findsAtLeast(1));
       expect(find.text('Terminal'), findsAtLeast(1));
       expect(find.text('Files'), findsAtLeast(1));
@@ -312,8 +311,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should still be on Sessions (swipe navigation removed)
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(0));
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, equals(0));
     });
 
     testWidgets('FAB not shown on Files page', (tester) async {
@@ -696,8 +695,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should navigate to Files page (index 2) after _connectSessionSftp
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(2));
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, equals(2));
     });
 
     // FAB was removed — new sessions are created from SessionPanel's add button.
@@ -719,8 +718,8 @@ void main() {
       await doubleTapSession(tester, 'Incomplete Server');
 
       // Should stay on Sessions page (index 0), not switch to Terminal
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(0));
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, equals(0));
 
       Toast.clearAllForTest();
     });
@@ -750,8 +749,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should stay on Sessions page (index 0), not switch to Files
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.selectedIndex, equals(0));
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, equals(0));
 
       Toast.clearAllForTest();
     });
