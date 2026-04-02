@@ -116,7 +116,7 @@ class _SessionTreeViewState extends State<SessionTreeView>
   bool get _hasBulkSelection =>
       widget.selectedIds.length + widget.selectedFolderPaths.length > 1;
 
-  static final bool _mobile = isMobilePlatform;
+  bool get _mobile => isMobilePlatform;
   double get _rowHeight => _mobile ? 48.0 : 28.0;
   double get _fontSize => AppFonts.sm;
   double get _subFontSize => AppFonts.tiny;

@@ -928,6 +928,12 @@ class TabEntry {
 
 **Architectural difference:** Mobile is NOT a responsive version of desktop. It's a separate `features/mobile/` module with different interaction patterns (bottom nav instead of sidebar+tabs, long-press instead of right-click, swipe navigation).
 
+**Mobile session panel interactions:**
+- **Single tap** on session → connects immediately (no double-tap needed)
+- **Long-press** on session → bottom sheet context menu: Terminal, Files, Edit, Duplicate, Move, Delete, **Select**
+- **Long-press** on folder → bottom sheet: New Connection, New Folder, Rename, Delete, **Select**
+- **Select** action in bottom sheet → enters multi-select mode with that item pre-checked. Further taps toggle items. Bulk actions (Select All, Move, Delete, Cancel) in `_SelectActionBar` (height: 36 px, matching `_PanelHeader`). No checklist icon in header — multi-select is entered exclusively through the bottom sheet.
+
 **Nav guard:** Terminal and Files destinations are disabled (dimmed, tap blocked) when no tabs of that type exist. If the user is on Terminal/Files and the last tab closes, auto-switches to Sessions.
 
 **Shared styling with desktop:** Mobile tab chips match desktop's rectangular tab style (top accent bar, colored icons — blue for terminal, yellow for SFTP, connection status dot). SSH↔SFTP companion buttons (`_MobileCompanionButton`) mirror desktop's `_companionButton` styling (colored background, border, icon + label). Active/saved session count is shown only in the global header bar (not duplicated in the session panel footer). The tab chip bar and companion button share a parent `Container` with `AppTheme.bg1` background + bottom border, ensuring consistent background across both elements.
