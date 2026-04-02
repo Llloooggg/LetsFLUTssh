@@ -126,6 +126,14 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   }
 
   @override
+  void didUpdateWidget(covariant TerminalPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isFocused && !widget.isFocused) {
+      _terminalController.clearSelection();
+    }
+  }
+
+  @override
   void dispose() {
     _shellConn?.close();
     _terminalController.dispose();

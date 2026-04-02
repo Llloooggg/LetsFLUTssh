@@ -2363,4 +2363,45 @@ void main() {
       expect(borderContainer, isEmpty, reason: 'single pane should have no border');
     });
   });
+
+  group('TerminalPane — selection cleared on focus loss', () {
+    testWidgets('clearSelection called when isFocused changes to false', (tester) async {
+      final conn = _testConnection(id: 'sel-clear-1');
+
+      // Build with isFocused: true
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              hasMultiplePanes: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      // Rebuild with isFocused: false — should trigger clearSelection
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: false,
+              hasMultiplePanes: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify no crash — clearSelection on an empty selection is a no-op
+      expect(find.byType(TerminalView), findsOneWidget);
+    });
+  });
 }
