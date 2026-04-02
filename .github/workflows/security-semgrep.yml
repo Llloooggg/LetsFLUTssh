@@ -1,4 +1,4 @@
-name: Semgrep
+name: Security / Semgrep
 
 on:
   workflow_dispatch:
@@ -9,16 +9,13 @@ on:
       - 'test/**'
   pull_request:
     branches: [main, dev]
-    paths:
-      - 'lib/**'
-      - 'test/**'
   schedule:
     - cron: '0 6 * * 1' # weekly Monday 06:00 UTC
 
 permissions: read-all
 
 jobs:
-  scan:
+  semgrep-scan:
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep

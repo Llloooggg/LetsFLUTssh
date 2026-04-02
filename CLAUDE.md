@@ -111,19 +111,17 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 
 **No bump needed for:** tests, docs, CI, linter fixes. **Bump IS needed for:** any `lib/` change (including logging), platform configs, native code, assets.
 
-**Tagging — fully automated via `auto-tag.yml`.** Merge to main → CI → auto-tag → build → release. Details: [§15 CI/CD Pipeline](docs/ARCHITECTURE.md#15-cicd-pipeline)
+**Tagging — fully automated via `auto-tag.yml`.** Merge to main → CI → auto-tag → release. Details: [§15 CI/CD Pipeline](docs/ARCHITECTURE.md#15-cicd-pipeline)
 
 | Scenario                    | What to do                                                          |
 | --------------------------- | ------------------------------------------------------------------- |
 | App change (feat/fix/refac) | Merge `dev` → `main` — auto-tag handles it                         |
 | Tests/docs/CI only          | Merge to `main` — no new version, no tag, no release                |
-| Dependabot deps             | Auto: PR to main → merge → version bump → CI → `dependabot-tag.yml`|
-| Manual build                | `gh workflow run build.yml` — preflight triggers CI if needed       |
-| Failed build (re-trigger)   | `gh workflow run build.yml --ref v{VERSION}`                        |
+| Dependabot deps             | Auto: PR to main → merge → version bump → CI → auto-tag → release  |
+| Manual build                | `gh workflow run release.yml` — fails if CI hasn't passed           |
+| Failed build (re-trigger)   | `gh workflow run release.yml --ref v{VERSION}`                      |
 
-`make tag` exists as a **manual fallback only**. Normal flow never needs it.
-
-- By default Claude only reminds about tagging — does **not** run `make tag` unless user explicitly asks
+Manual release: `gh workflow run release.yml` — fails if CI hasn't passed on HEAD.
 
 ### Post-change checklist
 
