@@ -1,4 +1,4 @@
-name: Security / Semgrep
+name: Semgrep
 
 on:
   workflow_dispatch:

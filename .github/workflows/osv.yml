@@ -1,4 +1,4 @@
-name: Security / OSV-Scanner
+name: OSV-Scanner
 
 on:
   workflow_dispatch:

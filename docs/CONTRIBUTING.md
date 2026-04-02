@@ -181,10 +181,10 @@ Every push and PR is checked by multiple pipelines. For the full workflow graph 
 |----------|---------|-----------------|
 | `ci.yml` | Analyze, test, coverage, commit-lint, dependency review | Yes |
 | `ci-sonarcloud.yml` | Code quality + coverage (after CI succeeds) | No (fork PRs have no token) |
-| `security-osv.yml` | Dependency CVE scanning (`pubspec.lock`) | Yes |
-| `security-semgrep.yml` | SAST scan — static security analysis of Dart code | Yes |
-| `security-codeql.yml` | GitHub Actions security analysis | Yes |
-| `security-scorecard.yml` | OpenSSF supply chain assessment | No (main only) |
+| `osv.yml` | Dependency CVE scanning (`pubspec.lock`) | Yes |
+| `semgrep.yml` | SAST scan — static security analysis of Dart code | Yes |
+| `codeql.yml` | GitHub Actions security analysis | Yes |
+| `scorecard.yml` | OpenSSF supply chain assessment | No (main only) |
 | `build-release.yml` | Build all platforms + GitHub Release (on tag) | — |
 
 **Dependabot auto-releases:** when Dependabot merges a Dart dependency update (`pub` ecosystem), the pipeline automatically bumps the patch version and pushes a commit. CI runs on that commit; if it passes, a tag is created and the full build + release pipeline triggers. If CI fails — no tag, no release, just a commit on main to fix. GitHub Actions updates are auto-merged but do not trigger a release (they don't affect the shipped app).
