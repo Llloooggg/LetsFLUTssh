@@ -249,6 +249,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         .toSet();
   }
 
+  Set<String> _connectingSessionIds(WidgetRef ref) {
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    return connections
+        .where((c) => c.isConnecting && c.sessionId != null)
+        .map((c) => c.sessionId!)
+        .toSet();
+  }
+
   /// Copy the focused session to the clipboard.
   @visibleForTesting
   void copyFocusedSession() {
@@ -377,6 +385,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               : SessionTreeView(
                   tree: tree,
                   connectedSessionIds: _connectedSessionIds(ref),
+                  connectingSessionIds: _connectingSessionIds(ref),
                   selectMode: mobile && _selectMode,
                   selectedIds: _selectedIds,
                   onToggleSelected: _toggleSelected,
@@ -1248,11 +1257,19 @@ class _SidebarFooter extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final savedCount = ref.watch(sessionProvider).length;
     final connections = ref.watch(connectionsProvider).value ?? [];
-    final activeCount = connections.where((c) => c.isConnected).length;
+    final connectedCount = connections.where((c) => c.isConnected).length;
+    final connectingCount = connections.where((c) => c.isConnecting).length;
+    final activeCount = connectedCount + connectingCount;
     final tabState = ref.watch(tabProvider);
     final tabCount = tabState.tabs.length;
 
     final theme = Theme.of(context);
+    final Color? connectionIconColor = connectedCount > 0
+        ? AppTheme.connectedColor(theme.brightness)
+        : connectingCount > 0
+            ? AppTheme.connectingColor(theme.brightness)
+            : null;
+
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1272,7 +1289,7 @@ class _SidebarFooter extends ConsumerWidget {
             icon: Icons.wifi,
             count: activeCount,
             tooltip: 'Active connections',
-            iconColor: activeCount > 0 ? AppTheme.green : null,
+            iconColor: connectionIconColor,
           ),
           const SizedBox(width: 10),
           StatusIndicator(

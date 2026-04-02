@@ -423,7 +423,7 @@ class ConnectionManager {
 
   List<Connection> get connections;
   Stream<List<Connection>> get onChange;
-  int get activeCount;   // connections in state connected
+  int get activeCount;   // connections in state connecting or connected
 }
 ```
 
@@ -848,7 +848,7 @@ class FilePaneController extends ChangeNotifier {
 | File | Class | Purpose |
 |------|-------|---------|
 | `session_panel.dart` | `SessionPanel` | Sidebar: tree view + search + actions + bulk select. Header has "New Folder" and "New Connection" buttons |
-| `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data |
+| `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data. Session icon color: green (connected), yellow (connecting), grey (disconnected) |
 | `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab always shows all fields (password + key); auth type selector (Password/SSH Key/Both) controls validation: Password requires password, Key requires key file or PEM, Both requires at least one |
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → SSHConfig → ConnectionManager |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
@@ -1185,7 +1185,7 @@ StatusIndicator({
 })
 ```
 
-Compact icon + number indicator with tooltip. Used in sidebar footer to display session/connection/tab counts. Reusable for any status bar needing icon + count pairs.
+Compact icon + number indicator with tooltip. Used in sidebar footer to display session/connection/tab counts. Connection indicator counts both `connecting` and `connected` states; icon is green when any connection is established, yellow when all are still connecting. Reusable for any status bar needing icon + count pairs.
 
 **File:** `lib/widgets/status_indicator.dart`
 

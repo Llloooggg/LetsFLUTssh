@@ -69,8 +69,11 @@ class SessionTreeView extends StatefulWidget {
   /// bounds during a marquee drag, events are forwarded to the file pane.
   final CrossMarqueeController? crossMarquee;
 
-  /// IDs of sessions that currently have an active connection.
+  /// IDs of sessions that currently have an active (connected) connection.
   final Set<String> connectedSessionIds;
+
+  /// IDs of sessions that are currently connecting (SSH handshake in progress).
+  final Set<String> connectingSessionIds;
 
   /// Called when a session is selected (single-click on desktop).
   /// Used by parent to track the focused session for keyboard shortcuts.
@@ -97,6 +100,7 @@ class SessionTreeView extends StatefulWidget {
     this.onMarqueeEnd,
     this.crossMarquee,
     this.connectedSessionIds = const {},
+    this.connectingSessionIds = const {},
     this.onSessionSelected,
   });
 
@@ -661,8 +665,14 @@ class _SessionTreeViewState extends State<SessionTreeView>
     bool isChecked,
     ThemeData theme,
   ) {
-    // Connected state comes from active connections, but session tree
     final isConnected = widget.connectedSessionIds.contains(session.id);
+    final isConnecting = !isConnected && widget.connectingSessionIds.contains(session.id);
+    final Color iconColor = isConnected
+        ? AppTheme.connectedColor(theme.brightness)
+        : isConnecting
+            ? AppTheme.connectingColor(theme.brightness)
+            : AppTheme.fgFaint;
+    final bool isActive = isConnected || isConnecting;
 
     return [
       if (widget.selectMode)
@@ -683,7 +693,7 @@ class _SessionTreeViewState extends State<SessionTreeView>
         Icon(
           Icons.terminal,
           size: _authIconSize,
-          color: isConnected ? AppTheme.green : AppTheme.fgFaint,
+          color: iconColor,
         ),
         const SizedBox(width: 6),
       ],
@@ -708,7 +718,7 @@ class _SessionTreeViewState extends State<SessionTreeView>
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: _fontSize,
-                  color: isConnected ? AppTheme.fg : AppTheme.fgDim,
+                  color: isActive ? AppTheme.fg : AppTheme.fgDim,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
