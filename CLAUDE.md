@@ -118,10 +118,10 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 | App change (feat/fix/refac) | Merge `dev` → `main` — auto-tag handles it                         |
 | Tests/docs/CI only          | Merge to `main` — no new version, no tag, no release                |
 | Dependabot deps             | Auto: PR to main → merge → version bump → CI → auto-tag → release  |
-| Manual build                | `gh workflow run release.yml` — fails if CI hasn't passed           |
-| Failed build (re-trigger)   | `gh workflow run release.yml --ref v{VERSION}`                      |
+| Manual build                | `gh workflow run build-release.yml` — fails if CI hasn't passed           |
+| Failed build (re-trigger)   | `gh workflow run build-release.yml --ref v{VERSION}`                      |
 
-Manual release: `gh workflow run release.yml` — fails if CI hasn't passed on HEAD.
+Manual release: `gh workflow run build-release.yml` — fails if CI hasn't passed on HEAD.
 
 ### Post-change checklist
 
