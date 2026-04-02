@@ -633,6 +633,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     if (result == null) return;
     if (result is SaveResult) {
       await ref.read(sessionProvider.notifier).update(result.session);
+      if (result.connect) widget.onConnect(result.session);
     }
   }
 
