@@ -77,7 +77,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   bool _obscurePassphrase = true;
   bool _showKeyText = false;
   bool _keyDragging = false;
-  String? _keyError;
+  String? _authError;
   int _tabIndex = 0;
 
   bool get _isEditing => widget.session != null;
@@ -169,19 +169,31 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   }
 
   bool _validateAuth() {
-    final needsKey = _authType == AuthType.key || _authType == AuthType.keyWithPassword;
-    if (needsKey) {
-      final hasKey = _keyPathCtrl.text.trim().isNotEmpty ||
-          _keyDataCtrl.text.trim().isNotEmpty;
-      if (!hasKey) {
-        setState(() {
-          _keyError = 'Provide a key file or paste PEM text';
-          _tabIndex = 1;
-        });
-        return false;
-      }
+    final hasPassword = _passwordCtrl.text.isNotEmpty;
+    final hasKey = _keyPathCtrl.text.trim().isNotEmpty ||
+        _keyDataCtrl.text.trim().isNotEmpty;
+
+    String? error;
+    switch (_authType) {
+      case AuthType.password:
+        // Password field has its own required validator.
+        break;
+      case AuthType.key:
+        if (!hasKey) error = 'Provide a key file or paste PEM text';
+      case AuthType.keyWithPassword:
+        if (!hasPassword && !hasKey) {
+          error = 'Provide a password, key file, or PEM text';
+        }
     }
-    setState(() => _keyError = null);
+
+    if (error != null) {
+      setState(() {
+        _authError = error;
+        _tabIndex = 1;
+      });
+      return false;
+    }
+    setState(() => _authError = null);
     return true;
   }
 
@@ -358,8 +370,25 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildAuthTypeSelector(),
+        if (_authError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _authError!,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: AppFonts.xs,
+                  color: AppTheme.red,
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 12),
-        ..._buildAuthFields(),
+        _buildPasswordField(),
+        const SizedBox(height: 12),
+        ..._buildKeyFields(),
       ],
     );
   }
@@ -375,7 +404,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
             const SizedBox(width: 8),
             Expanded(child: _authButton(AuthType.key, Icons.vpn_key, 'SSH Key')),
             const SizedBox(width: 8),
-            Expanded(child: _authButton(AuthType.keyWithPassword, Icons.enhanced_encryption, 'Key+Pass')),
+            Expanded(child: _authButton(AuthType.keyWithPassword, Icons.swap_horiz, 'Both')),
           ],
         ),
       ],
@@ -411,46 +440,28 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     );
   }
 
-  List<Widget> _buildAuthFields() {
-    return [
-      if (_authType == AuthType.password || _authType == AuthType.keyWithPassword)
-        _buildPasswordField(),
-      if (_authType == AuthType.key || _authType == AuthType.keyWithPassword)
-        ..._buildKeyFields(),
-    ];
-  }
-
   Widget _buildPasswordField() {
-    return _styledField('Password *', _passwordCtrl,
-        hint: '••••••••',
-        validator: _requiredValidator,
-        obscure: _obscurePassword,
-        suffixIcon: GestureDetector(
-          onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-          child: Icon(
-            _obscurePassword ? Icons.visibility : Icons.visibility_off,
-            size: 12,
-            color: AppTheme.fgFaint,
-          ),
-        ));
+    final required = _authType == AuthType.password;
+    return _styledField(
+      required ? 'Password *' : 'Password',
+      _passwordCtrl,
+      hint: '••••••••',
+      validator: required ? _requiredValidator : null,
+      obscure: _obscurePassword,
+      suffixIcon: GestureDetector(
+        onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+        child: Icon(
+          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+          size: 12,
+          color: AppTheme.fgFaint,
+        ),
+      ),
+    );
   }
 
   List<Widget> _buildKeyFields() {
     return [
-      const SizedBox(height: 12),
       _buildKeyPathField(),
-      if (_keyError != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            _keyError!,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: AppFonts.xs,
-              color: AppTheme.red,
-            ),
-          ),
-        ),
       const SizedBox(height: 8),
       _buildPemToggle(),
       if (_showKeyText) _buildPemTextField(),
@@ -562,10 +573,29 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   Widget _buildPemTextField() {
     return TextFormField(
       controller: _keyDataCtrl,
-      decoration: const InputDecoration(
-        labelText: 'Key Text (PEM)',
+      decoration: InputDecoration(
         hintText: '-----BEGIN OPENSSH PRIVATE KEY-----',
-        alignLabelWithHint: true,
+        hintStyle: TextStyle(
+          fontFamily: 'JetBrains Mono',
+          fontSize: AppFonts.xs,
+          color: AppTheme.fgFaint,
+        ),
+        filled: true,
+        fillColor: AppTheme.bg3,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        border: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.accent),
+        ),
       ),
       maxLines: 5,
       style: AppFonts.mono(fontSize: AppFonts.xs),

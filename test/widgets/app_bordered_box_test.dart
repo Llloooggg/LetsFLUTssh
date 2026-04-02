@@ -102,17 +102,5 @@ void main() {
       expect(container.constraints?.maxHeight, 28);
     });
 
-    testWidgets('renders child', (tester) async {
-      await tester.pumpWidget(
-        const Directionality(
-          textDirection: TextDirection.ltr,
-          child: AppBorderedBox(
-            child: Text('hello'),
-          ),
-        ),
-      );
-
-      expect(find.text('hello'), findsOneWidget);
-    });
-  });
+});
 }

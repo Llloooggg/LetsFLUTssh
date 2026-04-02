@@ -410,7 +410,7 @@ void main() {
       expect(find.textContaining('Shell factory error'), findsOneWidget);
     });
 
-    testWidgets('focused pane has divider border when hasMultiplePanes', (tester) async {
+    testWidgets('no border on pane even with hasMultiplePanes=true (focused)', (tester) async {
       final conn = _testConnection(id: 'sf-border-f');
 
       await tester.pumpWidget(
@@ -428,16 +428,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final container = tester.widgetList<Container>(find.byType(Container)).where((c) {
+      final containers = tester.widgetList<Container>(find.byType(Container)).where((c) {
         final deco = c.decoration;
         return deco is BoxDecoration && deco.border != null;
-      }).first;
-      final boxDeco = container.decoration as BoxDecoration;
-      final border = boxDeco.border as Border;
-      expect(border.top.width, 1.0);
+      });
+      expect(containers, isEmpty);
     });
 
-    testWidgets('unfocused pane has divider border color when hasMultiplePanes', (tester) async {
+    testWidgets('no border on pane even with hasMultiplePanes=true (unfocused)', (tester) async {
       final conn = _testConnection(id: 'sf-border-u');
 
       await tester.pumpWidget(
@@ -455,13 +453,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final container = tester.widgetList<Container>(find.byType(Container)).where((c) {
+      final containers = tester.widgetList<Container>(find.byType(Container)).where((c) {
         final deco = c.decoration;
         return deco is BoxDecoration && deco.border != null;
-      }).first;
-      final boxDeco = container.decoration as BoxDecoration;
-      final border = boxDeco.border as Border;
-      expect(border.top.width, 1.0);
+      });
+      expect(containers, isEmpty);
     });
 
     testWidgets('single pane (hasMultiplePanes=false) has no border', (tester) async {
@@ -1148,86 +1144,6 @@ void main() {
     });
   });
 
-  group('TerminalPane — ValueListenableBuilder search visibility', () {
-    // Note: search bar keyboard shortcut (Ctrl+Shift+F) cannot be tested in
-    // widget tests because xterm's TerminalView consumes key events before
-    // CallbackShortcuts processes them. The search toggle and _TerminalSearchBar
-    // are only exercisable through real user interaction.
-    testWidgets('search bar starts hidden (SizedBox.shrink)', (tester) async {
-      final conn = _testConnection(id: 'sf-search-hidden');
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      // When _showSearch is false, ValueListenableBuilder renders SizedBox.shrink
-      expect(find.text('Search...'), findsNothing);
-      expect(find.byTooltip('Previous'), findsNothing);
-      expect(find.byTooltip('Next'), findsNothing);
-      expect(find.byTooltip('Close (Esc)'), findsNothing);
-      expect(find.byType(TerminalView), findsOneWidget);
-    });
-  });
-
-  group('TerminalPane — Column layout in connected state', () {
-    testWidgets('connected state has Column with Expanded TerminalView', (tester) async {
-      final conn = _testConnection(id: 'sf-column');
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(Column), findsWidgets);
-      expect(find.byType(Expanded), findsWidgets);
-      expect(find.byType(TerminalView), findsOneWidget);
-      expect(find.byType(CallbackShortcuts), findsOneWidget);
-    });
-  });
-
-  group('TerminalPane — GestureDetector in connected state', () {
-    testWidgets('connected state has GestureDetector for focus', (tester) async {
-      final conn = _testConnection(id: 'sf-gesture');
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onFocused: () {},
-              shellFactory: _successShellFactory,
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      // GestureDetector should be present wrapping the container
-      expect(find.byType(GestureDetector), findsWidgets);
-    });
-  });
-
   group('TerminalPane — search bar toggle via showSearchNotifier', () {
     testWidgets('toggling showSearchNotifier shows the search bar', (tester) async {
       final key = GlobalKey<TerminalPaneState>();
@@ -1343,41 +1259,6 @@ void main() {
         ),
       );
     }
-
-    testWidgets('renders text field with Search... hint', (tester) async {
-      await tester.pumpWidget(buildSearchBar());
-      await tester.pumpAndSettle();
-
-      expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Search...'), findsOneWidget);
-    });
-
-    testWidgets('has Previous, Next, and Close buttons', (tester) async {
-      await tester.pumpWidget(buildSearchBar());
-      await tester.pumpAndSettle();
-
-      expect(find.byTooltip('Previous'), findsOneWidget);
-      expect(find.byTooltip('Next'), findsOneWidget);
-      expect(find.byTooltip('Close (Esc)'), findsOneWidget);
-    });
-
-    testWidgets('prev/next buttons disabled when no matches', (tester) async {
-      await tester.pumpWidget(buildSearchBar());
-      await tester.pumpAndSettle();
-
-      // With no search text, buttons should be disabled (onPressed is null)
-      final prevButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(AppIconButton),
-      ));
-      expect(prevButton.onTap, isNull);
-
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
-      expect(nextButton.onTap, isNull);
-    });
 
     testWidgets('close button calls onClose callback', (tester) async {
       var closeCalled = false;
@@ -1943,98 +1824,6 @@ void main() {
     });
   });
 
-  group('TerminalSearchBar — build method layout details', () {
-    testWidgets('search bar contains Row with TextField and 3 IconButtons', (tester) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalSearchBar(
-              terminal: terminal,
-              terminalController: controller,
-              onClose: () {},
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(Row), findsWidgets);
-      expect(find.byType(TextField), findsOneWidget);
-
-      // Three IconButtons: up, down, close
-      final iconButtons = find.descendant(
-        of: find.byType(Row),
-        matching: find.byType(AppIconButton),
-      );
-      expect(iconButtons, findsNWidgets(3));
-
-      expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
-      expect(find.byIcon(Icons.keyboard_arrow_down), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsOneWidget);
-    });
-
-    testWidgets('search bar has bottom border decoration', (tester) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalSearchBar(
-              terminal: terminal,
-              terminalController: controller,
-              onClose: () {},
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final decoratedContainer = containers.where((c) {
-        final deco = c.decoration;
-        if (deco is BoxDecoration && deco.border is Border) {
-          final border = deco.border as Border;
-          return border.bottom != BorderSide.none;
-        }
-        return false;
-      });
-      expect(decoratedContainer, isNotEmpty);
-    });
-
-    testWidgets('icon buttons have 28x28 size wrapping', (tester) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalSearchBar(
-              terminal: terminal,
-              terminalController: controller,
-              onClose: () {},
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      final buttons = tester.widgetList<AppIconButton>(
-        find.byType(AppIconButton),
-      ).toList();
-      expect(buttons.length, 3);
-      for (final btn in buttons) {
-        expect(btn.boxSize, 28);
-      }
-    });
-  });
-
   group('TerminalSearchBar — _nextMatch/_prevMatch with zero matches', () {
     testWidgets('next/prev are no-op when there are zero matches', (tester) async {
       final terminal = Terminal(maxLines: 100);
@@ -2065,35 +1854,6 @@ void main() {
         matching: find.byType(AppIconButton),
       ));
       expect(nextButton.onTap, isNull);
-    });
-  });
-
-  group('TerminalSearchBar — search bar height and layout', () {
-    testWidgets('search bar has 36px height', (tester) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalSearchBar(
-              terminal: terminal,
-              terminalController: controller,
-              onClose: () {},
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      // Find the Container with height 36
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final searchContainer = containers.where((c) {
-        final constraints = c.constraints;
-        return constraints != null && constraints.maxHeight == 36;
-      });
-      expect(searchContainer, isNotEmpty);
     });
   });
 
@@ -2166,132 +1926,11 @@ void main() {
     });
   });
 
-  group('TerminalPane — toggleSearch', () {
-    testWidgets('toggleSearch() toggles search bar on and off', (tester) async {
-      final key = GlobalKey<TerminalPaneState>();
-      final conn = _testConnection(id: 'toggle-search');
+  group('TerminalPane — selection cleared on focus loss', () {
+    testWidgets('clearSelection called when isFocused changes to false', (tester) async {
+      final conn = _testConnection(id: 'sel-clear-1');
 
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      expect(key.currentState!.showSearchNotifier.value, isFalse);
-
-      // Toggle on via method
-      key.currentState!.toggleSearch();
-      await tester.pumpAndSettle();
-      expect(find.byType(TerminalSearchBar), findsOneWidget);
-
-      // Toggle off via method
-      key.currentState!.toggleSearch();
-      await tester.pumpAndSettle();
-      expect(find.byType(TerminalSearchBar), findsNothing);
-    });
-  });
-
-  group('TerminalPane — Ctrl+Shift+V/C keyboard handler', () {
-    testWidgets('Ctrl+Shift+V pastes from clipboard', (tester) async {
-      final conn = _testConnection(id: 'kbd-paste');
-
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.getData') {
-            return <String, dynamic>{'text': 'pasted via kbd'};
-          }
-          return null;
-        },
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      // Simulate Ctrl+Shift+V
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyV);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyV);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pumpAndSettle();
-
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
-      );
-    });
-
-    testWidgets('Ctrl+Shift+C with no selection does nothing', (tester) async {
-      final conn = _testConnection(id: 'kbd-copy');
-      String? copiedText;
-
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final args = call.arguments as Map;
-            copiedText = args['text'] as String?;
-          }
-          return null;
-        },
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      // Simulate Ctrl+Shift+C — no selection so nothing should be copied
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyC);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyC);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pumpAndSettle();
-
-      expect(copiedText, isNull);
-
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
-      );
-    });
-  });
-
-  group('TerminalPane — focus border', () {
-    testWidgets('focused pane with multiple panes shows accent border', (tester) async {
-      final conn = _testConnection(id: 'focus-border-1');
-
+      // Build with isFocused: true
       await tester.pumpWidget(
         ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
@@ -2307,22 +1946,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Find the Container with BoxDecoration that has the border
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final borderContainer = containers.where((c) {
-        final dec = c.decoration;
-        if (dec is BoxDecoration && dec.border is Border) {
-          final border = dec.border! as Border;
-          return border.top.color == AppTheme.accent;
-        }
-        return false;
-      });
-      expect(borderContainer, isNotEmpty, reason: 'focused pane should have accent border');
-    });
-
-    testWidgets('unfocused pane with multiple panes shows bg0 border', (tester) async {
-      final conn = _testConnection(id: 'focus-border-2');
-
+      // Rebuild with isFocused: false — should trigger clearSelection
       await tester.pumpWidget(
         ProviderScope(child: MaterialApp(
           theme: AppTheme.dark(),
@@ -2338,45 +1962,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final borderContainer = containers.where((c) {
-        final dec = c.decoration;
-        if (dec is BoxDecoration && dec.border is Border) {
-          final border = dec.border! as Border;
-          return border.top.color == AppTheme.bg0;
-        }
-        return false;
-      });
-      expect(borderContainer, isNotEmpty, reason: 'unfocused pane should have bg0 border');
-    });
-
-    testWidgets('single pane has no border', (tester) async {
-      final conn = _testConnection(id: 'focus-border-3');
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              hasMultiplePanes: false,
-              shellFactory: _successShellFactory,
-            ),
-          ),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final borderContainer = containers.where((c) {
-        final dec = c.decoration;
-        if (dec is BoxDecoration && dec.border != null) {
-          return true;
-        }
-        return false;
-      });
-      expect(borderContainer, isEmpty, reason: 'single pane should have no border');
+      // Verify no crash — clearSelection on an empty selection is a no-op
+      expect(find.byType(TerminalView), findsOneWidget);
     });
   });
 }

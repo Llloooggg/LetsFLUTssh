@@ -470,6 +470,25 @@ void main() {
       expect(hasDimColor, isTrue);
     });
 
+    testWidgets('inactive tab has bg1 background, not transparent', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(buildAppWithTabs([
+        TabEntry(id: 't1', label: 'Active Tab', connection: conn, kind: TabKind.terminal),
+        TabEntry(id: 't2', label: 'Inactive Tab', connection: conn, kind: TabKind.sftp),
+      ], activeIndex: 0));
+      await tester.pumpAndSettle();
+
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final hasBg1 = containers.any((c) {
+        final deco = c.decoration;
+        if (deco is BoxDecoration && deco.color == AppTheme.bg1) {
+          return true;
+        }
+        return false;
+      });
+      expect(hasBg1, isTrue, reason: 'inactive tab should have bg1 background');
+    });
+
     testWidgets('context menu does not show Close Tabs to the Left for first tab', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(buildAppWithTabs([

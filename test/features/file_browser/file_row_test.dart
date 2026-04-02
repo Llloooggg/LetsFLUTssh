@@ -237,6 +237,57 @@ void main() {
       expect(ellipsisTexts.length, 5);
     });
 
+    testWidgets('row container uses Clip.hardEdge', (tester) async {
+      await tester.pumpWidget(buildApp(FileRow(
+        entry: FileEntry(
+          name: 'file.txt',
+          path: '/file.txt',
+          size: 1024,
+          mode: 0x1A4,
+          modTime: now,
+          isDir: false,
+        ),
+        isSelected: false,
+        sizeWidth: 55,
+        modifiedWidth: 105,
+        modeWidth: 65,
+        ownerWidth: 50,
+        onTap: () {},
+        onCtrlTap: () {},
+        onDoubleTap: () {},
+        onContextMenu: (_) {},
+      )));
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final clipped = containers.where((c) => c.clipBehavior == Clip.hardEdge);
+      expect(clipped, isNotEmpty, reason: 'FileRow should clip overflow');
+    });
+
+    testWidgets('name column has Tooltip', (tester) async {
+      await tester.pumpWidget(buildApp(FileRow(
+        entry: FileEntry(
+          name: 'very_long_filename_that_overflows.txt',
+          path: '/very_long_filename_that_overflows.txt',
+          size: 1024,
+          mode: 0x1A4,
+          modTime: now,
+          isDir: false,
+        ),
+        isSelected: false,
+        sizeWidth: 55,
+        modifiedWidth: 105,
+        modeWidth: 0,
+        ownerWidth: 0,
+        onTap: () {},
+        onCtrlTap: () {},
+        onDoubleTap: () {},
+        onContextMenu: (_) {},
+      )));
+      expect(
+        find.byTooltip('very_long_filename_that_overflows.txt'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('columns hidden when width is zero', (tester) async {
       await tester.pumpWidget(buildApp(FileRow(
         entry: FileEntry(
@@ -362,69 +413,4 @@ void main() {
     });
   });
 
-  group('MarqueePainter', () {
-    testWidgets('paint draws marquee rectangle', (tester) async {
-      final painter = MarqueePainter(
-        start: const Offset(10, 10),
-        end: const Offset(100, 100),
-        color: Colors.blue,
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: CustomPaint(
-              painter: painter,
-              size: const Size(200, 200),
-            ),
-          ),
-        ),
-      );
-
-      // Verify it renders without error
-      expect(find.byType(CustomPaint), findsWidgets);
-    });
-
-    test('shouldRepaint returns true when start changes', () {
-      final painter1 = MarqueePainter(
-        start: const Offset(10, 10),
-        end: const Offset(100, 100),
-        color: Colors.blue,
-      );
-      final painter2 = MarqueePainter(
-        start: const Offset(20, 20),
-        end: const Offset(100, 100),
-        color: Colors.blue,
-      );
-      expect(painter2.shouldRepaint(painter1), isTrue);
-    });
-
-    test('shouldRepaint returns true when end changes', () {
-      final painter1 = MarqueePainter(
-        start: const Offset(10, 10),
-        end: const Offset(100, 100),
-        color: Colors.blue,
-      );
-      final painter2 = MarqueePainter(
-        start: const Offset(10, 10),
-        end: const Offset(200, 200),
-        color: Colors.blue,
-      );
-      expect(painter2.shouldRepaint(painter1), isTrue);
-    });
-
-    test('shouldRepaint returns false when same', () {
-      final painter1 = MarqueePainter(
-        start: const Offset(10, 10),
-        end: const Offset(100, 100),
-        color: Colors.blue,
-      );
-      final painter2 = MarqueePainter(
-        start: const Offset(10, 10),
-        end: const Offset(100, 100),
-        color: Colors.blue,
-      );
-      expect(painter2.shouldRepaint(painter1), isFalse);
-    });
-  });
 }

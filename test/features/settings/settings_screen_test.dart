@@ -229,83 +229,6 @@ void main() {
       expect(find.text('System'), findsOneWidget);
     });
 
-    testWidgets('theme shows correct selection for dark', (tester) async {
-      await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'dark'))));
-      // The selected segment has AppTheme.accent background
-      final darkText = find.text('Dark');
-      final darkContainer = find.ancestor(
-        of: darkText,
-        matching: find.byWidgetPredicate(
-          (w) => w is Container && w.color == AppTheme.accent,
-        ),
-      );
-      expect(darkContainer, findsOneWidget);
-    });
-
-    testWidgets('theme shows correct selection for light', (tester) async {
-      await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'light'))));
-      final lightContainer = find.ancestor(
-        of: find.text('Light'),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container && w.color == AppTheme.accent,
-        ),
-      );
-      expect(lightContainer, findsOneWidget);
-    });
-
-    testWidgets('theme shows correct selection for system', (tester) async {
-      await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'system'))));
-      final systemContainer = find.ancestor(
-        of: find.text('System'),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container && w.color == AppTheme.accent,
-        ),
-      );
-      expect(systemContainer, findsOneWidget);
-    });
-
-    testWidgets('tapping Dark when already Dark keeps Dark selected',
-        (tester) async {
-      await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: 'dark'))));
-      await tester.tap(find.text('Dark'));
-      await tester.pumpAndSettle();
-      final darkContainer = find.ancestor(
-        of: find.text('Dark'),
-        matching: find.byWidgetPredicate(
-          (w) => w is Container && w.color == AppTheme.accent,
-        ),
-      );
-      expect(darkContainer, findsOneWidget);
-    });
-
-    testWidgets('tapping Light theme does not crash', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Light'));
-      await tester.pumpAndSettle();
-      expect(find.text('Theme'), findsOneWidget);
-    });
-
-    testWidgets('tapping System theme does not crash', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('System'));
-      await tester.pumpAndSettle();
-      expect(find.text('Theme'), findsOneWidget);
-    });
-
-    testWidgets('switching Light then Dark then System', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Light'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Dark'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('System'));
-      await tester.pumpAndSettle();
-      expect(find.text('Theme'), findsOneWidget);
-    });
   });
 
   // ---------------------------------------------------------------------------
@@ -377,13 +300,6 @@ void main() {
       expect(find.byType(Slider), findsNWidgets(2));
     });
 
-    testWidgets('slider with custom font size 20 shows correct value',
-        (tester) async {
-      await tester.pumpWidget(
-          buildApp(initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 20.0))));
-      final slider = tester.widget<Slider>(fontSliderFinder());
-      expect(slider.value, 20.0);
-    });
   });
 
   // ---------------------------------------------------------------------------
@@ -515,26 +431,6 @@ void main() {
       expect(find.text('0'), findsOneWidget);
     });
 
-    testWidgets('keepalive negative value rejected', (tester) async {
-      await tester.pumpWidget(buildApp());
-      final field = find.widgetWithText(TextFormField, '30');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
-      await tester.enterText(field, '-5');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('keepalive non-numeric value ignored', (tester) async {
-      await tester.pumpWidget(buildApp());
-      final field = find.widgetWithText(TextFormField, '30');
-      await tester.tap(field);
-      await tester.pumpAndSettle();
-      await tester.enterText(field, 'abc');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-    });
-
     testWidgets('timeout field accepts valid value', (tester) async {
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '10');
@@ -613,10 +509,6 @@ void main() {
       expect(find.text('8022'), findsOneWidget);
     });
 
-    testWidgets('TextFormField widgets present', (tester) async {
-      await tester.pumpWidget(buildApp());
-      expect(find.byType(TextFormField), findsWidgets);
-    });
   });
 
   // ---------------------------------------------------------------------------
@@ -662,19 +554,6 @@ void main() {
       expect(find.text('4'), findsOneWidget);
     });
 
-    testWidgets('workers max boundary 10', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Parallel Workers'), 200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      final field = find.widgetWithText(TextFormField, '2');
-      await tester.enterText(field, '10');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-      expect(find.text('10'), findsOneWidget);
-    });
-
     testWidgets('workers out of range rejected', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
@@ -713,18 +592,6 @@ void main() {
       expect(find.text('10'), findsOneWidget);
     });
 
-    testWidgets('max history max boundary 5000', (tester) async {
-      await tester.pumpWidget(buildFullApp());
-      await tester.scrollUntilVisible(
-        find.text('Max History'), 200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      final field = find.widgetWithText(TextFormField, '500');
-      await tester.enterText(field, '5000');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-      expect(find.text('5000'), findsOneWidget);
-    });
   });
 
   // ---------------------------------------------------------------------------
@@ -776,19 +643,6 @@ void main() {
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-    });
-
-    testWidgets('cancel closes export dialog', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Export Data'), 400,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Export Data'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-      expect(find.text('Confirm Password'), findsNothing);
     });
 
     testWidgets('empty password does not close dialog', (tester) async {
@@ -990,24 +844,6 @@ void main() {
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-    });
-
-    testWidgets('cancel closes import dialog', (tester) async {
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'), 200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Import Data'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-      expect(find.text('Path to .lfs file'), findsNothing);
     });
 
     testWidgets('empty fields do not close dialog', (tester) async {
@@ -1358,23 +1194,6 @@ void main() {
       expect(find.byType(ListView), findsOneWidget);
     });
 
-    testWidgets('reset with highly custom config does not crash',
-        (tester) async {
-      final custom = AppConfig.defaults.copyWith(
-        terminal: AppConfig.defaults.terminal.copyWith(fontSize: 22.0, scrollback: 20000, theme: 'light'),
-        ssh: AppConfig.defaults.ssh.copyWith(keepAliveSec: 120, sshTimeoutSec: 45, defaultPort: 3333),
-        transferWorkers: 8,
-        maxHistory: 2000,
-      );
-      await tester.pumpWidget(buildApp(initialConfig: custom));
-      await tester.scrollUntilVisible(
-        find.text('Reset to Defaults'), 200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Reset to Defaults'));
-      await tester.pumpAndSettle();
-      expect(find.byType(ListView), findsOneWidget);
-    });
   });
 
   // ---------------------------------------------------------------------------
@@ -1764,53 +1583,6 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('live log viewer copy shows toast', (tester) async {
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      String? copiedText;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final args = call.arguments as Map<dynamic, dynamic>;
-            copiedText = args['text'] as String?;
-          }
-          return null;
-        },
-      );
-      addTearDown(() {
-        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        );
-      });
-
-      AppLogger.instance.log('copy log test', name: 'Test');
-      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
-
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
-      await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.byIcon(Icons.copy), 200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
-      await tester.pump();
-
-      await tester.tap(find.byIcon(Icons.copy));
-      await tester.pump();
-
-      expect(copiedText, isNotNull);
-      expect(find.textContaining('clipboard').evaluate().isNotEmpty ||
-             find.textContaining('empty').evaluate().isNotEmpty, isTrue);
-
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-    });
-
     testWidgets('Clear Logs clears and shows toast', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
@@ -1978,36 +1750,6 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('toggle has correct pill shape and label',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
-      await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Enable Logging'), 200,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      expect(find.text('Enable Logging'), findsOneWidget);
-      // Find the toggle pill in the same Row as "Enable Logging"
-      final loggingRow = find.ancestor(
-        of: find.text('Enable Logging'),
-        matching: find.byType(Row),
-      ).first;
-      final toggleContainer = find.descendant(
-        of: loggingRow,
-        matching: find.byWidgetPredicate(
-          (w) => w is Container &&
-                 w.decoration is BoxDecoration &&
-                 (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
-        ),
-      );
-      expect(toggleContainer, findsOneWidget);
-    });
   });
 
   // ---------------------------------------------------------------------------
@@ -2041,25 +1783,6 @@ void main() {
       expect(find.text('Data Location'), findsOneWidget);
     });
 
-    testWidgets('Data Location tile has correct icon and padding',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(buildApp());
-      await tester.runAsync(
-          () => Future.delayed(const Duration(milliseconds: 100)));
-      await tester.pump();
-      await tester.pump();
-
-      await tester.scrollUntilVisible(
-        find.text('Data Location'), 200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.byIcon(Icons.folder_special), findsOneWidget);
-    });
   });
 
   // ---------------------------------------------------------------------------

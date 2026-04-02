@@ -64,11 +64,16 @@ class CredentialStore {
   /// Load all credentials, returning empty map on any error.
   ///
   /// Use [loadAll] when you need to distinguish between "no credentials"
-  /// and "decryption failed". This method is for non-critical reads.
+  /// and "decryption failed". This method is for non-critical reads
+  /// (e.g. delete, export preview).
   Future<Map<String, CredentialData>> loadAllSafe() async {
     try {
       return await loadAll();
-    } on CredentialStoreException {
+    } on CredentialStoreException catch (e) {
+      AppLogger.instance.log(
+        'loadAllSafe: returning empty map due to decryption error — $e',
+        name: 'CredentialStore',
+      );
       return {};
     }
   }
