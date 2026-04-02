@@ -199,15 +199,32 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return true;
   }
 
+  /// Determine which tab contains the first validation error and switch to it.
+  int _tabWithFirstError() {
+    // Connection tab (0): host, port, username
+    if (_requiredValidator(_hostCtrl.text) != null) return 0;
+    final port = int.tryParse(_portCtrl.text);
+    if (port == null || port < 1 || port > 65535) return 0;
+    if (_requiredValidator(_userCtrl.text) != null) return 0;
+    // Auth tab (1): password when required
+    return 1;
+  }
+
   void _connectOnly() {
     if (!_validateAuth()) return;
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _tabIndex = _tabWithFirstError());
+      return;
+    }
     Navigator.of(context).pop(ConnectOnlyResult(_buildConfig()));
   }
 
   void _save() {
     if (!_validateAuth()) return;
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _tabIndex = _tabWithFirstError());
+      return;
+    }
     Navigator.of(context).pop(SaveResult(_buildSession()));
   }
 
