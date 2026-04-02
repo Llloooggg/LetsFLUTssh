@@ -52,6 +52,27 @@ void main() {
       expect(copy.host, s.host);
     });
 
+    test('duplicate with empty label produces empty label', () {
+      final s = Session(label: '', server: const ServerAddress(host: 'h', user: 'u'));
+      final copy = s.duplicate();
+      expect(copy.label, isEmpty);
+      expect(copy.displayName, 'u@h:22');
+    });
+
+    test('duplicate creates independent server and auth copies', () {
+      final s = Session(
+        label: 'orig',
+        server: const ServerAddress(host: 'a', port: 22, user: 'b'),
+        auth: const SessionAuth(password: 'pw', keyData: 'key'),
+      );
+      final copy = s.duplicate();
+      expect(copy.host, s.host);
+      expect(copy.password, s.password);
+      expect(copy.keyData, s.keyData);
+      expect(identical(copy.server, s.server), isFalse);
+      expect(identical(copy.auth, s.auth), isFalse);
+    });
+
     test('JSON roundtrip', () {
       final s = Session(label: 'prod', folder: 'Servers/Web', server: const ServerAddress(host: 'example.com', port: 2222, user: 'admin'), auth: const SessionAuth(authType: AuthType.key, keyPath: '/home/.ssh/id_rsa'));
       final json = s.toJson();
