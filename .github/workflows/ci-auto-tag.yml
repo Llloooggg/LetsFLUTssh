@@ -1,14 +1,14 @@
-name: Auto-Tag Release
+name: CI / Auto-Tag
 
 # Triggers after CI completes on main. Reads the version from
 # pubspec.yaml and creates an annotated tag if it doesn't exist yet.
 #
 # Only app-affecting commits (feat/fix/refactor) bump the version,
 # so docs/test/ci-only pushes naturally get skipped (tag already exists).
-#
-# Dependabot commits are handled separately by dependabot-tag.yml.
+# Dependabot version bumps are also handled here (same idempotent logic).
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -18,9 +18,10 @@ permissions: read-all
 jobs:
   auto-tag:
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.id == github.event.repository.id
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.id == github.event.repository.id)
     runs-on: ubuntu-latest
     concurrency:
       group: auto-tag-release
@@ -29,7 +30,7 @@ jobs:
       - name: Create tag if version is new
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           SHA="$COMMIT_SHA"
           REPO="${{ github.repository }}"

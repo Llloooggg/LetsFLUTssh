@@ -1,4 +1,4 @@
-name: OSV-Scanner
+name: Security / OSV-Scanner
 
 on:
   workflow_dispatch:
@@ -8,15 +8,13 @@ on:
       - 'pubspec.*'
   pull_request:
     branches: [main, dev]
-    paths:
-      - 'pubspec.*'
   schedule:
     - cron: '0 6 * * 1' # weekly Monday 06:00 UTC
 
 permissions: read-all
 
 jobs:
-  scan:
+  osv-scan:
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -93,7 +93,6 @@ make run            # Run in debug mode
 make test           # Run all tests (with coverage)
 make analyze        # Run Dart analyzer (--fatal-infos)
 make check          # Analyzer + tests
-make tag            # Analyze + test + verify CI on GitHub + tag + push
 make gen            # Code generation (freezed, json_serializable)
 make clean          # Remove build artifacts
 make help           # Show all available targets
@@ -164,26 +163,29 @@ Bump the `version:` field in `pubspec.yaml` — it is the single source of truth
 ## Pull Requests
 
 1. Fork the repo and create a feature branch (`git checkout -b feat/my-feature`)
-2. Follow commit message format (`type: description`) — CI enforces this on PRs
-3. If your change affects the shipped app, include a version bump (see above)
-4. `make analyze` and `make test` must pass
-5. All new code must have tests (80% coverage minimum, 100% target)
-6. One logical change per PR
-7. Open a Pull Request — fill in the template
+2. Target the **`dev`** branch — never `main` directly
+3. Follow commit message format (`type: description`) — CI enforces this on PRs
+4. If your change affects the shipped app, include a version bump (see above)
+5. `make analyze` and `make test` must pass
+6. All new code must have tests (80% coverage minimum, 100% target)
+7. One logical change per PR
+8. Open a Pull Request — fill in the template
+
+All checks must pass before merge: CI (analyze + test), OSV-Scanner, Semgrep, and CodeQL.
 
 ## CI/CD Pipeline
 
 Every push and PR is checked by multiple pipelines. For the full workflow graph and detailed descriptions see [§15 CI/CD Pipeline](ARCHITECTURE.md#15-cicd-pipeline).
 
-| Workflow | Purpose |
-|----------|---------|
-| `ci.yml` | Analyze, test, coverage, commit-lint, dependency review |
-| `sonarcloud.yml` | Code quality + coverage (after CI succeeds) |
-| `osv-scanner.yml` | Dependency CVE scanning (`pubspec.lock`) |
-| `codeql.yml` | GitHub Actions security analysis |
-| `semgrep.yml` | SAST scan — static security analysis of Dart code |
-| `scorecard.yml` | OpenSSF supply chain assessment |
-| `build.yml` | Build all platforms + GitHub Release (on tag) |
+| Workflow | Purpose | Required on PR? |
+|----------|---------|-----------------|
+| `ci.yml` | Analyze, test, coverage, commit-lint, dependency review | Yes |
+| `ci-sonarcloud.yml` | Code quality + coverage (after CI succeeds) | No (fork PRs have no token) |
+| `security-osv.yml` | Dependency CVE scanning (`pubspec.lock`) | Yes |
+| `security-semgrep.yml` | SAST scan — static security analysis of Dart code | Yes |
+| `security-codeql.yml` | GitHub Actions security analysis | Yes |
+| `security-scorecard.yml` | OpenSSF supply chain assessment | No (main only) |
+| `release.yml` | Build all platforms + GitHub Release (on tag) | — |
 
 **Dependabot auto-releases:** when Dependabot merges a Dart dependency update (`pub` ecosystem), the pipeline automatically bumps the patch version and pushes a commit. CI runs on that commit; if it passes, a tag is created and the full build + release pipeline triggers. If CI fails — no tag, no release, just a commit on main to fix. GitHub Actions updates are auto-merged but do not trigger a release (they don't affect the shipped app).
 
