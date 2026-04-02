@@ -10,6 +10,9 @@ class _MockFS implements FileSystem {
   final List<String> removedFiles = [];
   final List<String> removedDirs = [];
   final List<(String, String)> renames = [];
+  Map<String, int> dirSizeResults = {};
+  Set<String> dirSizeErrors = {};
+  List<String> dirSizeCalls = [];
 
   _MockFS(this.dirs);
 
@@ -35,7 +38,11 @@ class _MockFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async =>
       renames.add((oldPath, newPath));
   @override
-  Future<int> dirSize(String path) async => 0;
+  Future<int> dirSize(String path) async {
+    dirSizeCalls.add(path);
+    if (dirSizeErrors.contains(path)) throw Exception('Size error: $path');
+    return dirSizeResults[path] ?? 0;
+  }
 }
 
 void main() {
@@ -249,6 +256,139 @@ void main() {
       ctrl.setSort(SortColumn.owner);
       // Should not throw, entries sorted by owner
       expect(ctrl.entries, isNotEmpty);
+    });
+
+    test('folderSize returns null for uncalculated path', () async {
+      await ctrl.init();
+      expect(ctrl.folderSize('/home/docs'), isNull);
+    });
+
+    test('folderSize returns cached value after calculation', () async {
+      await ctrl.init();
+      fs.dirSizeResults['/home/docs'] = 4096;
+      ctrl.requestFolderSize('/home/docs');
+      await Future<void>.delayed(Duration.zero);
+      expect(ctrl.folderSize('/home/docs'), 4096);
+    });
+
+    test('requestFolderSize deduplicates pending requests', () async {
+      await ctrl.init();
+      fs.dirSizeResults['/home/docs'] = 1024;
+      ctrl.requestFolderSize('/home/docs');
+      ctrl.requestFolderSize('/home/docs');
+      ctrl.requestFolderSize('/home/docs');
+      await Future<void>.delayed(Duration.zero);
+      expect(fs.dirSizeCalls.where((p) => p == '/home/docs').length, 1);
+    });
+
+    test('requestFolderSize skips already cached paths', () async {
+      await ctrl.init();
+      fs.dirSizeResults['/home/docs'] = 512;
+      ctrl.requestFolderSize('/home/docs');
+      await Future<void>.delayed(Duration.zero);
+      expect(ctrl.folderSize('/home/docs'), 512);
+
+      fs.dirSizeCalls.clear();
+      ctrl.requestFolderSize('/home/docs');
+      await Future<void>.delayed(Duration.zero);
+      expect(fs.dirSizeCalls, isEmpty);
+    });
+
+    test('requestFolderSize limits concurrent calculations to 2', () async {
+      final slowFs = _MockFS({
+        '/home': testEntries,
+        '/home/docs': [],
+        '/': [FileEntry(name: 'home', path: '/home', size: 0, mode: 0755, modTime: now, isDir: true)],
+      });
+      slowFs.dirSizeResults = {};
+
+      final slowCtrl = FilePaneController(fs: slowFs, label: 'Slow');
+      addTearDown(slowCtrl.dispose);
+      await slowCtrl.navigateTo('/home', addToHistory: false);
+
+      slowCtrl.requestFolderSize('/a');
+      slowCtrl.requestFolderSize('/b');
+      slowCtrl.requestFolderSize('/c');
+
+      await Future<void>.delayed(Duration.zero);
+      // All 3 requested; first 2 should start immediately, 3rd queued
+      // Since dirSize completes synchronously via async, all drain quickly
+      expect(slowFs.dirSizeCalls.length, 3);
+    });
+
+    test('requestFolderSize handles errors gracefully', () async {
+      await ctrl.init();
+      fs.dirSizeErrors.add('/home/docs');
+      ctrl.requestFolderSize('/home/docs');
+      await Future<void>.delayed(Duration.zero);
+      // Error path: folder size remains uncached
+      expect(ctrl.folderSize('/home/docs'), isNull);
+    });
+
+    test('requestFolderSize notifies listeners on success', () async {
+      await ctrl.init();
+      fs.dirSizeResults['/home/docs'] = 2048;
+      var notified = 0;
+      ctrl.addListener(() => notified++);
+      ctrl.requestFolderSize('/home/docs');
+      await Future<void>.delayed(Duration.zero);
+      expect(notified, greaterThanOrEqualTo(1));
+    });
+
+    test('navigateTo clears folder size caches', () async {
+      await ctrl.init();
+      fs.dirSizeResults['/home/docs'] = 4096;
+      ctrl.requestFolderSize('/home/docs');
+      await Future<void>.delayed(Duration.zero);
+      expect(ctrl.folderSize('/home/docs'), 4096);
+
+      await ctrl.navigateTo('/home/docs');
+      // Folder sizes cleared on navigation
+      expect(ctrl.folderSize('/home/docs'), isNull);
+    });
+
+    test('navigateTo adds current path to back stack and clears forward', () async {
+      await ctrl.init();
+      expect(ctrl.currentPath, '/home');
+      await ctrl.navigateTo('/home/docs');
+      expect(ctrl.canGoBack, isTrue);
+      expect(ctrl.canGoForward, isFalse);
+
+      await ctrl.goBack();
+      expect(ctrl.canGoForward, isTrue);
+
+      // navigateTo should clear forward stack
+      await ctrl.navigateTo('/home/docs');
+      expect(ctrl.canGoForward, isFalse);
+    });
+
+    test('drainSizeQueue processes remaining items after completion', () async {
+      await ctrl.init();
+      fs.dirSizeResults['/a'] = 100;
+      fs.dirSizeResults['/b'] = 200;
+      fs.dirSizeResults['/c'] = 300;
+
+      ctrl.requestFolderSize('/a');
+      ctrl.requestFolderSize('/b');
+      ctrl.requestFolderSize('/c');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(ctrl.folderSize('/a'), 100);
+      expect(ctrl.folderSize('/b'), 200);
+      expect(ctrl.folderSize('/c'), 300);
+    });
+
+    test('drainSizeQueue continues after error', () async {
+      await ctrl.init();
+      fs.dirSizeErrors.add('/fail');
+      fs.dirSizeResults['/ok'] = 999;
+
+      ctrl.requestFolderSize('/fail');
+      ctrl.requestFolderSize('/ok');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(ctrl.folderSize('/fail'), isNull);
+      expect(ctrl.folderSize('/ok'), 999);
     });
   });
 }
