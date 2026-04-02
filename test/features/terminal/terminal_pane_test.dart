@@ -410,7 +410,7 @@ void main() {
       expect(find.textContaining('Shell factory error'), findsOneWidget);
     });
 
-    testWidgets('focused pane has divider border when hasMultiplePanes', (tester) async {
+    testWidgets('no border on pane even with hasMultiplePanes=true (focused)', (tester) async {
       final conn = _testConnection(id: 'sf-border-f');
 
       await tester.pumpWidget(
@@ -428,16 +428,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final container = tester.widgetList<Container>(find.byType(Container)).where((c) {
+      final containers = tester.widgetList<Container>(find.byType(Container)).where((c) {
         final deco = c.decoration;
         return deco is BoxDecoration && deco.border != null;
-      }).first;
-      final boxDeco = container.decoration as BoxDecoration;
-      final border = boxDeco.border as Border;
-      expect(border.top.width, 1.0);
+      });
+      expect(containers, isEmpty);
     });
 
-    testWidgets('unfocused pane has divider border color when hasMultiplePanes', (tester) async {
+    testWidgets('no border on pane even with hasMultiplePanes=true (unfocused)', (tester) async {
       final conn = _testConnection(id: 'sf-border-u');
 
       await tester.pumpWidget(
@@ -455,13 +453,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final container = tester.widgetList<Container>(find.byType(Container)).where((c) {
+      final containers = tester.widgetList<Container>(find.byType(Container)).where((c) {
         final deco = c.decoration;
         return deco is BoxDecoration && deco.border != null;
-      }).first;
-      final boxDeco = container.decoration as BoxDecoration;
-      final border = boxDeco.border as Border;
-      expect(border.top.width, 1.0);
+      });
+      expect(containers, isEmpty);
     });
 
     testWidgets('single pane (hasMultiplePanes=false) has no border', (tester) async {
@@ -2288,8 +2284,8 @@ void main() {
     });
   });
 
-  group('TerminalPane — focus border', () {
-    testWidgets('focused pane with multiple panes shows accent border', (tester) async {
+  group('TerminalPane — no border on any pane', () {
+    testWidgets('no border even with hasMultiplePanes and focused', (tester) async {
       final conn = _testConnection(id: 'focus-border-1');
 
       await tester.pumpWidget(
@@ -2307,20 +2303,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Find the Container with BoxDecoration that has the border
       final containers = tester.widgetList<Container>(find.byType(Container));
       final borderContainer = containers.where((c) {
         final dec = c.decoration;
-        if (dec is BoxDecoration && dec.border is Border) {
-          final border = dec.border! as Border;
-          return border.top.color == AppTheme.accent;
-        }
-        return false;
+        return dec is BoxDecoration && dec.border != null;
       });
-      expect(borderContainer, isNotEmpty, reason: 'focused pane should have accent border');
+      expect(borderContainer, isEmpty, reason: 'panes should never have border');
     });
 
-    testWidgets('unfocused pane with multiple panes shows bg0 border', (tester) async {
+    testWidgets('no border even with hasMultiplePanes and unfocused', (tester) async {
       final conn = _testConnection(id: 'focus-border-2');
 
       await tester.pumpWidget(
@@ -2341,13 +2332,9 @@ void main() {
       final containers = tester.widgetList<Container>(find.byType(Container));
       final borderContainer = containers.where((c) {
         final dec = c.decoration;
-        if (dec is BoxDecoration && dec.border is Border) {
-          final border = dec.border! as Border;
-          return border.top.color == AppTheme.bg0;
-        }
-        return false;
+        return dec is BoxDecoration && dec.border != null;
       });
-      expect(borderContainer, isNotEmpty, reason: 'unfocused pane should have bg0 border');
+      expect(borderContainer, isEmpty, reason: 'panes should never have border');
     });
 
     testWidgets('single pane has no border', (tester) async {
@@ -2371,10 +2358,7 @@ void main() {
       final containers = tester.widgetList<Container>(find.byType(Container));
       final borderContainer = containers.where((c) {
         final dec = c.decoration;
-        if (dec is BoxDecoration && dec.border != null) {
-          return true;
-        }
-        return false;
+        return dec is BoxDecoration && dec.border != null;
       });
       expect(borderContainer, isEmpty, reason: 'single pane should have no border');
     });

@@ -707,7 +707,7 @@ TerminalPane(connection, paneId)
 
 **Why `hardwareKeyboardOnly: true` on desktop:** xterm TextInputClient is broken on Windows — causes input duplication.
 
-**Focus indicator:** When multiple panes exist, the focused pane has an `AppTheme.accent` border (1 px) while unfocused panes have an `AppTheme.bg0` border (1 px). Single-pane layout has no border. This makes the toolbar split buttons predictable — user always knows which pane will be split.
+**Focus indicator:** No border is drawn on panes — the 4 px divider in `TilingView` already separates them visually. The focused pane is identifiable by the active cursor and toolbar highlight.
 
 ---
 
