@@ -15,7 +15,7 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
 .PHONY: all build run clean test analyze check format gen watch deps upgrade doctor \
         build-linux build-windows build-macos build-apk build-aab build-ios \
         linux windows macos apk ios \
-        package-linux package-windows release-linux tag \
+        package-linux package-windows release-linux \
         deps-linux deps-macos deps-windows help
 
 all: build
@@ -156,52 +156,6 @@ release-linux: package-linux ## Build Linux release packages
 	@echo "  Android: make apk      (any host with Android SDK)"
 	@echo "  iOS:     make ios      (on macOS with Xcode)"
 
-## ─── Release ─────────────────────────────────────────────────
-
-tag: check ## Analyze + test, verify CI on GitHub, tag vX.Y.Z, push atomically
-	@if [ -n "$$(git status --porcelain)" ]; then \
-		echo "Error: working tree is dirty — commit or stash first"; exit 1; \
-	fi
-	@TAG=v$(VERSION); \
-	if git rev-parse "$$TAG" >/dev/null 2>&1; then \
-		echo "Error: tag $$TAG already exists"; exit 1; \
-	fi; \
-	SHA=$$(git rev-parse HEAD); \
-	REPO=$$(git remote get-url origin 2>/dev/null | sed -n 's|.*github\.com[:/]\(.*\)\.git$$|\1|p;s|.*github\.com[:/]\(.*\)$$|\1|p'); \
-	if [ -n "$$REPO" ]; then \
-		API="https://api.github.com/repos/$$REPO"; \
-		STATUS=$$(curl -sf "$$API/commits/$$SHA/check-runs" \
-			| sed -n '/"name".*"analyze-and-test"/,/"conclusion"/{ s/.*"conclusion": *"\([^"]*\)".*/\1/p; }' \
-			| head -1); \
-		if [ -z "$$STATUS" ]; then \
-			LAST_CI=$$(curl -sf "$$API/actions/workflows/ci.yml/runs?per_page=5&status=success" \
-				| sed -n '/"head_sha"/{ s/.*"head_sha": *"\([^"]*\)".*/\1/p; q; }'); \
-			echo ""; \
-			echo "✗ No CI check run found for $$SHA."; \
-			echo "  HEAD is likely a ci/docs-only commit. Tag the last app-change commit instead:"; \
-			if [ -n "$$LAST_CI" ]; then \
-				LAST_MSG=$$(git log --format=%s -1 "$$LAST_CI" 2>/dev/null || echo "unknown"); \
-				echo "    git tag -a $$TAG $$LAST_CI -m \"$$TAG\""; \
-				echo "    git push origin $$TAG"; \
-				echo ""; \
-				echo "  Last CI-passed commit: $$LAST_CI ($$LAST_MSG)"; \
-			fi; \
-			exit 1; \
-		elif [ "$$STATUS" != "success" ]; then \
-			echo ""; \
-			echo "✗ CI check on $$SHA has not passed yet (status: $$STATUS)."; \
-			echo "  Wait for CI to finish, then retry: make tag"; \
-			exit 1; \
-		fi; \
-		echo "==> CI passed on $$SHA ✓"; \
-	else \
-		echo "==> Warning: not a GitHub repo — skipping CI check"; \
-	fi; \
-	echo "==> Tagging $$TAG on HEAD..."; \
-	git tag -a "$$TAG" -m "$$TAG"; \
-	echo "==> Pushing commits + tag (atomic)..."; \
-	git push --follow-tags --atomic || { echo "Push failed, removing local tag"; git tag -d "$$TAG"; exit 1; }; \
-	echo "==> Done. CI will run, Build & Release will wait for CI, then build + publish $$TAG"
 
 ## ─── Dependencies ─────────────────────────────────────────────
 

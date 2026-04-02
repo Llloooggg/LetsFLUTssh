@@ -1,4 +1,4 @@
-name: CodeQL
+name: Security / CodeQL
 
 on:
   workflow_dispatch:
@@ -8,15 +8,13 @@ on:
       - '.github/**'
   pull_request:
     branches: [main, dev]
-    paths:
-      - '.github/**'
   schedule:
     - cron: '0 6 * * 1'  # weekly Monday 06:00 UTC
 
 permissions: read-all
 
 jobs:
-  analyze:
+  codeql-scan:
     runs-on: ubuntu-latest
     permissions:
       security-events: write

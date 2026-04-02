@@ -1,12 +1,31 @@
-name: Dependabot Version Bump
+name: Dependabot
 
 on:
   pull_request:
-    types: [closed]
+    types: [opened, synchronize, reopened, closed]
 
 permissions: read-all
 
 jobs:
+  automerge:
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: dependabot/fetch-metadata@ffa630c65fa7e0ecfa0625b5ceda64399aea1b36 # v2
+        id: metadata
+
+      - name: Auto-merge patch and minor updates
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge "$PR_URL" --auto --merge
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   version-bump:
     # Only pub (Dart) dependency updates — github-actions updates don't affect the shipped app
     if: >-

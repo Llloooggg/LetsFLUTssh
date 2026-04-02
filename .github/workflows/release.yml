@@ -1,4 +1,4 @@
-name: Build & Release
+name: Release
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
         default: false
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: true
 
 permissions: read-all
@@ -25,88 +25,28 @@ jobs:
     outputs:
       version: ${{ steps.get.outputs.version }}
     steps:
-      - name: Ensure CI passes on tagged commit
+      - name: Verify CI status
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           SHA="${{ github.sha }}"
           REPO="${{ github.repository }}"
-          TAG="${{ github.ref_name }}"
-          MAX_ATTEMPTS=45  # 45 × 20s = 15 min max wait (includes CI run time)
-          GRACE_ATTEMPTS=6 # wait 120s for checks to appear
 
-          # Checks whether a given check-run exists and has completed on SHA.
-          # Returns: "success", "failure", "cancelled", "pending", or "missing".
-          get_check_status() {
-            local CHECK_NAME="$1"
-            local RESULT
-            RESULT=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
-              --jq "[.check_runs[] | select(.name == \"${CHECK_NAME}\" and (.app.slug == \"github-actions\"))] | if length == 0 then \"missing\" else .[0].conclusion // \"pending\" end")
-            echo "$RESULT"
-          }
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # Tag push — auto-tag already verified CI passed
+            echo "Tag-triggered build — CI verified by auto-tag ✓"
+          else
+            # Manual dispatch — verify once, no polling
+            STATUS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
+              --jq '[.check_runs[] | select(.name == "ci" and .app.slug == "github-actions")] | if length == 0 then "missing" else .[0].conclusion // "pending" end')
 
-          # Trigger CI on the tag ref if it hasn't run on this SHA.
-          trigger_ci_if_missing() {
-            local STATUS
-            STATUS=$(get_check_status "analyze-and-test")
-            if [ "$STATUS" = "missing" ]; then
-              echo "CI not found for ${SHA} — triggering ci.yml on ref ${TAG}..."
-              gh workflow run ci.yml --repo "${REPO}" --ref "${TAG}"
-              echo "Waiting 30s for CI to register..."
-              sleep 30
+            if [ "$STATUS" = "success" ]; then
+              echo "CI passed ✓"
+            else
+              echo "::error::CI status is '${STATUS}' for ${SHA}. Run CI first, then retry."
+              exit 1
             fi
-          }
-
-          # Wait for a check-run to complete. If not found after grace period
-          # and the check is optional, skip it.
-          wait_for_check() {
-            local CHECK_NAME="$1"
-            local LABEL="$2"
-            local REQUIRED="${3:-true}"
-            echo "Checking ${LABEL} status for commit ${SHA}..."
-
-            for i in $(seq 1 $MAX_ATTEMPTS); do
-              local STATUS
-              STATUS=$(get_check_status "$CHECK_NAME")
-
-              case "$STATUS" in
-                success)
-                  echo "${LABEL} passed ✓"
-                  return 0
-                  ;;
-                failure|cancelled)
-                  echo "::error::${LABEL} failed (status: '${STATUS}'). Fix before releasing."
-                  return 1
-                  ;;
-                missing)
-                  if [ "$i" -ge "$GRACE_ATTEMPTS" ]; then
-                    if [ "$REQUIRED" = "false" ]; then
-                      echo "::warning::${LABEL} was never triggered — skipping (optional)"
-                      return 0
-                    fi
-                    echo "::error::${LABEL} was never triggered for ${SHA}."
-                    return 1
-                  fi
-                  echo "${LABEL} not found yet — waiting 20s (grace ${i}/${GRACE_ATTEMPTS})..."
-                  ;;
-                *)
-                  echo "${LABEL} status: in_progress — waiting 20s (attempt ${i}/${MAX_ATTEMPTS})..."
-                  ;;
-              esac
-
-              sleep 20
-            done
-
-            echo "::error::${LABEL} did not complete within timeout."
-            return 1
-          }
-
-          trigger_ci_if_missing
-          wait_for_check "analyze-and-test" "CI" "true"
-          # SonarCloud runs via workflow_run and attaches to default branch HEAD,
-          # not to the tagged commit SHA — cannot be reliably gated here.
-          wait_for_check "SonarCloud scan" "SonarCloud" "false"
-          wait_for_check "scan" "OSV-Scanner" "false"
+          fi
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:

@@ -4,30 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main, dev]
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'pubspec.*'
-      - 'Makefile'
-      - 'analysis_options.yaml'
-      - 'android/**'
-      - 'ios/**'
-      - 'linux/**'
-      - 'macos/**'
-      - 'windows/**'
   pull_request:
     branches: [main, dev]
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'pubspec.*'
-      - 'Makefile'
-      - 'analysis_options.yaml'
-      - 'android/**'
-      - 'ios/**'
-      - 'linux/**'
-      - 'macos/**'
-      - 'windows/**'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -36,7 +14,7 @@ concurrency:
 permissions: read-all
 
 jobs:
-  analyze-and-test:
+  ci:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,9 +36,6 @@ jobs:
 
       - name: Run tests with coverage
         run: flutter test --coverage
-
-      - name: Check outdated dependencies
-        run: dart pub outdated
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
