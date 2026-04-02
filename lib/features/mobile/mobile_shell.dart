@@ -35,185 +35,198 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 
     // Watch connection state changes so SFTP button updates when connect finishes
     ref.watch(connectionsProvider);
-    final hasActiveTabs = tabState.tabs.isNotEmpty;
 
-    // Auto-switch to Sessions when last tab of current type closes
-    if (_navIndex == 1 && _terminalTabCount(tabState) == 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _navIndex = 0);
-      });
-    }
-    if (_navIndex == 2 && _sftpTabCount(tabState) == 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _navIndex = 0);
-      });
-    }
+    _autoSwitchToSessionsIfNeeded(tabState);
+
+    final hasActiveTabs = tabState.tabs.isNotEmpty;
 
     return PopScope(
       canPop: !hasActiveTabs && _navIndex == 0,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        // If not on sessions tab, go back to sessions
-        if (_navIndex != 0) {
-          setState(() => _navIndex = 0);
-          return;
-        }
-        // On sessions tab with active tabs — confirm exit
-        _confirmExit(context);
-      },
+      onPopInvokedWithResult: (didPop, _) => _handlePopScope(didPop, context),
       child: Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Global app bar visible on all tabs
-            Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppTheme.bg1,
-                border: AppTheme.borderBottom,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppTheme.accent,
-                      borderRadius: AppTheme.radiusLg,
-                    ),
-                    child: const Icon(Icons.terminal, size: 14, color: Colors.white),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'LetsFLUTssh',
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.md,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.fgBright,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Builder(builder: (_) {
-                    final activeCount = (ref.watch(connectionsProvider).value ?? []).where((c) => c.isConnected).length;
-                    final savedCount = ref.watch(sessionProvider).length;
-                    return Text.rich(
-                      TextSpan(children: [
-                        TextSpan(
-                          text: '$activeCount active',
-                          style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.green),
-                        ),
-                        TextSpan(
-                          text: ' · $savedCount saved',
-                          style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
-                        ),
-                      ]),
-                    );
-                  }),
-                  const Spacer(),
-                  AppIconButton(
-                    icon: Icons.settings,
-                    size: 15,
-                    boxSize: 32,
-                    backgroundColor: AppTheme.bg3,
-                    borderRadius: AppTheme.radiusLg,
-                    onTap: () => SettingsScreen.show(context),
-                    tooltip: 'Settings',
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: IndexedStack(
-                index: _navIndex,
-                children: [
-                  // Sessions page
-                  _MobileSessionsPage(
-                    onConnect: (session) => _connectSession(context, ref, session),
-                    onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-                    onQuickConnect: (config) {
-                      SessionConnect.connectConfig(context, ref, config);
-                      setState(() => _navIndex = 1);
-                    },
-                  ),
-                  // Terminal page
-                  _MobileTerminalPage(
-                    tabState: tabState,
-                    onOpenSftp: _activeTerminalConnection(tabState)?.isConnected == true
-                        ? () {
-                            final conn = _activeTerminalConnection(tabState)!;
-                            ref.read(tabProvider.notifier).addSftpTab(conn);
-                            setState(() => _navIndex = 2);
-                          }
-                        : null,
-                  ),
-                  // SFTP page
-                  _MobileSftpPage(
-                    tabState: tabState,
-                    onOpenSsh: _activeSftpConnection(tabState)?.isConnected == true
-                        ? () {
-                            final conn = _activeSftpConnection(tabState)!;
-                            ref.read(tabProvider.notifier).addTerminalTab(conn);
-                            setState(() => _navIndex = 1);
-                          }
-                        : null,
-                  ),
-                ],
-              ),
-            ),
-          ],
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildAppBar(context),
+              Expanded(child: _buildPageContent(tabState, context)),
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildBottomNav(tabState),
       ),
-      bottomNavigationBar: NavigationBar(
-        height: 56,
-        backgroundColor: AppTheme.bg1,
-        selectedIndex: _navIndex,
-        onDestinationSelected: (i) {
-          if (i == 1 && _terminalTabCount(tabState) == 0) return;
-          if (i == 2 && _sftpTabCount(tabState) == 0) return;
-          setState(() => _navIndex = i);
-        },
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.dns_outlined),
-            selectedIcon: Icon(Icons.dns),
-            label: 'Sessions',
+    );
+  }
+
+  void _autoSwitchToSessionsIfNeeded(TabState tabState) {
+    if (_navIndex == 1 && _terminalTabCount(tabState) == 0 ||
+        _navIndex == 2 && _sftpTabCount(tabState) == 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _navIndex = 0);
+      });
+    }
+  }
+
+  void _handlePopScope(bool didPop, BuildContext context) {
+    if (didPop) return;
+    if (_navIndex != 0) {
+      setState(() => _navIndex = 0);
+      return;
+    }
+    _confirmExit(context);
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppTheme.bg1,
+        border: AppTheme.borderBottom,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: AppTheme.accent,
+              borderRadius: AppTheme.radiusLg,
+            ),
+            child: const Icon(Icons.terminal, size: 14, color: Colors.white),
           ),
-          NavigationDestination(
-            icon: Opacity(
-              opacity: _terminalTabCount(tabState) > 0 ? 1.0 : 0.4,
-              child: Badge(
-                isLabelVisible: _terminalTabCount(tabState) > 0,
-                label: Text('${_terminalTabCount(tabState)}'),
-                child: const Icon(Icons.terminal_outlined),
-              ),
+          const SizedBox(width: 8),
+          Text(
+            'LetsFLUTssh',
+            style: AppFonts.inter(
+              fontSize: AppFonts.md,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.fgBright,
             ),
-            selectedIcon: Badge(
-              isLabelVisible: _terminalTabCount(tabState) > 0,
-              label: Text('${_terminalTabCount(tabState)}'),
-              child: const Icon(Icons.terminal),
-            ),
-            label: 'Terminal',
           ),
-          NavigationDestination(
-            icon: Opacity(
-              opacity: _sftpTabCount(tabState) > 0 ? 1.0 : 0.4,
-              child: Badge(
-                isLabelVisible: _sftpTabCount(tabState) > 0,
-                label: Text('${_sftpTabCount(tabState)}'),
-                child: const Icon(Icons.folder_outlined),
-              ),
-            ),
-            selectedIcon: Badge(
-              isLabelVisible: _sftpTabCount(tabState) > 0,
-              label: Text('${_sftpTabCount(tabState)}'),
-              child: const Icon(Icons.folder),
-            ),
-            label: 'Files',
+          const SizedBox(width: 8),
+          Builder(builder: (_) {
+            final activeCount = (ref.watch(connectionsProvider).value ?? []).where((c) => c.isConnected).length;
+            final savedCount = ref.watch(sessionProvider).length;
+            return Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                  text: '$activeCount active',
+                  style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.green),
+                ),
+                TextSpan(
+                  text: ' · $savedCount saved',
+                  style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                ),
+              ]),
+            );
+          }),
+          const Spacer(),
+          AppIconButton(
+            icon: Icons.settings,
+            size: 15,
+            boxSize: 32,
+            backgroundColor: AppTheme.bg3,
+            borderRadius: AppTheme.radiusLg,
+            onTap: () => SettingsScreen.show(context),
+            tooltip: 'Settings',
           ),
         ],
       ),
-    ),
+    );
+  }
+
+  Widget _buildPageContent(TabState tabState, BuildContext context) {
+    return IndexedStack(
+      index: _navIndex,
+      children: [
+        _MobileSessionsPage(
+          onConnect: (session) => _connectSession(context, ref, session),
+          onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+          onQuickConnect: (config) {
+            SessionConnect.connectConfig(context, ref, config);
+            setState(() => _navIndex = 1);
+          },
+        ),
+        _MobileTerminalPage(
+          tabState: tabState,
+          onOpenSftp: _activeTerminalConnection(tabState)?.isConnected == true
+              ? () {
+                  final conn = _activeTerminalConnection(tabState)!;
+                  ref.read(tabProvider.notifier).addSftpTab(conn);
+                  setState(() => _navIndex = 2);
+                }
+              : null,
+        ),
+        _MobileSftpPage(
+          tabState: tabState,
+          onOpenSsh: _activeSftpConnection(tabState)?.isConnected == true
+              ? () {
+                  final conn = _activeSftpConnection(tabState)!;
+                  ref.read(tabProvider.notifier).addTerminalTab(conn);
+                  setState(() => _navIndex = 1);
+                }
+              : null,
+        ),
+      ],
+    );
+  }
+
+  NavigationBar _buildBottomNav(TabState tabState) {
+    final termCount = _terminalTabCount(tabState);
+    final sftpCount = _sftpTabCount(tabState);
+    return NavigationBar(
+      height: 56,
+      backgroundColor: AppTheme.bg1,
+      selectedIndex: _navIndex,
+      onDestinationSelected: (i) {
+        if (i == 1 && termCount == 0) return;
+        if (i == 2 && sftpCount == 0) return;
+        setState(() => _navIndex = i);
+      },
+      destinations: [
+        const NavigationDestination(
+          icon: Icon(Icons.dns_outlined),
+          selectedIcon: Icon(Icons.dns),
+          label: 'Sessions',
+        ),
+        _buildBadgedDestination(
+          count: termCount,
+          icon: Icons.terminal_outlined,
+          selectedIcon: Icons.terminal,
+          label: 'Terminal',
+        ),
+        _buildBadgedDestination(
+          count: sftpCount,
+          icon: Icons.folder_outlined,
+          selectedIcon: Icons.folder,
+          label: 'Files',
+        ),
+      ],
+    );
+  }
+
+  NavigationDestination _buildBadgedDestination({
+    required int count,
+    required IconData icon,
+    required IconData selectedIcon,
+    required String label,
+  }) {
+    final hasItems = count > 0;
+    return NavigationDestination(
+      icon: Opacity(
+        opacity: hasItems ? 1.0 : 0.4,
+        child: Badge(
+          isLabelVisible: hasItems,
+          label: Text('$count'),
+          child: Icon(icon),
+        ),
+      ),
+      selectedIcon: Badge(
+        isLabelVisible: hasItems,
+        label: Text('$count'),
+        child: Icon(selectedIcon),
+      ),
+      label: label,
     );
   }
 

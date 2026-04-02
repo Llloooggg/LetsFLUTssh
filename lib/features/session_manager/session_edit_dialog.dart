@@ -12,6 +12,8 @@ import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 
+const _kMonoFont = 'JetBrains Mono';
+
 /// Result of the session edit dialog.
 sealed class SessionDialogResult {}
 
@@ -576,7 +578,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       decoration: InputDecoration(
         hintText: '-----BEGIN OPENSSH PRIVATE KEY-----',
         hintStyle: TextStyle(
-          fontFamily: 'JetBrains Mono',
+          fontFamily: _kMonoFont,
           fontSize: AppFonts.xs,
           color: AppTheme.fgFaint,
         ),
@@ -772,14 +774,14 @@ class _StyledInput extends StatelessWidget {
       keyboardType: keyboardType,
       validator: validator,
       style: TextStyle(
-        fontFamily: 'JetBrains Mono',
+        fontFamily: _kMonoFont,
         fontSize: AppFonts.sm,
         color: AppTheme.fg,
       ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
-          fontFamily: 'JetBrains Mono',
+          fontFamily: _kMonoFont,
           fontSize: AppFonts.sm,
           color: AppTheme.fgFaint,
         ),
