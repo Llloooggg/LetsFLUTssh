@@ -1624,68 +1624,51 @@ Two branches: **`dev`** (daily work) and **`main`** (releases only).
 ### 15.2 Workflow Graph
 
 ```
-push to dev (daily work)
+push to dev/main or PR
   │
-  ├─► ci.yml              (paths: lib/, test/, pubspec.*)
+  ├─► ci.yml                 (always runs — no path filters)
   │     analyze + test + coverage
   │           │
-  │           └─► sonarcloud.yml    (workflow_run[CI])
-  │                 quality scan on dev branch
+  │           ├─► sonarcloud.yml     (workflow_run[CI], non-fork only)
+  │           │     quality + coverage scan
+  │           │
+  │           └─► auto-tag.yml       (workflow_run[CI], main only)
+  │                 reads version from pubspec.yaml
+  │                 tag exists → skip / new version → create tag
+  │                       │
+  │                       └─► release.yml    (tags: v*)
+  │                             build all platforms
+  │                             → GitHub Release + SLSA attestation
   │
-  ├─► osv-scanner.yml      (paths: pubspec.*)
-  ├─► codeql.yml           (paths: .github/**)
-  ├─► semgrep.yml          (paths: lib/, test/)
-  └─► (no tags, no builds, no releases)
-
-merge dev → main (release)
-  │
-  ├─► ci.yml               (analyze + test + coverage)
-  │     │
-  │     ├─► sonarcloud.yml  (quality scan — badges point here)
-  │     │
-  │     └─► auto-tag.yml    (workflow_run[CI])
-  │           reads version from pubspec.yaml
-  │           tag exists → skip / new version → create tag
-  │                 │
-  │                 └─► build.yml      (tags: v*)
-  │                       preflight: CI on SHA? yes → check / no → trigger ci.yml
-  │                       → build all platforms
-  │                       → GitHub Release + SLSA attestation
-  │
-  ├─► scorecard.yml        (OpenSSF Scorecard)
-  ├─► codeql.yml           (Actions analysis)
-  └─► semgrep.yml          (SAST — Dart code scanning)
+  ├─► security-osv.yml        (paths: pubspec.*)
+  ├─► security-codeql.yml     (paths: .github/**)
+  ├─► security-semgrep.yml    (paths: lib/, test/)
+  └─► security-scorecard.yml  (main + weekly schedule)
 
 Dependabot PR merged (into main)
   │
-  └─► dependabot-release.yml → patch bump → commit
-        └─► ci.yml → dependabot-tag.yml → build.yml → Release
+  └─► dependabot-auto.yml → auto-merge + patch bump → commit
+        └─► ci.yml → auto-tag.yml → release.yml → Release
 
 Manual build
   │
-  └─► gh workflow run build.yml
-        preflight: no CI on SHA → triggers ci.yml → waits → build
-
-Non-code PR (docs/test/ci)
-  └─► ci-skip.yml → success for required checks (no tag, no release)
+  └─► gh workflow run release.yml
+        CI not passed? → fail immediately (no polling)
 ```
 
 ### 15.3 Workflow Catalog
 
 | Workflow | Trigger | Branches | Purpose | Blocks release? |
 |----------|---------|----------|---------|-----------------|
-| `ci.yml` | push/PR (lib/, test/, pubspec.*) | main, dev | analyze + test + coverage | Yes (required) |
-| `ci-skip.yml` | PR (non-code paths) | main, dev | No-op success for required checks | — |
+| `ci.yml` | push/PR (all paths) | main, dev | analyze + test + coverage | Yes (required) |
 | `auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
-| `build.yml` | push tag v* / manual | — | Preflight (triggers CI if missing) + build all platforms + release | — |
+| `release.yml` | push tag v* / manual | — | Build all platforms + release | — |
 | `sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
-| `osv-scanner.yml` | push pubspec.* / weekly | main, dev | CVE scan (pubspec.lock) | No (optional in preflight) |
-| `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
-| `codeql.yml` | push .github/ / weekly | main, dev | GitHub Actions analysis | No |
-| `semgrep.yml` | push lib/, test/ / weekly | main, dev | SAST scan (Dart code) | No |
-| `dependabot-release.yml` | PR closed (dependabot) | main | Patch bump after dep merge | — |
-| `dependabot-tag.yml` | workflow_run[CI] + chore(deps) | main | Tag after dep bump | — |
-| `dependabot-automerge.yml` | PR (dependabot) | main | Auto-merge patch/minor | — |
+| `dependabot-auto.yml` | PR (dependabot) | main | Auto-merge patch/minor + version bump | — |
+| `security-osv.yml` | push pubspec.* / PR (all) / weekly | main, dev | CVE scan (pubspec.lock) | Yes on PR |
+| `security-codeql.yml` | push .github/ / PR (all) / weekly | main, dev | GitHub Actions analysis | Yes on PR |
+| `security-semgrep.yml` | push lib/, test/ / PR (all) / weekly | main, dev | SAST scan (Dart code) | Yes on PR |
+| `security-scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 
 ### 15.4 Makefile Targets
 
@@ -1721,12 +1704,6 @@ Non-code PR (docs/test/ci)
 | `make package-deb` | .deb |
 | `make package-windows` | .zip |
 | `make package-exe` | Inno Setup EXE |
-
-#### Release
-
-| Target | Purpose |
-|--------|---------|
-| `make tag` | Manual fallback: validate CI + create tag + push |
 
 ---
 
