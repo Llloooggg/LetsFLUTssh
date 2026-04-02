@@ -211,31 +211,28 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     );
   }
 
+  static String _localPath(HistoryEntry e) =>
+      e.direction == TransferDirection.upload ? e.sourcePath : e.targetPath;
+
+  static String _remotePath(HistoryEntry e) =>
+      e.direction == TransferDirection.upload ? e.targetPath : e.sourcePath;
+
   List<HistoryEntry> _sortHistory(List<HistoryEntry> history) {
     final sorted = List<HistoryEntry>.from(history);
     sorted.sort((a, b) {
-      int cmp;
-      switch (_sortColumn) {
-        case TransferSortColumn.name:
-          cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
-        case TransferSortColumn.local:
-          final aLocal = a.direction == TransferDirection.upload
-              ? a.sourcePath : a.targetPath;
-          final bLocal = b.direction == TransferDirection.upload
-              ? b.sourcePath : b.targetPath;
-          cmp = aLocal.compareTo(bLocal);
-        case TransferSortColumn.remote:
-          final aRemote = a.direction == TransferDirection.upload
-              ? a.targetPath : a.sourcePath;
-          final bRemote = b.direction == TransferDirection.upload
-              ? b.targetPath : b.sourcePath;
-          cmp = aRemote.compareTo(bRemote);
-        case TransferSortColumn.size:
-          cmp = a.sizeBytes.compareTo(b.sizeBytes);
-        case TransferSortColumn.time:
-          cmp = (a.endedAt ?? a.startedAt ?? a.createdAt)
-              .compareTo(b.endedAt ?? b.startedAt ?? b.createdAt);
-      }
+      final cmp = switch (_sortColumn) {
+        TransferSortColumn.name =>
+          a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        TransferSortColumn.local =>
+          _localPath(a).compareTo(_localPath(b)),
+        TransferSortColumn.remote =>
+          _remotePath(a).compareTo(_remotePath(b)),
+        TransferSortColumn.size =>
+          a.sizeBytes.compareTo(b.sizeBytes),
+        TransferSortColumn.time =>
+          (a.endedAt ?? a.startedAt ?? a.createdAt)
+              .compareTo(b.endedAt ?? b.startedAt ?? b.createdAt),
+      };
       return _sortAscending ? cmp : -cmp;
     });
     return sorted;
@@ -261,7 +258,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
 
     Widget headerCell(String label, TransferSortColumn column, {double? width}) {
       final isActive = _sortColumn == column;
-      final sortSuffix = isActive ? (_sortAscending ? ' ↑' : ' ↓') : '';
+      String sortSuffix = '';
+      if (isActive) {
+        sortSuffix = _sortAscending ? ' ↑' : ' ↓';
+      }
       return InkWell(
         onTap: () => _setSort(column),
         child: SizedBox(

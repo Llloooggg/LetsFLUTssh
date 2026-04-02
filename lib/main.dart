@@ -208,26 +208,28 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   void _listenForStartupUpdate() {
-    ref.listenManual(updateProvider, (prev, next) {
-      if (_updateDialogShown) return;
-      if (next.status == UpdateStatus.updateAvailable && next.info != null) {
-        final skipped = ref.read(configProvider).skippedVersion;
-        if (skipped != null && skipped == next.info!.latestVersion) return;
+    ref.listenManual(updateProvider, (prev, next) => _handleUpdateState(next));
+  }
 
-        // A newer version supersedes the previously skipped one — clear stale skip.
-        if (skipped != null) {
-          ref.read(configProvider.notifier).update(
-            (c) => c.withSkippedVersion(null),
-          );
-        }
+  void _handleUpdateState(UpdateState next) {
+    if (_updateDialogShown) return;
+    if (next.status != UpdateStatus.updateAvailable || next.info == null) return;
 
-        _updateDialogShown = true;
-        final ctx = navigatorKey.currentContext;
-        if (ctx != null && ctx.mounted) {
-          _showUpdateDialog(ctx, next.info!);
-        }
-      }
-    });
+    final skipped = ref.read(configProvider).skippedVersion;
+    if (skipped != null && skipped == next.info!.latestVersion) return;
+
+    // A newer version supersedes the previously skipped one — clear stale skip.
+    if (skipped != null) {
+      ref.read(configProvider.notifier).update(
+        (c) => c.withSkippedVersion(null),
+      );
+    }
+
+    _updateDialogShown = true;
+    final ctx = navigatorKey.currentContext;
+    if (ctx != null && ctx.mounted) {
+      _showUpdateDialog(ctx, next.info!);
+    }
   }
 
   void _showUpdateDialog(BuildContext context, UpdateInfo info) {

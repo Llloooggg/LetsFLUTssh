@@ -20,6 +20,9 @@ import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
 const _kNewFolder = 'New Folder';
+const _kNewConnection = 'New Connection';
+const _kRenameFolder = 'Rename Folder';
+const _kDeleteFolder = 'Delete Folder';
 
 /// Session sidebar — tree view + search + actions.
 class SessionPanel extends ConsumerStatefulWidget {
@@ -284,44 +287,48 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     _editSession(context, ref, session);
   }
 
+  KeyEventResult _handleCtrlKey(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.keyZ) {
+      ref.read(sessionProvider.notifier).undo();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyY) {
+      ref.read(sessionProvider.notifier).redo();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyC) {
+      copyFocusedSession();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyV) {
+      pasteCopiedSession();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handlePlainKey(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.delete) {
+      if (_focusedSessionId == null) return KeyEventResult.ignored;
+      deleteFocusedSession();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.f2) {
+      if (_focusedSessionId == null) return KeyEventResult.ignored;
+      editFocusedSession();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final isCtrl = HardwareKeyboard.instance.logicalKeysPressed
         .intersection({LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.controlRight})
         .isNotEmpty;
 
-    if (isCtrl) {
-      if (event.logicalKey == LogicalKeyboardKey.keyZ) {
-        ref.read(sessionProvider.notifier).undo();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.keyY) {
-        ref.read(sessionProvider.notifier).redo();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.keyC) {
-        copyFocusedSession();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.keyV) {
-        pasteCopiedSession();
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
-    }
-
-    // Non-modifier shortcuts
-    if (event.logicalKey == LogicalKeyboardKey.delete) {
-      if (_focusedSessionId == null) return KeyEventResult.ignored;
-      deleteFocusedSession();
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.f2) {
-      if (_focusedSessionId == null) return KeyEventResult.ignored;
-      editFocusedSession();
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
+    if (isCtrl) return _handleCtrlKey(event.logicalKey);
+    return _handlePlainKey(event.logicalKey);
   }
 
   @override
@@ -644,7 +651,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       position: position,
       items: [
         ContextMenuItem(
-          label: 'New Connection',
+          label: _kNewConnection,
           icon: Icons.add,
           onTap: () => _addSessionInFolder(context, ref, folderPath),
         ),
@@ -656,12 +663,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         if (folderPath.isNotEmpty) ...[
           const ContextMenuItem.divider(),
           ContextMenuItem(
-            label: 'Rename Folder',
+            label: _kRenameFolder,
             icon: Icons.drive_file_rename_outline,
             onTap: () => _renameFolder(context, ref, folderPath),
           ),
           ContextMenuItem(
-            label: 'Delete Folder',
+            label: _kDeleteFolder,
             icon: Icons.delete,
             color: AppTheme.red,
             onTap: () => _confirmDeleteFolder(context, ref, folderPath),
@@ -692,7 +699,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.add),
-                title: const Text('New Connection'),
+                title: const Text(_kNewConnection),
                 onTap: () { Navigator.pop(ctx); _addSessionInFolder(context, ref, folderPath); },
               ),
               ListTile(
@@ -704,12 +711,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 const AppDivider(),
                 ListTile(
                   leading: const Icon(Icons.drive_file_rename_outline),
-                  title: const Text('Rename Folder'),
+                  title: const Text(_kRenameFolder),
                   onTap: () { Navigator.pop(ctx); _renameFolder(context, ref, folderPath); },
                 ),
                 ListTile(
                   leading: const Icon(Icons.delete, color: AppTheme.disconnected),
-                  title: const Text('Delete Folder', style: TextStyle(color: AppTheme.disconnected)),
+                  title: const Text(_kDeleteFolder, style: TextStyle(color: AppTheme.disconnected)),
                   onTap: () { Navigator.pop(ctx); _confirmDeleteFolder(context, ref, folderPath); },
                 ),
                 const AppDivider(),
@@ -762,7 +769,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final result = await _showFolderNameDialog(
       context,
-      title: 'Rename Folder',
+      title: _kRenameFolder,
       confirmLabel: 'Rename',
       initialValue: currentName,
       existingFolders: existingFolders,
@@ -1001,7 +1008,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final confirmed = await ConfirmDialog.show(
       context,
-      title: 'Delete Folder',
+      title: _kDeleteFolder,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1077,7 +1084,7 @@ class _PanelHeader extends StatelessWidget {
           AppIconButton(
             icon: Icons.add,
             onTap: onAddSession,
-            tooltip: 'New Connection',
+            tooltip: _kNewConnection,
             size: 16,
             boxSize: 24,
           ),

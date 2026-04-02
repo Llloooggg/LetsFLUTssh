@@ -6,6 +6,23 @@ import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
+class ThrowingSessionStore extends FakeSessionStore {
+  bool shouldThrowOnLoad = false;
+  bool shouldThrowOnAdd = false;
+
+  @override
+  Future<List<Session>> load() async {
+    if (shouldThrowOnLoad) throw Exception('load failed');
+    return super.load();
+  }
+
+  @override
+  Future<void> add(Session session) async {
+    if (shouldThrowOnAdd) throw Exception('add failed');
+    return super.add(session);
+  }
+}
+
 /// Fake SessionStore that works in-memory without path_provider.
 class FakeSessionStore extends SessionStore {
   final List<Session> _fakeSessions = [];
@@ -212,6 +229,89 @@ void main() {
       await notifier.add(makeSession(id: 's1', folder: 'A'));
       await notifier.moveFolder('A', 'Parent');
       expect(notifier.state.first.folder, 'Parent/A');
+    });
+
+    test('canUndo is false initially', () {
+      expect(notifier.canUndo, isFalse);
+    });
+
+    test('canRedo is false initially', () {
+      expect(notifier.canRedo, isFalse);
+    });
+
+    test('canUndo is true after delete', () async {
+      await notifier.add(makeSession(id: 's1'));
+      await notifier.delete('s1');
+      expect(notifier.canUndo, isTrue);
+    });
+
+    test('canRedo is true after undo', () async {
+      await notifier.add(makeSession(id: 's1'));
+      await notifier.delete('s1');
+      await notifier.undo();
+      expect(notifier.canRedo, isTrue);
+    });
+
+    test('undo restores deleted session', () async {
+      await notifier.add(makeSession(id: 's1', label: 'ToRestore'));
+      await notifier.delete('s1');
+      expect(notifier.state, isEmpty);
+      final result = await notifier.undo();
+      expect(result, isTrue);
+      expect(notifier.state.length, 1);
+      expect(notifier.state.first.id, 's1');
+    });
+
+    test('undo returns false when nothing to undo', () async {
+      final result = await notifier.undo();
+      expect(result, isFalse);
+    });
+
+    test('redo restores after undo', () async {
+      await notifier.add(makeSession(id: 's1'));
+      await notifier.delete('s1');
+      await notifier.undo();
+      expect(notifier.state.length, 1);
+      final result = await notifier.redo();
+      expect(result, isTrue);
+      expect(notifier.state, isEmpty);
+    });
+
+    test('redo returns false when nothing to redo', () async {
+      final result = await notifier.redo();
+      expect(result, isFalse);
+    });
+  });
+
+  group('SessionNotifier error paths', () {
+    late ThrowingSessionStore store;
+    late ProviderContainer container;
+    late SessionNotifier notifier;
+
+    setUp(() {
+      store = ThrowingSessionStore();
+      container = ProviderContainer(overrides: [
+        sessionStoreProvider.overrideWithValue(store),
+      ]);
+      notifier = container.read(sessionProvider.notifier);
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    test('_run rethrows on operation failure', () async {
+      store.shouldThrowOnAdd = true;
+      expect(
+        () => notifier.add(makeSession(id: 's1')),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('load catches error and keeps state unchanged', () async {
+      store.shouldThrowOnLoad = true;
+      await notifier.load();
+      expect(notifier.state, isEmpty);
     });
   });
 

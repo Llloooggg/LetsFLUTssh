@@ -195,37 +195,39 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         .intersection({LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.controlRight})
         .isNotEmpty;
 
-    // Ctrl shortcuts
-    if (isCtrl) {
-      if (event.logicalKey == LogicalKeyboardKey.keyA) {
-        ctrl.selectAll();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.keyC) {
-        if (ctrl.selected.isNotEmpty) widget.onCopy?.call();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.keyV) {
-        widget.onPaste?.call();
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
-    }
+    return isCtrl ? _handleCtrlKey(event.logicalKey) : _handlePlainKey(event.logicalKey);
+  }
 
-    // Non-modifier shortcuts
-    if (event.logicalKey == LogicalKeyboardKey.delete) {
+  KeyEventResult _handleCtrlKey(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.keyA) {
+      ctrl.selectAll();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyC) {
+      if (ctrl.selected.isNotEmpty) widget.onCopy?.call();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyV) {
+      widget.onPaste?.call();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handlePlainKey(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.delete) {
       if (ctrl.selected.isEmpty) return KeyEventResult.ignored;
       _confirmDelete(context, ctrl.selectedEntries);
       return KeyEventResult.handled;
     }
-    if (event.logicalKey == LogicalKeyboardKey.f2) {
+    if (key == LogicalKeyboardKey.f2) {
       if (ctrl.selected.length == 1) {
         _showRenameDialog(context, ctrl.selectedEntries.first);
         return KeyEventResult.handled;
       }
       return KeyEventResult.ignored;
     }
-    if (event.logicalKey == LogicalKeyboardKey.f5) {
+    if (key == LogicalKeyboardKey.f5) {
       ctrl.refresh();
       return KeyEventResult.handled;
     }
@@ -464,7 +466,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
     Widget headerCell(String label, SortColumn column, {double? width, TextAlign? textAlign}) {
       final isActive = ctrl.sortColumn == column;
-      final sortSuffix = isActive ? (ctrl.sortAscending ? ' ↑' : ' ↓') : '';
+      String sortSuffix = '';
+      if (isActive) {
+        sortSuffix = ctrl.sortAscending ? ' ↑' : ' ↓';
+      }
       return InkWell(
         onTap: () => ctrl.setSort(column),
         child: SizedBox(
