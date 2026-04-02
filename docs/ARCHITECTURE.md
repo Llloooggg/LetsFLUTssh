@@ -111,6 +111,7 @@ lib/
 ├── providers/                        # Riverpod providers (global state)
 ├── widgets/                          # Reusable UI components
 │   ├── status_indicator.dart         # Icon + count indicator with tooltip
+│   ├── column_resize_handle.dart    # Draggable column-resize handle for table headers
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -284,7 +285,7 @@ class TransferManager {
 
 The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsible bottom panel unified with the file browser table pattern:
 
-- **Resizable columns** — Local, Remote, Size, and Time columns have drag handles (same `colHandle` pattern as `FilePane`)
+- **Resizable columns** — Local, Remote, Size, and Time columns have drag handles (shared `ColumnResizeHandle` widget, same as `FilePane`)
 - **Column dividers** — Vertical 1px dividers between columns (same `_colDivider` as `FileRow`)
 - **Sorting** — Click column headers to sort history entries. Default: Time descending. Enum: `TransferSortColumn` (name, local, remote, size, time)
 - **Time column** — Replaces old Duration column. Shows `formatTimestamp` + `(formatDuration)` for completed entries. Tooltip shows created/started/ended/duration breakdown
@@ -1041,6 +1042,13 @@ AppDivider({
 AppDivider.indented({Color? color})  // indent = 8, endIndent = 8
 ```
 **Replaces bare `Divider(height: 1)` everywhere.** Standardises height (1 px), thickness (1 px), and color. Use `.indented()` for folder separators in menus.
+
+### ColumnResizeHandle
+
+```dart
+ColumnResizeHandle({required void Function(double dx) onDrag})
+```
+Draggable column-resize handle for table headers. Place between a flexible column and a fixed-width column. The `onDrag` callback receives the raw horizontal delta (positive = right). Callers negate the delta when the fixed column is to the right of the handle. Used in `FilePane` and `TransferPanel` column headers.
 
 ### SplitView
 
