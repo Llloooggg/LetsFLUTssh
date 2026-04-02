@@ -110,6 +110,7 @@ lib/
 │   └── mobile/                       # Mobile version (bottom nav)
 ├── providers/                        # Riverpod providers (global state)
 ├── widgets/                          # Reusable UI components
+│   ├── status_indicator.dart         # Icon + count indicator with tooltip
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -1158,6 +1159,21 @@ mixin MarqueeMixin<T extends StatefulWidget> on State<T> {
   Widget buildMarqueeOverlay(Color color);
 }
 ```
+
+### StatusIndicator
+
+```dart
+StatusIndicator({
+  required IconData icon,     // Icon to display
+  required int count,         // Numeric count next to the icon
+  required String tooltip,    // Tooltip text on hover
+  Color? iconColor,           // Override icon color (default: dim)
+})
+```
+
+Compact icon + number indicator with tooltip. Used in sidebar footer to display session/connection/tab counts. Reusable for any status bar needing icon + count pairs.
+
+**File:** `lib/widgets/status_indicator.dart`
 
 ---
 

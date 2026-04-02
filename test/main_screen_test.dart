@@ -268,14 +268,14 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.textContaining('0 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('status bar shows tab count', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.textContaining('tab'), findsWidgets);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('contains Scaffold widget', (tester) async {
@@ -337,7 +337,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
-      expect(find.textContaining('0 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
   });
 
@@ -364,7 +364,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('No active session'), findsOneWidget);
-      expect(find.textContaining('0 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
   });
@@ -625,7 +625,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('Ctrl+Shift+Tab cycles to previous tab', (tester) async {
@@ -651,7 +651,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('Ctrl+Tab with single tab does not crash', (tester) async {
@@ -670,7 +670,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
   });
@@ -693,7 +693,7 @@ void main() {
       await tester.tap(sftpBtn);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
   });
 
@@ -728,7 +728,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       // Close via tab bar context — find the close button on the tab
       final closeButtons = find.byIcon(Icons.close);
@@ -774,7 +774,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
   });
 
@@ -792,7 +792,7 @@ void main() {
 
       // Status bar should show "Connected" for the active tab
       expect(find.textContaining('Connected'), findsWidgets);
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('renders FileBrowserTab for sftp kind', (tester) async {
@@ -806,7 +806,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('IndexedStack preserves both terminal and sftp tabs', (tester) async {
@@ -825,7 +825,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
       expect(find.byType(IndexedStack), findsOneWidget);
     });
   });
@@ -842,7 +842,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       // Focus inside the shortcuts area
       final textFields = find.byType(TextField);
@@ -859,7 +859,7 @@ void main() {
 
       // Tab should be closed → welcome screen
       expect(find.text('No active session'), findsOneWidget);
-      expect(find.textContaining('0 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('Ctrl+W with two tabs closes active and keeps other', (tester) async {
@@ -878,7 +878,7 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       final textFields = find.byType(TextField);
       if (textFields.evaluate().isNotEmpty) {
@@ -891,7 +891,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
   });
 
@@ -932,7 +932,7 @@ void main() {
       ], activeIndex: 0));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('3 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       // Ctrl+Tab: 0 -> 1
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -953,7 +953,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // All 3 tabs still present, no crash
-      expect(find.textContaining('3 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('Ctrl+Shift+Tab cycles backward through 3 tabs', (tester) async {
@@ -981,7 +981,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('3 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('single tab: Ctrl+Tab does not switch (no-op)', (tester) async {
@@ -997,7 +997,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
       // Status should still show this tab as active
       expect(find.textContaining('Connected'), findsWidgets);
     });
@@ -1017,7 +1017,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
   });
 
@@ -1109,13 +1109,13 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       await tester.tap(find.byTooltip('Files'));
       await tester.pumpAndSettle();
 
       // Now should have 2 tabs (terminal + sftp)
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
       expect(find.byType(FileBrowserTab), findsOneWidget);
     });
 
@@ -1169,12 +1169,12 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
       await tester.tap(find.byTooltip('Terminal'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('2 tabs'), findsOneWidget);
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
   });
 

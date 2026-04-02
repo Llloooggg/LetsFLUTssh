@@ -310,7 +310,7 @@ void main() {
       await tester.pumpWidget(buildApp(sessions: []));
       expect(find.text('No saved sessions'), findsOneWidget);
       expect(find.text('Add Session'), findsOneWidget);
-      expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.dns_outlined), findsWidgets);
     });
 
     testWidgets('empty state has add button with icon', (tester) async {
@@ -2498,6 +2498,47 @@ void main() {
 
       // Still just one session
       expect(find.textContaining('(copy)'), findsNothing);
+    });
+  });
+
+  group('SessionPanel — sidebar footer', () {
+    testWidgets('footer shows saved count with dns icon', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.text('3'), findsOneWidget);
+      expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
+    });
+
+    testWidgets('footer shows active count with wifi icon', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.byIcon(Icons.wifi), findsOneWidget);
+    });
+
+    testWidgets('footer shows tab count with tab icon', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
+    });
+
+    testWidgets('footer has saved left, active and tabs right',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      final savedRight =
+          tester.getTopRight(find.byIcon(Icons.dns_outlined));
+      final wifiLeft = tester.getTopLeft(find.byIcon(Icons.wifi));
+      expect(wifiLeft.dx, greaterThan(savedRight.dx));
+    });
+
+    testWidgets('footer shows tooltips on indicators', (tester) async {
+      await tester.pumpWidget(buildApp());
+      expect(find.byTooltip('Saved sessions'), findsOneWidget);
+      expect(find.byTooltip('Active connections'), findsOneWidget);
+      expect(find.byTooltip('Open tabs'), findsOneWidget);
+    });
+
+    testWidgets('footer updates when sessions change', (tester) async {
+      await tester.pumpWidget(buildApp(sessions: []));
+      final textWidgets = tester.widgetList<Text>(find.text('0'));
+      // 3 zeros: saved=0, active=0, tabs=0.
+      expect(textWidgets.length, 3);
     });
   });
 }
