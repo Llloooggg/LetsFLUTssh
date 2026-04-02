@@ -25,10 +25,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
   double _panelHeight = 200;
 
   // Resizable column widths
-  double _localColWidth = 140;
-  double _remoteColWidth = 140;
-  double _sizeColWidth = 56;
-  double _timeColWidth = 105;
+  double _localColWidth = 110;
+  double _remoteColWidth = 110;
+  double _sizeColWidth = 50;
+  double _timeColWidth = 95;
 
   // Sorting
   TransferSortColumn _sortColumn = TransferSortColumn.time;
@@ -355,10 +355,17 @@ class _HistoryRow extends StatelessWidget {
           const SizedBox(width: 4),
           SizedBox(
             width: 20,
-            child: Icon(
-              isFailed ? Icons.error_outline : Icons.check_circle_outline,
-              size: 10,
-              color: isFailed ? AppTheme.red : AppTheme.green,
+            child: Tooltip(
+              message: isFailed && entry.error != null
+                  ? entry.error!
+                  : isFailed
+                      ? 'Failed'
+                      : 'Completed',
+              child: Icon(
+                isFailed ? Icons.error_outline : Icons.check_circle_outline,
+                size: 10,
+                color: isFailed ? AppTheme.red : AppTheme.green,
+              ),
             ),
           ),
           const SizedBox(width: 4),
@@ -366,7 +373,10 @@ class _HistoryRow extends StatelessWidget {
           Expanded(
             child: Text(
               entry.name,
-              style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+              style: AppFonts.mono(
+                fontSize: AppFonts.xs,
+                color: isFailed ? AppTheme.red : AppTheme.fgDim,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
