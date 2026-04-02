@@ -14,6 +14,7 @@ import '../../widgets/context_menu.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/cross_marquee_controller.dart';
+import '../tabs/tab_controller.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
@@ -1140,21 +1141,34 @@ class _SidebarFooter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final savedCount = ref.watch(sessionProvider).length;
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    final activeCount = connections.where((c) => c.isConnected).length;
+    final tabState = ref.watch(tabProvider);
+    final tabCount = tabState.tabs.length;
 
     final theme = Theme.of(context);
     final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.45);
+    final style = AppFonts.inter(fontSize: AppFonts.xs, color: dimColor);
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 12),
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
-          Text(
-            '$savedCount saved',
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
+          Expanded(
+            child: Text(
+              '$savedCount saved · $activeCount active · $tabCount tabs',
+              style: style,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
+          if (activeCount > 0) ...[
+            const SizedBox(width: 6),
+            Icon(Icons.wifi, size: 10, color: AppTheme.green),
+          ],
         ],
       ),
     );
