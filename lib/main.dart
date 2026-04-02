@@ -462,6 +462,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         isNarrow: isNarrow,
         inSettings: inSettings,
         activeTab: activeTab,
+        showTabs: !inSettings && tabState.tabs.isNotEmpty,
       ),
       sidebar: sidebar,
       sidebarOpen: _sidebarOpen,
@@ -480,7 +481,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         : const WelcomeScreen();
     return Column(
       children: [
-        if (tabState.tabs.isNotEmpty) const AppTabBar(),
         if (activeTab != null)
           _ConnectionBar(
             activeTab: activeTab,
@@ -500,6 +500,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     required bool isNarrow,
     required bool inSettings,
     required TabEntry? activeTab,
+    bool showTabs = false,
   }) {
     final canSplit = !inSettings && activeTab?.kind == TabKind.terminal;
     return _Toolbar(
@@ -525,6 +526,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           : null,
       onSettings: _toggleSettings,
       inSettings: inSettings,
+      tabBar: showTabs ? const AppTabBar(embedded: true) : null,
     );
   }
 
@@ -667,6 +669,7 @@ class _Toolbar extends StatelessWidget {
   final VoidCallback? onSplitHorizontal;
   final VoidCallback onSettings;
   final bool inSettings;
+  final Widget? tabBar;
 
   const _Toolbar({
     required this.sidebarOpen,
@@ -677,6 +680,7 @@ class _Toolbar extends StatelessWidget {
     this.onSplitHorizontal,
     required this.onSettings,
     this.inSettings = false,
+    this.tabBar,
   });
 
   @override
@@ -701,7 +705,10 @@ class _Toolbar extends StatelessWidget {
                 ? 'Hide Sidebar (Ctrl+B)'
                 : 'Show Sidebar (Ctrl+B)',
           ),
-        const Spacer(),
+        if (tabBar != null)
+          Expanded(child: tabBar!)
+        else
+          const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
             icon: Icons.vertical_split,

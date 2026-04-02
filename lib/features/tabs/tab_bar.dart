@@ -17,7 +17,11 @@ import 'tab_model.dart';
 /// Tabs shrink when space is tight and scroll with the mouse wheel when they
 /// reach their minimum width.
 class AppTabBar extends ConsumerStatefulWidget {
-  const AppTabBar({super.key});
+  /// When `true` the tab bar skips its own background/border container
+  /// and relies on the parent (toolbar) for decoration.
+  final bool embedded;
+
+  const AppTabBar({super.key, this.embedded = false});
 
   @override
   ConsumerState<AppTabBar> createState() => _AppTabBarState();
@@ -48,6 +52,61 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
     ref.watch(connectionsProvider);
     final tabs = tabState.tabs;
 
+    final content = LayoutBuilder(
+      builder: (context, constraints) {
+        const maxTabW = 180.0;
+        const minTabW = 80.0;
+        final natural = constraints.maxWidth / tabs.length;
+        final tabW = natural.clamp(minTabW, maxTabW);
+
+        // Space remaining after all tab items.
+        final tabsWidth = tabW * tabs.length;
+        final endZoneW =
+            (constraints.maxWidth - tabsWidth).clamp(24.0, double.infinity);
+
+        return Listener(
+          onPointerSignal: _onPointerSignal,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (int index = 0; index < tabs.length; index++)
+                  _buildDragTarget(tabs, index, tabState, tabW),
+                // Drop zone fills remaining space (min 24px when scrolling)
+                DragTarget<TabEntry>(
+                  onWillAcceptWithDetails: (_) => true,
+                  onAcceptWithDetails: (d) {
+                    final oldIdx =
+                        tabs.indexWhere((t) => t.id == d.data.id);
+                    if (oldIdx >= 0 && oldIdx != tabs.length - 1) {
+                      ref
+                          .read(tabProvider.notifier)
+                          .reorderTabs(oldIdx, tabs.length);
+                    }
+                  },
+                  builder: (context, candidates, _) => Container(
+                    width: endZoneW,
+                    height: 32,
+                    decoration: candidates.isNotEmpty
+                        ? BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                  color: AppTheme.accent, width: 2),
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (widget.embedded) return content;
+
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Container(
@@ -56,58 +115,7 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
         color: scheme.surfaceContainerLow,
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const maxTabW = 180.0;
-          const minTabW = 80.0;
-          final natural = constraints.maxWidth / tabs.length;
-          final tabW = natural.clamp(minTabW, maxTabW);
-
-          // Space remaining after all tab items.
-          final tabsWidth = tabW * tabs.length;
-          final endZoneW =
-              (constraints.maxWidth - tabsWidth).clamp(24.0, double.infinity);
-
-          return Listener(
-            onPointerSignal: _onPointerSignal,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (int index = 0; index < tabs.length; index++)
-                    _buildDragTarget(tabs, index, tabState, tabW),
-                  // Drop zone fills remaining space (min 24px when scrolling)
-                  DragTarget<TabEntry>(
-                    onWillAcceptWithDetails: (_) => true,
-                    onAcceptWithDetails: (d) {
-                      final oldIdx =
-                          tabs.indexWhere((t) => t.id == d.data.id);
-                      if (oldIdx >= 0 && oldIdx != tabs.length - 1) {
-                        ref
-                            .read(tabProvider.notifier)
-                            .reorderTabs(oldIdx, tabs.length);
-                      }
-                    },
-                    builder: (context, candidates, _) => Container(
-                      width: endZoneW,
-                      height: 32,
-                      decoration: candidates.isNotEmpty
-                          ? BoxDecoration(
-                              border: Border(
-                                left: BorderSide(
-                                    color: AppTheme.accent, width: 2),
-                              ),
-                            )
-                          : null,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+      child: content,
     );
   }
 

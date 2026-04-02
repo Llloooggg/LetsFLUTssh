@@ -879,7 +879,7 @@ class SessionConnect {
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder; hidden when no tabs are open |
+| `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder; embedded in toolbar on desktop (`embedded: true`), hidden when no tabs are open |
 | `tab_controller.dart` | `TabNotifier` | State: open, close (+ disconnect orphaned), reorder, select |
 | `tab_model.dart` | `TabEntry`, `TabKind` | Tab model (id, label, connection, kind) |
 | `welcome_screen.dart` | `WelcomeScreen` | Minimal empty state — icon, heading, subtitle; no buttons or shortcuts |
@@ -971,6 +971,8 @@ AppShell({
 })
 ```
 Desktop layout shell shared by the main screen and settings. Provides the consistent visual frame: decorated toolbar (surfaceContainerLow + bottom border), resizable sidebar with drag divider, main body area, and optional status bar. On narrow viewports, set `useDrawer: true` to render the sidebar as a pull-out `Drawer` instead of an inline panel.
+
+**Toolbar layout:** `[sidebar toggle | AppTabBar (embedded) | split buttons | settings]`. Tabs are embedded directly in the toolbar row via `AppTabBar(embedded: true)` to save vertical space. When no tabs are open or in settings mode, the tab area is replaced by a `Spacer`.
 
 State class `AppShellState` exposes `sidebarWidth` getter. Sidebar width is managed internally and persists as long as the widget stays mounted.
 
