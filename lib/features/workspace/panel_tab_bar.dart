@@ -1,33 +1,58 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
-import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
-import '../../widgets/context_menu.dart';
 import '../../widgets/hover_region.dart';
-import 'tab_controller.dart';
-import 'tab_model.dart';
+import '../tabs/tab_model.dart';
 
-/// Custom tab bar with drag-to-reorder.
-///
-/// Drag any tab to reorder. Click to select, right-click for context menu.
-/// Tabs shrink when space is tight and scroll with the mouse wheel when they
-/// reach their minimum width.
-class AppTabBar extends ConsumerStatefulWidget {
-  /// When `true` the tab bar skips its own background/border container
-  /// and relies on the parent (toolbar) for decoration.
-  final bool embedded;
+/// Data carried during a tab drag operation.
+class TabDragData {
+  final TabEntry tab;
+  final String sourcePanelId;
 
-  const AppTabBar({super.key, this.embedded = false});
-
-  @override
-  ConsumerState<AppTabBar> createState() => _AppTabBarState();
+  const TabDragData({required this.tab, required this.sourcePanelId});
 }
 
-class _AppTabBarState extends ConsumerState<AppTabBar> {
+/// Per-panel tab bar with drag-to-reorder and cross-panel drag support.
+///
+/// Unlike the old [AppTabBar] this widget does not read providers directly —
+/// all data and callbacks are passed via constructor, making it reusable
+/// across multiple panels.
+class PanelTabBar extends StatefulWidget {
+  final String panelId;
+  final List<TabEntry> tabs;
+  final int activeIndex;
+  final bool isFocusedPanel;
+  final ValueChanged<int> onSelect;
+  final ValueChanged<String> onClose;
+  final void Function(int oldIndex, int newIndex) onReorder;
+  final void Function(TabDragData data, int index) onAcceptCrossPanel;
+  final void Function(
+    String tabId,
+    int index,
+    Offset position,
+  ) onContextMenu;
+
+  const PanelTabBar({
+    super.key,
+    required this.panelId,
+    required this.tabs,
+    required this.activeIndex,
+    required this.isFocusedPanel,
+    required this.onSelect,
+    required this.onClose,
+    required this.onReorder,
+    required this.onAcceptCrossPanel,
+    required this.onContextMenu,
+  });
+
+  @override
+  State<PanelTabBar> createState() => _PanelTabBarState();
+}
+
+class _PanelTabBarState extends State<PanelTabBar> {
   final _scrollController = ScrollController();
 
   @override
@@ -47,19 +72,15 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
 
   @override
   Widget build(BuildContext context) {
-    final tabState = ref.watch(tabProvider);
-    // Watch connection state changes so tab indicators update.
-    ref.watch(connectionsProvider);
-    final tabs = tabState.tabs;
+    final tabs = widget.tabs;
 
-    final content = LayoutBuilder(
+    return LayoutBuilder(
       builder: (context, constraints) {
         const maxTabW = 180.0;
         const minTabW = 80.0;
-        final natural = constraints.maxWidth / tabs.length;
+        final natural = tabs.isEmpty ? maxTabW : constraints.maxWidth / tabs.length;
         final tabW = natural.clamp(minTabW, maxTabW);
 
-        // Space remaining after all tab items.
         final tabsWidth = tabW * tabs.length;
         final endZoneW =
             (constraints.maxWidth - tabsWidth).clamp(24.0, double.infinity);
@@ -72,17 +93,19 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
             child: Row(
               children: [
                 for (int index = 0; index < tabs.length; index++)
-                  _buildDragTarget(tabs, index, tabState, tabW),
-                // Drop zone fills remaining space (min 24px when scrolling)
-                DragTarget<TabEntry>(
+                  _buildDragTarget(tabs, index, tabW),
+                // Trailing drop zone.
+                DragTarget<TabDragData>(
                   onWillAcceptWithDetails: (_) => true,
                   onAcceptWithDetails: (d) {
-                    final oldIdx =
-                        tabs.indexWhere((t) => t.id == d.data.id);
-                    if (oldIdx >= 0 && oldIdx != tabs.length - 1) {
-                      ref
-                          .read(tabProvider.notifier)
-                          .reorderTabs(oldIdx, tabs.length);
+                    if (d.data.sourcePanelId == widget.panelId) {
+                      final oldIdx =
+                          tabs.indexWhere((t) => t.id == d.data.tab.id);
+                      if (oldIdx >= 0 && oldIdx != tabs.length - 1) {
+                        widget.onReorder(oldIdx, tabs.length);
+                      }
+                    } else {
+                      widget.onAcceptCrossPanel(d.data, tabs.length);
                     }
                   },
                   builder: (context, candidates, _) => Container(
@@ -104,30 +127,23 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
         );
       },
     );
-
-    if (widget.embedded) return content;
-
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      height: AppTheme.barHeightSm,
-      color: scheme.surfaceContainerLow,
-      child: content,
-    );
   }
 
-  Widget _buildDragTarget(
-    List<TabEntry> tabs, int index, TabState tabState, double tabWidth,
-  ) {
+  Widget _buildDragTarget(List<TabEntry> tabs, int index, double tabWidth) {
     final tab = tabs[index];
-    final isActive = index == tabState.activeIndex;
+    final isActive = index == widget.activeIndex;
 
-    return DragTarget<TabEntry>(
+    return DragTarget<TabDragData>(
       key: ValueKey('drop_${tab.id}'),
-      onWillAcceptWithDetails: (d) => d.data.id != tab.id,
+      onWillAcceptWithDetails: (d) => d.data.tab.id != tab.id,
       onAcceptWithDetails: (d) {
-        final oldIdx = tabs.indexWhere((t) => t.id == d.data.id);
-        if (oldIdx >= 0 && oldIdx != index) {
-          ref.read(tabProvider.notifier).reorderTabs(oldIdx, index);
+        if (d.data.sourcePanelId == widget.panelId) {
+          final oldIdx = tabs.indexWhere((t) => t.id == d.data.tab.id);
+          if (oldIdx >= 0 && oldIdx != index) {
+            widget.onReorder(oldIdx, index);
+          }
+        } else {
+          widget.onAcceptCrossPanel(d.data, index);
         }
       },
       builder: (context, candidates, rejected) {
@@ -139,82 +155,46 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
                   ),
                 )
               : null,
-          child: _TabItem(
+          child: _PanelTabItem(
             tab: tab,
             isActive: isActive,
             width: tabWidth,
-            onSelect: () => ref.read(tabProvider.notifier).selectTab(index),
-            onClose: () => ref.read(tabProvider.notifier).closeTab(tab.id),
-            onContextMenu: (offset) => _showContextMenu(
-              context, ref, tab, index, tabState, offset,
-            ),
+            panelId: widget.panelId,
+            onSelect: () => widget.onSelect(index),
+            onClose: () => widget.onClose(tab.id),
+            onContextMenu: (offset) =>
+                widget.onContextMenu(tab.id, index, offset),
           ),
         );
       },
     );
   }
-
-  void _showContextMenu(
-    BuildContext context,
-    WidgetRef ref,
-    TabEntry tab,
-    int index,
-    TabState tabState,
-    Offset position,
-  ) {
-    final notifier = ref.read(tabProvider.notifier);
-    showAppContextMenu(
-      context: context,
-      position: position,
-      items: [
-        ContextMenuItem(
-          label: 'Close',
-          icon: Icons.close,
-          onTap: () => notifier.closeTab(tab.id),
-        ),
-        if (tabState.tabs.length > 1)
-          ContextMenuItem(
-            label: 'Close Others',
-            icon: Icons.tab_unselected,
-            onTap: () => notifier.closeOthers(tab.id),
-          ),
-        if (index > 0)
-          ContextMenuItem(
-            label: 'Close Tabs to the Left',
-            onTap: () => notifier.closeToTheLeft(index),
-          ),
-        if (index < tabState.tabs.length - 1)
-          ContextMenuItem(
-            label: 'Close Tabs to the Right',
-            onTap: () => notifier.closeToTheRight(index),
-          ),
-      ],
-    );
-  }
 }
 
-class _TabItem extends StatefulWidget {
+class _PanelTabItem extends StatefulWidget {
   final TabEntry tab;
   final bool isActive;
   final double width;
+  final String panelId;
   final VoidCallback onSelect;
   final VoidCallback onClose;
   final void Function(Offset position) onContextMenu;
 
-  const _TabItem({
+  const _PanelTabItem({
     required this.tab,
     required this.isActive,
     required this.width,
+    required this.panelId,
     required this.onSelect,
     required this.onClose,
     required this.onContextMenu,
   });
 
   @override
-  State<_TabItem> createState() => _TabItemState();
+  State<_PanelTabItem> createState() => _PanelTabItemState();
 }
 
-class _TabItemState extends State<_TabItem> {
+class _PanelTabItemState extends State<_PanelTabItem> {
   Color _dotColor() {
     switch (widget.tab.connection.state) {
       case SSHConnectionState.connected:
@@ -228,7 +208,9 @@ class _TabItemState extends State<_TabItem> {
 
   Color _iconColor() {
     if (!widget.isActive) return AppTheme.fgFaint;
-    return widget.tab.kind == TabKind.terminal ? AppTheme.blue : AppTheme.yellow;
+    return widget.tab.kind == TabKind.terminal
+        ? AppTheme.blue
+        : AppTheme.yellow;
   }
 
   Widget _buildContent(bool showClose) {
@@ -295,7 +277,10 @@ class _TabItemState extends State<_TabItem> {
               top: 0,
               left: 0,
               right: 0,
-              child: SizedBox(height: 2, child: ColoredBox(color: AppTheme.accent)),
+              child: SizedBox(
+                height: 2,
+                child: ColoredBox(color: AppTheme.accent),
+              ),
             ),
         ],
       ),
@@ -310,12 +295,15 @@ class _TabItemState extends State<_TabItem> {
       builder: (hovered) {
         final showClose = hovered || widget.isActive;
         final content = _buildContent(showClose);
-        return Draggable<TabEntry>(
-          data: widget.tab,
+        return Draggable<TabDragData>(
+          data: TabDragData(tab: widget.tab, sourcePanelId: widget.panelId),
           feedback: Material(
             elevation: 4,
             color: Colors.transparent,
-            child: Opacity(opacity: 0.85, child: _DragChip(tab: widget.tab)),
+            child: Opacity(
+              opacity: 0.85,
+              child: _TabDragChip(tab: widget.tab),
+            ),
           ),
           childWhenDragging: Opacity(opacity: 0.4, child: content),
           child: content,
@@ -326,10 +314,10 @@ class _TabItemState extends State<_TabItem> {
 }
 
 /// Drag feedback chip shown while dragging a tab.
-class _DragChip extends StatelessWidget {
+class _TabDragChip extends StatelessWidget {
   final TabEntry tab;
 
-  const _DragChip({required this.tab});
+  const _TabDragChip({required this.tab});
 
   @override
   Widget build(BuildContext context) {
