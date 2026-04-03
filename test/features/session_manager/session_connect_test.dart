@@ -8,7 +8,8 @@ import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/session_connect.dart';
-import 'package:letsflutssh/features/tabs/tab_controller.dart';
+import 'package:letsflutssh/features/workspace/workspace_controller.dart';
+import 'package:letsflutssh/features/workspace/workspace_node.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
@@ -272,9 +273,10 @@ void main() {
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      final tabState = capturedRef.read(tabProvider);
-      expect(tabState.tabs.length, 1);
-      expect(tabState.tabs.first.kind, TabKind.terminal);
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(allTabs.first.kind, TabKind.terminal);
 
       fakeManager.dispose();
     });
@@ -314,9 +316,10 @@ void main() {
       await tester.tap(find.text('SFTP'));
       await tester.pumpAndSettle();
 
-      final tabState = capturedRef.read(tabProvider);
-      expect(tabState.tabs.length, 1);
-      expect(tabState.tabs.first.kind, TabKind.sftp);
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(allTabs.first.kind, TabKind.sftp);
 
       fakeManager.dispose();
     });
@@ -393,9 +396,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tab should still be added (connection status shown inside tab)
-      final tabState = capturedRef.read(tabProvider);
-      expect(tabState.tabs.length, 1);
-      expect(tabState.tabs.first.kind, TabKind.terminal);
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(allTabs.first.kind, TabKind.terminal);
 
       failManager.dispose();
     });
@@ -433,9 +437,10 @@ void main() {
       await tester.tap(find.text('SFTP'));
       await tester.pumpAndSettle();
 
-      final tabState = capturedRef.read(tabProvider);
-      expect(tabState.tabs.length, 1);
-      expect(tabState.tabs.first.kind, TabKind.sftp);
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(allTabs.first.kind, TabKind.sftp);
 
       failManager.dispose();
     });
@@ -473,9 +478,10 @@ void main() {
       await tester.tap(find.text('Quick'));
       await tester.pumpAndSettle();
 
-      final tabState = capturedRef.read(tabProvider);
-      expect(tabState.tabs.length, 1);
-      expect(tabState.tabs.first.kind, TabKind.terminal);
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(allTabs.first.kind, TabKind.terminal);
 
       failManager.dispose();
     });
@@ -515,9 +521,10 @@ void main() {
       await tester.tap(find.text('Quick'));
       await tester.pumpAndSettle();
 
-      final tabState = capturedRef.read(tabProvider);
-      expect(tabState.tabs.length, 1);
-      expect(tabState.tabs.first.kind, TabKind.terminal);
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(allTabs.first.kind, TabKind.terminal);
 
       fakeManager.dispose();
     });

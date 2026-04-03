@@ -7,7 +7,7 @@ import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../utils/logger.dart';
 import '../../widgets/toast.dart';
-import '../tabs/tab_controller.dart';
+import '../workspace/workspace_controller.dart';
 
 /// Shared connection logic used by both main.dart and mobile_shell.dart.
 ///
@@ -21,7 +21,7 @@ class SessionConnect {
   static bool connectTerminal(BuildContext context, WidgetRef ref, Session session) {
     final conn = _createConnection(context, ref, session, 'terminal');
     if (conn == null) return false;
-    ref.read(tabProvider.notifier).addTerminalTab(conn);
+    ref.read(workspaceProvider.notifier).addTerminalTab(conn);
     return true;
   }
 
@@ -30,7 +30,7 @@ class SessionConnect {
   static bool connectSftp(BuildContext context, WidgetRef ref, Session session) {
     final conn = _createConnection(context, ref, session, 'SFTP');
     if (conn == null) return false;
-    ref.read(tabProvider.notifier).addSftpTab(conn);
+    ref.read(workspaceProvider.notifier).addSftpTab(conn);
     return true;
   }
 
@@ -68,6 +68,6 @@ class SessionConnect {
     AppLogger.instance.log('Quick connect to ${config.host}', name: 'Session');
     final manager = ref.read(connectionManagerProvider);
     final conn = manager.connectAsync(config);
-    ref.read(tabProvider.notifier).addTerminalTab(conn);
+    ref.read(workspaceProvider.notifier).addTerminalTab(conn);
   }
 }

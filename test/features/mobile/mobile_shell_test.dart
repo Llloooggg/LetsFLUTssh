@@ -10,8 +10,9 @@ import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_shell.dart';
-import 'package:letsflutssh/features/tabs/tab_controller.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
+import 'package:letsflutssh/features/workspace/workspace_controller.dart';
+import 'package:letsflutssh/features/workspace/workspace_node.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/theme_provider.dart';
@@ -20,26 +21,28 @@ import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/status_indicator.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
-/// A TabNotifier subclass that starts with a pre-built TabState.
-class _PrePopulatedTabNotifier extends TabNotifier {
-  final TabState _initialState;
-  _PrePopulatedTabNotifier(this._initialState);
+/// A WorkspaceNotifier subclass that starts with a pre-built WorkspaceState.
+class _PrePopulatedWorkspaceNotifier extends WorkspaceNotifier {
+  final WorkspaceState _initialState;
+  _PrePopulatedWorkspaceNotifier(this._initialState);
 
   @override
-  TabState build() => _initialState;
+  WorkspaceState build() => _initialState;
 }
 
-/// Helper to build a TabState with tabs added via a setup callback.
-TabState _buildTabState(void Function(_TabStateBuilder) setup) {
-  final builder = _TabStateBuilder();
+/// Helper to build a WorkspaceState with tabs added via a setup callback.
+WorkspaceState _buildWorkspaceState(void Function(_WorkspaceStateBuilder) setup) {
+  final builder = _WorkspaceStateBuilder();
   setup(builder);
-  return TabState(
+  final panel = PanelLeaf(
+    id: 'panel-0',
     tabs: builder._tabs,
-    activeIndex: builder._tabs.isEmpty ? -1 : builder._tabs.length - 1,
+    activeTabIndex: builder._tabs.isEmpty ? -1 : builder._tabs.length - 1,
   );
+  return WorkspaceState(root: panel, focusedPanelId: panel.id);
 }
 
-class _TabStateBuilder {
+class _WorkspaceStateBuilder {
   final List<TabEntry> _tabs = [];
   int _counter = 0;
 
@@ -116,7 +119,7 @@ void main() {
   group('MobileShell', () {
     Widget buildTestWidget({
       List<Session> sessions = const [],
-      TabState? tabState,
+      WorkspaceState? workspaceState,
     }) {
       return ProviderScope(
         overrides: [
@@ -126,8 +129,8 @@ void main() {
           connectionManagerProvider.overrideWithValue(
             ConnectionManager(knownHosts: KnownHostsManager()),
           ),
-          if (tabState != null)
-            tabProvider.overrideWith(TabNotifier.new),
+          if (workspaceState != null)
+            workspaceProvider.overrideWith(WorkspaceNotifier.new),
         ],
         child: MaterialApp(
           theme: AppTheme.dark(),
@@ -199,8 +202,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addTerminalTab(conn)),
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) => b.addTerminalTab(conn)),
             )),
           ],
           child: MaterialApp(
@@ -237,8 +240,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addSftpTab(conn)),
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) => b.addSftpTab(conn)),
             )),
           ],
           child: MaterialApp(
@@ -275,8 +278,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addTerminalTab(conn, label: 'Close Me')),
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) => b.addTerminalTab(conn, label: 'Close Me')),
             )),
           ],
           child: MaterialApp(
@@ -379,8 +382,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addSftpTab(conn, label: 'SFTP Close Me')),
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) => b.addSftpTab(conn, label: 'SFTP Close Me')),
             )),
           ],
           child: MaterialApp(
@@ -433,8 +436,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) {
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) {
                 b.addSftpTab(conn1, label: 'SFTP A');
                 b.addSftpTab(conn2, label: 'SFTP B');
               }),
@@ -486,8 +489,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) {
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) {
                 b.addTerminalTab(conn1, label: 'Term A');
                 b.addTerminalTab(conn2, label: 'Term B');
               }),
@@ -539,8 +542,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) {
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) {
                 // Add SFTP tab first, then terminal tab (terminal becomes active)
                 b.addSftpTab(sftpConn, label: 'SFTP Tab');
                 b.addTerminalTab(termConn, label: 'Terminal');
@@ -587,8 +590,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) {
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) {
                 // Add terminal tab first, then SFTP tab (SFTP becomes active)
                 b.addTerminalTab(termConn, label: 'Term Tab');
                 b.addSftpTab(sftpConn, label: 'SFTP');
@@ -775,8 +778,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addTerminalTab(conn)),
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) => b.addTerminalTab(conn)),
             )),
           ],
           child: MaterialApp(
@@ -813,8 +816,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addTerminalTab(conn)),
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) => b.addTerminalTab(conn)),
             )),
           ],
           child: MaterialApp(
@@ -851,8 +854,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addSftpTab(conn)),
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) => b.addSftpTab(conn)),
             )),
           ],
           child: MaterialApp(
@@ -889,8 +892,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addSftpTab(conn)),
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) => b.addSftpTab(conn)),
             )),
           ],
           child: MaterialApp(
@@ -928,8 +931,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) => b.addTerminalTab(conn)),
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) => b.addTerminalTab(conn)),
             )),
           ],
           child: MaterialApp(
@@ -1054,8 +1057,8 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-              _buildTabState((b) {
+            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+              _buildWorkspaceState((b) {
                 b.addTerminalTab(conn, label: 'Tab 1');
                 b.addTerminalTab(conn, label: 'Tab 2');
               }),
