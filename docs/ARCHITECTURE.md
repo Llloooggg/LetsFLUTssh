@@ -863,7 +863,7 @@ class FilePaneController extends ChangeNotifier {
 | `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab always shows all fields (password + key); auth type selector (Password/SSH Key/Both) controls validation: Password requires password, Key requires key file or PEM, Both requires at least one |
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → SSHConfig → ConnectionManager |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
-| `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session |
+| `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link) |
 | `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export |
 
 #### SessionConnect — flow
