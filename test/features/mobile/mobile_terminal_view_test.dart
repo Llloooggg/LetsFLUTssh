@@ -726,4 +726,73 @@ void main() {
       await stderrCtrl.close();
     });
   });
+
+  group('MobileTerminalView — select mode', () {
+    testWidgets('select button renders on keyboard bar', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.select_all), findsOneWidget);
+    });
+
+    testWidgets('tapping select button suspends pointer input', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
+
+      when(mockSsh.isConnected).thenReturn(true);
+      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+
+      final conn = Connection(
+        id: 'select-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the TerminalController via TerminalView
+      final terminalView = tester.widget<TerminalView>(find.byType(TerminalView));
+      final controller = terminalView.controller!;
+
+      expect(controller.suspendedPointerInputs, isFalse);
+
+      // Tap select button
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      expect(controller.suspendedPointerInputs, isTrue);
+
+      // Tap again to deactivate
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      expect(controller.suspendedPointerInputs, isFalse);
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
+  });
 }

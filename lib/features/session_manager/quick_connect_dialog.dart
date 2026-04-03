@@ -250,7 +250,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                             style: AppFonts.inter(
                               fontSize: AppFonts.md,
                               fontWeight: FontWeight.w500,
-                              color: Colors.white,
+                              color: AppTheme.onAccent,
                             ),
                           ),
                         ),

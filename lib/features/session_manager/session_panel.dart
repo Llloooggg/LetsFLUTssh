@@ -249,6 +249,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         .toSet();
   }
 
+  Set<String> _connectingSessionIds(WidgetRef ref) {
+    final connections = ref.watch(connectionsProvider).value ?? [];
+    return connections
+        .where((c) => c.isConnecting && c.sessionId != null)
+        .map((c) => c.sessionId!)
+        .toSet();
+  }
+
   /// Copy the focused session to the clipboard.
   @visibleForTesting
   void copyFocusedSession() {
@@ -377,6 +385,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               : SessionTreeView(
                   tree: tree,
                   connectedSessionIds: _connectedSessionIds(ref),
+                  connectingSessionIds: _connectingSessionIds(ref),
                   selectMode: mobile && _selectMode,
                   selectedIds: _selectedIds,
                   onToggleSelected: _toggleSelected,
@@ -633,6 +642,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     if (result == null) return;
     if (result is SaveResult) {
       await ref.read(sessionProvider.notifier).update(result.session);
+      if (result.connect) widget.onConnect(result.session);
     }
   }
 
@@ -987,7 +997,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                         style: AppFonts.inter(
                           fontSize: AppFonts.sm,
                           fontWeight: FontWeight.w500,
-                          color: errorText == null ? Colors.white : AppTheme.fgFaint,
+                          color: errorText == null ? AppTheme.onAccent : AppTheme.fgFaint,
                         ),
                       ),
                     ),
@@ -1054,8 +1064,8 @@ class _PanelHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: AppTheme.barHeightSm,
+      padding: const EdgeInsets.only(left: 12, right: 2),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
@@ -1113,7 +1123,7 @@ class _SelectActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      height: 36,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.1),
@@ -1247,15 +1257,22 @@ class _SidebarFooter extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final savedCount = ref.watch(sessionProvider).length;
     final connections = ref.watch(connectionsProvider).value ?? [];
-    final activeCount = connections.where((c) => c.isConnected).length;
+    final connectedCount = connections.where((c) => c.isConnected).length;
+    final connectingCount = connections.where((c) => c.isConnecting).length;
+    final activeCount = connectedCount + connectingCount;
     final tabState = ref.watch(tabProvider);
     final tabCount = tabState.tabs.length;
 
     final theme = Theme.of(context);
+    final Color? connectionIconColor = connectedCount > 0
+        ? AppTheme.connectedColor(theme.brightness)
+        : connectingCount > 0
+            ? AppTheme.connectingColor(theme.brightness)
+            : null;
+
     return Container(
-      height: 30,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      clipBehavior: Clip.hardEdge,
+      height: AppTheme.barHeightSm,
+      padding: const EdgeInsets.only(left: 12, right: 8),
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
@@ -1271,7 +1288,7 @@ class _SidebarFooter extends ConsumerWidget {
             icon: Icons.wifi,
             count: activeCount,
             tooltip: 'Active connections',
-            iconColor: activeCount > 0 ? AppTheme.green : null,
+            iconColor: connectionIconColor,
           ),
           const SizedBox(width: 10),
           StatusIndicator(

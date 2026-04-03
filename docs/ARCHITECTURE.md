@@ -423,7 +423,7 @@ class ConnectionManager {
 
   List<Connection> get connections;
   Stream<List<Connection>> get onChange;
-  int get activeCount;   // connections in state connected
+  int get activeCount;   // connections in state connecting or connected
 }
 ```
 
@@ -673,6 +673,7 @@ Notifier.state updated → all dependent providers recompute → UI rebuilds
 |------|-------|---------|
 | `terminal_tab.dart` | `TerminalTab` | Container: manages split tree, reconnect, shortcuts |
 | `terminal_pane.dart` | `TerminalPane` | Single terminal: xterm widget + SSH shell pipe |
+| `cursor_overlay.dart` | `CursorTextOverlay` | Paints inverted character on block cursor (xterm overlay) |
 | `tiling_view.dart` | `TilingView` | Recursive split tree renderer |
 | `split_node.dart` | `SplitNode`, `LeafNode`, `BranchNode` | Sealed class for split tree |
 
@@ -725,6 +726,8 @@ TerminalPane(connection, paneId)
 **Focus indicator:** No border is drawn on panes — the 4 px divider in `TilingView` already separates them visually. The focused pane is identifiable by the active cursor and toolbar highlight.
 
 **Context menu:** Right-click is handled by a `Listener(onPointerDown:)` wrapping `TerminalView`, not by xterm's `onSecondaryTapUp`. This ensures the context menu works even when the terminal is in mouse mode (htop, vim, etc.), because `Listener` operates at the raw pointer level before xterm's gesture detector can consume the event.
+
+**Shift-bypass for mouse mode (desktop):** When a TUI app enables mouse mode (htop, vim, mc, etc.), all mouse events are forwarded to the app. Holding **Shift** temporarily suspends pointer-input forwarding via `TerminalController.setSuspendPointerInput(true)`, letting the user drag-select text locally — standard behaviour matching xterm, GNOME Terminal, and other emulators. State is updated via a `HardwareKeyboard` handler registered in `TerminalPaneState`; the handler fires on every key event and recalculates based on current Shift state + `Terminal.mouseMode`.
 
 #### Keyboard Shortcuts
 
@@ -846,7 +849,7 @@ class FilePaneController extends ChangeNotifier {
 | File | Class | Purpose |
 |------|-------|---------|
 | `session_panel.dart` | `SessionPanel` | Sidebar: tree view + search + actions + bulk select. Header has "New Folder" and "New Connection" buttons |
-| `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data |
+| `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data. Session icon color: green (connected), yellow (connecting), grey (disconnected) |
 | `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab always shows all fields (password + key); auth type selector (Password/SSH Key/Both) controls validation: Password requires password, Key requires key file or PEM, Both requires at least one |
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → SSHConfig → ConnectionManager |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
@@ -898,7 +901,7 @@ class TabEntry {
 
 **IndexedStack:** Tabs are rendered via `IndexedStack` — all tabs stay in memory, only the current one is visible. This preserves terminal state when switching tabs.
 
-**Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background (subtle but visible against the surrounding area). All tabs have a `AppTheme.borderLight` right border as separator. Text: `AppTheme.fg` for active, `AppTheme.fgDim` for inactive. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive.
+**Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background (subtle but visible against the surrounding area). No borders between tabs — they sit flush. Text: `AppTheme.fg` for active, `AppTheme.fgDim` for inactive. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive. Height: `AppTheme.barHeightSm` (34 px).
 
 **Connection lifecycle:** When all tabs referencing a connection are closed, `TabNotifier` automatically disconnects the orphaned connection via `ConnectionManager.disconnect()`. This keeps the active session count accurate.
 
@@ -926,8 +929,10 @@ class TabEntry {
 | `mobile_shell.dart` | `MobileShell` | Bottom navigation: Sessions / Terminal / SFTP |
 | `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal + keyboard bar |
 | `mobile_file_browser.dart` | `MobileFileBrowser` | Single-pane SFTP (toggle local/remote) |
-| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn. Main row is horizontally scrollable (`ListView`); Fn button is fixed at right edge |
+| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Select. Main row is horizontally scrollable (`ListView`); Select + Fn buttons are fixed at right edge |
 | `ssh_key_sequences.dart` | — | Escape sequences for keys |
+
+**Text selection (mobile):** The Select button (📋 icon, fixed at right edge of keyboard bar) toggles text-select mode. When active, `TerminalController.setSuspendPointerInput(true)` prevents mouse events from reaching the TUI app, so the user can drag-select text for copying. Copying via the context menu auto-exits select mode (`exitSelectMode()`). Long-press word selection (built into xterm's `LongPressGestureRecognizer`) works independently of select mode.
 
 **Architectural difference:** Mobile is NOT a responsive version of desktop. It's a separate `features/mobile/` module with different interaction patterns (bottom nav instead of sidebar+tabs, long-press instead of right-click, swipe navigation).
 
@@ -939,7 +944,7 @@ class TabEntry {
 
 **Nav guard:** Terminal and Files destinations are disabled (dimmed, tap blocked) when no tabs of that type exist. If the user is on Terminal/Files and the last tab closes, auto-switches to Sessions.
 
-**Shared styling with desktop:** Mobile tab chips match desktop's rectangular tab style (top accent bar, colored icons — blue for terminal, yellow for SFTP, connection status dot). SSH↔SFTP companion buttons (`_MobileCompanionButton`) mirror desktop's `_companionButton` styling (colored background, border, icon + label). Active/saved session count is shown only in the global header bar (not duplicated in the session panel footer). The tab chip bar and companion button share a parent `Container` with `AppTheme.bg1` background + bottom border, ensuring consistent background across both elements.
+**Shared styling with desktop:** Mobile tab chips match desktop's rectangular tab style (top accent bar, colored icons — blue for terminal, yellow for SFTP, connection status dot). SSH↔SFTP companion buttons (`_MobileCompanionButton`) mirror desktop's `_companionButton` styling (colored background, border, icon + label). Active/saved session count is shown only in the global header bar (not duplicated in the session panel footer). The tab chip bar and companion button share a parent `Container` with `AppTheme.bg1` background (no border), ensuring consistent background across both elements.
 
 ```dart
 // main.dart
@@ -971,7 +976,7 @@ AppShell({
   Widget? statusBar,              // optional bottom bar
 })
 ```
-Desktop layout shell shared by the main screen and settings. Provides the consistent visual frame: decorated toolbar (surfaceContainerLow + bottom border), resizable sidebar with drag divider, main body area, and optional status bar. On narrow viewports, set `useDrawer: true` to render the sidebar as a pull-out `Drawer` instead of an inline panel.
+Desktop layout shell shared by the main screen and settings. Provides the consistent visual frame: toolbar (surfaceContainerLow, no border), main body area, and optional status bar. Sidebar resize uses a `Stack` overlay — panels sit flush, a 6 px invisible hit zone with a 1 px `dividerColor` line overlays the boundary. On narrow viewports, set `useDrawer: true` to render the sidebar as a pull-out `Drawer` instead of an inline panel.
 
 **Toolbar layout:** `[sidebar toggle | AppTabBar (embedded) | split buttons | settings]`. Tabs are embedded directly in the toolbar row via `AppTabBar(embedded: true)` to save vertical space. When no tabs are open or in settings mode, the tab area is replaced by a `Spacer`.
 
@@ -1181,7 +1186,7 @@ StatusIndicator({
 })
 ```
 
-Compact icon + number indicator with tooltip. Used in sidebar footer to display session/connection/tab counts. Reusable for any status bar needing icon + count pairs.
+Compact icon + number indicator with tooltip. Used in sidebar footer to display session/connection/tab counts. Connection indicator counts both `connecting` and `connected` states; icon is green when any connection is established, yellow when all are still connecting. Reusable for any status bar needing icon + count pairs.
 
 **File:** `lib/widgets/status_indicator.dart`
 
@@ -1258,7 +1263,11 @@ String sanitizeError(Object error);   // strips OS-locale text, handles SSHError
 
 ### AppTheme
 
+Dark theme: **OneDark Pro** (binaryify/OneDark-Pro) exact hex values.
+Light theme: **Atom One Light** (official) exact hex values.
+
 Brightness-aware: all getters return the appropriate color based on current `_brightness`.
+Every color in the UI MUST come from this class — no hardcoded hex or `Colors.*` outside `app_theme.dart`.
 
 ```dart
 abstract final class AppTheme {
@@ -1266,23 +1275,32 @@ abstract final class AppTheme {
   static bool get isDark;
 
   // Backgrounds (dark / light)
-  static Color get bg0;     // toolbar, status bar      (#1B1D23 / #DCDCDD)
-  static Color get bg1;     // sidebar, dialogs         (#1E2127 / #F0F0F0)
-  static Color get bg2;     // main content             (#282C34 / #FAFAFA)
-  static Color get bg3;     // inputs, rows             (#2C313A / #E5E5E6)
-  static Color get bg4;     // hover on bg3             (#333842 / #D3D3D3)
+  static Color get bg0;     // deepest surface           (#1B1D23 / #DBDBDC)
+  static Color get bg1;     // sidebar, status bar       (#21252B / #EAEBEB)
+  static Color get bg2;     // main content              (#282C34 / #FAFAFA)
+  static Color get bg3;     // inputs, selection         (#2C313A / #E5E5E6)
+  static Color get bg4;     // hover, inactive selection (#323842 / #DBDBDC)
 
   // Foreground
-  static Color get fg;       // main text               (#ABB2BF / #383A42)
-  static Color get fgDim;   // secondary text           (#7F848E / #696C77)
-  static Color get fgFaint; // disabled text            (#5C6370 / #8C8F96)
-  static Color get fgBright;// emphasized text           (#CDD3DE / #232529)
+  static Color get fg;       // main text                (#ABB2BF / #383A42)
+  static Color get fgDim;    // secondary text           (#7F848E / #696C77)
+  static Color get fgFaint;  // disabled text            (#5C6370 / #A0A1A7)
+  static Color get fgBright; // emphasized text          (#D7DAE0 / #232424)
 
-  // Semantic colors
+  // Accent & syntax hues
   static Color get accent, blue, green, red, yellow, orange, cyan, purple;
-  static Color get border;      // main dividers        (#1B1D23 / #C4C4C6)
-  static Color get borderLight; // inputs, cards        (#2C313A / #D3D3D3)
+  static Color get border;      // hard dividers         (#181A1F / #DBDBDC)
+  static Color get borderLight; // panel borders         (#3E4452 / #DBDBDC)
   static Color get selection, hover, active;
+  static Color get onAccent;    // text on accent bg     (#F8FAFD / #FFFFFF)
+
+  // Terminal ANSI colors (OneDark Pro terminal palette / One Light syntax)
+  static Color get termBlack, termRed, termGreen, termYellow;
+  static Color get termBlue, termMagenta, termCyan, termWhite;
+  static Color get termBrightBlack, termBrightRed, termBrightGreen, termBrightYellow;
+  static Color get termBrightBlue, termBrightMagenta, termBrightCyan, termBrightWhite;
+  static Color get termCursor;     // block cursor color (#528BFF / #526FFF)
+  static Color get termSelection;  // mouse selection    (#677696 @ 38% / #4078F2 @ 38%)
 
   // Connection status
   static Color connected;          // green
@@ -1291,12 +1309,16 @@ abstract final class AppTheme {
 
   // Special
   static Color folderIcon;         // yellow
-  static Color searchHighlight;    // bright yellow
+  static Color get searchHighlight;// terminal search bg (#FFFF2B / #FFD700)
+  static Color get searchHitFg;    // search hit text
 
   // Section border helpers (brightness-aware)
   static BorderSide get borderSide;  // BorderSide(color: border)
   static Border get borderTop;       // Border(top: borderSide)
   static Border get borderBottom;    // Border(bottom: borderSide)
+
+  // Bar height scale
+  static const double barHeightSm;  // 34 px — all bars (toolbar, headers, footers, status bars)
 
   // Border radius scale
   static const radiusSm;  // 4 px — inputs, buttons, small elements
@@ -1332,6 +1354,8 @@ Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/font
 **Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware: mobile gets +2 px automatically for touch readability.
 
 **Rule:** Never use hardcoded `BorderRadius.circular(N)` or `BorderRadius.zero` — always use `AppTheme.radiusSm`, `radiusMd`, or `radiusLg`. Exception: pill-shaped elements (e.g. toggle tracks) that need full rounding.
+
+**Rule:** Never hardcode bar/toolbar heights — always use `AppTheme.barHeightSm` (34 px). All toolbars, panel headers, footers, status bars, and column headers use this single constant. Panels sit flush without borders; resizable dividers use `Stack` overlays (6 px invisible hit zone, 1 px visible line where needed).
 
 ---
 
