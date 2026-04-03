@@ -17,11 +17,17 @@ import '../file_browser/sftp_initializer.dart';
 import '../file_browser/transfer_helpers.dart';
 import '../file_browser/transfer_panel.dart';
 
+/// Factory for SFTP initialization — injectable for testing.
+typedef MobileSFTPInitFactory = Future<SFTPInitResult> Function(Connection connection);
+
 /// Single-pane mobile SFTP browser with Local/Remote toggle.
 class MobileFileBrowser extends ConsumerStatefulWidget {
   final Connection connection;
 
-  const MobileFileBrowser({super.key, required this.connection});
+  /// Optional factory for testing — bypasses real SSH/SFTP.
+  final MobileSFTPInitFactory? sftpInitFactory;
+
+  const MobileFileBrowser({super.key, required this.connection, this.sftpInitFactory});
 
   @override
   ConsumerState<MobileFileBrowser> createState() => _MobileFileBrowserState();
@@ -66,7 +72,9 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     }
 
     try {
-      _sftp = await SFTPInitializer.init(conn);
+      _sftp = widget.sftpInitFactory != null
+          ? await widget.sftpInitFactory!(conn)
+          : await SFTPInitializer.init(conn);
       if (mounted) setState(() => _initializing = false);
     } catch (e) {
       AppLogger.instance.log('SFTP init failed: $e', name: 'MobileFileBrowser', error: e);
