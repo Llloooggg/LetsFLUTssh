@@ -3,19 +3,25 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import 'panel_tab_bar.dart';
 
-/// Which edge (or center) the user is hovering over during a drag.
+/// Which edge the user is hovering over during a drag.
+///
+/// [center] is kept in the enum for workspace-level compatibility but
+/// panel drop targets never emit it — tab insertion into a panel is
+/// handled exclusively by the tab bar (with positional ordering).
 enum DropZone { center, left, right, top, bottom }
 
 /// Wraps a panel's content area and shows snap/dock indicators when a
 /// [TabDragData] is dragged over it.
 ///
-/// Drop zones divide the panel into five regions:
+/// Drop zones divide the panel into four edge regions. The center area
+/// is intentionally inert — to add a tab to a panel, drag it onto the
+/// panel's tab bar instead.
 /// ```
 /// ┌──────────────────────────┐
 /// │         TOP (25%)         │
 /// │┌──────┐──────────┌──────┐│
-/// ││ LEFT ││ CENTER  ││RIGHT ││
-/// ││ 25%  ││  50%    ││ 25%  ││
+/// ││ LEFT ││  (inert) ││RIGHT││
+/// ││ 25%  ││         ││ 25%  ││
 /// │└──────┘──────────└──────┘│
 /// │        BOTTOM (25%)       │
 /// └──────────────────────────┘
@@ -40,9 +46,9 @@ class _PanelDropTargetState extends State<PanelDropTarget> {
   DropZone? _activeZone;
   final _key = GlobalKey();
 
-  DropZone _zoneFromPosition(Offset global) {
+  DropZone? _zoneFromPosition(Offset global) {
     final box = _key.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return DropZone.center;
+    if (box == null) return null;
 
     final local = box.globalToLocal(global);
     final size = box.size;
@@ -55,7 +61,7 @@ class _PanelDropTargetState extends State<PanelDropTarget> {
     if (local.dx > size.width - edgeX) return DropZone.right;
     if (local.dy < edgeY) return DropZone.top;
     if (local.dy > size.height - edgeY) return DropZone.bottom;
-    return DropZone.center;
+    return null; // Center — inert, tab bar handles insertion.
   }
 
   @override
@@ -63,9 +69,11 @@ class _PanelDropTargetState extends State<PanelDropTarget> {
     return DragTarget<TabDragData>(
       onWillAcceptWithDetails: (_) => true,
       onAcceptWithDetails: (d) {
-        final zone = _activeZone ?? DropZone.center;
+        final zone = _activeZone;
         setState(() => _activeZone = null);
-        widget.onDrop(d.data, zone);
+        if (zone != null) {
+          widget.onDrop(d.data, zone);
+        }
       },
       onMove: (d) {
         final zone = _zoneFromPosition(d.offset);
@@ -101,20 +109,7 @@ class _PanelDropTargetState extends State<PanelDropTarget> {
 
     switch (zone) {
       case DropZone.center:
-        return Positioned.fill(
-          child: IgnorePointer(
-            child: Container(
-              decoration: BoxDecoration(color: color, border: border),
-              child: Center(
-                child: Icon(
-                  Icons.tab,
-                  size: 32,
-                  color: AppTheme.accent.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
-          ),
-        );
+        return const SizedBox.shrink();
       case DropZone.left:
         alignment = Alignment.centerLeft;
         widthFactor = 0.5;
