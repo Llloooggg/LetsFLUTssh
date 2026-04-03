@@ -28,7 +28,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 | Work with encryption/security | [§3.6 Security](docs/ARCHITECTURE.md#36-security--encryption-coresecurity) + [§13 Security Model](docs/ARCHITECTURE.md#13-security-model) |
 | Work with config | [§3.7 Configuration](docs/ARCHITECTURE.md#37-configuration-coreconfig) |
 | Work with terminal / tiling | [§5.1 Terminal](docs/ARCHITECTURE.md#51-terminal-with-tiling-featuresterminal) |
-| Work with tabs | [§5.4 Tab System](docs/ARCHITECTURE.md#54-tab-system-featurestabs) |
+| Work with tabs / workspace tiling | [§5.4 Tab & Workspace System](docs/ARCHITECTURE.md#54-tab--workspace-system) |
 | Work with mobile features | [§5.6 Mobile](docs/ARCHITECTURE.md#56-mobile-featuresmobile) + [§12 Platform-Specific](docs/ARCHITECTURE.md#12-platform-specific-behavior) |
 | Use or create widgets | [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference) |
 | Use utilities | [§7 Utilities API](docs/ARCHITECTURE.md#7-utilities--public-api-reference) |

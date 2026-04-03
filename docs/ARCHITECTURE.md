@@ -105,7 +105,8 @@ lib/
 │   ├── terminal/                     # Terminal with tiling
 │   ├── file_browser/                 # Dual-pane SFTP browser
 │   ├── session_manager/              # Session management panel
-│   ├── tabs/                         # Tab system
+│   ├── tabs/                         # Tab model (TabEntry, TabKind)
+│   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
 │   └── mobile/                       # Mobile version (bottom nav)
 ├── providers/                        # Riverpod providers (global state)
@@ -661,7 +662,7 @@ class UpdateService {
 | `activeTransfersProvider` | StreamProvider | transferManagerProvider | Active/queued tasks |
 | `transferHistoryProvider` | StreamProvider | transferManagerProvider | Completed transfer history |
 | `transferStatusProvider` | Provider | transferManagerProvider | (running, queued) counts |
-| `tabProvider` | NotifierProvider | — | Open tabs |
+| `workspaceProvider` | NotifierProvider | connectionManagerProvider | Workspace tiling tree + tabs |
 | `updateProvider` | Provider | — | UpdateService |
 | `versionProvider` | FutureProvider | — | Current version from package_info_plus |
 
@@ -887,18 +888,14 @@ class SessionConnect {
 
 ---
 
-### 5.4 Tab System (`features/tabs/`)
+### 5.4 Tab & Workspace System
 
-#### Files
+#### Tab Model (`features/tabs/`)
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `tab_bar.dart` | `AppTabBar` | Custom tab bar with drag-reorder; embedded in toolbar on desktop (`embedded: true`), hidden when no tabs are open |
-| `tab_controller.dart` | `TabNotifier` | State: open, close (+ disconnect orphaned), reorder, select |
 | `tab_model.dart` | `TabEntry`, `TabKind` | Tab model (id, label, connection, kind) |
 | `welcome_screen.dart` | `WelcomeScreen` | Minimal empty state — icon, heading, subtitle; no buttons or shortcuts |
-
-#### TabEntry model
 
 ```dart
 class TabEntry {
@@ -909,11 +906,41 @@ class TabEntry {
 }
 ```
 
-**IndexedStack:** Tabs are rendered via `IndexedStack` — all tabs stay in memory, only the current one is visible. This preserves terminal state when switching tabs.
+#### Workspace Tiling (`features/workspace/`)
 
-**Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background (subtle but visible against the surrounding area). No borders between tabs — they sit flush. Text: `AppTheme.fg` for active, `AppTheme.fgDim` for inactive. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive. Height: `AppTheme.barHeightSm` (34 px).
+| File | Class | Purpose |
+|------|-------|---------|
+| `workspace_node.dart` | `WorkspaceNode`, `PanelLeaf`, `WorkspaceBranch` | Sealed split tree for screen-level tiling |
+| `workspace_controller.dart` | `WorkspaceNotifier`, `WorkspaceState` | State management: add/close/move/split/select tabs across panels |
+| `workspace_view.dart` | `WorkspaceView`, `WorkspaceViewState` | Recursive renderer: panels with dividers, tab bars, connection bars |
+| `panel_tab_bar.dart` | `PanelTabBar`, `TabDragData` | Per-panel tab bar with cross-panel drag-and-drop |
+| `drop_zone_overlay.dart` | `PanelDropTarget`, `DropZone` | Snap/dock zones for tab dragging (center, left, right, top, bottom) |
 
-**Connection lifecycle:** When all tabs referencing a connection are closed, `TabNotifier` automatically disconnects the orphaned connection via `ConnectionManager.disconnect()`. This keeps the active session count accurate.
+#### Two-level tiling architecture
+
+```
+WorkspaceNode (screen-level — splits panels on screen)
+  ├── WorkspaceBranch (direction + ratio)
+  │     ├── PanelLeaf (tab stack A — own tab bar, own IndexedStack)
+  │     └── PanelLeaf (tab stack B — own tab bar, own IndexedStack)
+  └── ...recursive...
+
+PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — unchanged)
+```
+
+**Screen-level split:** `WorkspaceNode` tree divides the screen into panels. Each `PanelLeaf` holds its own `List<TabEntry>` with an active index and renders its own `PanelTabBar` + `IndexedStack`.
+
+**Terminal-level split:** `SplitNode` tree inside each `TerminalTab` divides a single terminal tab into panes. These two tiling levels are independent.
+
+**Drag-and-drop:** Tabs can be dragged between panels. Dropping on a panel's tab bar inserts the tab. Dropping on a panel's content area shows drop zone overlays (center = add to panel, edges = split panel in that direction).
+
+**IndexedStack:** Each panel uses its own `IndexedStack` — all tabs in a panel stay in memory, only the current one is visible. This preserves terminal state when switching tabs.
+
+**Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive. Height: `AppTheme.barHeightSm` (34 px).
+
+**Connection lifecycle:** When all tabs referencing a connection are closed across **all** panels, `WorkspaceNotifier` automatically disconnects the orphaned connection via `ConnectionManager.disconnect()`.
+
+**Panel collapse:** When the last tab in a panel is closed (or moved out), the panel is removed from the workspace tree and its sibling is promoted up.
 
 ---
 

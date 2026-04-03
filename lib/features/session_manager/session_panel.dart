@@ -16,7 +16,8 @@ import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/status_indicator.dart';
-import '../tabs/tab_controller.dart';
+import '../workspace/workspace_controller.dart';
+import '../workspace/workspace_node.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
@@ -1179,8 +1180,8 @@ class _SidebarFooter extends ConsumerWidget {
     final connectedCount = connections.where((c) => c.isConnected).length;
     final connectingCount = connections.where((c) => c.isConnecting).length;
     final activeCount = connectedCount + connectingCount;
-    final tabState = ref.watch(tabProvider);
-    final tabCount = tabState.tabs.length;
+    final ws = ref.watch(workspaceProvider);
+    final tabCount = collectAllTabs(ws.root).length;
 
     final theme = Theme.of(context);
     final Color? connectionIconColor;

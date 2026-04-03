@@ -15,8 +15,9 @@ import 'package:letsflutssh/core/connection/connection_manager.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
-import 'package:letsflutssh/features/tabs/tab_controller.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
+import 'package:letsflutssh/features/workspace/workspace_controller.dart';
+import 'package:letsflutssh/features/workspace/workspace_node.dart';
 import 'package:letsflutssh/main.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
@@ -36,26 +37,28 @@ class _PrePopulatedSessionNotifier extends SessionNotifier {
   }
 }
 
-/// A TabNotifier subclass that starts with a pre-built TabState.
-class _PrePopulatedTabNotifier extends TabNotifier {
-  final TabState _initialState;
-  _PrePopulatedTabNotifier(this._initialState);
+/// A WorkspaceNotifier subclass that starts with a pre-built WorkspaceState.
+class _PrePopulatedWorkspaceNotifier extends WorkspaceNotifier {
+  final WorkspaceState _initialState;
+  _PrePopulatedWorkspaceNotifier(this._initialState);
 
   @override
-  TabState build() => _initialState;
+  WorkspaceState build() => _initialState;
 }
 
-/// Helper to build a TabState with tabs added via a setup callback.
-TabState _buildTabState(void Function(_TabStateBuilder) setup) {
-  final builder = _TabStateBuilder();
+/// Helper to build a WorkspaceState with tabs added via a setup callback.
+WorkspaceState _buildWorkspaceState(void Function(_WorkspaceStateBuilder) setup) {
+  final builder = _WorkspaceStateBuilder();
   setup(builder);
-  return TabState(
+  final panel = PanelLeaf(
+    id: 'panel-0',
     tabs: builder._tabs,
-    activeIndex: builder._tabs.isEmpty ? -1 : builder._tabs.length - 1,
+    activeTabIndex: builder._tabs.isEmpty ? -1 : builder._tabs.length - 1,
   );
+  return WorkspaceState(root: panel, focusedPanelId: panel.id);
 }
 
-class _TabStateBuilder {
+class _WorkspaceStateBuilder {
   final List<TabEntry> _tabs = [];
   int _counter = 0;
 
@@ -460,14 +463,15 @@ void main() {
           ConnectionManager(knownHosts: KnownHostsManager()),
         ),
         if (tabs != null)
-          tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-            TabState(
-              tabs: tabs,
-              activeIndex: activeIndex >= 0 && activeIndex < tabs.length
-                  ? activeIndex
-                  : (tabs.isEmpty ? -1 : 0),
-            ),
-          )),
+          workspaceProvider.overrideWith(() {
+            final idx = activeIndex >= 0 && activeIndex < tabs.length
+                ? activeIndex
+                : (tabs.isEmpty ? -1 : 0);
+            final panel = PanelLeaf(id: 'panel-0', tabs: tabs, activeTabIndex: idx);
+            return _PrePopulatedWorkspaceNotifier(
+              WorkspaceState(root: panel, focusedPanelId: panel.id),
+            );
+          }),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
@@ -1512,8 +1516,8 @@ void main() {
           connectionManagerProvider.overrideWithValue(
             ConnectionManager(knownHosts: KnownHostsManager()),
           ),
-          tabProvider.overrideWith(() => _PrePopulatedTabNotifier(
-            _buildTabState((b) => b.addTerminalTab(conn, label: 'NarrowTab')),
+          workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
+            _buildWorkspaceState((b) => b.addTerminalTab(conn, label: 'NarrowTab')),
           )),
         ],
         child: MaterialApp(

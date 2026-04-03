@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/connection/connection.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
@@ -16,21 +15,17 @@ import 'features/settings/export_import.dart';
 import 'widgets/app_dialog.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
-import 'widgets/clipped_row.dart';
 import 'widgets/cross_marquee_controller.dart';
 import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
-import 'widgets/hover_region.dart';
 import 'widgets/toast.dart';
-import 'features/file_browser/file_browser_tab.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/session_manager/session_panel.dart';
-import 'features/tabs/tab_bar.dart';
-import 'features/tabs/tab_controller.dart';
 import 'features/tabs/tab_model.dart';
-import 'features/tabs/welcome_screen.dart';
 import 'features/terminal/split_node.dart';
-import 'features/terminal/terminal_tab.dart';
+import 'features/workspace/workspace_controller.dart';
+import 'features/workspace/workspace_node.dart';
+import 'features/workspace/workspace_view.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
@@ -189,10 +184,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _sidebarOpen = true;
   ShellMode _mode = ShellMode.sessions;
   int _settingsIndex = 0;
-  final Map<String, GlobalKey<TerminalTabState>> _terminalKeys = {};
-
-  GlobalKey<TerminalTabState> _keyForTab(String tabId) =>
-      _terminalKeys.putIfAbsent(tabId, () => GlobalKey<TerminalTabState>());
+  final _workspaceKey = GlobalKey<WorkspaceViewState>();
 
   @override
   void initState() {
@@ -324,7 +316,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         if (ctx == null) return;
         final manager = ref.read(connectionManagerProvider);
         final conn = manager.connectAsync(config, label: config.displayName);
-        ref.read(tabProvider.notifier).addTerminalTab(conn);
+        ref.read(workspaceProvider.notifier).addTerminalTab(conn);
       });
     };
     _deepLinkHandler.onLfsFileOpened = (filePath) {
@@ -356,60 +348,57 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       return const MobileShell();
     }
 
-    final tabState = ref.watch(tabProvider);
-    // Watch connection state changes so SFTP button updates when connect finishes
-    ref.watch(connectionsProvider);
+    final ws = ref.watch(workspaceProvider);
 
     return CallbackShortcuts(
-      bindings: _buildKeyBindings(context, tabState),
+      bindings: _buildKeyBindings(context, ws),
       child: DropTarget(
           onDragDone: (details) => _handleLfsDrop(context, details),
           child: LayoutBuilder(
           builder: (context, constraints) =>
-              _buildDesktopLayout(context, constraints, tabState),
+              _buildDesktopLayout(context, constraints, ws),
         ),
       ),
     );
   }
 
   Map<ShortcutActivator, VoidCallback> _buildKeyBindings(
-      BuildContext context, TabState tabState) {
+      BuildContext context, WorkspaceState ws) {
+    final notifier = ref.read(workspaceProvider.notifier);
+    final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
+    final activeTab = focusedPanel?.activeTab;
+
     return {
       const SingleActivator(LogicalKeyboardKey.keyN, control: true): () {
         _newSession(context, ref);
       },
       const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
-        final active = tabState.activeTab;
-        if (active != null) {
-          ref.read(tabProvider.notifier).closeTab(active.id);
+        if (activeTab != null) {
+          notifier.closeTab(ws.focusedPanelId, activeTab.id);
         }
       },
       const SingleActivator(LogicalKeyboardKey.tab, control: true): () {
-        _switchTab(tabState, 1);
+        _switchTab(ws, 1);
       },
       const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): () {
-        _switchTab(tabState, -1);
+        _switchTab(ws, -1);
       },
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
         setState(() => _sidebarOpen = !_sidebarOpen);
       },
-      // Split shortcuts
+      // Split terminal pane shortcuts
       const SingleActivator(LogicalKeyboardKey.backslash, control: true): () {
-        final active = tabState.activeTab;
-        if (active?.kind == TabKind.terminal) {
-          _terminalKeys[active!.id]
-              ?.currentState
+        if (activeTab?.kind == TabKind.terminal) {
+          _workspaceKey.currentState
+              ?.terminalStateFor(activeTab!.id)
               ?.splitFocused(SplitDirection.vertical);
-          setState(() {});
         }
       },
       const SingleActivator(LogicalKeyboardKey.backslash, control: true, shift: true): () {
-        final active = tabState.activeTab;
-        if (active?.kind == TabKind.terminal) {
-          _terminalKeys[active!.id]
-              ?.currentState
+        if (activeTab?.kind == TabKind.terminal) {
+          _workspaceKey.currentState
+              ?.terminalStateFor(activeTab!.id)
               ?.splitFocused(SplitDirection.horizontal);
-          setState(() {});
         }
       },
       // Settings
@@ -419,11 +408,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     };
   }
 
-  void _switchTab(TabState tabState, int delta) {
-    if (tabState.tabs.length > 1) {
-      final index = (tabState.activeIndex + delta + tabState.tabs.length) %
-          tabState.tabs.length;
-      ref.read(tabProvider.notifier).selectTab(index);
+  void _switchTab(WorkspaceState ws, int delta) {
+    final panel = findPanel(ws.root, ws.focusedPanelId);
+    if (panel != null && panel.tabs.length > 1) {
+      final index = (panel.activeTabIndex + delta + panel.tabs.length) %
+          panel.tabs.length;
+      ref.read(workspaceProvider.notifier).selectTab(ws.focusedPanelId, index);
     }
   }
 
@@ -445,15 +435,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildDesktopLayout(
-      BuildContext context, BoxConstraints constraints, TabState tabState) {
+      BuildContext context, BoxConstraints constraints, WorkspaceState ws) {
     final isNarrow = constraints.maxWidth < 600;
-    final activeTab = tabState.activeTab;
     final inSettings = _mode == ShellMode.settings;
+    final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
+    final activeTab = focusedPanel?.activeTab;
 
     final Widget sidebar;
     final Widget body;
 
-    final sessionBody = _buildSessionBody(context, tabState, activeTab);
+    final sessionBody = WorkspaceView(
+      key: _workspaceKey,
+      crossMarquee: _crossMarquee,
+    );
     if (inSettings) {
       sidebar = SettingsSidebar(
         selectedIndex: _settingsIndex,
@@ -481,7 +475,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         isNarrow: isNarrow,
         inSettings: inSettings,
         activeTab: activeTab,
-        showTabs: !inSettings && tabState.tabs.isNotEmpty,
       ),
       sidebar: sidebar,
       sidebarOpen: _sidebarOpen,
@@ -491,35 +484,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  Widget _buildSessionBody(
-      BuildContext context, TabState tabState, TabEntry? activeTab) {
-    final connected = activeTab?.connection.isConnected ?? false;
-    final isTerminalTab = activeTab?.kind == TabKind.terminal;
-    final content = activeTab != null
-        ? _buildTabContent(tabState)
-        : const WelcomeScreen();
-    return Column(
-      children: [
-        if (activeTab != null)
-          _ConnectionBar(
-            activeTab: activeTab,
-            onOpenSftp: (isTerminalTab && connected)
-                ? () => _openSftp(ref, activeTab.connection)
-                : null,
-            onOpenSsh: (activeTab.kind == TabKind.sftp && connected)
-                ? () => _openSsh(ref, activeTab.connection)
-                : null,
-          ),
-        Expanded(child: content),
-      ],
-    );
-  }
-
   _Toolbar _buildToolbar({
     required bool isNarrow,
     required bool inSettings,
     required TabEntry? activeTab,
-    bool showTabs = false,
   }) {
     final canSplit = !inSettings && activeTab?.kind == TabKind.terminal;
     return _Toolbar(
@@ -529,56 +497,21 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       isTerminalTab: canSplit,
       onSplitVertical: canSplit
           ? () {
-              _terminalKeys[activeTab!.id]
-                  ?.currentState
+              _workspaceKey.currentState
+                  ?.terminalStateFor(activeTab!.id)
                   ?.splitFocused(SplitDirection.vertical);
-              setState(() {});
             }
           : null,
       onSplitHorizontal: canSplit
           ? () {
-              _terminalKeys[activeTab!.id]
-                  ?.currentState
+              _workspaceKey.currentState
+                  ?.terminalStateFor(activeTab!.id)
                   ?.splitFocused(SplitDirection.horizontal);
-              setState(() {});
             }
           : null,
       onSettings: _toggleSettings,
       inSettings: inSettings,
-      tabBar: showTabs ? const AppTabBar(embedded: true) : null,
     );
-  }
-
-  Widget _buildTabContent(TabState tabState) {
-    final currentIds = tabState.tabs.map((t) => t.id).toSet();
-    _terminalKeys.removeWhere((id, _) => !currentIds.contains(id));
-    return IndexedStack(
-      index: tabState.activeIndex,
-      children: tabState.tabs.map((tab) {
-        switch (tab.kind) {
-          case TabKind.terminal:
-            return TerminalTab(
-              key: _keyForTab(tab.id),
-              tabId: tab.id,
-              connection: tab.connection,
-            );
-          case TabKind.sftp:
-            return FileBrowserTab(
-              key: ValueKey(tab.id),
-              connection: tab.connection,
-              crossMarquee: _crossMarquee,
-            );
-        }
-      }).toList(),
-    );
-  }
-
-  void _openSftp(WidgetRef ref, Connection connection) {
-    ref.read(tabProvider.notifier).addSftpTab(connection);
-  }
-
-  void _openSsh(WidgetRef ref, Connection connection) {
-    ref.read(tabProvider.notifier).addTerminalTab(connection);
   }
 
   void _connectSessionSftp(BuildContext context, WidgetRef ref, session) =>
@@ -683,7 +616,6 @@ class _Toolbar extends StatelessWidget {
   final VoidCallback? onSplitHorizontal;
   final VoidCallback onSettings;
   final bool inSettings;
-  final Widget? tabBar;
 
   const _Toolbar({
     required this.sidebarOpen,
@@ -694,7 +626,6 @@ class _Toolbar extends StatelessWidget {
     this.onSplitHorizontal,
     required this.onSettings,
     this.inSettings = false,
-    this.tabBar,
   });
 
   @override
@@ -719,11 +650,7 @@ class _Toolbar extends StatelessWidget {
                 ? 'Hide Sidebar (Ctrl+B)'
                 : 'Show Sidebar (Ctrl+B)',
           ),
-        if (tabBar != null) ...[
-          _Divider(),
-          Expanded(child: tabBar!),
-        ] else
-          const Spacer(),
+        const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
             icon: Icons.vertical_split,
@@ -757,105 +684,6 @@ class _Divider extends StatelessWidget {
       height: 16,
       margin: const EdgeInsets.symmetric(horizontal: 4),
       color: Theme.of(context).colorScheme.outlineVariant,
-    );
-  }
-}
-
-class _ConnectionBar extends StatelessWidget {
-  final TabEntry activeTab;
-  final VoidCallback? onOpenSftp;
-  final VoidCallback? onOpenSsh;
-
-  const _ConnectionBar({
-    required this.activeTab,
-    this.onOpenSftp,
-    this.onOpenSsh,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final conn = activeTab.connection;
-    final cfg = conn.sshConfig;
-    final isTerminal = activeTab.kind == TabKind.terminal;
-    final onCompanion = isTerminal ? onOpenSftp : onOpenSsh;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final dimColor = scheme.onSurface.withValues(alpha: 0.6);
-    final faintColor = scheme.onSurface.withValues(alpha: 0.45);
-
-    return Container(
-      height: AppTheme.barHeightSm,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      color: scheme.surfaceContainerHigh,
-      child: ClippedRow(
-        children: [
-          Container(
-            width: 5,
-            height: 5,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: conn.isConnected ? AppTheme.green : faintColor,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text.rich(
-              TextSpan(children: [
-                TextSpan(
-                  text: conn.isConnected ? 'Connected' : 'Disconnected',
-                  style: TextStyle(fontFamily: 'Inter', fontSize: AppFonts.xs, color: dimColor),
-                ),
-                TextSpan(
-                  text: ' · ',
-                  style: TextStyle(fontSize: AppFonts.xs, color: faintColor),
-                ),
-                TextSpan(
-                  text: '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
-                  style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: AppFonts.xs, color: dimColor),
-                ),
-              ]),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (onCompanion != null)
-            _companionButton(isTerminal, onCompanion, scheme),
-        ],
-      ),
-    );
-  }
-
-  Widget _companionButton(bool isTerminal, VoidCallback onTap, ColorScheme scheme) {
-    final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
-    final label = isTerminal ? 'Files' : 'Terminal';
-    final icon = isTerminal ? Icons.folder_open : Icons.terminal;
-    return Tooltip(
-      message: label,
-      child: HoverRegion(
-        onTap: onTap,
-        builder: (hovered) => Container(
-          height: 18,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(
-            color: btnColor.withValues(alpha: hovered ? 0x25 / 255.0 : 0x18 / 255.0),
-            border: Border.all(
-              color: btnColor.withValues(alpha: hovered ? 0x60 / 255.0 : 0x40 / 255.0),
-            ),
-            borderRadius: AppTheme.radiusSm,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(icon, size: 11, color: btnColor),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(fontFamily: 'Inter', fontSize: AppFonts.xs, fontWeight: FontWeight.w500, color: btnColor, height: 1.0),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
