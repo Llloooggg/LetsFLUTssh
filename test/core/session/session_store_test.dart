@@ -698,6 +698,83 @@ void main() {
     });
   });
 
+  group('SessionStore — concurrent load guard', () {
+    test('concurrent load calls do not lose credentials', () async {
+      // Setup: create a session with credentials
+      final setupStore = SessionStore();
+      await setupStore.load();
+      final session = makeSession(
+        id: 'concurrent-1',
+        label: 'concurrent',
+        password: 'secret',
+        keyData: 'PEM-DATA',
+      );
+      await setupStore.add(session);
+
+      // Now simulate concurrent loads (like double onResume in WSL)
+      final store = SessionStore();
+      final load1 = store.load();
+      final load2 = store.load();
+      final results = await Future.wait([load1, load2]);
+
+      // Both should return the same list with credentials intact
+      expect(results[0], hasLength(1));
+      expect(results[1], hasLength(1));
+      expect(results[0].first.password, 'secret');
+      expect(results[0].first.keyData, 'PEM-DATA');
+      expect(results[1].first.password, 'secret');
+      expect(results[1].first.keyData, 'PEM-DATA');
+    });
+
+    test('second load after first completes works normally', () async {
+      final setupStore = SessionStore();
+      await setupStore.load();
+      await setupStore.add(makeSession(
+        id: 'seq-1', label: 'seq', password: 'pw',
+      ));
+
+      final store = SessionStore();
+      final first = await store.load();
+      expect(first, hasLength(1));
+      expect(first.first.password, 'pw');
+
+      // Second load should also work (not blocked by stale guard)
+      final second = await store.load();
+      expect(second, hasLength(1));
+      expect(second.first.password, 'pw');
+    });
+  });
+
+  group('SessionStore — credential save protection', () {
+    test('save after failed merge does not overwrite encrypted creds', () async {
+      // Create session with credentials
+      final store = SessionStore();
+      await store.load();
+      await store.add(makeSession(
+        id: 'save-prot-1', label: 'protected', password: 'secret',
+      ));
+
+      // Snapshot the credential file
+      final credFile = File('${tempDir.path}/credentials.enc');
+      final originalBytes = await credFile.readAsBytes();
+
+      // Corrupt the key
+      final keyFile = File('${tempDir.path}/credentials.key');
+      await keyFile.writeAsBytes([1, 2, 3]);
+
+      // Load with corrupted key — merge fails
+      final store2 = SessionStore();
+      await store2.load();
+
+      // Trigger a save (e.g., add a session without creds)
+      await store2.add(makeSession(id: 'save-prot-2', label: 'new'));
+
+      // Credential file should not be overwritten
+      final afterBytes = await credFile.readAsBytes();
+      expect(afterBytes, equals(originalBytes));
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Session JSON serialization (covers toJson, toJsonWithCredentials, fromJson)
   // ---------------------------------------------------------------------------
