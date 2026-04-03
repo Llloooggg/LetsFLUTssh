@@ -946,6 +946,7 @@ void main() {
       // a parent Container with bg1 background
       final containers = tester.widgetList<Container>(find.byType(Container));
       final bg1Containers = containers.where((c) {
+        if (c.color == AppTheme.bg1) return true;
         final dec = c.decoration;
         if (dec is BoxDecoration) {
           return dec.color == AppTheme.bg1;
@@ -986,6 +987,7 @@ void main() {
       // App bar should use dark bg1
       final darkContainers = tester.widgetList<Container>(find.byType(Container));
       final hasDarkBg1 = darkContainers.any((c) {
+        if (c.color == darkBg1) return true;
         final dec = c.decoration;
         return dec is BoxDecoration && dec.color == darkBg1;
       });
@@ -1021,6 +1023,7 @@ void main() {
 
       final lightContainers = tester.widgetList<Container>(find.byType(Container));
       final hasLightBg1 = lightContainers.any((c) {
+        if (c.color == lightBg1) return true;
         final dec = c.decoration;
         return dec is BoxDecoration && dec.color == lightBg1;
       });
