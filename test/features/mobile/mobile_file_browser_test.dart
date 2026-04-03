@@ -1,14 +1,24 @@
+import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
+import 'package:letsflutssh/core/sftp/sftp_client.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
+import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/features/mobile/mobile_file_browser.dart';
+import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/format.dart'; // used by MobileFileList tests
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+
+@GenerateNiceMocks([MockSpec<SftpClient>()])
+import 'mobile_file_browser_test.mocks.dart';
 
 /// Fake file system for testing.
 class FakeFileSystem implements FileSystem {
@@ -679,6 +689,236 @@ void main() {
       expect(find.text('other.txt'), findsOneWidget);
 
       secondCtrl.dispose();
+    });
+  });
+
+  // ===========================================================================
+  // MobileFileBrowser — success path (injectable factory)
+  // ===========================================================================
+  group('MobileFileBrowser — success path', () {
+    late TransferManager manager;
+
+    setUp(() {
+      manager = TransferManager(taskTimeout: Duration.zero);
+    });
+
+    tearDown(() {
+      manager.dispose();
+    });
+
+    Future<SFTPInitResult> fakeInitFactory(Connection conn) async {
+      final mockSftp = MockSftpClient();
+      when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
+      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+
+      final sftpService = SFTPService(mockSftp);
+      final localCtrl = FilePaneController(
+        fs: FakeFileSystem(fakeEntries: testEntries()),
+        label: 'Local',
+      );
+      final remoteCtrl = FilePaneController(
+        fs: FakeFileSystem(fakeEntries: testEntries(), fakeInitialDir: '/remote'),
+        label: 'Remote',
+      );
+
+      await Future.wait([localCtrl.init(), remoteCtrl.init()]);
+
+      return SFTPInitResult(
+        localCtrl: localCtrl,
+        remoteCtrl: remoteCtrl,
+        sftpService: sftpService,
+      );
+    }
+
+    Widget buildBrowser(Connection conn) {
+      return ProviderScope(
+        overrides: [
+          transferManagerProvider.overrideWithValue(manager),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: MobileFileBrowser(
+              connection: conn,
+              sftpInitFactory: fakeInitFactory,
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('renders toolbar and file list on success', (tester) async {
+      final conn = Connection(
+        id: 'success-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(buildBrowser(conn));
+      await tester.pumpAndSettle();
+
+      // Toolbar with Local/Remote toggle
+      expect(find.text('Local'), findsOneWidget);
+      expect(find.text('Remote'), findsOneWidget);
+      // Refresh button
+      expect(find.byTooltip('Refresh'), findsOneWidget);
+      // Navigation buttons
+      expect(find.byTooltip('Back'), findsOneWidget);
+      expect(find.byTooltip('Up'), findsOneWidget);
+      // File list entries (starts on remote)
+      expect(find.text('docs'), findsOneWidget);
+      expect(find.text('readme.txt'), findsOneWidget);
+    });
+
+    testWidgets('switching Local/Remote toggle changes active pane', (tester) async {
+      final conn = Connection(
+        id: 'toggle-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(buildBrowser(conn));
+      await tester.pumpAndSettle();
+
+      // Starts on Remote — path should show /remote
+      expect(find.text('/remote'), findsOneWidget);
+
+      // Switch to Local
+      await tester.tap(find.text('Local'));
+      await tester.pumpAndSettle();
+
+      // Path should show local initial dir
+      expect(find.text('/home/test'), findsOneWidget);
+
+      // Switch back to Remote
+      await tester.tap(find.text('Remote'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('/remote'), findsOneWidget);
+    });
+
+    testWidgets('TransferPanel is shown below file list', (tester) async {
+      final conn = Connection(
+        id: 'tp-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(buildBrowser(conn));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Transfers'), findsOneWidget);
+    });
+
+    testWidgets('SFTP init failure shows error with retry', (tester) async {
+      final conn = Connection(
+        id: 'fail-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileBrowser(
+                connection: conn,
+                sftpInitFactory: (_) async => throw Exception('SFTP channel failed'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Failed to init SFTP'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+    });
+
+    testWidgets('refresh button triggers controller refresh', (tester) async {
+      final conn = Connection(
+        id: 'refresh-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(buildBrowser(conn));
+      await tester.pumpAndSettle();
+
+      // Tap refresh — should not crash and file list should remain
+      await tester.tap(find.byTooltip('Refresh'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('docs'), findsOneWidget);
+    });
+  });
+
+  // ===========================================================================
+  // MobileFileList — _confirmDelete exits selection mode
+  // ===========================================================================
+  group('MobileFileList — delete exits selection', () {
+    late FakeFileSystem fakeFs;
+    late FilePaneController controller;
+
+    setUp(() {
+      fakeFs = FakeFileSystem(fakeEntries: testEntries());
+      controller = FilePaneController(fs: fakeFs, label: 'Test');
+    });
+
+    tearDown(() {
+      controller.dispose();
+    });
+
+    Widget buildFileList({
+      void Function(FileEntry)? onTransfer,
+      void Function(List<FileEntry>)? onTransferMultiple,
+    }) {
+      return ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: MobileFileList(
+              controller: controller,
+              onTransfer: onTransfer ?? (_) {},
+              onTransferMultiple: onTransferMultiple ?? (_) {},
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('delete button in selection bar exits selection after confirm dialog', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // Enter selection mode
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pump();
+
+      expect(find.byType(Checkbox), findsWidgets);
+
+      // Tap delete button in selection bar
+      await tester.tap(find.byTooltip('Delete'));
+      await tester.pumpAndSettle();
+
+      // Dismiss the confirm dialog (Cancel)
+      if (find.text('Cancel').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      }
+
+      // Selection mode should be exited after _confirmDelete completes
+      expect(find.byType(Checkbox), findsNothing);
     });
   });
 }
