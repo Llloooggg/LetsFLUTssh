@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
@@ -145,6 +148,15 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  // iOS: folder picker for local pane (sandbox escape)
+                  if (Platform.isIOS && !_showRemote)
+                    AppIconButton(
+                      icon: Icons.folder_open,
+                      size: 20,
+                      boxSize: 36,
+                      onTap: _pickLocalFolder,
+                      tooltip: 'Pick Folder',
+                    ),
                   AppIconButton(
                     icon: Icons.refresh,
                     size: 20,
@@ -190,6 +202,13 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
         );
       },
     );
+  }
+
+  Future<void> _pickLocalFolder() async {
+    final path = await FilePicker.platform.getDirectoryPath();
+    if (path != null && _localCtrl != null) {
+      await _localCtrl!.navigateTo(path);
+    }
   }
 
   void _upload(FileEntry entry) {
