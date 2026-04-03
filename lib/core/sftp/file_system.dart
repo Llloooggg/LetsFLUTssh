@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../utils/platform.dart';
 import 'sftp_models.dart';
@@ -22,6 +23,12 @@ abstract class FileSystem {
 class LocalFS implements FileSystem {
   @override
   Future<String> initialDir() async {
+    // iOS sandbox: start in the app's Documents folder (visible in Files.app).
+    // Users can pick external folders via the folder picker button.
+    if (Platform.isIOS) {
+      final docs = await getApplicationDocumentsDirectory();
+      return docs.path;
+    }
     final home = homeDirectory;
     return home.isNotEmpty ? home : Directory.current.path;
   }

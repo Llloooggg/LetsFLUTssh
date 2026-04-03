@@ -1662,7 +1662,7 @@ AppConfig {
 | Context menu | Right-click | Long-press |
 | Keyboard | Hardware only (`hardwareKeyboardOnly: true`) | SSH keyboard bar + system |
 | SSH keep-alive | OS keeps process alive | Foreground service (Android) |
-| Home directory | `HOME` / `USERPROFILE` | `EXTERNAL_STORAGE` / `/storage/emulated/0` |
+| Home directory | `HOME` / `USERPROFILE` | Android: `EXTERNAL_STORAGE` / `/storage/emulated/0`; iOS: app Documents dir + folder picker |
 | Drag & drop | desktop_drop + inter-pane | None |
 | Deep links | `app_links` (URL scheme) | `app_links` (URL scheme + file intents) |
 | Single instance | File lock (`app.lock`) | OS-managed natively |
@@ -1678,7 +1678,7 @@ AppConfig {
 
 - `NSLocalNetworkUsageDescription` required for local TCP
 - No foreground service (iOS background modes)
-- Sandbox file access
+- **Local file browser** — starts in app's Documents directory (`getApplicationDocumentsDirectory()`), which is accessible via Files.app. Users can browse outside the sandbox via a "Pick Folder" button (iOS only, uses `file_picker` → `UIDocumentPickerViewController` in folder mode). Security-scoped access is granted for the session after the user picks a folder
 
 ### Desktop window constraints
 
