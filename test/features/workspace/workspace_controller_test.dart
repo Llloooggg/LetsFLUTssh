@@ -208,6 +208,53 @@ void main() {
     });
   });
 
+  group('copyToNewPanel', () {
+    test('duplicates active tab into new panel', () {
+      final conn = _conn('c1');
+      notifier().addTerminalTab(conn, label: 'A');
+
+      final ws = state();
+      final panelId = ws.focusedPanelId;
+
+      notifier().copyToNewPanel(panelId, Axis.horizontal);
+
+      final ws2 = state();
+      expect(ws2.root, isA<WorkspaceBranch>());
+      final branch = ws2.root as WorkspaceBranch;
+      expect(branch.direction, Axis.horizontal);
+
+      final original = branch.first as PanelLeaf;
+      final copy = branch.second as PanelLeaf;
+      // Original tab stays.
+      expect(original.tabs.length, 1);
+      expect(original.tabs.first.label, 'A');
+      // Copy has same label/connection but different id.
+      expect(copy.tabs.length, 1);
+      expect(copy.tabs.first.label, 'A');
+      expect(copy.tabs.first.connection, same(conn));
+      expect(copy.tabs.first.id, isNot(original.tabs.first.id));
+    });
+
+    test('focuses the new panel', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final panelId = state().focusedPanelId;
+
+      notifier().copyToNewPanel(panelId, Axis.vertical);
+
+      final ws = state();
+      final branch = ws.root as WorkspaceBranch;
+      final newPanel = branch.second as PanelLeaf;
+      expect(ws.focusedPanelId, newPanel.id);
+    });
+
+    test('no-op when panel has no tabs', () {
+      final panelId = state().focusedPanelId;
+      notifier().copyToNewPanel(panelId, Axis.horizontal);
+      // Still a single panel — nothing happened.
+      expect(state().root, isA<PanelLeaf>());
+    });
+  });
+
   group('moveTab', () {
     test('moves tab between panels', () {
       notifier().addTerminalTab(_conn('c1'), label: 'A');

@@ -102,9 +102,11 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
       child: _buildNode(node.second, focusedPanelId),
     );
 
-    final layout = isHorizontal
-        ? Row(children: [firstChild, secondChild])
-        : Column(children: [firstChild, secondChild]);
+    final layout = ClipRect(
+      child: isHorizontal
+          ? Row(children: [firstChild, secondChild])
+          : Column(children: [firstChild, secondChild]),
+    );
 
     return _WorkspaceDividerLayout(
       node: node,
@@ -125,10 +127,11 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     final isFocused = panel.id == focusedPanelId;
     final notifier = ref.read(workspaceProvider.notifier);
 
-    final content = GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: () => notifier.setFocusedPanel(panel.id),
-      child: Column(
+    final content = ClipRect(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => notifier.setFocusedPanel(panel.id),
+        child: Column(
         children: [
           // Tab bar.
           Container(
@@ -184,6 +187,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
                   ),
           ),
         ],
+      ),
       ),
     );
 

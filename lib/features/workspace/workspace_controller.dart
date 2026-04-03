@@ -289,6 +289,33 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     }
   }
 
+  /// Duplicate the active tab of [panelId] into a new adjacent panel.
+  ///
+  /// Unlike [splitPanel] which **moves** a tab, this **copies** it — the
+  /// original tab stays in place, and a duplicate (new ID, same connection)
+  /// appears in the new panel.
+  void copyToNewPanel(String panelId, Axis direction) {
+    final panel = findPanel(state.root, panelId);
+    final tab = panel?.activeTab;
+    if (panel == null || tab == null) return;
+
+    final newPanel = PanelLeaf(
+      tabs: [tab.duplicate()],
+      activeTabIndex: 0,
+    );
+
+    final branch = WorkspaceBranch(
+      direction: direction,
+      first: panel,
+      second: newPanel,
+    );
+
+    state = state.copyWith(
+      root: replaceWorkspaceNode(state.root, panelId, branch),
+      focusedPanelId: newPanel.id,
+    );
+  }
+
   /// Update the divider ratio for a [WorkspaceBranch].
   void updateRatio(String branchId, double ratio) {
     state = state.copyWith(
