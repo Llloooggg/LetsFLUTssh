@@ -1966,4 +1966,134 @@ void main() {
       expect(find.byType(TerminalView), findsOneWidget);
     });
   });
+
+  group('TerminalPane — Shift-bypass for mouse mode', () {
+    testWidgets('Shift suspends pointer input when terminal is in mouse mode', (tester) async {
+      final conn = _testConnection(id: 'shift-mouse-1');
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      final state = tester.state<TerminalPaneState>(find.byType(TerminalPane));
+
+      // Enable mouse mode via escape sequence (upDownScroll = mode 1000)
+      state.terminal.write('\x1b[?1000h');
+      expect(state.terminal.mouseMode, MouseMode.upDownScroll);
+
+      // Initially not suspended
+      expect(state.terminalController.suspendedPointerInputs, isFalse);
+
+      // Press Shift — should suspend pointer forwarding
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      expect(state.terminalController.suspendedPointerInputs, isTrue);
+
+      // Release Shift — should restore
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      expect(state.terminalController.suspendedPointerInputs, isFalse);
+    });
+
+    testWidgets('Shift does NOT suspend when terminal is not in mouse mode', (tester) async {
+      final conn = _testConnection(id: 'shift-mouse-2');
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      final state = tester.state<TerminalPaneState>(find.byType(TerminalPane));
+
+      // Mouse mode is none (default)
+      expect(state.terminal.mouseMode, MouseMode.none);
+
+      // Press Shift — should NOT suspend
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      expect(state.terminalController.suspendedPointerInputs, isFalse);
+
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    });
+
+    testWidgets('suspend clears when mouse mode is disabled while Shift held', (tester) async {
+      final conn = _testConnection(id: 'shift-mouse-3');
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      final state = tester.state<TerminalPaneState>(find.byType(TerminalPane));
+
+      // Enable mouse mode, press Shift
+      state.terminal.write('\x1b[?1000h');
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      expect(state.terminalController.suspendedPointerInputs, isTrue);
+
+      // Disable mouse mode (htop exits)
+      state.terminal.write('\x1b[?1000l');
+      expect(state.terminal.mouseMode, MouseMode.none);
+
+      // Next key event (any key) recalculates suspend state
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
+      expect(state.terminalController.suspendedPointerInputs, isFalse);
+
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    });
+
+    testWidgets('right Shift also triggers suspend', (tester) async {
+      final conn = _testConnection(id: 'shift-mouse-4');
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: TerminalPane(
+              connection: conn,
+              isFocused: true,
+              shellFactory: _successShellFactory,
+            ),
+          ),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      final state = tester.state<TerminalPaneState>(find.byType(TerminalPane));
+
+      state.terminal.write('\x1b[?1000h');
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftRight);
+      expect(state.terminalController.suspendedPointerInputs, isTrue);
+
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftRight);
+      expect(state.terminalController.suspendedPointerInputs, isFalse);
+    });
+  });
 }

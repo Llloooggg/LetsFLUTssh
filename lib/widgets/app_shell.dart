@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// Desktop layout shell shared by the main screen and settings.
 ///
 /// Provides a consistent visual frame: decorated toolbar at the top,
@@ -48,7 +50,7 @@ class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
     required this.toolbar,
-    this.toolbarHeight = 34,
+    this.toolbarHeight = AppTheme.barHeightSm,
     this.sidebar,
     this.initialSidebarWidth = 220,
     this.minSidebarWidth = 140,
@@ -83,10 +85,7 @@ class AppShellState extends State<AppShell> {
 
     final toolbarContainer = Container(
       height: widget.toolbarHeight,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
+      color: scheme.surfaceContainerLow,
       child: widget.toolbar,
     );
 
@@ -110,28 +109,39 @@ class AppShellState extends State<AppShell> {
     }
 
     // Inline sidebar mode.
+    final showSidebar = widget.sidebarOpen && widget.sidebar != null;
     return Scaffold(
-      body: Row(
+      body: Stack(
         children: [
-          if (widget.sidebarOpen && widget.sidebar != null) ...[
-            SizedBox(width: _sidebarWidth, child: widget.sidebar),
-            MouseRegion(
-              cursor: SystemMouseCursors.resizeColumn,
-              child: GestureDetector(
-                onHorizontalDragUpdate: (d) {
-                  setState(() {
-                    _sidebarWidth = (_sidebarWidth + d.delta.dx)
-                        .clamp(widget.minSidebarWidth, widget.maxSidebarWidth);
-                  });
-                },
-                child: Container(
-                  width: 3,
-                  color: theme.dividerColor,
+          Row(
+            children: [
+              if (showSidebar)
+                SizedBox(width: _sidebarWidth, child: widget.sidebar),
+              Expanded(child: column),
+            ],
+          ),
+          if (showSidebar)
+            Positioned(
+              left: _sidebarWidth - 3,
+              top: 0,
+              bottom: 0,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.resizeColumn,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onHorizontalDragUpdate: (d) {
+                    setState(() {
+                      _sidebarWidth = (_sidebarWidth + d.delta.dx)
+                          .clamp(widget.minSidebarWidth, widget.maxSidebarWidth);
+                    });
+                  },
+                  child: SizedBox(
+                    width: 6,
+                    child: Center(child: Container(width: 1, color: theme.dividerColor)),
+                  ),
                 ),
               ),
             ),
-          ],
-          Expanded(child: column),
         ],
       ),
     );

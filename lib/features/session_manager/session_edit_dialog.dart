@@ -32,7 +32,7 @@ class SaveResult extends SessionDialogResult {
 
 /// Dialog for creating or editing a session.
 /// In create mode, shows 3 buttons: Cancel | Save | Connect
-/// In edit mode, shows 2 buttons: Cancel | Save
+/// In edit mode, shows 3 buttons: Cancel | Save | Save & Connect
 class SessionEditDialog extends StatefulWidget {
   final Session? session; // null = create new
   final String? defaultFolder;
@@ -219,13 +219,13 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     Navigator.of(context).pop(ConnectOnlyResult(_buildConfig()));
   }
 
-  void _save() {
+  void _save({bool connect = false}) {
     if (!_validateAuth()) return;
     if (!_formKey.currentState!.validate()) {
       setState(() => _tabIndex = _tabWithFirstError());
       return;
     }
-    Navigator.of(context).pop(SaveResult(_buildSession()));
+    Navigator.of(context).pop(SaveResult(_buildSession(), connect: connect));
   }
 
   @override
@@ -676,12 +676,14 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         children: [
           _footerButton('Cancel', onTap: () => Navigator.of(context).pop()),
           const SizedBox(width: 8),
-          if (_isEditing)
-            _footerButton('Save', bg: AppTheme.accent, fg: Colors.white, onTap: _save)
-          else ...[
+          if (_isEditing) ...[
             _footerButton('Save', bg: AppTheme.bg4, fg: AppTheme.fg, onTap: _save),
             const SizedBox(width: 8),
-            _footerButton('Connect', bg: AppTheme.accent, fg: Colors.white, onTap: _connectOnly),
+            _footerButton('Save & Connect', bg: AppTheme.accent, fg: AppTheme.onAccent, onTap: () => _save(connect: true)),
+          ] else ...[
+            _footerButton('Save', bg: AppTheme.bg4, fg: AppTheme.fg, onTap: _save),
+            const SizedBox(width: 8),
+            _footerButton('Connect', bg: AppTheme.accent, fg: AppTheme.onAccent, onTap: _connectOnly),
           ],
         ],
       ),

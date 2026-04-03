@@ -12,6 +12,7 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
+import '../terminal/cursor_overlay.dart';
 import 'ssh_keyboard_bar.dart';
 
 /// Full-screen mobile terminal with SSH keyboard bar.
@@ -141,45 +142,62 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               );
             },
             onLongPressStart: (details) => _showContextMenu(context, details.globalPosition),
-            child: TerminalView(
-              _terminal,
-              controller: _terminalController,
-              autofocus: true,
-              backgroundOpacity: 1.0,
-              padding: const EdgeInsets.all(4),
-              theme: TerminalTheme(
-                cursor: AppTheme.accent,
-                selection: AppTheme.selection,
-                foreground: AppTheme.fg,
-                background: AppTheme.bg2,
-                black: const Color(0xFF1B1D23),
-                red: AppTheme.red,
-                green: AppTheme.green,
-                yellow: AppTheme.yellow,
-                blue: AppTheme.blue,
-                magenta: AppTheme.purple,
-                cyan: AppTheme.cyan,
-                white: AppTheme.fg,
-                brightBlack: AppTheme.fgFaint,
-                brightRed: AppTheme.red,
-                brightGreen: AppTheme.green,
-                brightYellow: AppTheme.yellow,
-                brightBlue: AppTheme.blue,
-                brightMagenta: AppTheme.purple,
-                brightCyan: AppTheme.cyan,
-                brightWhite: AppTheme.fgBright,
-                searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
-                searchHitBackgroundCurrent: AppTheme.accent,
-                searchHitForeground: Colors.white,
-              ),
-              textStyle: TerminalStyle(
-                fontSize: _fontSize,
-                fontFamily: 'JetBrains Mono',
-              ),
+            child: Stack(
+              children: [
+                TerminalView(
+                  _terminal,
+                  controller: _terminalController,
+                  autofocus: true,
+                  backgroundOpacity: 1.0,
+                  padding: const EdgeInsets.all(4),
+                  theme: TerminalTheme(
+                    cursor: AppTheme.termCursor,
+                    selection: AppTheme.termSelection,
+                    foreground: AppTheme.fg,
+                    background: AppTheme.bg2,
+                    black: AppTheme.termBlack,
+                    red: AppTheme.termRed,
+                    green: AppTheme.termGreen,
+                    yellow: AppTheme.termYellow,
+                    blue: AppTheme.termBlue,
+                    magenta: AppTheme.termMagenta,
+                    cyan: AppTheme.termCyan,
+                    white: AppTheme.termWhite,
+                    brightBlack: AppTheme.termBrightBlack,
+                    brightRed: AppTheme.termBrightRed,
+                    brightGreen: AppTheme.termBrightGreen,
+                    brightYellow: AppTheme.termBrightYellow,
+                    brightBlue: AppTheme.termBrightBlue,
+                    brightMagenta: AppTheme.termBrightMagenta,
+                    brightCyan: AppTheme.termBrightCyan,
+                    brightWhite: AppTheme.termBrightWhite,
+                    searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+                    searchHitBackgroundCurrent: AppTheme.accent,
+                    searchHitForeground: AppTheme.searchHitFg,
+                  ),
+                  textStyle: TerminalStyle(
+                    fontSize: _fontSize,
+                    fontFamily: 'JetBrains Mono',
+                  ),
+                ),
+                Positioned.fill(
+                  child: CursorTextOverlay(
+                    terminal: _terminal,
+                    fontSize: _fontSize,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        SshKeyboardBar(key: _keyboardKey, onInput: _onKeyboardInput),
+        SshKeyboardBar(
+          key: _keyboardKey,
+          onInput: _onKeyboardInput,
+          onSelectModeChanged: (active) {
+            _terminalController.setSuspendPointerInput(active);
+            if (!active) _terminalController.clearSelection();
+          },
+        ),
       ],
     );
   }
@@ -194,7 +212,10 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           ContextMenuItem(
             label: 'Copy',
             icon: Icons.copy,
-            onTap: () => TerminalClipboard.copy(_terminal, _terminalController),
+            onTap: () {
+              TerminalClipboard.copy(_terminal, _terminalController);
+              _keyboardKey.currentState?.exitSelectMode();
+            },
           ),
         ContextMenuItem(
           label: 'Paste',
