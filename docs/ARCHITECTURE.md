@@ -1079,7 +1079,7 @@ Unified dialog shell matching the app's dark visual language. Background `AppThe
 
 For complex dialogs (e.g. with tabs between header and content), compose from the building blocks directly:
 - `AppDialogHeader({title, onClose})` — header bar
-- `AppDialogFooter({actions})` — footer bar
+- `AppDialogFooter({actions})` — footer bar (uses `Wrap` layout — actions flow to the next line on narrow mobile screens)
 - `AppDialogAction` — compact button (`.cancel()`, `.primary()`, `.secondary()`, `.destructive()`)
 - `AppProgressDialog.show(context)` — non-dismissible loading spinner
 
