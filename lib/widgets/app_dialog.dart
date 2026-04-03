@@ -146,24 +146,16 @@ class AppDialogFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      constraints: const BoxConstraints(minHeight: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       decoration: BoxDecoration(border: AppTheme.borderTop),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: _spaced(actions),
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 8,
+        runSpacing: 6,
+        children: actions,
       ),
     );
-  }
-
-  static List<Widget> _spaced(List<Widget> items) {
-    if (items.length <= 1) return items;
-    final result = <Widget>[];
-    for (var i = 0; i < items.length; i++) {
-      if (i > 0) result.add(const SizedBox(width: 8));
-      result.add(items[i]);
-    }
-    return result;
   }
 }
 

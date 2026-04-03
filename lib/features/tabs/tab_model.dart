@@ -1,4 +1,8 @@
+import 'package:uuid/uuid.dart';
+
 import '../../core/connection/connection.dart';
+
+const _uuid = Uuid();
 
 /// Type of tab content.
 enum TabKind { terminal, sftp }
@@ -21,6 +25,16 @@ class TabEntry {
     return TabEntry(
       id: id,
       label: label ?? this.label,
+      connection: connection,
+      kind: kind,
+    );
+  }
+
+  /// Create a duplicate with a new unique ID but same connection/label/kind.
+  TabEntry duplicate() {
+    return TabEntry(
+      id: _uuid.v4(),
+      label: label,
       connection: connection,
       kind: kind,
     );
