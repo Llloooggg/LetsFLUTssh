@@ -357,7 +357,9 @@ class SessionStore {
 }
 ```
 
-**Safety on load:** If CredentialStore fails to decrypt — skips credential merge instead of overwriting. Prevents loss of encrypted data.
+**Concurrent load guard:** `load()` uses a `_loadFuture` guard — if a load is already in progress, concurrent callers await the same future instead of starting a second load. Prevents race conditions where multiple lifecycle events (e.g., `onResume`/`onRestart`) clear and repopulate `_sessions` simultaneously, causing credential loss.
+
+**Safety on load:** If CredentialStore fails to decrypt — skips credential merge and sets `_credentialsMerged = false`. Subsequent `_saveCredentials()` calls are skipped entirely to prevent overwriting valid encrypted data with empty in-memory credentials.
 
 **Save order:** `_save()` writes credentials (encrypted) FIRST, then session metadata (JSON). This prevents a crash from leaving sessions.json ahead of credentials.enc. If credential save fails, session file is still persisted and credentials retry on next save.
 
@@ -1963,6 +1965,7 @@ Manual build
 | TOFU reject without callback | Fail-safe: if no UI → reject |
 | `CredentialStoreException` with two types | Distinguish "no credentials" from "corrupt key" |
 | SessionStore abort on credential load failure | Prevents overwriting encrypted store |
+| SessionStore concurrent load guard | Prevents race condition when multiple lifecycle events fire simultaneously |
 | `RandomAccessFile` + try/finally for upload | Guarantees file handle cleanup |
 | Error sanitization | Don't expose file paths to user |
 | Deep link path traversal rejection | URL handling security |
