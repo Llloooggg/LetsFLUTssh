@@ -16,6 +16,8 @@ import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/theme_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/utils/platform.dart';
+import 'package:letsflutssh/widgets/status_indicator.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
 /// A TabNotifier subclass that starts with a pre-built TabState.
@@ -1069,6 +1071,145 @@ void main() {
 
       // Badge should show "2" for terminal tabs
       expect(find.text('2'), findsWidgets);
+    });
+
+    testWidgets('header shows StatusIndicator for saved sessions and active connections', (tester) async {
+      debugMobilePlatformOverride = true;
+      addTearDown(() => debugMobilePlatformOverride = null);
+
+      final sessions = [
+        Session(
+          id: 's1',
+          label: 'Server1',
+          folder: '',
+          server: const ServerAddress(host: 'h1', user: 'u'),
+          auth: const SessionAuth(authType: AuthType.password),
+        ),
+        Session(
+          id: 's2',
+          label: 'Server2',
+          folder: '',
+          server: const ServerAddress(host: 'h2', user: 'u'),
+          auth: const SessionAuth(authType: AuthType.password),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(() => _PrePopulatedSessionNotifier(sessions)),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Two StatusIndicator widgets in header: saved sessions + active connections
+      expect(find.byType(StatusIndicator), findsNWidgets(2));
+
+      // Saved sessions icon (dns_outlined) — only in header (footer hidden on mobile)
+      expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
+
+      // Active connections icon (wifi)
+      expect(find.byIcon(Icons.wifi), findsOneWidget);
+
+      // Saved count should show "2" (two sessions)
+      final savedIndicator = tester.widget<StatusIndicator>(
+        find.byType(StatusIndicator).first,
+      );
+      expect(savedIndicator.count, 2);
+      expect(savedIndicator.tooltip, 'Saved sessions');
+
+      // Active count should be 0 (no connections)
+      final activeIndicator = tester.widget<StatusIndicator>(
+        find.byType(StatusIndicator).last,
+      );
+      expect(activeIndicator.count, 0);
+      expect(activeIndicator.tooltip, 'Active connections');
+    });
+
+    testWidgets('header connection indicator uses green color when connected', (tester) async {
+      debugMobilePlatformOverride = true;
+      addTearDown(() => debugMobilePlatformOverride = null);
+
+      final conn = Connection(
+        id: 'conn-green',
+        label: 'Connected Server',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: null,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            connectionsProvider.overrideWith((ref) => Stream.value([conn])),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final activeIndicator = tester.widget<StatusIndicator>(
+        find.byType(StatusIndicator).last,
+      );
+      expect(activeIndicator.count, 1);
+      expect(activeIndicator.iconColor, AppTheme.green);
+    });
+
+    testWidgets('header connection indicator uses yellow color when connecting', (tester) async {
+      debugMobilePlatformOverride = true;
+      addTearDown(() => debugMobilePlatformOverride = null);
+
+      final conn = Connection(
+        id: 'conn-yellow',
+        label: 'Connecting Server',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConnection: null,
+        state: SSHConnectionState.connecting,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            connectionsProvider.overrideWith((ref) => Stream.value([conn])),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final activeIndicator = tester.widget<StatusIndicator>(
+        find.byType(StatusIndicator).last,
+      );
+      expect(activeIndicator.count, 1);
+      expect(activeIndicator.iconColor, AppTheme.yellow);
     });
   });
 }
