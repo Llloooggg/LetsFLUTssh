@@ -486,44 +486,13 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       color: AppTheme.fgFaint,
     );
 
-    Widget headerCell(String label, SortColumn column, {double? width, TextAlign? textAlign}) {
-      final isActive = ctrl.sortColumn == column;
-      String sortSuffix = '';
-      if (isActive) {
-        sortSuffix = ctrl.sortAscending ? ' ↑' : ' ↓';
-      }
-      return HoverRegion(
-        cursor: SystemMouseCursors.click,
-        onTap: () => ctrl.setSort(column),
-        builder: (hovered) {
-          final color = _headerColor(isActive, hovered);
-          return SizedBox(
-            width: width,
-            child: Text(
-              '$label$sortSuffix',
-              style: color != null ? headerStyle.copyWith(color: color) : headerStyle,
-              overflow: TextOverflow.ellipsis,
-              textAlign: textAlign,
-            ),
-          );
-        },
-      );
-    }
-
     // Dynamic max: ensure the Name column keeps at least 60 px.
     const minName = 60.0;
     const overhead = 36.0; // icon(20) + padding(16)
-    double otherCols(double exclude) {
-      double total = 0;
-      if (cols.size) total += 10 + _sizeColWidth;
-      if (cols.modified) total += 10 + _modifiedColWidth;
-      if (cols.mode) total += 10 + _modeColWidth;
-      if (cols.owner) total += 10 + _ownerColWidth;
-      return total - exclude;
-    }
+    final totalOtherCols = _totalColumnWidths(cols);
 
     double maxFor(double colWidth, double minWidth) {
-      final others = otherCols(10 + colWidth);
+      final others = totalOtherCols - (10 + colWidth);
       return (availableWidth - overhead - others - 10 - minName).clamp(minWidth, 200.0);
     }
 
@@ -535,38 +504,74 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       child: Row(
         children: [
           const SizedBox(width: 20), // icon space
-          Expanded(child: headerCell('Name', SortColumn.name)),
+          Expanded(child: _buildHeaderCell('Name', SortColumn.name, headerStyle)),
           if (cols.size) ...[
             ColumnResizeHandle(onDrag: (dx) => setState(() {
               final max = maxFor(_sizeColWidth, 40);
               _sizeColWidth = (_sizeColWidth - dx).clamp(40, max);
             })),
-            headerCell('Size', SortColumn.size, width: _sizeColWidth),
+            _buildHeaderCell('Size', SortColumn.size, headerStyle, width: _sizeColWidth),
           ],
           if (cols.modified) ...[
             ColumnResizeHandle(onDrag: (dx) => setState(() {
               final max = maxFor(_modifiedColWidth, 50);
               _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, max);
             })),
-            headerCell('Modified', SortColumn.modified, width: _modifiedColWidth),
+            _buildHeaderCell('Modified', SortColumn.modified, headerStyle, width: _modifiedColWidth),
           ],
           if (cols.mode) ...[
             ColumnResizeHandle(onDrag: (dx) => setState(() {
               final max = maxFor(_modeColWidth, 50);
               _modeColWidth = (_modeColWidth - dx).clamp(50, max);
             })),
-            headerCell('Mode', SortColumn.mode, width: _modeColWidth),
+            _buildHeaderCell('Mode', SortColumn.mode, headerStyle, width: _modeColWidth),
           ],
           if (cols.owner) ...[
             ColumnResizeHandle(onDrag: (dx) => setState(() {
               final max = maxFor(_ownerColWidth, 40);
               _ownerColWidth = (_ownerColWidth - dx).clamp(40, max);
             })),
-            headerCell('Owner', SortColumn.owner, width: _ownerColWidth),
+            _buildHeaderCell('Owner', SortColumn.owner, headerStyle, width: _ownerColWidth),
           ],
         ],
       ),
     );
+  }
+
+  Widget _buildHeaderCell(
+    String label,
+    SortColumn column,
+    TextStyle headerStyle, {
+    double? width,
+    TextAlign? textAlign,
+  }) {
+    final isActive = ctrl.sortColumn == column;
+    final sortSuffix = isActive ? (ctrl.sortAscending ? ' ↑' : ' ↓') : '';
+    return HoverRegion(
+      cursor: SystemMouseCursors.click,
+      onTap: () => ctrl.setSort(column),
+      builder: (hovered) {
+        final color = _headerColor(isActive, hovered);
+        return SizedBox(
+          width: width,
+          child: Text(
+            '$label$sortSuffix',
+            style: color != null ? headerStyle.copyWith(color: color) : headerStyle,
+            overflow: TextOverflow.ellipsis,
+            textAlign: textAlign,
+          ),
+        );
+      },
+    );
+  }
+
+  double _totalColumnWidths(({bool size, bool modified, bool mode, bool owner}) cols) {
+    double total = 0;
+    if (cols.size) total += 10 + _sizeColWidth;
+    if (cols.modified) total += 10 + _modifiedColWidth;
+    if (cols.mode) total += 10 + _modeColWidth;
+    if (cols.owner) total += 10 + _ownerColWidth;
+    return total;
   }
 
   static Color? _headerColor(bool isActive, bool hovered) {

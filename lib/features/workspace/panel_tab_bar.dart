@@ -94,38 +94,39 @@ class _PanelTabBarState extends State<PanelTabBar> {
               children: [
                 for (int index = 0; index < tabs.length; index++)
                   _buildDragTarget(tabs, index, tabW),
-                // Trailing drop zone.
-                DragTarget<TabDragData>(
-                  onWillAcceptWithDetails: (_) => true,
-                  onAcceptWithDetails: (d) {
-                    if (d.data.sourcePanelId == widget.panelId) {
-                      final oldIdx =
-                          tabs.indexWhere((t) => t.id == d.data.tab.id);
-                      if (oldIdx >= 0 && oldIdx != tabs.length - 1) {
-                        widget.onReorder(oldIdx, tabs.length);
-                      }
-                    } else {
-                      widget.onAcceptCrossPanel(d.data, tabs.length);
-                    }
-                  },
-                  builder: (context, candidates, _) => Container(
-                    width: endZoneW,
-                    height: AppTheme.barHeightSm,
-                    decoration: candidates.isNotEmpty
-                        ? BoxDecoration(
-                            border: Border(
-                              left: BorderSide(
-                                  color: AppTheme.accent, width: 2),
-                            ),
-                          )
-                        : null,
-                  ),
-                ),
+                _buildTrailingDropZone(tabs, endZoneW),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTrailingDropZone(List<TabEntry> tabs, double width) {
+    return DragTarget<TabDragData>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) {
+        if (d.data.sourcePanelId == widget.panelId) {
+          final oldIdx = tabs.indexWhere((t) => t.id == d.data.tab.id);
+          if (oldIdx >= 0 && oldIdx != tabs.length - 1) {
+            widget.onReorder(oldIdx, tabs.length);
+          }
+        } else {
+          widget.onAcceptCrossPanel(d.data, tabs.length);
+        }
+      },
+      builder: (context, candidates, _) => Container(
+        width: width,
+        height: AppTheme.barHeightSm,
+        decoration: candidates.isNotEmpty
+            ? BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: AppTheme.accent, width: 2),
+                ),
+              )
+            : null,
+      ),
     );
   }
 
