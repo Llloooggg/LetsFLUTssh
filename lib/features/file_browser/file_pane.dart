@@ -401,7 +401,8 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           onTap: () => _navigateToPart(isWindows, parts, navParts, i),
           builder: (hovered) {
             final isLast = i == navParts.length - 1;
-            final color = hovered ? AppTheme.accent : (isLast ? AppTheme.fg : AppTheme.fgDim);
+            final baseColor = isLast ? AppTheme.fg : AppTheme.fgDim;
+            final color = hovered ? AppTheme.accent : baseColor;
             return Text(
               navParts[i],
               style: AppFonts.mono(fontSize: AppFonts.xs, color: color),
