@@ -84,6 +84,8 @@ jobs:
 
           while IFS= read -r MSG; do
             [ -z "$MSG" ] && continue
+            # Skip merge commits (e.g. "Merge branch 'x' into y")
+            echo "$MSG" | grep -qE '^Merge ' && continue
             if ! echo "$MSG" | grep -qE "$PATTERN"; then
               ERRORS="$ERRORS  ✗ $MSG\n"
             fi
