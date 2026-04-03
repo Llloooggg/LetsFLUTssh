@@ -714,9 +714,10 @@ class _Toolbar extends StatelessWidget {
                 ? 'Hide Sidebar (Ctrl+B)'
                 : 'Show Sidebar (Ctrl+B)',
           ),
-        if (tabBar != null)
-          Expanded(child: tabBar!)
-        else
+        if (tabBar != null) ...[
+          _Divider(),
+          Expanded(child: tabBar!),
+        ] else
           const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
@@ -778,12 +779,9 @@ class _ConnectionBar extends StatelessWidget {
     final faintColor = scheme.onSurface.withValues(alpha: 0.45);
 
     return Container(
-      height: 24,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
+      color: scheme.surfaceContainerHigh,
       child: ClippedRow(
         children: [
           Container(

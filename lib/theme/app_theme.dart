@@ -209,6 +209,10 @@ abstract final class AppTheme {
   static Border get borderTop => Border(top: borderSide);
   static Border get borderBottom => Border(bottom: borderSide);
 
+  // ── Bar height scale ──
+  /// 34 px — standard bar height for toolbars, headers, footers, status bars.
+  static const double barHeightSm = 34;
+
   // ── Border radius scale ──
   /// 4 px — inputs, buttons, small elements.
   static const radiusSm = BorderRadius.all(Radius.circular(4));

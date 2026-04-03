@@ -174,40 +174,49 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         final leftWidth = (_splitRatio * maxWidth)
             .clamp(100.0, maxWidth - 100);
 
-        return Row(
+        return Stack(
           children: [
-            SizedBox(
-              width: leftWidth,
-              child: ClipRect(
-                child: _buildFilePane(
-                  controller: local,
-                  paneId: 'local',
-                  showFolderSizes: showFolderSizes,
-                  crossMarquee: widget.crossMarquee,
-                  transferAction: _upload,
-                  dropAction: _download,
-                  oppositeSourcePane: 'remote',
-                  pasteAction: _download,
-                  onOsDropReceived: _osDropToLocal,
-                  otherController: remote,
+            Row(
+              children: [
+                SizedBox(
+                  width: leftWidth,
+                  child: ClipRect(
+                    child: _buildFilePane(
+                      controller: local,
+                      paneId: 'local',
+                      showFolderSizes: showFolderSizes,
+                      crossMarquee: widget.crossMarquee,
+                      transferAction: _upload,
+                      dropAction: _download,
+                      oppositeSourcePane: 'remote',
+                      pasteAction: _download,
+                      onOsDropReceived: _osDropToLocal,
+                      otherController: remote,
+                    ),
+                  ),
                 ),
-              ),
+                Expanded(
+                  child: ClipRect(
+                    child: _buildFilePane(
+                      controller: remote,
+                      paneId: 'remote',
+                      showFolderSizes: showFolderSizes,
+                      transferAction: _download,
+                      dropAction: _upload,
+                      oppositeSourcePane: 'local',
+                      pasteAction: _upload,
+                      onOsDropReceived: _osDropToRemote,
+                      otherController: local,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            _buildDivider(maxWidth),
-            Expanded(
-              child: ClipRect(
-                child: _buildFilePane(
-                  controller: remote,
-                  paneId: 'remote',
-                  showFolderSizes: showFolderSizes,
-                  transferAction: _download,
-                  dropAction: _upload,
-                  oppositeSourcePane: 'local',
-                  pasteAction: _upload,
-                  onOsDropReceived: _osDropToRemote,
-                  otherController: local,
-                ),
-              ),
+            Positioned(
+              left: leftWidth - 3,
+              top: 0,
+              bottom: 0,
+              child: _buildDivider(maxWidth),
             ),
           ],
         );
@@ -232,13 +241,17 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     return MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onHorizontalDragUpdate: (d) {
           setState(() {
             _splitRatio = ((_splitRatio * maxWidth + d.delta.dx) / maxWidth)
                 .clamp(0.2, 0.8);
           });
         },
-        child: Container(width: 3, color: AppTheme.bg0),
+        child: SizedBox(
+          width: 6,
+          child: Center(child: Container(width: 1, color: AppTheme.border)),
+        ),
       ),
     );
   }
