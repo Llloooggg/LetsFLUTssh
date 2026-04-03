@@ -23,8 +23,16 @@ class SessionStore {
   late final String _groupsFilePath;
   bool _initialized = false;
 
+  /// False only when credential decryption explicitly failed on load.
+  /// When false, [_saveCredentials] skips the save to avoid overwriting
+  /// valid encrypted credentials with empty in-memory data.
+  bool _credentialsMerged = true;
+
   List<Session> get sessions => List.unmodifiable(_sessions);
   Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);
+
+  /// Guards concurrent [load] calls — second caller awaits the first.
+  Future<List<Session>>? _loadFuture;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -35,6 +43,19 @@ class SessionStore {
   }
 
   Future<List<Session>> load() async {
+    // If a load is already in progress, return its result instead of
+    // starting a second one — concurrent loads race on _sessions.
+    if (_loadFuture != null) return _loadFuture!;
+    final future = _doLoad();
+    _loadFuture = future;
+    try {
+      return await future;
+    } finally {
+      _loadFuture = null;
+    }
+  }
+
+  Future<List<Session>> _doLoad() async {
     await init();
     final file = File(_filePath);
     if (!await file.exists()) return _sessions;
@@ -65,10 +86,12 @@ class SessionStore {
     } on CredentialStoreException catch (e) {
       // Decryption failed — do NOT overwrite encrypted store.
       // Keep sessions without credentials rather than risk data loss.
+      _credentialsMerged = false;
       AppLogger.instance.log('Credential decryption failed, '
           'skipping merge to prevent data loss', name: 'SessionStore', error: e);
       return;
     }
+    _credentialsMerged = true;
     bool needsMigration = false;
 
     for (int i = 0; i < _sessions.length; i++) {
@@ -156,7 +179,18 @@ class SessionStore {
   }
 
   /// Save all credentials to encrypted store.
+  ///
+  /// When [_credentialsMerged] is false (decryption failed on load),
+  /// skips the save entirely to prevent overwriting valid encrypted
+  /// credentials with empty in-memory data.
   Future<void> _saveCredentials() async {
+    if (!_credentialsMerged) {
+      AppLogger.instance.log(
+        'Skipping credential save — credentials were not merged on load',
+        name: 'SessionStore',
+      );
+      return;
+    }
     final allCreds = <String, CredentialData>{};
     for (final s in _sessions) {
       if (s.password.isNotEmpty || s.keyData.isNotEmpty || s.passphrase.isNotEmpty) {
