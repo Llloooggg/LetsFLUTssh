@@ -443,12 +443,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final Widget sidebar;
     final Widget body;
 
+    final sessionBody = _buildSessionBody(context, tabState, activeTab);
     if (inSettings) {
       sidebar = SettingsSidebar(
         selectedIndex: _settingsIndex,
         onSelect: (i) => setState(() => _settingsIndex = i),
       );
-      body = SettingsContent(selectedIndex: _settingsIndex);
+      // Keep terminal tabs alive (Offstage) so SSH shells survive settings.
+      body = Stack(
+        children: [
+          Offstage(child: sessionBody),
+          SettingsContent(selectedIndex: _settingsIndex),
+        ],
+      );
     } else {
       sidebar = SessionPanel(
         onConnect: (session) => _connectSession(context, ref, session),
@@ -456,7 +463,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
         crossMarquee: _crossMarquee,
       );
-      body = _buildSessionBody(context, tabState, activeTab);
+      body = sessionBody;
     }
 
     return AppShell(
