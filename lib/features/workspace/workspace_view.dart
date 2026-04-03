@@ -106,56 +106,14 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
         ? Row(children: [firstChild, secondChild])
         : Column(children: [firstChild, secondChild]);
 
-    return Stack(
-      children: [
-        layout,
-        Positioned(
-          left: isHorizontal ? firstSize - 3 : 0,
-          top: isHorizontal ? 0 : firstSize - 3,
-          right: isHorizontal ? null : 0,
-          bottom: isHorizontal ? 0 : null,
-          child: _buildDivider(node, isHorizontal, totalSize),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDivider(
-    WorkspaceBranch node,
-    bool isHorizontal,
-    double totalSize,
-  ) {
-    const hitSize = 6.0;
-    const minPanelSize = 120.0;
-
-    return MouseRegion(
-      cursor: isHorizontal
-          ? SystemMouseCursors.resizeColumn
-          : SystemMouseCursors.resizeRow,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanUpdate: (details) {
-          final delta = isHorizontal ? details.delta.dx : details.delta.dy;
-          final newRatio = (node.ratio + delta / totalSize).clamp(
-            minPanelSize / totalSize,
-            1.0 - minPanelSize / totalSize,
-          );
-          if (newRatio != node.ratio) {
-            ref.read(workspaceProvider.notifier).updateRatio(node.id, newRatio);
-          }
-        },
-        child: SizedBox(
-          width: isHorizontal ? hitSize : double.infinity,
-          height: isHorizontal ? double.infinity : hitSize,
-          child: Center(
-            child: Container(
-              width: isHorizontal ? 1 : double.infinity,
-              height: isHorizontal ? double.infinity : 1,
-              color: AppTheme.border,
-            ),
-          ),
-        ),
-      ),
+    return _WorkspaceDividerLayout(
+      node: node,
+      isHorizontal: isHorizontal,
+      firstSize: firstSize,
+      layout: layout,
+      onRatioChanged: (ratio) {
+        ref.read(workspaceProvider.notifier).updateRatio(node.id, ratio);
+      },
     );
   }
 
@@ -472,6 +430,93 @@ class _PanelConnectionBar extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Divider with absolute-position tracking
+// ---------------------------------------------------------------------------
+
+/// Renders the split layout with a draggable divider that tracks the mouse
+/// via absolute position (not deltas), preventing drift during rebuilds.
+class _WorkspaceDividerLayout extends StatefulWidget {
+  final WorkspaceBranch node;
+  final bool isHorizontal;
+  final double firstSize;
+  final Widget layout;
+  final ValueChanged<double> onRatioChanged;
+
+  const _WorkspaceDividerLayout({
+    required this.node,
+    required this.isHorizontal,
+    required this.firstSize,
+    required this.layout,
+    required this.onRatioChanged,
+  });
+
+  @override
+  State<_WorkspaceDividerLayout> createState() =>
+      _WorkspaceDividerLayoutState();
+}
+
+class _WorkspaceDividerLayoutState extends State<_WorkspaceDividerLayout> {
+  final _stackKey = GlobalKey();
+
+  static const _hitSize = 6.0;
+  static const _minPanelSize = 120.0;
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    final box =
+        _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+
+    final local = box.globalToLocal(details.globalPosition);
+    final totalSize =
+        widget.isHorizontal ? box.size.width : box.size.height;
+    final pos = widget.isHorizontal ? local.dx : local.dy;
+    final newRatio = (pos / totalSize).clamp(
+      _minPanelSize / totalSize,
+      1.0 - _minPanelSize / totalSize,
+    );
+    if (newRatio != widget.node.ratio) {
+      widget.onRatioChanged(newRatio);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      key: _stackKey,
+      children: [
+        widget.layout,
+        Positioned(
+          left: widget.isHorizontal ? widget.firstSize - 3 : 0,
+          top: widget.isHorizontal ? 0 : widget.firstSize - 3,
+          right: widget.isHorizontal ? null : 0,
+          bottom: widget.isHorizontal ? 0 : null,
+          child: MouseRegion(
+            cursor: widget.isHorizontal
+                ? SystemMouseCursors.resizeColumn
+                : SystemMouseCursors.resizeRow,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onPanUpdate: _onPanUpdate,
+              child: SizedBox(
+                width: widget.isHorizontal ? _hitSize : double.infinity,
+                height: widget.isHorizontal ? double.infinity : _hitSize,
+                child: Center(
+                  child: Container(
+                    width: widget.isHorizontal ? 1 : double.infinity,
+                    height: widget.isHorizontal ? double.infinity : 1,
+                    color: AppTheme.border,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
