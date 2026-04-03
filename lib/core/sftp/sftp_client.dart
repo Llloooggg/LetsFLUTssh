@@ -73,11 +73,13 @@ class SFTPService {
 
   /// Create directory.
   Future<void> mkdir(String path) async {
+    AppLogger.instance.log('Creating remote directory: $path', name: 'SFTP');
     await _sftp.mkdir(path);
   }
 
   /// Remove file.
   Future<void> remove(String path) async {
+    AppLogger.instance.log('Removing remote file: $path', name: 'SFTP');
     await _sftp.remove(path);
   }
 
@@ -101,6 +103,7 @@ class SFTPService {
 
   /// Rename / move.
   Future<void> rename(String oldPath, String newPath) async {
+    AppLogger.instance.log('Renaming remote: $oldPath → $newPath', name: 'SFTP');
     await _sftp.rename(oldPath, newPath);
   }
 
