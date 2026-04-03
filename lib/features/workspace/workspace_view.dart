@@ -241,8 +241,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     final notifier = ref.read(workspaceProvider.notifier);
     switch (zone) {
       case DropZone.center:
-        if (data.sourcePanelId == targetPanelId) return;
-        notifier.moveTab(data.sourcePanelId, data.tab.id, targetPanelId);
+        return; // Inert — tab bar handles insertion.
       case DropZone.left:
         notifier.splitPanel(
           targetPanelId,
