@@ -249,6 +249,16 @@ class _MobileFileListState extends State<MobileFileList> {
   }
 
   @override
+  void didUpdateWidget(MobileFileList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onChanged);
+      widget.controller.addListener(_onChanged);
+      _selectionMode = false;
+    }
+  }
+
+  @override
   void dispose() {
     ctrl.removeListener(_onChanged);
     super.dispose();
