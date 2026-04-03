@@ -901,7 +901,7 @@ class TabEntry {
 
 **IndexedStack:** Tabs are rendered via `IndexedStack` — all tabs stay in memory, only the current one is visible. This preserves terminal state when switching tabs.
 
-**Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background (subtle but visible against the surrounding area). All tabs have a `AppTheme.borderLight` right border as separator. Text: `AppTheme.fg` for active, `AppTheme.fgDim` for inactive. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive.
+**Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background (subtle but visible against the surrounding area). No borders between tabs — they sit flush. Text: `AppTheme.fg` for active, `AppTheme.fgDim` for inactive. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive. Height: `AppTheme.barHeightSm` (34 px).
 
 **Connection lifecycle:** When all tabs referencing a connection are closed, `TabNotifier` automatically disconnects the orphaned connection via `ConnectionManager.disconnect()`. This keeps the active session count accurate.
 
@@ -944,7 +944,7 @@ class TabEntry {
 
 **Nav guard:** Terminal and Files destinations are disabled (dimmed, tap blocked) when no tabs of that type exist. If the user is on Terminal/Files and the last tab closes, auto-switches to Sessions.
 
-**Shared styling with desktop:** Mobile tab chips match desktop's rectangular tab style (top accent bar, colored icons — blue for terminal, yellow for SFTP, connection status dot). SSH↔SFTP companion buttons (`_MobileCompanionButton`) mirror desktop's `_companionButton` styling (colored background, border, icon + label). Active/saved session count is shown only in the global header bar (not duplicated in the session panel footer). The tab chip bar and companion button share a parent `Container` with `AppTheme.bg1` background + bottom border, ensuring consistent background across both elements.
+**Shared styling with desktop:** Mobile tab chips match desktop's rectangular tab style (top accent bar, colored icons — blue for terminal, yellow for SFTP, connection status dot). SSH↔SFTP companion buttons (`_MobileCompanionButton`) mirror desktop's `_companionButton` styling (colored background, border, icon + label). Active/saved session count is shown only in the global header bar (not duplicated in the session panel footer). The tab chip bar and companion button share a parent `Container` with `AppTheme.bg1` background (no border), ensuring consistent background across both elements.
 
 ```dart
 // main.dart
@@ -976,7 +976,7 @@ AppShell({
   Widget? statusBar,              // optional bottom bar
 })
 ```
-Desktop layout shell shared by the main screen and settings. Provides the consistent visual frame: decorated toolbar (surfaceContainerLow + bottom border), resizable sidebar with drag divider, main body area, and optional status bar. On narrow viewports, set `useDrawer: true` to render the sidebar as a pull-out `Drawer` instead of an inline panel.
+Desktop layout shell shared by the main screen and settings. Provides the consistent visual frame: toolbar (surfaceContainerLow, no border), main body area, and optional status bar. Sidebar resize uses a `Stack` overlay — panels sit flush, a 6 px invisible hit zone with a 1 px `dividerColor` line overlays the boundary. On narrow viewports, set `useDrawer: true` to render the sidebar as a pull-out `Drawer` instead of an inline panel.
 
 **Toolbar layout:** `[sidebar toggle | AppTabBar (embedded) | split buttons | settings]`. Tabs are embedded directly in the toolbar row via `AppTabBar(embedded: true)` to save vertical space. When no tabs are open or in settings mode, the tab area is replaced by a `Spacer`.
 
@@ -1317,6 +1317,9 @@ abstract final class AppTheme {
   static Border get borderTop;       // Border(top: borderSide)
   static Border get borderBottom;    // Border(bottom: borderSide)
 
+  // Bar height scale
+  static const double barHeightSm;  // 34 px — all bars (toolbar, headers, footers, status bars)
+
   // Border radius scale
   static const radiusSm;  // 4 px — inputs, buttons, small elements
   static const radiusMd;  // 6 px — cards, containers, default rounding
@@ -1351,6 +1354,8 @@ Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/font
 **Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware: mobile gets +2 px automatically for touch readability.
 
 **Rule:** Never use hardcoded `BorderRadius.circular(N)` or `BorderRadius.zero` — always use `AppTheme.radiusSm`, `radiusMd`, or `radiusLg`. Exception: pill-shaped elements (e.g. toggle tracks) that need full rounding.
+
+**Rule:** Never hardcode bar/toolbar heights — always use `AppTheme.barHeightSm` (34 px). All toolbars, panel headers, footers, status bars, and column headers use this single constant. Panels sit flush without borders; resizable dividers use `Stack` overlays (6 px invisible hit zone, 1 px visible line where needed).
 
 ---
 

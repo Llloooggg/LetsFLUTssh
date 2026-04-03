@@ -84,10 +84,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   Widget _buildAppBar(BuildContext context) {
     return Container(
       height: 44,
-      decoration: BoxDecoration(
-        color: AppTheme.bg1,
-        border: AppTheme.borderBottom,
-      ),
+      color: AppTheme.bg1,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         children: [
@@ -182,10 +179,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final sftpCount = _sftpTabCount(tabState);
     return Container(
       height: 56,
-      decoration: BoxDecoration(
-        color: AppTheme.bg1,
-        border: Border(top: BorderSide(color: AppTheme.border)),
-      ),
+      color: AppTheme.bg1,
       child: Row(
         children: [
           _buildNavItem(
@@ -427,12 +421,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
             Container(
               height: 32,
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: isActive ? AppTheme.bg2 : Colors.transparent,
-                border: Border(
-                  right: BorderSide(color: AppTheme.border),
-                ),
-              ),
+              color: isActive ? AppTheme.bg2 : Colors.transparent,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -534,10 +523,7 @@ class _MobileTerminalPage extends ConsumerWidget {
     return Column(
       children: [
         Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bg1,
-            border: AppTheme.borderBottom,
-          ),
+          color: AppTheme.bg1,
           child: Row(
             children: [
               Expanded(
@@ -612,10 +598,7 @@ class _MobileSftpPage extends ConsumerWidget {
     return Column(
       children: [
         Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bg1,
-            border: AppTheme.borderBottom,
-          ),
+          color: AppTheme.bg1,
           child: Row(
             children: [
               Expanded(

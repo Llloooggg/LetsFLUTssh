@@ -464,12 +464,9 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 36,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.bg1,
-        border: AppTheme.borderBottom,
-      ),
+      color: AppTheme.bg1,
       child: Row(
         children: [
           Expanded(
