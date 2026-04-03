@@ -1763,6 +1763,15 @@ Two branches: **`dev`** (daily work) and **`main`** (releases only).
 - All app development happens on `dev`. Push freely — CI, SonarCloud, OSV-Scanner, Semgrep run on every push. No tags, no builds, no releases.
 - To release: merge `dev` → `main`. Everything is automatic: CI → auto-tag → build → release.
 - Never push app changes directly to `main`. Dependabot PRs and CI/docs-only fixes are exceptions.
+- **Contributors** work via forks → PR into `dev`. CI runs on PRs automatically. Maintainer reviews and merges.
+
+**Branch Protection (GitHub Rulesets):**
+
+| Ruleset | Branch | Rules | Bypass |
+|---------|--------|-------|--------|
+| `main` | `main` | No deletion, no force-push, PR required, all CI checks required | None |
+| `dev-protect` | `dev` | No deletion, no force-push | None |
+| `dev-checks` | `dev` | All CI checks required (`ci`, `osv-scan`, `semgrep-scan`, `codeql-scan`) | Admin — allows direct push |
 
 ### 15.2 Workflow Graph
 

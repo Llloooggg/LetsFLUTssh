@@ -107,6 +107,35 @@ Two branches: `dev` (daily work) and `main` (releases only).
 
 **Claude default branch is `dev`.** Always work on `dev` unless the user explicitly says otherwise. If on `main` — switch to `dev` before making changes.
 
+### Contributor Workflow
+
+External contributors work via **forks** — standard open source model. No write access to the repo needed.
+
+**Contributor flow:**
+1. Fork the repo
+2. Create a feature/fix branch in the fork (`feature/...`, `fix/...`)
+3. Implement changes, push to the fork
+4. Open a PR from fork into `dev` (NOT `main`)
+5. CI runs all checks automatically on the PR
+6. Maintainer (repo owner) reviews, requests changes if needed, merges into `dev`
+
+**Rules for PRs from contributors:**
+- Target branch is always `dev`, never `main`
+- All CI checks must pass before merge (`ci`, `osv-scan`, `semgrep-scan`, `codeql-scan`)
+- Maintainer is the only person who merges to `main` (release flow)
+
+### Branch Protection (GitHub Rulesets)
+
+Three rulesets protect the repository:
+
+| Ruleset | Branch | Rules | Bypass |
+|---------|--------|-------|--------|
+| `main` | `main` | No deletion, no force-push, PR required, all CI checks required | None |
+| `dev-protect` | `dev` | No deletion, no force-push | None |
+| `dev-checks` | `dev` | All CI checks required | Admin (repo owner) — allows direct push |
+
+**Why two rulesets for dev:** the owner needs to push directly to `dev` (bypassing CI requirement), but nobody — including the owner — should be able to delete or force-push `dev`. Splitting into two rulesets with different bypass settings achieves this.
+
 ### Versioning & Tagging
 
 Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature), major (breaking).
