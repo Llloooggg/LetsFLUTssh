@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/config/config_store.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
@@ -63,7 +64,19 @@ Future<void> main() async {
     }
   }
 
-  runApp(const ProviderScope(child: LetsFLUTsshApp()));
+  // Load config before first frame to prevent light-theme flash.
+  // The pre-loaded store is injected via override so ConfigNotifier.build()
+  // reads the real config instead of defaults.
+  final configStore = ConfigStore();
+  final config = await configStore.load();
+  AppLogger.instance.setEnabled(config.enableLogging);
+
+  runApp(ProviderScope(
+    overrides: [
+      configStoreProvider.overrideWithValue(configStore),
+    ],
+    child: const LetsFLUTsshApp(),
+  ));
 }
 
 class LetsFLUTsshApp extends ConsumerStatefulWidget {
@@ -86,7 +99,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(appVersionProvider.notifier).load();
-      await ref.read(configProvider.notifier).load();
       ref.read(sessionProvider.notifier).load();
       if (plat.isMobilePlatform) {
         ref.read(foregroundServiceProvider).init();

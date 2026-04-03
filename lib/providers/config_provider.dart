@@ -15,7 +15,7 @@ final configProvider =
 
 class ConfigNotifier extends Notifier<AppConfig> {
   @override
-  AppConfig build() => AppConfig.defaults;
+  AppConfig build() => ref.read(configStoreProvider).config;
 
   ConfigStore get _store => ref.read(configStoreProvider);
 
