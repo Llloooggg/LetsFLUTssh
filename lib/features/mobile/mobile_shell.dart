@@ -10,6 +10,7 @@ import '../../providers/theme_provider.dart';
 import '../../theme/app_theme.dart';
 import '../session_manager/session_connect.dart';
 import '../session_manager/session_panel.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_controller.dart';
@@ -267,20 +268,19 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   }
 
   Future<void> _confirmExit(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Exit'),
-        content: const Text('Active sessions will be disconnected. Exit?'),
+    final confirmed = await AppDialog.show<bool>(
+      context,
+      builder: (ctx) => AppDialog(
+        title: 'Exit',
+        content: Text(
+          'Active sessions will be disconnected. Exit?',
+          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Exit'),
+          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
+          AppDialogAction.primary(
+            label: 'Exit',
+            onTap: () => Navigator.of(ctx).pop(true),
           ),
         ],
       ),

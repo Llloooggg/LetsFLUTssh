@@ -4,6 +4,7 @@ import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
 import 'file_browser_controller.dart';
 
@@ -21,22 +22,56 @@ class FilePaneDialogs {
   }) async {
     final nameCtrl = TextEditingController(text: initialValue);
     try {
-      return await showDialog<String>(
-        context: context,
-        animationStyle: AnimationStyle.noAnimation,
-        builder: (ctx) => AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: nameCtrl,
-            autofocus: true,
-            decoration: InputDecoration(labelText: label),
-            onSubmitted: (v) => Navigator.of(ctx).pop(v),
+      return await AppDialog.show<String>(
+        context,
+        builder: (ctx) => AppDialog(
+          title: title,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: AppFonts.xs,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
+                  color: AppTheme.fgFaint,
+                ),
+              ),
+              const SizedBox(height: 4),
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: AppTheme.bg3,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: AppTheme.radiusSm,
+                    borderSide: BorderSide(color: AppTheme.borderLight),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: AppTheme.radiusSm,
+                    borderSide: BorderSide(color: AppTheme.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: AppTheme.radiusSm,
+                    borderSide: BorderSide(color: AppTheme.accent),
+                  ),
+                ),
+                onSubmitted: (v) => Navigator.of(ctx).pop(v),
+              ),
+            ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(nameCtrl.text),
-              child: Text(confirmText),
+            AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop()),
+            AppDialogAction.primary(
+              label: confirmText,
+              onTap: () => Navigator.of(ctx).pop(nameCtrl.text),
             ),
           ],
         ),
@@ -98,18 +133,19 @@ class FilePaneDialogs {
     final names = entries.length == 1
         ? '"${entries.first.name}"'
         : '${entries.length} items';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete'),
-        content: Text('Delete $names?'),
+    final confirmed = await AppDialog.show<bool>(
+      context,
+      builder: (ctx) => AppDialog(
+        title: 'Delete',
+        content: Text(
+          'Delete $names?',
+          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.disconnected),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
+          AppDialogAction.destructive(
+            label: 'Delete',
+            onTap: () => Navigator.of(ctx).pop(true),
           ),
         ],
       ),

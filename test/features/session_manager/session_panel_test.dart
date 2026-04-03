@@ -12,6 +12,7 @@ import 'package:letsflutssh/features/session_manager/session_panel.dart';
 import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/app_dialog.dart';
 import 'package:letsflutssh/utils/platform.dart';
 
 /// A SessionNotifier subclass that starts with pre-populated sessions.
@@ -771,7 +772,7 @@ void main() {
       // Dialog shows session name
       expect(find.textContaining('staging'), findsWidgets);
       // Has Delete confirmation button
-      final deleteButtons = find.widgetWithText(FilledButton, 'Delete');
+      final deleteButtons = find.text('Delete');
       expect(deleteButtons, findsOneWidget);
     });
 
@@ -794,7 +795,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap Delete in confirmation dialog
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
       // Dialog dismissed
@@ -955,7 +956,7 @@ void main() {
       expect(find.textContaining('Delete folder "Production"?'), findsOneWidget);
 
       // Tap Delete to confirm
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
       // Dialog should dismiss
@@ -1966,7 +1967,7 @@ void main() {
       expect(find.text('Production'), findsWidgets);
       // Should show Archive (empty folder) — may appear in tree and dialog
       expect(find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(AppDialog),
         matching: find.text('Archive'),
       ), findsOneWidget);
       // Should show Cancel button
@@ -2007,7 +2008,7 @@ void main() {
       // Tap the current folder (Production) in the dialog — should be disabled
       // Find Production inside the dialog (there are multiple 'Production' texts)
       final dialogProductionTiles = find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(AppDialog),
         matching: find.text('Production'),
       );
       expect(dialogProductionTiles, findsOneWidget);
@@ -2079,7 +2080,7 @@ void main() {
 
       // Tapping a different folder should close dialog
       final dialogProduction = find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(AppDialog),
         matching: find.text('Production'),
       );
       await tester.tap(dialogProduction);

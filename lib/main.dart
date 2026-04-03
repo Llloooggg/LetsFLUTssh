@@ -13,6 +13,7 @@ import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
 import 'core/import/import_service.dart';
 import 'features/settings/export_import.dart';
+import 'widgets/app_dialog.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/clipped_row.dart';
@@ -234,50 +235,51 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _showUpdateDialog(BuildContext context, UpdateInfo info) {
     final hasAsset = info.assetUrl != null && plat.isDesktopPlatform;
-    showDialog(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Update Available'),
-        content: _buildUpdateDialogContent(info),
+    AppDialog.show(
+      context,
+      builder: (ctx) => AppDialog(
+        title: 'Update Available',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Version ${info.latestVersion} is available (current: v${info.currentVersion}).',
+              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            ),
+            if (info.changelog != null && info.changelog!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Release notes:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppFonts.md, color: AppTheme.fg),
+              ),
+              const SizedBox(height: 4),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: SingleChildScrollView(
+                  child: Text(
+                    info.changelog!,
+                    style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Later'),
-          ),
-          TextButton(
-            onPressed: () {
+          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx)),
+          AppDialogAction.secondary(
+            label: 'Skip This Version',
+            onTap: () {
               Navigator.pop(ctx);
               ref.read(configProvider.notifier).update(
                 (c) => c.withSkippedVersion(info.latestVersion),
               );
             },
-            child: const Text('Skip This Version'),
           ),
           _buildPrimaryUpdateAction(ctx, context, info, hasAsset),
         ],
       ),
-    );
-  }
-
-  Widget _buildUpdateDialogContent(UpdateInfo info) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Version ${info.latestVersion} is available (current: v${info.currentVersion}).'),
-        if (info.changelog != null && info.changelog!.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          const Text('Release notes:', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: SingleChildScrollView(
-              child: Text(info.changelog!, style: TextStyle(fontSize: AppFonts.lg)),
-            ),
-          ),
-        ],
-      ],
     );
   }
 
@@ -288,16 +290,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     bool hasAsset,
   ) {
     if (hasAsset) {
-      return FilledButton(
-        onPressed: () {
+      return AppDialogAction.primary(
+        label: 'Download & Install',
+        onTap: () {
           Navigator.pop(ctx);
           ref.read(updateProvider.notifier).download(autoInstall: true);
         },
-        child: const Text('Download & Install'),
       );
     }
-    return FilledButton(
-      onPressed: () async {
+    return AppDialogAction.primary(
+      label: 'Open in Browser',
+      onTap: () async {
         Navigator.pop(ctx);
         final url = Uri.parse(info.releaseUrl);
         if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -309,7 +312,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           }
         }
       },
-      child: const Text('Open in Browser'),
     );
   }
 
@@ -617,15 +619,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     if (result == null || !context.mounted) return;
 
     // Show progress while PBKDF2 + decryption runs in isolate
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (_) => const PopScope(
-        canPop: false,
-        child: Center(child: CircularProgressIndicator()),
-      ),
-    );
+    AppProgressDialog.show(context);
 
     try {
       final importResult = await ExportImport.import_(
