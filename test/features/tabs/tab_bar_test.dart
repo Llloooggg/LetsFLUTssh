@@ -410,7 +410,7 @@ void main() {
       expect(dotContainers, isNotEmpty);
     });
 
-    testWidgets('connecting state shows fgFaint dot', (tester) async {
+    testWidgets('connecting state shows connectingColor dot', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connecting);
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(id: 't1', label: 'Tab', connection: conn, kind: TabKind.terminal),
@@ -422,7 +422,7 @@ void main() {
         final decoration = c.decoration;
         return decoration is BoxDecoration &&
             decoration.shape == BoxShape.circle &&
-            decoration.color == AppTheme.fgFaint;
+            decoration.color == AppTheme.connectingColor(Brightness.dark);
       });
       expect(dotContainers, isNotEmpty);
     });
@@ -480,6 +480,7 @@ void main() {
 
       final containers = tester.widgetList<Container>(find.byType(Container));
       final hasBg1 = containers.any((c) {
+        if (c.color == AppTheme.bg1) return true;
         final deco = c.decoration;
         if (deco is BoxDecoration && deco.color == AppTheme.bg1) {
           return true;
@@ -984,7 +985,7 @@ void main() {
       expect(dots, isNotEmpty);
     });
 
-    testWidgets('connecting state shows fgFaint dot', (tester) async {
+    testWidgets('connecting state shows connectingColor dot', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connecting);
       await tester.pumpWidget(buildAppWithTabs([
         TabEntry(
@@ -1000,7 +1001,7 @@ void main() {
         final d = c.decoration;
         return d is BoxDecoration &&
             d.shape == BoxShape.circle &&
-            d.color == AppTheme.fgFaint;
+            d.color == AppTheme.connectingColor(Brightness.dark);
       });
       expect(dots, isNotEmpty);
     });
