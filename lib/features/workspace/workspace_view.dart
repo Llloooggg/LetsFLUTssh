@@ -49,7 +49,14 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
 
     if (!ws.hasTabs) return const WelcomeScreen();
 
-    return _buildNode(ws.root, ws.focusedPanelId);
+    final content = _buildNode(ws.root, ws.focusedPanelId);
+
+    // Single workspace-level edge drop target: dragging a tab to the very
+    // edge of the workspace area docks it beside ALL existing panels.
+    return _WorkspaceEdgeDropTarget(
+      onEdgeDrop: (data, zone) => _handleRootEdgeDrop(data, zone),
+      child: content,
+    );
   }
 
   Widget _buildNode(WorkspaceNode node, String focusedPanelId) {
@@ -70,20 +77,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
       builder: (context, constraints) {
         final totalSize =
             isHorizontal ? constraints.maxWidth : constraints.maxHeight;
-        final content =
-            _buildSplitLayout(node, isHorizontal, totalSize, focusedPanelId);
-
-        // Add edge drop zones on the cross-axis edges so that a tab can be
-        // docked beside the *entire* branch (not just one child panel).
-        // E.g. when the branch splits vertically (top/bottom), we show
-        // left and right edge zones spanning the full height.
-        return _BranchEdgeDropTarget(
-          branchId: node.id,
-          direction: node.direction,
-          onEdgeDrop: (data, zone) =>
-              _handleBranchEdgeDrop(data, node.id, zone),
-          child: content,
-        );
+        return _buildSplitLayout(node, isHorizontal, totalSize, focusedPanelId);
       },
     );
   }
@@ -290,35 +284,29 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     }
   }
 
-  void _handleBranchEdgeDrop(
-    TabDragData data,
-    String branchId,
-    DropZone zone,
-  ) {
+  /// Handles drops on the outermost workspace edges — splits the entire root.
+  void _handleRootEdgeDrop(TabDragData data, DropZone zone) {
     final notifier = ref.read(workspaceProvider.notifier);
+    final rootId = ref.read(workspaceProvider).root.id;
     final direction = zone == DropZone.left || zone == DropZone.right
         ? Axis.horizontal
         : Axis.vertical;
     final insertBefore = zone == DropZone.left || zone == DropZone.top;
 
     notifier.splitAroundNode(
-      branchId,
+      rootId,
       direction,
       data.tab,
       insertBefore: insertBefore,
     );
-    // Remove the tab from its source panel if it came from a different panel.
-    // splitAroundNode doesn't touch the source panel.
+    // Remove the tab from its source panel if still present.
     final sourcePanel = findPanel(
       ref.read(workspaceProvider).root,
       data.sourcePanelId,
     );
-    if (sourcePanel != null) {
-      final stillThere =
-          sourcePanel.tabs.any((t) => t.id == data.tab.id);
-      if (stillThere) {
-        notifier.closeTab(data.sourcePanelId, data.tab.id);
-      }
+    if (sourcePanel != null &&
+        sourcePanel.tabs.any((t) => t.id == data.tab.id)) {
+      notifier.closeTab(data.sourcePanelId, data.tab.id);
     }
   }
 
@@ -490,92 +478,156 @@ class _PanelConnectionBar extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Branch-level edge drop zones
+// Workspace-level edge drop zones
 // ---------------------------------------------------------------------------
 
-/// Adds thin drop zones on the cross-axis edges of a [WorkspaceBranch].
+/// Wraps the entire workspace and adds thin drop zones on all four edges.
 ///
-/// When a branch splits vertically (top/bottom), this adds left and right
-/// edge zones spanning the full height. When horizontal (left/right), it adds
-/// top and bottom edge zones. This lets users dock a tab beside the *entire*
-/// branch rather than only beside one child panel.
-class _BranchEdgeDropTarget extends StatefulWidget {
-  final String branchId;
-  final Axis direction;
+/// When a tab is dragged to the very edge of the workspace, it splits the
+/// root node so the new panel spans the full width/height — regardless of
+/// how the workspace is already subdivided.
+class _WorkspaceEdgeDropTarget extends StatefulWidget {
   final Widget child;
   final void Function(TabDragData data, DropZone zone) onEdgeDrop;
 
-  const _BranchEdgeDropTarget({
-    required this.branchId,
-    required this.direction,
+  const _WorkspaceEdgeDropTarget({
     required this.child,
     required this.onEdgeDrop,
   });
 
   @override
-  State<_BranchEdgeDropTarget> createState() => _BranchEdgeDropTargetState();
+  State<_WorkspaceEdgeDropTarget> createState() =>
+      _WorkspaceEdgeDropTargetState();
 }
 
-class _BranchEdgeDropTargetState extends State<_BranchEdgeDropTarget> {
+class _WorkspaceEdgeDropTargetState extends State<_WorkspaceEdgeDropTarget> {
   DropZone? _activeZone;
   final _key = GlobalKey();
 
   /// Width/height of the edge hit zone in logical pixels.
-  static const _edgeSize = 32.0;
-
-  DropZone? _zoneFromPosition(Offset global) {
-    final box = _key.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return null;
-
-    final local = box.globalToLocal(global);
-    final size = box.size;
-
-    // Only expose the cross-axis edges.
-    if (widget.direction == Axis.vertical) {
-      // Branch is top/bottom — show left/right edge zones.
-      if (local.dx < _edgeSize) return DropZone.left;
-      if (local.dx > size.width - _edgeSize) return DropZone.right;
-    } else {
-      // Branch is left/right — show top/bottom edge zones.
-      if (local.dy < _edgeSize) return DropZone.top;
-      if (local.dy > size.height - _edgeSize) return DropZone.bottom;
-    }
-    return null;
-  }
+  static const _edgeSize = 24.0;
 
   @override
   Widget build(BuildContext context) {
-    return DragTarget<TabDragData>(
-      onWillAcceptWithDetails: (_) => true,
-      onAcceptWithDetails: (d) {
-        final zone = _activeZone;
-        setState(() => _activeZone = null);
-        if (zone != null) {
-          widget.onEdgeDrop(d.data, zone);
-        }
-      },
-      onMove: (d) {
-        final zone = _zoneFromPosition(d.offset);
-        if (zone != _activeZone) {
-          setState(() => _activeZone = zone);
-        }
-      },
-      onLeave: (_) {
-        if (_activeZone != null) {
-          setState(() => _activeZone = null);
-        }
-      },
-      builder: (context, candidates, _) {
-        final showOverlay = candidates.isNotEmpty && _activeZone != null;
+    // This DragTarget sits *above* all panel DragTargets via a Stack overlay.
+    // We use Listener on four positioned edge regions to detect the cursor
+    // without stealing hits from the panels underneath.
+    return LayoutBuilder(
+      builder: (context, constraints) {
         return Stack(
           key: _key,
           children: [
             widget.child,
-            if (showOverlay) _buildEdgeOverlay(_activeZone!),
+            // Four edge hit-test regions — only active during a drag.
+            ..._buildEdgeListeners(constraints),
+            if (_activeZone != null) _buildEdgeOverlay(_activeZone!),
           ],
         );
       },
     );
+  }
+
+  List<Widget> _buildEdgeListeners(BoxConstraints constraints) {
+    return [
+      // Left edge
+      Positioned(
+        left: 0,
+        top: 0,
+        bottom: 0,
+        child: SizedBox(
+          width: _edgeSize,
+          child: DragTarget<TabDragData>(
+            onWillAcceptWithDetails: (_) => true,
+            onAcceptWithDetails: (d) {
+              setState(() => _activeZone = null);
+              widget.onEdgeDrop(d.data, DropZone.left);
+            },
+            onMove: (_) {
+              if (_activeZone != DropZone.left) {
+                setState(() => _activeZone = DropZone.left);
+              }
+            },
+            onLeave: (_) => _clearZone(DropZone.left),
+            builder: (_, _, _) => const SizedBox.expand(),
+          ),
+        ),
+      ),
+      // Right edge
+      Positioned(
+        right: 0,
+        top: 0,
+        bottom: 0,
+        child: SizedBox(
+          width: _edgeSize,
+          child: DragTarget<TabDragData>(
+            onWillAcceptWithDetails: (_) => true,
+            onAcceptWithDetails: (d) {
+              setState(() => _activeZone = null);
+              widget.onEdgeDrop(d.data, DropZone.right);
+            },
+            onMove: (_) {
+              if (_activeZone != DropZone.right) {
+                setState(() => _activeZone = DropZone.right);
+              }
+            },
+            onLeave: (_) => _clearZone(DropZone.right),
+            builder: (_, _, _) => const SizedBox.expand(),
+          ),
+        ),
+      ),
+      // Top edge
+      Positioned(
+        left: _edgeSize,
+        right: _edgeSize,
+        top: 0,
+        child: SizedBox(
+          height: _edgeSize,
+          child: DragTarget<TabDragData>(
+            onWillAcceptWithDetails: (_) => true,
+            onAcceptWithDetails: (d) {
+              setState(() => _activeZone = null);
+              widget.onEdgeDrop(d.data, DropZone.top);
+            },
+            onMove: (_) {
+              if (_activeZone != DropZone.top) {
+                setState(() => _activeZone = DropZone.top);
+              }
+            },
+            onLeave: (_) => _clearZone(DropZone.top),
+            builder: (_, _, _) => const SizedBox.expand(),
+          ),
+        ),
+      ),
+      // Bottom edge
+      Positioned(
+        left: _edgeSize,
+        right: _edgeSize,
+        bottom: 0,
+        child: SizedBox(
+          height: _edgeSize,
+          child: DragTarget<TabDragData>(
+            onWillAcceptWithDetails: (_) => true,
+            onAcceptWithDetails: (d) {
+              setState(() => _activeZone = null);
+              widget.onEdgeDrop(d.data, DropZone.bottom);
+            },
+            onMove: (_) {
+              if (_activeZone != DropZone.bottom) {
+                setState(() => _activeZone = DropZone.bottom);
+              }
+            },
+            onLeave: (_) => _clearZone(DropZone.bottom),
+            builder: (_, _, _) => const SizedBox.expand(),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  void _clearZone(DropZone zone) {
+    if (_activeZone == zone) {
+      setState(() => _activeZone = null);
+    }
   }
 
   Widget _buildEdgeOverlay(DropZone zone) {
