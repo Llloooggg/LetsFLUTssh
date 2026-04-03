@@ -1065,7 +1065,7 @@ class _PanelHeader extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       height: AppTheme.barHeightSm,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.only(left: 12, right: 2),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
@@ -1272,7 +1272,7 @@ class _SidebarFooter extends ConsumerWidget {
 
     return Container(
       height: AppTheme.barHeightSm,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.only(left: 12, right: 8),
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
