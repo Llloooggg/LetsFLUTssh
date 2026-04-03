@@ -217,11 +217,14 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final isSelected = _navIndex == index;
     final isDisabled = badgeCount != null && badgeCount == 0;
     final opacity = isDisabled ? 0.4 : 1.0;
-    final labelColor = isSelected
-        ? AppTheme.fg
-        : isDisabled
-            ? AppTheme.fgFaint
-            : AppTheme.fgDim;
+    final Color labelColor;
+    if (isSelected) {
+      labelColor = AppTheme.fg;
+    } else if (isDisabled) {
+      labelColor = AppTheme.fgFaint;
+    } else {
+      labelColor = AppTheme.fgDim;
+    }
 
     Widget iconWidget = Icon(
       isSelected ? activeIcon : icon,

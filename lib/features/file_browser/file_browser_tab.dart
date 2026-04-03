@@ -26,6 +26,14 @@ import 'transfer_panel.dart';
 /// Factory for SFTP initialization — injectable for testing.
 typedef SFTPInitFactory = Future<SFTPInitResult> Function(Connection connection);
 
+typedef _PaneActions = ({
+  void Function(FileEntry) transfer,
+  void Function(FileEntry) drop,
+  String oppositeSourcePane,
+  void Function(FileEntry) paste,
+  void Function(List<String>) onOsDropReceived,
+});
+
 class FileBrowserTab extends ConsumerStatefulWidget {
   final Connection connection;
 
@@ -186,11 +194,13 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                       paneId: 'local',
                       showFolderSizes: showFolderSizes,
                       crossMarquee: widget.crossMarquee,
-                      transferAction: _upload,
-                      dropAction: _download,
-                      oppositeSourcePane: 'remote',
-                      pasteAction: _download,
-                      onOsDropReceived: _osDropToLocal,
+                      actions: (
+                        transfer: _upload,
+                        drop: _download,
+                        oppositeSourcePane: 'remote',
+                        paste: _download,
+                        onOsDropReceived: _osDropToLocal,
+                      ),
                       otherController: remote,
                     ),
                   ),
@@ -201,11 +211,13 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                       controller: remote,
                       paneId: 'remote',
                       showFolderSizes: showFolderSizes,
-                      transferAction: _download,
-                      dropAction: _upload,
-                      oppositeSourcePane: 'local',
-                      pasteAction: _upload,
-                      onOsDropReceived: _osDropToRemote,
+                      actions: (
+                        transfer: _download,
+                        drop: _upload,
+                        oppositeSourcePane: 'local',
+                        paste: _upload,
+                        onOsDropReceived: _osDropToRemote,
+                      ),
                       otherController: local,
                     ),
                   ),
@@ -260,11 +272,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     required FilePaneController controller,
     required String paneId,
     required bool showFolderSizes,
-    required void Function(FileEntry) transferAction,
-    required void Function(FileEntry) dropAction,
-    required String oppositeSourcePane,
-    required void Function(FileEntry) pasteAction,
-    required void Function(List<String>) onOsDropReceived,
+    required _PaneActions actions,
     required FilePaneController otherController,
     CrossMarqueeController? crossMarquee,
   }) {
@@ -273,15 +281,15 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       paneId: paneId,
       showFolderSizes: showFolderSizes,
       crossMarquee: crossMarquee,
-      onTransfer: transferAction,
-      onTransferMultiple: (entries) => entries.forEach(transferAction),
+      onTransfer: actions.transfer,
+      onTransferMultiple: (entries) => entries.forEach(actions.transfer),
       onCopy: () => setState(() {
         _clipboardEntries = List.of(controller.selectedEntries);
         _clipboardSourcePane = paneId;
       }),
-      onPaste: () => _pasteFromClipboard(oppositeSourcePane, pasteAction),
-      onDropReceived: (entries) => entries.forEach(dropAction),
-      onOsDropReceived: onOsDropReceived,
+      onPaste: () => _pasteFromClipboard(actions.oppositeSourcePane, actions.paste),
+      onDropReceived: (entries) => entries.forEach(actions.drop),
+      onOsDropReceived: actions.onOsDropReceived,
       onPaneActivated: () => otherController.clearSelection(),
     );
   }
