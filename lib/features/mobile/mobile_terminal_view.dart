@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
@@ -11,14 +10,13 @@ import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
-import '../../widgets/context_menu.dart';
 import '../terminal/cursor_overlay.dart';
 import 'ssh_keyboard_bar.dart';
 
 /// Full-screen mobile terminal with SSH keyboard bar.
 ///
 /// No tiling/splitting — single pane, full screen.
-/// Long press → context menu (copy/paste).
+/// Long press selects a word (xterm built-in) → floating toolbar appears.
 /// Pinch to zoom (font size).
 class MobileTerminalView extends ConsumerStatefulWidget {
   final Connection connection;
@@ -41,6 +39,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   String? _error;
   double _fontSize = 14.0;
   double? _baseScaleFontSize;
+  bool _hasSelection = false;
 
   @override
   void initState() {
@@ -48,7 +47,15 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     final config = ref.read(configProvider);
     _terminal = Terminal(maxLines: config.scrollback);
     _terminalController = TerminalController();
+    _terminalController.addListener(_onSelectionChanged);
     _connectAndOpenShell();
+  }
+
+  void _onSelectionChanged() {
+    final hasSelection = _terminalController.selection != null;
+    if (hasSelection != _hasSelection) {
+      setState(() => _hasSelection = hasSelection);
+    }
   }
 
   Future<void> _connectAndOpenShell() async {
@@ -94,6 +101,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   @override
   void dispose() {
+    _terminalController.removeListener(_onSelectionChanged);
     _shellConn?.close();
     _terminalController.dispose();
     super.dispose();
@@ -101,6 +109,15 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   void _onKeyboardInput(String data) {
     _shellConn?.shell.write(Uint8List.fromList(data.codeUnits));
+  }
+
+  void _copySelection() {
+    TerminalClipboard.copy(_terminal, _terminalController);
+    _keyboardKey.currentState?.exitSelectMode();
+  }
+
+  void _paste() {
+    TerminalClipboard.paste(_terminal);
   }
 
   @override
@@ -141,7 +158,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
                 ),
               );
             },
-            onLongPressStart: (details) => _showContextMenu(context, details.globalPosition),
             child: Stack(
               children: [
                 TerminalView(
@@ -190,9 +206,11 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
             ),
           ),
         ),
+        if (_hasSelection) _buildSelectionToolbar(),
         SshKeyboardBar(
           key: _keyboardKey,
           onInput: _onKeyboardInput,
+          onPaste: _paste,
           onSelectModeChanged: (active) {
             _terminalController.setSuspendPointerInput(active);
             if (!active) _terminalController.clearSelection();
@@ -202,27 +220,26 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     );
   }
 
-  void _showContextMenu(BuildContext context, Offset position) {
-    final hasSelection = _terminalController.selection != null;
-    showAppContextMenu(
-      context: context,
-      position: position,
-      items: [
-        if (hasSelection)
-          ContextMenuItem(
-            label: 'Copy',
+  Widget _buildSelectionToolbar() {
+    return Container(
+      color: AppTheme.bg3,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _ToolbarButton(
             icon: Icons.copy,
-            onTap: () {
-              TerminalClipboard.copy(_terminal, _terminalController);
-              _keyboardKey.currentState?.exitSelectMode();
-            },
+            label: 'Copy',
+            onTap: _copySelection,
           ),
-        ContextMenuItem(
-          label: 'Paste',
-          icon: Icons.paste,
-          onTap: () => TerminalClipboard.paste(_terminal),
-        ),
-      ],
+          const SizedBox(width: 16),
+          _ToolbarButton(
+            icon: Icons.paste,
+            label: 'Paste',
+            onTap: _paste,
+          ),
+        ],
+      ),
     );
   }
 
@@ -235,6 +252,51 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           const SizedBox(height: 16),
           Text(_error!, style: const TextStyle(color: AppTheme.disconnected), textAlign: TextAlign.center),
         ],
+      ),
+    );
+  }
+}
+
+class _ToolbarButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ToolbarButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHigh,
+      borderRadius: AppTheme.radiusLg,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: AppTheme.radiusLg,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: theme.colorScheme.onSurface),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppFonts.md,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

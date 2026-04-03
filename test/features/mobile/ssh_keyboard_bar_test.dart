@@ -23,6 +23,7 @@ void main() {
   Widget buildApp({
     required void Function(String) onInput,
     GlobalKey<SshKeyboardBarState>? keyboardKey,
+    VoidCallback? onPaste,
     ValueChanged<bool>? onSelectModeChanged,
   }) {
     return MaterialApp(
@@ -31,6 +32,7 @@ void main() {
         body: SshKeyboardBar(
           key: keyboardKey,
           onInput: onInput,
+          onPaste: onPaste,
           onSelectModeChanged: onSelectModeChanged,
         ),
       ),
@@ -449,6 +451,42 @@ void main() {
       key.currentState!.exitSelectMode();
       await tester.pump();
       expect(modes, isEmpty);
+    });
+  });
+
+  group('Paste button', () {
+    testWidgets('renders paste icon in keyboard bar', (tester) async {
+      await tester.pumpWidget(buildApp(onInput: (_) {}));
+      expect(find.byIcon(Icons.paste), findsOneWidget);
+    });
+
+    testWidgets('tapping paste button fires onPaste callback', (tester) async {
+      var pasteCalled = false;
+      await tester.pumpWidget(buildApp(
+        onInput: (_) {},
+        onPaste: () => pasteCalled = true,
+      ));
+
+      await tester.tap(find.byIcon(Icons.paste));
+      await tester.pump();
+      expect(pasteCalled, isTrue);
+    });
+
+    testWidgets('paste button is outside scrollable area', (tester) async {
+      await tester.pumpWidget(buildApp(onInput: (_) {}));
+
+      final pasteFinder = find.byIcon(Icons.paste);
+      final pasteElement = tester.element(pasteFinder);
+      bool insideListView = false;
+      pasteElement.visitAncestorElements((element) {
+        if (element.widget is ListView) {
+          insideListView = true;
+          return false;
+        }
+        if (element.widget is Container) return false;
+        return true;
+      });
+      expect(insideListView, isFalse);
     });
   });
 }

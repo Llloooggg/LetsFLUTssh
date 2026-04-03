@@ -13,12 +13,16 @@ class SshKeyboardBar extends StatefulWidget {
   /// Called when the bar produces input to send to the terminal.
   final void Function(String data) onInput;
 
+  /// Called when the user taps the paste button.
+  final VoidCallback? onPaste;
+
   /// Called when text-select mode is toggled on/off.
   final ValueChanged<bool>? onSelectModeChanged;
 
   const SshKeyboardBar({
     super.key,
     required this.onInput,
+    this.onPaste,
     this.onSelectModeChanged,
   });
 
@@ -154,7 +158,13 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
                   ],
                 ),
               ),
-              // Select + Fn toggles — fixed at right edge, always visible
+              // Paste + Select + Fn toggles — fixed at right edge, always visible
+              _KeyButton(
+                icon: Icons.paste,
+                onTap: () {
+                  widget.onPaste?.call();
+                },
+              ),
               _KeyButton(
                 icon: Icons.select_all,
                 isActive: _selectMode,

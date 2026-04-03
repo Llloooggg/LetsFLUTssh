@@ -939,10 +939,10 @@ class TabEntry {
 | `mobile_shell.dart` | `MobileShell` | Bottom navigation: Sessions / Terminal / SFTP |
 | `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal + keyboard bar |
 | `mobile_file_browser.dart` | `MobileFileBrowser` | Single-pane SFTP (toggle local/remote) |
-| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Select. Main row is horizontally scrollable (`ListView`); Select + Fn buttons are fixed at right edge |
+| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Paste, Select. Main row is horizontally scrollable (`ListView`); Paste + Select + Fn buttons are fixed at right edge |
 | `ssh_key_sequences.dart` | — | Escape sequences for keys |
 
-**Text selection (mobile):** The Select button (📋 icon, fixed at right edge of keyboard bar) toggles text-select mode. When active, `TerminalController.setSuspendPointerInput(true)` prevents mouse events from reaching the TUI app, so the user can drag-select text for copying. Copying via the context menu auto-exits select mode (`exitSelectMode()`). Long-press word selection (built into xterm's `LongPressGestureRecognizer`) works independently of select mode.
+**Text selection (mobile):** The Select button (📋 icon, fixed at right edge of keyboard bar) toggles text-select mode. When active, `TerminalController.setSuspendPointerInput(true)` prevents mouse events from reaching the TUI app, so the user can drag-select text for copying. Long-press word selection (built into xterm's `TerminalGestureHandler`) works independently of select mode. When text is selected (via either method), a floating **selection toolbar** with Copy/Paste buttons appears between the terminal and the keyboard bar. Copying auto-exits select mode (`exitSelectMode()`). A dedicated **Paste button** in the keyboard bar provides always-available paste access. Note: the outer `GestureDetector` does NOT handle `onLongPressStart` — xterm handles long-press internally for word selection, and the `TerminalController` (a `ChangeNotifier`) listener detects selection changes to show/hide the toolbar.
 
 **Architectural difference:** Mobile is NOT a responsive version of desktop. It's a separate `features/mobile/` module with different interaction patterns (bottom nav instead of sidebar+tabs, long-press instead of right-click, swipe navigation).
 
