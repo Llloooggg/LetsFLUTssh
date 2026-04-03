@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pointycastle/digests/sha256.dart';
 
 import '../../utils/file_utils.dart';
+import '../../utils/logger.dart';
 
 /// TOFU (Trust On First Use) host key verification + persistent storage.
 ///
@@ -50,6 +51,10 @@ class KnownHostsManager {
       }
     }
     _loaded = true;
+    AppLogger.instance.log(
+      'Loaded ${_hosts.length} known hosts from $_filePath',
+      name: 'KnownHosts',
+    );
   }
 
   /// Verify host key. Returns true if accepted.
@@ -71,32 +76,43 @@ class KnownHostsManager {
 
     if (existing != null) {
       if (existing == keyString) {
+        AppLogger.instance.log('Host key verified: $hostPort', name: 'KnownHosts');
         return true; // Known and matches
       }
       // Key changed — potential MITM
+      AppLogger.instance.log(
+        'Host key CHANGED for $hostPort ($keyType) — potential MITM',
+        name: 'KnownHosts',
+      );
       if (onHostKeyChanged != null) {
         final fingerprint = _fingerprint(keyBytes);
         final accepted = await onHostKeyChanged!(host, port, keyType, fingerprint);
         if (accepted) {
+          AppLogger.instance.log('Changed host key accepted: $hostPort', name: 'KnownHosts');
           await _updateHost(hostPort, keyString);
           return true;
         }
       }
+      AppLogger.instance.log('Changed host key rejected: $hostPort', name: 'KnownHosts');
       return false;
     }
 
     // Unknown host
+    AppLogger.instance.log('Unknown host: $hostPort ($keyType)', name: 'KnownHosts');
     if (onUnknownHost != null) {
       final fingerprint = _fingerprint(keyBytes);
       final accepted = await onUnknownHost!(host, port, keyType, fingerprint);
       if (accepted) {
+        AppLogger.instance.log('Unknown host accepted (TOFU): $hostPort', name: 'KnownHosts');
         await _addHost(hostPort, keyString);
         return true;
       }
+      AppLogger.instance.log('Unknown host rejected: $hostPort', name: 'KnownHosts');
       return false;
     }
 
     // No callback — reject unknown host (require explicit user confirmation)
+    AppLogger.instance.log('Unknown host rejected (no callback): $hostPort', name: 'KnownHosts');
     return false;
   }
 
