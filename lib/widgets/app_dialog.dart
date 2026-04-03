@@ -227,9 +227,8 @@ class AppDialogAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasBg = background != null;
     final effectiveBg = enabled ? background : AppTheme.bg4;
-    final effectiveFg = enabled
-        ? (foreground ?? (hasBg ? AppTheme.onAccent : AppTheme.fgDim))
-        : AppTheme.fgFaint;
+    final defaultFg = hasBg ? AppTheme.onAccent : AppTheme.fgDim;
+    final effectiveFg = enabled ? (foreground ?? defaultFg) : AppTheme.fgFaint;
 
     return HoverRegion(
       cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
@@ -239,9 +238,7 @@ class AppDialogAction extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: hasBg ? 16 : 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: hasBg
-              ? (hovered && enabled ? _lighten(effectiveBg!) : effectiveBg)
-              : (hovered && enabled ? AppTheme.hover : null),
+          color: _buttonColor(hasBg, hovered, effectiveBg),
         ),
         child: Text(
           label,
@@ -253,6 +250,14 @@ class AppDialogAction extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Color? _buttonColor(bool hasBg, bool hovered, Color? effectiveBg) {
+    final isHoverActive = hovered && enabled;
+    if (hasBg) {
+      return isHoverActive ? _lighten(effectiveBg!) : effectiveBg;
+    }
+    return isHoverActive ? AppTheme.hover : null;
   }
 
   static Color _lighten(Color c) =>
