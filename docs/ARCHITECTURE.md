@@ -1774,6 +1774,7 @@ Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 | `ConnectionManager` | `connectionFactory` | Mock connection creation |
 | `TerminalTab` | `reconnectFactory` | Mock reconnect logic |
 | `FileBrowserTab` | `sftpInitFactory` | Mock SFTP initialization |
+| `MobileFileBrowser` | `sftpInitFactory` | Mock SFTP initialization (mobile) |
 | `ForegroundServiceManager` | `create()` factory | Platform-specific impl |
 
 ### Platform overrides
