@@ -501,24 +501,44 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     required bool inSettings,
     required TabEntry? activeTab,
   }) {
-    final canSplit = !inSettings && activeTab?.kind == TabKind.terminal;
+    final tab = activeTab;
+    final hasTab = !inSettings && tab != null;
+    final isTerminal = hasTab && tab.kind == TabKind.terminal;
     return _Toolbar(
       sidebarOpen: _sidebarOpen,
       onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
       showMenuButton: isNarrow,
-      isTerminalTab: canSplit,
-      onSplitVertical: canSplit
+      isTerminalTab: hasTab,
+      onSplitVertical: hasTab
           ? () {
-              _workspaceKey.currentState
-                  ?.terminalStateFor(activeTab!.id)
-                  ?.splitFocused(SplitDirection.vertical);
+              if (isTerminal) {
+                _workspaceKey.currentState
+                    ?.terminalStateFor(tab.id)
+                    ?.splitFocused(SplitDirection.vertical);
+              } else {
+                final ws = ref.read(workspaceProvider);
+                ref.read(workspaceProvider.notifier).splitAroundNode(
+                      ws.focusedPanelId,
+                      Axis.horizontal,
+                      tab,
+                    );
+              }
             }
           : null,
-      onSplitHorizontal: canSplit
+      onSplitHorizontal: hasTab
           ? () {
-              _workspaceKey.currentState
-                  ?.terminalStateFor(activeTab!.id)
-                  ?.splitFocused(SplitDirection.horizontal);
+              if (isTerminal) {
+                _workspaceKey.currentState
+                    ?.terminalStateFor(tab.id)
+                    ?.splitFocused(SplitDirection.horizontal);
+              } else {
+                final ws = ref.read(workspaceProvider);
+                ref.read(workspaceProvider.notifier).splitAroundNode(
+                      ws.focusedPanelId,
+                      Axis.vertical,
+                      tab,
+                    );
+              }
             }
           : null,
       onSettings: _toggleSettings,
