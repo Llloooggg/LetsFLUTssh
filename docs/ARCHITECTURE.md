@@ -754,7 +754,7 @@ Terminal uses `Ctrl+Shift+` prefix to avoid conflicts with terminal escape seque
 | Ctrl+W | Close active tab |
 | Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab |
 | Ctrl+B | Toggle sidebar |
-| Ctrl+\\ / Ctrl+Shift+\\ | Split terminal vertical / horizontal |
+| Ctrl+\\ / Ctrl+Shift+\\ | Copy tab right / down (any tab type) |
 | Ctrl+, | Toggle settings |
 
 **Terminal** (`terminal_pane.dart`):
@@ -905,6 +905,9 @@ class TabEntry {
   final String label;
   final Connection connection;
   final TabKind kind;       // terminal | sftp
+
+  TabEntry copyWith({String? label});  // same id
+  TabEntry duplicate();                // new UUID, same connection/label/kind
 }
 ```
 
@@ -913,7 +916,7 @@ class TabEntry {
 | File | Class | Purpose |
 |------|-------|---------|
 | `workspace_node.dart` | `WorkspaceNode`, `PanelLeaf`, `WorkspaceBranch` | Sealed split tree for screen-level tiling |
-| `workspace_controller.dart` | `WorkspaceNotifier`, `WorkspaceState` | State management: add/close/move/split/select tabs across panels |
+| `workspace_controller.dart` | `WorkspaceNotifier`, `WorkspaceState` | State management: add/close/move/split/copy/select tabs across panels |
 | `workspace_view.dart` | `WorkspaceView`, `WorkspaceViewState` | Recursive renderer: panels with dividers, tab bars, connection bars |
 | `panel_tab_bar.dart` | `PanelTabBar`, `TabDragData` | Per-panel tab bar with cross-panel drag-and-drop |
 | `drop_zone_overlay.dart` | `PanelDropTarget`, `DropZone` | Snap/dock zones for tab dragging (center, left, right, top, bottom) |
@@ -933,6 +936,8 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 **Screen-level split:** `WorkspaceNode` tree divides the screen into panels. Each `PanelLeaf` holds its own `List<TabEntry>` with an active index and renders its own `PanelTabBar` + `IndexedStack`.
 
 **Terminal-level split:** `SplitNode` tree inside each `TerminalTab` divides a single terminal tab into panes. These two tiling levels are independent.
+
+**Copy Right / Copy Down:** Toolbar buttons and Ctrl+\\ / Ctrl+Shift+\\ duplicate the active tab (any type) into a new adjacent panel via `WorkspaceNotifier.copyToNewPanel()`. The duplicate reuses the same `Connection` object (no new SSH connection), getting its own shell/SFTP channel.
 
 **Drag-and-drop:** Tabs can be dragged between panels. Dropping on a panel's tab bar inserts the tab. Dropping on a panel's content area shows drop zone overlays (center = add to panel, edges = split panel in that direction).
 
@@ -1017,13 +1022,13 @@ AppShell({
 ```
 Desktop layout shell shared by the main screen and settings. Provides the consistent visual frame: toolbar (surfaceContainerLow, no border), main body area, and optional status bar. Sidebar resize uses a `Stack` overlay — panels sit flush, a 6 px invisible hit zone with a 1 px `dividerColor` line overlays the boundary. On narrow viewports, set `useDrawer: true` to render the sidebar as a pull-out `Drawer` instead of an inline panel.
 
-**Toolbar layout:** `[sidebar toggle | AppTabBar (embedded) | split buttons | settings]`. Tabs are embedded directly in the toolbar row via `AppTabBar(embedded: true)` to save vertical space. When no tabs are open or in settings mode, the tab area is replaced by a `Spacer`.
+**Toolbar layout:** `[sidebar toggle | AppTabBar (embedded) | copy right / copy down | settings]`. Tabs are embedded directly in the toolbar row via `AppTabBar(embedded: true)` to save vertical space. When no tabs are open or in settings mode, the tab area is replaced by a `Spacer`.
 
 State class `AppShellState` exposes `sidebarWidth` getter. Sidebar width is managed internally and persists as long as the widget stays mounted.
 
 ### ClippedRow
 
-Drop-in `Row` replacement that clips overflowing children instead of showing yellow-and-black debug stripes. Extends `Flex` with `direction: Axis.horizontal` and `clipBehavior: Clip.hardEdge`. Use in any row whose parent can be resized (sidebar, split panes, column headers, status bars).
+Drop-in `Row` replacement that clips overflowing children **and** suppresses Flutter's debug overflow indicator (yellow-and-black stripes). Extends `Flex` and uses a custom `RenderFlex` subclass (`_ClippedRenderFlex`) that overrides `paint()` to always clip via `pushClipRect` and skip `paintOverflowIndicator` entirely. The built-in `Flex.clipBehavior: Clip.hardEdge` only clips children painting — the debug indicator is still painted unconditionally by `RenderFlex`. Use in any row whose parent can be resized (sidebar, split panes, column headers, status bars).
 
 ### AppIconButton
 
@@ -1589,6 +1594,9 @@ TabEntry {
   label: String
   connection: Connection
   kind: TabKind           // terminal | sftp
+
+  copyWith({label})       // same id, updated label
+  duplicate()             // new UUID, same connection/label/kind
 }
 ```
 
@@ -1720,7 +1728,7 @@ All desktop platforms enforce a minimum window size of **480 × 360** logical pi
 | macOS | `macos/Runner/MainFlutterWindow.swift` | `NSWindow.contentMinSize` |
 
 Additionally, internal resizable elements (sidebar, file browser columns, split panes) use overflow-safe patterns:
-- **`ClippedRow`** (`widgets/clipped_row.dart`): drop-in `Row` replacement that clips overflow via `Flex(clipBehavior: Clip.hardEdge)`. Used in file browser rows, column headers, breadcrumb paths, connection bar, and transfer panel
+- **`ClippedRow`** (`widgets/clipped_row.dart`): drop-in `Row` replacement with custom `_ClippedRenderFlex` that clips overflow and suppresses the debug overflow indicator entirely. Used in file browser rows, column headers, breadcrumb paths, connection bar, and transfer panel
 - **Sidebar text** (`_SidebarFooter`, `_PanelHeader`, session tree rows): `Flexible` / `Expanded` with `TextOverflow.ellipsis`
 - **Welcome screen**: `SingleChildScrollView` prevents vertical overflow on small windows
 
