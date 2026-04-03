@@ -586,7 +586,7 @@ void main() {
       handler.dispose();
     });
 
-    test('handleUri skips duplicate URI on second call', () {
+    test('handleUri skips duplicate URI within dedup window', () {
       int callCount = 0;
       handler.onConnect = (_) => callCount++;
 
