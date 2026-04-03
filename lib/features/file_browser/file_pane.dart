@@ -304,11 +304,8 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final labelColor = isLocal ? AppTheme.blue : AppTheme.green;
 
     return Container(
-      height: 30,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        border: AppTheme.borderBottom,
-      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final showNav = constraints.maxWidth > 160;
@@ -488,10 +485,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     }
 
     return Container(
-      height: 24,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(color: AppTheme.bg3),
+      clipBehavior: Clip.hardEdge,
       child: Row(
         children: [
           const SizedBox(width: 20), // icon space
@@ -769,12 +766,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final style = AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint);
 
     return Container(
-      height: 22,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        border: AppTheme.borderTop,
-      ),
+      color: AppTheme.bg3,
       child: ClippedRow(
         children: [
           Flexible(
@@ -891,7 +885,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         ContextMenuItem(
           label: hasMultiple ? 'Delete ${selectedEntries.length} items' : 'Delete',
           icon: Icons.delete,
-          color: const Color(0xFFE06C75),
+          color: AppTheme.red,
           onTap: () => _confirmDelete(context, selectedEntries),
         ),
       ],

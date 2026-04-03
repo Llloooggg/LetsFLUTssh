@@ -13,6 +13,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import 'cursor_overlay.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/error_state.dart';
@@ -73,11 +74,20 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   @visibleForTesting
   ValueNotifier<bool> get showSearchNotifier => _showSearch;
 
+  /// Exposed for testing — access the xterm Terminal instance.
+  @visibleForTesting
+  Terminal get terminal => _terminal;
+
+  /// Exposed for testing — access the TerminalController.
+  @visibleForTesting
+  TerminalController get terminalController => _terminalController;
+
   @override
   void initState() {
     super.initState();
     _terminal = Terminal(maxLines: ref.read(configProvider).scrollback);
     _terminalController = TerminalController();
+    HardwareKeyboard.instance.addHandler(_onShiftToggle);
     _connectAndOpenShell();
   }
 
@@ -136,10 +146,23 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onShiftToggle);
     _shellConn?.close();
     _terminalController.dispose();
     _showSearch.dispose();
     super.dispose();
+  }
+
+  /// When the terminal app has enabled mouse mode (e.g. htop, vim), holding
+  /// Shift bypasses mouse forwarding so the user can select text locally.
+  /// Standard terminal-emulator behaviour (xterm, GNOME Terminal, etc.).
+  bool _onShiftToggle(KeyEvent event) {
+    final shouldSuspend = HardwareKeyboard.instance.isShiftPressed &&
+        _terminal.mouseMode != MouseMode.none;
+    if (_terminalController.suspendedPointerInputs != shouldSuspend) {
+      _terminalController.setSuspendPointerInput(shouldSuspend);
+    }
+    return false; // never consume the key event
   }
 
   /// Toggle search bar visibility. Exposed for testing — in production
@@ -195,43 +218,53 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                     _showContextMenu(context, event.position);
                   }
                 },
-                child: TerminalView(
-                  _terminal,
-                  controller: _terminalController,
-                  autofocus: widget.isFocused,
-                  hardwareKeyboardOnly: plat.isDesktopPlatform,
-                  onKeyEvent: _handleTerminalKey,
-                  backgroundOpacity: 1.0,
-                  padding: const EdgeInsets.all(4),
-                  theme: TerminalTheme(
-                    cursor: AppTheme.accent,
-                    selection: AppTheme.selection,
-                    foreground: AppTheme.fg,
-                    background: AppTheme.bg2,
-                    black: const Color(0xFF1B1D23),
-                    red: AppTheme.red,
-                    green: AppTheme.green,
-                    yellow: AppTheme.yellow,
-                    blue: AppTheme.blue,
-                    magenta: AppTheme.purple,
-                    cyan: AppTheme.cyan,
-                    white: AppTheme.fg,
-                    brightBlack: AppTheme.fgFaint,
-                    brightRed: AppTheme.red,
-                    brightGreen: AppTheme.green,
-                    brightYellow: AppTheme.yellow,
-                    brightBlue: AppTheme.blue,
-                    brightMagenta: AppTheme.purple,
-                    brightCyan: AppTheme.cyan,
-                    brightWhite: AppTheme.fgBright,
-                    searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
-                    searchHitBackgroundCurrent: AppTheme.accent,
-                    searchHitForeground: Colors.white,
-                  ),
-                  textStyle: TerminalStyle(
-                    fontSize: fontSize,
-                    fontFamily: 'JetBrains Mono',
-                  ),
+                child: Stack(
+                  children: [
+                    TerminalView(
+                      _terminal,
+                      controller: _terminalController,
+                      autofocus: widget.isFocused,
+                      hardwareKeyboardOnly: plat.isDesktopPlatform,
+                      onKeyEvent: _handleTerminalKey,
+                      backgroundOpacity: 1.0,
+                      padding: const EdgeInsets.all(4),
+                      theme: TerminalTheme(
+                        cursor: AppTheme.termCursor,
+                        selection: AppTheme.termSelection,
+                        foreground: AppTheme.fg,
+                        background: AppTheme.bg2,
+                        black: AppTheme.termBlack,
+                        red: AppTheme.termRed,
+                        green: AppTheme.termGreen,
+                        yellow: AppTheme.termYellow,
+                        blue: AppTheme.termBlue,
+                        magenta: AppTheme.termMagenta,
+                        cyan: AppTheme.termCyan,
+                        white: AppTheme.termWhite,
+                        brightBlack: AppTheme.termBrightBlack,
+                        brightRed: AppTheme.termBrightRed,
+                        brightGreen: AppTheme.termBrightGreen,
+                        brightYellow: AppTheme.termBrightYellow,
+                        brightBlue: AppTheme.termBrightBlue,
+                        brightMagenta: AppTheme.termBrightMagenta,
+                        brightCyan: AppTheme.termBrightCyan,
+                        brightWhite: AppTheme.termBrightWhite,
+                        searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+                        searchHitBackgroundCurrent: AppTheme.accent,
+                        searchHitForeground: AppTheme.searchHitFg,
+                      ),
+                      textStyle: TerminalStyle(
+                        fontSize: fontSize,
+                        fontFamily: 'JetBrains Mono',
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: CursorTextOverlay(
+                        terminal: _terminal,
+                        fontSize: fontSize,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -431,12 +464,9 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 36,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.bg1,
-        border: AppTheme.borderBottom,
-      ),
+      color: AppTheme.bg1,
       child: Row(
         children: [
           Expanded(

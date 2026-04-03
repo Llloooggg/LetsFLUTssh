@@ -87,7 +87,7 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
                   },
                   builder: (context, candidates, _) => Container(
                     width: endZoneW,
-                    height: 32,
+                    height: AppTheme.barHeightSm,
                     decoration: candidates.isNotEmpty
                         ? BoxDecoration(
                             border: Border(
@@ -107,14 +107,10 @@ class _AppTabBarState extends ConsumerState<AppTabBar> {
 
     if (widget.embedded) return content;
 
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      height: 32,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
+      height: AppTheme.barHeightSm,
+      color: scheme.surfaceContainerLow,
       child: content,
     );
   }
@@ -220,9 +216,14 @@ class _TabItem extends StatefulWidget {
 
 class _TabItemState extends State<_TabItem> {
   Color _dotColor() {
-    return widget.tab.connection.state == SSHConnectionState.connected
-        ? AppTheme.green
-        : AppTheme.fgFaint;
+    switch (widget.tab.connection.state) {
+      case SSHConnectionState.connected:
+        return AppTheme.connectedColor(Theme.of(context).brightness);
+      case SSHConnectionState.connecting:
+        return AppTheme.connectingColor(Theme.of(context).brightness);
+      case SSHConnectionState.disconnected:
+        return AppTheme.fgFaint;
+    }
   }
 
   Color _iconColor() {
@@ -233,18 +234,13 @@ class _TabItemState extends State<_TabItem> {
   Widget _buildContent(bool showClose) {
     return SizedBox(
       width: widget.width,
-      height: 32,
+      height: AppTheme.barHeightSm,
       child: Stack(
         children: [
           Container(
-            height: 32,
+            height: AppTheme.barHeightSm,
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: widget.isActive ? AppTheme.bg2 : AppTheme.bg1,
-              border: Border(
-                right: BorderSide(color: AppTheme.borderLight),
-              ),
-            ),
+            color: widget.isActive ? AppTheme.bg2 : AppTheme.bg1,
             child: Row(
               children: [
                 Container(
@@ -338,7 +334,7 @@ class _DragChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 32,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AppTheme.bg3,

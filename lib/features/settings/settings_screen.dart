@@ -1241,8 +1241,8 @@ class _Toggle extends StatelessWidget {
             child: Container(
               width: 14,
               height: 14,
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: AppTheme.onAccent,
                 shape: BoxShape.circle,
               ),
             ),
@@ -1287,7 +1287,7 @@ class _SegmentControl extends StatelessWidget {
               style: AppFonts.inter(
                 fontSize: AppFonts.sm,
                 fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-                color: isSelected ? Colors.white : AppTheme.fgDim,
+                color: isSelected ? AppTheme.onAccent : AppTheme.fgDim,
               ),
             ),
           ),
@@ -1704,8 +1704,8 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const bg = Colors.black87;
-    final fg = Colors.green.shade300;
+    final bg = AppTheme.bg0;
+    final fg = AppTheme.green;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1755,7 +1755,7 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
             return Container(
               width: double.infinity,
               height: availableHeight.clamp(200.0, double.infinity),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: bg,
                 borderRadius: AppTheme.radiusLg,
               ),

@@ -443,12 +443,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final Widget sidebar;
     final Widget body;
 
+    final sessionBody = _buildSessionBody(context, tabState, activeTab);
     if (inSettings) {
       sidebar = SettingsSidebar(
         selectedIndex: _settingsIndex,
         onSelect: (i) => setState(() => _settingsIndex = i),
       );
-      body = SettingsContent(selectedIndex: _settingsIndex);
+      // Keep terminal tabs alive (Offstage) so SSH shells survive settings.
+      body = Stack(
+        children: [
+          Offstage(child: sessionBody),
+          SettingsContent(selectedIndex: _settingsIndex),
+        ],
+      );
     } else {
       sidebar = SessionPanel(
         onConnect: (session) => _connectSession(context, ref, session),
@@ -456,7 +463,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
         crossMarquee: _crossMarquee,
       );
-      body = _buildSessionBody(context, tabState, activeTab);
+      body = sessionBody;
     }
 
     return AppShell(
@@ -707,9 +714,10 @@ class _Toolbar extends StatelessWidget {
                 ? 'Hide Sidebar (Ctrl+B)'
                 : 'Show Sidebar (Ctrl+B)',
           ),
-        if (tabBar != null)
-          Expanded(child: tabBar!)
-        else
+        if (tabBar != null) ...[
+          _Divider(),
+          Expanded(child: tabBar!),
+        ] else
           const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
@@ -771,12 +779,9 @@ class _ConnectionBar extends StatelessWidget {
     final faintColor = scheme.onSurface.withValues(alpha: 0.45);
 
     return Container(
-      height: 24,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
+      color: scheme.surfaceContainerHigh,
       child: ClippedRow(
         children: [
           Container(
@@ -864,7 +869,7 @@ class _AlreadyRunningApp extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.block, size: 48, color: Colors.grey),
+              Icon(Icons.block, size: 48, color: AppTheme.fgDim),
               const SizedBox(height: 16),
               const Text(
                 'Another instance of LetsFLUTssh is already running.',
