@@ -59,7 +59,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         body: SafeArea(
           child: Column(
             children: [
-              _buildAppBar(context),
+              _buildAppBar(context, allTabs.length),
               Expanded(child: _buildPageContent(allTabs, activeTab, context)),
             ],
           ),
@@ -87,7 +87,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     _confirmExit(context);
   }
 
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, int tabCount) {
     return Container(
       height: 44,
       color: AppTheme.bg1,
@@ -141,6 +141,12 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                   count: activeCount,
                   tooltip: 'Active connections',
                   iconColor: connectionIconColor,
+                ),
+                const SizedBox(width: 10),
+                StatusIndicator(
+                  icon: Icons.tab_outlined,
+                  count: tabCount,
+                  tooltip: 'Open tabs',
                 ),
               ],
             );
@@ -217,14 +223,14 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             icon: Icons.terminal_outlined,
             activeIcon: Icons.terminal,
             label: 'Terminal',
-            badgeCount: termCount,
+            disabledWhenZero: termCount,
           ),
           _buildNavItem(
             index: 2,
             icon: Icons.folder_outlined,
             activeIcon: Icons.folder,
             label: 'Files',
-            badgeCount: sftpCount,
+            disabledWhenZero: sftpCount,
           ),
         ],
       ),
@@ -236,10 +242,10 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     required IconData icon,
     required IconData activeIcon,
     required String label,
-    int? badgeCount,
+    int? disabledWhenZero,
   }) {
     final isSelected = _navIndex == index;
-    final isDisabled = badgeCount != null && badgeCount == 0;
+    final isDisabled = disabledWhenZero != null && disabledWhenZero == 0;
     final opacity = isDisabled ? 0.4 : 1.0;
     final Color labelColor;
     if (isSelected) {
@@ -250,17 +256,11 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       labelColor = AppTheme.fgDim;
     }
 
-    Widget iconWidget = Icon(
+    final Widget iconWidget = Icon(
       isSelected ? activeIcon : icon,
       size: 24,
       color: labelColor,
     );
-    if (badgeCount != null && badgeCount > 0) {
-      iconWidget = Badge(
-        label: Text('$badgeCount'),
-        child: iconWidget,
-      );
-    }
 
     return Expanded(
       child: GestureDetector(
