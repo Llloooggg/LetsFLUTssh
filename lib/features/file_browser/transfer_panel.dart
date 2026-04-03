@@ -247,6 +247,12 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     });
   }
 
+  static Color? _headerColor(bool isActive, bool hovered) {
+    if (isActive) return AppTheme.accent;
+    if (hovered) return AppTheme.fgDim;
+    return null;
+  }
+
   Widget _buildColumnHeaders() {
     final style = AppFonts.inter(
       fontSize: AppFonts.xxs,
@@ -263,18 +269,17 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       return HoverRegion(
         cursor: SystemMouseCursors.click,
         onTap: () => _setSort(column),
-        builder: (hovered) => SizedBox(
-          width: width,
-          child: Text(
-            '$label$sortSuffix',
-            style: isActive
-                ? style.copyWith(color: AppTheme.accent)
-                : hovered
-                    ? style.copyWith(color: AppTheme.fgDim)
-                    : style,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+        builder: (hovered) {
+          final color = _headerColor(isActive, hovered);
+          return SizedBox(
+            width: width,
+            child: Text(
+              '$label$sortSuffix',
+              style: color != null ? style.copyWith(color: color) : style,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        },
       );
     }
 

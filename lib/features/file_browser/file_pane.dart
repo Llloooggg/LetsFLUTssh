@@ -351,39 +351,8 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       scrollDirection: Axis.horizontal,
       child: Row(
       children: [
-        if (rootLabel != null)
-          HoverRegion(
-            cursor: SystemMouseCursors.click,
-            onTap: () => ctrl.navigateTo(rootPath),
-            builder: (hovered) => Text(
-              rootLabel,
-              style: AppFonts.mono(fontSize: AppFonts.xs, color: hovered ? AppTheme.fg : AppTheme.fgFaint),
-            ),
-          )
-        else
-          AppIconButton(
-            icon: Icons.home,
-            onTap: () => ctrl.navigateTo(rootPath),
-            tooltip: 'Root',
-            size: 11,
-            boxSize: 20,
-            color: AppTheme.fgFaint,
-          ),
-        for (var i = 0; i < navParts.length; i++) ...[
-          Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint)),
-          HoverRegion(
-            cursor: SystemMouseCursors.click,
-            onTap: () => _navigateToPart(isWindows, parts, navParts, i),
-            builder: (hovered) => Text(
-              navParts[i],
-                style: AppFonts.mono(
-                  fontSize: AppFonts.xs,
-                  color: hovered ? AppTheme.accent : (i == navParts.length - 1 ? AppTheme.fg : AppTheme.fgDim),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-        ],
+        _buildRootSegment(rootLabel, rootPath),
+        ..._buildPathSegments(isWindows, parts, navParts),
         AppIconButton(
           icon: Icons.edit,
           onTap: () {
@@ -398,6 +367,50 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       ],
       ),
     );
+  }
+
+  Widget _buildRootSegment(String? rootLabel, String rootPath) {
+    if (rootLabel != null) {
+      return HoverRegion(
+        cursor: SystemMouseCursors.click,
+        onTap: () => ctrl.navigateTo(rootPath),
+        builder: (hovered) => Text(
+          rootLabel,
+          style: AppFonts.mono(fontSize: AppFonts.xs, color: hovered ? AppTheme.fg : AppTheme.fgFaint),
+        ),
+      );
+    }
+    return AppIconButton(
+      icon: Icons.home,
+      onTap: () => ctrl.navigateTo(rootPath),
+      tooltip: 'Root',
+      size: 11,
+      boxSize: 20,
+      color: AppTheme.fgFaint,
+    );
+  }
+
+  List<Widget> _buildPathSegments(bool isWindows, List<String> parts, List<String> navParts) {
+    final separatorText = isWindows ? ' \\ ' : ' / ';
+    final sepStyle = AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint);
+    return [
+      for (var i = 0; i < navParts.length; i++) ...[
+        Text(separatorText, style: sepStyle),
+        HoverRegion(
+          cursor: SystemMouseCursors.click,
+          onTap: () => _navigateToPart(isWindows, parts, navParts, i),
+          builder: (hovered) {
+            final isLast = i == navParts.length - 1;
+            final color = hovered ? AppTheme.accent : (isLast ? AppTheme.fg : AppTheme.fgDim);
+            return Text(
+              navParts[i],
+              style: AppFonts.mono(fontSize: AppFonts.xs, color: color),
+              overflow: TextOverflow.ellipsis,
+            );
+          },
+        ),
+      ],
+    ];
   }
 
   static bool _isWindowsPath(String path) =>
@@ -477,19 +490,18 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       return HoverRegion(
         cursor: SystemMouseCursors.click,
         onTap: () => ctrl.setSort(column),
-        builder: (hovered) => SizedBox(
-          width: width,
-          child: Text(
-            '$label$sortSuffix',
-            style: isActive
-                ? headerStyle.copyWith(color: AppTheme.accent)
-                : hovered
-                    ? headerStyle.copyWith(color: AppTheme.fgDim)
-                    : headerStyle,
-            overflow: TextOverflow.ellipsis,
-            textAlign: textAlign,
-          ),
-        ),
+        builder: (hovered) {
+          final color = _headerColor(isActive, hovered);
+          return SizedBox(
+            width: width,
+            child: Text(
+              '$label$sortSuffix',
+              style: color != null ? headerStyle.copyWith(color: color) : headerStyle,
+              overflow: TextOverflow.ellipsis,
+              textAlign: textAlign,
+            ),
+          );
+        },
       );
     }
 
@@ -521,6 +533,12 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         ],
       ),
     );
+  }
+
+  static Color? _headerColor(bool isActive, bool hovered) {
+    if (isActive) return AppTheme.accent;
+    if (hovered) return AppTheme.fgDim;
+    return null;
   }
 
   // ── MarqueeMixin implementation ──

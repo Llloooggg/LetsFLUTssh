@@ -194,6 +194,51 @@ Manual release: `gh workflow run build-release.yml` — fails if CI hasn't passe
 7. **Tree-based sessions** — nested groups via `/` separator, flat list with group path → [§3.4 Sessions](docs/ARCHITECTURE.md#34-session-management-coresession)
 8. **Custom UI components** — `AppIconButton` and `HoverRegion` instead of Material `IconButton`/`InkWell`. Never use `IconButton` directly — use `AppIconButton` for icons, `HoverRegion` for custom hover containers → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
 
+## Dart/Flutter Style Rules
+
+All code must follow **Effective Dart** guidelines and pass `dart analyze` with zero issues. Key rules enforced in this project:
+
+### Naming
+- **Classes, enums, typedefs, extensions:** `UpperCamelCase` — `SessionManager`, `SortColumn`
+- **Variables, parameters, functions, methods:** `lowerCamelCase` — `currentPath`, `navigateTo()`
+- **Constants:** `lowerCamelCase` (not `SCREAMING_CAPS`) — `defaultTimeout`, `maxRetries`
+- **Files and directories:** `snake_case` — `file_pane.dart`, `transfer_panel.dart`
+- **Libraries and packages:** `snake_case` — `import 'package:letsflutssh/core/ssh.dart'`
+- **Private members:** prefix with `_` — `_sortColumn`, `_buildHeader()`
+- **Boolean names:** positive phrasing with `is`/`has`/`can`/`should` — `isConnected`, `hasError`
+
+### Formatting & Structure
+- **Line length:** 120 characters max (dart format default for this project)
+- **Trailing commas:** always on the last argument/element in multi-line constructs — enables clean diffs and auto-formatting
+- **Imports:** relative within the package (`prefer_relative_imports` lint enabled). Group: dart → package → relative, separated by blank lines
+- **Single quotes** for strings (`prefer_single_quotes` lint enabled)
+- **`const` constructors** wherever possible (`prefer_const_constructors` lint enabled)
+- **`final` locals** — never reassign when not needed (`prefer_final_locals` lint enabled)
+
+### Code Quality
+- **Cognitive complexity** ≤ 15 per method (SonarCloud S3776). Extract helper methods to reduce complexity
+- **No nested ternaries** (SonarCloud S3358). Extract to local variables or use `if`/`else`
+- **No `print()`/`debugPrint()`** — use `AppLogger` (also enforced by `avoid_print` lint)
+- **Sort `child`/`children` last** in widget constructors (`sort_child_properties_last` lint)
+- **Key in widget constructors** (`use_key_in_widget_constructors` lint)
+- **Dead code** is a warning, **missing return** is an error (see `analysis_options.yaml`)
+- **No generated file edits** — `*.g.dart` and `*.freezed.dart` are excluded from analysis
+
+### Flutter-Specific
+- **Widget methods vs widgets:** extract to private methods within the same widget class for simple cases; extract to separate `StatelessWidget`/`StatefulWidget` for reusable or complex pieces
+- **`BuildContext`** must not be stored or used across async gaps
+- **Dispose** controllers, focus nodes, animation controllers in `dispose()`
+- **`const` widgets** when possible — improves rebuild performance
+
+### What the Analyzer Enforces
+
+All rules are in `analysis_options.yaml` (extends `flutter_lints/flutter.yaml`). Enabled lints:
+`prefer_const_constructors`, `prefer_const_declarations`, `prefer_final_locals`, `prefer_single_quotes`, `sort_child_properties_last`, `use_key_in_widget_constructors`, `avoid_print`, `prefer_relative_imports`
+
+**Rule:** `make analyze` must pass with zero issues before every commit. No suppressions (`// ignore:`) — fix the root cause.
+
+---
+
 ## Conventions
 
 - **Logging** — `AppLogger.instance.log(message, name: 'Tag')` everywhere, never `print()`/`debugPrint()`. **Never log sensitive data** → [§7 AppLogger API](docs/ARCHITECTURE.md#7-utilities--public-api-reference)

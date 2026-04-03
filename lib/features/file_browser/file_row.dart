@@ -105,16 +105,7 @@ class FileRow extends StatelessWidget {
     final theme = Theme.of(context);
 
     return HoverRegion(
-      onTap: () {
-        if (HardwareKeyboard.instance.logicalKeysPressed
-                .contains(LogicalKeyboardKey.controlLeft) ||
-            HardwareKeyboard.instance.logicalKeysPressed
-                .contains(LogicalKeyboardKey.controlRight)) {
-          onCtrlTap();
-        } else {
-          onTap();
-        }
-      },
+      onTap: _handleTap,
       onDoubleTap: onDoubleTap,
       onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
       builder: (hovered) => Container(
@@ -122,83 +113,99 @@ class FileRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.selection : (hovered ? AppTheme.hover : null),
+          color: _rowColor(hovered),
         ),
         child: Row(
-            children: [
-              Icon(
-                fileIcon(entry),
-                size: 14,
-                color: fileIconColor(entry, theme.brightness),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Tooltip(
-                  message: entry.name,
-                  waitDuration: const Duration(milliseconds: 600),
-                  child: Text(
-                    entry.name,
-                    style: AppFonts.mono(
-                      fontSize: AppFonts.sm,
-                      color: entry.isDir ? AppTheme.fg : AppTheme.fgDim,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              if (sizeWidth > 0) ...[
-                _colDivider(),
-                SizedBox(
-                  width: sizeWidth,
-                  child: Text(
-                    entry.isDir
-                        ? (folderSizeText ?? '')
-                        : formatSize(entry.size),
-                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-              if (modifiedWidth > 0) ...[
-                _colDivider(),
-                SizedBox(
-                  width: modifiedWidth,
-                  child: Text(
-                    formatTimestamp(entry.modTime),
-                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-              if (modeWidth > 0) ...[
-                _colDivider(),
-                SizedBox(
-                  width: modeWidth,
-                  child: Text(
-                    entry.modeString,
-                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-              if (ownerWidth > 0 && entry.owner.isNotEmpty) ...[
-                _colDivider(),
-                SizedBox(
-                  width: ownerWidth,
-                  child: Text(
-                    entry.owner,
-                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ],
+          children: _buildColumns(theme),
+        ),
+      ),
+    );
+  }
+
+  void _handleTap() {
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    final ctrlHeld = keys.contains(LogicalKeyboardKey.controlLeft) ||
+        keys.contains(LogicalKeyboardKey.controlRight);
+    ctrlHeld ? onCtrlTap() : onTap();
+  }
+
+  Color? _rowColor(bool hovered) {
+    if (isSelected) return AppTheme.selection;
+    if (hovered) return AppTheme.hover;
+    return null;
+  }
+
+  List<Widget> _buildColumns(ThemeData theme) {
+    final metaStyle = AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint);
+    return [
+      Icon(
+        fileIcon(entry),
+        size: 14,
+        color: fileIconColor(entry, theme.brightness),
+      ),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Tooltip(
+          message: entry.name,
+          waitDuration: const Duration(milliseconds: 600),
+          child: Text(
+            entry.name,
+            style: AppFonts.mono(
+              fontSize: AppFonts.sm,
+              color: entry.isDir ? AppTheme.fg : AppTheme.fgDim,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-    );
+      ),
+      if (sizeWidth > 0) ...[
+        _colDivider(),
+        SizedBox(
+          width: sizeWidth,
+          child: Text(
+            entry.isDir ? (folderSizeText ?? '') : formatSize(entry.size),
+            style: metaStyle,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+      ],
+      if (modifiedWidth > 0) ...[
+        _colDivider(),
+        SizedBox(
+          width: modifiedWidth,
+          child: Text(
+            formatTimestamp(entry.modTime),
+            style: metaStyle,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+      ],
+      if (modeWidth > 0) ...[
+        _colDivider(),
+        SizedBox(
+          width: modeWidth,
+          child: Text(
+            entry.modeString,
+            style: metaStyle,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+      ],
+      if (ownerWidth > 0 && entry.owner.isNotEmpty) ...[
+        _colDivider(),
+        SizedBox(
+          width: ownerWidth,
+          child: Text(
+            entry.owner,
+            style: metaStyle,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    ];
   }
 }
 
