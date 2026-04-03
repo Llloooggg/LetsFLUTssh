@@ -317,23 +317,31 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _setupDeepLinks() {
     _deepLinkHandler.onConnect = (config) {
-      final ctx = navigatorKey.currentContext;
-      if (ctx == null) return;
-      final manager = ref.read(connectionManagerProvider);
-      final conn = manager.connectAsync(config, label: config.displayName);
-      ref.read(tabProvider.notifier).addTerminalTab(conn);
+      // Defer to next frame — when resuming from background the navigator
+      // context may not be available yet on the current frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx == null) return;
+        final manager = ref.read(connectionManagerProvider);
+        final conn = manager.connectAsync(config, label: config.displayName);
+        ref.read(tabProvider.notifier).addTerminalTab(conn);
+      });
     };
     _deepLinkHandler.onLfsFileOpened = (filePath) {
-      final ctx = navigatorKey.currentContext;
-      if (ctx != null && ctx.mounted) {
-        _showLfsImportDialog(ctx, filePath);
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          _showLfsImportDialog(ctx, filePath);
+        }
+      });
     };
     _deepLinkHandler.onKeyFileOpened = (filePath) {
-      final ctx = navigatorKey.currentContext;
-      if (ctx != null && ctx.mounted) {
-        Toast.show(ctx, message: 'SSH key received: ${filePath.split('/').last}', level: ToastLevel.info);
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Toast.show(ctx, message: 'SSH key received: ${filePath.split('/').last}', level: ToastLevel.info);
+        }
+      });
     };
     _deepLinkHandler.onQrImport = (data) {
       _handleQrImport(data);
@@ -594,9 +602,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Future<void> _handleQrImport(QrImportData data) async {
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null || !ctx.mounted) return;
-
+    // Data operations don't need UI context — always execute, even when
+    // the app is still resuming from background.
     for (final session in data.sessions) {
       await ref.read(sessionProvider.notifier).add(session);
     }
@@ -604,13 +611,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       await ref.read(sessionProvider.notifier).addEmptyFolder(folder);
     }
 
-    if (ctx.mounted) {
-      Toast.show(
-        ctx,
-        message: 'Imported ${data.sessions.length} session(s) via QR',
-        level: ToastLevel.success,
-      );
-    }
+    // Toast is best-effort — show when the navigator context is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        Toast.show(
+          ctx,
+          message: 'Imported ${data.sessions.length} session(s) via QR',
+          level: ToastLevel.success,
+        );
+      }
+    });
   }
 
   Future<void> _showLfsImportDialog(BuildContext context, String filePath) async {

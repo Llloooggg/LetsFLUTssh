@@ -531,6 +531,7 @@ class ConfigStore {
 ```dart
 class DeepLinkHandler {
   // Scheme: letsflutssh://connect?host=X&user=Y&port=Z
+  // Scheme: letsflutssh://import?d=BASE64URL (QR import)
   // .lfs files: app_links file open intent
   // .pem/.key files: file open intent
 
@@ -538,6 +539,14 @@ class DeepLinkHandler {
   // - path traversal rejection (../)
   // - scheme whitelist
   // - host/port validation
+
+  // Deduplication: time-limited (2 s) to cover the cold-start race
+  // (getInitialLink + uriLinkStream). After the window, the same URI
+  // is processed again (e.g. re-scanning the same QR from background).
+
+  // Background safety: all callbacks in _MainScreenState use
+  // addPostFrameCallback to defer UI-dependent work. Data-only
+  // operations (QR session import) run immediately without context.
 }
 ```
 
