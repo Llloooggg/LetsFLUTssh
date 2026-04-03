@@ -1264,11 +1264,14 @@ class _SidebarFooter extends ConsumerWidget {
     final tabCount = tabState.tabs.length;
 
     final theme = Theme.of(context);
-    final Color? connectionIconColor = connectedCount > 0
-        ? AppTheme.connectedColor(theme.brightness)
-        : connectingCount > 0
-            ? AppTheme.connectingColor(theme.brightness)
-            : null;
+    final Color? connectionIconColor;
+    if (connectedCount > 0) {
+      connectionIconColor = AppTheme.connectedColor(theme.brightness);
+    } else if (connectingCount > 0) {
+      connectionIconColor = AppTheme.connectingColor(theme.brightness);
+    } else {
+      connectionIconColor = null;
+    }
 
     return Container(
       height: AppTheme.barHeightSm,
