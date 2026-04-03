@@ -2194,7 +2194,7 @@ void main() {
       final actionBarBox = tester.getSize(
         find.ancestor(of: selectedText, matching: find.byType(Container)).first,
       );
-      expect(actionBarBox.height, 36.0);
+      expect(actionBarBox.height, AppTheme.barHeightSm);
     });
 
     testWidgets('Cancel exits select mode', (tester) async {

@@ -84,10 +84,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   Widget _buildAppBar(BuildContext context) {
     return Container(
       height: 44,
-      decoration: BoxDecoration(
-        color: AppTheme.bg1,
-        border: AppTheme.borderBottom,
-      ),
+      color: AppTheme.bg1,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         children: [
@@ -98,7 +95,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               color: AppTheme.accent,
               borderRadius: AppTheme.radiusLg,
             ),
-            child: const Icon(Icons.terminal, size: 14, color: Colors.white),
+            child: Icon(Icons.terminal, size: 14, color: AppTheme.onAccent),
           ),
           const SizedBox(width: 8),
           Text(
@@ -177,62 +174,92 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     );
   }
 
-  NavigationBar _buildBottomNav(TabState tabState) {
+  Widget _buildBottomNav(TabState tabState) {
     final termCount = _terminalTabCount(tabState);
     final sftpCount = _sftpTabCount(tabState);
-    return NavigationBar(
+    return Container(
       height: 56,
-      backgroundColor: AppTheme.bg1,
-      selectedIndex: _navIndex,
-      onDestinationSelected: (i) {
-        if (i == 1 && termCount == 0) return;
-        if (i == 2 && sftpCount == 0) return;
-        setState(() => _navIndex = i);
-      },
-      destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.dns_outlined),
-          selectedIcon: Icon(Icons.dns),
-          label: 'Sessions',
-        ),
-        _buildBadgedDestination(
-          count: termCount,
-          icon: Icons.terminal_outlined,
-          selectedIcon: Icons.terminal,
-          label: 'Terminal',
-        ),
-        _buildBadgedDestination(
-          count: sftpCount,
-          icon: Icons.folder_outlined,
-          selectedIcon: Icons.folder,
-          label: 'Files',
-        ),
-      ],
+      color: AppTheme.bg1,
+      child: Row(
+        children: [
+          _buildNavItem(
+            index: 0,
+            icon: Icons.dns_outlined,
+            activeIcon: Icons.dns,
+            label: 'Sessions',
+          ),
+          _buildNavItem(
+            index: 1,
+            icon: Icons.terminal_outlined,
+            activeIcon: Icons.terminal,
+            label: 'Terminal',
+            badgeCount: termCount,
+          ),
+          _buildNavItem(
+            index: 2,
+            icon: Icons.folder_outlined,
+            activeIcon: Icons.folder,
+            label: 'Files',
+            badgeCount: sftpCount,
+          ),
+        ],
+      ),
     );
   }
 
-  NavigationDestination _buildBadgedDestination({
-    required int count,
+  Widget _buildNavItem({
+    required int index,
     required IconData icon,
-    required IconData selectedIcon,
+    required IconData activeIcon,
     required String label,
+    int? badgeCount,
   }) {
-    final hasItems = count > 0;
-    return NavigationDestination(
-      icon: Opacity(
-        opacity: hasItems ? 1.0 : 0.4,
-        child: Badge(
-          isLabelVisible: hasItems,
-          label: Text('$count'),
-          child: Icon(icon),
+    final isSelected = _navIndex == index;
+    final isDisabled = badgeCount != null && badgeCount == 0;
+    final opacity = isDisabled ? 0.4 : 1.0;
+    final labelColor = isSelected
+        ? AppTheme.fg
+        : isDisabled
+            ? AppTheme.fgFaint
+            : AppTheme.fgDim;
+
+    Widget iconWidget = Icon(
+      isSelected ? activeIcon : icon,
+      size: 24,
+      color: labelColor,
+    );
+    if (badgeCount != null && badgeCount > 0) {
+      iconWidget = Badge(
+        label: Text('$badgeCount'),
+        child: iconWidget,
+      );
+    }
+
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: isDisabled
+            ? null
+            : () => setState(() => _navIndex = index),
+        child: Opacity(
+          opacity: opacity,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              iconWidget,
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.xs,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: labelColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      selectedIcon: Badge(
-        isLabelVisible: hasItems,
-        label: Text('$count'),
-        child: Icon(selectedIcon),
-      ),
-      label: label,
     );
   }
 
@@ -394,12 +421,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
             Container(
               height: 32,
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: isActive ? AppTheme.bg2 : Colors.transparent,
-                border: Border(
-                  right: BorderSide(color: AppTheme.border),
-                ),
-              ),
+              color: isActive ? AppTheme.bg2 : Colors.transparent,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -501,10 +523,7 @@ class _MobileTerminalPage extends ConsumerWidget {
     return Column(
       children: [
         Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bg1,
-            border: AppTheme.borderBottom,
-          ),
+          color: AppTheme.bg1,
           child: Row(
             children: [
               Expanded(
@@ -579,10 +598,7 @@ class _MobileSftpPage extends ConsumerWidget {
     return Column(
       children: [
         Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bg1,
-            border: AppTheme.borderBottom,
-          ),
+          color: AppTheme.bg1,
           child: Row(
             children: [
               Expanded(

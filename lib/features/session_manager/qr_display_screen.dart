@@ -63,10 +63,10 @@ class QrDisplayScreen extends StatelessWidget {
                     dataModuleShape: QrDataModuleShape.square,
                     color: Colors.black,
                   ),
-                  errorStateBuilder: (context, error) => const Center(
+                  errorStateBuilder: (context, error) => Center(
                     child: Text(
                       'QR generation failed',
-                      style: TextStyle(color: Colors.red),
+                      style: TextStyle(color: AppTheme.red),
                     ),
                   ),
                 ),

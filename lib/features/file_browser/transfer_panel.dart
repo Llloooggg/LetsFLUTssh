@@ -25,10 +25,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
   double _panelHeight = 200;
 
   // Resizable column widths
-  double _localColWidth = 140;
-  double _remoteColWidth = 140;
-  double _sizeColWidth = 56;
-  double _timeColWidth = 105;
+  double _localColWidth = 110;
+  double _remoteColWidth = 110;
+  double _sizeColWidth = 50;
+  double _timeColWidth = 95;
 
   // Sorting
   TransferSortColumn _sortColumn = TransferSortColumn.time;
@@ -53,85 +53,82 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Drag handle
-        if (_expanded)
-          MouseRegion(
-            cursor: SystemMouseCursors.resizeRow,
-            child: GestureDetector(
-              onVerticalDragUpdate: (d) {
-                setState(() {
-                  _panelHeight = (_panelHeight - d.delta.dy).clamp(80.0, 500.0);
-                });
-              },
+        // Toggle header with overlaid drag handle
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            GestureDetector(
+              onTap: () => setState(() => _expanded = !_expanded),
               child: Container(
-                height: 4,
+                height: AppTheme.barHeightSm,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 color: AppTheme.bg0,
-                alignment: Alignment.center,
-                child: Container(width: 32, height: 1, color: AppTheme.borderLight),
+                child: ClippedRow(
+                  children: [
+                    Icon(
+                      _expanded ? Icons.expand_more : Icons.chevron_right,
+                      size: 11,
+                      color: AppTheme.fgDim,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Transfers:',
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.xs,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.fgDim,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    if (status != null) ...[
+                      Text(
+                        '${status.running} active',
+                        style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.accent),
+                      ),
+                      Text(
+                        ', ${status.queued} queued',
+                        style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+                      ),
+                    ],
+                    const Spacer(),
+                    historyAsync.when(
+                      data: (history) => Text(
+                        '${history.length} in history',
+                        style: AppFonts.inter(fontSize: AppFonts.xxs, color: AppTheme.fgFaint),
+                      ),
+                      loading: SizedBox.shrink,
+                      error: (_, _) => const SizedBox.shrink(),
+                    ),
+                    const SizedBox(width: 4),
+                    if (_expanded)
+                      _headerButton(
+                        icon: Icons.delete_outline,
+                        tooltip: 'Clear history',
+                        onTap: () => manager.clearHistory(),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        // Toggle header
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Container(
-            height: 24,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.bg0,
-              border: Border(
-                top: AppTheme.borderSide,
-                bottom: _expanded
-                    ? AppTheme.borderSide
-                    : BorderSide.none,
+            if (_expanded)
+              Positioned(
+                top: -3,
+                left: 0,
+                right: 0,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.resizeRow,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onVerticalDragUpdate: (d) {
+                      setState(() {
+                        _panelHeight = (_panelHeight - d.delta.dy).clamp(80.0, 500.0);
+                      });
+                    },
+                    child: const SizedBox(height: 6),
+                  ),
+                ),
               ),
-            ),
-            child: ClippedRow(
-              children: [
-                Icon(
-                  _expanded ? Icons.expand_more : Icons.chevron_right,
-                  size: 11,
-                  color: AppTheme.fgDim,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Transfers:',
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.xs,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                if (status != null) ...[
-                  Text(
-                    '${status.running} active',
-                    style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.accent),
-                  ),
-                  Text(
-                    ', ${status.queued} queued',
-                    style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-                  ),
-                ],
-                const Spacer(),
-                historyAsync.when(
-                  data: (history) => Text(
-                    '${history.length} in history',
-                    style: AppFonts.inter(fontSize: AppFonts.xxs, color: AppTheme.fgFaint),
-                  ),
-                  loading: SizedBox.shrink,
-                  error: (_, _) => const SizedBox.shrink(),
-                ),
-                const SizedBox(width: 4),
-                if (_expanded)
-                  _headerButton(
-                    icon: Icons.delete_outline,
-                    tooltip: 'Clear history',
-                    onTap: () => manager.clearHistory(),
-                  ),
-              ],
-            ),
-          ),
+          ],
         ),
         // Column headers + transfer list
         if (_expanded) ...[
@@ -279,10 +276,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     }
 
     return Container(
-      height: 24,
+      height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(color: AppTheme.bg3),
+      clipBehavior: Clip.hardEdge,
       child: Row(
         children: [
           SizedBox(width: 16, child: Text('#', style: style)),
@@ -355,10 +352,17 @@ class _HistoryRow extends StatelessWidget {
           const SizedBox(width: 4),
           SizedBox(
             width: 20,
-            child: Icon(
-              isFailed ? Icons.error_outline : Icons.check_circle_outline,
-              size: 10,
-              color: isFailed ? AppTheme.red : AppTheme.green,
+            child: Tooltip(
+              message: isFailed && entry.error != null
+                  ? entry.error!
+                  : isFailed
+                      ? 'Failed'
+                      : 'Completed',
+              child: Icon(
+                isFailed ? Icons.error_outline : Icons.check_circle_outline,
+                size: 10,
+                color: isFailed ? AppTheme.red : AppTheme.green,
+              ),
             ),
           ),
           const SizedBox(width: 4),
@@ -366,7 +370,10 @@ class _HistoryRow extends StatelessWidget {
           Expanded(
             child: Text(
               entry.name,
-              style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+              style: AppFonts.mono(
+                fontSize: AppFonts.xs,
+                color: isFailed ? AppTheme.red : AppTheme.fgDim,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
