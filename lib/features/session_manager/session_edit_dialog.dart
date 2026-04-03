@@ -8,6 +8,7 @@ import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
@@ -266,32 +267,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   // ── Header ──
 
   Widget _buildHeader() {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        border: AppTheme.borderBottom,
-      ),
-      child: Row(
-        children: [
-          Text(
-            _isEditing ? 'Edit Connection' : 'New Connection',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: AppFonts.md,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.fg,
-            ),
-          ),
-          const Spacer(),
-          AppIconButton(
-            icon: Icons.close,
-            onTap: () => Navigator.of(context).pop(),
-            size: 13,
-            boxSize: 22,
-          ),
-        ],
-      ),
+    return AppDialogHeader(
+      title: _isEditing ? 'Edit Connection' : 'New Connection',
+      onClose: () => Navigator.of(context).pop(),
     );
   }
 
@@ -665,51 +643,17 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   // ── Footer ──
 
   Widget _buildFooter() {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        border: AppTheme.borderTop,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          _footerButton('Cancel', onTap: () => Navigator.of(context).pop()),
-          const SizedBox(width: 8),
-          if (_isEditing) ...[
-            _footerButton('Save', bg: AppTheme.bg4, fg: AppTheme.fg, onTap: _save),
-            const SizedBox(width: 8),
-            _footerButton('Save & Connect', bg: AppTheme.accent, fg: AppTheme.onAccent, onTap: () => _save(connect: true)),
-          ] else ...[
-            _footerButton('Save', bg: AppTheme.bg4, fg: AppTheme.fg, onTap: _save),
-            const SizedBox(width: 8),
-            _footerButton('Connect', bg: AppTheme.accent, fg: AppTheme.onAccent, onTap: _connectOnly),
-          ],
+    return AppDialogFooter(
+      actions: [
+        AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
+        if (_isEditing) ...[
+          AppDialogAction.secondary(label: 'Save', onTap: _save),
+          AppDialogAction.primary(label: 'Save & Connect', onTap: () => _save(connect: true)),
+        ] else ...[
+          AppDialogAction.secondary(label: 'Save', onTap: _save),
+          AppDialogAction.primary(label: 'Connect', onTap: _connectOnly),
         ],
-      ),
-    );
-  }
-
-  Widget _footerButton(String label, {Color? bg, Color? fg, VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 26,
-        padding: EdgeInsets.symmetric(horizontal: bg != null ? 16 : 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: bg,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: AppFonts.sm,
-            fontWeight: bg != null ? FontWeight.w500 : null,
-            color: fg ?? AppTheme.fgDim,
-          ),
-        ),
-      ),
+      ],
     );
   }
 

@@ -672,7 +672,7 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'Confirm Password'), 'pass2');
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.tap(find.text('Export'));
       await tester.pump();
 
       expect(find.text('Passwords do not match'), findsOneWidget);
@@ -730,7 +730,7 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'Confirm Password'), 'securepass');
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.tap(find.text('Export'));
       // Progress dialog with CircularProgressIndicator appears — can't pumpAndSettle.
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
@@ -775,7 +775,7 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'Confirm Password'), 'p');
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.tap(find.text('Export'));
       await tester.pumpAndSettle();
 
       await tester.pump(const Duration(seconds: 1));
@@ -1003,7 +1003,7 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'Master Password'), 'pw123');
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      await tester.tap(find.text('Import'));
       await tester.pumpAndSettle();
       expect(find.text('Path to .lfs file'), findsNothing);
 
@@ -1035,7 +1035,7 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'Master Password'), 'pw');
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      await tester.tap(find.text('Import'));
       await tester.pumpAndSettle();
 
       await tester.pump(const Duration(seconds: 1));
@@ -1297,7 +1297,7 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'Confirm Password'), 'beta');
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.tap(find.text('Export'));
       await tester.pump();
 
       // Toast text is visible
@@ -1336,11 +1336,11 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'Confirm Password'), 'longpassword2');
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.tap(find.text('Export'));
       await tester.pump();
 
       // Dialog still visible
-      expect(find.widgetWithText(FilledButton, 'Export'), findsOneWidget);
+      expect(find.text('Export'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pump();
@@ -1377,7 +1377,7 @@ void main() {
           find.widgetWithText(TextField, 'Master Password'), 'pw');
 
       // Tap Import — dialog closes, then _executeImport runs with real I/O
-      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      await tester.tap(find.text('Import'));
       // Pump to process dialog close animation
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

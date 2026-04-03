@@ -90,25 +90,24 @@ void main() {
       await tester.pump();
 
       // Tap Import without entering password — _submit checks isEmpty
-      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      await tester.tap(find.text('Import'));
       await tester.pump();
 
       // Dialog should still be visible (no Navigator.pop happened)
       expect(find.text('Import Data'), findsOneWidget);
     });
 
-    testWidgets('SegmentedButton has correct initial selection', (tester) async {
+    testWidgets('default mode is Merge', (tester) async {
       final lfsFile = File('${tempDir.path}/init.lfs');
       lfsFile.writeAsBytesSync([0]);
 
       await tester.pumpWidget(buildRealDialog(lfsFile.path));
       await tester.pump();
 
-      // Default mode is merge
-      final segmented = tester.widget<SegmentedButton<ImportMode>>(
-        find.byType(SegmentedButton<ImportMode>),
-      );
-      expect(segmented.selected, {ImportMode.merge});
+      // Default mode is merge — the merge description is shown
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+      expect(find.text('Merge'), findsOneWidget);
+      expect(find.text('Replace'), findsOneWidget);
     });
 
     testWidgets('TextField is obscured for password', (tester) async {
@@ -187,7 +186,7 @@ void main() {
 
       // Enter password and tap Import
       await tester.enterText(find.byType(TextField), 'secret123');
-      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+      await tester.tap(find.text('Import'));
       await tester.pumpAndSettle();
 
       expect(dialogCompleted, isTrue);

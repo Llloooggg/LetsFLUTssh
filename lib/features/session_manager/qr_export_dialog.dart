@@ -4,7 +4,9 @@ import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/app_divider.dart';
+import '../../widgets/hover_region.dart';
 
 /// Dialog for selecting sessions to export via QR code.
 ///
@@ -26,9 +28,8 @@ class QrExportDialog extends StatefulWidget {
     required List<Session> sessions,
     required Set<String> emptyFolders,
   }) {
-    return showDialog<String>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
+    return AppDialog.show<String>(
+      context,
       builder: (_) => QrExportDialog(
         sessions: sessions,
         emptyFolders: emptyFolders,
@@ -154,110 +155,137 @@ class _QrExportDialogState extends State<QrExportDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final tree = SessionTree.build(widget.sessions, emptyFolders: widget.emptyFolders);
     final sizePercent = qrMaxPayloadBytes > 0
         ? (_payloadSize / qrMaxPayloadBytes).clamp(0.0, 1.0)
         : 0.0;
-    final sizeColor = _fitsInQr ? theme.colorScheme.primary : AppTheme.disconnected;
+    final sizeColor = _fitsInQr ? AppTheme.green : AppTheme.red;
 
-    return AlertDialog(
-      title: const Text('Export Sessions via QR'),
-      content: SizedBox(
-        width: double.maxFinite,
+    return Dialog(
+      backgroundColor: AppTheme.bg1,
+      insetPadding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Disclaimer
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                borderRadius: AppTheme.radiusLg,
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 16, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Passwords and SSH keys are NOT included.\n'
-                      'Imported sessions will need credentials filled in.',
-                      style: TextStyle(fontSize: AppFonts.md),
-                    ),
-                  ),
-                ],
-              ),
+            AppDialogHeader(
+              title: 'Export Sessions via QR',
+              onClose: () => Navigator.of(context).pop(),
             ),
-            const SizedBox(height: 12),
-
-            // Select All
-            InkWell(
-              onTap: () => _toggleAll(!_allSelected),
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: _tristateValue,
-                    tristate: true,
-                    onChanged: (v) => _toggleAll(v == true),
-                  ),
-                  Text(
-                    'Select All (${_selectedIds.length}/${widget.sessions.length})',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: AppFonts.lg),
-                  ),
-                ],
-              ),
-            ),
-            const AppDivider(),
-
-            // Session tree with checkboxes
             Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: _buildTreeItems(tree, 0),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Disclaimer
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accent.withValues(alpha: 0.1),
+                        borderRadius: AppTheme.radiusLg,
+                        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 16, color: AppTheme.accent),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Passwords and SSH keys are NOT included.\n'
+                              'Imported sessions will need credentials filled in.',
+                              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Select All
+                    HoverRegion(
+                      onTap: () => _toggleAll(!_allSelected),
+                      builder: (hovered) => Container(
+                        color: hovered ? AppTheme.hover : null,
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: _tristateValue,
+                              tristate: true,
+                              onChanged: (v) => _toggleAll(v == true),
+                            ),
+                            Text(
+                              'Select All (${_selectedIds.length}/${widget.sessions.length})',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: AppFonts.md,
+                                color: AppTheme.fg,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const AppDivider(),
+
+                    // Session tree with checkboxes
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: _buildTreeItems(tree, 0),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Size indicator
+                    Text(
+                      'Payload: ${(_payloadSize / 1024).toStringAsFixed(1)} KB / '
+                      '${(qrMaxPayloadBytes / 1024).toStringAsFixed(1)} KB max',
+                      style: TextStyle(fontSize: AppFonts.sm, color: sizeColor),
+                    ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: AppTheme.radiusSm,
+                      child: LinearProgressIndicator(
+                        value: sizePercent,
+                        backgroundColor: AppTheme.bg3,
+                        color: sizeColor,
+                      ),
+                    ),
+
+                    if (!_fitsInQr && _hasSelection) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Too large — deselect some sessions or use .lfs file export.',
+                        style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
-
-            const SizedBox(height: 12),
-
-            // Size indicator
-            Text(
-              'Payload: ${(_payloadSize / 1024).toStringAsFixed(1)} KB / '
-              '${(qrMaxPayloadBytes / 1024).toStringAsFixed(1)} KB max',
-              style: TextStyle(fontSize: AppFonts.md, color: sizeColor),
+            AppDialogFooter(
+              actions: [
+                AppDialogAction.cancel(
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+                AppDialogAction.secondary(
+                  label: 'Export All',
+                  onTap: _exportAll,
+                ),
+                AppDialogAction.primary(
+                  label: 'Show QR',
+                  enabled: _hasSelection && _fitsInQr,
+                  onTap: _showQr,
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: sizePercent,
-              backgroundColor: theme.colorScheme.surfaceContainerHigh,
-              color: sizeColor,
-            ),
-
-            if (!_fitsInQr && _hasSelection) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Too large — deselect some sessions or use .lfs file export.',
-                style: TextStyle(fontSize: AppFonts.md, color: AppTheme.disconnectedColor(theme.brightness)),
-              ),
-            ],
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.tonal(
-          onPressed: _exportAll,
-          child: const Text('Export All'),
-        ),
-        FilledButton(
-          onPressed: _hasSelection && _fitsInQr ? _showQr : null,
-          child: const Text('Show QR'),
-        ),
-      ],
     );
   }
 
@@ -278,25 +306,32 @@ class _QrExportDialogState extends State<QrExportDialog> {
     final tristate = _isFolderPartial(node.fullPath);
     return Padding(
       padding: EdgeInsets.only(left: depth * 20.0),
-      child: InkWell(
+      child: HoverRegion(
         onTap: () => _toggleFolder(node.fullPath),
-        child: Row(
-          children: [
-            Checkbox(
-              value: tristate,
-              tristate: true,
-              onChanged: (_) => _toggleFolder(node.fullPath),
-            ),
-            const Icon(Icons.folder, size: 16),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                node.name,
-                style: TextStyle(fontSize: AppFonts.lg, fontWeight: FontWeight.w500),
-                overflow: TextOverflow.ellipsis,
+        builder: (hovered) => Container(
+          color: hovered ? AppTheme.hover : null,
+          child: Row(
+            children: [
+              Checkbox(
+                value: tristate,
+                tristate: true,
+                onChanged: (_) => _toggleFolder(node.fullPath),
               ),
-            ),
-          ],
+              const Icon(Icons.folder, size: 16),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  node.name,
+                  style: TextStyle(
+                    fontSize: AppFonts.md,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.fg,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -306,31 +341,31 @@ class _QrExportDialogState extends State<QrExportDialog> {
     final isSelected = _selectedIds.contains(session.id);
     return Padding(
       padding: EdgeInsets.only(left: depth * 20.0),
-      child: InkWell(
+      child: HoverRegion(
         onTap: () => _toggleSession(session.id),
-        child: Row(
-          children: [
-            Checkbox(
-              value: isSelected,
-              onChanged: (_) => _toggleSession(session.id),
-            ),
-            const Icon(Icons.computer, size: 16),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                session.label.isNotEmpty ? session.label : session.displayName,
-                style: TextStyle(fontSize: AppFonts.lg),
-                overflow: TextOverflow.ellipsis,
+        builder: (hovered) => Container(
+          color: hovered ? AppTheme.hover : null,
+          child: Row(
+            children: [
+              Checkbox(
+                value: isSelected,
+                onChanged: (_) => _toggleSession(session.id),
               ),
-            ),
-            Text(
-              '${session.user}@${session.host}',
-              style: TextStyle(
-                fontSize: AppFonts.sm,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+              const Icon(Icons.computer, size: 16),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  session.label.isNotEmpty ? session.label : session.displayName,
+                  style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ],
+              Text(
+                '${session.user}@${session.host}',
+                style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+              ),
+            ],
+          ),
         ),
       ),
     );

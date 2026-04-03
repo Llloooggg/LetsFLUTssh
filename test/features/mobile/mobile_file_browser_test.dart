@@ -536,7 +536,7 @@ void main() {
       await tester.tap(find.text('New Folder'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
     });
 
     testWidgets('bottom sheet Delete action opens delete confirmation',
