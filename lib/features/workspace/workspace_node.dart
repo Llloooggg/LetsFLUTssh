@@ -125,6 +125,15 @@ List<String> collectPanelIds(WorkspaceNode node) {
   };
 }
 
+/// Finds any [WorkspaceNode] by [nodeId], or `null` if not found.
+WorkspaceNode? findNode(WorkspaceNode root, String nodeId) {
+  if (root.id == nodeId) return root;
+  if (root is WorkspaceBranch) {
+    return findNode(root.first, nodeId) ?? findNode(root.second, nodeId);
+  }
+  return null;
+}
+
 /// Finds a [PanelLeaf] by [panelId], or `null` if not found.
 PanelLeaf? findPanel(WorkspaceNode root, String panelId) {
   return switch (root) {

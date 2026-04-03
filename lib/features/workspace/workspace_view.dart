@@ -70,7 +70,20 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
       builder: (context, constraints) {
         final totalSize =
             isHorizontal ? constraints.maxWidth : constraints.maxHeight;
-        return _buildSplitLayout(node, isHorizontal, totalSize, focusedPanelId);
+        final content =
+            _buildSplitLayout(node, isHorizontal, totalSize, focusedPanelId);
+
+        // Add edge drop zones on the cross-axis edges so that a tab can be
+        // docked beside the *entire* branch (not just one child panel).
+        // E.g. when the branch splits vertically (top/bottom), we show
+        // left and right edge zones spanning the full height.
+        return _BranchEdgeDropTarget(
+          branchId: node.id,
+          direction: node.direction,
+          onEdgeDrop: (data, zone) =>
+              _handleBranchEdgeDrop(data, node.id, zone),
+          child: content,
+        );
       },
     );
   }
@@ -277,6 +290,38 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     }
   }
 
+  void _handleBranchEdgeDrop(
+    TabDragData data,
+    String branchId,
+    DropZone zone,
+  ) {
+    final notifier = ref.read(workspaceProvider.notifier);
+    final direction = zone == DropZone.left || zone == DropZone.right
+        ? Axis.horizontal
+        : Axis.vertical;
+    final insertBefore = zone == DropZone.left || zone == DropZone.top;
+
+    notifier.splitAroundNode(
+      branchId,
+      direction,
+      data.tab,
+      insertBefore: insertBefore,
+    );
+    // Remove the tab from its source panel if it came from a different panel.
+    // splitAroundNode doesn't touch the source panel.
+    final sourcePanel = findPanel(
+      ref.read(workspaceProvider).root,
+      data.sourcePanelId,
+    );
+    if (sourcePanel != null) {
+      final stillThere =
+          sourcePanel.tabs.any((t) => t.id == data.tab.id);
+      if (stillThere) {
+        notifier.closeTab(data.sourcePanelId, data.tab.id);
+      }
+    }
+  }
+
   void _showTabContextMenu(
     BuildContext context,
     PanelLeaf panel,
@@ -437,6 +482,141 @@ class _PanelConnectionBar extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Branch-level edge drop zones
+// ---------------------------------------------------------------------------
+
+/// Adds thin drop zones on the cross-axis edges of a [WorkspaceBranch].
+///
+/// When a branch splits vertically (top/bottom), this adds left and right
+/// edge zones spanning the full height. When horizontal (left/right), it adds
+/// top and bottom edge zones. This lets users dock a tab beside the *entire*
+/// branch rather than only beside one child panel.
+class _BranchEdgeDropTarget extends StatefulWidget {
+  final String branchId;
+  final Axis direction;
+  final Widget child;
+  final void Function(TabDragData data, DropZone zone) onEdgeDrop;
+
+  const _BranchEdgeDropTarget({
+    required this.branchId,
+    required this.direction,
+    required this.child,
+    required this.onEdgeDrop,
+  });
+
+  @override
+  State<_BranchEdgeDropTarget> createState() => _BranchEdgeDropTargetState();
+}
+
+class _BranchEdgeDropTargetState extends State<_BranchEdgeDropTarget> {
+  DropZone? _activeZone;
+  final _key = GlobalKey();
+
+  /// Width/height of the edge hit zone in logical pixels.
+  static const _edgeSize = 32.0;
+
+  DropZone? _zoneFromPosition(Offset global) {
+    final box = _key.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return null;
+
+    final local = box.globalToLocal(global);
+    final size = box.size;
+
+    // Only expose the cross-axis edges.
+    if (widget.direction == Axis.vertical) {
+      // Branch is top/bottom — show left/right edge zones.
+      if (local.dx < _edgeSize) return DropZone.left;
+      if (local.dx > size.width - _edgeSize) return DropZone.right;
+    } else {
+      // Branch is left/right — show top/bottom edge zones.
+      if (local.dy < _edgeSize) return DropZone.top;
+      if (local.dy > size.height - _edgeSize) return DropZone.bottom;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<TabDragData>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) {
+        final zone = _activeZone;
+        setState(() => _activeZone = null);
+        if (zone != null) {
+          widget.onEdgeDrop(d.data, zone);
+        }
+      },
+      onMove: (d) {
+        final zone = _zoneFromPosition(d.offset);
+        if (zone != _activeZone) {
+          setState(() => _activeZone = zone);
+        }
+      },
+      onLeave: (_) {
+        if (_activeZone != null) {
+          setState(() => _activeZone = null);
+        }
+      },
+      builder: (context, candidates, _) {
+        final showOverlay = candidates.isNotEmpty && _activeZone != null;
+        return Stack(
+          key: _key,
+          children: [
+            widget.child,
+            if (showOverlay) _buildEdgeOverlay(_activeZone!),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildEdgeOverlay(DropZone zone) {
+    final color = AppTheme.accent.withValues(alpha: 0.15);
+    final border = Border.all(color: AppTheme.accent, width: 2);
+
+    Alignment alignment;
+    double widthFactor;
+    double heightFactor;
+
+    switch (zone) {
+      case DropZone.left:
+        alignment = Alignment.centerLeft;
+        widthFactor = 0.5;
+        heightFactor = 1.0;
+      case DropZone.right:
+        alignment = Alignment.centerRight;
+        widthFactor = 0.5;
+        heightFactor = 1.0;
+      case DropZone.top:
+        alignment = Alignment.topCenter;
+        widthFactor = 1.0;
+        heightFactor = 0.5;
+      case DropZone.bottom:
+        alignment = Alignment.bottomCenter;
+        widthFactor = 1.0;
+        heightFactor = 0.5;
+      case DropZone.center:
+        return const SizedBox.shrink();
+    }
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Align(
+          alignment: alignment,
+          child: FractionallySizedBox(
+            widthFactor: widthFactor,
+            heightFactor: heightFactor,
+            child: Container(
+              decoration: BoxDecoration(color: color, border: border),
+            ),
           ),
         ),
       ),
