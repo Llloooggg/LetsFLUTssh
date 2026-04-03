@@ -1039,7 +1039,7 @@ void main() {
       AppTheme.setBrightness(Brightness.dark);
     });
 
-    testWidgets('badge shows terminal tab count', (tester) async {
+    testWidgets('app bar shows tab count in StatusIndicator', (tester) async {
       final conn = Connection(
         id: 'conn-3',
         label: 'Server',
@@ -1072,8 +1072,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Badge should show "2" for terminal tabs
+      // Tab count shown via StatusIndicator in the app bar, not Badge
+      expect(find.byType(Badge), findsNothing);
       expect(find.text('2'), findsWidgets);
+      expect(find.byIcon(Icons.tab_outlined), findsAtLeast(1));
     });
 
     testWidgets('header shows StatusIndicator for saved sessions and active connections', (tester) async {
@@ -1115,8 +1117,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Two StatusIndicator widgets in header: saved sessions + active connections
-      expect(find.byType(StatusIndicator), findsNWidgets(2));
+      // Three StatusIndicator widgets in header: saved sessions + active connections + open tabs
+      expect(find.byType(StatusIndicator), findsNWidgets(3));
 
       // Saved sessions icon (dns_outlined) — only in header (footer hidden on mobile)
       expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
@@ -1132,11 +1134,13 @@ void main() {
       expect(savedIndicator.tooltip, 'Saved sessions');
 
       // Active count should be 0 (no connections)
-      final activeIndicator = tester.widget<StatusIndicator>(
-        find.byType(StatusIndicator).last,
-      );
+      final activeIndicator = tester.widgetList<StatusIndicator>(
+        find.byType(StatusIndicator),
+      ).firstWhere((s) => s.tooltip == 'Active connections');
       expect(activeIndicator.count, 0);
-      expect(activeIndicator.tooltip, 'Active connections');
+
+      // Tab count indicator present
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
     testWidgets('header connection indicator uses green color when connected', (tester) async {
@@ -1170,9 +1174,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final activeIndicator = tester.widget<StatusIndicator>(
-        find.byType(StatusIndicator).last,
-      );
+      final activeIndicator = tester.widgetList<StatusIndicator>(
+        find.byType(StatusIndicator),
+      ).firstWhere((s) => s.tooltip == 'Active connections');
       expect(activeIndicator.count, 1);
       expect(activeIndicator.iconColor, AppTheme.green);
     });
@@ -1208,9 +1212,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final activeIndicator = tester.widget<StatusIndicator>(
-        find.byType(StatusIndicator).last,
-      );
+      final activeIndicator = tester.widgetList<StatusIndicator>(
+        find.byType(StatusIndicator),
+      ).firstWhere((s) => s.tooltip == 'Active connections');
       expect(activeIndicator.count, 1);
       expect(activeIndicator.iconColor, AppTheme.yellow);
     });
