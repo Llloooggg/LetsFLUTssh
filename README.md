@@ -20,8 +20,8 @@ Lightweight cross-platform SSH/SFTP client with GUI, built with Flutter.
 
 Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS, Android, and iOS.
 
-![SSH Terminal — session tree, tabbed terminal with htop](docs/screenshots/LetsFLUTssh_ssh.png)
-![SFTP File Browser — dual-pane local/remote with transfer panel](docs/screenshots/LetsFLUTssh_sftp.png)
+![SSH Terminal — session tree, tabbed terminal with htop](docs/screenshots/LetsFLUTssh_terminal.png)
+![SFTP File Browser — dual-pane local/remote with transfer panel](docs/screenshots/LetsFLUTssh_files.png)
 
 ## Features
 
