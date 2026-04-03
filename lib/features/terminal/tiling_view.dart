@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/connection/connection.dart';
+import '../../theme/app_theme.dart';
 import 'split_node.dart';
 import 'terminal_pane.dart';
 
@@ -68,10 +69,8 @@ class _TilingViewState extends State<TilingView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalSize = isVertical ? constraints.maxWidth : constraints.maxHeight;
-        const dividerThickness = 4.0;
-        final availableSize = totalSize - dividerThickness;
-        final firstSize = availableSize * node.ratio;
-        final secondSize = availableSize * (1 - node.ratio);
+        final firstSize = totalSize * node.ratio;
+        final secondSize = totalSize * (1 - node.ratio);
 
         final children = <Widget>[
           SizedBox(
@@ -79,7 +78,6 @@ class _TilingViewState extends State<TilingView> {
             height: isVertical ? null : firstSize,
             child: _buildNode(node.first, hasMultiplePanes),
           ),
-          _buildDivider(node, isVertical, totalSize),
           SizedBox(
             width: isVertical ? secondSize : null,
             height: isVertical ? null : secondSize,
@@ -87,17 +85,28 @@ class _TilingViewState extends State<TilingView> {
           ),
         ];
 
-        if (isVertical) {
-          return Row(children: children);
-        } else {
-          return Column(children: children);
-        }
+        final layout = isVertical
+            ? Row(children: children)
+            : Column(children: children);
+
+        return Stack(
+          children: [
+            layout,
+            Positioned(
+              left: isVertical ? firstSize - 3 : 0,
+              top: isVertical ? 0 : firstSize - 3,
+              right: isVertical ? null : 0,
+              bottom: isVertical ? 0 : null,
+              child: _buildDivider(node, isVertical, totalSize),
+            ),
+          ],
+        );
       },
     );
   }
 
   Widget _buildDivider(BranchNode node, bool isVertical, double totalSize) {
-    const dividerThickness = 4.0;
+    const hitSize = 6.0;
     const minPaneSize = 80.0;
 
     return MouseRegion(
@@ -106,10 +115,9 @@ class _TilingViewState extends State<TilingView> {
         behavior: HitTestBehavior.opaque,
         onPanUpdate: (details) {
           final delta = isVertical ? details.delta.dx : details.delta.dy;
-          final availableSize = totalSize - dividerThickness;
-          final newRatio = (node.ratio + delta / availableSize).clamp(
-            minPaneSize / availableSize,
-            1.0 - minPaneSize / availableSize,
+          final newRatio = (node.ratio + delta / totalSize).clamp(
+            minPaneSize / totalSize,
+            1.0 - minPaneSize / totalSize,
           );
           if (newRatio != node.ratio) {
             final updated = BranchNode(
@@ -122,10 +130,16 @@ class _TilingViewState extends State<TilingView> {
             widget.onTreeChanged(replaceNode(widget.root, node.id, updated));
           }
         },
-        child: Container(
-          width: isVertical ? dividerThickness : double.infinity,
-          height: isVertical ? double.infinity : dividerThickness,
-          color: Theme.of(context).dividerColor,
+        child: SizedBox(
+          width: isVertical ? hitSize : double.infinity,
+          height: isVertical ? double.infinity : hitSize,
+          child: Center(
+            child: Container(
+              width: isVertical ? 1 : double.infinity,
+              height: isVertical ? double.infinity : 1,
+              color: AppTheme.border,
+            ),
+          ),
         ),
       ),
     );
