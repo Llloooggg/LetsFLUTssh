@@ -1585,26 +1585,26 @@ void main() {
       expect(find.text('SESSIONS'), findsNothing);
     });
 
-    testWidgets('split buttons shown only for terminal tab', (tester) async {
+    testWidgets('copy buttons shown for terminal tab', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(buildAppWithTabs(tabs: [
         TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Split Vertical (Ctrl+\\)'), findsOneWidget);
-      expect(find.byTooltip('Split Horizontal (Ctrl+Shift+\\)'), findsOneWidget);
+      expect(find.byTooltip('Copy Right (Ctrl+\\)'), findsOneWidget);
+      expect(find.byTooltip('Copy Down (Ctrl+Shift+\\)'), findsOneWidget);
     });
 
-    testWidgets('split buttons not shown for SFTP tab', (tester) async {
+    testWidgets('copy buttons shown for SFTP tab', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(buildAppWithTabs(tabs: [
         TabEntry(id: 't1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Split Vertical (Ctrl+\\)'), findsNothing);
-      expect(find.byTooltip('Split Horizontal (Ctrl+Shift+\\)'), findsNothing);
+      expect(find.byTooltip('Copy Right (Ctrl+\\)'), findsOneWidget);
+      expect(find.byTooltip('Copy Down (Ctrl+Shift+\\)'), findsOneWidget);
     });
   });
 }

@@ -298,12 +298,12 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         if (hasSplit) ...[
           const ContextMenuItem.divider(),
           ContextMenuItem(
-            label: 'Split Right',
+            label: 'Copy Right',
             icon: Icons.vertical_split,
             onTap: () => widget.onSplitVertical?.call(),
           ),
           ContextMenuItem(
-            label: 'Split Down',
+            label: 'Copy Down',
             icon: Icons.horizontal_split,
             onTap: () => widget.onSplitHorizontal?.call(),
           ),

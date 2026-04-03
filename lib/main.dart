@@ -23,7 +23,6 @@ import 'widgets/toast.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/session_manager/session_panel.dart';
 import 'features/tabs/tab_model.dart';
-import 'features/terminal/split_node.dart';
 import 'features/workspace/workspace_controller.dart';
 import 'features/workspace/workspace_node.dart';
 import 'features/workspace/workspace_view.dart';
@@ -398,19 +397,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
         setState(() => _sidebarOpen = !_sidebarOpen);
       },
-      // Split terminal pane shortcuts
+      // Copy pane right / down shortcuts
       const SingleActivator(LogicalKeyboardKey.backslash, control: true): () {
-        if (activeTab?.kind == TabKind.terminal) {
-          _workspaceKey.currentState
-              ?.terminalStateFor(activeTab!.id)
-              ?.splitFocused(SplitDirection.vertical);
+        if (activeTab != null) {
+          notifier.copyToNewPanel(ws.focusedPanelId, Axis.horizontal);
         }
       },
       const SingleActivator(LogicalKeyboardKey.backslash, control: true, shift: true): () {
-        if (activeTab?.kind == TabKind.terminal) {
-          _workspaceKey.currentState
-              ?.terminalStateFor(activeTab!.id)
-              ?.splitFocused(SplitDirection.horizontal);
+        if (activeTab != null) {
+          notifier.copyToNewPanel(ws.focusedPanelId, Axis.vertical);
         }
       },
       // Settings
@@ -501,24 +496,29 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     required bool inSettings,
     required TabEntry? activeTab,
   }) {
-    final canSplit = !inSettings && activeTab?.kind == TabKind.terminal;
+    final tab = activeTab;
+    final hasTab = !inSettings && tab != null;
     return _Toolbar(
       sidebarOpen: _sidebarOpen,
       onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
       showMenuButton: isNarrow,
-      isTerminalTab: canSplit,
-      onSplitVertical: canSplit
+      isTerminalTab: hasTab,
+      onSplitVertical: hasTab
           ? () {
-              _workspaceKey.currentState
-                  ?.terminalStateFor(activeTab!.id)
-                  ?.splitFocused(SplitDirection.vertical);
+              final ws = ref.read(workspaceProvider);
+              ref.read(workspaceProvider.notifier).copyToNewPanel(
+                    ws.focusedPanelId,
+                    Axis.horizontal,
+                  );
             }
           : null,
-      onSplitHorizontal: canSplit
+      onSplitHorizontal: hasTab
           ? () {
-              _workspaceKey.currentState
-                  ?.terminalStateFor(activeTab!.id)
-                  ?.splitFocused(SplitDirection.horizontal);
+              final ws = ref.read(workspaceProvider);
+              ref.read(workspaceProvider.notifier).copyToNewPanel(
+                    ws.focusedPanelId,
+                    Axis.vertical,
+                  );
             }
           : null,
       onSettings: _toggleSettings,
@@ -667,12 +667,12 @@ class _Toolbar extends StatelessWidget {
           AppIconButton(
             icon: Icons.vertical_split,
             onTap: onSplitVertical,
-            tooltip: 'Split Vertical (Ctrl+\\)',
+            tooltip: 'Copy Right (Ctrl+\\)',
           ),
           AppIconButton(
             icon: Icons.horizontal_split,
             onTap: onSplitHorizontal,
-            tooltip: 'Split Horizontal (Ctrl+Shift+\\)',
+            tooltip: 'Copy Down (Ctrl+Shift+\\)',
           ),
           _Divider(),
         ] else

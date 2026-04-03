@@ -514,8 +514,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Paste'), findsOneWidget);
-      expect(find.text('Split Right'), findsOneWidget);
-      expect(find.text('Split Down'), findsOneWidget);
+      expect(find.text('Copy Right'), findsOneWidget);
+      expect(find.text('Copy Down'), findsOneWidget);
       expect(find.text('Close Pane'), findsOneWidget);
     });
 
@@ -544,7 +544,7 @@ void main() {
       await tester.tapAt(center, buttons: kSecondaryButton);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Split Right'));
+      await tester.tap(find.text('Copy Right'));
       await tester.pumpAndSettle();
 
       expect(splitVCalled, isTrue);
@@ -575,7 +575,7 @@ void main() {
       await tester.tapAt(center, buttons: kSecondaryButton);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Split Down'));
+      await tester.tap(find.text('Copy Down'));
       await tester.pumpAndSettle();
 
       expect(splitHCalled, isTrue);
@@ -639,7 +639,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Paste'), findsOneWidget);
-      expect(find.text('Split Right'), findsOneWidget);
+      expect(find.text('Copy Right'), findsOneWidget);
       expect(find.text('Close Pane'), findsNothing);
     });
 
@@ -668,8 +668,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Paste'), findsOneWidget);
-      expect(find.text('Split Right'), findsNothing);
-      expect(find.text('Split Down'), findsNothing);
+      expect(find.text('Copy Right'), findsNothing);
+      expect(find.text('Copy Down'), findsNothing);
     });
   });
 

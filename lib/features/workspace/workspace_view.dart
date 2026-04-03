@@ -102,60 +102,20 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
       child: _buildNode(node.second, focusedPanelId),
     );
 
-    final layout = isHorizontal
-        ? Row(children: [firstChild, secondChild])
-        : Column(children: [firstChild, secondChild]);
-
-    return Stack(
-      children: [
-        layout,
-        Positioned(
-          left: isHorizontal ? firstSize - 3 : 0,
-          top: isHorizontal ? 0 : firstSize - 3,
-          right: isHorizontal ? null : 0,
-          bottom: isHorizontal ? 0 : null,
-          child: _buildDivider(node, isHorizontal, totalSize),
-        ),
-      ],
+    final layout = ClipRect(
+      child: isHorizontal
+          ? Row(children: [firstChild, secondChild])
+          : Column(children: [firstChild, secondChild]),
     );
-  }
 
-  Widget _buildDivider(
-    WorkspaceBranch node,
-    bool isHorizontal,
-    double totalSize,
-  ) {
-    const hitSize = 6.0;
-    const minPanelSize = 120.0;
-
-    return MouseRegion(
-      cursor: isHorizontal
-          ? SystemMouseCursors.resizeColumn
-          : SystemMouseCursors.resizeRow,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanUpdate: (details) {
-          final delta = isHorizontal ? details.delta.dx : details.delta.dy;
-          final newRatio = (node.ratio + delta / totalSize).clamp(
-            minPanelSize / totalSize,
-            1.0 - minPanelSize / totalSize,
-          );
-          if (newRatio != node.ratio) {
-            ref.read(workspaceProvider.notifier).updateRatio(node.id, newRatio);
-          }
-        },
-        child: SizedBox(
-          width: isHorizontal ? hitSize : double.infinity,
-          height: isHorizontal ? double.infinity : hitSize,
-          child: Center(
-            child: Container(
-              width: isHorizontal ? 1 : double.infinity,
-              height: isHorizontal ? double.infinity : 1,
-              color: AppTheme.border,
-            ),
-          ),
-        ),
-      ),
+    return _WorkspaceDividerLayout(
+      node: node,
+      isHorizontal: isHorizontal,
+      firstSize: firstSize,
+      layout: layout,
+      onRatioChanged: (ratio) {
+        ref.read(workspaceProvider.notifier).updateRatio(node.id, ratio);
+      },
     );
   }
 
@@ -167,10 +127,11 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     final isFocused = panel.id == focusedPanelId;
     final notifier = ref.read(workspaceProvider.notifier);
 
-    final content = GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: () => notifier.setFocusedPanel(panel.id),
-      child: Column(
+    final content = ClipRect(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => notifier.setFocusedPanel(panel.id),
+        child: Column(
         children: [
           // Tab bar.
           Container(
@@ -227,6 +188,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
           ),
         ],
       ),
+      ),
     );
 
     // Wrap with drop zone overlay for cross-panel docking.
@@ -241,8 +203,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     final notifier = ref.read(workspaceProvider.notifier);
     switch (zone) {
       case DropZone.center:
-        if (data.sourcePanelId == targetPanelId) return;
-        notifier.moveTab(data.sourcePanelId, data.tab.id, targetPanelId);
+        return; // Inert — tab bar handles insertion.
       case DropZone.left:
         notifier.splitPanel(
           targetPanelId,
@@ -478,6 +439,93 @@ class _PanelConnectionBar extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Divider with absolute-position tracking
+// ---------------------------------------------------------------------------
+
+/// Renders the split layout with a draggable divider that tracks the mouse
+/// via absolute position (not deltas), preventing drift during rebuilds.
+class _WorkspaceDividerLayout extends StatefulWidget {
+  final WorkspaceBranch node;
+  final bool isHorizontal;
+  final double firstSize;
+  final Widget layout;
+  final ValueChanged<double> onRatioChanged;
+
+  const _WorkspaceDividerLayout({
+    required this.node,
+    required this.isHorizontal,
+    required this.firstSize,
+    required this.layout,
+    required this.onRatioChanged,
+  });
+
+  @override
+  State<_WorkspaceDividerLayout> createState() =>
+      _WorkspaceDividerLayoutState();
+}
+
+class _WorkspaceDividerLayoutState extends State<_WorkspaceDividerLayout> {
+  final _stackKey = GlobalKey();
+
+  static const _hitSize = 6.0;
+  static const _minPanelSize = 120.0;
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    final box =
+        _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+
+    final local = box.globalToLocal(details.globalPosition);
+    final totalSize =
+        widget.isHorizontal ? box.size.width : box.size.height;
+    final pos = widget.isHorizontal ? local.dx : local.dy;
+    final newRatio = (pos / totalSize).clamp(
+      _minPanelSize / totalSize,
+      1.0 - _minPanelSize / totalSize,
+    );
+    if (newRatio != widget.node.ratio) {
+      widget.onRatioChanged(newRatio);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      key: _stackKey,
+      children: [
+        widget.layout,
+        Positioned(
+          left: widget.isHorizontal ? widget.firstSize - 3 : 0,
+          top: widget.isHorizontal ? 0 : widget.firstSize - 3,
+          right: widget.isHorizontal ? null : 0,
+          bottom: widget.isHorizontal ? 0 : null,
+          child: MouseRegion(
+            cursor: widget.isHorizontal
+                ? SystemMouseCursors.resizeColumn
+                : SystemMouseCursors.resizeRow,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onPanUpdate: _onPanUpdate,
+              child: SizedBox(
+                width: widget.isHorizontal ? _hitSize : double.infinity,
+                height: widget.isHorizontal ? double.infinity : _hitSize,
+                child: Center(
+                  child: Container(
+                    width: widget.isHorizontal ? 1 : double.infinity,
+                    height: widget.isHorizontal ? double.infinity : 1,
+                    color: AppTheme.border,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Workspace-level edge drop zones
 // ---------------------------------------------------------------------------
 
@@ -505,7 +553,7 @@ class _WorkspaceEdgeDropTargetState extends State<_WorkspaceEdgeDropTarget> {
   final _key = GlobalKey();
 
   /// Width/height of the edge hit zone in logical pixels.
-  static const _edgeSize = 24.0;
+  static const _edgeSize = 36.0;
 
   @override
   Widget build(BuildContext context) {

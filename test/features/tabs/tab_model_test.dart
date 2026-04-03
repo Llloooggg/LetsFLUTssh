@@ -40,5 +40,32 @@ void main() {
       expect(copy.label, 'Original');
     });
 
+    test('duplicate creates new id, keeps connection/label/kind', () {
+      final conn = makeConn();
+      final tab = TabEntry(
+        id: 'tab-1',
+        label: 'MyTab',
+        connection: conn,
+        kind: TabKind.terminal,
+      );
+      final dup = tab.duplicate();
+      expect(dup.id, isNot('tab-1'));
+      expect(dup.id, isNotEmpty);
+      expect(dup.label, 'MyTab');
+      expect(dup.connection, same(conn));
+      expect(dup.kind, TabKind.terminal);
+    });
+
+    test('duplicate generates unique ids on each call', () {
+      final conn = makeConn();
+      final tab = TabEntry(
+        id: 'tab-1',
+        label: 'X',
+        connection: conn,
+        kind: TabKind.sftp,
+      );
+      final ids = {tab.duplicate().id, tab.duplicate().id, tab.duplicate().id};
+      expect(ids.length, 3);
+    });
   });
 }

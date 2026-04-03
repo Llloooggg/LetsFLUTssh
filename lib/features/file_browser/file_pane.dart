@@ -285,7 +285,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                 return Column(
                   children: [
                     _buildHeader(theme),
-                    _buildColumnHeaders(theme, cols),
+                    _buildColumnHeaders(theme, cols, constraints.maxWidth),
                     Expanded(child: _buildDropTarget(_buildFileList(theme, cols))),
                     _buildFooter(theme),
                   ],
@@ -475,7 +475,11 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
   // ── Column headers ──
 
-  Widget _buildColumnHeaders(ThemeData theme, ({bool size, bool modified, bool mode, bool owner}) cols) {
+  Widget _buildColumnHeaders(
+    ThemeData theme,
+    ({bool size, bool modified, bool mode, bool owner}) cols,
+    double availableWidth,
+  ) {
     final headerStyle = AppFonts.inter(
       fontSize: AppFonts.xs,
       fontWeight: FontWeight.w500,
@@ -506,6 +510,23 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       );
     }
 
+    // Dynamic max: ensure the Name column keeps at least 60 px.
+    const minName = 60.0;
+    const overhead = 36.0; // icon(20) + padding(16)
+    double otherCols(double exclude) {
+      double total = 0;
+      if (cols.size) total += 10 + _sizeColWidth;
+      if (cols.modified) total += 10 + _modifiedColWidth;
+      if (cols.mode) total += 10 + _modeColWidth;
+      if (cols.owner) total += 10 + _ownerColWidth;
+      return total - exclude;
+    }
+
+    double maxFor(double colWidth, double minWidth) {
+      final others = otherCols(10 + colWidth);
+      return (availableWidth - overhead - others - 10 - minName).clamp(minWidth, 200.0);
+    }
+
     return Container(
       height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -516,19 +537,31 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           const SizedBox(width: 20), // icon space
           Expanded(child: headerCell('Name', SortColumn.name)),
           if (cols.size) ...[
-            ColumnResizeHandle(onDrag: (dx) => setState(() => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 200))),
+            ColumnResizeHandle(onDrag: (dx) => setState(() {
+              final max = maxFor(_sizeColWidth, 40);
+              _sizeColWidth = (_sizeColWidth - dx).clamp(40, max);
+            })),
             headerCell('Size', SortColumn.size, width: _sizeColWidth),
           ],
           if (cols.modified) ...[
-            ColumnResizeHandle(onDrag: (dx) => setState(() => _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, 200))),
+            ColumnResizeHandle(onDrag: (dx) => setState(() {
+              final max = maxFor(_modifiedColWidth, 50);
+              _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, max);
+            })),
             headerCell('Modified', SortColumn.modified, width: _modifiedColWidth),
           ],
           if (cols.mode) ...[
-            ColumnResizeHandle(onDrag: (dx) => setState(() => _modeColWidth = (_modeColWidth - dx).clamp(50, 200))),
+            ColumnResizeHandle(onDrag: (dx) => setState(() {
+              final max = maxFor(_modeColWidth, 50);
+              _modeColWidth = (_modeColWidth - dx).clamp(50, max);
+            })),
             headerCell('Mode', SortColumn.mode, width: _modeColWidth),
           ],
           if (cols.owner) ...[
-            ColumnResizeHandle(onDrag: (dx) => setState(() => _ownerColWidth = (_ownerColWidth - dx).clamp(40, 200))),
+            ColumnResizeHandle(onDrag: (dx) => setState(() {
+              final max = maxFor(_ownerColWidth, 40);
+              _ownerColWidth = (_ownerColWidth - dx).clamp(40, max);
+            })),
             headerCell('Owner', SortColumn.owner, width: _ownerColWidth),
           ],
         ],
