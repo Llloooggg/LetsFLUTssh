@@ -188,16 +188,17 @@ class SettingsSidebar extends ConsumerWidget {
         children: [
           // Header — matches SessionPanel _PanelHeader style
           Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            height: AppTheme.barHeightSm,
+            padding: const EdgeInsets.only(left: 12, right: 2),
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: theme.dividerColor)),
             ),
             child: Row(
               children: [
-                Flexible(
+                Expanded(
                   child: Text(
                     'SETTINGS',
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: AppFonts.sm,
@@ -205,7 +206,6 @@ class SettingsSidebar extends ConsumerWidget {
                       letterSpacing: 1.2,
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
