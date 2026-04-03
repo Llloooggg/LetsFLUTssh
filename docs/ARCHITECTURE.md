@@ -939,10 +939,10 @@ class TabEntry {
 | `mobile_shell.dart` | `MobileShell` | Bottom navigation: Sessions / Terminal / SFTP |
 | `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal + keyboard bar |
 | `mobile_file_browser.dart` | `MobileFileBrowser` | Single-pane SFTP (toggle local/remote) |
-| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Select. Main row is horizontally scrollable (`ListView`); Select + Fn buttons are fixed at right edge |
+| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Paste, Select. Main row is horizontally scrollable (`ListView`); Paste + Select + Fn buttons are fixed at right edge |
 | `ssh_key_sequences.dart` | — | Escape sequences for keys |
 
-**Text selection (mobile):** The Select button (📋 icon, fixed at right edge of keyboard bar) toggles text-select mode. When active, `TerminalController.setSuspendPointerInput(true)` prevents mouse events from reaching the TUI app, so the user can drag-select text for copying. Copying via the context menu auto-exits select mode (`exitSelectMode()`). Long-press word selection (built into xterm's `LongPressGestureRecognizer`) works independently of select mode.
+**Text selection (mobile):** The Select button (📋 icon, fixed at right edge of keyboard bar) toggles text-select mode. When active, `TerminalController.setSuspendPointerInput(true)` prevents mouse events from reaching the TUI app, so the user can drag-select text for copying. Long-press word selection (built into xterm's `TerminalGestureHandler`) works independently of select mode. When text is selected (via either method), a floating **selection toolbar** with Copy/Paste buttons appears between the terminal and the keyboard bar. Copying auto-exits select mode (`exitSelectMode()`). A dedicated **Paste button** in the keyboard bar provides always-available paste access. Note: the outer `GestureDetector` does NOT handle `onLongPressStart` — xterm handles long-press internally for word selection, and the `TerminalController` (a `ChangeNotifier`) listener detects selection changes to show/hide the toolbar.
 
 **Architectural difference:** Mobile is NOT a responsive version of desktop. It's a separate `features/mobile/` module with different interaction patterns (bottom nav instead of sidebar+tabs, long-press instead of right-click, swipe navigation).
 
@@ -1438,6 +1438,12 @@ FileBrowserTab.initState()
          ▼
 SFTPInitializer.init(connection)
          │
+         ├── [Android] _requestStoragePermission()
+         │     ├── Quick-check /storage/emulated/0
+         │     └── MethodChannel → MainActivity.kt
+         │           ├── API 30+: ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
+         │           └── API <30: READ/WRITE_EXTERNAL_STORAGE runtime dialog
+         │
          ├── connection.sshConnection.client.sftp()  → SftpClient
          │
          ├── LocalFS(homeDirectory)  → FilePaneController (local)
@@ -1656,7 +1662,7 @@ AppConfig {
 | Context menu | Right-click | Long-press |
 | Keyboard | Hardware only (`hardwareKeyboardOnly: true`) | SSH keyboard bar + system |
 | SSH keep-alive | OS keeps process alive | Foreground service (Android) |
-| Home directory | `HOME` / `USERPROFILE` | `EXTERNAL_STORAGE` / `/storage/emulated/0` |
+| Home directory | `HOME` / `USERPROFILE` | Android: `EXTERNAL_STORAGE` / `/storage/emulated/0`; iOS: app Documents dir + folder picker |
 | Drag & drop | desktop_drop + inter-pane | None |
 | Deep links | `app_links` (URL scheme) | `app_links` (URL scheme + file intents) |
 | Single instance | File lock (`app.lock`) | OS-managed natively |
@@ -1664,7 +1670,7 @@ AppConfig {
 
 ### Android specifics
 
-- `MANAGE_EXTERNAL_STORAGE` permission for file access
+- **Storage permission** — `MANAGE_EXTERNAL_STORAGE` for full file access. Requested via custom MethodChannel (`com.letsflutssh/permissions`) in `MainActivity.kt`. Android 11+ opens the system "All files access" settings page (`ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`); older versions use standard `READ_EXTERNAL_STORAGE`/`WRITE_EXTERNAL_STORAGE` runtime dialog. No external plugin (avoids permission_handler GPS side-effects). Dart side: `SFTPInitializer._requestStoragePermission()` — quick-checks `/storage/emulated/0` first, requests only if needed
 - `flutter_foreground_task` for keep-alive on screen lock
 - APK split per ABI: arm64-v8a, armeabi-v7a, x86_64
 
@@ -1672,7 +1678,7 @@ AppConfig {
 
 - `NSLocalNetworkUsageDescription` required for local TCP
 - No foreground service (iOS background modes)
-- Sandbox file access
+- **Local file browser** — starts in app's Documents directory (`getApplicationDocumentsDirectory()`), which is accessible via Files.app. Users can browse outside the sandbox via a "Pick Folder" button (iOS only, uses `file_picker` → `UIDocumentPickerViewController` in folder mode). Security-scoped access is granted for the session after the user picks a folder
 
 ### Desktop window constraints
 

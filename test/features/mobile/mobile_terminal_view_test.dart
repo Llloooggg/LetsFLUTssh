@@ -506,8 +506,8 @@ void main() {
     });
   });
 
-  group('MobileTerminalView — context menu', () {
-    testWidgets('long press GestureDetector has onLongPressStart',
+  group('MobileTerminalView — selection toolbar', () {
+    testWidgets('no selection toolbar when no text is selected',
         (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
@@ -521,110 +521,48 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final gds =
-          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
-      final hasLongPress = gds.any((g) => g.onLongPressStart != null);
-      expect(hasLongPress, isTrue);
-    });
-
-    testWidgets('long press opens context menu with Paste',
-        (tester) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      final conn = connectedConn(mockSsh, mockSession);
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(body: MobileTerminalView(connection: conn)),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      final gds =
-          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
-      final terminalGd =
-          gds.where((g) => g.onLongPressStart != null).toList();
-      expect(terminalGd, isNotEmpty);
-
-      final gd = terminalGd.first;
-      final center = tester.getCenter(find.byType(TerminalView));
-      gd.onLongPressStart!(LongPressStartDetails(globalPosition: center));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Paste'), findsOneWidget);
-    });
-
-    testWidgets('paste action reads from clipboard', (tester) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      final conn = connectedConn(mockSsh, mockSession);
-
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.getData') {
-            return {'text': 'pasted-text'};
-          }
-          return null;
-        },
-      );
-      addTearDown(() {
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(SystemChannels.platform, null);
-      });
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(body: MobileTerminalView(connection: conn)),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      final gds =
-          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
-      final terminalGd =
-          gds.where((g) => g.onLongPressStart != null).first;
-      final center = tester.getCenter(find.byType(TerminalView));
-      terminalGd
-          .onLongPressStart!(LongPressStartDetails(globalPosition: center));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Paste'));
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(milliseconds: 100));
-    });
-
-    testWidgets('context menu without selection does not show Copy',
-        (tester) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      final conn = connectedConn(mockSsh, mockSession);
-
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(body: MobileTerminalView(connection: conn)),
-        )),
-      );
-      await tester.pumpAndSettle();
-
-      final gds =
-          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
-      final terminalGd =
-          gds.where((g) => g.onLongPressStart != null).first;
-      final center = tester.getCenter(find.byType(TerminalView));
-      terminalGd
-          .onLongPressStart!(LongPressStartDetails(globalPosition: center));
-      await tester.pumpAndSettle();
-
+      // No selection toolbar should be visible
       expect(find.text('Copy'), findsNothing);
-      expect(find.text('Paste'), findsOneWidget);
+    });
 
-      await tester.tapAt(Offset.zero);
+    testWidgets('GestureDetector does not have onLongPressStart',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        )),
+      );
       await tester.pumpAndSettle();
+
+      // The outer GestureDetector should NOT have onLongPressStart
+      // (xterm handles long press internally for word selection)
+      final gds =
+          tester.widgetList<GestureDetector>(find.byType(GestureDetector));
+      final outerGd = gds.where((g) => g.onScaleStart != null).toList();
+      expect(outerGd, isNotEmpty);
+      expect(outerGd.first.onLongPressStart, isNull);
+    });
+
+    testWidgets('paste button is present in keyboard bar',
+        (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(body: MobileTerminalView(connection: conn)),
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.paste), findsOneWidget);
     });
   });
 
