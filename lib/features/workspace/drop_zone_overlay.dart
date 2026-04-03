@@ -18,12 +18,12 @@ enum DropZone { center, left, right, top, bottom }
 /// panel's tab bar instead.
 /// ```
 /// ┌──────────────────────────┐
-/// │         TOP (25%)         │
+/// │         TOP (33%)         │
 /// │┌──────┐──────────┌──────┐│
 /// ││ LEFT ││  (inert) ││RIGHT││
-/// ││ 25%  ││         ││ 25%  ││
+/// ││ 33%  ││         ││ 33%  ││
 /// │└──────┘──────────└──────┘│
-/// │        BOTTOM (25%)       │
+/// │        BOTTOM (33%)       │
 /// └──────────────────────────┘
 /// ```
 class PanelDropTarget extends StatefulWidget {
@@ -53,7 +53,7 @@ class _PanelDropTargetState extends State<PanelDropTarget> {
     final local = box.globalToLocal(global);
     final size = box.size;
 
-    const edgeFraction = 0.25;
+    const edgeFraction = 0.33;
     final edgeX = size.width * edgeFraction;
     final edgeY = size.height * edgeFraction;
 

@@ -504,7 +504,7 @@ class _WorkspaceEdgeDropTargetState extends State<_WorkspaceEdgeDropTarget> {
   final _key = GlobalKey();
 
   /// Width/height of the edge hit zone in logical pixels.
-  static const _edgeSize = 24.0;
+  static const _edgeSize = 36.0;
 
   @override
   Widget build(BuildContext context) {
