@@ -15,9 +15,17 @@ class DeepLinkHandler {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription? _sub;
 
-  /// Tracks the last processed URI to prevent duplicate handling
-  /// (cold start: getInitialLink + uriLinkStream can fire the same URI).
+  /// Tracks the last processed URI and timestamp to prevent duplicate handling.
+  /// Cold start: getInitialLink + uriLinkStream can fire the same URI.
+  /// The dedup window is limited to [_deduplicationWindow] so that
+  /// re-scanning the same QR code or re-opening the same link after the
+  /// cold-start race window still works.
   Uri? _lastProcessedUri;
+  DateTime? _lastProcessedTime;
+
+  /// Duration during which a duplicate URI is suppressed.
+  /// Only needs to cover the cold-start double-fire race (typically < 1 s).
+  static const _deduplicationWindow = Duration(seconds: 2);
 
   /// Callback invoked when a valid SSH connect link is received.
   void Function(SSHConfig config)? onConnect;
@@ -62,12 +70,18 @@ class DeepLinkHandler {
   }
 
   void handleUri(Uri uri) {
-    // Deduplicate: cold start can fire both getInitialLink and uriLinkStream
-    if (_lastProcessedUri == uri) {
+    // Deduplicate: cold start can fire both getInitialLink and uriLinkStream.
+    // The window is time-limited so re-scanning the same QR after the
+    // cold-start race still works (e.g. app resumed from background).
+    final now = DateTime.now();
+    if (_lastProcessedUri == uri &&
+        _lastProcessedTime != null &&
+        now.difference(_lastProcessedTime!) < _deduplicationWindow) {
       AppLogger.instance.log('Skipping duplicate: ${_sanitizeUri(uri)}', name: 'DeepLink');
       return;
     }
     _lastProcessedUri = uri;
+    _lastProcessedTime = now;
 
     AppLogger.instance.log('Received: ${_sanitizeUri(uri)}', name: 'DeepLink');
 

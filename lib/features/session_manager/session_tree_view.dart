@@ -667,11 +667,14 @@ class _SessionTreeViewState extends State<SessionTreeView>
   ) {
     final isConnected = widget.connectedSessionIds.contains(session.id);
     final isConnecting = !isConnected && widget.connectingSessionIds.contains(session.id);
-    final Color iconColor = isConnected
-        ? AppTheme.connectedColor(theme.brightness)
-        : isConnecting
-            ? AppTheme.connectingColor(theme.brightness)
-            : AppTheme.fgFaint;
+    final Color iconColor;
+    if (isConnected) {
+      iconColor = AppTheme.connectedColor(theme.brightness);
+    } else if (isConnecting) {
+      iconColor = AppTheme.connectingColor(theme.brightness);
+    } else {
+      iconColor = AppTheme.fgFaint;
+    }
     final bool isActive = isConnected || isConnecting;
 
     return [

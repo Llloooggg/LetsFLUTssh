@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../features/settings/export_import.dart';
 import '../theme/app_theme.dart';
+import 'app_dialog.dart';
 
 /// Result from the LFS import password dialog.
 typedef LfsImportDialogResult = ({String password, ImportMode mode});
@@ -19,9 +20,8 @@ class LfsImportDialog extends StatefulWidget {
 
   /// Show the dialog and return the result.
   static Future<LfsImportDialogResult?> show(BuildContext context, {required String filePath}) {
-    return showDialog<LfsImportDialogResult>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
+    return AppDialog.show<LfsImportDialogResult>(
+      context,
       builder: (_) => LfsImportDialog(filePath: filePath),
     );
   }
@@ -47,24 +47,40 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final subtleStyle = TextStyle(
-      fontSize: AppFonts.md,
-      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-    );
-
-    return AlertDialog(
-      title: const Text('Import Data'),
+    return AppDialog(
+      title: 'Import Data',
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(File(widget.filePath).uri.pathSegments.last, style: subtleStyle),
+          Text(
+            File(widget.filePath).uri.pathSegments.last,
+            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _passwordCtrl,
             obscureText: true,
             autofocus: true,
-            decoration: const InputDecoration(
+            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            decoration: InputDecoration(
               labelText: 'Master Password',
+              labelStyle: TextStyle(color: AppTheme.fgFaint),
+              filled: true,
+              fillColor: AppTheme.bg3,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.accent),
+              ),
             ),
             onSubmitted: (v) {
               if (v.isNotEmpty) {
@@ -73,42 +89,64 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
             },
           ),
           const SizedBox(height: 12),
-          SegmentedButton<ImportMode>(
-            segments: const [
-              ButtonSegment(
-                value: ImportMode.merge,
-                label: Text('Merge'),
-                icon: Icon(Icons.merge, size: 16),
-              ),
-              ButtonSegment(
-                value: ImportMode.replace,
-                label: Text('Replace'),
-                icon: Icon(Icons.swap_horiz, size: 16),
-              ),
-            ],
-            selected: {_mode},
-            onSelectionChanged: (s) => setState(() => _mode = s.first),
-            style: const ButtonStyle(visualDensity: VisualDensity.compact),
-          ),
+          _buildModeSelector(),
           const SizedBox(height: 4),
           Text(
             _mode == ImportMode.merge
                 ? 'Add new sessions, keep existing'
                 : 'Replace all sessions with imported',
-            style: subtleStyle,
+            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Import'),
-        ),
+        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
+        AppDialogAction.primary(label: 'Import', onTap: _submit),
       ],
+    );
+  }
+
+  Widget _buildModeSelector() {
+    return Row(
+      children: [
+        _modeButton('Merge', Icons.merge, ImportMode.merge),
+        const SizedBox(width: 8),
+        _modeButton('Replace', Icons.swap_horiz, ImportMode.replace),
+      ],
+    );
+  }
+
+  Widget _modeButton(String label, IconData icon, ImportMode mode) {
+    final selected = _mode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _mode = mode),
+        child: Container(
+          height: 32,
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.accent : AppTheme.bg3,
+            borderRadius: AppTheme.radiusSm,
+            border: Border.all(
+              color: selected ? AppTheme.accent : AppTheme.borderLight,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: selected ? AppTheme.onAccent : AppTheme.fgDim),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  fontWeight: selected ? FontWeight.w600 : null,
+                  color: selected ? AppTheme.onAccent : AppTheme.fg,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

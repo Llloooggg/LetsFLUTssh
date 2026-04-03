@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/hover_region.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/column_resize_handle.dart';
 import '../../utils/format.dart';
@@ -351,9 +352,13 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       child: Row(
       children: [
         if (rootLabel != null)
-          InkWell(
+          HoverRegion(
+            cursor: SystemMouseCursors.click,
             onTap: () => ctrl.navigateTo(rootPath),
-            child: Text(rootLabel, style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint)),
+            builder: (hovered) => Text(
+              rootLabel,
+              style: AppFonts.mono(fontSize: AppFonts.xs, color: hovered ? AppTheme.fg : AppTheme.fgFaint),
+            ),
           )
         else
           AppIconButton(
@@ -366,13 +371,14 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           ),
         for (var i = 0; i < navParts.length; i++) ...[
           Text(isWindows ? ' \\ ' : ' / ', style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint)),
-          InkWell(
+          HoverRegion(
+            cursor: SystemMouseCursors.click,
             onTap: () => _navigateToPart(isWindows, parts, navParts, i),
-            child: Text(
+            builder: (hovered) => Text(
               navParts[i],
                 style: AppFonts.mono(
                   fontSize: AppFonts.xs,
-                  color: i == navParts.length - 1 ? AppTheme.fg : AppTheme.fgDim,
+                  color: hovered ? AppTheme.accent : (i == navParts.length - 1 ? AppTheme.fg : AppTheme.fgDim),
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -468,15 +474,18 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       if (isActive) {
         sortSuffix = ctrl.sortAscending ? ' ↑' : ' ↓';
       }
-      return InkWell(
+      return HoverRegion(
+        cursor: SystemMouseCursors.click,
         onTap: () => ctrl.setSort(column),
-        child: SizedBox(
+        builder: (hovered) => SizedBox(
           width: width,
           child: Text(
             '$label$sortSuffix',
             style: isActive
                 ? headerStyle.copyWith(color: AppTheme.accent)
-                : headerStyle,
+                : hovered
+                    ? headerStyle.copyWith(color: AppTheme.fgDim)
+                    : headerStyle,
             overflow: TextOverflow.ellipsis,
             textAlign: textAlign,
           ),

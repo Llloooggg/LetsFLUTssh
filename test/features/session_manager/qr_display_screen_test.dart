@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/session.dart';
@@ -97,6 +98,39 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('1 session(s)'), findsOneWidget);
+    });
+
+    testWidgets('shows Copy Link button', (tester) async {
+      await tester.pumpWidget(buildApp(data: testPayload));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Copy Link'), findsOneWidget);
+      expect(find.byIcon(Icons.copy), findsOneWidget);
+    });
+
+    testWidgets('Copy Link button copies data to clipboard', (tester) async {
+      String? clipboardContent;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardContent =
+                (call.arguments as Map)['text'] as String;
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(buildApp(data: testPayload));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Copy Link'));
+      // Let the Toast animation + auto-dismiss timer fully complete.
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+
+      expect(clipboardContent, testPayload);
     });
   });
 }

@@ -109,17 +109,27 @@ void main() {
 
     testWidgets('non-destructive style does not use red', (tester) async {
       await tester.pumpWidget(wrap(
-        const ConfirmDialog(
-          title: 'Save',
-          content: Text('Save changes?'),
-          confirmLabel: 'Save',
-          destructive: false,
+        Builder(
+          builder: (ctx) => ElevatedButton(
+            onPressed: () => ConfirmDialog.show(
+              ctx,
+              title: 'Save',
+              content: const Text('Save changes?'),
+              confirmLabel: 'Save',
+              destructive: false,
+            ),
+            child: const Text('Open'),
+          ),
         ),
       ));
 
-      final button = tester.widget<FilledButton>(find.byType(FilledButton));
-      // Non-destructive should not have explicit background color override
-      expect(button.style?.backgroundColor, isNull);
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Non-destructive uses AppDialogAction.primary (accent bg), not .destructive (red bg)
+      // Title "Save" + button "Save" = 2
+      expect(find.text('Save'), findsNWidgets(2));
+      expect(find.text('Cancel'), findsOneWidget);
     });
   });
 }

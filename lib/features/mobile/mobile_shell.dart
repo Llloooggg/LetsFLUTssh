@@ -10,7 +10,9 @@ import '../../providers/theme_provider.dart';
 import '../../theme/app_theme.dart';
 import '../session_manager/session_connect.dart';
 import '../session_manager/session_panel.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/status_indicator.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_controller.dart';
 import '../tabs/tab_model.dart';
@@ -106,24 +108,40 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               color: AppTheme.fgBright,
             ),
           ),
-          const SizedBox(width: 8),
+          const Spacer(),
           Builder(builder: (_) {
-            final activeCount = (ref.watch(connectionsProvider).value ?? []).where((c) => c.isConnected).length;
+            final connections = ref.watch(connectionsProvider).value ?? [];
+            final connectedCount = connections.where((c) => c.isConnected).length;
+            final connectingCount = connections.where((c) => c.isConnecting).length;
+            final activeCount = connectedCount + connectingCount;
             final savedCount = ref.watch(sessionProvider).length;
-            return Text.rich(
-              TextSpan(children: [
-                TextSpan(
-                  text: '$activeCount active',
-                  style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.green),
+            final Color? connectionIconColor;
+            if (connectedCount > 0) {
+              connectionIconColor = AppTheme.green;
+            } else if (connectingCount > 0) {
+              connectionIconColor = AppTheme.yellow;
+            } else {
+              connectionIconColor = null;
+            }
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                StatusIndicator(
+                  icon: Icons.dns_outlined,
+                  count: savedCount,
+                  tooltip: 'Saved sessions',
                 ),
-                TextSpan(
-                  text: ' · $savedCount saved',
-                  style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                const SizedBox(width: 10),
+                StatusIndicator(
+                  icon: Icons.wifi,
+                  count: activeCount,
+                  tooltip: 'Active connections',
+                  iconColor: connectionIconColor,
                 ),
-              ]),
+              ],
             );
           }),
-          const Spacer(),
+          const SizedBox(width: 8),
           AppIconButton(
             icon: Icons.settings,
             size: 15,
@@ -217,11 +235,14 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final isSelected = _navIndex == index;
     final isDisabled = badgeCount != null && badgeCount == 0;
     final opacity = isDisabled ? 0.4 : 1.0;
-    final labelColor = isSelected
-        ? AppTheme.fg
-        : isDisabled
-            ? AppTheme.fgFaint
-            : AppTheme.fgDim;
+    final Color labelColor;
+    if (isSelected) {
+      labelColor = AppTheme.fg;
+    } else if (isDisabled) {
+      labelColor = AppTheme.fgFaint;
+    } else {
+      labelColor = AppTheme.fgDim;
+    }
 
     Widget iconWidget = Icon(
       isSelected ? activeIcon : icon,
@@ -264,20 +285,19 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   }
 
   Future<void> _confirmExit(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Exit'),
-        content: const Text('Active sessions will be disconnected. Exit?'),
+    final confirmed = await AppDialog.show<bool>(
+      context,
+      builder: (ctx) => AppDialog(
+        title: 'Exit',
+        content: Text(
+          'Active sessions will be disconnected. Exit?',
+          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Exit'),
+          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
+          AppDialogAction.primary(
+            label: 'Exit',
+            onTap: () => Navigator.of(ctx).pop(true),
           ),
         ],
       ),

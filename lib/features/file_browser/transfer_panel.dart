@@ -5,8 +5,10 @@ import '../../core/transfer/transfer_task.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/column_resize_handle.dart';
+import '../../widgets/hover_region.dart';
 
 /// Sort columns for the transfer table.
 enum TransferSortColumn { name, local, remote, size, time }
@@ -150,15 +152,13 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     required String tooltip,
     required VoidCallback onTap,
   }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Icon(icon, size: 12, color: AppTheme.fgFaint),
-        ),
-      ),
+    return AppIconButton(
+      icon: icon,
+      onTap: onTap,
+      tooltip: tooltip,
+      size: 12,
+      boxSize: 20,
+      color: AppTheme.fgFaint,
     );
   }
 
@@ -260,15 +260,18 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       if (isActive) {
         sortSuffix = _sortAscending ? ' ↑' : ' ↓';
       }
-      return InkWell(
+      return HoverRegion(
+        cursor: SystemMouseCursors.click,
         onTap: () => _setSort(column),
-        child: SizedBox(
+        builder: (hovered) => SizedBox(
           width: width,
           child: Text(
             '$label$sortSuffix',
             style: isActive
                 ? style.copyWith(color: AppTheme.accent)
-                : style,
+                : hovered
+                    ? style.copyWith(color: AppTheme.fgDim)
+                    : style,
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -353,11 +356,9 @@ class _HistoryRow extends StatelessWidget {
           SizedBox(
             width: 20,
             child: Tooltip(
-              message: isFailed && entry.error != null
-                  ? entry.error!
-                  : isFailed
-                      ? 'Failed'
-                      : 'Completed',
+              message: isFailed
+                  ? (entry.error ?? 'Failed')
+                  : 'Completed',
               child: Icon(
                 isFailed ? Icons.error_outline : Icons.check_circle_outline,
                 size: 10,

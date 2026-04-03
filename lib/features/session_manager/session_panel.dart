@@ -8,6 +8,7 @@ import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/app_divider.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/context_menu.dart';
@@ -191,11 +192,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final store = ref.read(sessionStoreProvider);
     final allFolders = <String>{'', ...store.folders(), ...store.emptyFolders};
 
-    final selected = await showDialog<String>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Move to Folder'),
+    final selected = await AppDialog.show<String>(
+      context,
+      builder: (ctx) => AppDialog(
+        title: 'Move to Folder',
+        scrollable: false,
+        contentPadding: EdgeInsets.zero,
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -212,10 +214,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
+          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop()),
         ],
       ),
     );
@@ -395,7 +394,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   onSessionDoubleTap: widget.onConnect,
                   onSessionSelected: (id) {
                     _focusedSessionId = id;
-                    _focusNode.requestFocus();
+                    if (!mobile) _focusNode.requestFocus();
                   },
                   onSessionContextMenu: (session, position) {
                     _showContextMenu(context, ref, session, position);
@@ -589,11 +588,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final store = ref.read(sessionStoreProvider);
     final allFolders = <String>{'', ...store.folders(), ...store.emptyFolders};
 
-    final selected = await showDialog<String>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Move to Folder'),
+    final selected = await AppDialog.show<String>(
+      context,
+      builder: (ctx) => AppDialog(
+        title: 'Move to Folder',
+        scrollable: false,
+        contentPadding: EdgeInsets.zero,
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -605,10 +605,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
+          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop()),
         ],
       ),
     );
@@ -862,152 +859,74 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     required ValueChanged<String> onChanged,
     String? hintText,
   }) {
-    return Dialog(
-      backgroundColor: AppTheme.bg1,
-      insetPadding: const EdgeInsets.all(24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 360),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                border: AppTheme.borderBottom,
+    return AppDialog(
+      title: title,
+      maxWidth: 360,
+      scrollable: false,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'FOLDER NAME',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: AppFonts.xs,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
+              color: AppTheme.fgFaint,
+            ),
+          ),
+          const SizedBox(height: 4),
+          TextFormField(
+            controller: nameCtrl,
+            autofocus: true,
+            style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+              filled: true,
+              fillColor: AppTheme.bg3,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              border: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.borderLight),
               ),
-              child: Row(
-                children: [
-                  Text(
-                    title,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.md,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.fg,
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Icon(Icons.close, size: 13, color: AppTheme.fgDim),
-                  ),
-                ],
+              enabledBorder: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.accent),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.red),
+              ),
+              errorText: errorText,
+              errorStyle: AppFonts.inter(
+                fontSize: AppFonts.xs,
+                color: AppTheme.red,
               ),
             ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'FOLDER NAME',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: AppFonts.xs,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.8,
-                      color: AppTheme.fgFaint,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  TextFormField(
-                    controller: nameCtrl,
-                    autofocus: true,
-                    style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
-                    decoration: InputDecoration(
-                      hintText: hintText,
-                      hintStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
-                      filled: true,
-                      fillColor: AppTheme.bg3,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: OutlineInputBorder(
-                        borderRadius: AppTheme.radiusSm,
-                        borderSide: BorderSide(color: AppTheme.borderLight),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: AppTheme.radiusSm,
-                        borderSide: BorderSide(color: AppTheme.borderLight),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: AppTheme.radiusSm,
-                        borderSide: BorderSide(color: AppTheme.accent),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: AppTheme.radiusSm,
-                        borderSide: BorderSide(color: AppTheme.red),
-                      ),
-                      errorText: errorText,
-                      errorStyle: AppFonts.inter(
-                        fontSize: AppFonts.xs,
-                        color: AppTheme.red,
-                      ),
-                    ),
-                    onChanged: onChanged,
-                    onFieldSubmitted: (v) {
-                      if (errorText == null && v.trim().isNotEmpty) {
-                        Navigator.of(context).pop(v);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-            // Footer
-            Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                border: AppTheme.borderTop,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      height: 26,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Cancel',
-                        style: AppFonts.inter(
-                          fontSize: AppFonts.sm,
-                          color: AppTheme.fgDim,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: errorText == null
-                        ? () => Navigator.of(context).pop(nameCtrl.text)
-                        : null,
-                    child: Container(
-                      height: 26,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: errorText == null ? AppTheme.accent : AppTheme.bg4,
-                      ),
-                      child: Text(
-                        confirmLabel,
-                        style: AppFonts.inter(
-                          fontSize: AppFonts.sm,
-                          fontWeight: FontWeight.w500,
-                          color: errorText == null ? AppTheme.onAccent : AppTheme.fgFaint,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+            onChanged: onChanged,
+            onFieldSubmitted: (v) {
+              if (errorText == null && v.trim().isNotEmpty) {
+                Navigator.of(context).pop(v);
+              }
+            },
+          ),
+        ],
       ),
+      actions: [
+        AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
+        AppDialogAction.primary(
+          label: confirmLabel,
+          enabled: errorText == null,
+          onTap: () => Navigator.of(context).pop(nameCtrl.text),
+        ),
+      ],
     );
   }
 
@@ -1264,11 +1183,14 @@ class _SidebarFooter extends ConsumerWidget {
     final tabCount = tabState.tabs.length;
 
     final theme = Theme.of(context);
-    final Color? connectionIconColor = connectedCount > 0
-        ? AppTheme.connectedColor(theme.brightness)
-        : connectingCount > 0
-            ? AppTheme.connectingColor(theme.brightness)
-            : null;
+    final Color? connectionIconColor;
+    if (connectedCount > 0) {
+      connectionIconColor = AppTheme.connectedColor(theme.brightness);
+    } else if (connectingCount > 0) {
+      connectionIconColor = AppTheme.connectingColor(theme.brightness);
+    } else {
+      connectionIconColor = null;
+    }
 
     return Container(
       height: AppTheme.barHeightSm,

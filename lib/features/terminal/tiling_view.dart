@@ -69,39 +69,46 @@ class _TilingViewState extends State<TilingView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalSize = isVertical ? constraints.maxWidth : constraints.maxHeight;
-        final firstSize = totalSize * node.ratio;
-        final secondSize = totalSize * (1 - node.ratio);
-
-        final children = <Widget>[
-          SizedBox(
-            width: isVertical ? firstSize : null,
-            height: isVertical ? null : firstSize,
-            child: _buildNode(node.first, hasMultiplePanes),
-          ),
-          SizedBox(
-            width: isVertical ? secondSize : null,
-            height: isVertical ? null : secondSize,
-            child: _buildNode(node.second, hasMultiplePanes),
-          ),
-        ];
-
-        final layout = isVertical
-            ? Row(children: children)
-            : Column(children: children);
-
-        return Stack(
-          children: [
-            layout,
-            Positioned(
-              left: isVertical ? firstSize - 3 : 0,
-              top: isVertical ? 0 : firstSize - 3,
-              right: isVertical ? null : 0,
-              bottom: isVertical ? 0 : null,
-              child: _buildDivider(node, isVertical, totalSize),
-            ),
-          ],
-        );
+        return _buildSplitLayout(node, isVertical, totalSize, hasMultiplePanes);
       },
+    );
+  }
+
+  Widget _buildSplitLayout(
+    BranchNode node,
+    bool isVertical,
+    double totalSize,
+    bool hasMultiplePanes,
+  ) {
+    final firstSize = totalSize * node.ratio;
+    final secondSize = totalSize * (1 - node.ratio);
+
+    final firstChild = SizedBox(
+      width: isVertical ? firstSize : null,
+      height: isVertical ? null : firstSize,
+      child: _buildNode(node.first, hasMultiplePanes),
+    );
+    final secondChild = SizedBox(
+      width: isVertical ? secondSize : null,
+      height: isVertical ? null : secondSize,
+      child: _buildNode(node.second, hasMultiplePanes),
+    );
+
+    final layout = isVertical
+        ? Row(children: [firstChild, secondChild])
+        : Column(children: [firstChild, secondChild]);
+
+    return Stack(
+      children: [
+        layout,
+        Positioned(
+          left: isVertical ? firstSize - 3 : 0,
+          top: isVertical ? 0 : firstSize - 3,
+          right: isVertical ? null : 0,
+          bottom: isVertical ? 0 : null,
+          child: _buildDivider(node, isVertical, totalSize),
+        ),
+      ],
     );
   }
 

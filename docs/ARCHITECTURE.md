@@ -110,6 +110,7 @@ lib/
 │   └── mobile/                       # Mobile version (bottom nav)
 ├── providers/                        # Riverpod providers (global state)
 ├── widgets/                          # Reusable UI components
+│   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
 │   ├── status_indicator.dart         # Icon + count indicator with tooltip
 │   ├── column_resize_handle.dart    # Draggable column-resize handle for table headers
 ├── theme/                            # OneDark / One Light palettes
@@ -530,6 +531,7 @@ class ConfigStore {
 ```dart
 class DeepLinkHandler {
   // Scheme: letsflutssh://connect?host=X&user=Y&port=Z
+  // Scheme: letsflutssh://import?d=BASE64URL (QR import)
   // .lfs files: app_links file open intent
   // .pem/.key files: file open intent
 
@@ -537,6 +539,14 @@ class DeepLinkHandler {
   // - path traversal rejection (../)
   // - scheme whitelist
   // - host/port validation
+
+  // Deduplication: time-limited (2 s) to cover the cold-start race
+  // (getInitialLink + uriLinkStream). After the window, the same URI
+  // is processed again (e.g. re-scanning the same QR from background).
+
+  // Background safety: all callbacks in _MainScreenState use
+  // addPostFrameCallback to defer UI-dependent work. Data-only
+  // operations (QR session import) run immediately without context.
 }
 ```
 
@@ -853,7 +863,7 @@ class FilePaneController extends ChangeNotifier {
 | `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab always shows all fields (password + key); auth type selector (Password/SSH Key/Both) controls validation: Password requires password, Key requires key file or PEM, Both requires at least one |
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → SSHConfig → ConnectionManager |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
-| `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session |
+| `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link) |
 | `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export |
 
 #### SessionConnect — flow
@@ -944,7 +954,7 @@ class TabEntry {
 
 **Nav guard:** Terminal and Files destinations are disabled (dimmed, tap blocked) when no tabs of that type exist. If the user is on Terminal/Files and the last tab closes, auto-switches to Sessions.
 
-**Shared styling with desktop:** Mobile tab chips match desktop's rectangular tab style (top accent bar, colored icons — blue for terminal, yellow for SFTP, connection status dot). SSH↔SFTP companion buttons (`_MobileCompanionButton`) mirror desktop's `_companionButton` styling (colored background, border, icon + label). Active/saved session count is shown only in the global header bar (not duplicated in the session panel footer). The tab chip bar and companion button share a parent `Container` with `AppTheme.bg1` background (no border), ensuring consistent background across both elements.
+**Shared styling with desktop:** Mobile tab chips match desktop's rectangular tab style (top accent bar, colored icons — blue for terminal, yellow for SFTP, connection status dot). SSH↔SFTP companion buttons (`_MobileCompanionButton`) mirror desktop's `_companionButton` styling (colored background, border, icon + label). Saved-sessions and active-connections counts use `StatusIndicator` icons in the global header bar (matching desktop's sidebar footer style), not duplicated in the session panel footer. The tab chip bar and companion button share a parent `Container` with `AppTheme.bg1` background (no border), ensuring consistent background across both elements.
 
 ```dart
 // main.dart
@@ -1017,6 +1027,29 @@ HoverRegion({
 })
 ```
 **Replaces `MouseRegion` + `GestureDetector` + `setState(_hovered)`.** Exception: `context_menu.dart` (keyboard nav state).
+
+### AppDialog
+
+```dart
+AppDialog({
+  required String title,
+  double maxWidth = 460,
+  required Widget content,
+  List<Widget> actions = const [],
+  EdgeInsets contentPadding = const EdgeInsets.all(16),
+  bool scrollable = true,
+  bool dismissible = true,
+})
+```
+Unified dialog shell matching the app's dark visual language. Background `AppTheme.bg1`, 24 px inset padding, constrained width, header bar with title + close button, optional footer with action buttons. **Replaces Material `AlertDialog` everywhere.** Exception: mobile keyboard buttons (`ssh_keyboard_bar.dart`, `mobile_file_browser.dart`) keep `Material` + `InkWell` for touch ripple feedback.
+
+For complex dialogs (e.g. with tabs between header and content), compose from the building blocks directly:
+- `AppDialogHeader({title, onClose})` — header bar
+- `AppDialogFooter({actions})` — footer bar
+- `AppDialogAction` — compact button (`.cancel()`, `.primary()`, `.secondary()`, `.destructive()`)
+- `AppProgressDialog.show(context)` — non-dismissible loading spinner
+
+Static helper: `AppDialog.show<T>(context, builder:)` wraps `showDialog` with `AnimationStyle.noAnimation` and consistent barrier settings.
 
 ### AppBorderedBox
 
@@ -1763,6 +1796,15 @@ Two branches: **`dev`** (daily work) and **`main`** (releases only).
 - All app development happens on `dev`. Push freely — CI, SonarCloud, OSV-Scanner, Semgrep run on every push. No tags, no builds, no releases.
 - To release: merge `dev` → `main`. Everything is automatic: CI → auto-tag → build → release.
 - Never push app changes directly to `main`. Dependabot PRs and CI/docs-only fixes are exceptions.
+- **Contributors** work via forks → PR into `dev`. CI runs on PRs automatically. Maintainer reviews and merges.
+
+**Branch Protection (GitHub Rulesets):**
+
+| Ruleset | Branch | Rules | Bypass |
+|---------|--------|-------|--------|
+| `main` | `main` | No deletion, no force-push, PR required, all CI checks required | None |
+| `dev-protect` | `dev` | No deletion, no force-push | None |
+| `dev-checks` | `dev` | All CI checks required (`ci`, `osv-scan`, `semgrep-scan`, `codeql-scan`) | Admin — allows direct push |
 
 ### 15.2 Workflow Graph
 
