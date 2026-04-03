@@ -33,14 +33,18 @@ class SFTPInitializer {
 
   /// Request storage permission on Android via platform channel.
   /// No external plugin needed — avoids GPS/location side-effects from permission_handler.
-  static Future<void> _requestStoragePermission() async {
+  ///
+  /// Returns `true` if permission was granted, `false` otherwise.
+  /// On Android 11+ this opens the "All files access" system settings page.
+  /// On older versions it shows the standard runtime permission dialog.
+  static Future<bool> _requestStoragePermission() async {
     try {
-      // Check if we can already access shared storage
+      // Quick check: if we can already list shared storage, skip the request
       final testDir = Directory('/storage/emulated/0');
       if (await testDir.exists()) {
         try {
           await testDir.list().first;
-          return; // Access works, no permission needed
+          return true;
         } catch (_) {
           // Can't list — need permission
         }
@@ -48,9 +52,21 @@ class SFTPInitializer {
 
       // Request via platform channel — native Android side shows the dialog
       const channel = MethodChannel('com.letsflutssh/permissions');
-      await channel.invokeMethod('requestStoragePermission');
+      final granted = await channel.invokeMethod<bool>('requestStoragePermission');
+      if (granted != true) {
+        AppLogger.instance.log(
+          'Storage permission denied by user',
+          name: 'Permission',
+        );
+        return false;
+      }
+      return true;
     } catch (e) {
-      AppLogger.instance.log('Storage permission request failed: $e', name: 'Permission');
+      AppLogger.instance.log(
+        'Storage permission request failed: $e',
+        name: 'Permission',
+      );
+      return false;
     }
   }
 

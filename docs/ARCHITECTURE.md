@@ -1438,6 +1438,12 @@ FileBrowserTab.initState()
          ▼
 SFTPInitializer.init(connection)
          │
+         ├── [Android] _requestStoragePermission()
+         │     ├── Quick-check /storage/emulated/0
+         │     └── MethodChannel → MainActivity.kt
+         │           ├── API 30+: ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
+         │           └── API <30: READ/WRITE_EXTERNAL_STORAGE runtime dialog
+         │
          ├── connection.sshConnection.client.sftp()  → SftpClient
          │
          ├── LocalFS(homeDirectory)  → FilePaneController (local)
@@ -1664,7 +1670,7 @@ AppConfig {
 
 ### Android specifics
 
-- `MANAGE_EXTERNAL_STORAGE` permission for file access
+- **Storage permission** — `MANAGE_EXTERNAL_STORAGE` for full file access. Requested via custom MethodChannel (`com.letsflutssh/permissions`) in `MainActivity.kt`. Android 11+ opens the system "All files access" settings page (`ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`); older versions use standard `READ_EXTERNAL_STORAGE`/`WRITE_EXTERNAL_STORAGE` runtime dialog. No external plugin (avoids permission_handler GPS side-effects). Dart side: `SFTPInitializer._requestStoragePermission()` — quick-checks `/storage/emulated/0` first, requests only if needed
 - `flutter_foreground_task` for keep-alive on screen lock
 - APK split per ABI: arm64-v8a, armeabi-v7a, x86_64
 
