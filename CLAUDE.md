@@ -103,9 +103,38 @@ Two branches: `dev` (daily work) and `main` (releases only).
 
 **Rule:** never push directly to `main` (except Dependabot PRs and CI/docs-only fixes). All app work goes through `dev` → `main` merge.
 
-**Merging dev → main** — always create PR with `--auto` flag (`gh pr create ... && gh pr merge --auto --merge`). The PR will merge automatically once all required checks pass (`ci`, `osv-scan`, `semgrep-scan`, `codeql-scan`). After merge, sync dev with main: `git fetch origin main && git merge origin/main`.
+**Merging dev → main** — before creating a PR, sync dev with main: `git fetch origin main && git merge origin/main` and push. The main branch requires dev to be up-to-date (strict status checks). Then create PR with `--auto` flag (`gh pr create ... && gh pr merge --auto --merge`). The PR will merge automatically once all required checks pass (`ci`, `osv-scan`, `semgrep-scan`, `codeql-scan`). After merge, sync dev with main again.
 
 **Claude default branch is `dev`.** Always work on `dev` unless the user explicitly says otherwise. If on `main` — switch to `dev` before making changes.
+
+### Contributor Workflow
+
+External contributors work via **forks** — standard open source model. No write access to the repo needed.
+
+**Contributor flow:**
+1. Fork the repo
+2. Create a feature/fix branch in the fork (`feature/...`, `fix/...`)
+3. Implement changes, push to the fork
+4. Open a PR from fork into `dev` (NOT `main`)
+5. CI runs all checks automatically on the PR
+6. Maintainer (repo owner) reviews, requests changes if needed, merges into `dev`
+
+**Rules for PRs from contributors:**
+- Target branch is always `dev`, never `main`
+- All CI checks must pass before merge (`ci`, `osv-scan`, `semgrep-scan`, `codeql-scan`)
+- Maintainer is the only person who merges to `main` (release flow)
+
+### Branch Protection (GitHub Rulesets)
+
+Three rulesets protect the repository:
+
+| Ruleset | Branch | Rules | Bypass |
+|---------|--------|-------|--------|
+| `main` | `main` | No deletion, no force-push, PR required, all CI checks required | None |
+| `dev-protect` | `dev` | No deletion, no force-push | None |
+| `dev-checks` | `dev` | All CI checks required | Admin (repo owner) — allows direct push |
+
+**Why two rulesets for dev:** the owner needs to push directly to `dev` (bypassing CI requirement), but nobody — including the owner — should be able to delete or force-push `dev`. Splitting into two rulesets with different bypass settings achieves this.
 
 ### Versioning & Tagging
 
@@ -174,5 +203,6 @@ Manual release: `gh workflow run build-release.yml` — fails if CI hasn't passe
 - OneDark theme: centralized in `app_theme.dart`, semantic color constants, no hardcoded Colors → [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
 - **Font sizes** — never hardcode `fontSize` numbers. Use `AppFonts.tiny`/`xxs`/`xs`/`sm`/`md`/`lg`/`xl` — they are platform-aware (mobile +2 px). See [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
 - **Border radius** — never hardcode `BorderRadius.circular(N)` or `BorderRadius.zero`. Use `AppTheme.radiusSm` (4 px), `radiusMd` (6 px), `radiusLg` (8 px). Exception: pill-shaped elements (toggle tracks). See [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
-- **Buttons & hover** — `AppIconButton` for all icon buttons (rectangular hover, no splash, disabled dimming). `HoverRegion` for custom hover containers (builder pattern). Never use bare `IconButton`, `InkWell` for buttons, or manual `MouseRegion`+`GestureDetector`+`setState(_hovered)`. Exception: `context_menu.dart` (centralized keyboard nav state) → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
+- **Buttons & hover** — `AppIconButton` for all icon buttons (rectangular hover, no splash, disabled dimming). `HoverRegion` for custom hover containers (builder pattern). Never use bare `IconButton`, `InkWell` for buttons, or manual `MouseRegion`+`GestureDetector`+`setState(_hovered)`. Exception: `context_menu.dart` (centralized keyboard nav state), mobile touch buttons (`ssh_keyboard_bar.dart`, `mobile_file_browser.dart`) → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
+- **Dialogs** — `AppDialog` for all modal dialogs (dark bg, header+close, footer+actions). Never use bare `AlertDialog`. For complex dialogs (tabs, trees), compose from `AppDialogHeader`/`AppDialogFooter`/`AppDialogAction`. Progress spinners via `AppProgressDialog.show()`. Exception: mobile touch buttons keep `Material`+`InkWell` for ripple → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
 - `.lfs` export format: `[salt 32B] [iv 12B] [encrypted ZIP + GCM tag]`, merge/replace import modes → [§3.9 Import](docs/ARCHITECTURE.md#39-import-coreimport)

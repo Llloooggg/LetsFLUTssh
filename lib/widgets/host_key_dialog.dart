@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import 'app_dialog.dart';
 import 'app_icon_button.dart';
 
 /// Dialog shown when connecting to an unknown SSH host (TOFU).
@@ -15,10 +16,9 @@ class HostKeyDialog {
     required String keyType,
     required String fingerprint,
   }) async {
-    final result = await showDialog<bool>(
-      context: context,
+    final result = await AppDialog.show<bool>(
+      context,
       barrierDismissible: false,
-      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => _HostKeyDialogWidget(
         host: host,
         port: port,
@@ -38,10 +38,9 @@ class HostKeyDialog {
     required String keyType,
     required String fingerprint,
   }) async {
-    final result = await showDialog<bool>(
-      context: context,
+    final result = await AppDialog.show<bool>(
+      context,
       barrierDismissible: false,
-      animationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => _HostKeyDialogWidget(
         host: host,
         port: port,
@@ -71,115 +70,101 @@ class _HostKeyDialogWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return AlertDialog(
-      title: Row(
+    return AppDialog(
+      title: isChanged ? 'Host Key Changed!' : 'Unknown Host',
+      dismissible: false,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isChanged ? Icons.warning_amber_rounded : Icons.shield_outlined,
-            color: isChanged ? AppTheme.connecting : theme.colorScheme.primary,
-            size: 28,
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              isChanged ? 'Host Key Changed!' : 'Unknown Host',
-              style: TextStyle(
-                color: isChanged ? AppTheme.connecting : null,
+          if (isChanged) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.connecting.withValues(alpha: 0.1),
+                borderRadius: AppTheme.radiusLg,
+                border: Border.all(color: AppTheme.connecting.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: AppTheme.connecting, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'WARNING: The host key for this server has changed. '
+                      'This could indicate a man-in-the-middle attack, '
+                      'or the server may have been reinstalled.',
+                      style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+                    ),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 16),
+          ] else
+            Text(
+              'The authenticity of this host cannot be established. '
+              'Are you sure you want to continue connecting?',
+              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            ),
+          const SizedBox(height: 12),
+          _InfoRow(label: 'Host', value: '$host:$port'),
+          const SizedBox(height: 6),
+          _InfoRow(label: 'Key type', value: keyType),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 70,
+                child: Text(
+                  'Fingerprint',
+                  style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+                ),
+              ),
+              Expanded(
+                child: SelectableText(
+                  fingerprint,
+                  style: AppFonts.mono(
+                    fontSize: AppFonts.sm,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.fg,
+                  ),
+                ),
+              ),
+              AppIconButton(
+                icon: Icons.copy,
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: fingerprint));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Fingerprint copied'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                },
+                tooltip: 'Copy fingerprint',
+                size: 14,
+                boxSize: 28,
+              ),
+            ],
           ),
         ],
       ),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (isChanged) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.connecting.withValues(alpha: 0.1),
-                  borderRadius: AppTheme.radiusLg,
-                  border: Border.all(color: AppTheme.connecting.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                  'WARNING: The host key for this server has changed. '
-                  'This could indicate a man-in-the-middle attack, '
-                  'or the server may have been reinstalled.',
-                  style: TextStyle(fontSize: AppFonts.lg),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ] else
-              Text(
-                'The authenticity of this host cannot be established. '
-                'Are you sure you want to continue connecting?',
-                style: TextStyle(fontSize: AppFonts.lg),
-              ),
-            const SizedBox(height: 12),
-            _InfoRow(label: 'Host', value: '$host:$port'),
-            const SizedBox(height: 6),
-            _InfoRow(label: 'Key type', value: keyType),
-            const SizedBox(height: 6),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 70,
-                  child: Text(
-                    'Fingerprint',
-                    style: TextStyle(
-                      fontSize: AppFonts.md,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: SelectableText(
-                    fingerprint,
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: AppFonts.md,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                AppIconButton(
-                  icon: Icons.copy,
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: fingerprint));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Fingerprint copied'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  tooltip: 'Copy fingerprint',
-                  size: 14,
-                  boxSize: 28,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Reject'),
+        AppDialogAction.cancel(
+          onTap: () => Navigator.pop(context, false),
         ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: isChanged
-              ? FilledButton.styleFrom(backgroundColor: AppTheme.connecting)
-              : null,
-          child: Text(isChanged ? 'Accept Anyway' : 'Accept'),
-        ),
+        if (isChanged)
+          AppDialogAction.destructive(
+            label: 'Accept Anyway',
+            onTap: () => Navigator.pop(context, true),
+          )
+        else
+          AppDialogAction.primary(
+            label: 'Accept',
+            onTap: () => Navigator.pop(context, true),
+          ),
       ],
     );
   }
@@ -193,23 +178,23 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
       children: [
         SizedBox(
           width: 70,
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: AppFonts.md,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
+            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: TextStyle(fontSize: AppFonts.lg, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.fg,
+            ),
           ),
         ),
       ],

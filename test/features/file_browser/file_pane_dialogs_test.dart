@@ -113,7 +113,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('New Folder'), findsOneWidget);
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Create'), findsOneWidget);
 
@@ -231,7 +231,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'new.txt');
       // Find the Rename button (there are two "Rename" texts - title and button)
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename').last);
       await tester.pumpAndSettle();
 
       expect(fs.renames, [('/test/old.txt', '/test/new.txt')]);
@@ -353,7 +353,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'new.txt');
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename').last);
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Failed to rename'), findsOneWidget);
@@ -390,7 +390,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Don't change the name, just submit
-      await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+      await tester.tap(find.text('Rename').last);
       await tester.pumpAndSettle();
 
       expect(fs.renames, isEmpty);
@@ -459,7 +459,7 @@ void main() {
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.tap(find.text('Delete').last);
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Failed to delete'), findsOneWidget);
@@ -497,7 +497,7 @@ void main() {
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.tap(find.text('Delete').last);
       await tester.pumpAndSettle();
 
       expect(find.text('Deleted success.txt'), findsOneWidget);
@@ -532,7 +532,7 @@ void main() {
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.tap(find.text('Delete').last);
       await tester.pumpAndSettle();
 
       expect(find.text('Deleted 2 items'), findsOneWidget);
@@ -630,7 +630,7 @@ void main() {
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.tap(find.text('Delete').last);
       await tester.pumpAndSettle();
       // Pump past Toast auto-dismiss timer + animation
       await tester.pump(const Duration(seconds: 4));
@@ -667,7 +667,7 @@ void main() {
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.tap(find.text('Delete').last);
       await tester.pumpAndSettle();
       // Pump past Toast auto-dismiss timer + animation
       await tester.pump(const Duration(seconds: 4));

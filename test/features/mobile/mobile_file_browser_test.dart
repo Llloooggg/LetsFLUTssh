@@ -536,7 +536,7 @@ void main() {
       await tester.tap(find.text('New Folder'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
     });
 
     testWidgets('bottom sheet Delete action opens delete confirmation',
@@ -638,6 +638,47 @@ void main() {
 
       // 3 entries = 3 InkWell widgets (inside the list)
       expect(find.byType(InkWell), findsNWidgets(3));
+    });
+
+    testWidgets('switching controller resets selection mode and listens to new controller', (tester) async {
+      await controller.init();
+
+      final secondFs = FakeFileSystem(fakeEntries: [
+        FileEntry(
+          name: 'other.txt',
+          path: '/remote/other.txt',
+          size: 256,
+          mode: 0x1A4,
+          modTime: DateTime(2024, 2, 1),
+          isDir: false,
+        ),
+      ]);
+      final secondCtrl = FilePaneController(fs: secondFs, label: 'Remote');
+      await secondCtrl.init();
+
+      // Build with first controller
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // Enter selection mode on first controller
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pump();
+      expect(find.byType(Checkbox), findsWidgets);
+
+      // Switch to second controller — selection mode should reset
+      await tester.pumpWidget(buildFileList(ctrl: secondCtrl));
+      await tester.pump();
+
+      expect(find.byType(Checkbox), findsNothing);
+      expect(find.text('other.txt'), findsOneWidget);
+
+      // Verify new controller's updates trigger rebuilds:
+      // navigate somewhere (refresh) should still work
+      await secondCtrl.refresh();
+      await tester.pump();
+      expect(find.text('other.txt'), findsOneWidget);
+
+      secondCtrl.dispose();
     });
   });
 }

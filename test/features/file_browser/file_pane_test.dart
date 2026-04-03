@@ -776,7 +776,7 @@ void main() {
       await tester.tap(find.text('New Folder'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -800,7 +800,7 @@ void main() {
       await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
 
-      expect(find.text('New name'), findsOneWidget);
+      expect(find.text('NEW NAME'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -998,7 +998,7 @@ void main() {
       await tester.tap(find.text('New Folder'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Folder name'), findsOneWidget);
+      expect(find.text('FOLDER NAME'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();

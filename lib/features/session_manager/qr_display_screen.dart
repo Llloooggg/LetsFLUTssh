@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../theme/app_theme.dart';
+import '../../widgets/toast.dart';
 
 /// Full-screen display of a QR code for scanning by another device.
 class QrDisplayScreen extends StatelessWidget {
@@ -106,6 +108,19 @@ class QrDisplayScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: data));
+                  Toast.show(
+                    context,
+                    message: 'Link copied to clipboard',
+                    level: ToastLevel.success,
+                  );
+                },
+                icon: const Icon(Icons.copy, size: 16),
+                label: const Text('Copy Link'),
               ),
             ],
           ),

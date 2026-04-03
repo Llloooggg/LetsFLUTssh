@@ -150,8 +150,8 @@ void main() {
 
       // Hold Ctrl, then tap
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlRight);
-      await tester.tap(find.byType(InkWell));
-      // InkWell with onDoubleTap delays onTap until double-tap timeout expires
+      await tester.tap(find.text('ctrl.txt'));
+      // GestureDetector with onDoubleTap delays onTap until double-tap timeout expires
       await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
       await tester.pumpAndSettle();
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlRight);
@@ -176,8 +176,8 @@ void main() {
         onDoubleTap: () {},
         onContextMenu: (_) {},
       )));
-      await tester.tap(find.byType(InkWell));
-      // InkWell with onDoubleTap delays onTap until double-tap timeout expires
+      await tester.tap(find.text('click.txt'));
+      // GestureDetector with onDoubleTap delays onTap until double-tap timeout expires
       await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
       await tester.pumpAndSettle();
       expect(tapped, isTrue);

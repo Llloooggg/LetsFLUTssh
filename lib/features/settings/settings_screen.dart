@@ -21,6 +21,7 @@ import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/toast.dart';
@@ -543,50 +544,11 @@ class _ExportImportTile extends ConsumerWidget {
     final confirmCtrl = TextEditingController();
 
     try {
-      final password = await showDialog<String>(
-        context: context,
-        animationStyle: AnimationStyle.noAnimation,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Export Data'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Set a master password to encrypt the archive.'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: passwordCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Master Password',
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: confirmCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm Password',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (passwordCtrl.text.isEmpty) return;
-                if (passwordCtrl.text != confirmCtrl.text) {
-                  Toast.show(ctx, message: 'Passwords do not match', level: ToastLevel.warning);
-                  return;
-                }
-                Navigator.pop(ctx, passwordCtrl.text);
-              },
-              child: const Text('Export'),
-            ),
-          ],
+      final password = await AppDialog.show<String>(
+        context,
+        builder: (ctx) => _ExportPasswordDialog(
+          passwordCtrl: passwordCtrl,
+          confirmCtrl: confirmCtrl,
         ),
       );
 
@@ -615,15 +577,7 @@ class _ExportImportTile extends ConsumerWidget {
     String outputPath,
   ) async {
     // Show progress indicator while PBKDF2 + encryption runs in isolate
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      animationStyle: AnimationStyle.noAnimation,
-      builder: (_) => const PopScope(
-        canPop: false,
-        child: Center(child: CircularProgressIndicator()),
-      ),
-    );
+    AppProgressDialog.show(context);
     try {
       await ExportImport.export(
         masterPassword: password,
@@ -666,15 +620,12 @@ class _ExportImportTile extends ConsumerWidget {
     final modeHolder = _ValueHolder(ImportMode.merge);
 
     try {
-      final result = await showDialog<({String path, String password, ImportMode mode})>(
-        context: context,
-        animationStyle: AnimationStyle.noAnimation,
-        builder: (ctx) => StatefulBuilder(
-          builder: (ctx, setState) => AlertDialog(
-            title: const Text('Import Data'),
-            content: _buildImportDialogContent(ctx, pathCtrl, passwordCtrl, modeHolder, setState),
-            actions: _buildImportDialogActions(ctx, pathCtrl, passwordCtrl, modeHolder),
-          ),
+      final result = await AppDialog.show<({String path, String password, ImportMode mode})>(
+        context,
+        builder: (ctx) => _ImportDataDialog(
+          pathCtrl: pathCtrl,
+          passwordCtrl: passwordCtrl,
+          modeHolder: modeHolder,
         ),
       );
 
@@ -686,99 +637,6 @@ class _ExportImportTile extends ConsumerWidget {
     }
   }
 
-  Column _buildImportDialogContent(
-    BuildContext ctx,
-    TextEditingController pathCtrl,
-    TextEditingController passwordCtrl,
-    _ValueHolder<ImportMode> modeHolder,
-    StateSetter setState,
-  ) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextField(
-          controller: pathCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Path to .lfs file',
-            hintText: '/path/to/export.lfs',
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: passwordCtrl,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Master Password',
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildImportModeSelector(ctx, modeHolder, setState),
-      ],
-    );
-  }
-
-  Widget _buildImportModeSelector(
-    BuildContext ctx,
-    _ValueHolder<ImportMode> modeHolder,
-    StateSetter setState,
-  ) {
-    return Column(
-      children: [
-        SegmentedButton<ImportMode>(
-          segments: const [
-            ButtonSegment(
-              value: ImportMode.merge,
-              label: Text('Merge'),
-              icon: Icon(Icons.merge, size: 16),
-            ),
-            ButtonSegment(
-              value: ImportMode.replace,
-              label: Text('Replace'),
-              icon: Icon(Icons.swap_horiz, size: 16),
-            ),
-          ],
-          selected: {modeHolder.value},
-          onSelectionChanged: (s) => setState(() => modeHolder.value = s.first),
-          style: const ButtonStyle(visualDensity: VisualDensity.compact),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          modeHolder.value == ImportMode.merge
-              ? 'Add new sessions, keep existing'
-              : 'Replace all sessions with imported',
-          style: TextStyle(
-            fontSize: AppFonts.md,
-            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _buildImportDialogActions(
-    BuildContext ctx,
-    TextEditingController pathCtrl,
-    TextEditingController passwordCtrl,
-    _ValueHolder<ImportMode> modeHolder,
-  ) {
-    return [
-      TextButton(
-        onPressed: () => Navigator.pop(ctx),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () {
-          if (pathCtrl.text.isEmpty || passwordCtrl.text.isEmpty) return;
-          Navigator.pop(ctx, (
-            path: pathCtrl.text,
-            password: passwordCtrl.text,
-            mode: modeHolder.value,
-          ));
-        },
-        child: const Text('Import'),
-      ),
-    ];
-  }
 
   Future<void> _executeImport(
     BuildContext context,
@@ -796,15 +654,7 @@ class _ExportImportTile extends ConsumerWidget {
 
       // Show progress indicator while PBKDF2 + decryption runs in isolate
       if (context.mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          animationStyle: AnimationStyle.noAnimation,
-          builder: (_) => const PopScope(
-            canPop: false,
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        );
+        AppProgressDialog.show(context);
       }
 
       try {
@@ -1779,4 +1629,232 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
 class _ValueHolder<T> {
   T value;
   _ValueHolder(this.value);
+}
+
+// ── Export password dialog ──
+
+class _ExportPasswordDialog extends StatelessWidget {
+  final TextEditingController passwordCtrl;
+  final TextEditingController confirmCtrl;
+
+  const _ExportPasswordDialog({
+    required this.passwordCtrl,
+    required this.confirmCtrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDialog(
+      title: 'Export Data',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Set a master password to encrypt the archive.',
+            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+          ),
+          const SizedBox(height: 16),
+          _styledPasswordField(passwordCtrl, 'Master Password'),
+          const SizedBox(height: 8),
+          _styledPasswordField(confirmCtrl, 'Confirm Password'),
+        ],
+      ),
+      actions: [
+        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
+        AppDialogAction.primary(
+          label: 'Export',
+          onTap: () {
+            if (passwordCtrl.text.isEmpty) return;
+            if (passwordCtrl.text != confirmCtrl.text) {
+              Toast.show(context, message: 'Passwords do not match', level: ToastLevel.warning);
+              return;
+            }
+            Navigator.pop(context, passwordCtrl.text);
+          },
+        ),
+      ],
+    );
+  }
+
+  static Widget _styledPasswordField(TextEditingController ctrl, String label) {
+    return TextField(
+      controller: ctrl,
+      obscureText: true,
+      style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: AppTheme.fgFaint),
+        filled: true,
+        fillColor: AppTheme.bg3,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.accent),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Import data dialog ──
+
+class _ImportDataDialog extends StatefulWidget {
+  final TextEditingController pathCtrl;
+  final TextEditingController passwordCtrl;
+  final _ValueHolder<ImportMode> modeHolder;
+
+  const _ImportDataDialog({
+    required this.pathCtrl,
+    required this.passwordCtrl,
+    required this.modeHolder,
+  });
+
+  @override
+  State<_ImportDataDialog> createState() => _ImportDataDialogState();
+}
+
+class _ImportDataDialogState extends State<_ImportDataDialog> {
+  @override
+  Widget build(BuildContext context) {
+    return AppDialog(
+      title: 'Import Data',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _styledTextField(widget.pathCtrl, 'Path to .lfs file', hint: '/path/to/export.lfs'),
+          const SizedBox(height: 8),
+          TextField(
+            controller: widget.passwordCtrl,
+            obscureText: true,
+            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            decoration: InputDecoration(
+              labelText: 'Master Password',
+              labelStyle: TextStyle(color: AppTheme.fgFaint),
+              filled: true,
+              fillColor: AppTheme.bg3,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.accent),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildModeSelector(),
+          const SizedBox(height: 4),
+          Text(
+            widget.modeHolder.value == ImportMode.merge
+                ? 'Add new sessions, keep existing'
+                : 'Replace all sessions with imported',
+            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+          ),
+        ],
+      ),
+      actions: [
+        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
+        AppDialogAction.primary(
+          label: 'Import',
+          onTap: () {
+            if (widget.pathCtrl.text.isEmpty || widget.passwordCtrl.text.isEmpty) return;
+            Navigator.pop(context, (
+              path: widget.pathCtrl.text,
+              password: widget.passwordCtrl.text,
+              mode: widget.modeHolder.value,
+            ));
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModeSelector() {
+    return Row(
+      children: [
+        _modeButton('Merge', Icons.merge, ImportMode.merge),
+        const SizedBox(width: 8),
+        _modeButton('Replace', Icons.swap_horiz, ImportMode.replace),
+      ],
+    );
+  }
+
+  Widget _modeButton(String label, IconData icon, ImportMode mode) {
+    final selected = widget.modeHolder.value == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => widget.modeHolder.value = mode),
+        child: Container(
+          height: 32,
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.accent : AppTheme.bg3,
+            borderRadius: AppTheme.radiusSm,
+            border: Border.all(
+              color: selected ? AppTheme.accent : AppTheme.borderLight,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: selected ? AppTheme.onAccent : AppTheme.fgDim),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  fontWeight: selected ? FontWeight.w600 : null,
+                  color: selected ? AppTheme.onAccent : AppTheme.fg,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Widget _styledTextField(TextEditingController ctrl, String label, {String? hint}) {
+    return TextField(
+      controller: ctrl,
+      style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(color: AppTheme.fgFaint),
+        hintStyle: TextStyle(color: AppTheme.fgFaint),
+        filled: true,
+        fillColor: AppTheme.bg3,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.accent),
+        ),
+      ),
+    );
+  }
 }

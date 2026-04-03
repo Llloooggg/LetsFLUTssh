@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../../widgets/hover_region.dart';
 
 /// File extensions grouped by type for icon/color mapping.
 const _imageExts = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'};
@@ -103,28 +104,27 @@ class FileRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return GestureDetector(
+    return HoverRegion(
+      onTap: () {
+        if (HardwareKeyboard.instance.logicalKeysPressed
+                .contains(LogicalKeyboardKey.controlLeft) ||
+            HardwareKeyboard.instance.logicalKeysPressed
+                .contains(LogicalKeyboardKey.controlRight)) {
+          onCtrlTap();
+        } else {
+          onTap();
+        }
+      },
+      onDoubleTap: onDoubleTap,
       onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
-      child: InkWell(
-        onTap: () {
-          if (HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.controlLeft) ||
-              HardwareKeyboard.instance.logicalKeysPressed
-                  .contains(LogicalKeyboardKey.controlRight)) {
-            onCtrlTap();
-          } else {
-            onTap();
-          }
-        },
-        onDoubleTap: onDoubleTap,
-        child: Container(
-          height: 26,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          clipBehavior: Clip.hardEdge,
-          decoration: BoxDecoration(
-            color: isSelected ? AppTheme.selection : null,
-          ),
-          child: Row(
+      builder: (hovered) => Container(
+        height: 26,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.selection : (hovered ? AppTheme.hover : null),
+        ),
+        child: Row(
             children: [
               Icon(
                 fileIcon(entry),
@@ -198,7 +198,6 @@ class FileRow extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }

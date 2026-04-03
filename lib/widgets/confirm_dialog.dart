@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import 'app_dialog.dart';
 
 /// Reusable confirmation dialog with destructive action styling.
 ///
@@ -27,9 +27,8 @@ class ConfirmDialog extends StatelessWidget {
     String confirmLabel = 'Delete',
     bool destructive = true,
   }) async {
-    final result = await showDialog<bool>(
-      context: context,
-      animationStyle: AnimationStyle.noAnimation,
+    final result = await AppDialog.show<bool>(
+      context,
       builder: (_) => ConfirmDialog(
         title: title,
         content: content,
@@ -42,21 +41,23 @@ class ConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(title),
+    return AppDialog(
+      title: title,
       content: content,
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+        AppDialogAction.cancel(
+          onTap: () => Navigator.of(context).pop(false),
         ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: destructive
-              ? FilledButton.styleFrom(backgroundColor: AppTheme.disconnected)
-              : null,
-          child: Text(confirmLabel),
-        ),
+        if (destructive)
+          AppDialogAction.destructive(
+            label: confirmLabel,
+            onTap: () => Navigator.of(context).pop(true),
+          )
+        else
+          AppDialogAction.primary(
+            label: confirmLabel,
+            onTap: () => Navigator.of(context).pop(true),
+          ),
       ],
     );
   }

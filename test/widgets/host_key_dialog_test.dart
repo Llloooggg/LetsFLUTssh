@@ -76,7 +76,7 @@ void main() {
       expect(result, isTrue);
     });
 
-    testWidgets('Reject new host returns false', (tester) async {
+    testWidgets('Cancel new host returns false', (tester) async {
       bool? result;
       await tester.pumpWidget(buildApp(
         onPressed: (ctx) {
@@ -91,13 +91,13 @@ void main() {
       ));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Reject'));
+      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
       expect(result, isFalse);
     });
 
-    testWidgets('shows shield icon for new host', (tester) async {
+    testWidgets('shows authenticity message for new host', (tester) async {
       await tester.pumpWidget(buildApp(
         onPressed: (ctx) {
           HostKeyDialog.showNewHost(
@@ -112,7 +112,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
+      expect(find.textContaining('authenticity'), findsOneWidget);
     });
   });
 
@@ -206,7 +206,7 @@ void main() {
       expect(result, isTrue);
     });
 
-    testWidgets('Reject changed key returns false', (tester) async {
+    testWidgets('Cancel changed key returns false', (tester) async {
       bool? result;
       await tester.pumpWidget(buildApp(
         onPressed: (ctx) {
@@ -217,7 +217,7 @@ void main() {
       ));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Reject'));
+      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(result, isFalse);
     });
