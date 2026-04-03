@@ -33,7 +33,7 @@ class TabNotifier extends Notifier<TabState> {
     final id = _uuid.v4();
     final tab = TabEntry(
       id: id,
-      label: label ?? '${connection.label} (SFTP)',
+      label: label ?? connection.label,
       connection: connection,
       kind: TabKind.sftp,
     );
