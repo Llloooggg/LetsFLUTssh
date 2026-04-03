@@ -220,9 +220,14 @@ class _TabItem extends StatefulWidget {
 
 class _TabItemState extends State<_TabItem> {
   Color _dotColor() {
-    return widget.tab.connection.state == SSHConnectionState.connected
-        ? AppTheme.green
-        : AppTheme.fgFaint;
+    switch (widget.tab.connection.state) {
+      case SSHConnectionState.connected:
+        return AppTheme.connectedColor(Theme.of(context).brightness);
+      case SSHConnectionState.connecting:
+        return AppTheme.connectingColor(Theme.of(context).brightness);
+      case SSHConnectionState.disconnected:
+        return AppTheme.fgFaint;
+    }
   }
 
   Color _iconColor() {
