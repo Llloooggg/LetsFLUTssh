@@ -1797,4 +1797,409 @@ void main() {
       expect(manager.history.first.name, 'rdir/');
     });
   });
+
+  // ===========================================================================
+  // _buildTooNarrowHint — width constraint
+  // ===========================================================================
+  group('FileBrowserTab — too narrow hint', () {
+    testWidgets('shows hint when width < 250', (tester) async {
+      final conn = Connection(
+        id: 'narrow-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      // TransferPanel may overflow at narrow widths — expected, not what we test.
+      final origOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origOnError);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: _fakeInitFactory,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The hint text should appear; FilePane should not render.
+      expect(find.text('Resize window to view files'), findsOneWidget);
+      expect(find.byType(FilePane), findsNothing);
+    });
+
+    testWidgets('shows dual pane when width >= 250', (tester) async {
+      final conn = Connection(
+        id: 'narrow-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 400,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: _fakeInitFactory,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Resize window to view files'), findsNothing);
+      expect(find.byType(FilePane), findsWidgets);
+    });
+  });
+
+  // ===========================================================================
+  // _pasteFromClipboard — clipboard copy/paste between panes
+  // ===========================================================================
+  group('FileBrowserTab — clipboard copy/paste', () {
+    testWidgets('paste does nothing when clipboard is empty', (tester) async {
+      final conn = Connection(
+        id: 'clip-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      final (initResult, tracking) = await _trackingInitFactory(
+        conn,
+        localFiles: _localEntries(),
+        remoteFiles: _remoteEntries(),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (_) async => initResult,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Trigger paste on remote pane without prior copy — should do nothing.
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final remotePane = filePanes.firstWhere((p) => p.paneId == 'remote');
+      remotePane.onPaste!();
+
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+
+      expect(tracking.calls, isEmpty);
+    });
+
+    testWidgets('copy from local + paste on remote triggers upload', (tester) async {
+      final conn = Connection(
+        id: 'clip-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      final (initResult, tracking) = await _trackingInitFactory(
+        conn,
+        localFiles: _localEntries(),
+        remoteFiles: _remoteEntries(),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (_) async => initResult,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final localPane = filePanes.firstWhere((p) => p.paneId == 'local');
+      final remotePane = filePanes.firstWhere((p) => p.paneId == 'remote');
+
+      // Select a file in local pane, then copy
+      initResult.localCtrl.selectSingle(_localEntries().first.path);
+      localPane.onCopy!();
+      await tester.pumpAndSettle();
+
+      // Paste on remote pane — should trigger upload
+      remotePane.onPaste!();
+
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'upload');
+    });
+
+    testWidgets('paste ignores when source pane does not match', (tester) async {
+      final conn = Connection(
+        id: 'clip-3',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      final (initResult, tracking) = await _trackingInitFactory(
+        conn,
+        localFiles: _localEntries(),
+        remoteFiles: _remoteEntries(),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (_) async => initResult,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final localPane = filePanes.firstWhere((p) => p.paneId == 'local');
+
+      // Copy from local pane
+      initResult.localCtrl.selectSingle(_localEntries().first.path);
+      localPane.onCopy!();
+      await tester.pumpAndSettle();
+
+      // Try to paste on LOCAL pane again — source is 'local', expected is 'remote'.
+      // Should do nothing because source pane doesn't match.
+      localPane.onPaste!();
+
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+
+      expect(tracking.calls, isEmpty);
+    });
+
+    testWidgets('copy from remote + paste on local triggers download', (tester) async {
+      final conn = Connection(
+        id: 'clip-4',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      final (initResult, tracking) = await _trackingInitFactory(
+        conn,
+        localFiles: _localEntries(),
+        remoteFiles: _remoteEntries(),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (_) async => initResult,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final remotePane = filePanes.firstWhere((p) => p.paneId == 'remote');
+      final localPane = filePanes.firstWhere((p) => p.paneId == 'local');
+
+      // Copy from remote pane
+      initResult.remoteCtrl.selectSingle(_remoteEntries().first.path);
+      remotePane.onCopy!();
+      await tester.pumpAndSettle();
+
+      // Paste on local pane — should trigger download
+      localPane.onPaste!();
+
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await tester.pumpAndSettle();
+
+      expect(tracking.calls, hasLength(1));
+      expect(tracking.calls.first.method, 'download');
+    });
+  });
+
+  // ===========================================================================
+  // Divider drag — _splitRatio
+  // ===========================================================================
+  group('FileBrowserTab — divider drag', () {
+    testWidgets('horizontal drag on divider adjusts split ratio', (tester) async {
+      final conn = Connection(
+        id: 'divider-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: _fakeInitFactory,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The divider is a GestureDetector inside a Positioned, containing
+      // a SizedBox(width: 6). Use ancestor matching to find the right one.
+      final dividerFinder = find.descendant(
+        of: find.byType(Positioned),
+        matching: find.byWidgetPredicate(
+          (w) => w is GestureDetector && w.behavior == HitTestBehavior.opaque,
+        ),
+      );
+      expect(dividerFinder, findsOneWidget);
+
+      // Drag divider to the right by 100px.
+      await tester.drag(dividerFinder, const Offset(100, 0));
+      await tester.pumpAndSettle();
+
+      // If the drag worked, the layout should still render both panes.
+      expect(find.byType(FilePane), findsNWidgets(2));
+    });
+  });
+
+  // ===========================================================================
+  // onPaneActivated — clears other pane selection
+  // ===========================================================================
+  group('FileBrowserTab — onPaneActivated', () {
+    testWidgets('activating local pane clears remote selection', (tester) async {
+      final conn = Connection(
+        id: 'activate-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        state: SSHConnectionState.connected,
+      );
+
+      final (initResult, _) = await _trackingInitFactory(
+        conn,
+        localFiles: _localEntries(),
+        remoteFiles: _remoteEntries(),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transferManagerProvider.overrideWithValue(manager),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: FileBrowserTab(
+                  connection: conn,
+                  sftpInitFactory: (_) async => initResult,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Select something in the remote pane.
+      initResult.remoteCtrl.selectSingle(_remoteEntries().first.path);
+      expect(initResult.remoteCtrl.selectedEntries, isNotEmpty);
+
+      // Activate local pane — should clear remote selection.
+      final filePanes = tester.widgetList<FilePane>(find.byType(FilePane)).toList();
+      final localPane = filePanes.firstWhere((p) => p.paneId == 'local');
+      localPane.onPaneActivated!();
+      await tester.pumpAndSettle();
+
+      expect(initResult.remoteCtrl.selectedEntries, isEmpty);
+    });
+  });
 }

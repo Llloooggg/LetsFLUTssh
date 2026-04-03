@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/logger.dart';
 import '../../utils/platform.dart';
 import 'sftp_models.dart';
 
@@ -100,12 +101,14 @@ class LocalFS implements FileSystem {
 
   @override
   Future<void> mkdir(String path) async {
+    AppLogger.instance.log('Creating directory: $path', name: 'LocalFS');
     await Directory(path).create(recursive: true);
   }
 
   @override
   Future<void> remove(String path) async {
     final type = await FileSystemEntity.type(path);
+    AppLogger.instance.log('Removing ${type == FileSystemEntityType.directory ? 'directory' : 'file'}: $path', name: 'LocalFS');
     if (type == FileSystemEntityType.directory) {
       await Directory(path).delete(recursive: true);
     } else {
@@ -115,6 +118,7 @@ class LocalFS implements FileSystem {
 
   @override
   Future<void> removeDir(String path) async {
+    AppLogger.instance.log('Removing directory recursively: $path', name: 'LocalFS');
     await Directory(path).delete(recursive: true);
   }
 
@@ -137,6 +141,7 @@ class LocalFS implements FileSystem {
 
   @override
   Future<void> rename(String oldPath, String newPath) async {
+    AppLogger.instance.log('Renaming: $oldPath → $newPath', name: 'LocalFS');
     final type = await FileSystemEntity.type(oldPath);
     if (type == FileSystemEntityType.directory) {
       await Directory(oldPath).rename(newPath);
