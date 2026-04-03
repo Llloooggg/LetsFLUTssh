@@ -104,11 +104,11 @@ void main() {
     });
 
     group('addSftpTab', () {
-      test('adds SFTP tab with suffix', () {
+      test('adds SFTP tab with connection label', () {
         final conn = makeConn(label: 'MyServer');
         notifier.addSftpTab(conn);
         expect(notifier.state.tabs.first.kind, TabKind.sftp);
-        expect(notifier.state.tabs.first.label, 'MyServer (SFTP)');
+        expect(notifier.state.tabs.first.label, 'MyServer');
       });
 
       test('uses custom label', () {
