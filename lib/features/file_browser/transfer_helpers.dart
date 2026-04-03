@@ -1,6 +1,7 @@
 import 'package:path/path.dart' as p;
 
 import '../../core/sftp/sftp_client.dart';
+import '../../utils/logger.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/transfer_manager.dart';
 import '../../core/transfer/transfer_task.dart';
@@ -19,6 +20,10 @@ class TransferHelpers {
     required FilePaneController? remoteCtrl,
   }) {
     final remotePath = p.posix.join(remoteDirPath, entry.name);
+    AppLogger.instance.log(
+      'Enqueue upload: ${entry.path} → $remotePath',
+      name: 'Transfer',
+    );
 
     manager.enqueue(TransferTask(
       name: entry.isDir ? '${entry.name}/' : entry.name,
@@ -51,6 +56,10 @@ class TransferHelpers {
     required FilePaneController? localCtrl,
   }) {
     final localPath = p.join(localDirPath, entry.name);
+    AppLogger.instance.log(
+      'Enqueue download: ${entry.path} → $localPath',
+      name: 'Transfer',
+    );
 
     manager.enqueue(TransferTask(
       name: entry.isDir ? '${entry.name}/' : entry.name,
