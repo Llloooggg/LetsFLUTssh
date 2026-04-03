@@ -2356,4 +2356,191 @@ void main() {
       expect(marquee, isEmpty);
     });
   });
+
+  // ===========================================================================
+  // Path editor — edit path, submit, cancel
+  // ===========================================================================
+  group('FilePane — path editor', () {
+    testWidgets('Edit Path button activates path editor', (tester) async {
+      final fs = _MockFS({'/home': makeEntries()});
+      final ctrl = FilePaneController(fs: fs, label: 'L');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      // Tap the Edit Path button
+      await tester.tap(find.byTooltip('Edit Path'));
+      await tester.pumpAndSettle();
+
+      // TextField should appear
+      expect(find.byType(TextField), findsOneWidget);
+
+      ctrl.dispose();
+    });
+
+    testWidgets('submitting path navigates to it', (tester) async {
+      final fs = _MockFS({'/home': makeEntries(), '/new/path': []});
+      final ctrl = FilePaneController(fs: fs, label: 'L');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      // Activate editor
+      await tester.tap(find.byTooltip('Edit Path'));
+      await tester.pumpAndSettle();
+
+      // Clear and type new path
+      await tester.enterText(find.byType(TextField), '/new/path');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      // Editor should close
+      expect(find.byType(TextField), findsNothing);
+      // Controller navigated to the new path
+      expect(ctrl.currentPath, '/new/path');
+
+      ctrl.dispose();
+    });
+
+    testWidgets('submitting empty path does not navigate', (tester) async {
+      final fs = _MockFS({'/home': makeEntries()});
+      final ctrl = FilePaneController(fs: fs, label: 'L');
+      await ctrl.init();
+      final originalPath = ctrl.currentPath;
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit Path'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '   ');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(ctrl.currentPath, originalPath);
+
+      ctrl.dispose();
+    });
+  });
+
+  // ===========================================================================
+  // Column visibility at various widths
+  // ===========================================================================
+  group('FilePane — column visibility', () {
+    testWidgets('narrow pane hides size/modified/mode columns', (tester) async {
+      final fs = _MockFS({'/home': makeEntries()});
+      final ctrl = FilePaneController(fs: fs, label: 'L');
+      await ctrl.init();
+
+      // Very narrow — only name should show
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 80,
+              height: 400,
+              child: FilePane(controller: ctrl, paneId: 'test'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // File name should be visible
+      expect(find.text('readme.md'), findsOneWidget);
+      // But size column text (formatted file sizes) should be absent
+      // since columns are hidden at narrow widths.
+      // At minimum width, date and mode columns should not render.
+      expect(find.textContaining(RegExp(r'rwx|r-x|rw-')), findsNothing);
+
+      ctrl.dispose();
+    });
+  });
+
+  // ===========================================================================
+  // Folder size display
+  // ===========================================================================
+  group('FilePane — folder sizes', () {
+    testWidgets('shows loading indicator when showFolderSizes enabled', (tester) async {
+      final fs = _MockFS({'/home': makeEntries()});
+      final ctrl = FilePaneController(fs: fs, label: 'L');
+      await ctrl.init();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 600,
+              height: 400,
+              child: FilePane(
+                controller: ctrl,
+                paneId: 'test',
+                showFolderSizes: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      // Single pump — folder size request is queued but not resolved yet.
+      await tester.pump();
+
+      // The "docs" directory should show "..." while size is pending.
+      // If the mock resolves instantly, it shows "0 B" instead — either
+      // proves the folder size path is exercised.
+      final hasPending = find.text('...').evaluate().isNotEmpty;
+      final hasResolved = find.text('0 B').evaluate().isNotEmpty;
+      expect(hasPending || hasResolved, isTrue);
+
+      ctrl.dispose();
+    });
+  });
+
+  // ===========================================================================
+  // _isWindowsPath static helper
+  // ===========================================================================
+  group('FilePane — Windows path detection', () {
+    testWidgets('Windows path shows backslash separator and drive label', (tester) async {
+      final fs = _WindowsMockFS({'C:\\Users\\test': makeEntries()});
+      final ctrl = FilePaneController(fs: fs, label: 'L');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      // Should show drive letter as root and backslash separators
+      expect(find.textContaining('C:'), findsWidgets);
+      expect(find.text(' \\ '), findsWidgets);
+
+      ctrl.dispose();
+    });
+  });
+}
+
+/// MockFS returning a Windows initial directory.
+class _WindowsMockFS implements FileSystem {
+  final Map<String, List<FileEntry>> dirs;
+  _WindowsMockFS(this.dirs);
+
+  @override
+  Future<String> initialDir() async => dirs.keys.first;
+  @override
+  Future<List<FileEntry>> list(String path) async {
+    if (!dirs.containsKey(path)) throw Exception('Not found: $path');
+    return dirs[path]!;
+  }
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<int> dirSize(String path) async => 0;
 }

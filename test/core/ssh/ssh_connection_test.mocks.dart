@@ -49,28 +49,34 @@ class _FakeSSHForwardChannel_2 extends _i1.SmartFake
     : super(parent, parentInvocation);
 }
 
-class _FakeSSHSession_3 extends _i1.SmartFake implements _i5.SSHSession {
-  _FakeSSHSession_3(Object parent, Invocation parentInvocation)
+class _FakeSSHDynamicForward_3 extends _i1.SmartFake
+    implements _i4.SSHDynamicForward {
+  _FakeSSHDynamicForward_3(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeSftpClient_4 extends _i1.SmartFake implements _i6.SftpClient {
-  _FakeSftpClient_4(Object parent, Invocation parentInvocation)
+class _FakeSSHSession_4 extends _i1.SmartFake implements _i5.SSHSession {
+  _FakeSSHSession_4(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeSSHHttpClient_5 extends _i1.SmartFake implements _i7.SSHHttpClient {
-  _FakeSSHHttpClient_5(Object parent, Invocation parentInvocation)
+class _FakeSftpClient_5 extends _i1.SmartFake implements _i6.SftpClient {
+  _FakeSftpClient_5(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeSSHRunResult_6 extends _i1.SmartFake implements _i8.SSHRunResult {
-  _FakeSSHRunResult_6(Object parent, Invocation parentInvocation)
+class _FakeSSHHttpClient_6 extends _i1.SmartFake implements _i7.SSHHttpClient {
+  _FakeSSHHttpClient_6(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeStreamSink_7<S> extends _i1.SmartFake implements _i9.StreamSink<S> {
-  _FakeStreamSink_7(Object parent, Invocation parentInvocation)
+class _FakeSSHRunResult_7 extends _i1.SmartFake implements _i8.SSHRunResult {
+  _FakeSSHRunResult_7(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeStreamSink_8<S> extends _i1.SmartFake implements _i9.StreamSink<S> {
+  _FakeStreamSink_8(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -235,6 +241,46 @@ class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
           as _i9.Future<_i4.SSHForwardChannel>);
 
   @override
+  _i9.Future<_i4.SSHDynamicForward> forwardDynamic({
+    String? bindHost = '127.0.0.1',
+    int? bindPort,
+    _i4.SSHDynamicForwardOptions? options =
+        const _i4.SSHDynamicForwardOptions(),
+    _i4.SSHDynamicConnectionFilter? filter,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#forwardDynamic, [], {
+              #bindHost: bindHost,
+              #bindPort: bindPort,
+              #options: options,
+              #filter: filter,
+            }),
+            returnValue: _i9.Future<_i4.SSHDynamicForward>.value(
+              _FakeSSHDynamicForward_3(
+                this,
+                Invocation.method(#forwardDynamic, [], {
+                  #bindHost: bindHost,
+                  #bindPort: bindPort,
+                  #options: options,
+                  #filter: filter,
+                }),
+              ),
+            ),
+            returnValueForMissingStub: _i9.Future<_i4.SSHDynamicForward>.value(
+              _FakeSSHDynamicForward_3(
+                this,
+                Invocation.method(#forwardDynamic, [], {
+                  #bindHost: bindHost,
+                  #bindPort: bindPort,
+                  #options: options,
+                  #filter: filter,
+                }),
+              ),
+            ),
+          )
+          as _i9.Future<_i4.SSHDynamicForward>);
+
+  @override
   _i9.Future<_i4.SSHForwardChannel> forwardLocalUnix(
     String? remoteSocketPath,
   ) =>
@@ -269,7 +315,7 @@ class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
               {#pty: pty, #x11: x11, #environment: environment},
             ),
             returnValue: _i9.Future<_i5.SSHSession>.value(
-              _FakeSSHSession_3(
+              _FakeSSHSession_4(
                 this,
                 Invocation.method(
                   #execute,
@@ -279,7 +325,7 @@ class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
               ),
             ),
             returnValueForMissingStub: _i9.Future<_i5.SSHSession>.value(
-              _FakeSSHSession_3(
+              _FakeSSHSession_4(
                 this,
                 Invocation.method(
                   #execute,
@@ -304,7 +350,7 @@ class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
               #environment: environment,
             }),
             returnValue: _i9.Future<_i5.SSHSession>.value(
-              _FakeSSHSession_3(
+              _FakeSSHSession_4(
                 this,
                 Invocation.method(#shell, [], {
                   #pty: pty,
@@ -314,7 +360,7 @@ class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
               ),
             ),
             returnValueForMissingStub: _i9.Future<_i5.SSHSession>.value(
-              _FakeSSHSession_3(
+              _FakeSSHSession_4(
                 this,
                 Invocation.method(#shell, [], {
                   #pty: pty,
@@ -340,10 +386,10 @@ class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
       (super.noSuchMethod(
             Invocation.method(#sftp, []),
             returnValue: _i9.Future<_i6.SftpClient>.value(
-              _FakeSftpClient_4(this, Invocation.method(#sftp, [])),
+              _FakeSftpClient_5(this, Invocation.method(#sftp, [])),
             ),
             returnValueForMissingStub: _i9.Future<_i6.SftpClient>.value(
-              _FakeSftpClient_4(this, Invocation.method(#sftp, [])),
+              _FakeSftpClient_5(this, Invocation.method(#sftp, [])),
             ),
           )
           as _i9.Future<_i6.SftpClient>);
@@ -352,11 +398,11 @@ class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
   _i7.SSHHttpClient httpClient() =>
       (super.noSuchMethod(
             Invocation.method(#httpClient, []),
-            returnValue: _FakeSSHHttpClient_5(
+            returnValue: _FakeSSHHttpClient_6(
               this,
               Invocation.method(#httpClient, []),
             ),
-            returnValueForMissingStub: _FakeSSHHttpClient_5(
+            returnValueForMissingStub: _FakeSSHHttpClient_6(
               this,
               Invocation.method(#httpClient, []),
             ),
@@ -409,7 +455,7 @@ class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
               },
             ),
             returnValue: _i9.Future<_i8.SSHRunResult>.value(
-              _FakeSSHRunResult_6(
+              _FakeSSHRunResult_7(
                 this,
                 Invocation.method(
                   #runWithResult,
@@ -424,7 +470,7 @@ class MockSSHClient extends _i1.Mock implements _i8.SSHClient {
               ),
             ),
             returnValueForMissingStub: _i9.Future<_i8.SSHRunResult>.value(
-              _FakeSSHRunResult_6(
+              _FakeSSHRunResult_7(
                 this,
                 Invocation.method(
                   #runWithResult,
@@ -480,11 +526,11 @@ class MockSSHSocket extends _i1.Mock implements _i2.SSHSocket {
   _i9.StreamSink<List<int>> get sink =>
       (super.noSuchMethod(
             Invocation.getter(#sink),
-            returnValue: _FakeStreamSink_7<List<int>>(
+            returnValue: _FakeStreamSink_8<List<int>>(
               this,
               Invocation.getter(#sink),
             ),
-            returnValueForMissingStub: _FakeStreamSink_7<List<int>>(
+            returnValueForMissingStub: _FakeStreamSink_8<List<int>>(
               this,
               Invocation.getter(#sink),
             ),
@@ -524,11 +570,11 @@ class MockSSHSession extends _i1.Mock implements _i5.SSHSession {
   _i9.StreamSink<_i11.Uint8List> get stdin =>
       (super.noSuchMethod(
             Invocation.getter(#stdin),
-            returnValue: _FakeStreamSink_7<_i11.Uint8List>(
+            returnValue: _FakeStreamSink_8<_i11.Uint8List>(
               this,
               Invocation.getter(#stdin),
             ),
-            returnValueForMissingStub: _FakeStreamSink_7<_i11.Uint8List>(
+            returnValueForMissingStub: _FakeStreamSink_8<_i11.Uint8List>(
               this,
               Invocation.getter(#stdin),
             ),
