@@ -14,8 +14,9 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/status_indicator.dart';
 import '../settings/settings_screen.dart';
-import '../tabs/tab_controller.dart';
 import '../tabs/tab_model.dart';
+import '../workspace/workspace_controller.dart';
+import '../workspace/workspace_node.dart';
 import 'mobile_file_browser.dart';
 import 'mobile_terminal_view.dart';
 
@@ -34,7 +35,10 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 
   @override
   Widget build(BuildContext context) {
-    final tabState = ref.watch(tabProvider);
+    final ws = ref.watch(workspaceProvider);
+    final allTabs = collectAllTabs(ws.root);
+    final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
+    final activeTab = focusedPanel?.activeTab;
 
     // Watch connection state changes so SFTP button updates when connect finishes
     ref.watch(connectionsProvider);
@@ -44,9 +48,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     // to pick up the new values.
     ref.watch(themeModeProvider);
 
-    _autoSwitchToSessionsIfNeeded(tabState);
+    _autoSwitchToSessionsIfNeeded(allTabs);
 
-    final hasActiveTabs = tabState.tabs.isNotEmpty;
+    final hasActiveTabs = allTabs.isNotEmpty;
 
     return PopScope(
       canPop: !hasActiveTabs && _navIndex == 0,
@@ -56,18 +60,18 @@ class _MobileShellState extends ConsumerState<MobileShell> {
           child: Column(
             children: [
               _buildAppBar(context),
-              Expanded(child: _buildPageContent(tabState, context)),
+              Expanded(child: _buildPageContent(allTabs, activeTab, context)),
             ],
           ),
         ),
-        bottomNavigationBar: _buildBottomNav(tabState),
+        bottomNavigationBar: _buildBottomNav(allTabs),
       ),
     );
   }
 
-  void _autoSwitchToSessionsIfNeeded(TabState tabState) {
-    if (_navIndex == 1 && _terminalTabCount(tabState) == 0 ||
-        _navIndex == 2 && _sftpTabCount(tabState) == 0) {
+  void _autoSwitchToSessionsIfNeeded(List<TabEntry> allTabs) {
+    if (_navIndex == 1 && _terminalTabCount(allTabs) == 0 ||
+        _navIndex == 2 && _sftpTabCount(allTabs) == 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _navIndex = 0);
       });
@@ -156,7 +160,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     );
   }
 
-  Widget _buildPageContent(TabState tabState, BuildContext context) {
+  Widget _buildPageContent(List<TabEntry> allTabs, TabEntry? activeTab, BuildContext context) {
     return IndexedStack(
       index: _navIndex,
       children: [
@@ -169,21 +173,23 @@ class _MobileShellState extends ConsumerState<MobileShell> {
           },
         ),
         _MobileTerminalPage(
-          tabState: tabState,
-          onOpenSftp: _activeTerminalConnection(tabState)?.isConnected == true
+          allTabs: allTabs,
+          activeTab: activeTab,
+          onOpenSftp: _activeTerminalConnection(allTabs, activeTab)?.isConnected == true
               ? () {
-                  final conn = _activeTerminalConnection(tabState)!;
-                  ref.read(tabProvider.notifier).addSftpTab(conn);
+                  final conn = _activeTerminalConnection(allTabs, activeTab)!;
+                  ref.read(workspaceProvider.notifier).addSftpTab(conn);
                   setState(() => _navIndex = 2);
                 }
               : null,
         ),
         _MobileSftpPage(
-          tabState: tabState,
-          onOpenSsh: _activeSftpConnection(tabState)?.isConnected == true
+          allTabs: allTabs,
+          activeTab: activeTab,
+          onOpenSsh: _activeSftpConnection(allTabs, activeTab)?.isConnected == true
               ? () {
-                  final conn = _activeSftpConnection(tabState)!;
-                  ref.read(tabProvider.notifier).addTerminalTab(conn);
+                  final conn = _activeSftpConnection(allTabs, activeTab)!;
+                  ref.read(workspaceProvider.notifier).addTerminalTab(conn);
                   setState(() => _navIndex = 1);
                 }
               : null,
@@ -192,9 +198,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     );
   }
 
-  Widget _buildBottomNav(TabState tabState) {
-    final termCount = _terminalTabCount(tabState);
-    final sftpCount = _sftpTabCount(tabState);
+  Widget _buildBottomNav(List<TabEntry> allTabs) {
+    final termCount = _terminalTabCount(allTabs);
+    final sftpCount = _sftpTabCount(allTabs);
     return Container(
       height: 56,
       color: AppTheme.bg1,
@@ -307,25 +313,25 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     }
   }
 
-  Connection? _activeTerminalConnection(TabState s) {
-    final termTabs = s.tabs.where((t) => t.kind == TabKind.terminal).toList();
+  Connection? _activeTerminalConnection(List<TabEntry> tabs, TabEntry? activeTab) {
+    final termTabs = tabs.where((t) => t.kind == TabKind.terminal).toList();
     if (termTabs.isEmpty) return null;
-    final active = termTabs.contains(s.activeTab) ? s.activeTab! : termTabs.last;
+    final active = activeTab != null && termTabs.contains(activeTab) ? activeTab : termTabs.last;
     return active.connection;
   }
 
-  Connection? _activeSftpConnection(TabState s) {
-    final sftpTabs = s.tabs.where((t) => t.kind == TabKind.sftp).toList();
+  Connection? _activeSftpConnection(List<TabEntry> tabs, TabEntry? activeTab) {
+    final sftpTabs = tabs.where((t) => t.kind == TabKind.sftp).toList();
     if (sftpTabs.isEmpty) return null;
-    final active = sftpTabs.contains(s.activeTab) ? s.activeTab! : sftpTabs.last;
+    final active = activeTab != null && sftpTabs.contains(activeTab) ? activeTab : sftpTabs.last;
     return active.connection;
   }
 
-  int _terminalTabCount(TabState s) =>
-      s.tabs.where((t) => t.kind == TabKind.terminal).length;
+  int _terminalTabCount(List<TabEntry> tabs) =>
+      tabs.where((t) => t.kind == TabKind.terminal).length;
 
-  int _sftpTabCount(TabState s) =>
-      s.tabs.where((t) => t.kind == TabKind.sftp).length;
+  int _sftpTabCount(List<TabEntry> tabs) =>
+      tabs.where((t) => t.kind == TabKind.sftp).length;
 
   void _connectSession(BuildContext ctx, WidgetRef ref, Session session) {
     final ok = SessionConnect.connectTerminal(ctx, ref, session);
@@ -363,12 +369,10 @@ class _MobileSessionsPage extends ConsumerWidget {
 
 /// Horizontal chip-based tab selector shared by terminal and SFTP pages.
 class _MobileTabChipBar extends ConsumerStatefulWidget {
-  final TabState tabState;
   final List<TabEntry> filteredTabs;
   final TabEntry activeTab;
 
   const _MobileTabChipBar({
-    required this.tabState,
     required this.filteredTabs,
     required this.activeTab,
   });
@@ -431,8 +435,15 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     final iconColor = _tabIconColor(isActive: isActive, isTerminal: isTerminal);
     Widget chip = GestureDetector(
       onTap: () {
-        final globalIdx = widget.tabState.tabs.indexOf(tab);
-        ref.read(tabProvider.notifier).selectTab(globalIdx);
+        final ws = ref.read(workspaceProvider);
+        final panelId = ws.focusedPanelId;
+        final panel = findPanel(ws.root, panelId);
+        if (panel != null) {
+          final idx = panel.tabs.indexWhere((t) => t.id == tab.id);
+          if (idx >= 0) {
+            ref.read(workspaceProvider.notifier).selectTab(panelId, idx);
+          }
+        }
       },
       child: SizedBox(
         height: 32,
@@ -470,7 +481,10 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                   if (isActive) ...[
                     const SizedBox(width: 4),
                     GestureDetector(
-                      onTap: () => ref.read(tabProvider.notifier).closeTab(tab.id),
+                      onTap: () {
+                        final ws = ref.read(workspaceProvider);
+                        ref.read(workspaceProvider.notifier).closeTab(ws.focusedPanelId, tab.id);
+                      },
                       child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
                     ),
                   ],
@@ -502,17 +516,19 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
 
 /// Terminal page — shows active terminal tab or empty state.
 class _MobileTerminalPage extends ConsumerWidget {
-  final TabState tabState;
+  final List<TabEntry> allTabs;
+  final TabEntry? activeTab;
   final VoidCallback? onOpenSftp;
 
   const _MobileTerminalPage({
-    required this.tabState,
+    required this.allTabs,
+    this.activeTab,
     this.onOpenSftp,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final termTabs = tabState.tabs.where((t) => t.kind == TabKind.terminal).toList();
+    final termTabs = allTabs.where((t) => t.kind == TabKind.terminal).toList();
     if (termTabs.isEmpty) {
       return Center(
         child: Column(
@@ -536,8 +552,8 @@ class _MobileTerminalPage extends ConsumerWidget {
       );
     }
 
-    final activeTermTab = termTabs.contains(tabState.activeTab)
-        ? tabState.activeTab!
+    final activeTermTab = activeTab != null && termTabs.contains(activeTab)
+        ? activeTab!
         : termTabs.last;
 
     return Column(
@@ -548,7 +564,6 @@ class _MobileTerminalPage extends ConsumerWidget {
             children: [
               Expanded(
                 child: _MobileTabChipBar(
-                  tabState: tabState,
                   filteredTabs: termTabs,
                   activeTab: activeTermTab,
                 ),
@@ -580,14 +595,15 @@ class _MobileTerminalPage extends ConsumerWidget {
 
 /// SFTP page — shows active SFTP tab or empty state.
 class _MobileSftpPage extends ConsumerWidget {
-  final TabState tabState;
+  final List<TabEntry> allTabs;
+  final TabEntry? activeTab;
   final VoidCallback? onOpenSsh;
 
-  const _MobileSftpPage({required this.tabState, this.onOpenSsh});
+  const _MobileSftpPage({required this.allTabs, this.activeTab, this.onOpenSsh});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sftpTabs = tabState.tabs.where((t) => t.kind == TabKind.sftp).toList();
+    final sftpTabs = allTabs.where((t) => t.kind == TabKind.sftp).toList();
     if (sftpTabs.isEmpty) {
       return Center(
         child: Column(
@@ -611,8 +627,8 @@ class _MobileSftpPage extends ConsumerWidget {
       );
     }
 
-    final activeSftpTab = sftpTabs.contains(tabState.activeTab)
-        ? tabState.activeTab!
+    final activeSftpTab = activeTab != null && sftpTabs.contains(activeTab)
+        ? activeTab!
         : sftpTabs.last;
 
     return Column(
@@ -623,7 +639,6 @@ class _MobileSftpPage extends ConsumerWidget {
             children: [
               Expanded(
                 child: _MobileTabChipBar(
-                  tabState: tabState,
                   filteredTabs: sftpTabs,
                   activeTab: activeSftpTab,
                 ),
