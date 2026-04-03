@@ -12,6 +12,7 @@ import '../session_manager/session_connect.dart';
 import '../session_manager/session_panel.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/status_indicator.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_controller.dart';
 import '../tabs/tab_model.dart';
@@ -107,24 +108,40 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               color: AppTheme.fgBright,
             ),
           ),
-          const SizedBox(width: 8),
+          const Spacer(),
           Builder(builder: (_) {
-            final activeCount = (ref.watch(connectionsProvider).value ?? []).where((c) => c.isConnected).length;
+            final connections = ref.watch(connectionsProvider).value ?? [];
+            final connectedCount = connections.where((c) => c.isConnected).length;
+            final connectingCount = connections.where((c) => c.isConnecting).length;
+            final activeCount = connectedCount + connectingCount;
             final savedCount = ref.watch(sessionProvider).length;
-            return Text.rich(
-              TextSpan(children: [
-                TextSpan(
-                  text: '$activeCount active',
-                  style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.green),
+            final Color? connectionIconColor;
+            if (connectedCount > 0) {
+              connectionIconColor = AppTheme.green;
+            } else if (connectingCount > 0) {
+              connectionIconColor = AppTheme.yellow;
+            } else {
+              connectionIconColor = null;
+            }
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                StatusIndicator(
+                  icon: Icons.dns_outlined,
+                  count: savedCount,
+                  tooltip: 'Saved sessions',
                 ),
-                TextSpan(
-                  text: ' · $savedCount saved',
-                  style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                const SizedBox(width: 10),
+                StatusIndicator(
+                  icon: Icons.wifi,
+                  count: activeCount,
+                  tooltip: 'Active connections',
+                  iconColor: connectionIconColor,
                 ),
-              ]),
+              ],
             );
           }),
-          const Spacer(),
+          const SizedBox(width: 8),
           AppIconButton(
             icon: Icons.settings,
             size: 15,

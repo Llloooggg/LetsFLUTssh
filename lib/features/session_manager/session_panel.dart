@@ -394,7 +394,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   onSessionDoubleTap: widget.onConnect,
                   onSessionSelected: (id) {
                     _focusedSessionId = id;
-                    _focusNode.requestFocus();
+                    if (!mobile) _focusNode.requestFocus();
                   },
                   onSessionContextMenu: (session, position) {
                     _showContextMenu(context, ref, session, position);

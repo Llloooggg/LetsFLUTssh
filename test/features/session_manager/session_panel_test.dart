@@ -2552,4 +2552,41 @@ void main() {
       expect(textWidgets.length, 3);
     });
   });
+
+  group('SessionPanel — focus handling', () {
+    tearDown(() => debugMobilePlatformOverride = null);
+
+    testWidgets('desktop: requestFocus called on session selection', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      final focusNode = panelState.focusNode;
+
+      // Tap a session — wait past double-tap timeout so single-tap fires
+      await tester.tap(find.text('staging'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+
+      // Desktop: focus node should have focus after selection
+      expect(focusNode.hasFocus, isTrue);
+    });
+
+    testWidgets('mobile: requestFocus NOT called on session selection', (tester) async {
+      debugMobilePlatformOverride = true;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      final focusNode = panelState.focusNode;
+
+      // Tap a session — on mobile triggers connect immediately
+      await tester.tap(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Mobile: focus node should NOT have focus after selection
+      expect(focusNode.hasFocus, isFalse);
+    });
+  });
 }
