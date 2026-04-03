@@ -247,6 +247,48 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     );
   }
 
+  /// Split any node (panel or branch) by wrapping it in a new branch.
+  ///
+  /// Unlike [splitPanel] which replaces a single panel, this wraps the
+  /// entire node [nodeId] — useful for splitting an entire branch so the
+  /// new panel spans the full height/width of the branch.
+  void splitAroundNode(
+    String nodeId,
+    Axis direction,
+    TabEntry tab, {
+    bool insertBefore = false,
+  }) {
+    final target = findNode(state.root, nodeId);
+    if (target == null) return;
+
+    // If it's a panel and the tab lives there, use splitPanel instead.
+    if (target is PanelLeaf) {
+      splitPanel(target.id, direction, tab, insertBefore: insertBefore);
+      return;
+    }
+
+    final newPanel = PanelLeaf(
+      tabs: [tab],
+      activeTabIndex: 0,
+    );
+
+    final branch = WorkspaceBranch(
+      direction: direction,
+      first: insertBefore ? newPanel : target,
+      second: insertBefore ? target : newPanel,
+    );
+
+    // If the target IS the root, replace the entire root.
+    if (state.root.id == nodeId) {
+      state = state.copyWith(root: branch, focusedPanelId: newPanel.id);
+    } else {
+      state = state.copyWith(
+        root: replaceWorkspaceNode(state.root, nodeId, branch),
+        focusedPanelId: newPanel.id,
+      );
+    }
+  }
+
   /// Update the divider ratio for a [WorkspaceBranch].
   void updateRatio(String branchId, double ratio) {
     state = state.copyWith(
