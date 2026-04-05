@@ -15,6 +15,7 @@ import '../../core/session/qr_codec.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/version_provider.dart';
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
@@ -800,7 +801,7 @@ class _ExportImportTile extends ConsumerWidget {
       if (context.mounted) {
         Toast.show(
           context,
-          message: 'Import failed: $e',
+          message: S.of(context).importFailed(localizeError(S.of(context), e)),
           level: ToastLevel.error,
         );
       }
@@ -874,7 +875,13 @@ class _UpdateSection extends ConsumerWidget {
               } else if (state.status == UpdateStatus.error) {
                 Toast.show(
                   context,
-                  message: state.error ?? S.of(context).updateCheckFailed,
+                  message: state.error != null
+                      ? S
+                            .of(context)
+                            .errDownloadFailed(
+                              localizeError(S.of(context), state.error!),
+                            )
+                      : S.of(context).updateCheckFailed,
                   level: ToastLevel.error,
                 );
               }
@@ -938,7 +945,9 @@ class _UpdateSection extends ConsumerWidget {
           ),
           title: Text(S.of(context).updateCheckFailed),
           subtitle: Text(
-            updateState.error ?? S.of(context).unknownError,
+            updateState.error != null
+                ? localizeError(S.of(context), updateState.error!)
+                : S.of(context).unknownError,
             style: TextStyle(
               fontSize: AppFonts.md,
               color: theme.colorScheme.error,

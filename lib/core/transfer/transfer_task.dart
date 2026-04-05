@@ -34,7 +34,7 @@ class HistoryEntry {
   final String sourcePath;
   final String targetPath;
   final TransferStatus status;
-  final String? error;
+  final Object? error;
   final double lastPercent;
   final String lastMessage;
   final DateTime createdAt;

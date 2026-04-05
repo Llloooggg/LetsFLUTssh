@@ -426,5 +426,119 @@
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+
+  "errOperationNotPermitted": "Operation not permitted",
+  "errNoSuchFileOrDirectory": "No such file or directory",
+  "errNoSuchProcess": "No such process",
+  "errIoError": "I/O error",
+  "errBadFileDescriptor": "Bad file descriptor",
+  "errResourceTemporarilyUnavailable": "Resource temporarily unavailable",
+  "errOutOfMemory": "Out of memory",
+  "errPermissionDenied": "Permission denied",
+  "errFileExists": "File exists",
+  "errNotADirectory": "Not a directory",
+  "errIsADirectory": "Is a directory",
+  "errInvalidArgument": "Invalid argument",
+  "errTooManyOpenFiles": "Too many open files",
+  "errNoSpaceLeftOnDevice": "No space left on device",
+  "errReadOnlyFileSystem": "Read-only file system",
+  "errBrokenPipe": "Broken pipe",
+  "errFileNameTooLong": "File name too long",
+  "errDirectoryNotEmpty": "Directory not empty",
+  "errAddressAlreadyInUse": "Address already in use",
+  "errCannotAssignAddress": "Cannot assign requested address",
+  "errNetworkIsDown": "Network is down",
+  "errNetworkIsUnreachable": "Network is unreachable",
+  "errConnectionResetByPeer": "Connection reset by peer",
+  "errConnectionTimedOut": "Connection timed out",
+  "errConnectionRefused": "Connection refused",
+  "errHostIsDown": "Host is down",
+  "errNoRouteToHost": "No route to host",
+  "errConnectionAborted": "Connection aborted",
+  "errAlreadyConnected": "Already connected",
+  "errNotConnected": "Not connected",
+
+  "errSshConnectFailed": "Failed to connect to {host}:{port}",
+  "@errSshConnectFailed": {
+    "placeholders": {
+      "host": { "type": "String" },
+      "port": { "type": "int" }
+    }
+  },
+  "errSshAuthFailed": "Authentication failed for {user}@{host}",
+  "@errSshAuthFailed": {
+    "placeholders": {
+      "user": { "type": "String" },
+      "host": { "type": "String" }
+    }
+  },
+  "errSshConnectionFailed": "Connection failed to {host}:{port}",
+  "@errSshConnectionFailed": {
+    "placeholders": {
+      "host": { "type": "String" },
+      "port": { "type": "int" }
+    }
+  },
+  "errSshAuthAborted": "Authentication aborted",
+  "errSshHostKeyRejected": "Host key rejected for {host}:{port} — accept the host key or check known_hosts",
+  "@errSshHostKeyRejected": {
+    "placeholders": {
+      "host": { "type": "String" },
+      "port": { "type": "int" }
+    }
+  },
+  "errSshOpenShellFailed": "Failed to open shell",
+  "errSshLoadKeyFileFailed": "Failed to load SSH key file",
+  "errSshParseKeyFailed": "Failed to parse PEM key data",
+  "errSshConnectionDisposed": "Connection disposed",
+  "errSshNotConnected": "Not connected",
+
+  "errConnectionFailed": "Connection failed",
+  "errConnectionTimedOutSeconds": "Connection timed out after {seconds} seconds",
+  "@errConnectionTimedOutSeconds": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "errSessionClosed": "Session closed",
+  "errShellError": "Shell error: {error}",
+  "@errShellError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "errReconnectFailed": "Reconnect failed: {error}",
+  "@errReconnectFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "errSftpInitFailed": "Failed to initialize SFTP: {error}",
+  "@errSftpInitFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "errDownloadFailed": "Download failed: {error}",
+  "@errDownloadFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "errDecryptionFailed": "Failed to decrypt credentials. Key file may be corrupted.",
+  "errWithPath": "{error}: {path}",
+  "@errWithPath": {
+    "placeholders": {
+      "error": { "type": "String" },
+      "path": { "type": "String" }
+    }
+  },
+  "errWithCause": "{error} ({cause})",
+  "@errWithCause": {
+    "placeholders": {
+      "error": { "type": "String" },
+      "cause": { "type": "String" }
+    }
   }
 }

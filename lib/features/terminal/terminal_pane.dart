@@ -101,9 +101,13 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
     // Check connection result
     if (!conn.isConnected) {
-      final error = conn.connectionError ?? 'Connection failed';
+      if (!mounted) return;
+      final l10n = S.of(context);
+      final error = conn.connectionError != null
+          ? localizeError(l10n, conn.connectionError!)
+          : l10n.errConnectionFailed;
       _terminal.write('\x1B[31m$error\x1B[0m\r\n');
-      if (mounted) setState(() => _error = error);
+      setState(() => _error = error);
       return;
     }
 
@@ -111,7 +115,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       if (mounted) {
         setState(() {
           _connected = false;
-          _error = 'Session closed';
+          _error = S.of(context).errSessionClosed;
         });
       }
     }
@@ -137,10 +141,14 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         name: 'TerminalPane',
         error: e,
       );
-      _terminal.write(
-        '\r\n\x1B[31mShell error: ${sanitizeError(e)}\x1B[0m\r\n',
-      );
-      if (mounted) setState(() => _error = sanitizeError(e));
+      if (mounted) {
+        final l10n = S.of(context);
+        final localized = localizeError(l10n, e);
+        _terminal.write(
+          '\r\n\x1B[31m${l10n.errShellError(localized)}\x1B[0m\r\n',
+        );
+        setState(() => _error = localized);
+      }
     }
   }
 

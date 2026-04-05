@@ -824,4 +824,177 @@ class SFa extends S {
 
   @override
   String get failed => 'ناموفق';
+
+  @override
+  String get errOperationNotPermitted => 'عملیات مجاز نیست';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'فایل یا پوشه‌ای وجود ندارد';
+
+  @override
+  String get errNoSuchProcess => 'فرآیندی وجود ندارد';
+
+  @override
+  String get errIoError => 'خطای ورودی/خروجی';
+
+  @override
+  String get errBadFileDescriptor => 'توصیف‌گر فایل نامعتبر';
+
+  @override
+  String get errResourceTemporarilyUnavailable => 'منبع موقتاً در دسترس نیست';
+
+  @override
+  String get errOutOfMemory => 'حافظه ناکافی';
+
+  @override
+  String get errPermissionDenied => 'دسترسی رد شد';
+
+  @override
+  String get errFileExists => 'فایل وجود دارد';
+
+  @override
+  String get errNotADirectory => 'یک پوشه نیست';
+
+  @override
+  String get errIsADirectory => 'یک پوشه است';
+
+  @override
+  String get errInvalidArgument => 'آرگومان نامعتبر';
+
+  @override
+  String get errTooManyOpenFiles => 'تعداد فایل‌های باز بیش از حد است';
+
+  @override
+  String get errNoSpaceLeftOnDevice => 'فضای خالی روی دستگاه وجود ندارد';
+
+  @override
+  String get errReadOnlyFileSystem => 'سیستم فایل فقط خواندنی';
+
+  @override
+  String get errBrokenPipe => 'لوله شکسته';
+
+  @override
+  String get errFileNameTooLong => 'نام فایل بیش از حد طولانی است';
+
+  @override
+  String get errDirectoryNotEmpty => 'پوشه خالی نیست';
+
+  @override
+  String get errAddressAlreadyInUse => 'آدرس در حال استفاده است';
+
+  @override
+  String get errCannotAssignAddress => 'آدرس درخواستی قابل تخصیص نیست';
+
+  @override
+  String get errNetworkIsDown => 'شبکه قطع است';
+
+  @override
+  String get errNetworkIsUnreachable => 'شبکه در دسترس نیست';
+
+  @override
+  String get errConnectionResetByPeer => 'اتصال توسط طرف مقابل بازنشانی شد';
+
+  @override
+  String get errConnectionTimedOut => 'وقفه زمانی اتصال';
+
+  @override
+  String get errConnectionRefused => 'اتصال رد شد';
+
+  @override
+  String get errHostIsDown => 'میزبان خاموش است';
+
+  @override
+  String get errNoRouteToHost => 'مسیری به میزبان وجود ندارد';
+
+  @override
+  String get errConnectionAborted => 'اتصال لغو شد';
+
+  @override
+  String get errAlreadyConnected => 'از قبل متصل است';
+
+  @override
+  String get errNotConnected => 'متصل نیست';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return 'اتصال به $host:$port ناموفق بود';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return 'احراز هویت برای $user@$host ناموفق بود';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return 'اتصال به $host:$port ناموفق بود';
+  }
+
+  @override
+  String get errSshAuthAborted => 'احراز هویت لغو شد';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return 'کلید میزبان برای $host:$port رد شد — کلید میزبان را بپذیرید یا known_hosts را بررسی کنید';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'باز کردن شل ناموفق بود';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'بارگذاری فایل کلید SSH ناموفق بود';
+
+  @override
+  String get errSshParseKeyFailed => 'تجزیه داده کلید PEM ناموفق بود';
+
+  @override
+  String get errSshConnectionDisposed => 'اتصال از بین رفته است';
+
+  @override
+  String get errSshNotConnected => 'متصل نیست';
+
+  @override
+  String get errConnectionFailed => 'اتصال ناموفق بود';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return 'وقفه زمانی اتصال پس از $seconds ثانیه';
+  }
+
+  @override
+  String get errSessionClosed => 'جلسه بسته شد';
+
+  @override
+  String errShellError(String error) {
+    return 'خطای شل: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'اتصال مجدد ناموفق بود: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'راه‌اندازی SFTP ناموفق بود: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'دانلود ناموفق بود: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

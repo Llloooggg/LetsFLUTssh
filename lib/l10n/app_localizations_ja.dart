@@ -815,4 +815,176 @@ class SJa extends S {
 
   @override
   String get failed => '失敗';
+
+  @override
+  String get errOperationNotPermitted => '操作が許可されていません';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'ファイルまたはディレクトリが存在しません';
+
+  @override
+  String get errNoSuchProcess => 'プロセスが存在しません';
+
+  @override
+  String get errIoError => 'I/Oエラー';
+
+  @override
+  String get errBadFileDescriptor => '不正なファイルディスクリプタ';
+
+  @override
+  String get errResourceTemporarilyUnavailable => 'リソースが一時的に利用不可';
+
+  @override
+  String get errOutOfMemory => 'メモリ不足';
+
+  @override
+  String get errPermissionDenied => 'アクセスが拒否されました';
+
+  @override
+  String get errFileExists => 'ファイルが既に存在します';
+
+  @override
+  String get errNotADirectory => 'ディレクトリではありません';
+
+  @override
+  String get errIsADirectory => 'ディレクトリです';
+
+  @override
+  String get errInvalidArgument => '無効な引数';
+
+  @override
+  String get errTooManyOpenFiles => '開いているファイルが多すぎます';
+
+  @override
+  String get errNoSpaceLeftOnDevice => 'デバイスに空き容量がありません';
+
+  @override
+  String get errReadOnlyFileSystem => '読み取り専用ファイルシステム';
+
+  @override
+  String get errBrokenPipe => 'パイプが切断されました';
+
+  @override
+  String get errFileNameTooLong => 'ファイル名が長すぎます';
+
+  @override
+  String get errDirectoryNotEmpty => 'ディレクトリが空ではありません';
+
+  @override
+  String get errAddressAlreadyInUse => 'アドレスが既に使用中です';
+
+  @override
+  String get errCannotAssignAddress => '要求されたアドレスを割り当てできません';
+
+  @override
+  String get errNetworkIsDown => 'ネットワークがダウンしています';
+
+  @override
+  String get errNetworkIsUnreachable => 'ネットワークに到達できません';
+
+  @override
+  String get errConnectionResetByPeer => '接続がピアによってリセットされました';
+
+  @override
+  String get errConnectionTimedOut => '接続がタイムアウトしました';
+
+  @override
+  String get errConnectionRefused => '接続が拒否されました';
+
+  @override
+  String get errHostIsDown => 'ホストがダウンしています';
+
+  @override
+  String get errNoRouteToHost => 'ホストへのルートがありません';
+
+  @override
+  String get errConnectionAborted => '接続が中断されました';
+
+  @override
+  String get errAlreadyConnected => '既に接続されています';
+
+  @override
+  String get errNotConnected => '接続されていません';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return '$host:$port への接続に失敗しました';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return '$user@$host の認証に失敗しました';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return '$host:$port への接続に失敗しました';
+  }
+
+  @override
+  String get errSshAuthAborted => '認証が中断されました';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return '$host:$port のホスト鍵が拒否されました — ホスト鍵を承認するか known_hosts を確認してください';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'シェルのオープンに失敗しました';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'SSH鍵ファイルの読み込みに失敗しました';
+
+  @override
+  String get errSshParseKeyFailed => 'PEM鍵データの解析に失敗しました';
+
+  @override
+  String get errSshConnectionDisposed => '接続が破棄されました';
+
+  @override
+  String get errSshNotConnected => '接続されていません';
+
+  @override
+  String get errConnectionFailed => '接続に失敗しました';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return '$seconds 秒後に接続がタイムアウトしました';
+  }
+
+  @override
+  String get errSessionClosed => 'セッションが閉じられました';
+
+  @override
+  String errShellError(String error) {
+    return 'シェルエラー: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return '再接続に失敗しました: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'SFTPの初期化に失敗しました: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'ダウンロードに失敗しました: $error';
+  }
+
+  @override
+  String get errDecryptionFailed => '認証情報の復号に失敗しました。鍵ファイルが破損している可能性があります。';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error（$cause）';
+  }
 }

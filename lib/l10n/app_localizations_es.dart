@@ -829,4 +829,180 @@ class SEs extends S {
 
   @override
   String get failed => 'Fallido';
+
+  @override
+  String get errOperationNotPermitted => 'Operación no permitida';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'No existe el archivo o directorio';
+
+  @override
+  String get errNoSuchProcess => 'No existe el proceso';
+
+  @override
+  String get errIoError => 'Error de E/S';
+
+  @override
+  String get errBadFileDescriptor => 'Descriptor de archivo incorrecto';
+
+  @override
+  String get errResourceTemporarilyUnavailable =>
+      'Recurso temporalmente no disponible';
+
+  @override
+  String get errOutOfMemory => 'Memoria agotada';
+
+  @override
+  String get errPermissionDenied => 'Permiso denegado';
+
+  @override
+  String get errFileExists => 'El archivo ya existe';
+
+  @override
+  String get errNotADirectory => 'No es un directorio';
+
+  @override
+  String get errIsADirectory => 'Es un directorio';
+
+  @override
+  String get errInvalidArgument => 'Argumento no válido';
+
+  @override
+  String get errTooManyOpenFiles => 'Demasiados archivos abiertos';
+
+  @override
+  String get errNoSpaceLeftOnDevice => 'No queda espacio en el dispositivo';
+
+  @override
+  String get errReadOnlyFileSystem => 'Sistema de archivos de solo lectura';
+
+  @override
+  String get errBrokenPipe => 'Tubería rota';
+
+  @override
+  String get errFileNameTooLong => 'Nombre de archivo demasiado largo';
+
+  @override
+  String get errDirectoryNotEmpty => 'El directorio no está vacío';
+
+  @override
+  String get errAddressAlreadyInUse => 'La dirección ya está en uso';
+
+  @override
+  String get errCannotAssignAddress =>
+      'No se puede asignar la dirección solicitada';
+
+  @override
+  String get errNetworkIsDown => 'La red está caída';
+
+  @override
+  String get errNetworkIsUnreachable => 'La red es inaccesible';
+
+  @override
+  String get errConnectionResetByPeer => 'Conexión restablecida por el par';
+
+  @override
+  String get errConnectionTimedOut => 'Conexión agotada por tiempo';
+
+  @override
+  String get errConnectionRefused => 'Conexión rechazada';
+
+  @override
+  String get errHostIsDown => 'El host está caído';
+
+  @override
+  String get errNoRouteToHost => 'Sin ruta al host';
+
+  @override
+  String get errConnectionAborted => 'Conexión abortada';
+
+  @override
+  String get errAlreadyConnected => 'Ya conectado';
+
+  @override
+  String get errNotConnected => 'No conectado';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return 'Error al conectar a $host:$port';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return 'Autenticación fallida para $user@$host';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return 'Conexión fallida a $host:$port';
+  }
+
+  @override
+  String get errSshAuthAborted => 'Autenticación abortada';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return 'Clave de host rechazada para $host:$port — acepte la clave de host o verifique known_hosts';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'Error al abrir el shell';
+
+  @override
+  String get errSshLoadKeyFileFailed =>
+      'Error al cargar el archivo de clave SSH';
+
+  @override
+  String get errSshParseKeyFailed => 'Error al analizar los datos de clave PEM';
+
+  @override
+  String get errSshConnectionDisposed => 'Conexión eliminada';
+
+  @override
+  String get errSshNotConnected => 'No conectado';
+
+  @override
+  String get errConnectionFailed => 'Conexión fallida';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return 'Conexión agotada tras $seconds segundos';
+  }
+
+  @override
+  String get errSessionClosed => 'Sesión cerrada';
+
+  @override
+  String errShellError(String error) {
+    return 'Error del shell: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'Reconexión fallida: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'Error al inicializar SFTP: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'Descarga fallida: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'Error al descifrar las credenciales. El archivo de clave puede estar dañado.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

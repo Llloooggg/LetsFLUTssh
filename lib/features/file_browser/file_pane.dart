@@ -768,7 +768,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           ),
           const SizedBox(height: 4),
           Text(
-            ctrl.error!,
+            localizeError(S.of(context), ctrl.error!),
             style: AppFonts.inter(
               fontSize: AppFonts.sm,
               color: AppTheme.fgFaint,
