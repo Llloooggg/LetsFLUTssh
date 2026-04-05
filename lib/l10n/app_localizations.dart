@@ -9,11 +9,16 @@ import 'app_localizations_ar.dart';
 import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
 import 'app_localizations_es.dart';
+import 'app_localizations_fa.dart';
 import 'app_localizations_fr.dart';
+import 'app_localizations_hi.dart';
+import 'app_localizations_id.dart';
 import 'app_localizations_ja.dart';
 import 'app_localizations_ko.dart';
 import 'app_localizations_pt.dart';
 import 'app_localizations_ru.dart';
+import 'app_localizations_tr.dart';
+import 'app_localizations_vi.dart';
 import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
@@ -105,11 +110,16 @@ abstract class S {
     Locale('de'),
     Locale('en'),
     Locale('es'),
+    Locale('fa'),
     Locale('fr'),
+    Locale('hi'),
+    Locale('id'),
     Locale('ja'),
     Locale('ko'),
     Locale('pt'),
     Locale('ru'),
+    Locale('tr'),
+    Locale('vi'),
     Locale('zh'),
   ];
 
@@ -1616,11 +1626,16 @@ class _SDelegate extends LocalizationsDelegate<S> {
     'de',
     'en',
     'es',
+    'fa',
     'fr',
+    'hi',
+    'id',
     'ja',
     'ko',
     'pt',
     'ru',
+    'tr',
+    'vi',
     'zh',
   ].contains(locale.languageCode);
 
@@ -1639,8 +1654,14 @@ S lookupS(Locale locale) {
       return SEn();
     case 'es':
       return SEs();
+    case 'fa':
+      return SFa();
     case 'fr':
       return SFr();
+    case 'hi':
+      return SHi();
+    case 'id':
+      return SId();
     case 'ja':
       return SJa();
     case 'ko':
@@ -1649,6 +1670,10 @@ S lookupS(Locale locale) {
       return SPt();
     case 'ru':
       return SRu();
+    case 'tr':
+      return STr();
+    case 'vi':
+      return SVi();
     case 'zh':
       return SZh();
   }

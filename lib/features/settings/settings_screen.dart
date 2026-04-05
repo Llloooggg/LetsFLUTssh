@@ -1480,6 +1480,11 @@ class _LanguageTile extends StatelessWidget {
     'de': ('Deutsch', 'German'),
     'ja': ('日本語', 'Japanese'),
     'ko': ('한국어', 'Korean'),
+    'fa': ('فارسی', 'Persian'),
+    'tr': ('Türkçe', 'Turkish'),
+    'vi': ('Tiếng Việt', 'Vietnamese'),
+    'id': ('Bahasa Indonesia', 'Indonesian'),
+    'hi': ('हिन्दी', 'Hindi'),
   };
 
   @override
@@ -1497,7 +1502,10 @@ class _LanguageTile extends StatelessWidget {
         onSelected: (v) => onChanged(v == _systemDefault ? null : v),
         tooltip: '',
         offset: const Offset(0, AppTheme.controlHeightSm),
-        constraints: const BoxConstraints(minWidth: 200),
+        constraints: const BoxConstraints(
+          minWidth: 200,
+          maxHeight: AppTheme.popupMaxHeight,
+        ),
         color: AppTheme.bg2,
         shape: const RoundedRectangleBorder(borderRadius: AppTheme.radiusMd),
         itemBuilder: (_) => _localeLabels.entries.map((e) {
