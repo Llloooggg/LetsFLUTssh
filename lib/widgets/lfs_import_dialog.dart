@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../features/settings/export_import.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
 
@@ -19,7 +20,10 @@ class LfsImportDialog extends StatefulWidget {
   const LfsImportDialog({super.key, required this.filePath});
 
   /// Show the dialog and return the result.
-  static Future<LfsImportDialogResult?> show(BuildContext context, {required String filePath}) {
+  static Future<LfsImportDialogResult?> show(
+    BuildContext context, {
+    required String filePath,
+  }) {
     return AppDialog.show<LfsImportDialogResult>(
       context,
       builder: (_) => LfsImportDialog(filePath: filePath),
@@ -48,7 +52,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: 'Import Data',
+      title: S.of(context).importData,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -63,12 +67,15 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
             autofocus: true,
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             decoration: InputDecoration(
-              labelText: 'Master Password',
+              labelText: S.of(context).masterPassword,
               labelStyle: TextStyle(color: AppTheme.fgFaint),
               filled: true,
               fillColor: AppTheme.bg3,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.borderLight),
@@ -93,15 +100,15 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
           const SizedBox(height: 4),
           Text(
             _mode == ImportMode.merge
-                ? 'Add new sessions, keep existing'
-                : 'Replace all sessions with imported',
+                ? S.of(context).importModeMergeDescription
+                : S.of(context).importModeReplaceDescription,
             style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         ],
       ),
       actions: [
         AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: 'Import', onTap: _submit),
+        AppDialogAction.primary(label: S.of(context).import_, onTap: _submit),
       ],
     );
   }
@@ -109,9 +116,13 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
   Widget _buildModeSelector() {
     return Row(
       children: [
-        _modeButton('Merge', Icons.merge, ImportMode.merge),
+        _modeButton(S.of(context).merge, Icons.merge, ImportMode.merge),
         const SizedBox(width: 8),
-        _modeButton('Replace', Icons.swap_horiz, ImportMode.replace),
+        _modeButton(
+          S.of(context).replace,
+          Icons.swap_horiz,
+          ImportMode.replace,
+        ),
       ],
     );
   }
@@ -122,7 +133,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
       child: GestureDetector(
         onTap: () => setState(() => _mode = mode),
         child: Container(
-          height: 32,
+          height: AppTheme.controlHeightLg,
           decoration: BoxDecoration(
             color: selected ? AppTheme.accent : AppTheme.bg3,
             borderRadius: AppTheme.radiusSm,
@@ -133,7 +144,11 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: selected ? AppTheme.onAccent : AppTheme.fgDim),
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? AppTheme.onAccent : AppTheme.fgDim,
+              ),
               const SizedBox(width: 6),
               Text(
                 label,

@@ -42,10 +42,8 @@ void main() {
 
       // Spawn a child process that tries to exclusively lock the same file.
       // POSIX fcntl locks are per-process, so we must use a real subprocess.
-      final lockPath =
-          '${tmpDir.path}${Platform.pathSeparator}app.lock'.replaceAll(r'\', '/');
-      final scriptPath =
-          '${tmpDir.path}${Platform.pathSeparator}try_lock.dart'.replaceAll(r'\', '/');
+      final lockPath = '${tmpDir.path}${Platform.pathSeparator}app.lock'.replaceAll(r'\', '/');
+      final scriptPath = '${tmpDir.path}${Platform.pathSeparator}try_lock.dart'.replaceAll(r'\', '/');
       File(scriptPath).writeAsStringSync(
         'import "dart:io";\n'
         'void main() async {\n'

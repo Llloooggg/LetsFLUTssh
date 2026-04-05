@@ -16,30 +16,27 @@ Map<String, dynamic> _releaseJson({
     'tag_name': tagName,
     'html_url': htmlUrl,
     'body': body,
-    'assets': assets ??
+    'assets':
+        assets ??
         [
           {
             'name': 'letsflutssh-2.0.0-linux-x64.AppImage',
-            'browser_download_url':
-                'https://github.com/download/letsflutssh-2.0.0-linux-x64.AppImage',
+            'browser_download_url': 'https://github.com/download/letsflutssh-2.0.0-linux-x64.AppImage',
             'digest': 'sha256:abcdef1234567890',
           },
           {
             'name': 'letsflutssh-2.0.0-windows-x64-setup.exe',
-            'browser_download_url':
-                'https://github.com/download/letsflutssh-2.0.0-windows-x64-setup.exe',
+            'browser_download_url': 'https://github.com/download/letsflutssh-2.0.0-windows-x64-setup.exe',
             'digest': 'sha256:1234567890abcdef',
           },
           {
             'name': 'letsflutssh-2.0.0-macos-universal.dmg',
-            'browser_download_url':
-                'https://github.com/download/letsflutssh-2.0.0-macos-universal.dmg',
+            'browser_download_url': 'https://github.com/download/letsflutssh-2.0.0-macos-universal.dmg',
             'digest': 'sha256:fedcba0987654321',
           },
           {
             'name': 'letsflutssh-2.0.0-android-arm64.apk',
-            'browser_download_url':
-                'https://github.com/download/letsflutssh-2.0.0-android-arm64.apk',
+            'browser_download_url': 'https://github.com/download/letsflutssh-2.0.0-android-arm64.apk',
             'digest': 'sha256:9876543210fedcba',
           },
         ],
@@ -47,8 +44,7 @@ Map<String, dynamic> _releaseJson({
 }
 
 /// Wraps a release in an array (GitHub /releases endpoint format).
-String _releasesArray(List<Map<String, dynamic>> releases) =>
-    jsonEncode(releases);
+String _releasesArray(List<Map<String, dynamic>> releases) => jsonEncode(releases);
 
 void main() {
   // ===========================================================================
@@ -97,29 +93,17 @@ void main() {
   // ===========================================================================
   group('UpdateInfo.hasUpdate', () {
     test('returns true when latest is newer', () {
-      const info = UpdateInfo(
-        latestVersion: '2.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: '',
-      );
+      const info = UpdateInfo(latestVersion: '2.0.0', currentVersion: '1.0.0', releaseUrl: '');
       expect(info.hasUpdate, isTrue);
     });
 
     test('returns false when versions are equal', () {
-      const info = UpdateInfo(
-        latestVersion: '1.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: '',
-      );
+      const info = UpdateInfo(latestVersion: '1.0.0', currentVersion: '1.0.0', releaseUrl: '');
       expect(info.hasUpdate, isFalse);
     });
 
     test('returns false when current is newer', () {
-      const info = UpdateInfo(
-        latestVersion: '1.0.0',
-        currentVersion: '2.0.0',
-        releaseUrl: '',
-      );
+      const info = UpdateInfo(latestVersion: '1.0.0', currentVersion: '2.0.0', releaseUrl: '');
       expect(info.hasUpdate, isFalse);
     });
   });
@@ -150,66 +134,30 @@ void main() {
     });
 
     test('different latestVersion makes unequal', () {
-      const a = UpdateInfo(
-        latestVersion: '2.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: 'url',
-      );
-      const b = UpdateInfo(
-        latestVersion: '3.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: 'url',
-      );
+      const a = UpdateInfo(latestVersion: '2.0.0', currentVersion: '1.0.0', releaseUrl: 'url');
+      const b = UpdateInfo(latestVersion: '3.0.0', currentVersion: '1.0.0', releaseUrl: 'url');
       expect(a, isNot(equals(b)));
     });
 
     test('different assetUrl makes unequal', () {
-      const a = UpdateInfo(
-        latestVersion: '2.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: 'url',
-        assetUrl: 'a',
-      );
-      const b = UpdateInfo(
-        latestVersion: '2.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: 'url',
-        assetUrl: 'b',
-      );
+      const a = UpdateInfo(latestVersion: '2.0.0', currentVersion: '1.0.0', releaseUrl: 'url', assetUrl: 'a');
+      const b = UpdateInfo(latestVersion: '2.0.0', currentVersion: '1.0.0', releaseUrl: 'url', assetUrl: 'b');
       expect(a, isNot(equals(b)));
     });
 
     test('different assetDigest makes unequal', () {
-      const a = UpdateInfo(
-        latestVersion: '2.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: 'url',
-        assetDigest: 'abc',
-      );
-      const b = UpdateInfo(
-        latestVersion: '2.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: 'url',
-        assetDigest: 'def',
-      );
+      const a = UpdateInfo(latestVersion: '2.0.0', currentVersion: '1.0.0', releaseUrl: 'url', assetDigest: 'abc');
+      const b = UpdateInfo(latestVersion: '2.0.0', currentVersion: '1.0.0', releaseUrl: 'url', assetDigest: 'def');
       expect(a, isNot(equals(b)));
     });
 
     test('identical returns true', () {
-      const info = UpdateInfo(
-        latestVersion: '1.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: '',
-      );
+      const info = UpdateInfo(latestVersion: '1.0.0', currentVersion: '1.0.0', releaseUrl: '');
       expect(info == info, isTrue);
     });
 
     test('not equal to different type', () {
-      const info = UpdateInfo(
-        latestVersion: '1.0.0',
-        currentVersion: '1.0.0',
-        releaseUrl: '',
-      );
+      const info = UpdateInfo(latestVersion: '1.0.0', currentVersion: '1.0.0', releaseUrl: '');
       expect(info == Object(), isFalse);
     });
   });
@@ -221,79 +169,49 @@ void main() {
     final assets = _releaseJson()['assets'] as List<dynamic>;
 
     test('selects AppImage for linux', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'linux',
-      );
+      final url = UpdateService.assetUrlForPlatform(assets, platformOverride: 'linux');
       expect(url, contains('AppImage'));
     });
 
     test('selects setup.exe for windows', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'windows',
-      );
+      final url = UpdateService.assetUrlForPlatform(assets, platformOverride: 'windows');
       expect(url, contains('setup.exe'));
     });
 
     test('selects dmg for macos', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'macos',
-      );
+      final url = UpdateService.assetUrlForPlatform(assets, platformOverride: 'macos');
       expect(url, contains('.dmg'));
     });
 
     test('selects arm64 apk for android', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'android',
-      );
+      final url = UpdateService.assetUrlForPlatform(assets, platformOverride: 'android');
       expect(url, contains('arm64.apk'));
     });
 
     test('returns null for unknown platform', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'unknown',
-      );
+      final url = UpdateService.assetUrlForPlatform(assets, platformOverride: 'unknown');
       expect(url, isNull);
     });
 
     test('returns null for iOS (no self-update)', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'ios',
-      );
+      final url = UpdateService.assetUrlForPlatform(assets, platformOverride: 'ios');
       expect(url, isNull);
     });
 
     test('returns null when no matching asset', () {
-      final url = UpdateService.assetUrlForPlatform(
-        [
-          {
-            'name': 'some-other-file.zip',
-            'browser_download_url': 'https://example.com/file.zip',
-          },
-        ],
-        platformOverride: 'linux',
-      );
+      final url = UpdateService.assetUrlForPlatform([
+        {'name': 'some-other-file.zip', 'browser_download_url': 'https://example.com/file.zip'},
+      ], platformOverride: 'linux');
       expect(url, isNull);
     });
 
     test('returns null for empty assets list', () {
-      final url = UpdateService.assetUrlForPlatform(
-        [],
-        platformOverride: 'linux',
-      );
+      final url = UpdateService.assetUrlForPlatform([], platformOverride: 'linux');
       expect(url, isNull);
     });
 
     test('skips non-map entries in assets', () {
-      final url = UpdateService.assetUrlForPlatform(
-        ['not a map', 42, null],
-        platformOverride: 'linux',
-      );
+      final url = UpdateService.assetUrlForPlatform(['not a map', 42, null], platformOverride: 'linux');
       expect(url, isNull);
     });
   });
@@ -305,52 +223,31 @@ void main() {
     final assets = _releaseJson()['assets'] as List<dynamic>;
 
     test('extracts sha256 digest for linux', () {
-      final digest = UpdateService.digestForPlatform(
-        assets,
-        platformOverride: 'linux',
-      );
+      final digest = UpdateService.digestForPlatform(assets, platformOverride: 'linux');
       expect(digest, 'abcdef1234567890');
     });
 
     test('extracts sha256 digest for windows', () {
-      final digest = UpdateService.digestForPlatform(
-        assets,
-        platformOverride: 'windows',
-      );
+      final digest = UpdateService.digestForPlatform(assets, platformOverride: 'windows');
       expect(digest, '1234567890abcdef');
     });
 
     test('returns null when no digest field', () {
-      final digest = UpdateService.digestForPlatform(
-        [
-          {
-            'name': 'file-linux-x64.AppImage',
-            'browser_download_url': 'https://example.com/file',
-          },
-        ],
-        platformOverride: 'linux',
-      );
+      final digest = UpdateService.digestForPlatform([
+        {'name': 'file-linux-x64.AppImage', 'browser_download_url': 'https://example.com/file'},
+      ], platformOverride: 'linux');
       expect(digest, isNull);
     });
 
     test('returns null for unknown platform', () {
-      final digest = UpdateService.digestForPlatform(
-        assets,
-        platformOverride: 'unknown',
-      );
+      final digest = UpdateService.digestForPlatform(assets, platformOverride: 'unknown');
       expect(digest, isNull);
     });
 
     test('ignores non-sha256 digest prefix', () {
-      final digest = UpdateService.digestForPlatform(
-        [
-          {
-            'name': 'file-linux-x64.AppImage',
-            'digest': 'md5:abc123',
-          },
-        ],
-        platformOverride: 'linux',
-      );
+      final digest = UpdateService.digestForPlatform([
+        {'name': 'file-linux-x64.AppImage', 'digest': 'md5:abc123'},
+      ], platformOverride: 'linux');
       expect(digest, isNull);
     });
   });
@@ -376,19 +273,14 @@ void main() {
     });
 
     test('returns null when no newer versions', () {
-      final releases = [
-        _releaseJson(tagName: 'v1.0.0', body: 'One'),
-      ];
+      final releases = [_releaseJson(tagName: 'v1.0.0', body: 'One')];
 
       final changelog = UpdateService.buildCumulativeChangelog(releases, '1.0.0');
       expect(changelog, isNull);
     });
 
     test('skips releases with empty body', () {
-      final releases = [
-        _releaseJson(tagName: 'v2.0.0', body: ''),
-        _releaseJson(tagName: 'v1.5.0', body: 'Notes'),
-      ];
+      final releases = [_releaseJson(tagName: 'v2.0.0', body: ''), _releaseJson(tagName: 'v1.5.0', body: 'Notes')];
 
       final changelog = UpdateService.buildCumulativeChangelog(releases, '1.0.0');
       expect(changelog, isNot(contains('v2.0.0')));
@@ -407,9 +299,7 @@ void main() {
   // ===========================================================================
   group('UpdateService.checkForUpdate', () {
     test('returns UpdateInfo with hasUpdate true when newer version', () async {
-      final service = UpdateService(
-        fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v2.0.0')]),
-      );
+      final service = UpdateService(fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v2.0.0')]));
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isTrue);
@@ -420,27 +310,21 @@ void main() {
     });
 
     test('returns hasUpdate false when same version', () async {
-      final service = UpdateService(
-        fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v1.0.0')]),
-      );
+      final service = UpdateService(fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v1.0.0')]));
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
     });
 
     test('returns hasUpdate false when older remote version', () async {
-      final service = UpdateService(
-        fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v0.9.0')]),
-      );
+      final service = UpdateService(fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v0.9.0')]));
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
     });
 
     test('handles single object (legacy /latest format)', () async {
-      final service = UpdateService(
-        fetch: (_) async => jsonEncode(_releaseJson(tagName: 'v2.0.0')),
-      );
+      final service = UpdateService(fetch: (_) async => jsonEncode(_releaseJson(tagName: 'v2.0.0')));
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isTrue);
@@ -448,9 +332,7 @@ void main() {
     });
 
     test('handles empty releases array', () async {
-      final service = UpdateService(
-        fetch: (_) async => '[]',
-      );
+      final service = UpdateService(fetch: (_) async => '[]');
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -459,10 +341,9 @@ void main() {
 
     test('handles missing tag_name gracefully', () async {
       final service = UpdateService(
-        fetch: (_) async => _releasesArray([{
-          'html_url': 'https://github.com/releases',
-          'assets': <dynamic>[],
-        }]),
+        fetch: (_) async => _releasesArray([
+          {'html_url': 'https://github.com/releases', 'assets': <dynamic>[]},
+        ]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
@@ -472,10 +353,9 @@ void main() {
 
     test('handles missing html_url with fallback', () async {
       final service = UpdateService(
-        fetch: (_) async => _releasesArray([{
-          'tag_name': 'v2.0.0',
-          'assets': <dynamic>[],
-        }]),
+        fetch: (_) async => _releasesArray([
+          {'tag_name': 'v2.0.0', 'assets': <dynamic>[]},
+        ]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
@@ -484,18 +364,14 @@ void main() {
     });
 
     test('handles null changelog', () async {
-      final service = UpdateService(
-        fetch: (_) async => _releasesArray([_releaseJson(body: null)]),
-      );
+      final service = UpdateService(fetch: (_) async => _releasesArray([_releaseJson(body: null)]));
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.changelog, isNull);
     });
 
     test('extracts asset digest', () async {
-      final service = UpdateService(
-        fetch: (_) async => _releasesArray([_releaseJson()]),
-      );
+      final service = UpdateService(fetch: (_) async => _releasesArray([_releaseJson()]));
 
       final info = await service.checkForUpdate('1.0.0');
       if (Platform.isLinux) {
@@ -521,31 +397,19 @@ void main() {
     });
 
     test('propagates fetch errors', () async {
-      final service = UpdateService(
-        fetch: (_) async => throw const HttpException('Network error'),
-      );
+      final service = UpdateService(fetch: (_) async => throw const HttpException('Network error'));
 
-      expect(
-        () => service.checkForUpdate('1.0.0'),
-        throwsA(isA<HttpException>()),
-      );
+      expect(() => service.checkForUpdate('1.0.0'), throwsA(isA<HttpException>()));
     });
 
     test('propagates JSON parse errors', () async {
-      final service = UpdateService(
-        fetch: (_) async => 'not json',
-      );
+      final service = UpdateService(fetch: (_) async => 'not json');
 
-      expect(
-        () => service.checkForUpdate('1.0.0'),
-        throwsA(isA<FormatException>()),
-      );
+      expect(() => service.checkForUpdate('1.0.0'), throwsA(isA<FormatException>()));
     });
 
     test('selects asset for current platform', () async {
-      final service = UpdateService(
-        fetch: (_) async => _releasesArray([_releaseJson()]),
-      );
+      final service = UpdateService(fetch: (_) async => _releasesArray([_releaseJson()]));
 
       final info = await service.checkForUpdate('1.0.0');
       if (Platform.isLinux) {
@@ -572,30 +436,15 @@ void main() {
     });
 
     test('allows https *.githubusercontent.com', () {
-      expect(
-        UpdateService.isTrustedReleaseAssetUri(
-          Uri.parse('https://objects.githubusercontent.com/abc'),
-        ),
-        isTrue,
-      );
+      expect(UpdateService.isTrustedReleaseAssetUri(Uri.parse('https://objects.githubusercontent.com/abc')), isTrue);
     });
 
     test('rejects http', () {
-      expect(
-        UpdateService.isTrustedReleaseAssetUri(
-          Uri.parse('http://github.com/x'),
-        ),
-        isFalse,
-      );
+      expect(UpdateService.isTrustedReleaseAssetUri(Uri.parse('http://github.com/x')), isFalse);
     });
 
     test('rejects non-GitHub host', () {
-      expect(
-        UpdateService.isTrustedReleaseAssetUri(
-          Uri.parse('https://example.com/file'),
-        ),
-        isFalse,
-      );
+      expect(UpdateService.isTrustedReleaseAssetUri(Uri.parse('https://example.com/file')), isFalse);
     });
   });
 
@@ -677,18 +526,11 @@ void main() {
             tempDir.path,
             expectedDigest: 'wrong_hash_value',
           ),
-          throwsA(isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('SHA256 mismatch'),
-          )),
+          throwsA(isA<StateError>().having((e) => e.message, 'message', contains('SHA256 mismatch'))),
         );
 
         // File should be deleted after mismatch
-        expect(
-          await File(p.join(tempDir.path, 'file.AppImage')).exists(),
-          isFalse,
-        );
+        expect(await File(p.join(tempDir.path, 'file.AppImage')).exists(), isFalse);
       } finally {
         await tempDir.delete(recursive: true);
       }
@@ -716,10 +558,7 @@ void main() {
     });
 
     test('propagates download errors', () async {
-      final service = UpdateService(
-        download: (_, _, _) async =>
-            throw const HttpException('Download failed'),
-      );
+      final service = UpdateService(download: (_, _, _) async => throw const HttpException('Download failed'));
 
       expect(
         () => service.downloadAsset(
@@ -731,19 +570,10 @@ void main() {
     });
 
     test('rejects untrusted download URL before downloader runs', () async {
-      final service = UpdateService(
-        download: (_, _, _) async {},
-      );
+      final service = UpdateService(download: (_, _, _) async {});
       expect(
-        () => service.downloadAsset(
-          'https://evil.example/asset.AppImage',
-          '/tmp',
-        ),
-        throwsA(isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('Untrusted'),
-        )),
+        () => service.downloadAsset('https://evil.example/asset.AppImage', '/tmp'),
+        throwsA(isA<StateError>().having((e) => e.message, 'message', contains('Untrusted'))),
       );
     });
   });

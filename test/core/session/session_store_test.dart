@@ -18,8 +18,7 @@ void main() {
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('session_store_test_');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (call) async {
         if (call.method == 'getApplicationSupportDirectory') {
@@ -31,8 +30,7 @@ void main() {
   });
 
   tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       null,
     );
@@ -49,7 +47,13 @@ void main() {
     String keyData = '',
     String passphrase = '',
   }) {
-    return Session(id: id ?? 'test-${DateTime.now().microsecondsSinceEpoch}', label: label, folder: folder, server: ServerAddress(host: host, user: user), auth: SessionAuth(password: password, keyData: keyData, passphrase: passphrase));
+    return Session(
+      id: id ?? 'test-${DateTime.now().microsecondsSinceEpoch}',
+      label: label,
+      folder: folder,
+      server: ServerAddress(host: host, user: user),
+      auth: SessionAuth(password: password, keyData: keyData, passphrase: passphrase),
+    );
   }
 
   group('SessionStore — load with no data', () {
@@ -105,7 +109,10 @@ void main() {
       final session = makeSession(id: 'sess-upd', label: 'original');
       await store.add(session);
 
-      final updated = session.copyWith(label: 'updated', server: session.server.copyWith(host: 'new.host'));
+      final updated = session.copyWith(
+        label: 'updated',
+        server: session.server.copyWith(host: 'new.host'),
+      );
       await store.update(updated);
 
       final store2 = SessionStore();
@@ -135,7 +142,11 @@ void main() {
       final store = SessionStore();
       await store.load();
 
-      final invalid = Session(id: 'bad', label: 'bad', server: const ServerAddress(host: '', user: 'root'));
+      final invalid = Session(
+        id: 'bad',
+        label: 'bad',
+        server: const ServerAddress(host: '', user: 'root'),
+      );
       expect(() => store.add(invalid), throwsA(isA<ArgumentError>()));
     });
   });
@@ -185,11 +196,7 @@ void main() {
       // First: add a session with credentials
       final store = SessionStore();
       await store.load();
-      final session = makeSession(
-        id: 'merge-1',
-        label: 'merge-test',
-        password: 'encrypted-pw',
-      );
+      final session = makeSession(id: 'merge-1', label: 'merge-test', password: 'encrypted-pw');
       await store.add(session);
 
       // Verify sessions.json does NOT have password
@@ -274,10 +281,7 @@ void main() {
     test('duplicateSession for nonexistent throws', () async {
       final store = SessionStore();
       await store.load();
-      expect(
-        () => store.duplicateSession('nonexistent'),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => store.duplicateSession('nonexistent'), throwsA(isA<ArgumentError>()));
     });
   });
 
@@ -453,7 +457,11 @@ void main() {
       await store.add(session);
 
       // Update with invalid data (empty host)
-      final invalid = Session(id: 'upd-1', label: 'bad', server: const ServerAddress(host: '', user: 'root'));
+      final invalid = Session(
+        id: 'upd-1',
+        label: 'bad',
+        server: const ServerAddress(host: '', user: 'root'),
+      );
       expect(() => store.update(invalid), throwsA(isA<ArgumentError>()));
     });
 
@@ -463,7 +471,11 @@ void main() {
       final session = makeSession(id: 'upd-2', label: 'exists', host: 'h.com');
       await store.add(session);
 
-      final notFound = Session(id: 'nonexistent', label: 'x', server: const ServerAddress(host: 'h', user: 'u'));
+      final notFound = Session(
+        id: 'nonexistent',
+        label: 'x',
+        server: const ServerAddress(host: 'h', user: 'u'),
+      );
       expect(() => store.update(notFound), throwsA(isA<ArgumentError>()));
     });
   });
@@ -615,11 +627,7 @@ void main() {
       await store.load();
 
       // Add a session with credentials
-      final session = makeSession(
-        id: 'save-fail-1',
-        label: 'cred-fail',
-        password: 'secret',
-      );
+      final session = makeSession(id: 'save-fail-1', label: 'cred-fail', password: 'secret');
       await store.add(session);
 
       // Now corrupt credentials.key by replacing it with a directory
@@ -630,11 +638,7 @@ void main() {
 
       // Add another session — _save will be called, credential save will fail
       // but session file save should succeed
-      final session2 = makeSession(
-        id: 'save-fail-2',
-        label: 'after-fail',
-        password: 'pw2',
-      );
+      final session2 = makeSession(id: 'save-fail-2', label: 'after-fail', password: 'pw2');
       await store.add(session2);
 
       // Verify session file was saved (2 sessions)
@@ -653,11 +657,7 @@ void main() {
       // 1. Create a session with credentials
       final store = SessionStore();
       await store.load();
-      final session = makeSession(
-        id: 'protect-1',
-        label: 'protected',
-        password: 'my-secret',
-      );
+      final session = makeSession(id: 'protect-1', label: 'protected', password: 'my-secret');
       await store.add(session);
 
       // Verify credentials.enc exists
@@ -703,12 +703,7 @@ void main() {
       // Setup: create a session with credentials
       final setupStore = SessionStore();
       await setupStore.load();
-      final session = makeSession(
-        id: 'concurrent-1',
-        label: 'concurrent',
-        password: 'secret',
-        keyData: 'PEM-DATA',
-      );
+      final session = makeSession(id: 'concurrent-1', label: 'concurrent', password: 'secret', keyData: 'PEM-DATA');
       await setupStore.add(session);
 
       // Now simulate concurrent loads (like double onResume in WSL)
@@ -729,9 +724,7 @@ void main() {
     test('second load after first completes works normally', () async {
       final setupStore = SessionStore();
       await setupStore.load();
-      await setupStore.add(makeSession(
-        id: 'seq-1', label: 'seq', password: 'pw',
-      ));
+      await setupStore.add(makeSession(id: 'seq-1', label: 'seq', password: 'pw'));
 
       final store = SessionStore();
       final first = await store.load();
@@ -750,9 +743,7 @@ void main() {
       // Create session with credentials
       final store = SessionStore();
       await store.load();
-      await store.add(makeSession(
-        id: 'save-prot-1', label: 'protected', password: 'secret',
-      ));
+      await store.add(makeSession(id: 'save-prot-1', label: 'protected', password: 'secret'));
 
       // Snapshot the credential file
       final credFile = File('${tempDir.path}/credentials.enc');
@@ -780,7 +771,11 @@ void main() {
   // ---------------------------------------------------------------------------
   group('Session JSON serialization', () {
     test('toJson does not include password, keyData, passphrase', () {
-      final s = Session(label: 'test', server: const ServerAddress(host: 'host', user: 'user'), auth: const SessionAuth(password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass'));
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'host', user: 'user'),
+        auth: const SessionAuth(password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass'),
+      );
       final json = s.toJson();
       expect(json.containsKey('password'), isFalse);
       expect(json.containsKey('key_data'), isFalse);
@@ -788,7 +783,11 @@ void main() {
     });
 
     test('toJsonWithCredentials includes secrets', () {
-      final s = Session(label: 'test', server: const ServerAddress(host: 'host', user: 'user'), auth: const SessionAuth(password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass'));
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'host', user: 'user'),
+        auth: const SessionAuth(password: 'secret', keyData: 'PEM-DATA', passphrase: 'pass'),
+      );
       final json = s.toJsonWithCredentials();
       expect(json['password'], 'secret');
       expect(json['key_data'], 'PEM-DATA');
@@ -797,8 +796,12 @@ void main() {
 
     test('fromJson reads password from JSON (legacy format)', () {
       final s = Session.fromJson({
-        'id': 'test-id', 'host': 'h', 'user': 'u',
-        'password': 'pw', 'key_data': 'kd', 'passphrase': 'pp',
+        'id': 'test-id',
+        'host': 'h',
+        'user': 'u',
+        'password': 'pw',
+        'key_data': 'kd',
+        'passphrase': 'pp',
       });
       expect(s.password, 'pw');
       expect(s.keyData, 'kd');
@@ -806,9 +809,7 @@ void main() {
     });
 
     test('fromJson defaults missing credentials to empty', () {
-      final s = Session.fromJson({
-        'id': 'test-id', 'host': 'h', 'user': 'u',
-      });
+      final s = Session.fromJson({'id': 'test-id', 'host': 'h', 'user': 'u'});
       expect(s.password, '');
       expect(s.keyData, '');
       expect(s.passphrase, '');
@@ -821,8 +822,18 @@ void main() {
       await store.load();
 
       // Add initial data
-      final s1 = Session(id: 'a', label: 'A', folder: '', server: const ServerAddress(host: 'h', user: 'u'));
-      final s2 = Session(id: 'b', label: 'B', folder: 'G', server: const ServerAddress(host: 'h2', user: 'u'));
+      final s1 = Session(
+        id: 'a',
+        label: 'A',
+        folder: '',
+        server: const ServerAddress(host: 'h', user: 'u'),
+      );
+      final s2 = Session(
+        id: 'b',
+        label: 'B',
+        folder: 'G',
+        server: const ServerAddress(host: 'h2', user: 'u'),
+      );
       await store.add(s1);
       await store.add(s2);
       await store.addEmptyFolder('EmptyFolder');
@@ -848,7 +859,12 @@ void main() {
       final store = SessionStore();
       await store.load();
 
-      final s1 = Session(id: 'x', label: 'X', folder: '', server: const ServerAddress(host: 'h', user: 'u'));
+      final s1 = Session(
+        id: 'x',
+        label: 'X',
+        folder: '',
+        server: const ServerAddress(host: 'h', user: 'u'),
+      );
       await store.add(s1);
       final snap = List.of(store.sessions);
       final snapFolders = Set.of(store.emptyFolders);

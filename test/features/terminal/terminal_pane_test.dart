@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,14 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:xterm/xterm.dart';
-
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/shell_helper.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/terminal/terminal_pane.dart';
 import 'package:letsflutssh/widgets/app_icon_button.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-
 import '../../core/ssh/shell_helper_test.mocks.dart';
 
 /// Creates a fake ShellConnection with mock session that never closes.
@@ -59,7 +57,9 @@ Connection _testConnection({String id = 'test'}) {
   return Connection(
     id: id,
     label: 'Test $id',
-    sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+    sshConfig: const SSHConfig(
+      server: ServerAddress(host: 'h', user: 'u'),
+    ),
     sshConnection: null,
     state: SSHConnectionState.connected,
   );
@@ -71,18 +71,22 @@ void main() {
       final conn = Connection(
         id: 'err-1',
         label: 'ErrorTest',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'fail.host', user: 'user')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'fail.host', user: 'user'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn)),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -100,18 +104,22 @@ void main() {
       final conn = Connection(
         id: 'err-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn)),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -137,24 +145,30 @@ void main() {
       final conn = Connection(
         id: 'ctx-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              onClose: () {},
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                onClose: () {},
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -186,24 +200,30 @@ void main() {
       final conn = Connection(
         id: 'split-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () => splitV = true,
-              onSplitHorizontal: () => splitH = true,
-              onClose: () {},
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () => splitV = true,
+                onSplitHorizontal: () => splitH = true,
+                onClose: () {},
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -225,18 +245,22 @@ void main() {
       final conn = Connection(
         id: 'load-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn)),
           ),
-        )),
+        ),
       );
       await tester.pump();
 
@@ -262,18 +286,22 @@ void main() {
       final conn = Connection(
         id: 'done-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn)),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -306,18 +334,22 @@ void main() {
       final conn = Connection(
         id: 'border-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn, isFocused: true),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn, isFocused: true)),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -344,18 +376,22 @@ void main() {
       final conn = Connection(
         id: 'border-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn, isFocused: false),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn, isFocused: false)),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -372,16 +408,16 @@ void main() {
       final conn = _testConnection(id: 'sf-1');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -394,15 +430,16 @@ void main() {
       final conn = _testConnection(id: 'sf-2');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _errorShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, shellFactory: _errorShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -414,17 +451,21 @@ void main() {
       final conn = _testConnection(id: 'sf-border-f');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              hasMultiplePanes: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                hasMultiplePanes: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -439,17 +480,21 @@ void main() {
       final conn = _testConnection(id: 'sf-border-u');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: false,
-              hasMultiplePanes: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: false,
+                hasMultiplePanes: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -464,17 +509,21 @@ void main() {
       final conn = _testConnection(id: 'sf-border-none');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              hasMultiplePanes: false,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                hasMultiplePanes: false,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -491,19 +540,23 @@ void main() {
       final conn = _testConnection(id: 'sf-ctx');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              onClose: () {},
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                onClose: () {},
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -524,18 +577,22 @@ void main() {
       final conn = _testConnection(id: 'sf-split-v');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () => splitVCalled = true,
-              onSplitHorizontal: () {},
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () => splitVCalled = true,
+                onSplitHorizontal: () {},
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -555,18 +612,22 @@ void main() {
       final conn = _testConnection(id: 'sf-split-h');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () => splitHCalled = true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () => splitHCalled = true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -586,19 +647,23 @@ void main() {
       final conn = _testConnection(id: 'sf-close');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              onClose: () => closeCalled = true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                onClose: () => closeCalled = true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -617,19 +682,23 @@ void main() {
       final conn = _testConnection(id: 'sf-no-close');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              onClose: null,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                onClose: null,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -647,18 +716,22 @@ void main() {
       final conn = _testConnection(id: 'sf-no-split');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: null,
-              onSplitHorizontal: null,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: null,
+                onSplitHorizontal: null,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -679,17 +752,21 @@ void main() {
       final conn = _testConnection(id: 'sf-focus');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: false,
-              onFocused: () => focusCalled = true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: false,
+                onFocused: () => focusCalled = true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -706,22 +783,23 @@ void main() {
       final conn = _testConnection(id: 'sf-done');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: ({
-                required Connection connection,
-                required Terminal terminal,
-                VoidCallback? onDone,
-              }) async {
-                capturedOnDone = onDone;
-                return _fakeShellConnection();
-              },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory:
+                    ({required Connection connection, required Terminal terminal, VoidCallback? onDone}) async {
+                      capturedOnDone = onDone;
+                      return _fakeShellConnection();
+                    },
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -739,27 +817,24 @@ void main() {
     testWidgets('paste menu item reads from clipboard', (tester) async {
       final conn = _testConnection(id: 'sf-paste');
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.getData') {
-            return <String, dynamic>{'text': 'pasted text'};
-          }
-          return null;
-        },
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.getData') {
+          return <String, dynamic>{'text': 'pasted text'};
+        }
+        return null;
+      });
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -773,35 +848,30 @@ void main() {
 
       expect(find.text('Paste'), findsNothing);
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
     });
 
     testWidgets('paste with empty clipboard text does nothing', (tester) async {
       final conn = _testConnection(id: 'sf-paste-empty');
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.getData') {
-            return <String, dynamic>{'text': ''};
-          }
-          return null;
-        },
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.getData') {
+          return <String, dynamic>{'text': ''};
+        }
+        return null;
+      });
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -815,35 +885,30 @@ void main() {
 
       expect(find.text('Paste'), findsNothing);
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
     });
 
     testWidgets('paste with null clipboard data does nothing', (tester) async {
       final conn = _testConnection(id: 'sf-paste-null');
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.getData') {
-            return null;
-          }
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.getData') {
           return null;
-        },
-      );
+        }
+        return null;
+      });
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -857,9 +922,7 @@ void main() {
 
       expect(find.text('Paste'), findsNothing);
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
     });
   });
 
@@ -868,18 +931,22 @@ void main() {
       final conn = _testConnection(id: 'sf-copy-no-sel');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -899,31 +966,28 @@ void main() {
       String? copiedText;
       final conn = _testConnection(id: 'sf-copy-safe');
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final args = call.arguments as Map;
-            copiedText = args['text'] as String?;
-          }
-          if (call.method == 'Clipboard.getData') {
-            return <String, dynamic>{'text': ''};
-          }
-          return null;
-        },
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map;
+          copiedText = args['text'] as String?;
+        }
+        if (call.method == 'Clipboard.getData') {
+          return <String, dynamic>{'text': ''};
+        }
+        return null;
+      });
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -939,9 +1003,7 @@ void main() {
       await tester.tapAt(const Offset(1, 1));
       await tester.pumpAndSettle();
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
     });
   });
 
@@ -966,21 +1028,22 @@ void main() {
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: ({
-                required Connection connection,
-                required Terminal terminal,
-                VoidCallback? onDone,
-              }) async {
-                return shellConn;
-              },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory:
+                    ({required Connection connection, required Terminal terminal, VoidCallback? onDone}) async {
+                      return shellConn;
+                    },
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -988,6 +1051,8 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: Scaffold(body: SizedBox()),
         ),
       );
@@ -1003,15 +1068,16 @@ void main() {
       final conn = _testConnection(id: 'sf-dispose-null');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _errorShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, shellFactory: _errorShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1020,6 +1086,8 @@ void main() {
       // Dispose should not throw even though _shellConn is null
       await tester.pumpWidget(
         const MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: Scaffold(body: SizedBox()),
         ),
       );
@@ -1032,18 +1100,22 @@ void main() {
       final conn = _testConnection(id: 'sf-ctx-dismiss');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1068,19 +1140,20 @@ void main() {
       final conn = _testConnection(id: 'sf-slow');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: ({
-                required Connection connection,
-                required Terminal terminal,
-                VoidCallback? onDone,
-              }) => completer.future,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory: ({required Connection connection, required Terminal terminal, VoidCallback? onDone}) =>
+                    completer.future,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pump();
 
@@ -1099,15 +1172,16 @@ void main() {
       final conn = _testConnection(id: 'sf-error-layout');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _errorShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, shellFactory: _errorShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1115,10 +1189,7 @@ void main() {
       expect(find.textContaining('Shell factory error'), findsOneWidget);
 
       // Verify the error icon is inside a Center widget
-      final centerFinder = find.ancestor(
-        of: find.byIcon(Icons.error_outline),
-        matching: find.byType(Center),
-      );
+      final centerFinder = find.ancestor(of: find.byIcon(Icons.error_outline), matching: find.byType(Center));
       expect(centerFinder, findsOneWidget);
     });
 
@@ -1126,15 +1197,16 @@ void main() {
       final conn = _testConnection(id: 'sf-error-align');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _errorShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, shellFactory: _errorShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1150,17 +1222,16 @@ void main() {
       final conn = _testConnection(id: 'sf-search-toggle');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1183,17 +1254,16 @@ void main() {
       final conn = _testConnection(id: 'sf-search-toggle-off');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1213,17 +1283,16 @@ void main() {
       final conn = _testConnection(id: 'sf-search-close-btn');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1243,12 +1312,10 @@ void main() {
   });
 
   group('TerminalSearchBar — standalone search tests', () {
-    Widget buildSearchBar({
-      Terminal? terminal,
-      TerminalController? controller,
-      VoidCallback? onClose,
-    }) {
+    Widget buildSearchBar({Terminal? terminal, TerminalController? controller, VoidCallback? onClose}) {
       return MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
         theme: AppTheme.dark(),
         home: Scaffold(
           body: TerminalSearchBar(
@@ -1285,10 +1352,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // No match counter should be shown
-      final prevButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(AppIconButton),
-      ));
+      final prevButton = tester.widget<AppIconButton>(
+        find.ancestor(of: find.byIcon(Icons.keyboard_arrow_up), matching: find.byType(AppIconButton)),
+      );
       expect(prevButton.onTap, isNull);
     });
 
@@ -1299,26 +1365,21 @@ void main() {
       terminal.write('Hello World\r\n');
       terminal.write('Hello Again\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBar(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Hello');
       await tester.pumpAndSettle();
 
       // prev/next buttons should now be enabled (matches found)
-      final prevButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(AppIconButton),
-      ));
+      final prevButton = tester.widget<AppIconButton>(
+        find.ancestor(of: find.byIcon(Icons.keyboard_arrow_up), matching: find.byType(AppIconButton)),
+      );
       expect(prevButton.onTap, isNotNull);
 
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(of: find.byIcon(Icons.keyboard_arrow_down), matching: find.byType(AppIconButton)),
+      );
       expect(nextButton.onTap, isNotNull);
     });
 
@@ -1327,10 +1388,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('AAA BBB AAA\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBar(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'AAA');
@@ -1344,10 +1402,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Buttons should still be enabled after cycling
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(of: find.byIcon(Icons.keyboard_arrow_down), matching: find.byType(AppIconButton)),
+      );
       expect(nextButton.onTap, isNotNull);
     });
 
@@ -1362,10 +1419,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Buttons should be disabled — no matches
-      final prevButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(AppIconButton),
-      ));
+      final prevButton = tester.widget<AppIconButton>(
+        find.ancestor(of: find.byIcon(Icons.keyboard_arrow_up), matching: find.byType(AppIconButton)),
+      );
       expect(prevButton.onTap, isNull);
     });
 
@@ -1374,10 +1430,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('Test Test Test\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBar(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Test');
@@ -1388,10 +1441,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Still has matches, buttons enabled
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(of: find.byIcon(Icons.keyboard_arrow_down), matching: find.byType(AppIconButton)),
+      );
       expect(nextButton.onTap, isNotNull);
     });
 
@@ -1400,20 +1452,16 @@ void main() {
       final controller = TerminalController();
       terminal.write('Hello HELLO hello\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBar(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'hello');
       await tester.pumpAndSettle();
 
       // Should find matches (case-insensitive)
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(of: find.byIcon(Icons.keyboard_arrow_down), matching: find.byType(AppIconButton)),
+      );
       expect(nextButton.onTap, isNotNull);
     });
 
@@ -1422,10 +1470,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('Highlight me\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBar(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Highlight');
@@ -1433,10 +1478,14 @@ void main() {
 
       // Now dispose the search bar by replacing the widget
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: const Scaffold(body: SizedBox()),
-        )),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const Scaffold(body: SizedBox()),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1450,75 +1499,63 @@ void main() {
       final key = GlobalKey<TerminalPaneState>();
       final conn = _testConnection(id: 'sf-key-copy');
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final args = call.arguments as Map;
-            copiedText = args['text'] as String?;
-          }
-          return null;
-        },
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map;
+          copiedText = args['text'] as String?;
+        }
+        return null;
+      });
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
       // Without a selection, copy should be a no-op (no clipboard write)
       expect(copiedText, isNull);
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
     });
 
     testWidgets('Ctrl+Shift+V pastes from clipboard into terminal', (tester) async {
       final key = GlobalKey<TerminalPaneState>();
       final conn = _testConnection(id: 'sf-key-paste');
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.getData') {
-            return <String, dynamic>{'text': 'pasted-via-key'};
-          }
-          return null;
-        },
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.getData') {
+          return <String, dynamic>{'text': 'pasted-via-key'};
+        }
+        return null;
+      });
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
       // The terminal view should exist
       expect(find.byType(TerminalView), findsOneWidget);
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
     });
   });
 
@@ -1528,17 +1565,16 @@ void main() {
       final conn = _testConnection(id: 'sf-notifier-init');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1550,17 +1586,16 @@ void main() {
       final conn = _testConnection(id: 'sf-close-search');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1586,13 +1621,11 @@ void main() {
       VoidCallback? onClose,
     }) {
       return MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
         theme: AppTheme.dark(),
         home: Scaffold(
-          body: TerminalSearchBar(
-            terminal: terminal,
-            terminalController: controller,
-            onClose: onClose ?? () {},
-          ),
+          body: TerminalSearchBar(terminal: terminal, terminalController: controller, onClose: onClose ?? () {}),
         ),
       );
     }
@@ -1602,10 +1635,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBarForCounter(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1619,10 +1649,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBarForCounter(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1639,10 +1666,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBarForCounter(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1663,10 +1687,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBarForCounter(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1683,10 +1704,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('abc def abc ghi abc\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBarForCounter(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'abc');
@@ -1711,10 +1729,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('Hello World\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBarForCounter(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'ZZZZZ');
@@ -1730,10 +1745,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBarForCounter(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1750,10 +1762,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBarForCounter(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1770,10 +1779,7 @@ void main() {
       final controller = TerminalController();
       terminal.write('unique_string here\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(buildSearchBarForCounter(terminal: terminal, controller: controller));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'unique_string');
@@ -1798,16 +1804,20 @@ void main() {
       terminal.write('Hello World\r\n');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalSearchBar(
-              terminal: terminal,
-              terminalController: controller,
-              onClose: () => closeCalled = true,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalSearchBar(
+                terminal: terminal,
+                terminalController: controller,
+                onClose: () => closeCalled = true,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1830,29 +1840,27 @@ void main() {
       final controller = TerminalController();
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalSearchBar(
-              terminal: terminal,
-              terminalController: controller,
-              onClose: () {},
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalSearchBar(terminal: terminal, terminalController: controller, onClose: () {}),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
-      final prevButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(AppIconButton),
-      ));
+      final prevButton = tester.widget<AppIconButton>(
+        find.ancestor(of: find.byIcon(Icons.keyboard_arrow_up), matching: find.byType(AppIconButton)),
+      );
       expect(prevButton.onTap, isNull);
 
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(of: find.byIcon(Icons.keyboard_arrow_down), matching: find.byType(AppIconButton)),
+      );
       expect(nextButton.onTap, isNull);
     });
   });
@@ -1862,21 +1870,24 @@ void main() {
       final conn = Connection(
         id: 'connecting-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.connecting,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pump();
 
@@ -1896,21 +1907,24 @@ void main() {
       final conn = Connection(
         id: 'connecting-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'fail', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'fail', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.connecting,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pump();
 
@@ -1932,33 +1946,41 @@ void main() {
 
       // Build with isFocused: true
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              hasMultiplePanes: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                hasMultiplePanes: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
       // Rebuild with isFocused: false — should trigger clearSelection
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: false,
-              hasMultiplePanes: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: false,
+                hasMultiplePanes: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1972,16 +1994,16 @@ void main() {
       final conn = _testConnection(id: 'shift-mouse-1');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -2007,16 +2029,16 @@ void main() {
       final conn = _testConnection(id: 'shift-mouse-2');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -2036,16 +2058,16 @@ void main() {
       final conn = _testConnection(id: 'shift-mouse-3');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -2072,16 +2094,16 @@ void main() {
       final conn = _testConnection(id: 'shift-mouse-4');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true, shellFactory: _successShellFactory),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 

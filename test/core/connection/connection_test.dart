@@ -19,7 +19,9 @@ void main() {
       conn = Connection(
         id: 'test-id',
         label: 'My Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: '10.0.0.1', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
       );
     });
 
@@ -56,7 +58,9 @@ void main() {
       final connWithSession = Connection(
         id: 'test-2',
         label: 'Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: '10.0.0.1', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
         sessionId: 'session-abc',
       );
       expect(connWithSession.sessionId, 'session-abc');

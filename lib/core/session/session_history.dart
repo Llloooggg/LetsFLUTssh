@@ -6,6 +6,7 @@ class SessionSnapshot {
   final List<Session> sessions;
   final Set<String> emptyFolders;
   final String description;
+
   /// Credentials saved before deletion — restored on undo.
   final Map<String, CredentialData> credentials;
 

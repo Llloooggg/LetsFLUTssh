@@ -14,6 +14,7 @@ import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 /// A fake ConnectionManager that returns a disconnected connection with error.
 class _FailingConnectionManager extends ConnectionManager {
@@ -99,17 +100,21 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'Test Server', server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
+                      final session = Session(
+                        id: 's1',
+                        label: 'Test Server',
+                        server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'),
+                      );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -135,17 +140,21 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'My Server', server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
+                      final session = Session(
+                        id: 's1',
+                        label: 'My Server',
+                        server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'),
+                      );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -172,17 +181,21 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 'sess-42', label: 'Test', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+                      final session = Session(
+                        id: 'sess-42',
+                        label: 'Test',
+                        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+                      );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -208,17 +221,21 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: '', server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'));
+                      final session = Session(
+                        id: 's1',
+                        label: '',
+                        server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'),
+                      );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -246,10 +263,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -257,7 +274,11 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'Test', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+                      final session = Session(
+                        id: 's1',
+                        label: 'Test',
+                        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+                      );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -289,10 +310,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -300,7 +321,11 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's2', label: 'SFTP Server', server: const ServerAddress(host: '10.0.0.1', user: 'test'));
+                      final session = Session(
+                        id: 's2',
+                        label: 'SFTP Server',
+                        server: const ServerAddress(host: '10.0.0.1', user: 'test'),
+                      );
                       SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('SFTP'),
@@ -329,17 +354,21 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's2', label: '', server: const ServerAddress(host: '10.0.0.1', user: 'admin'));
+                      final session = Session(
+                        id: 's2',
+                        label: '',
+                        server: const ServerAddress(host: '10.0.0.1', user: 'admin'),
+                      );
                       SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('SFTP'),
@@ -368,10 +397,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(failManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(failManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -379,7 +408,11 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'Test', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+                      final session = Session(
+                        id: 's1',
+                        label: 'Test',
+                        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+                      );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Connect'),
@@ -410,10 +443,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(failManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(failManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -421,7 +454,11 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      final session = Session(id: 's1', label: 'Test', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+                      final session = Session(
+                        id: 's1',
+                        label: 'Test',
+                        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+                      );
                       SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('SFTP'),
@@ -451,10 +488,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(failManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(failManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -462,7 +499,9 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      const config = SSHConfig(server: ServerAddress(host: '10.0.0.1', user: 'root'));
+                      const config = SSHConfig(
+                        server: ServerAddress(host: '10.0.0.1', user: 'root'),
+                      );
                       SessionConnect.connectConfig(context, ref, config);
                     },
                     child: const Text('Quick'),
@@ -494,10 +533,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -505,7 +544,9 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      const config = SSHConfig(server: ServerAddress(host: '10.0.0.1', port: 22, user: 'test'));
+                      const config = SSHConfig(
+                        server: ServerAddress(host: '10.0.0.1', port: 22, user: 'test'),
+                      );
                       SessionConnect.connectConfig(context, ref, config);
                     },
                     child: const Text('Quick'),
@@ -534,17 +575,19 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
-                      const config = SSHConfig(server: ServerAddress(host: '10.0.0.1', port: 2222, user: 'admin'));
+                      const config = SSHConfig(
+                        server: ServerAddress(host: '10.0.0.1', port: 2222, user: 'admin'),
+                      );
                       SessionConnect.connectConfig(context, ref, config);
                     },
                     child: const Text('Quick'),
@@ -574,10 +617,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -615,10 +658,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -656,10 +699,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -695,10 +738,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            connectionManagerProvider.overrideWithValue(fakeManager),
-          ],
+          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {

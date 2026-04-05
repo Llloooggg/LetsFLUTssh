@@ -30,7 +30,6 @@ class _MockFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
-
 }
 
 void main() {
@@ -39,23 +38,24 @@ void main() {
       final conn = Connection(
         id: 'test',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'localhost', user: 'user')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'localhost', user: 'user'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
-      expect(
-        () => SFTPInitializer.init(conn),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => SFTPInitializer.init(conn), throwsA(isA<StateError>()));
     });
 
     test('succeeds with injectable sftpServiceFactory', () async {
       final conn = Connection(
         id: 'test',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'localhost', user: 'user')),
-        sshConnection: null,  // null is OK — factory bypasses SSH
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'localhost', user: 'user'),
+        ),
+        sshConnection: null, // null is OK — factory bypasses SSH
         state: SSHConnectionState.disconnected,
       );
 
@@ -80,7 +80,9 @@ void main() {
       final conn = Connection(
         id: 'test',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
       );
 
       final mockSftp = MockSftpClient();
@@ -104,7 +106,9 @@ void main() {
       final conn = Connection(
         id: 'test',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
       );
 
       final mockSftp = MockSftpClient();
@@ -125,7 +129,9 @@ void main() {
       final conn = Connection(
         id: 'test',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
       );
 
       final mockSftp = MockSftpClient();

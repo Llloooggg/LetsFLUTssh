@@ -22,27 +22,27 @@ abstract final class AppTheme {
   static const _bg4 = Color(0xFF323842); // hover, inactive selection
 
   // ── Foregrounds ──
-  static const _fg       = Color(0xFFABB2BF); // mono-1, default text
-  static const _fgDim    = Color(0xFF7F848E); // comments (italic)
-  static const _fgFaint  = Color(0xFF5C6370); // comments, quote markup
+  static const _fg = Color(0xFFABB2BF); // mono-1, default text
+  static const _fgDim = Color(0xFF7F848E); // comments (italic)
+  static const _fgFaint = Color(0xFF5C6370); // comments, quote markup
   static const _fgBright = Color(0xFFD7DAE0); // activity-bar fg, highlights
 
   // ── Accent & syntax hues ──
   static const _accent = Color(0xFF4D78CC); // badge / status-bar-item
-  static const _blue   = Color(0xFF61AFEF); // hue-2: functions
-  static const _green  = Color(0xFF98C379); // hue-4: strings
-  static const _red    = Color(0xFFE06C75); // hue-5: variables / tags
+  static const _blue = Color(0xFF61AFEF); // hue-2: functions
+  static const _green = Color(0xFF98C379); // hue-4: strings
+  static const _red = Color(0xFFE06C75); // hue-5: variables / tags
   static const _yellow = Color(0xFFE5C07B); // hue-6-2: classes / types
   static const _orange = Color(0xFFD19A66); // hue-6: constants / numbers
-  static const _cyan   = Color(0xFF56B6C2); // hue-1: operators / support
+  static const _cyan = Color(0xFF56B6C2); // hue-1: operators / support
   static const _purple = Color(0xFFC678DD); // hue-3: keywords / storage
 
   // ── Borders & interactive states ──
-  static const _border      = Color(0xFF181A1F); // editor group, tab borders
+  static const _border = Color(0xFF181A1F); // editor group, tab borders
   static const _borderLight = Color(0xFF3E4452); // panel border, focus border
   static const _selectionColor = Color(0x1F4D78CC); // accent @ 12 %
-  static const _hoverColor     = Color(0x08FFFFFF); // white @ 3 %
-  static const _activeColor    = Color(0x0FFFFFFF); // white @ 6 %
+  static const _hoverColor = Color(0x08FFFFFF); // white @ 3 %
+  static const _activeColor = Color(0x0FFFFFFF); // white @ 6 %
 
   // ── On-accent (text on accent-colored backgrounds) ──
   static const _onAccent = Color(0xFFF8FAFD); // badge fg
@@ -51,86 +51,92 @@ abstract final class AppTheme {
   static const _scrollThumb = Color(0x667F848E); // fgDim @ 40 %
 
   // ── Terminal cursor & selection ──
-  static const _termCursorColor     = Color(0xFF528BFF); // OneDark Pro syntax-accent
-  static const _termSelectionColor  = Color(0x60677696); // OneDark Pro editor.selectionBackground
+  static const _termCursorColor = Color(
+    0xFF528BFF,
+  ); // OneDark Pro syntax-accent
+  static const _termSelectionColor = Color(
+    0x60677696,
+  ); // OneDark Pro editor.selectionBackground
 
   // ── Terminal ANSI (OneDark Pro terminal.*) ──
-  static const _termBlack       = Color(0xFF3F4451);
-  static const _termRed         = Color(0xFFE05561);
-  static const _termGreen       = Color(0xFF8CC265);
-  static const _termYellow      = Color(0xFFD18F52);
-  static const _termBlue        = Color(0xFF4AA5F0);
-  static const _termMagenta     = Color(0xFFC162DE);
-  static const _termCyan        = Color(0xFF42B3C2);
-  static const _termWhite       = Color(0xFFD7DAE0);
+  static const _termBlack = Color(0xFF3F4451);
+  static const _termRed = Color(0xFFE05561);
+  static const _termGreen = Color(0xFF8CC265);
+  static const _termYellow = Color(0xFFD18F52);
+  static const _termBlue = Color(0xFF4AA5F0);
+  static const _termMagenta = Color(0xFFC162DE);
+  static const _termCyan = Color(0xFF42B3C2);
+  static const _termWhite = Color(0xFFD7DAE0);
   static const _termBrightBlack = Color(0xFF4F5666);
-  static const _termBrightRed   = Color(0xFFFF616E);
+  static const _termBrightRed = Color(0xFFFF616E);
   static const _termBrightGreen = Color(0xFFA5E075);
-  static const _termBrightYellow  = Color(0xFFF0A45D);
-  static const _termBrightBlue   = Color(0xFF4DC4FF);
+  static const _termBrightYellow = Color(0xFFF0A45D);
+  static const _termBrightBlue = Color(0xFF4DC4FF);
   static const _termBrightMagenta = Color(0xFFDE73FF);
-  static const _termBrightCyan   = Color(0xFF4CD1E0);
-  static const _termBrightWhite  = Color(0xFFE6E6E6);
+  static const _termBrightCyan = Color(0xFF4CD1E0);
+  static const _termBrightWhite = Color(0xFFE6E6E6);
 
   // ══════════════════════════════════════════════════════════════════
   //  LIGHT — Atom One Light (official)
   // ══════════════════════════════════════════════════════════════════
 
   // ── Backgrounds ──
-  static const _lightBg        = Color(0xFFFAFAFA); // level-2, editor
-  static const _lightSurface   = Color(0xFFEAEBEB); // level-3, sidebar
-  static const _lightBg0       = Color(0xFFDBDBDC); // bg-selected, deepest
+  static const _lightBg = Color(0xFFFAFAFA); // level-2, editor
+  static const _lightSurface = Color(0xFFEAEBEB); // level-3, sidebar
+  static const _lightBg0 = Color(0xFFDBDBDC); // bg-selected, deepest
   static const _lightSelection = Color(0xFFE5E5E6); // syntax selection
 
   // ── Foregrounds ──
-  static const _lightFg        = Color(0xFF383A42); // mono-1
-  static const _lightFgDim     = Color(0xFF696C77); // mono-2
-  static const _lightFgFaint   = Color(0xFFA0A1A7); // mono-3
-  static const _lightFgBright  = Color(0xFF232424); // text-highlight
+  static const _lightFg = Color(0xFF383A42); // mono-1
+  static const _lightFgDim = Color(0xFF696C77); // mono-2
+  static const _lightFgFaint = Color(0xFFA0A1A7); // mono-3
+  static const _lightFgBright = Color(0xFF232424); // text-highlight
 
   // ── Accent & syntax hues ──
-  static const _lightBlue      = Color(0xFF4078F2); // hue-2
-  static const _lightGreen     = Color(0xFF50A14F); // hue-4
-  static const _lightRed       = Color(0xFFE45649); // hue-5
-  static const _lightYellow    = Color(0xFFC18401); // hue-6-2
-  static const _lightOrange    = Color(0xFF986801); // hue-6
-  static const _lightCyan      = Color(0xFF0184BC); // hue-1
-  static const _lightPurple    = Color(0xFFA626A4); // hue-3
+  static const _lightBlue = Color(0xFF4078F2); // hue-2
+  static const _lightGreen = Color(0xFF50A14F); // hue-4
+  static const _lightRed = Color(0xFFE45649); // hue-5
+  static const _lightYellow = Color(0xFFC18401); // hue-6-2
+  static const _lightOrange = Color(0xFF986801); // hue-6
+  static const _lightCyan = Color(0xFF0184BC); // hue-1
+  static const _lightPurple = Color(0xFFA626A4); // hue-3
 
   // ── Borders & interactive states ──
-  static const _lightBorder    = Color(0xFFDBDBDC); // ui-border
-  static const _lightGutter    = Color(0xFF9D9D9F); // gutter text
+  static const _lightBorder = Color(0xFFDBDBDC); // ui-border
+  static const _lightGutter = Color(0xFF9D9D9F); // gutter text
 
   // ── Level-1 surface (inputs, cards, popups — lightest bg) ──
-  static const _lightLevel1    = Color(0xFFFFFFFF);
+  static const _lightLevel1 = Color(0xFFFFFFFF);
 
   // ── On-accent ──
-  static const _lightOnAccent  = Color(0xFFFFFFFF);
+  static const _lightOnAccent = Color(0xFFFFFFFF);
 
   // ── Terminal cursor & selection ──
-  static const _lightTermCursorColor    = Color(0xFF526FFF); // One Light syntax-accent
+  static const _lightTermCursorColor = Color(
+    0xFF526FFF,
+  ); // One Light syntax-accent
   static const _lightTermSelectionColor = Color(0x604078F2); // lightBlue @ 38 %
 
   // ── Scrollbar ──
   static const _lightScrollThumb = Color(0x88696C77); // fgDim @ 53 %
 
   // ── Terminal ANSI (derived from One Light syntax palette) ──
-  static const _lightTermBlack       = Color(0xFF383A42);
-  static const _lightTermRed         = Color(0xFFE45649);
-  static const _lightTermGreen       = Color(0xFF50A14F);
-  static const _lightTermYellow      = Color(0xFFC18401);
-  static const _lightTermBlue        = Color(0xFF4078F2);
-  static const _lightTermMagenta     = Color(0xFFA626A4);
-  static const _lightTermCyan        = Color(0xFF0184BC);
-  static const _lightTermWhite       = Color(0xFFFAFAFA);
+  static const _lightTermBlack = Color(0xFF383A42);
+  static const _lightTermRed = Color(0xFFE45649);
+  static const _lightTermGreen = Color(0xFF50A14F);
+  static const _lightTermYellow = Color(0xFFC18401);
+  static const _lightTermBlue = Color(0xFF4078F2);
+  static const _lightTermMagenta = Color(0xFFA626A4);
+  static const _lightTermCyan = Color(0xFF0184BC);
+  static const _lightTermWhite = Color(0xFFFAFAFA);
   static const _lightTermBrightBlack = Color(0xFF696C77);
-  static const _lightTermBrightRed   = Color(0xFFE45649);
+  static const _lightTermBrightRed = Color(0xFFE45649);
   static const _lightTermBrightGreen = Color(0xFF50A14F);
-  static const _lightTermBrightYellow  = Color(0xFFC18401);
-  static const _lightTermBrightBlue   = Color(0xFF4078F2);
+  static const _lightTermBrightYellow = Color(0xFFC18401);
+  static const _lightTermBrightBlue = Color(0xFF4078F2);
   static const _lightTermBrightMagenta = Color(0xFFA626A4);
-  static const _lightTermBrightCyan   = Color(0xFF0184BC);
-  static const _lightTermBrightWhite  = Color(0xFFFFFFFF);
+  static const _lightTermBrightCyan = Color(0xFF0184BC);
+  static const _lightTermBrightWhite = Color(0xFFFFFFFF);
 
   // ── Brightness-aware state ──
   // Set by the app root widget when the theme mode changes.
@@ -153,54 +159,65 @@ abstract final class AppTheme {
   static Color get bg4 => isDark ? _bg4 : _lightBorder;
 
   // Foregrounds
-  static Color get fg       => isDark ? _fg : _lightFg;
-  static Color get fgDim    => isDark ? _fgDim : _lightFgDim;
-  static Color get fgFaint  => isDark ? _fgFaint : _lightFgFaint;
+  static Color get fg => isDark ? _fg : _lightFg;
+  static Color get fgDim => isDark ? _fgDim : _lightFgDim;
+  static Color get fgFaint => isDark ? _fgFaint : _lightFgFaint;
   static Color get fgBright => isDark ? _fgBright : _lightFgBright;
 
   // Accent & hues
   static Color get accent => isDark ? _accent : _lightBlue;
-  static Color get blue   => isDark ? _blue : _lightBlue;
-  static Color get green  => isDark ? _green : _lightGreen;
-  static Color get red    => isDark ? _red : _lightRed;
+  static Color get blue => isDark ? _blue : _lightBlue;
+  static Color get green => isDark ? _green : _lightGreen;
+  static Color get red => isDark ? _red : _lightRed;
   static Color get yellow => isDark ? _yellow : _lightYellow;
   static Color get orange => isDark ? _orange : _lightOrange;
-  static Color get cyan   => isDark ? _cyan : _lightCyan;
+  static Color get cyan => isDark ? _cyan : _lightCyan;
   static Color get purple => isDark ? _purple : _lightPurple;
 
   // Borders & interactive
-  static Color get border      => isDark ? _border : _lightBorder;
+  static Color get border => isDark ? _border : _lightBorder;
   static Color get borderLight => isDark ? _borderLight : _lightBorder;
-  static Color get selection   => isDark ? _selectionColor : const Color(0x2A4078F2);
-  static Color get hover       => isDark ? _hoverColor : const Color(0x12000000);
-  static Color get active      => isDark ? _activeColor : const Color(0x1A000000);
+  static Color get selection =>
+      isDark ? _selectionColor : const Color(0x2A4078F2);
+  static Color get hover => isDark ? _hoverColor : const Color(0x12000000);
+  static Color get active => isDark ? _activeColor : const Color(0x1A000000);
 
   /// Text color for accent-colored backgrounds (buttons, badges, toggles).
   static Color get onAccent => isDark ? _onAccent : _lightOnAccent;
 
   // ── Terminal ANSI colors ──
-  static Color get termBlack       => isDark ? _termBlack : _lightTermBlack;
-  static Color get termRed         => isDark ? _termRed : _lightTermRed;
-  static Color get termGreen       => isDark ? _termGreen : _lightTermGreen;
-  static Color get termYellow      => isDark ? _termYellow : _lightTermYellow;
-  static Color get termBlue        => isDark ? _termBlue : _lightTermBlue;
-  static Color get termMagenta     => isDark ? _termMagenta : _lightTermMagenta;
-  static Color get termCyan        => isDark ? _termCyan : _lightTermCyan;
-  static Color get termWhite       => isDark ? _termWhite : _lightTermWhite;
-  static Color get termBrightBlack => isDark ? _termBrightBlack : _lightTermBrightBlack;
-  static Color get termBrightRed   => isDark ? _termBrightRed : _lightTermBrightRed;
-  static Color get termBrightGreen => isDark ? _termBrightGreen : _lightTermBrightGreen;
-  static Color get termBrightYellow  => isDark ? _termBrightYellow : _lightTermBrightYellow;
-  static Color get termBrightBlue   => isDark ? _termBrightBlue : _lightTermBrightBlue;
-  static Color get termBrightMagenta => isDark ? _termBrightMagenta : _lightTermBrightMagenta;
-  static Color get termBrightCyan   => isDark ? _termBrightCyan : _lightTermBrightCyan;
-  static Color get termBrightWhite  => isDark ? _termBrightWhite : _lightTermBrightWhite;
+  static Color get termBlack => isDark ? _termBlack : _lightTermBlack;
+  static Color get termRed => isDark ? _termRed : _lightTermRed;
+  static Color get termGreen => isDark ? _termGreen : _lightTermGreen;
+  static Color get termYellow => isDark ? _termYellow : _lightTermYellow;
+  static Color get termBlue => isDark ? _termBlue : _lightTermBlue;
+  static Color get termMagenta => isDark ? _termMagenta : _lightTermMagenta;
+  static Color get termCyan => isDark ? _termCyan : _lightTermCyan;
+  static Color get termWhite => isDark ? _termWhite : _lightTermWhite;
+  static Color get termBrightBlack =>
+      isDark ? _termBrightBlack : _lightTermBrightBlack;
+  static Color get termBrightRed =>
+      isDark ? _termBrightRed : _lightTermBrightRed;
+  static Color get termBrightGreen =>
+      isDark ? _termBrightGreen : _lightTermBrightGreen;
+  static Color get termBrightYellow =>
+      isDark ? _termBrightYellow : _lightTermBrightYellow;
+  static Color get termBrightBlue =>
+      isDark ? _termBrightBlue : _lightTermBrightBlue;
+  static Color get termBrightMagenta =>
+      isDark ? _termBrightMagenta : _lightTermBrightMagenta;
+  static Color get termBrightCyan =>
+      isDark ? _termBrightCyan : _lightTermBrightCyan;
+  static Color get termBrightWhite =>
+      isDark ? _termBrightWhite : _lightTermBrightWhite;
 
   /// Terminal block-cursor color (semi-transparent so text shows through).
-  static Color get termCursor    => isDark ? _termCursorColor : _lightTermCursorColor;
+  static Color get termCursor =>
+      isDark ? _termCursorColor : _lightTermCursorColor;
 
   /// Terminal mouse-selection highlight.
-  static Color get termSelection => isDark ? _termSelectionColor : _lightTermSelectionColor;
+  static Color get termSelection =>
+      isDark ? _termSelectionColor : _lightTermSelectionColor;
 
   // ── Section border helpers ──
   // Brightness-aware single-side borders for container edges (headers,
@@ -210,14 +227,55 @@ abstract final class AppTheme {
   static Border get borderBottom => Border(bottom: borderSide);
 
   // ── Bar height scale ──
-  /// 34 px — standard bar height for toolbars, headers, footers, status bars.
+  /// 34 px — standard bar: toolbars, headers, footers, status bars.
   static const double barHeightSm = 34;
+
+  /// 40 px — dialog title bars, mobile breadcrumbs.
+  static const double barHeightMd = 40;
+
+  /// 44 px — mobile app bars, selection toolbars.
+  static const double barHeightLg = 44;
+
+  // ── Control height scale ──
+  /// 26 px — compact buttons, file rows, settings items.
+  static const double controlHeightXs = 26;
+
+  /// 28 px — context menu items, search inputs, small buttons.
+  static const double controlHeightSm = 28;
+
+  /// 30 px — input fields, auth-type selectors.
+  static const double controlHeightMd = 30;
+
+  /// 32 px — tab selectors, mode selectors, mobile tab items.
+  static const double controlHeightLg = 32;
+
+  /// 38 px — dialog action buttons (Cancel, Connect, etc.).
+  static const double controlHeightXl = 38;
+
+  // ── Item height scale ──
+  /// 22 px — compact rows: path editors, transfer detail items.
+  static const double itemHeightXs = 22;
+
+  /// 24 px — small items: resize handles, transfer list entries.
+  static const double itemHeightSm = 24;
+
+  /// 48 px — large containers: icon boxes, mobile list items, drag targets.
+  static const double itemHeightLg = 48;
+
+  /// 56 px — mobile bottom navigation bar.
+  static const double itemHeightXl = 56;
+
+  // ── Popup constraints ──
+  /// 400 px — max height for popup menus (scrolls when content exceeds).
+  static const double popupMaxHeight = 400;
 
   // ── Border radius scale ──
   /// 4 px — inputs, buttons, small elements.
   static const radiusSm = BorderRadius.all(Radius.circular(4));
+
   /// 6 px — cards, containers, default rounding.
   static const radiusMd = BorderRadius.all(Radius.circular(6));
+
   /// 8 px — toasts, mobile elements, larger containers.
   static const radiusLg = BorderRadius.all(Radius.circular(8));
 
@@ -379,10 +437,7 @@ abstract final class AppTheme {
           visualDensity: VisualDensity.compact,
         ),
       ),
-      listTileTheme: const ListTileThemeData(
-        iconColor: _fg,
-        textColor: _fg,
-      ),
+      listTileTheme: const ListTileThemeData(iconColor: _fg, textColor: _fg),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: _bg1,
         indicatorColor: _accent.withValues(alpha: 0.2),
@@ -730,9 +785,10 @@ abstract final class AppTheme {
   static const Color folderIcon = _yellow;
 
   /// Terminal search highlight backgrounds.
-  static const Color _searchHighlightDark  = Color(0xFFFFFF2B);
+  static const Color _searchHighlightDark = Color(0xFFFFFF2B);
   static const Color _searchHighlightLight = Color(0xFFFFD700);
-  static Color get searchHighlight => isDark ? _searchHighlightDark : _searchHighlightLight;
+  static Color get searchHighlight =>
+      isDark ? _searchHighlightDark : _searchHighlightLight;
 
   /// Terminal search hit foreground — high-contrast text on colored bg.
   static Color get searchHitFg => isDark ? _termBrightWhite : _lightFgBright;
@@ -797,24 +853,22 @@ abstract final class AppFonts {
     FontWeight? fontWeight,
     Color? color,
     double? height,
-  }) =>
-      TextStyle(
-        fontFamily: _inter,
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        color: color,
-        height: height,
-      );
+  }) => TextStyle(
+    fontFamily: _inter,
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+    height: height,
+  );
 
   static TextStyle mono({
     double? fontSize,
     FontWeight? fontWeight,
     Color? color,
-  }) =>
-      TextStyle(
-        fontFamily: _mono,
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        color: color,
-      );
+  }) => TextStyle(
+    fontFamily: _mono,
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+  );
 }

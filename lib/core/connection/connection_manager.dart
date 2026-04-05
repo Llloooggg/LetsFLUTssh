@@ -10,10 +10,8 @@ import '../ssh/ssh_config.dart';
 import 'connection.dart';
 
 /// Factory for creating SSH connections — injectable for testing.
-typedef SSHConnectionFactory = SSHConnection Function(
-  SSHConfig config,
-  KnownHostsManager knownHosts,
-);
+typedef SSHConnectionFactory =
+    SSHConnection Function(SSHConfig config, KnownHostsManager knownHosts);
 
 /// Optional callback invoked when the number of active (connected) sessions changes.
 typedef ActiveCountCallback = void Function(int activeCount);
@@ -40,8 +38,9 @@ class ConnectionManager {
     required this.knownHosts,
     SSHConnectionFactory? connectionFactory,
     this.onActiveCountChanged,
-  }) : _connectionFactory = connectionFactory ??
-            ((config, kh) => SSHConnection(config: config, knownHosts: kh));
+  }) : _connectionFactory =
+           connectionFactory ??
+           ((config, kh) => SSHConnection(config: config, knownHosts: kh));
 
   List<Connection> get connections => _connections.values.toList();
 
@@ -50,7 +49,11 @@ class ConnectionManager {
   /// Create a connection and start connecting in the background.
   /// Returns the Connection immediately (in `connecting` state).
   /// The connection transitions to `connected` or `disconnected` asynchronously.
-  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
+  Connection connectAsync(
+    SSHConfig config, {
+    String? label,
+    String? sessionId,
+  }) {
     final id = _uuid.v4();
     final conn = Connection(
       id: id,
@@ -89,7 +92,11 @@ class ConnectionManager {
       conn.completeReady();
       _notify();
     } catch (e) {
-      AppLogger.instance.log('Connection failed: $e', name: 'Connection', error: e);
+      AppLogger.instance.log(
+        'Connection failed: $e',
+        name: 'Connection',
+        error: e,
+      );
       conn.state = SSHConnectionState.disconnected;
       conn.connectionError = sanitizeError(e);
       conn.completeReady();

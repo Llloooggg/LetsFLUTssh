@@ -35,8 +35,7 @@ class _MockFS implements FileSystem {
   Future<void> removeDir(String path) async => removedDirs.add(path);
 
   @override
-  Future<void> rename(String oldPath, String newPath) async =>
-      renames.add((oldPath, newPath));
+  Future<void> rename(String oldPath, String newPath) async => renames.add((oldPath, newPath));
   @override
   Future<int> dirSize(String path) async {
     dirSizeCalls.add(path);

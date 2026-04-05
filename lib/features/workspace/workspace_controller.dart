@@ -36,10 +36,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
   @override
   WorkspaceState build() {
     final initialPanel = PanelLeaf();
-    return WorkspaceState(
-      root: initialPanel,
-      focusedPanelId: initialPanel.id,
-    );
+    return WorkspaceState(root: initialPanel, focusedPanelId: initialPanel.id);
   }
 
   // ---------------------------------------------------------------------------
@@ -52,7 +49,10 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     state = state.copyWith(
       root: updatePanel(state.root, panelId, (panel) {
         final newTabs = [...panel.tabs, tab];
-        return panel.copyWith(tabs: newTabs, activeTabIndex: newTabs.length - 1);
+        return panel.copyWith(
+          tabs: newTabs,
+          activeTabIndex: newTabs.length - 1,
+        );
       }),
       focusedPanelId: panelId,
     );
@@ -206,10 +206,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     final sourcePanel = findPanel(state.root, panelId);
     if (sourcePanel == null) return;
 
-    final newPanel = PanelLeaf(
-      tabs: [tab],
-      activeTabIndex: 0,
-    );
+    final newPanel = PanelLeaf(tabs: [tab], activeTabIndex: 0);
 
     // Remove the tab from the source panel if it's there.
     final tabIdx = sourcePanel.tabs.indexWhere((t) => t.id == tab.id);
@@ -267,10 +264,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
       return;
     }
 
-    final newPanel = PanelLeaf(
-      tabs: [tab],
-      activeTabIndex: 0,
-    );
+    final newPanel = PanelLeaf(tabs: [tab], activeTabIndex: 0);
 
     final branch = WorkspaceBranch(
       direction: direction,
@@ -299,10 +293,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     final tab = panel?.activeTab;
     if (panel == null || tab == null) return;
 
-    final newPanel = PanelLeaf(
-      tabs: [tab.duplicate()],
-      activeTabIndex: 0,
-    );
+    final newPanel = PanelLeaf(tabs: [tab.duplicate()], activeTabIndex: 0);
 
     final branch = WorkspaceBranch(
       direction: direction,
@@ -383,10 +374,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
 
     // Update destination panel first.
     newRoot = updatePanel(newRoot, toPanelId, (_) {
-      return toPanel.copyWith(
-        tabs: newToTabs,
-        activeTabIndex: insertIdx,
-      );
+      return toPanel.copyWith(tabs: newToTabs, activeTabIndex: insertIdx);
     });
 
     // If source is now empty, collapse it.
@@ -413,7 +401,11 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
   // ---------------------------------------------------------------------------
 
   /// Add a terminal tab. Defaults to the focused panel.
-  String addTerminalTab(Connection connection, {String? label, String? panelId}) {
+  String addTerminalTab(
+    Connection connection, {
+    String? label,
+    String? panelId,
+  }) {
     final id = _uuid.v4();
     final tab = TabEntry(
       id: id,
@@ -449,8 +441,9 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
   /// Disconnect connections that are no longer referenced by any open tab
   /// across **all** panels.
   void _disconnectOrphaned(List<TabEntry> closedTabs) {
-    final remainingConnIds =
-        collectAllTabs(state.root).map((t) => t.connection.id).toSet();
+    final remainingConnIds = collectAllTabs(
+      state.root,
+    ).map((t) => t.connection.id).toSet();
     final manager = ref.read(connectionManagerProvider);
     for (final tab in closedTabs) {
       if (!remainingConnIds.contains(tab.connection.id)) {
@@ -461,5 +454,6 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
 }
 
 /// Riverpod provider for workspace state.
-final workspaceProvider =
-    NotifierProvider<WorkspaceNotifier, WorkspaceState>(WorkspaceNotifier.new);
+final workspaceProvider = NotifierProvider<WorkspaceNotifier, WorkspaceState>(
+  WorkspaceNotifier.new,
+);

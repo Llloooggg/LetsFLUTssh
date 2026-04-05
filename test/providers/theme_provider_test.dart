@@ -8,30 +8,20 @@ import 'package:letsflutssh/providers/theme_provider.dart';
 void main() {
   group('themeModeProvider', () {
     test('returns ThemeMode.dark for "dark"', () {
-      final container = ProviderContainer(
-        overrides: [
-          configProvider.overrideWith(() => _FakeConfigNotifier('dark')),
-        ],
-      );
+      final container = ProviderContainer(overrides: [configProvider.overrideWith(() => _FakeConfigNotifier('dark'))]);
       addTearDown(container.dispose);
       expect(container.read(themeModeProvider), ThemeMode.dark);
     });
 
     test('returns ThemeMode.light for "light"', () {
-      final container = ProviderContainer(
-        overrides: [
-          configProvider.overrideWith(() => _FakeConfigNotifier('light')),
-        ],
-      );
+      final container = ProviderContainer(overrides: [configProvider.overrideWith(() => _FakeConfigNotifier('light'))]);
       addTearDown(container.dispose);
       expect(container.read(themeModeProvider), ThemeMode.light);
     });
 
     test('returns ThemeMode.system for "system"', () {
       final container = ProviderContainer(
-        overrides: [
-          configProvider.overrideWith(() => _FakeConfigNotifier('system')),
-        ],
+        overrides: [configProvider.overrideWith(() => _FakeConfigNotifier('system'))],
       );
       addTearDown(container.dispose);
       expect(container.read(themeModeProvider), ThemeMode.system);
@@ -39,20 +29,14 @@ void main() {
 
     test('returns ThemeMode.system for unknown value', () {
       final container = ProviderContainer(
-        overrides: [
-          configProvider.overrideWith(() => _FakeConfigNotifier('garbage')),
-        ],
+        overrides: [configProvider.overrideWith(() => _FakeConfigNotifier('garbage'))],
       );
       addTearDown(container.dispose);
       expect(container.read(themeModeProvider), ThemeMode.system);
     });
 
     test('returns ThemeMode.system for empty string', () {
-      final container = ProviderContainer(
-        overrides: [
-          configProvider.overrideWith(() => _FakeConfigNotifier('')),
-        ],
-      );
+      final container = ProviderContainer(overrides: [configProvider.overrideWith(() => _FakeConfigNotifier(''))]);
       addTearDown(container.dispose);
       expect(container.read(themeModeProvider), ThemeMode.system);
     });
@@ -64,7 +48,5 @@ class _FakeConfigNotifier extends ConfigNotifier {
   _FakeConfigNotifier(this._theme);
 
   @override
-  AppConfig build() => AppConfig.defaults.copyWith(
-        terminal: AppConfig.defaults.terminal.copyWith(theme: _theme),
-      );
+  AppConfig build() => AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(theme: _theme));
 }

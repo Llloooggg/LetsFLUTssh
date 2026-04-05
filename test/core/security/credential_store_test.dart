@@ -25,11 +25,7 @@ void main() {
     });
 
     test('JSON roundtrip', () {
-      const cred = CredentialData(
-        password: 'pass123',
-        keyData: 'PEM-DATA',
-        passphrase: 'phrase',
-      );
+      const cred = CredentialData(password: 'pass123', keyData: 'PEM-DATA', passphrase: 'phrase');
       final json = cred.toJson();
       final restored = CredentialData.fromJson(json);
       expect(restored.password, 'pass123');
@@ -88,12 +84,10 @@ void main() {
       final salt = Uint8List.fromList(List.generate(32, (i) => i));
       const password = 'test-password';
 
-      final pbkdf2a = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-        ..init(Pbkdf2Parameters(salt, 1000, 32));
+      final pbkdf2a = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))..init(Pbkdf2Parameters(salt, 1000, 32));
       final keyA = pbkdf2a.process(Uint8List.fromList(utf8.encode(password)));
 
-      final pbkdf2b = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-        ..init(Pbkdf2Parameters(salt, 1000, 32));
+      final pbkdf2b = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))..init(Pbkdf2Parameters(salt, 1000, 32));
       final keyB = pbkdf2b.process(Uint8List.fromList(utf8.encode(password)));
 
       expect(keyA, keyB);
@@ -102,12 +96,10 @@ void main() {
     test('different passwords produce different keys', () {
       final salt = Uint8List.fromList(List.generate(32, (i) => i));
 
-      final pbkdf2a = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-        ..init(Pbkdf2Parameters(salt, 1000, 32));
+      final pbkdf2a = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))..init(Pbkdf2Parameters(salt, 1000, 32));
       final keyA = pbkdf2a.process(Uint8List.fromList(utf8.encode('password1')));
 
-      final pbkdf2b = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-        ..init(Pbkdf2Parameters(salt, 1000, 32));
+      final pbkdf2b = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))..init(Pbkdf2Parameters(salt, 1000, 32));
       final keyB = pbkdf2b.process(Uint8List.fromList(utf8.encode('password2')));
 
       expect(keyA, isNot(keyB));
@@ -120,16 +112,14 @@ void main() {
     setUp(() async {
       TestWidgetsFlutterBinding.ensureInitialized();
       tempDir = await Directory.systemTemp.createTemp('cred_test_');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'),
         (call) async => tempDir.path,
       );
     });
 
     tearDown(() async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'),
         null,
       );
@@ -158,10 +148,7 @@ void main() {
 
     test('get returns specific session credentials', () async {
       final store = CredentialStore();
-      await store.saveAll({
-        'a': const CredentialData(password: 'alpha'),
-        'b': const CredentialData(password: 'beta'),
-      });
+      await store.saveAll({'a': const CredentialData(password: 'alpha'), 'b': const CredentialData(password: 'beta')});
 
       final cred = await store.get('a');
       expect(cred, isNotNull);
@@ -200,10 +187,7 @@ void main() {
       await keyFile.writeAsBytes(List.generate(32, (i) => i));
 
       final store = CredentialStore();
-      expect(
-        () => store.loadAll(),
-        throwsA(isA<CredentialStoreException>()),
-      );
+      expect(() => store.loadAll(), throwsA(isA<CredentialStoreException>()));
     });
 
     test('loadAllSafe returns empty on corrupted file', () async {
@@ -286,16 +270,14 @@ void main() {
     setUp(() async {
       TestWidgetsFlutterBinding.ensureInitialized();
       tempDir = await Directory.systemTemp.createTemp('cred_concurrent_');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'),
         (call) async => tempDir.path,
       );
     });
 
     tearDown(() async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'),
         null,
       );
@@ -341,16 +323,14 @@ void main() {
     setUp(() async {
       TestWidgetsFlutterBinding.ensureInitialized();
       tempDir = await Directory.systemTemp.createTemp('cred_edge_');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'),
         (call) async => tempDir.path,
       );
     });
 
     tearDown(() async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'),
         null,
       );

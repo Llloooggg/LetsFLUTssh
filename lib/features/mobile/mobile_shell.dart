@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
@@ -64,7 +65,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             ],
           ),
         ),
-        bottomNavigationBar: _buildBottomNav(allTabs),
+        bottomNavigationBar: _buildBottomNav(context, allTabs),
       ),
     );
   }
@@ -89,14 +90,14 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 
   Widget _buildAppBar(BuildContext context, int tabCount) {
     return Container(
-      height: 44,
+      height: AppTheme.barHeightLg,
       color: AppTheme.bg1,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: AppTheme.controlHeightSm,
+            height: AppTheme.controlHeightSm,
             decoration: BoxDecoration(
               color: AppTheme.accent,
               borderRadius: AppTheme.radiusLg,
@@ -113,44 +114,50 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             ),
           ),
           const Spacer(),
-          Builder(builder: (_) {
-            final connections = ref.watch(connectionsProvider).value ?? [];
-            final connectedCount = connections.where((c) => c.isConnected).length;
-            final connectingCount = connections.where((c) => c.isConnecting).length;
-            final activeCount = connectedCount + connectingCount;
-            final savedCount = ref.watch(sessionProvider).length;
-            final Color? connectionIconColor;
-            if (connectedCount > 0) {
-              connectionIconColor = AppTheme.green;
-            } else if (connectingCount > 0) {
-              connectionIconColor = AppTheme.yellow;
-            } else {
-              connectionIconColor = null;
-            }
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                StatusIndicator(
-                  icon: Icons.dns_outlined,
-                  count: savedCount,
-                  tooltip: 'Saved sessions',
-                ),
-                const SizedBox(width: 10),
-                StatusIndicator(
-                  icon: Icons.wifi,
-                  count: activeCount,
-                  tooltip: 'Active connections',
-                  iconColor: connectionIconColor,
-                ),
-                const SizedBox(width: 10),
-                StatusIndicator(
-                  icon: Icons.tab_outlined,
-                  count: tabCount,
-                  tooltip: 'Open tabs',
-                ),
-              ],
-            );
-          }),
+          Builder(
+            builder: (_) {
+              final connections = ref.watch(connectionsProvider).value ?? [];
+              final connectedCount = connections
+                  .where((c) => c.isConnected)
+                  .length;
+              final connectingCount = connections
+                  .where((c) => c.isConnecting)
+                  .length;
+              final activeCount = connectedCount + connectingCount;
+              final savedCount = ref.watch(sessionProvider).length;
+              final Color? connectionIconColor;
+              if (connectedCount > 0) {
+                connectionIconColor = AppTheme.green;
+              } else if (connectingCount > 0) {
+                connectionIconColor = AppTheme.yellow;
+              } else {
+                connectionIconColor = null;
+              }
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  StatusIndicator(
+                    icon: Icons.dns_outlined,
+                    count: savedCount,
+                    tooltip: S.of(context).savedSessions,
+                  ),
+                  const SizedBox(width: 10),
+                  StatusIndicator(
+                    icon: Icons.wifi,
+                    count: activeCount,
+                    tooltip: S.of(context).activeConnections,
+                    iconColor: connectionIconColor,
+                  ),
+                  const SizedBox(width: 10),
+                  StatusIndicator(
+                    icon: Icons.tab_outlined,
+                    count: tabCount,
+                    tooltip: S.of(context).openTabs,
+                  ),
+                ],
+              );
+            },
+          ),
           const SizedBox(width: 8),
           AppIconButton(
             icon: Icons.settings,
@@ -159,20 +166,25 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             backgroundColor: AppTheme.bg3,
             borderRadius: AppTheme.radiusLg,
             onTap: () => SettingsScreen.show(context),
-            tooltip: 'Settings',
+            tooltip: S.of(context).settings,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPageContent(List<TabEntry> allTabs, TabEntry? activeTab, BuildContext context) {
+  Widget _buildPageContent(
+    List<TabEntry> allTabs,
+    TabEntry? activeTab,
+    BuildContext context,
+  ) {
     return IndexedStack(
       index: _navIndex,
       children: [
         _MobileSessionsPage(
           onConnect: (session) => _connectSession(context, ref, session),
-          onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+          onSftpConnect: (session) =>
+              _connectSessionSftp(context, ref, session),
           onQuickConnect: (config) {
             SessionConnect.connectConfig(context, ref, config);
             setState(() => _navIndex = 1);
@@ -181,7 +193,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         _MobileTerminalPage(
           allTabs: allTabs,
           activeTab: activeTab,
-          onOpenSftp: _activeTerminalConnection(allTabs, activeTab)?.isConnected == true
+          onOpenSftp:
+              _activeTerminalConnection(allTabs, activeTab)?.isConnected == true
               ? () {
                   final conn = _activeTerminalConnection(allTabs, activeTab)!;
                   ref.read(workspaceProvider.notifier).addSftpTab(conn);
@@ -192,7 +205,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         _MobileSftpPage(
           allTabs: allTabs,
           activeTab: activeTab,
-          onOpenSsh: _activeSftpConnection(allTabs, activeTab)?.isConnected == true
+          onOpenSsh:
+              _activeSftpConnection(allTabs, activeTab)?.isConnected == true
               ? () {
                   final conn = _activeSftpConnection(allTabs, activeTab)!;
                   ref.read(workspaceProvider.notifier).addTerminalTab(conn);
@@ -204,11 +218,12 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     );
   }
 
-  Widget _buildBottomNav(List<TabEntry> allTabs) {
+  Widget _buildBottomNav(BuildContext context, List<TabEntry> allTabs) {
+    final s = S.of(context);
     final termCount = _terminalTabCount(allTabs);
     final sftpCount = _sftpTabCount(allTabs);
     return Container(
-      height: 56,
+      height: AppTheme.itemHeightXl,
       color: AppTheme.bg1,
       child: Row(
         children: [
@@ -216,20 +231,20 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             index: 0,
             icon: Icons.dns_outlined,
             activeIcon: Icons.dns,
-            label: 'Sessions',
+            label: s.sessions,
           ),
           _buildNavItem(
             index: 1,
             icon: Icons.terminal_outlined,
             activeIcon: Icons.terminal,
-            label: 'Terminal',
+            label: s.terminal,
             disabledWhenZero: termCount,
           ),
           _buildNavItem(
             index: 2,
             icon: Icons.folder_outlined,
             activeIcon: Icons.folder,
-            label: 'Files',
+            label: s.files,
             disabledWhenZero: sftpCount,
           ),
         ],
@@ -265,9 +280,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: isDisabled
-            ? null
-            : () => setState(() => _navIndex = index),
+        onTap: isDisabled ? null : () => setState(() => _navIndex = index),
         child: Opacity(
           opacity: opacity,
           child: Column(
@@ -294,15 +307,15 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final confirmed = await AppDialog.show<bool>(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Exit',
+        title: S.of(context).exit,
         content: Text(
-          'Active sessions will be disconnected. Exit?',
+          S.of(context).exitConfirmation,
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
         ),
         actions: [
           AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
           AppDialogAction.primary(
-            label: 'Exit',
+            label: S.of(context).exit,
             onTap: () => Navigator.of(ctx).pop(true),
           ),
         ],
@@ -313,17 +326,24 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     }
   }
 
-  Connection? _activeTerminalConnection(List<TabEntry> tabs, TabEntry? activeTab) {
+  Connection? _activeTerminalConnection(
+    List<TabEntry> tabs,
+    TabEntry? activeTab,
+  ) {
     final termTabs = tabs.where((t) => t.kind == TabKind.terminal).toList();
     if (termTabs.isEmpty) return null;
-    final active = activeTab != null && termTabs.contains(activeTab) ? activeTab : termTabs.last;
+    final active = activeTab != null && termTabs.contains(activeTab)
+        ? activeTab
+        : termTabs.last;
     return active.connection;
   }
 
   Connection? _activeSftpConnection(List<TabEntry> tabs, TabEntry? activeTab) {
     final sftpTabs = tabs.where((t) => t.kind == TabKind.sftp).toList();
     if (sftpTabs.isEmpty) return null;
-    final active = activeTab != null && sftpTabs.contains(activeTab) ? activeTab : sftpTabs.last;
+    final active = activeTab != null && sftpTabs.contains(activeTab)
+        ? activeTab
+        : sftpTabs.last;
     return active.connection;
   }
 
@@ -342,7 +362,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final ok = SessionConnect.connectSftp(ctx, ref, session);
     if (ok) setState(() => _navIndex = 2);
   }
-
 }
 
 /// Sessions page — full screen session list with settings access.
@@ -398,9 +417,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     if (widget.filteredTabs.length > _previousTabCount) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
-          _scrollController.jumpTo(
-            _scrollController.position.maxScrollExtent,
-          );
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         }
       });
     }
@@ -416,7 +433,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 32,
+      height: AppTheme.controlHeightLg,
       child: ListView.builder(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
@@ -446,11 +463,11 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
         }
       },
       child: SizedBox(
-        height: 32,
+        height: AppTheme.controlHeightLg,
         child: Stack(
           children: [
             Container(
-              height: 32,
+              height: AppTheme.controlHeightLg,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               color: isActive ? AppTheme.bg2 : Colors.transparent,
               child: Row(
@@ -483,7 +500,9 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                     GestureDetector(
                       onTap: () {
                         final ws = ref.read(workspaceProvider);
-                        ref.read(workspaceProvider.notifier).closeTab(ws.focusedPanelId, tab.id);
+                        ref
+                            .read(workspaceProvider.notifier)
+                            .closeTab(ws.focusedPanelId, tab.id);
                       },
                       child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
                     ),
@@ -496,7 +515,10 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                 top: 0,
                 left: 0,
                 right: 0,
-                child: SizedBox(height: 2, child: ColoredBox(color: AppTheme.accent)),
+                child: SizedBox(
+                  height: 2,
+                  child: ColoredBox(color: AppTheme.accent),
+                ),
               ),
           ],
         ),
@@ -508,7 +530,10 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     return chip;
   }
 
-  static Color _tabIconColor({required bool isActive, required bool isTerminal}) {
+  static Color _tabIconColor({
+    required bool isActive,
+    required bool isTerminal,
+  }) {
     if (!isActive) return AppTheme.fgFaint;
     return isTerminal ? AppTheme.blue : AppTheme.yellow;
   }
@@ -535,8 +560,8 @@ class _MobileTerminalPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: AppTheme.itemHeightLg,
+              height: AppTheme.itemHeightLg,
               decoration: BoxDecoration(
                 color: AppTheme.bg3,
                 borderRadius: AppTheme.radiusLg,
@@ -544,9 +569,21 @@ class _MobileTerminalPage extends ConsumerWidget {
               child: Icon(Icons.terminal, size: 22, color: AppTheme.fgFaint),
             ),
             const SizedBox(height: 12),
-            Text('No active terminals', style: AppFonts.inter(fontSize: AppFonts.lg, color: AppTheme.fgDim)),
+            Text(
+              'No active terminals',
+              style: AppFonts.inter(
+                fontSize: AppFonts.lg,
+                color: AppTheme.fgDim,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Connect from Sessions tab', style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint)),
+            Text(
+              'Connect from Sessions tab',
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgFaint,
+              ),
+            ),
           ],
         ),
       );
@@ -572,10 +609,10 @@ class _MobileTerminalPage extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: _MobileCompanionButton(
-                    label: 'Files',
+                    label: S.of(context).files,
                     icon: Icons.folder_open,
                     color: AppTheme.yellow,
-                    tooltip: 'Open SFTP Browser',
+                    tooltip: S.of(context).openSftpBrowser,
                     onTap: onOpenSftp!,
                   ),
                 ),
@@ -583,9 +620,11 @@ class _MobileTerminalPage extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: MobileTerminalView(
-            key: ValueKey(activeTermTab.id),
-            connection: activeTermTab.connection,
+          child: ClipRect(
+            child: MobileTerminalView(
+              key: ValueKey(activeTermTab.id),
+              connection: activeTermTab.connection,
+            ),
           ),
         ),
       ],
@@ -599,7 +638,11 @@ class _MobileSftpPage extends ConsumerWidget {
   final TabEntry? activeTab;
   final VoidCallback? onOpenSsh;
 
-  const _MobileSftpPage({required this.allTabs, this.activeTab, this.onOpenSsh});
+  const _MobileSftpPage({
+    required this.allTabs,
+    this.activeTab,
+    this.onOpenSsh,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -610,8 +653,8 @@ class _MobileSftpPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: AppTheme.itemHeightLg,
+              height: AppTheme.itemHeightLg,
               decoration: BoxDecoration(
                 color: AppTheme.bg3,
                 borderRadius: AppTheme.radiusLg,
@@ -619,9 +662,21 @@ class _MobileSftpPage extends ConsumerWidget {
               child: Icon(Icons.folder, size: 22, color: AppTheme.fgFaint),
             ),
             const SizedBox(height: 12),
-            Text('No active file browsers', style: AppFonts.inter(fontSize: AppFonts.lg, color: AppTheme.fgDim)),
+            Text(
+              S.of(context).noActiveFileBrowsers,
+              style: AppFonts.inter(
+                fontSize: AppFonts.lg,
+                color: AppTheme.fgDim,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Use "SFTP" from Sessions', style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint)),
+            Text(
+              S.of(context).useSftpFromSessions,
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgFaint,
+              ),
+            ),
           ],
         ),
       );
@@ -647,10 +702,10 @@ class _MobileSftpPage extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: _MobileCompanionButton(
-                    label: 'Terminal',
+                    label: S.of(context).terminal,
                     icon: Icons.terminal,
                     color: AppTheme.blue,
-                    tooltip: 'Open SSH Terminal',
+                    tooltip: S.of(context).openSshTerminal,
                     onTap: onOpenSsh!,
                   ),
                 ),
@@ -658,9 +713,11 @@ class _MobileSftpPage extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: MobileFileBrowser(
-            key: ValueKey(activeSftpTab.id),
-            connection: activeSftpTab.connection,
+          child: ClipRect(
+            child: MobileFileBrowser(
+              key: ValueKey(activeSftpTab.id),
+              connection: activeSftpTab.connection,
+            ),
           ),
         ),
       ],
@@ -703,7 +760,7 @@ class _MobileCompanionButtonState extends State<_MobileCompanionButton> {
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: Container(
-        height: 26,
+        height: AppTheme.controlHeightXs,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: widget.color.withValues(alpha: alpha),
@@ -717,12 +774,15 @@ class _MobileCompanionButtonState extends State<_MobileCompanionButton> {
           children: [
             Icon(widget.icon, size: 13, color: widget.color),
             const SizedBox(width: 4),
-            Text(
-              widget.label,
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                fontWeight: FontWeight.w500,
-                color: widget.color,
+            Flexible(
+              child: Text(
+                widget.label,
+                overflow: TextOverflow.ellipsis,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  fontWeight: FontWeight.w500,
+                  color: widget.color,
+                ),
               ),
             ),
           ],

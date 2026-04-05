@@ -17,17 +17,19 @@ import 'cursor_overlay.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/error_state.dart';
+import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart' as plat;
 
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
 ///
 /// Multiple panes can share the same [Connection] (each opens its own shell).
 /// Factory for opening SSH shell — injectable for testing.
-typedef ShellOpenFactory = Future<ShellConnection> Function({
-  required Connection connection,
-  required Terminal terminal,
-  VoidCallback? onDone,
-});
+typedef ShellOpenFactory =
+    Future<ShellConnection> Function({
+      required Connection connection,
+      required Terminal terminal,
+      VoidCallback? onDone,
+    });
 
 class TerminalPane extends ConsumerStatefulWidget {
   final Connection connection;
@@ -130,8 +132,14 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       }
       if (mounted) setState(() => _connected = true);
     } catch (e) {
-      AppLogger.instance.log('Shell open failed: $e', name: 'TerminalPane', error: e);
-      _terminal.write('\r\n\x1B[31mShell error: ${sanitizeError(e)}\x1B[0m\r\n');
+      AppLogger.instance.log(
+        'Shell open failed: $e',
+        name: 'TerminalPane',
+        error: e,
+      );
+      _terminal.write(
+        '\r\n\x1B[31mShell error: ${sanitizeError(e)}\x1B[0m\r\n',
+      );
       if (mounted) setState(() => _error = sanitizeError(e));
     }
   }
@@ -157,7 +165,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   /// Shift bypasses mouse forwarding so the user can select text locally.
   /// Standard terminal-emulator behaviour (xterm, GNOME Terminal, etc.).
   bool _onShiftToggle(KeyEvent event) {
-    final shouldSuspend = HardwareKeyboard.instance.isShiftPressed &&
+    final shouldSuspend =
+        HardwareKeyboard.instance.isShiftPressed &&
         _terminal.mouseMode != MouseMode.none;
     if (_terminalController.suspendedPointerInputs != shouldSuspend) {
       _terminalController.setSuspendPointerInput(shouldSuspend);
@@ -192,7 +201,11 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       onTap: widget.onFocused,
       child: CallbackShortcuts(
         bindings: {
-          const SingleActivator(LogicalKeyboardKey.keyF, control: true, shift: true): toggleSearch,
+          const SingleActivator(
+            LogicalKeyboardKey.keyF,
+            control: true,
+            shift: true,
+          ): toggleSearch,
           const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
         },
         child: Column(
@@ -249,7 +262,9 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                         brightMagenta: AppTheme.termBrightMagenta,
                         brightCyan: AppTheme.termBrightCyan,
                         brightWhite: AppTheme.termBrightWhite,
-                        searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+                        searchHitBackground: AppTheme.accent.withValues(
+                          alpha: 0.3,
+                        ),
                         searchHitBackgroundCurrent: AppTheme.accent,
                         searchHitForeground: AppTheme.searchHitFg,
                       ),
@@ -284,13 +299,13 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       items: [
         if (hasSelection)
           ContextMenuItem(
-            label: 'Copy',
+            label: S.of(context).copy,
             icon: Icons.copy,
             shortcut: 'Ctrl+C',
             onTap: _copySelection,
           ),
         ContextMenuItem(
-          label: 'Paste',
+          label: S.of(context).paste,
           icon: Icons.paste,
           shortcut: 'Ctrl+V',
           onTap: _pasteClipboard,
@@ -298,18 +313,18 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         if (hasSplit) ...[
           const ContextMenuItem.divider(),
           ContextMenuItem(
-            label: 'Copy Right',
+            label: S.of(context).copyRight,
             icon: Icons.vertical_split,
             onTap: () => widget.onSplitVertical?.call(),
           ),
           ContextMenuItem(
-            label: 'Copy Down',
+            label: S.of(context).copyDown,
             icon: Icons.horizontal_split,
             onTap: () => widget.onSplitHorizontal?.call(),
           ),
           if (widget.onClose != null)
             ContextMenuItem(
-              label: 'Close Pane',
+              label: S.of(context).closePane,
               icon: Icons.close,
               onTap: () => widget.onClose?.call(),
             ),
@@ -341,8 +356,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   void _copySelection() =>
       TerminalClipboard.copy(_terminal, _terminalController);
 
-  Future<void> _pasteClipboard() =>
-      TerminalClipboard.paste(_terminal);
+  Future<void> _pasteClipboard() => TerminalClipboard.paste(_terminal);
 
   Widget _buildErrorState() {
     return ErrorState(message: _error!);
@@ -423,9 +437,18 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
         try {
           final p1 = buffer.createAnchor(pos, y);
           final p2 = buffer.createAnchor(pos + query.length, y);
-          highlights.add(widget.terminalController.highlight(p1: p1, p2: p2, color: AppTheme.searchHighlight));
+          highlights.add(
+            widget.terminalController.highlight(
+              p1: p1,
+              p2: p2,
+              color: AppTheme.searchHighlight,
+            ),
+          );
         } catch (e) {
-          AppLogger.instance.log('Highlight failed at ($pos, $y): $e', name: 'TerminalSearch');
+          AppLogger.instance.log(
+            'Highlight failed at ($pos, $y): $e',
+            name: 'TerminalSearch',
+          );
         }
         startIndex = pos + 1;
       }
@@ -440,12 +463,17 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
 
   void _nextMatch() {
     if (_totalMatches == 0) return;
-    setState(() => _currentMatchIndex = (_currentMatchIndex + 1) % _totalMatches);
+    setState(
+      () => _currentMatchIndex = (_currentMatchIndex + 1) % _totalMatches,
+    );
   }
 
   void _prevMatch() {
     if (_totalMatches == 0) return;
-    setState(() => _currentMatchIndex = (_currentMatchIndex - 1 + _totalMatches) % _totalMatches);
+    setState(
+      () => _currentMatchIndex =
+          (_currentMatchIndex - 1 + _totalMatches) % _totalMatches,
+    );
   }
 
   void _clearHighlights() {
@@ -479,7 +507,10 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
                 isDense: true,
                 filled: true,
                 fillColor: AppTheme.bg3,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 6,
+                ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.borderLight),
@@ -488,12 +519,18 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
                   borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.accent),
                 ),
-                hintText: 'Search...',
-                hintStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+                hintText: S.of(context).search,
+                hintStyle: AppFonts.mono(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fgFaint,
+                ),
                 suffixText: _totalMatches > 0
                     ? '${_currentMatchIndex + 1}/$_totalMatches'
                     : null,
-                suffixStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+                suffixStyle: AppFonts.mono(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fgDim,
+                ),
               ),
               onChanged: (_) => _debouncedSearch(),
               onSubmitted: (_) => _nextMatch(),
@@ -503,21 +540,21 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
           AppIconButton(
             icon: Icons.keyboard_arrow_up,
             onTap: _totalMatches > 0 ? _prevMatch : null,
-            tooltip: 'Previous',
+            tooltip: S.of(context).previous,
             size: 18,
             boxSize: 28,
           ),
           AppIconButton(
             icon: Icons.keyboard_arrow_down,
             onTap: _totalMatches > 0 ? _nextMatch : null,
-            tooltip: 'Next',
+            tooltip: S.of(context).next,
             size: 18,
             boxSize: 28,
           ),
           AppIconButton(
             icon: Icons.close,
             onTap: _close,
-            tooltip: 'Close (Esc)',
+            tooltip: S.of(context).closeEsc,
             size: 18,
             boxSize: 28,
           ),

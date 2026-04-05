@@ -34,8 +34,11 @@ mixin MarqueeMixin<T extends StatefulWidget> on State<T> {
   double get marqueeListPadding => 0.0;
 
   bool isMarqueeItemSelected(int index);
-  void applyMarqueeSelection(int firstIndex, int lastIndex,
-      {required bool ctrlHeld});
+  void applyMarqueeSelection(
+    int firstIndex,
+    int lastIndex, {
+    required bool ctrlHeld,
+  });
 
   /// Called at pointer-down before any marquee logic (e.g. request focus).
   void onMarqueePointerDown() {}
@@ -52,14 +55,17 @@ mixin MarqueeMixin<T extends StatefulWidget> on State<T> {
   // ── Helpers ──
 
   bool get isCtrlHeld =>
-      HardwareKeyboard.instance.logicalKeysPressed
-          .contains(LogicalKeyboardKey.controlLeft) ||
-      HardwareKeyboard.instance.logicalKeysPressed
-          .contains(LogicalKeyboardKey.controlRight);
+      HardwareKeyboard.instance.logicalKeysPressed.contains(
+        LogicalKeyboardKey.controlLeft,
+      ) ||
+      HardwareKeyboard.instance.logicalKeysPressed.contains(
+        LogicalKeyboardKey.controlRight,
+      );
 
   int marqueeRowIndexAt(double localY) {
-    final scroll =
-        marqueeScrollController.hasClients ? marqueeScrollController.offset : 0.0;
+    final scroll = marqueeScrollController.hasClients
+        ? marqueeScrollController.offset
+        : 0.0;
     return ((localY + scroll - marqueeListPadding) / marqueeRowHeight).floor();
   }
 
@@ -120,8 +126,9 @@ mixin MarqueeMixin<T extends StatefulWidget> on State<T> {
     if (now.difference(_mLastUpdate).inMilliseconds < 50) return;
     _mLastUpdate = now;
 
-    final scroll =
-        marqueeScrollController.hasClients ? marqueeScrollController.offset : 0.0;
+    final scroll = marqueeScrollController.hasClients
+        ? marqueeScrollController.offset
+        : 0.0;
     final startY = _mStart!.dy + scroll;
     final endY = _mCurrent!.dy + scroll;
     final minY = (startY < endY ? startY : endY) - marqueeListPadding;
@@ -187,11 +194,7 @@ class MarqueePainter extends CustomPainter {
   final Offset end;
   final Color color;
 
-  MarqueePainter({
-    required this.start,
-    required this.end,
-    required this.color,
-  });
+  MarqueePainter({required this.start, required this.end, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {

@@ -100,7 +100,10 @@ class ShellHelper {
         );
       } catch (e) {
         if (attempt == maxAttempts - 1) rethrow;
-        AppLogger.instance.log('Open attempt ${attempt + 1}/$maxAttempts failed: $e', name: 'Shell');
+        AppLogger.instance.log(
+          'Open attempt ${attempt + 1}/$maxAttempts failed: $e',
+          name: 'Shell',
+        );
       }
     }
 

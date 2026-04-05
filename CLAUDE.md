@@ -33,6 +33,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 | Use or create widgets | [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference) |
 | Use utilities | [§7 Utilities API](docs/ARCHITECTURE.md#7-utilities--public-api-reference) |
 | Work with theme / colors | [§8 Theme System](docs/ARCHITECTURE.md#8-theme-system) |
+| Add/change user-facing strings | [§8.1 i18n](docs/ARCHITECTURE.md#81-internationalization-i18n) |
 | Understand Riverpod providers | [§4 State Management](docs/ARCHITECTURE.md#4-state-management--riverpod) |
 | Understand data persistence | [§11 Persistence](docs/ARCHITECTURE.md#11-persistence--storage) |
 | Check data models | [§10 Data Models](docs/ARCHITECTURE.md#10-data-models) |
@@ -65,6 +66,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 | New CI workflow / changed pipeline | Update [§15 CI/CD](docs/ARCHITECTURE.md#15-cicd-pipeline) |
 | Platform-specific change | Update [§12 Platform-Specific](docs/ARCHITECTURE.md#12-platform-specific-behavior) |
 | New DI hook for testing | Update [§14 Testing Patterns](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks) |
+| New/changed user-facing string | Add key to `lib/l10n/app_en.arb`, run `flutter gen-l10n`, use `S.of(context).key` |
 | Architecture changed | Update this file (CLAUDE.md) if navigation links affected |
 | User-visible change | Update README.md |
 | Security scope change | Update SECURITY.md |
@@ -78,8 +80,8 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 - Format: `type: short description` — types: `feat`, `fix`, `refactor` (app changes), `test`, `docs`, `chore`, `ci` (non-app)
 - **Commit messages drive auto-changelog** — `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements. Keep messages user-readable. If commit has both app changes and docs — prefix describes the app change only
 - **One fix / one commit** — each logical change is a separate commit. Do not bundle unrelated fixes
-- **HARD STOP between fixes** — when working on multiple fixes, the workflow is strictly sequential: implement fix → write tests → bump version → update docs → `make analyze` → commit. **Do NOT start the next fix until the current one is committed.** This is a blocking gate, not a suggestion. Starting the next fix before committing the current one is a rule violation — it leads to tangled changes in shared files and painful commit splitting
-- **Green CI before merging to main** — run `make test` before pushing to dev. If pre-existing test failures exist, fix them first in a separate `fix:` commit with version bump. Never merge to main with failing CI on dev — auto-tag fires after successful CI on main, so a failed pipeline blocks the release
+- **HARD STOP between fixes** — when working on multiple fixes, the workflow is strictly sequential: implement fix → write tests → bump version → update docs → commit. **Do NOT start the next fix until the current one is committed.** This is a blocking gate, not a suggestion. Starting the next fix before committing the current one is a rule violation — it leads to tangled changes in shared files and painful commit splitting. Note: `make check` (analyzer + tests) runs automatically as a pre-commit hook — no need to run it manually
+- **Green CI before merging to main** — the pre-commit hook runs `make check` automatically, so tests must pass before any commit lands. If pre-existing test failures exist, fix them first in a separate `fix:` commit with version bump. Never merge to main with failing CI on dev — auto-tag fires after successful CI on main, so a failed pipeline blocks the release
 - Repository is **public** on GitHub
 
 ### Work Style
@@ -89,9 +91,12 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 - SSH keys accepted **both as file and text** (paste PEM) — key requirement
 - Easy data transfer between devices — `.lfs` archive format → [§3.9 Import](docs/ARCHITECTURE.md#39-import-coreimport)
 - Session grouping — tree with nested subfolders (e.g. `Production/Web/nginx1`) → [§3.4 Sessions](docs/ARCHITECTURE.md#34-session-management-coresession)
+- **Zero hardcoded user-facing strings** — every label, tooltip, button text, error message, hint, and status string visible to the user MUST use `S.of(context).xxx`. When adding or changing UI text, always add the key to `app_en.arb` + all other ARB files, run `flutter gen-l10n`, and use the generated accessor. Never leave English literals in widget code — treat hardcoded strings as a bug. See [§8.1 i18n](docs/ARCHITECTURE.md#81-internationalization-i18n)
 - **Cross-platform verification** — Android change → also check iOS; Windows change → also check Linux + macOS. Verify all sibling platforms before committing → [§12 Platform-Specific](docs/ARCHITECTURE.md#12-platform-specific-behavior)
 - **Best practices by default** — always implement using best practices. If the user's request leads to a hacky or suboptimal solution, push back and propose a best-practice alternative. Explain why. Only implement a hacky approach if the user explicitly confirms after hearing the alternative
 - **Think systemically, not literally** — when given an instruction, consider its full scope and side effects. Don't blindly execute a narrow change — think about what else is affected (related code, docs, formatting, consistency). Apply the intent behind the request, not just the letter
+- **UI changes = test updates** — when modifying UI components (renaming labels, changing widget structure, removing suffixes), proactively update all tests that reference old widget names, labels, or finders. Do it in the same change, not as an afterthought
+- **Ask before guessing UI placement** — if a UI change has any ambiguity about exact placement, behavior, or layout rules (tab positions, split behavior, drag zones), ask the user once upfront. Do not guess and iterate through 3-4 cycles
 
 ### Branching & Release Flow
 
@@ -154,11 +159,37 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 
 Manual release: `gh workflow run build-release.yml` — fails if CI hasn't passed on HEAD.
 
+### Skills & Hooks
+
+Custom skills and hooks live in `.claude/skills/` and `.claude/hooks/` and are committed to the repo. Personal settings (permissions, paths) go in `.claude/settings.local.json` (gitignored). Skills are auto-loaded by Claude when context matches, and can also be invoked manually via `/command`.
+
+**Skills** (`.claude/skills/<name>/SKILL.md`):
+
+| Skill | What it does |
+|-------|-------------|
+| `/analyze` | Run `make analyze` — Dart analyzer |
+| `/test` | Run `make test` — test suite with coverage |
+| `/check` | Run `make check` — analyzer + tests sequentially |
+| `/commit` | Full commit workflow: version bump check, docs check, commit per project rules (pre-commit hook runs analyzer + tests) |
+| `/pr` | Create PR dev → main: sync with main, create PR with `--auto` merge |
+| `/coverage` | Check SonarCloud coverage via API: overall, new code, per-file top worst |
+| `/fix-sonar` | Fetch SonarCloud issues and fix them by severity (accepts filter: `CRITICAL`, file path) |
+| `/fix-security` | Fetch GitHub security alerts (Dependabot, CodeQL, Semgrep, secrets) and fix them |
+| `/write-tests` | Fetch uncovered lines from SonarCloud and write missing tests (accepts: `new`, file path) |
+
+**Hooks** (`.claude/hooks/`):
+
+| Hook | Trigger | What it does |
+|------|---------|-------------|
+| `format-dart.sh` | PostToolUse on Edit/Write | Auto-runs `dart format` on .dart files after every edit |
+| `gen-l10n.sh` | PostToolUse on Edit/Write | Auto-runs `flutter gen-l10n` on .arb files after every edit |
+| `pre-commit-check.sh` | PreToolUse on `git commit *` | Runs `make check` (analyzer + tests), blocks commit on failure |
+
 ### Post-change checklist
 
 1. Version bump in same commit (if app-affecting)
 2. **Update docs**: ARCHITECTURE.md (see table above), CLAUDE.md if nav links affected, README.md if user-visible, SECURITY.md if security scope changes
-3. `make analyze` + `make test` must pass
+3. Pre-commit hook runs `make check` (analyzer + tests) automatically — commit will be blocked if anything fails
 
 ### Dependencies & Building
 
@@ -248,6 +279,9 @@ All rules are in `analysis_options.yaml` (extends `flutter_lints/flutter.yaml`).
 - OneDark theme: centralized in `app_theme.dart`, semantic color constants, no hardcoded Colors → [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
 - **Font sizes** — never hardcode `fontSize` numbers. Use `AppFonts.tiny`/`xxs`/`xs`/`sm`/`md`/`lg`/`xl` — they are platform-aware (mobile +2 px). See [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
 - **Border radius** — never hardcode `BorderRadius.circular(N)` or `BorderRadius.zero`. Use `AppTheme.radiusSm` (4 px), `radiusMd` (6 px), `radiusLg` (8 px). Exception: pill-shaped elements (toggle tracks). See [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
-- **Buttons & hover** — `AppIconButton` for all icon buttons (rectangular hover, no splash, disabled dimming). `HoverRegion` for custom hover containers (builder pattern). Never use bare `IconButton`, `InkWell` for buttons, or manual `MouseRegion`+`GestureDetector`+`setState(_hovered)`. Exception: `context_menu.dart` (centralized keyboard nav state), mobile touch buttons (`ssh_keyboard_bar.dart`, `mobile_file_browser.dart`) → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
+- **Heights** — never hardcode height numeric literals for UI elements. Use `AppTheme` height constants: `barHeight{Sm,Md,Lg}` for bars/headers, `controlHeight{Xs..Xl}` for buttons/inputs/selectors, `itemHeight{Xs..Xl}` for rows/containers/list items. See [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
+- **Buttons & hover** — `AppIconButton` for all icon buttons (rectangular hover, no splash, disabled dimming). `HoverRegion` for custom hover containers (builder pattern). Never use bare `IconButton`, `InkWell` for buttons, or manual `MouseRegion`+`GestureDetector`+`setState(_hovered)`. Exception: `context_menu.dart` (centralized keyboard nav state), mobile touch buttons (`ssh_keyboard_bar.dart`, `mobile_file_browser.dart`, `mobile_terminal_view.dart`) → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
 - **Dialogs** — `AppDialog` for all modal dialogs (dark bg, header+close, footer+actions). Never use bare `AlertDialog`. For complex dialogs (tabs, trees), compose from `AppDialogHeader`/`AppDialogFooter`/`AppDialogAction`. Progress spinners via `AppProgressDialog.show()`. Exception: mobile touch buttons keep `Material`+`InkWell` for ripple → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
+- **Localization (i18n)** — all user-facing strings MUST use `S.of(context).xxx` from `l10n/app_localizations.dart`. Never hardcode strings in widgets. Add new keys to `lib/l10n/app_en.arb`, run `flutter gen-l10n`, then use `S.of(context).newKey`. Exceptions: constructor default parameters (no context available), log messages (not user-facing), `_AlreadyRunningApp` (own MaterialApp without delegates). Tests must include `localizationsDelegates: S.localizationsDelegates, supportedLocales: S.supportedLocales` in every `MaterialApp`. See [§8.1 i18n](docs/ARCHITECTURE.md#81-internationalization-i18n)
+- **Text overflow protection** — when placing localized text in `Row` or fixed-width containers, always wrap with `Flexible`/`Expanded` and add `overflow: TextOverflow.ellipsis`. Translations can be 30-50% longer than English. For label columns use `ConstrainedBox(maxWidth:)` instead of fixed `SizedBox(width:)`
 - `.lfs` export format: `[salt 32B] [iv 12B] [encrypted ZIP + GCM tag]`, merge/replace import modes → [§3.9 Import](docs/ARCHITECTURE.md#39-import-coreimport)

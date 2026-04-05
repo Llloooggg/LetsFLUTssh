@@ -98,12 +98,7 @@ void main() {
       controller.move(const Offset(20, 20));
       controller.end();
 
-      expect(phases, [
-        CrossMarqueePhase.start,
-        CrossMarqueePhase.move,
-        CrossMarqueePhase.move,
-        CrossMarqueePhase.end,
-      ]);
+      expect(phases, [CrossMarqueePhase.start, CrossMarqueePhase.move, CrossMarqueePhase.move, CrossMarqueePhase.end]);
     });
 
     test('can restart after end', () {

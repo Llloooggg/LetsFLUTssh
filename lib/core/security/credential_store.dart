@@ -50,10 +50,15 @@ class CredentialStore {
       final encData = await credFile.readAsBytes();
       final json = _decrypt(encData, keyBytes);
       final map = jsonDecode(json) as Map<String, dynamic>;
-      return map.map((k, v) =>
-          MapEntry(k, CredentialData.fromJson(v as Map<String, dynamic>)));
+      return map.map(
+        (k, v) =>
+            MapEntry(k, CredentialData.fromJson(v as Map<String, dynamic>)),
+      );
     } catch (e) {
-      AppLogger.instance.log('Failed to load credentials: $e', name: 'CredentialStore');
+      AppLogger.instance.log(
+        'Failed to load credentials: $e',
+        name: 'CredentialStore',
+      );
       throw CredentialStoreException(
         'Failed to decrypt credentials. Key file may be corrupted.',
         cause: e,
@@ -87,9 +92,7 @@ class CredentialStore {
     // Load or generate key with guard against concurrent generation
     final keyBytes = await _loadOrGenerateKey(keyFile);
 
-    final json = jsonEncode(
-      credentials.map((k, v) => MapEntry(k, v.toJson())),
-    );
+    final json = jsonEncode(credentials.map((k, v) => MapEntry(k, v.toJson())));
     final encData = _encrypt(json, keyBytes);
     await writeBytesAtomic(credFile.path, encData);
   }
@@ -155,9 +158,7 @@ class CredentialStore {
 
   Uint8List _generateKey() {
     final random = Random.secure();
-    return Uint8List.fromList(
-      List.generate(32, (_) => random.nextInt(256)),
-    );
+    return Uint8List.fromList(List.generate(32, (_) => random.nextInt(256)));
   }
 
   Uint8List _encrypt(String plaintext, Uint8List key) {
@@ -167,10 +168,7 @@ class CredentialStore {
     );
 
     final cipher = GCMBlockCipher(AESEngine())
-      ..init(
-        true,
-        AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)),
-      );
+      ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
 
     final input = Uint8List.fromList(utf8.encode(plaintext));
     final output = cipher.process(input);
@@ -184,10 +182,7 @@ class CredentialStore {
     final ciphertext = data.sublist(12);
 
     final cipher = GCMBlockCipher(AESEngine())
-      ..init(
-        false,
-        AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)),
-      );
+      ..init(false, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
 
     final output = cipher.process(ciphertext);
     return utf8.decode(output);

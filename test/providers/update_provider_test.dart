@@ -13,11 +13,7 @@ class _StubUpdateService extends UpdateService {
   final String? downloadedPath;
   final Object? downloadError;
 
-  _StubUpdateService({
-    required this.onCheck,
-    this.downloadedPath,
-    this.downloadError,
-  });
+  _StubUpdateService({required this.onCheck, this.downloadedPath, this.downloadError});
 
   @override
   Future<UpdateInfo> checkForUpdate(String currentVersion) async {
@@ -42,30 +38,21 @@ class _StubUpdateService extends UpdateService {
 }
 
 /// Build a container with an injected stub UpdateService and a fixed version.
-ProviderContainer _makeContainer({
-  required UpdateService service,
-  String version = '1.0.0',
-}) {
-  final container = ProviderContainer(
-    overrides: [
-      updateServiceProvider.overrideWithValue(service),
-    ],
-  );
+ProviderContainer _makeContainer({required UpdateService service, String version = '1.0.0'}) {
+  final container = ProviderContainer(overrides: [updateServiceProvider.overrideWithValue(service)]);
   container.read(appVersionProvider.notifier).state = version;
   return container;
 }
 
 void _mockPathProvider(String path) {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
     const MethodChannel('plugins.flutter.io/path_provider'),
     (call) async => path,
   );
 }
 
 void _clearPathProviderMock() {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
     const MethodChannel('plugins.flutter.io/path_provider'),
     null,
   );
@@ -96,28 +83,16 @@ void main() {
     test('transitions idle → checking → upToDate when no update', () async {
       final states = <UpdateStatus>[];
       final service = _StubUpdateService(
-        onCheck: (v) => UpdateInfo(
-          latestVersion: v,
-          currentVersion: v,
-          releaseUrl: 'https://github.com',
-        ),
+        onCheck: (v) => UpdateInfo(latestVersion: v, currentVersion: v, releaseUrl: 'https://github.com'),
       );
       final container = _makeContainer(service: service, version: '1.2.0');
       addTearDown(container.dispose);
 
-      container.listen(
-        updateProvider.select((s) => s.status),
-        (_, next) => states.add(next),
-        fireImmediately: true,
-      );
+      container.listen(updateProvider.select((s) => s.status), (_, next) => states.add(next), fireImmediately: true);
 
       await container.read(updateProvider.notifier).check();
 
-      expect(states, [
-        UpdateStatus.idle,
-        UpdateStatus.checking,
-        UpdateStatus.upToDate,
-      ]);
+      expect(states, [UpdateStatus.idle, UpdateStatus.checking, UpdateStatus.upToDate]);
     });
 
     test('transitions to updateAvailable when newer version exists', () async {
@@ -141,9 +116,7 @@ void main() {
     });
 
     test('transitions to error when check throws', () async {
-      final service = _StubUpdateService(
-        onCheck: (_) => throw const HttpException('API error'),
-      );
+      final service = _StubUpdateService(onCheck: (_) => throw const HttpException('API error'));
       final container = _makeContainer(service: service);
       addTearDown(container.dispose);
 
@@ -159,19 +132,14 @@ void main() {
       final service = _StubUpdateService(
         onCheck: (v) {
           callCount++;
-          return UpdateInfo(
-            latestVersion: v,
-            currentVersion: v,
-            releaseUrl: 'https://github.com',
-          );
+          return UpdateInfo(latestVersion: v, currentVersion: v, releaseUrl: 'https://github.com');
         },
       );
       final container = _makeContainer(service: service);
       addTearDown(container.dispose);
 
       // Force checking state, then call check() — should be suppressed
-      container.read(updateProvider.notifier).state =
-          const UpdateState(status: UpdateStatus.checking);
+      container.read(updateProvider.notifier).state = const UpdateState(status: UpdateStatus.checking);
       await container.read(updateProvider.notifier).check();
 
       expect(callCount, 0);
@@ -229,10 +197,7 @@ void main() {
 
       await container.read(updateProvider.notifier).check();
 
-      container.listen(
-        updateProvider.select((s) => s.progress),
-        (_, next) => progresses.add(next),
-      );
+      container.listen(updateProvider.select((s) => s.progress), (_, next) => progresses.add(next));
 
       await container.read(updateProvider.notifier).download();
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/toast.dart';
 
@@ -24,10 +25,7 @@ class QrDisplayScreen extends StatelessWidget {
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => QrDisplayScreen(
-          data: data,
-          sessionCount: sessionCount,
-        ),
+        builder: (_) => QrDisplayScreen(data: data, sessionCount: sessionCount),
       ),
     );
   }
@@ -38,7 +36,7 @@ class QrDisplayScreen extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan QR Code')),
+      appBar: AppBar(title: Text(S.of(context).scanQrCode)),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -67,7 +65,7 @@ class QrDisplayScreen extends StatelessWidget {
                   ),
                   errorStateBuilder: (context, error) => Center(
                     child: Text(
-                      'QR generation failed',
+                      S.of(context).qrGenerationFailed,
                       style: TextStyle(color: AppTheme.red),
                     ),
                   ),
@@ -75,13 +73,12 @@ class QrDisplayScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                '$sessionCount session(s)',
+                S.of(context).nSessions(sessionCount),
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
               Text(
-                'Scan with any camera app on a device\n'
-                'that has LetsFLUTssh installed.',
+                S.of(context).scanWithCameraApp,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: AppFonts.lg,
@@ -90,20 +87,29 @@ class QrDisplayScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: isDark
                       ? theme.colorScheme.surfaceContainerHigh
-                      : theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      : theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.3,
+                        ),
                   borderRadius: AppTheme.radiusLg,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.info_outline, size: 14, color: theme.colorScheme.primary),
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: theme.colorScheme.primary,
+                    ),
                     const SizedBox(width: 6),
                     Text(
-                      'No passwords or keys are in this QR code',
+                      S.of(context).noPasswordsInQr,
                       style: TextStyle(fontSize: AppFonts.md),
                     ),
                   ],
@@ -115,12 +121,12 @@ class QrDisplayScreen extends StatelessWidget {
                   Clipboard.setData(ClipboardData(text: data));
                   Toast.show(
                     context,
-                    message: 'Link copied to clipboard',
+                    message: S.of(context).linkCopied,
                     level: ToastLevel.success,
                   );
                 },
                 icon: const Icon(Icons.copy, size: 16),
-                label: const Text('Copy Link'),
+                label: Text(S.of(context).copyLink),
               ),
             ],
           ),

@@ -57,9 +57,7 @@ void main() {
     });
 
     test('single entry sorts without error', () {
-      final entries = [
-        FileEntry(name: 'only', path: '/only', size: 0, mode: 0, modTime: DateTime.now(), isDir: false),
-      ];
+      final entries = [FileEntry(name: 'only', path: '/only', size: 0, mode: 0, modTime: DateTime.now(), isDir: false)];
       sortEntries(entries);
       expect(entries.length, 1);
     });
@@ -67,7 +65,8 @@ void main() {
 
   group('LocalFS.parseAttribOutput', () {
     test('parses hidden and system files', () {
-      const output = '     A  SH  C:\\Users\\\$Recycle.Bin\n'
+      const output =
+          '     A  SH  C:\\Users\\\$Recycle.Bin\n'
           '     A          C:\\Users\\Documents\n'
           '     A    H     C:\\Users\\desktop.ini\n'
           '     A  S       C:\\System Volume Information\n';
@@ -83,7 +82,8 @@ void main() {
     });
 
     test('returns empty set for output with no H/S flags', () {
-      const output = '     A          C:\\file1.txt\n'
+      const output =
+          '     A          C:\\file1.txt\n'
           '     A    R     C:\\file2.txt\n';
       expect(LocalFS.parseAttribOutput(output), isEmpty);
     });
@@ -158,10 +158,7 @@ void main() {
 
     test('list throws on non-existent directory', () async {
       final badDir = Directory('${tempDir.path}/nonexistent');
-      expect(
-        () => badDir.list().toList(),
-        throwsA(isA<FileSystemException>()),
-      );
+      expect(() => badDir.list().toList(), throwsA(isA<FileSystemException>()));
     });
   });
 }

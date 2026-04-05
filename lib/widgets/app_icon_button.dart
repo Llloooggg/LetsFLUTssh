@@ -47,8 +47,7 @@ class AppIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = color ??
-        (active ? AppTheme.fg : AppTheme.fgDim);
+    final iconColor = color ?? (active ? AppTheme.fg : AppTheme.fgDim);
     final disabledColor = iconColor.withValues(alpha: 0.3);
 
     Widget button = HoverRegion(
@@ -65,10 +64,7 @@ class AppIconButton extends StatelessWidget {
         return Container(
           width: boxSize,
           height: boxSize,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: borderRadius,
-          ),
+          decoration: BoxDecoration(color: bg, borderRadius: borderRadius),
           child: Icon(
             icon,
             size: size,

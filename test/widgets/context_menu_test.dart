@@ -2,13 +2,15 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/context_menu.dart';
 
 void main() {
   Widget wrap(Widget child) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(body: child),
     );
@@ -22,24 +24,23 @@ void main() {
     ];
   }
 
-  Future<void> openMenu(WidgetTester tester, {
+  Future<void> openMenu(
+    WidgetTester tester, {
     List<ContextMenuItem>? items,
     VoidCallback? onCopy,
     VoidCallback? onPaste,
   }) async {
     final menuItems = items ?? testItems(onCopy: onCopy, onPaste: onPaste);
-    await tester.pumpWidget(wrap(
-      Builder(
-        builder: (ctx) => ElevatedButton(
-          onPressed: () => showAppContextMenu(
-            context: ctx,
-            position: const Offset(100, 100),
-            items: menuItems,
+    await tester.pumpWidget(
+      wrap(
+        Builder(
+          builder: (ctx) => ElevatedButton(
+            onPressed: () => showAppContextMenu(context: ctx, position: const Offset(100, 100), items: menuItems),
+            child: const Text('Open'),
           ),
-          child: const Text('Open'),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
   }
@@ -115,21 +116,23 @@ void main() {
 
     testWidgets('re-entrant call dismisses previous menu', (tester) async {
       late BuildContext savedCtx;
-      await tester.pumpWidget(wrap(
-        Builder(
-          builder: (ctx) {
-            savedCtx = ctx;
-            return ElevatedButton(
-              onPressed: () => showAppContextMenu(
-                context: ctx,
-                position: const Offset(50, 50),
-                items: [const ContextMenuItem(label: 'First')],
-              ),
-              child: const Text('Menu1'),
-            );
-          },
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) {
+              savedCtx = ctx;
+              return ElevatedButton(
+                onPressed: () => showAppContextMenu(
+                  context: ctx,
+                  position: const Offset(50, 50),
+                  items: [const ContextMenuItem(label: 'First')],
+                ),
+                child: const Text('Menu1'),
+              );
+            },
+          ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Menu1'));
       await tester.pumpAndSettle();
@@ -150,9 +153,10 @@ void main() {
     });
 
     testWidgets('item with custom color uses that color', (tester) async {
-      await openMenu(tester, items: [
-        const ContextMenuItem(label: 'Delete', color: Colors.red),
-      ]);
+      await openMenu(
+        tester,
+        items: [const ContextMenuItem(label: 'Delete', color: Colors.red)],
+      );
 
       final textWidget = tester.widget<Text>(find.text('Delete'));
       expect(textWidget.style?.color, Colors.red);
@@ -166,9 +170,7 @@ void main() {
       await sendKey(tester, LogicalKeyboardKey.arrowDown);
 
       final containers = tester.widgetList<Container>(find.byType(Container));
-      final highlighted = containers.where(
-        (c) => c.color == AppTheme.selection,
-      );
+      final highlighted = containers.where((c) => c.color == AppTheme.selection);
       expect(highlighted, isNotEmpty);
     });
 
@@ -267,10 +269,7 @@ void main() {
     });
 
     testWidgets('keyboard navigation with all dividers does nothing', (tester) async {
-      await openMenu(tester, items: [
-        const ContextMenuItem.divider(),
-        const ContextMenuItem.divider(),
-      ]);
+      await openMenu(tester, items: [const ContextMenuItem.divider(), const ContextMenuItem.divider()]);
 
       await sendKey(tester, LogicalKeyboardKey.arrowDown);
       await tester.pump();
@@ -290,9 +289,7 @@ void main() {
       await tester.pump();
 
       final containers = tester.widgetList<Container>(find.byType(Container));
-      final highlighted = containers.where(
-        (c) => c.color == AppTheme.selection,
-      );
+      final highlighted = containers.where((c) => c.color == AppTheme.selection);
       expect(highlighted, isNotEmpty);
     });
 
@@ -310,9 +307,7 @@ void main() {
       await tester.pump();
 
       final containers = tester.widgetList<Container>(find.byType(Container));
-      final highlighted = containers.where(
-        (c) => c.color == AppTheme.selection,
-      );
+      final highlighted = containers.where((c) => c.color == AppTheme.selection);
       expect(highlighted, isEmpty);
     });
 

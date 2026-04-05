@@ -52,7 +52,9 @@ class SFTPInitializer {
 
       // Request via platform channel — native Android side shows the dialog
       const channel = MethodChannel('com.letsflutssh/permissions');
-      final granted = await channel.invokeMethod<bool>('requestStoragePermission');
+      final granted = await channel.invokeMethod<bool>(
+        'requestStoragePermission',
+      );
       if (granted != true) {
         AppLogger.instance.log(
           'Storage permission denied by user',
@@ -100,7 +102,10 @@ class SFTPInitializer {
       fs: localFsFactory?.call() ?? LocalFS(),
       label: 'Local',
     );
-    final remoteCtrl = FilePaneController(fs: RemoteFS(sftpService), label: 'Remote');
+    final remoteCtrl = FilePaneController(
+      fs: RemoteFS(sftpService),
+      label: 'Remote',
+    );
 
     try {
       await Future.wait([localCtrl.init(), remoteCtrl.init()]);

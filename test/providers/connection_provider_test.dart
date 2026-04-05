@@ -35,10 +35,7 @@ void main() {
       addTearDown(container.dispose);
       final asyncValue = container.read(connectionsProvider);
       // StreamProvider starts with loading, then first yield
-      expect(
-        asyncValue.whenOrNull(data: (d) => d, loading: () => <dynamic>[]),
-        isNotNull,
-      );
+      expect(asyncValue.whenOrNull(data: (d) => d, loading: () => <dynamic>[]), isNotNull);
     });
 
     test('connectionsProvider updates when connection added', () async {
@@ -53,7 +50,9 @@ void main() {
       // Add a connection via manager — triggers onChange stream
       final manager = container.read(connectionManagerProvider);
       manager.connectAsync(
-        const SSHConfig(server: ServerAddress(host: 'test', user: 'u')),
+        const SSHConfig(
+          server: ServerAddress(host: 'test', user: 'u'),
+        ),
         label: 'Test',
       );
 

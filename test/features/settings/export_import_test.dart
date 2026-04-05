@@ -15,8 +15,7 @@ void main() {
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('export_import_test_');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (call) async {
         if (call.method == 'getApplicationSupportDirectory') {
@@ -28,8 +27,7 @@ void main() {
   });
 
   tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       null,
     );
@@ -43,7 +41,12 @@ void main() {
     String user = 'root',
     String password = '',
   }) {
-    return Session(id: id, label: label, server: ServerAddress(host: host, user: user), auth: SessionAuth(password: password));
+    return Session(
+      id: id,
+      label: label,
+      server: ServerAddress(host: host, user: user),
+      auth: SessionAuth(password: password),
+    );
   }
 
   group('ExportImport — export and import roundtrip', () {
@@ -86,12 +89,7 @@ void main() {
       );
       final outputPath = '${tempDir.path}/config.lfs';
 
-      await ExportImport.export(
-        masterPassword: 'pw',
-        sessions: [],
-        config: config,
-        outputPath: outputPath,
-      );
+      await ExportImport.export(masterPassword: 'pw', sessions: [], config: config, outputPath: outputPath);
 
       final result = await ExportImport.import_(
         filePath: outputPath,
@@ -110,12 +108,7 @@ void main() {
     test('import with importConfig=false skips config', () async {
       final outputPath = '${tempDir.path}/noconfig.lfs';
 
-      await ExportImport.export(
-        masterPassword: 'pw',
-        sessions: [],
-        config: AppConfig.defaults,
-        outputPath: outputPath,
-      );
+      await ExportImport.export(masterPassword: 'pw', sessions: [], config: AppConfig.defaults, outputPath: outputPath);
 
       final result = await ExportImport.import_(
         filePath: outputPath,
@@ -134,12 +127,7 @@ void main() {
       await khFile.writeAsString('example.com ssh-rsa AAAAB3...');
 
       final outputPath = '${tempDir.path}/withkh.lfs';
-      await ExportImport.export(
-        masterPassword: 'pw',
-        sessions: [],
-        config: AppConfig.defaults,
-        outputPath: outputPath,
-      );
+      await ExportImport.export(masterPassword: 'pw', sessions: [], config: AppConfig.defaults, outputPath: outputPath);
 
       await ExportImport.import_(
         filePath: outputPath,
@@ -158,9 +146,7 @@ void main() {
 
   group('ExportImport — preview', () {
     test('preview shows sessions and flags', () async {
-      final sessions = [
-        makeSession(id: 'prev-1', label: 'preview-server'),
-      ];
+      final sessions = [makeSession(id: 'prev-1', label: 'preview-server')];
       final outputPath = '${tempDir.path}/preview.lfs';
 
       await ExportImport.export(
@@ -170,10 +156,7 @@ void main() {
         outputPath: outputPath,
       );
 
-      final preview = await ExportImport.preview(
-        filePath: outputPath,
-        masterPassword: 'pw',
-      );
+      final preview = await ExportImport.preview(filePath: outputPath, masterPassword: 'pw');
 
       expect(preview.sessions, hasLength(1));
       expect(preview.sessions.first.label, 'preview-server');
@@ -213,21 +196,14 @@ void main() {
     });
 
     test('ImportResult holds data', () {
-      const result = ImportResult(
-        sessions: [],
-        mode: ImportMode.merge,
-      );
+      const result = ImportResult(sessions: [], mode: ImportMode.merge);
       expect(result.sessions, isEmpty);
       expect(result.config, isNull);
       expect(result.mode, ImportMode.merge);
     });
 
     test('LfsPreview holds data', () {
-      const preview = LfsPreview(
-        sessions: [],
-        hasConfig: true,
-        hasKnownHosts: false,
-      );
+      const preview = LfsPreview(sessions: [], hasConfig: true, hasKnownHosts: false);
       expect(preview.sessions, isEmpty);
       expect(preview.hasConfig, isTrue);
       expect(preview.hasKnownHosts, isFalse);

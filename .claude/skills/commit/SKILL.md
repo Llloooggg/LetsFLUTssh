@@ -1,0 +1,54 @@
+---
+name: commit
+description: Create a git commit following project conventions. Checks version bump and docs. Pre-commit hook handles analyzer + tests. Use when user says "commit" or "commit and push".
+---
+
+## Commit workflow for LetsFLUTssh
+
+Follow these steps strictly. This is a gated workflow — do NOT skip steps.
+
+### Step 1: Gather state (parallel)
+- `git status` (no -uall flag)
+- `git diff --cached` and `git diff` to see all changes
+- `git log --oneline -5` for recent commit style
+
+### Step 2: Analyze changes
+Determine:
+1. **Type**: feat / fix / refactor / test / docs / chore / ci
+2. **Version bump needed?** — YES if any file in `lib/`, platform configs, native code, assets, or build settings changed. NO for test/docs/ci/chore only changes
+3. **Docs updated?** — Check per the documentation maintenance table in CLAUDE.md. If code changed but docs didn't, WARN the user
+
+### Step 3: Pre-commit checks
+- If version bump needed but `pubspec.yaml` version unchanged: **STOP and tell the user** to bump version first. Do NOT commit
+- Do NOT run `make analyze` or `make test` manually — the pre-commit hook runs `make check` automatically and blocks the commit if anything fails
+
+### Step 4: Draft commit message
+- Format: `type: short description`
+- Keep it user-readable (drives auto-changelog)
+- If both app changes and docs in same commit, prefix describes the app change
+
+### Step 5: Confirm with user
+Show:
+- Files to be committed
+- Commit message
+- Whether version was bumped (and to what)
+- Ask for confirmation before committing
+
+### Step 6: Commit
+- `git add` only the relevant files (not `git add -A`)
+- Commit with the message. Use HEREDOC format:
+```
+git commit -m "$(cat <<'EOF'
+type: description
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Step 7: Push (only if user said "commit and push")
+- Push to current branch
+- If user only said "commit", do NOT push
+
+### Arguments
+If the user passes arguments like `-m "message"`, use that message but still run all checks.

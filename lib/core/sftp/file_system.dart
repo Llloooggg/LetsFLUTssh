@@ -37,7 +37,9 @@ class LocalFS implements FileSystem {
   @override
   Future<List<FileEntry>> list(String path) async {
     final dir = Directory(path);
-    if (!await dir.exists()) throw FileSystemException('Directory not found', path);
+    if (!await dir.exists()) {
+      throw FileSystemException('Directory not found', path);
+    }
 
     // On Windows, collect hidden/system file names to filter out.
     final hiddenNames = Platform.isWindows
@@ -49,14 +51,16 @@ class LocalFS implements FileSystem {
       final name = p.basename(entity.path);
       if (hiddenNames.contains(name.toLowerCase())) continue;
       final stat = await entity.stat();
-      entries.add(FileEntry(
-        name: name,
-        path: entity.path,
-        size: stat.size,
-        mode: stat.mode,
-        modTime: stat.modified,
-        isDir: stat.type == FileSystemEntityType.directory,
-      ));
+      entries.add(
+        FileEntry(
+          name: name,
+          path: entity.path,
+          size: stat.size,
+          mode: stat.mode,
+          modTime: stat.modified,
+          isDir: stat.type == FileSystemEntityType.directory,
+        ),
+      );
     }
 
     sortFileEntries(entries);
@@ -108,7 +112,10 @@ class LocalFS implements FileSystem {
   @override
   Future<void> remove(String path) async {
     final type = await FileSystemEntity.type(path);
-    AppLogger.instance.log('Removing ${type == FileSystemEntityType.directory ? 'directory' : 'file'}: $path', name: 'LocalFS');
+    AppLogger.instance.log(
+      'Removing ${type == FileSystemEntityType.directory ? 'directory' : 'file'}: $path',
+      name: 'LocalFS',
+    );
     if (type == FileSystemEntityType.directory) {
       await Directory(path).delete(recursive: true);
     } else {
@@ -118,7 +125,10 @@ class LocalFS implements FileSystem {
 
   @override
   Future<void> removeDir(String path) async {
-    AppLogger.instance.log('Removing directory recursively: $path', name: 'LocalFS');
+    AppLogger.instance.log(
+      'Removing directory recursively: $path',
+      name: 'LocalFS',
+    );
     await Directory(path).delete(recursive: true);
   }
 

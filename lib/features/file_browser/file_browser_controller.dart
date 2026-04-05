@@ -69,16 +69,22 @@ class FilePaneController extends ChangeNotifier {
       final path = _folderSizeQueue.removeAt(0);
       if (_folderSizes.containsKey(path)) continue;
       _folderSizesPending.add(path);
-      fs.dirSize(path).then((size) {
-        _folderSizes[path] = size;
-        _folderSizesPending.remove(path);
-        notifyListeners();
-        _drainSizeQueue();
-      }).catchError((e) {
-        _folderSizesPending.remove(path);
-        AppLogger.instance.log('Folder size failed: $path: $e', name: 'FilePane');
-        _drainSizeQueue();
-      });
+      fs
+          .dirSize(path)
+          .then((size) {
+            _folderSizes[path] = size;
+            _folderSizesPending.remove(path);
+            notifyListeners();
+            _drainSizeQueue();
+          })
+          .catchError((e) {
+            _folderSizesPending.remove(path);
+            AppLogger.instance.log(
+              'Folder size failed: $path: $e',
+              name: 'FilePane',
+            );
+            _drainSizeQueue();
+          });
     }
   }
 
@@ -142,7 +148,11 @@ class FilePaneController extends ChangeNotifier {
       _sortEntries();
       _invalidateCaches();
     } catch (e) {
-      AppLogger.instance.log('Failed to list $_currentPath: $e', name: 'FilePane', error: e);
+      AppLogger.instance.log(
+        'Failed to list $_currentPath: $e',
+        name: 'FilePane',
+        error: e,
+      );
       _error = sanitizeError(e);
       _entries = [];
       _invalidateCaches();
@@ -239,14 +249,16 @@ class FilePaneController extends ChangeNotifier {
 
   /// Total size of all non-directory entries (cached).
   int get totalFileSize {
-    return _cachedTotalFileSize ??=
-        _entries.where((e) => !e.isDir).fold<int>(0, (sum, e) => sum + e.size);
+    return _cachedTotalFileSize ??= _entries
+        .where((e) => !e.isDir)
+        .fold<int>(0, (sum, e) => sum + e.size);
   }
 
   /// Get selected file entries (cached, invalidated on selection/entries change).
   List<FileEntry> get selectedEntries {
-    return _cachedSelectedEntries ??=
-        _entries.where((e) => _selected.contains(e.path)).toList();
+    return _cachedSelectedEntries ??= _entries
+        .where((e) => _selected.contains(e.path))
+        .toList();
   }
 
   @override

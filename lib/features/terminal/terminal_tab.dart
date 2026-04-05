@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/ssh/ssh_client.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/session_provider.dart';
@@ -140,8 +141,14 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
         }
       }
     } catch (e) {
-      AppLogger.instance.log('Reconnect failed: $e', name: 'TerminalTab', error: e);
-      setState(() => _connectionError = 'Reconnect failed: ${sanitizeError(e)}');
+      AppLogger.instance.log(
+        'Reconnect failed: $e',
+        name: 'TerminalTab',
+        error: e,
+      );
+      setState(
+        () => _connectionError = 'Reconnect failed: ${sanitizeError(e)}',
+      );
       return;
     }
 
@@ -181,9 +188,9 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
     return ErrorState(
       message: _connectionError!,
       onRetry: reconnect,
-      retryLabel: 'Reconnect',
+      retryLabel: S.of(context).reconnect,
       onSecondary: widget.onDisconnected ?? () {},
-      secondaryLabel: 'Close',
+      secondaryLabel: S.of(context).close,
     );
   }
 }
