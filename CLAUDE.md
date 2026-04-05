@@ -78,8 +78,8 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 - Format: `type: short description` — types: `feat`, `fix`, `refactor` (app changes), `test`, `docs`, `chore`, `ci` (non-app)
 - **Commit messages drive auto-changelog** — `feat:` → Features, `fix:` → Fixes, `refactor:` → Improvements. Keep messages user-readable. If commit has both app changes and docs — prefix describes the app change only
 - **One fix / one commit** — each logical change is a separate commit. Do not bundle unrelated fixes
-- **HARD STOP between fixes** — when working on multiple fixes, the workflow is strictly sequential: implement fix → write tests → bump version → update docs → `make analyze` → commit. **Do NOT start the next fix until the current one is committed.** This is a blocking gate, not a suggestion. Starting the next fix before committing the current one is a rule violation — it leads to tangled changes in shared files and painful commit splitting
-- **Green CI before merging to main** — run `make test` before pushing to dev. If pre-existing test failures exist, fix them first in a separate `fix:` commit with version bump. Never merge to main with failing CI on dev — auto-tag fires after successful CI on main, so a failed pipeline blocks the release
+- **HARD STOP between fixes** — when working on multiple fixes, the workflow is strictly sequential: implement fix → write tests → bump version → update docs → commit. **Do NOT start the next fix until the current one is committed.** This is a blocking gate, not a suggestion. Starting the next fix before committing the current one is a rule violation — it leads to tangled changes in shared files and painful commit splitting. Note: `make check` (analyzer + tests) runs automatically as a pre-commit hook — no need to run it manually
+- **Green CI before merging to main** — the pre-commit hook runs `make check` automatically, so tests must pass before any commit lands. If pre-existing test failures exist, fix them first in a separate `fix:` commit with version bump. Never merge to main with failing CI on dev — auto-tag fires after successful CI on main, so a failed pipeline blocks the release
 - Repository is **public** on GitHub
 
 ### Work Style
@@ -158,7 +158,7 @@ Manual release: `gh workflow run build-release.yml` — fails if CI hasn't passe
 
 ### Skills & Hooks
 
-Custom skills and hooks live in `.claude/skills/` and `.claude/hooks/`. Skills are auto-loaded by Claude when context matches, and can also be invoked manually via `/command`.
+Custom skills and hooks live in `.claude/skills/` and `.claude/hooks/` and are committed to the repo. Personal settings (permissions, paths) go in `.claude/settings.local.json` (gitignored). Skills are auto-loaded by Claude when context matches, and can also be invoked manually via `/command`.
 
 **Skills** (`.claude/skills/<name>/SKILL.md`):
 
@@ -167,7 +167,7 @@ Custom skills and hooks live in `.claude/skills/` and `.claude/hooks/`. Skills a
 | `/analyze` | Run `make analyze` — Dart analyzer |
 | `/test` | Run `make test` — test suite with coverage |
 | `/check` | Run `make check` — analyzer + tests sequentially |
-| `/commit` | Full commit workflow: version bump check, docs check, analyzer, commit per project rules |
+| `/commit` | Full commit workflow: version bump check, docs check, commit per project rules (pre-commit hook runs analyzer + tests) |
 | `/pr` | Create PR dev → main: sync with main, create PR with `--auto` merge |
 | `/coverage` | Check SonarCloud coverage via API: overall, new code, per-file top worst |
 | `/fix-sonar` | Fetch SonarCloud issues and fix them by severity (accepts filter: `CRITICAL`, file path) |
@@ -185,7 +185,7 @@ Custom skills and hooks live in `.claude/skills/` and `.claude/hooks/`. Skills a
 
 1. Version bump in same commit (if app-affecting)
 2. **Update docs**: ARCHITECTURE.md (see table above), CLAUDE.md if nav links affected, README.md if user-visible, SECURITY.md if security scope changes
-3. `make analyze` + `make test` must pass
+3. Pre-commit hook runs `make check` (analyzer + tests) automatically — commit will be blocked if anything fails
 
 ### Dependencies & Building
 
