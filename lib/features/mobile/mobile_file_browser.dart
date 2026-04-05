@@ -177,7 +177,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
               const SizedBox(height: 4),
               // Path breadcrumb
               SizedBox(
-                height: 40,
+                height: AppTheme.barHeightMd,
                 child: Row(
                   children: [
                     AppIconButton(
@@ -341,7 +341,7 @@ class _MobileFileListState extends State<MobileFileList> {
   Widget _buildSelectionBar(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      height: 44,
+      height: AppTheme.barHeightLg,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.primaryContainer,
@@ -388,7 +388,7 @@ class _MobileFileListState extends State<MobileFileList> {
       onTap: () => _onEntryTap(entry),
       onLongPress: () => _onEntryLongPress(context, entry),
       child: Container(
-        height: 48,
+        height: AppTheme.itemHeightLg,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         color: isSelected ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5) : null,
         child: Row(

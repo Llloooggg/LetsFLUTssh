@@ -210,8 +210,34 @@ abstract final class AppTheme {
   static Border get borderBottom => Border(bottom: borderSide);
 
   // ── Bar height scale ──
-  /// 34 px — standard bar height for toolbars, headers, footers, status bars.
+  /// 34 px — standard bar: toolbars, headers, footers, status bars.
   static const double barHeightSm = 34;
+  /// 40 px — dialog title bars, mobile breadcrumbs.
+  static const double barHeightMd = 40;
+  /// 44 px — mobile app bars, selection toolbars.
+  static const double barHeightLg = 44;
+
+  // ── Control height scale ──
+  /// 26 px — compact buttons, file rows, settings items.
+  static const double controlHeightXs = 26;
+  /// 28 px — context menu items, search inputs, small buttons.
+  static const double controlHeightSm = 28;
+  /// 30 px — input fields, auth-type selectors.
+  static const double controlHeightMd = 30;
+  /// 32 px — tab selectors, mode selectors, mobile tab items.
+  static const double controlHeightLg = 32;
+  /// 38 px — dialog action buttons (Cancel, Connect, etc.).
+  static const double controlHeightXl = 38;
+
+  // ── Item height scale ──
+  /// 22 px — compact rows: path editors, transfer detail items.
+  static const double itemHeightXs = 22;
+  /// 24 px — small items: resize handles, transfer list entries.
+  static const double itemHeightSm = 24;
+  /// 48 px — large containers: icon boxes, mobile list items, drag targets.
+  static const double itemHeightLg = 48;
+  /// 56 px — mobile bottom navigation bar.
+  static const double itemHeightXl = 56;
 
   // ── Border radius scale ──
   /// 4 px — inputs, buttons, small elements.

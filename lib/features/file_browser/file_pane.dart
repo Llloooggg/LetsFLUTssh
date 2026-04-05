@@ -429,7 +429,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
   Widget _buildPathEditor() {
     return SizedBox(
-      height: 22,
+      height: AppTheme.itemHeightXs,
       child: TextField(
         controller: _pathController,
         focusNode: _pathFocusNode,
@@ -656,8 +656,8 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: AppTheme.itemHeightLg,
+            height: AppTheme.itemHeightLg,
             decoration: BoxDecoration(color: AppTheme.bg3),
             child: Icon(Icons.error_outline, size: 22, color: AppTheme.red),
           ),
@@ -676,7 +676,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           GestureDetector(
             onTap: ctrl.refresh,
             child: Container(
-              height: 26,
+              height: AppTheme.controlHeightXs,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               color: AppTheme.bg3,
               alignment: Alignment.center,

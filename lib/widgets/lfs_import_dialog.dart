@@ -122,7 +122,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
       child: GestureDetector(
         onTap: () => setState(() => _mode = mode),
         child: Container(
-          height: 32,
+          height: AppTheme.controlHeightLg,
           decoration: BoxDecoration(
             color: selected ? AppTheme.accent : AppTheme.bg3,
             borderRadius: AppTheme.radiusSm,

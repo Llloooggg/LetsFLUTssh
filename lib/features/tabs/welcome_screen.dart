@@ -17,8 +17,8 @@ class WelcomeScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: AppTheme.itemHeightLg,
+            height: AppTheme.itemHeightLg,
             alignment: Alignment.center,
             decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
             child: Icon(Icons.terminal, size: 22, color: faintColor),

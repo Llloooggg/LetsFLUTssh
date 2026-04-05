@@ -1099,7 +1099,7 @@ class _SearchBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(8),
       child: AppBorderedBox(
-        height: 28,
+        height: AppTheme.controlHeightSm,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         color: AppTheme.bg3,
         child: Row(

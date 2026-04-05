@@ -344,7 +344,7 @@ class _HistoryRow extends StatelessWidget {
     final isUpload = entry.direction == TransferDirection.upload;
 
     return Container(
-      height: 24,
+      height: AppTheme.itemHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: ClippedRow(
         children: [
@@ -496,7 +496,7 @@ class _ActiveRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          height: 22,
+          height: AppTheme.itemHeightXs,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: ClippedRow(
             children: [

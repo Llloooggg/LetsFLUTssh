@@ -22,7 +22,7 @@ class ColumnResizeHandle extends StatelessWidget {
         cursor: SystemMouseCursors.resizeColumn,
         child: SizedBox(
           width: 10,
-          height: 24,
+          height: AppTheme.itemHeightSm,
           child: Center(
             child: Container(
               width: 1,

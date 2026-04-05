@@ -223,7 +223,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       child: GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
                         child: Container(
-                          height: 38,
+                          height: AppTheme.controlHeightXl,
                           alignment: Alignment.center,
                           color: AppTheme.bg3,
                           child: Text(
@@ -242,7 +242,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       child: GestureDetector(
                         onTap: _submit,
                         child: Container(
-                          height: 38,
+                          height: AppTheme.controlHeightXl,
                           alignment: Alignment.center,
                           color: AppTheme.accent,
                           child: Text(
@@ -345,7 +345,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
           ),
         ),
         SizedBox(
-          height: 30,
+          height: AppTheme.controlHeightMd,
           child: TextFormField(
             controller: controller,
             obscureText: obscure,
@@ -389,7 +389,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       child: suffixIcon,
                     )
                   : null,
-              suffixIconConstraints: const BoxConstraints(maxHeight: 30),
+              suffixIconConstraints: const BoxConstraints(maxHeight: AppTheme.controlHeightMd),
             ),
           ),
         ),

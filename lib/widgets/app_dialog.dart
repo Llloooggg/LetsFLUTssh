@@ -103,7 +103,7 @@ class AppDialogHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
+      height: AppTheme.barHeightMd,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(border: AppTheme.borderBottom),
       child: Row(
@@ -146,7 +146,7 @@ class AppDialogFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 40),
+      constraints: const BoxConstraints(minHeight: AppTheme.barHeightMd),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       decoration: BoxDecoration(border: AppTheme.borderTop),
       child: Wrap(
@@ -226,7 +226,7 @@ class AppDialogAction extends StatelessWidget {
       cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
       onTap: enabled ? onTap : null,
       builder: (hovered) => Container(
-        height: 26,
+        height: AppTheme.controlHeightXs,
         padding: EdgeInsets.symmetric(horizontal: hasBg ? 16 : 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(

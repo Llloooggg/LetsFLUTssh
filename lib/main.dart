@@ -716,9 +716,9 @@ class _AlreadyRunningApp extends StatelessWidget {
             children: [
               Icon(Icons.block, size: 48, color: AppTheme.fgDim),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Another instance of LetsFLUTssh is already running.',
-                style: TextStyle(fontSize: 16),
+                style: TextStyle(fontSize: AppFonts.lg),
               ),
               const SizedBox(height: 24),
               FilledButton(
