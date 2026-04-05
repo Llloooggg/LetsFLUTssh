@@ -2001,6 +2001,12 @@ Manual build
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 
+**External Integrations:**
+
+| Service | Config | Purpose |
+|---------|--------|---------|
+| GitGuardian | `.gitguardian.yml` | Secret detection on PRs. Test files (`test/**`) and localization files (`lib/l10n/**`) are excluded — they contain fake credentials and translated "password" labels that trigger false positives |
+
 ### 15.4 Makefile Targets
 
 #### Development
