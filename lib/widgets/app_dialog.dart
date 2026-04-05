@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_icon_button.dart';
 import 'hover_region.dart';
@@ -245,7 +246,17 @@ class AppDialogAction extends StatelessWidget {
 
 class _CancelAction extends AppDialogAction {
   const _CancelAction({super.key, super.onTap})
-    : super(label: 'Cancel', enabled: true);
+    : super(label: '', enabled: true);
+
+  @override
+  Widget build(BuildContext context) {
+    return _CancelActionResolved(label: S.of(context).cancel, onTap: onTap);
+  }
+}
+
+class _CancelActionResolved extends AppDialogAction {
+  const _CancelActionResolved({required super.label, super.onTap})
+    : super(enabled: true);
 }
 
 class _PrimaryAction extends AppDialogAction {

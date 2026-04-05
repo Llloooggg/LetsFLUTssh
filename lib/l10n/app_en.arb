@@ -293,6 +293,14 @@
   "hideSidebar": "Hide Sidebar (Ctrl+B)",
   "showSidebar": "Show Sidebar (Ctrl+B)",
 
+  "language": "Language",
+  "languageSystemDefault": "Auto",
+
+  "theme": "Theme",
+  "themeDark": "Dark",
+  "themeLight": "Light",
+  "themeSystem": "System",
+
   "appearance": "Appearance",
   "connectionSection": "Connection",
   "transfers": "Transfers",
@@ -385,5 +393,38 @@
     }
   },
   "saveLogAs": "Save log as",
-  "chooseSaveLocation": "Choose save location"
+  "chooseSaveLocation": "Choose save location",
+
+  "forward": "Forward",
+  "name": "Name",
+  "size": "Size",
+  "modified": "Modified",
+  "mode": "Mode",
+  "owner": "Owner",
+  "connectionError": "Connection error",
+  "resizeWindowToViewFiles": "Resize window to view files",
+  "completed": "Completed",
+  "connected": "Connected",
+  "disconnected": "Disconnected",
+  "exit": "Exit",
+  "exitConfirmation": "Active sessions will be disconnected. Exit?",
+  "hintFolderExample": "e.g. Production",
+  "credentialsNotSet": "Credentials not set",
+  "exportSessionsViaQr": "Export Sessions via QR",
+  "qrNoCredentialsWarning": "Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.",
+  "qrTooManyForSingleCode": "Too many sessions for a single QR code. Deselect some or use .lfs export.",
+  "qrTooLarge": "Too large — deselect some sessions or use .lfs file export.",
+  "exportAll": "Export All",
+  "showQr": "Show QR",
+  "resizePanelDivider": "Resize panel divider",
+  "youreRunningLatest": "You're running the latest version",
+  "liveLog": "Live Log",
+  "transferNItems": "Transfer {count} items",
+  "time": "Time",
+  "failed": "Failed",
+  "@transferNItems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

@@ -343,7 +343,9 @@ class _PanelConnectionBar extends ConsumerWidget {
               TextSpan(
                 children: [
                   TextSpan(
-                    text: conn.isConnected ? 'Connected' : 'Disconnected',
+                    text: conn.isConnected
+                        ? S.of(context).connected
+                        : S.of(context).disconnected,
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: AppFonts.xs,
@@ -367,15 +369,22 @@ class _PanelConnectionBar extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (conn.isConnected) _companionButton(isTerminal, ref, scheme),
+          if (conn.isConnected)
+            _companionButton(context, isTerminal, ref, scheme),
         ],
       ),
     );
   }
 
-  Widget _companionButton(bool isTerminal, WidgetRef ref, ColorScheme scheme) {
+  Widget _companionButton(
+    BuildContext context,
+    bool isTerminal,
+    WidgetRef ref,
+    ColorScheme scheme,
+  ) {
+    final s = S.of(context);
     final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
-    final label = isTerminal ? 'Files' : 'Terminal';
+    final label = isTerminal ? s.files : s.terminal;
     final icon = isTerminal ? Icons.folder_open : Icons.terminal;
     return Tooltip(
       message: label,

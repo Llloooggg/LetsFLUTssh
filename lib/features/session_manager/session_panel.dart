@@ -959,7 +959,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                       : null;
                 });
               },
-              hintText: 'e.g. Production',
+              hintText: S.of(context).hintFolderExample,
             );
           },
         ),

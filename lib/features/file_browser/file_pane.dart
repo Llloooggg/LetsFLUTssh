@@ -319,6 +319,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   Widget _buildHeader(ThemeData theme) {
     final isLocal = ctrl.label.toUpperCase() == 'LOCAL';
     final labelColor = isLocal ? AppTheme.blue : AppTheme.green;
+    final displayLabel = isLocal ? S.of(context).local : S.of(context).remote;
 
     return Container(
       height: AppTheme.barHeightSm,
@@ -328,12 +329,15 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           final showNav = constraints.maxWidth > 160;
           return Row(
             children: [
-              Text(
-                ctrl.label.toUpperCase(),
-                style: AppFonts.inter(
-                  fontSize: AppFonts.xs,
-                  fontWeight: FontWeight.w600,
-                  color: labelColor,
+              Flexible(
+                child: Text(
+                  displayLabel.toUpperCase(),
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.xs,
+                    fontWeight: FontWeight.w600,
+                    color: labelColor,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -343,15 +347,19 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                 _navButton(
                   Icons.arrow_back,
                   ctrl.canGoBack ? ctrl.goBack : null,
-                  'Back',
+                  S.of(context).back,
                 ),
                 _navButton(
                   Icons.arrow_forward,
                   ctrl.canGoForward ? ctrl.goForward : null,
-                  'Forward',
+                  S.of(context).forward,
                 ),
-                _navButton(Icons.arrow_upward, ctrl.navigateUp, 'Up'),
-                _navButton(Icons.refresh, ctrl.refresh, 'Refresh'),
+                _navButton(
+                  Icons.arrow_upward,
+                  ctrl.navigateUp,
+                  S.of(context).up,
+                ),
+                _navButton(Icons.refresh, ctrl.refresh, S.of(context).refresh),
               ],
             ],
           );
@@ -553,7 +561,11 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         children: [
           const SizedBox(width: 20), // icon space
           Expanded(
-            child: _buildHeaderCell('Name', SortColumn.name, headerStyle),
+            child: _buildHeaderCell(
+              S.of(context).name,
+              SortColumn.name,
+              headerStyle,
+            ),
           ),
           if (cols.size) ...[
             ColumnResizeHandle(
@@ -563,7 +575,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               }),
             ),
             _buildHeaderCell(
-              'Size',
+              S.of(context).size,
               SortColumn.size,
               headerStyle,
               width: _sizeColWidth,
@@ -577,7 +589,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               }),
             ),
             _buildHeaderCell(
-              'Modified',
+              S.of(context).modified,
               SortColumn.modified,
               headerStyle,
               width: _modifiedColWidth,
@@ -591,7 +603,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               }),
             ),
             _buildHeaderCell(
-              'Mode',
+              S.of(context).mode,
               SortColumn.mode,
               headerStyle,
               width: _modeColWidth,
@@ -605,7 +617,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               }),
             ),
             _buildHeaderCell(
-              'Owner',
+              S.of(context).owner,
               SortColumn.owner,
               headerStyle,
               width: _ownerColWidth,
@@ -751,7 +763,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           ),
           const SizedBox(height: 12),
           Text(
-            'Connection error',
+            S.of(context).connectionError,
             style: AppFonts.inter(fontSize: AppFonts.lg, color: AppTheme.fgDim),
           ),
           const SizedBox(height: 4),
@@ -772,7 +784,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               color: AppTheme.bg3,
               alignment: Alignment.center,
               child: Text(
-                'Retry',
+                S.of(context).retry,
                 style: AppFonts.inter(
                   fontSize: AppFonts.sm,
                   fontWeight: FontWeight.w500,
@@ -797,7 +809,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       behavior: HitTestBehavior.translucent,
       child: Center(
         child: Text(
-          'Empty directory',
+          S.of(context).emptyDirectory,
           style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
         ),
       ),
@@ -997,12 +1009,12 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       position: position,
       items: [
         ContextMenuItem(
-          label: 'New Folder',
+          label: S.of(context).newFolder,
           icon: Icons.create_new_folder,
           onTap: () => _showNewFolderDialog(context),
         ),
         ContextMenuItem(
-          label: 'Refresh',
+          label: S.of(context).refresh,
           icon: Icons.refresh,
           onTap: () => ctrl.refresh(),
         ),
@@ -1028,14 +1040,14 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       items: [
         if (!hasMultiple && entry.isDir)
           ContextMenuItem(
-            label: 'Open',
+            label: S.of(context).open,
             icon: Icons.folder_open,
             onTap: () => ctrl.navigateTo(entry.path),
           ),
         ContextMenuItem(
           label: hasMultiple
-              ? 'Transfer ${selectedEntries.length} items'
-              : 'Transfer',
+              ? S.of(context).transferNItems(selectedEntries.length)
+              : S.of(context).transfer,
           icon: Icons.swap_horiz,
           onTap: () {
             if (hasMultiple) {
@@ -1047,7 +1059,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         ),
         const ContextMenuItem.divider(),
         ContextMenuItem(
-          label: 'New Folder',
+          label: S.of(context).newFolder,
           icon: Icons.create_new_folder,
           onTap: () => _showNewFolderDialog(context),
         ),

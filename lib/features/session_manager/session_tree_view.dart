@@ -743,7 +743,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
         Padding(
           padding: const EdgeInsets.only(right: 4),
           child: Tooltip(
-            message: 'Credentials not set',
+            message: S.of(context).credentialsNotSet,
             child: Icon(
               Icons.warning_amber,
               size: _authIconSize,

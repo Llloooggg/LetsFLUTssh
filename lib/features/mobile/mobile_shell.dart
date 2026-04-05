@@ -65,7 +65,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             ],
           ),
         ),
-        bottomNavigationBar: _buildBottomNav(allTabs),
+        bottomNavigationBar: _buildBottomNav(context, allTabs),
       ),
     );
   }
@@ -218,7 +218,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     );
   }
 
-  Widget _buildBottomNav(List<TabEntry> allTabs) {
+  Widget _buildBottomNav(BuildContext context, List<TabEntry> allTabs) {
+    final s = S.of(context);
     final termCount = _terminalTabCount(allTabs);
     final sftpCount = _sftpTabCount(allTabs);
     return Container(
@@ -230,20 +231,20 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             index: 0,
             icon: Icons.dns_outlined,
             activeIcon: Icons.dns,
-            label: 'Sessions',
+            label: s.sessions,
           ),
           _buildNavItem(
             index: 1,
             icon: Icons.terminal_outlined,
             activeIcon: Icons.terminal,
-            label: 'Terminal',
+            label: s.terminal,
             disabledWhenZero: termCount,
           ),
           _buildNavItem(
             index: 2,
             icon: Icons.folder_outlined,
             activeIcon: Icons.folder,
-            label: 'Files',
+            label: s.files,
             disabledWhenZero: sftpCount,
           ),
         ],
@@ -306,15 +307,15 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final confirmed = await AppDialog.show<bool>(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Exit',
+        title: S.of(context).exit,
         content: Text(
-          'Active sessions will be disconnected. Exit?',
+          S.of(context).exitConfirmation,
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
         ),
         actions: [
           AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
           AppDialogAction.primary(
-            label: 'Exit',
+            label: S.of(context).exit,
             onTap: () => Navigator.of(ctx).pop(true),
           ),
         ],

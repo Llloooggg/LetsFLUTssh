@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
@@ -155,11 +156,9 @@ class _QrExportDialogState extends State<QrExportDialog> {
 
   void _showTooLargeSnackbar() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Too many sessions for a single QR code. Deselect some or use .lfs export.',
-        ),
-        duration: Duration(seconds: 3),
+      SnackBar(
+        content: Text(S.of(context).qrTooManyForSingleCode),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -184,7 +183,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             AppDialogHeader(
-              title: 'Export Sessions via QR',
+              title: S.of(context).exportSessionsViaQr,
               onClose: () => Navigator.of(context).pop(),
             ),
             Flexible(
@@ -214,8 +213,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Passwords and SSH keys are NOT included.\n'
-                              'Imported sessions will need credentials filled in.',
+                              S.of(context).qrNoCredentialsWarning,
                               style: TextStyle(
                                 fontSize: AppFonts.md,
                                 color: AppTheme.fg,
@@ -282,7 +280,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
                     if (!_fitsInQr && _hasSelection) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Too large — deselect some sessions or use .lfs file export.',
+                        S.of(context).qrTooLarge,
                         style: TextStyle(
                           fontSize: AppFonts.sm,
                           color: AppTheme.red,
@@ -299,11 +297,11 @@ class _QrExportDialogState extends State<QrExportDialog> {
                   onTap: () => Navigator.of(context).pop(),
                 ),
                 AppDialogAction.secondary(
-                  label: 'Export All',
+                  label: S.of(context).exportAll,
                   onTap: _exportAll,
                 ),
                 AppDialogAction.primary(
-                  label: 'Show QR',
+                  label: S.of(context).showQr,
                   enabled: _hasSelection && _fitsInQr,
                   onTap: _showQr,
                 ),

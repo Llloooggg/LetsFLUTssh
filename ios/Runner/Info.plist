@@ -24,6 +24,21 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 
+	<!-- Supported localizations -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ru</string>
+		<string>zh</string>
+		<string>de</string>
+		<string>ja</string>
+		<string>pt</string>
+		<string>es</string>
+		<string>fr</string>
+		<string>ko</string>
+		<string>ar</string>
+	</array>
+
 	<!-- System requirements -->
 	<key>LSRequiresIPhoneOS</key>
 	<true/>

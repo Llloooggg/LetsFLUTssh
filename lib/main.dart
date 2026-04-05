@@ -30,6 +30,7 @@ import 'features/workspace/workspace_view.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
+import 'providers/locale_provider.dart';
 import 'providers/theme_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -149,6 +150,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
     final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
 
     // Sync AppTheme brightness before building the widget tree
@@ -163,6 +165,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       navigatorKey: navigatorKey,
       title: 'LetsFLUTssh',
       debugShowCheckedModeBanner: false,
+      locale: locale,
       localizationsDelegates: S.localizationsDelegates,
       supportedLocales: S.supportedLocales,
       themeMode: themeMode,
@@ -171,9 +174,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       themeAnimationDuration: Duration.zero,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
-        return MediaQuery(
-          data: mediaQuery.copyWith(textScaler: TextScaler.linear(uiScale)),
-          child: child!,
+        return Directionality(
+          textDirection: TextDirection.ltr,
+          child: MediaQuery(
+            data: mediaQuery.copyWith(textScaler: TextScaler.linear(uiScale)),
+            child: child!,
+          ),
         );
       },
       home: const MainScreen(),
