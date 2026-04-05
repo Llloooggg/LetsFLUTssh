@@ -16,7 +16,7 @@ import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/format.dart'; // used by MobileFileList tests
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 @GenerateNiceMocks([MockSpec<SftpClient>()])
 import 'mobile_file_browser_test.mocks.dart';
 
@@ -26,10 +26,7 @@ class FakeFileSystem implements FileSystem {
   final String fakeInitialDir;
   bool listCalled = false;
 
-  FakeFileSystem({
-    this.fakeEntries = const [],
-    this.fakeInitialDir = '/home/test',
-  });
+  FakeFileSystem({this.fakeEntries = const [], this.fakeInitialDir = '/home/test'});
 
   @override
   Future<String> initialDir() async => fakeInitialDir;
@@ -82,31 +79,31 @@ class ErrorFileSystem implements FileSystem {
 
 /// Standard test entries used across tests.
 List<FileEntry> testEntries() => [
-      FileEntry(
-        name: 'docs',
-        path: '/home/test/docs',
-        size: 4096,
-        mode: 0x1ED, // 0755
-        modTime: DateTime(2024, 1, 1),
-        isDir: true,
-      ),
-      FileEntry(
-        name: 'readme.txt',
-        path: '/home/test/readme.txt',
-        size: 1024,
-        mode: 0x1A4, // 0644
-        modTime: DateTime(2024, 1, 2),
-        isDir: false,
-      ),
-      FileEntry(
-        name: 'script.sh',
-        path: '/home/test/script.sh',
-        size: 512,
-        mode: 0x1ED,
-        modTime: DateTime(2024, 1, 3),
-        isDir: false,
-      ),
-    ];
+  FileEntry(
+    name: 'docs',
+    path: '/home/test/docs',
+    size: 4096,
+    mode: 0x1ED, // 0755
+    modTime: DateTime(2024, 1, 1),
+    isDir: true,
+  ),
+  FileEntry(
+    name: 'readme.txt',
+    path: '/home/test/readme.txt',
+    size: 1024,
+    mode: 0x1A4, // 0644
+    modTime: DateTime(2024, 1, 2),
+    isDir: false,
+  ),
+  FileEntry(
+    name: 'script.sh',
+    path: '/home/test/script.sh',
+    size: 512,
+    mode: 0x1ED,
+    modTime: DateTime(2024, 1, 3),
+    isDir: false,
+  ),
+];
 
 void main() {
   group('MobileFileBrowser — widget rendering', () {
@@ -114,17 +111,19 @@ void main() {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
         state: SSHConnectionState.connecting,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: MobileFileBrowser(connection: connection),
-            ),
+            home: Scaffold(body: MobileFileBrowser(connection: connection)),
           ),
         ),
       );
@@ -138,21 +137,22 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('shows error state when connection is disconnected',
-        (tester) async {
+    testWidgets('shows error state when connection is disconnected', (tester) async {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
       );
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: MobileFileBrowser(connection: connection),
-            ),
+            home: Scaffold(body: MobileFileBrowser(connection: connection)),
           ),
         ),
       );
@@ -168,16 +168,18 @@ void main() {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
       );
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: MobileFileBrowser(connection: connection),
-            ),
+            home: Scaffold(body: MobileFileBrowser(connection: connection)),
           ),
         ),
       );
@@ -215,6 +217,8 @@ void main() {
     }) {
       return ProviderScope(
         child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: MobileFileList(
@@ -227,8 +231,7 @@ void main() {
       );
     }
 
-    testWidgets('shows empty directory when controller has no entries',
-        (tester) async {
+    testWidgets('shows empty directory when controller has no entries', (tester) async {
       // Don't init controller — entries are empty, loading is false
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -315,9 +318,7 @@ void main() {
     testWidgets('tapping file calls onTransfer', (tester) async {
       FileEntry? transferred;
       await controller.init();
-      await tester.pumpWidget(buildFileList(
-        onTransfer: (entry) => transferred = entry,
-      ));
+      await tester.pumpWidget(buildFileList(onTransfer: (entry) => transferred = entry));
       await tester.pump();
 
       await tester.tap(find.text('readme.txt'));
@@ -341,8 +342,7 @@ void main() {
       expect(find.text('1 selected'), findsOneWidget);
     });
 
-    testWidgets('selection mode shows transfer and delete buttons',
-        (tester) async {
+    testWidgets('selection mode shows transfer and delete buttons', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -354,8 +354,7 @@ void main() {
       expect(find.byTooltip('Delete'), findsOneWidget);
     });
 
-    testWidgets('selection bar close button exits selection mode',
-        (tester) async {
+    testWidgets('selection bar close button exits selection mode', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -410,13 +409,10 @@ void main() {
       expect(find.byType(Checkbox), findsNothing);
     });
 
-    testWidgets('transfer button in selection bar calls onTransferMultiple',
-        (tester) async {
+    testWidgets('transfer button in selection bar calls onTransferMultiple', (tester) async {
       List<FileEntry>? transferred;
       await controller.init();
-      await tester.pumpWidget(buildFileList(
-        onTransferMultiple: (entries) => transferred = entries,
-      ));
+      await tester.pumpWidget(buildFileList(onTransferMultiple: (entries) => transferred = entries));
       await tester.pump();
 
       await tester.longPress(find.text('readme.txt'));
@@ -432,8 +428,7 @@ void main() {
       expect(find.byType(Checkbox), findsNothing);
     });
 
-    testWidgets('long press in selection mode shows bottom sheet actions',
-        (tester) async {
+    testWidgets('long press in selection mode shows bottom sheet actions', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -453,8 +448,7 @@ void main() {
       expect(find.text('New Folder'), findsOneWidget);
     });
 
-    testWidgets('bottom sheet shows Open action for directories',
-        (tester) async {
+    testWidgets('bottom sheet shows Open action for directories', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -471,13 +465,10 @@ void main() {
       expect(find.text('Transfer'), findsOneWidget);
     });
 
-    testWidgets('bottom sheet Transfer action calls onTransfer',
-        (tester) async {
+    testWidgets('bottom sheet Transfer action calls onTransfer', (tester) async {
       FileEntry? transferred;
       await controller.init();
-      await tester.pumpWidget(buildFileList(
-        onTransfer: (e) => transferred = e,
-      ));
+      await tester.pumpWidget(buildFileList(onTransfer: (e) => transferred = e));
       await tester.pump();
 
       // Enter selection mode and open bottom sheet
@@ -512,8 +503,7 @@ void main() {
       expect(controller.currentPath, '/home/test/docs');
     });
 
-    testWidgets('bottom sheet Rename action opens rename dialog',
-        (tester) async {
+    testWidgets('bottom sheet Rename action opens rename dialog', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -531,8 +521,7 @@ void main() {
       expect(find.text('Rename'), findsWidgets);
     });
 
-    testWidgets('bottom sheet New Folder action opens new folder dialog',
-        (tester) async {
+    testWidgets('bottom sheet New Folder action opens new folder dialog', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -549,8 +538,7 @@ void main() {
       expect(find.text('FOLDER NAME'), findsOneWidget);
     });
 
-    testWidgets('bottom sheet Delete action opens delete confirmation',
-        (tester) async {
+    testWidgets('bottom sheet Delete action opens delete confirmation', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -572,8 +560,7 @@ void main() {
       expect(find.textContaining('Delete'), findsWidgets);
     });
 
-    testWidgets('delete button in selection bar opens delete confirmation',
-        (tester) async {
+    testWidgets('delete button in selection bar opens delete confirmation', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -590,8 +577,7 @@ void main() {
       expect(find.textContaining('Delete'), findsWidgets);
     });
 
-    testWidgets('checkbox in selection mode toggles selection',
-        (tester) async {
+    testWidgets('checkbox in selection mode toggles selection', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -621,8 +607,7 @@ void main() {
       expect(listView.itemExtent, 48.0);
     });
 
-    testWidgets('error state retry button refreshes controller',
-        (tester) async {
+    testWidgets('error state retry button refreshes controller', (tester) async {
       final errorFs = ErrorFileSystem();
       final errorCtrl = FilePaneController(fs: errorFs, label: 'Error');
       await errorCtrl.init();
@@ -653,16 +638,18 @@ void main() {
     testWidgets('switching controller resets selection mode and listens to new controller', (tester) async {
       await controller.init();
 
-      final secondFs = FakeFileSystem(fakeEntries: [
-        FileEntry(
-          name: 'other.txt',
-          path: '/remote/other.txt',
-          size: 256,
-          mode: 0x1A4,
-          modTime: DateTime(2024, 2, 1),
-          isDir: false,
-        ),
-      ]);
+      final secondFs = FakeFileSystem(
+        fakeEntries: [
+          FileEntry(
+            name: 'other.txt',
+            path: '/remote/other.txt',
+            size: 256,
+            mode: 0x1A4,
+            modTime: DateTime(2024, 2, 1),
+            isDir: false,
+          ),
+        ],
+      );
       final secondCtrl = FilePaneController(fs: secondFs, label: 'Remote');
       await secondCtrl.init();
 
@@ -723,25 +710,18 @@ void main() {
 
       await Future.wait([localCtrl.init(), remoteCtrl.init()]);
 
-      return SFTPInitResult(
-        localCtrl: localCtrl,
-        remoteCtrl: remoteCtrl,
-        sftpService: sftpService,
-      );
+      return SFTPInitResult(localCtrl: localCtrl, remoteCtrl: remoteCtrl, sftpService: sftpService);
     }
 
     Widget buildBrowser(Connection conn) {
       return ProviderScope(
-        overrides: [
-          transferManagerProvider.overrideWithValue(manager),
-        ],
+        overrides: [transferManagerProvider.overrideWithValue(manager)],
         child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
-            body: MobileFileBrowser(
-              connection: conn,
-              sftpInitFactory: fakeInitFactory,
-            ),
+            body: MobileFileBrowser(connection: conn, sftpInitFactory: fakeInitFactory),
           ),
         ),
       );
@@ -751,7 +731,9 @@ void main() {
       final conn = Connection(
         id: 'success-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -775,7 +757,9 @@ void main() {
       final conn = Connection(
         id: 'toggle-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -803,7 +787,9 @@ void main() {
       final conn = Connection(
         id: 'tp-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -817,16 +803,18 @@ void main() {
       final conn = Connection(
         id: 'fail-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: MobileFileBrowser(
@@ -847,7 +835,9 @@ void main() {
       final conn = Connection(
         id: 'refresh-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -878,12 +868,11 @@ void main() {
       controller.dispose();
     });
 
-    Widget buildFileList({
-      void Function(FileEntry)? onTransfer,
-      void Function(List<FileEntry>)? onTransferMultiple,
-    }) {
+    Widget buildFileList({void Function(FileEntry)? onTransfer, void Function(List<FileEntry>)? onTransferMultiple}) {
       return ProviderScope(
         child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: MobileFileList(

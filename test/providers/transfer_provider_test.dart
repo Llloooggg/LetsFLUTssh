@@ -25,11 +25,7 @@ void main() {
     });
 
     test('stores currentInfo', () {
-      const state = ActiveTransferState(
-        running: 1,
-        queued: 0,
-        currentInfo: 'file.txt 50%',
-      );
+      const state = ActiveTransferState(running: 1, queued: 0, currentInfo: 'file.txt 50%');
       expect(state.currentInfo, 'file.txt 50%');
     });
   });
@@ -95,15 +91,17 @@ void main() {
       await container.read(transferStatusProvider.future);
 
       // Enqueue a task that takes a moment
-      manager.enqueue(TransferTask(
-        name: 'status_test.txt',
-        direction: TransferDirection.upload,
-        sourcePath: '/local/status_test.txt',
-        targetPath: '/remote/status_test.txt',
-        run: (onProgress) async {
-          await Future.delayed(const Duration(milliseconds: 50));
-        },
-      ));
+      manager.enqueue(
+        TransferTask(
+          name: 'status_test.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/status_test.txt',
+          targetPath: '/remote/status_test.txt',
+          run: (onProgress) async {
+            await Future.delayed(const Duration(milliseconds: 50));
+          },
+        ),
+      );
 
       // Wait for task to complete and streams to emit
       await Future.delayed(const Duration(milliseconds: 300));
@@ -130,13 +128,15 @@ void main() {
 
       final manager = container.read(transferManagerProvider);
 
-      manager.enqueue(TransferTask(
-        name: 'test.txt',
-        direction: TransferDirection.upload,
-        sourcePath: '/local/test.txt',
-        targetPath: '/remote/test.txt',
-        run: (onProgress) async {},
-      ));
+      manager.enqueue(
+        TransferTask(
+          name: 'test.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/test.txt',
+          targetPath: '/remote/test.txt',
+          run: (onProgress) async {},
+        ),
+      );
 
       // Wait for task to complete
       await Future.delayed(const Duration(milliseconds: 100));

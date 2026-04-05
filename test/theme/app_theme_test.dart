@@ -73,11 +73,7 @@ void main() {
     });
 
     test('mono passes fontSize, color, fontWeight', () {
-      final style = AppFonts.mono(
-        fontSize: 11,
-        color: const Color(0xFF7F848E),
-        fontWeight: FontWeight.bold,
-      );
+      final style = AppFonts.mono(fontSize: 11, color: const Color(0xFF7F848E), fontWeight: FontWeight.bold);
       expect(style.fontSize, 11);
       expect(style.color, const Color(0xFF7F848E));
       expect(style.fontWeight, FontWeight.bold);
@@ -100,8 +96,7 @@ void main() {
     });
 
     test('folderColor resolves differently per brightness', () {
-      expect(AppTheme.folderColor(Brightness.dark),
-          isNot(AppTheme.folderColor(Brightness.light)));
+      expect(AppTheme.folderColor(Brightness.dark), isNot(AppTheme.folderColor(Brightness.light)));
     });
   });
 

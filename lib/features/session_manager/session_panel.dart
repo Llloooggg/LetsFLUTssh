@@ -12,6 +12,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_divider.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/context_menu.dart';
+import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/cross_marquee_controller.dart';
@@ -20,11 +21,6 @@ import '../workspace/workspace_controller.dart';
 import '../workspace/workspace_node.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
-
-const _kNewFolder = 'New Folder';
-const _kNewConnection = 'New Connection';
-const _kRenameFolder = 'Rename Folder';
-const _kDeleteFolder = 'Delete Folder';
 
 /// Session sidebar — tree view + search + actions.
 class SessionPanel extends ConsumerStatefulWidget {
@@ -72,7 +68,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
   /// Simulate marquee selection in tests.
   @visibleForTesting
-  void setMarqueeSelection(Set<String> ids, [Set<String> folderPaths = const {}]) {
+  void setMarqueeSelection(
+    Set<String> ids, [
+    Set<String> folderPaths = const {},
+  ]) {
     setState(() {
       _selectedIds
         ..clear()
@@ -164,13 +163,15 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final sessionCount = _selectedIds.length;
     final folderCount = _selectedFolderPaths.length;
     final parts = <String>[
-      if (sessionCount > 0) '$sessionCount session(s)',
-      if (folderCount > 0) '$folderCount folder(s)',
+      if (sessionCount > 0) S.of(context).nSessions(sessionCount),
+      if (folderCount > 0) S.of(context).nFolders(folderCount),
     ];
     final confirmed = await ConfirmDialog.show(
       context,
-      title: 'Delete Selected',
-      content: Text('Delete ${parts.join(' and ')}?\n\nThis cannot be undone.'),
+      title: S.of(context).deleteSelected,
+      content: Text(
+        S.of(context).deleteNSessionsAndFolders(parts.join(' and ')),
+      ),
     );
     if (confirmed) {
       final notifier = ref.read(sessionProvider.notifier);
@@ -196,7 +197,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final selected = await AppDialog.show<String>(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Move to Folder',
+        title: S.of(context).moveToFolder,
         scrollable: false,
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
@@ -208,15 +209,13 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               final folder = allFolders.elementAt(index);
               return ListTile(
                 leading: Icon(folder.isEmpty ? Icons.home : Icons.folder),
-                title: Text(folder.isEmpty ? '/ (root)' : folder),
+                title: Text(folder.isEmpty ? S.of(context).rootFolder : folder),
                 onTap: () => Navigator.of(ctx).pop(folder),
               );
             },
           ),
         ),
-        actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop()),
-        ],
+        actions: [AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop())],
       ),
     );
 
@@ -331,9 +330,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed
-        .intersection({LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.controlRight})
-        .isNotEmpty;
+    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed.intersection({
+      LogicalKeyboardKey.controlLeft,
+      LogicalKeyboardKey.controlRight,
+    }).isNotEmpty;
 
     if (isCtrl) return _handleCtrlKey(event.logicalKey);
     return _handlePlainKey(event.logicalKey);
@@ -353,98 +353,117 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       autofocus: false,
       onKeyEvent: _onKeyEvent,
       child: Container(
-      color: scheme.surfaceContainerLow,
-      child: Column(
-      children: [
-        if (_selectMode && mobile)
-          _SelectActionBar(
-            selectedCount: _selectedIds.length,
-            onSelectAll: _selectAll,
-            onDelete: () => _deleteSelected(context),
-            onMove: () => _moveSelected(context),
-            onCancel: _exitSelectMode,
-          )
-        else ...[
-          // Header with title + add/select buttons
-          _PanelHeader(
-            onAddSession: () => _addSession(context, ref),
-            onAddFolder: () => _createFolder(context, ref, ''),
-          ),
-          // Search bar
-          _SearchBar(
-            value: searchQuery,
-            onChanged: (v) => ref.read(sessionSearchProvider.notifier).set(v),
-          ),
-          // Desktop marquee selection is shown inline via row highlights.
-          // Bulk actions available via right-click context menu.
-        ],
-        // Tree view
-        Expanded(
-          child: isEmpty
-              ? _EmptyState(onAdd: () => _addSession(context, ref))
-              : SessionTreeView(
-                  tree: tree,
-                  connectedSessionIds: _connectedSessionIds(ref),
-                  connectingSessionIds: _connectingSessionIds(ref),
-                  selectMode: mobile && _selectMode,
-                  selectedIds: _selectedIds,
-                  onToggleSelected: _toggleSelected,
-                  selectedFolderPaths: _selectedFolderPaths,
-                  onToggleFolderSelected: _toggleFolderSelected,
-                  crossMarquee: widget.crossMarquee,
-                  onSessionDoubleTap: widget.onConnect,
-                  onSessionSelected: (id) {
-                    _focusedSessionId = id;
-                    if (!mobile) _focusNode.requestFocus();
-                  },
-                  onSessionContextMenu: (session, position) {
-                    _showContextMenu(context, ref, session, position);
-                  },
-                  onFolderContextMenu: (folderPath, position) {
-                    _showFolderContextMenu(context, ref, folderPath, position);
-                  },
-                  onBackgroundContextMenu: (position) {
-                    _showFolderContextMenu(context, ref, '', position);
-                  },
-                  onSessionMoved: (sessionId, targetFolder) {
-                    ref.read(sessionProvider.notifier).moveSession(sessionId, targetFolder);
-                  },
-                  onFolderMoved: (folderPath, targetParent) {
-                    ref.read(sessionProvider.notifier).moveFolder(folderPath, targetParent);
-                  },
-                  onBulkMoved: (sessionIds, folderPaths, targetFolder) async {
-                    final notifier = ref.read(sessionProvider.notifier);
-                    if (sessionIds.isNotEmpty) {
-                      await notifier.moveMultiple(sessionIds, targetFolder);
-                    }
-                    for (final gp in folderPaths) {
-                      await notifier.moveFolder(gp, targetFolder);
-                    }
-                    _clearDesktopSelection();
-                  },
-                  onMarqueeStart: () => setState(() => marqueeInProgress = true),
-                  onMarqueeEnd: () => setState(() => marqueeInProgress = false),
-                  onMarqueeSelect: (ids, folderPaths) {
-                    setState(() {
-                      _selectedIds
-                        ..clear()
-                        ..addAll(ids);
-                      _selectedFolderPaths
-                        ..clear()
-                        ..addAll(folderPaths);
-                    });
-                  },
-                ),
+        color: scheme.surfaceContainerLow,
+        child: Column(
+          children: [
+            if (_selectMode && mobile)
+              _SelectActionBar(
+                selectedCount: _selectedIds.length,
+                onSelectAll: _selectAll,
+                onDelete: () => _deleteSelected(context),
+                onMove: () => _moveSelected(context),
+                onCancel: _exitSelectMode,
+              )
+            else ...[
+              // Header with title + add/select buttons
+              _PanelHeader(
+                onAddSession: () => _addSession(context, ref),
+                onAddFolder: () => _createFolder(context, ref, ''),
+              ),
+              // Search bar
+              _SearchBar(
+                value: searchQuery,
+                onChanged: (v) =>
+                    ref.read(sessionSearchProvider.notifier).set(v),
+              ),
+              // Desktop marquee selection is shown inline via row highlights.
+              // Bulk actions available via right-click context menu.
+            ],
+            // Tree view
+            Expanded(
+              child: isEmpty
+                  ? _EmptyState(onAdd: () => _addSession(context, ref))
+                  : SessionTreeView(
+                      tree: tree,
+                      connectedSessionIds: _connectedSessionIds(ref),
+                      connectingSessionIds: _connectingSessionIds(ref),
+                      selectMode: mobile && _selectMode,
+                      selectedIds: _selectedIds,
+                      onToggleSelected: _toggleSelected,
+                      selectedFolderPaths: _selectedFolderPaths,
+                      onToggleFolderSelected: _toggleFolderSelected,
+                      crossMarquee: widget.crossMarquee,
+                      onSessionDoubleTap: widget.onConnect,
+                      onSessionSelected: (id) {
+                        _focusedSessionId = id;
+                        if (!mobile) _focusNode.requestFocus();
+                      },
+                      onSessionContextMenu: (session, position) {
+                        _showContextMenu(context, ref, session, position);
+                      },
+                      onFolderContextMenu: (folderPath, position) {
+                        _showFolderContextMenu(
+                          context,
+                          ref,
+                          folderPath,
+                          position,
+                        );
+                      },
+                      onBackgroundContextMenu: (position) {
+                        _showFolderContextMenu(context, ref, '', position);
+                      },
+                      onSessionMoved: (sessionId, targetFolder) {
+                        ref
+                            .read(sessionProvider.notifier)
+                            .moveSession(sessionId, targetFolder);
+                      },
+                      onFolderMoved: (folderPath, targetParent) {
+                        ref
+                            .read(sessionProvider.notifier)
+                            .moveFolder(folderPath, targetParent);
+                      },
+                      onBulkMoved:
+                          (sessionIds, folderPaths, targetFolder) async {
+                            final notifier = ref.read(sessionProvider.notifier);
+                            if (sessionIds.isNotEmpty) {
+                              await notifier.moveMultiple(
+                                sessionIds,
+                                targetFolder,
+                              );
+                            }
+                            for (final gp in folderPaths) {
+                              await notifier.moveFolder(gp, targetFolder);
+                            }
+                            _clearDesktopSelection();
+                          },
+                      onMarqueeStart: () =>
+                          setState(() => marqueeInProgress = true),
+                      onMarqueeEnd: () =>
+                          setState(() => marqueeInProgress = false),
+                      onMarqueeSelect: (ids, folderPaths) {
+                        setState(() {
+                          _selectedIds
+                            ..clear()
+                            ..addAll(ids);
+                          _selectedFolderPaths
+                            ..clear()
+                            ..addAll(folderPaths);
+                        });
+                      },
+                    ),
+            ),
+            // Footer — only on desktop (mobile shows counts in MobileShell header)
+            if (!mobile) const _SidebarFooter(),
+          ],
         ),
-        // Footer — only on desktop (mobile shows counts in MobileShell header)
-        if (!mobile) const _SidebarFooter(),
-      ],
-    ),
-    ),
+      ),
     );
   }
 
-  Future<void> _handleDialogResult(WidgetRef ref, SessionDialogResult result) async {
+  Future<void> _handleDialogResult(
+    WidgetRef ref,
+    SessionDialogResult result,
+  ) async {
     switch (result) {
       case ConnectOnlyResult(:final config):
         widget.onQuickConnect(config);
@@ -475,32 +494,32 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       position: position,
       items: [
         ContextMenuItem(
-          label: 'Terminal',
+          label: S.of(context).terminal,
           icon: Icons.terminal,
           color: AppTheme.blue,
           onTap: () => widget.onConnect(session),
         ),
         if (widget.onSftpConnect != null)
           ContextMenuItem(
-            label: 'Files',
+            label: S.of(context).files,
             icon: Icons.folder,
             color: AppTheme.yellow,
             onTap: () => widget.onSftpConnect?.call(session),
           ),
         const ContextMenuItem.divider(),
         ContextMenuItem(
-          label: 'Edit Connection',
+          label: S.of(context).editConnection,
           icon: Icons.settings,
           onTap: () => _editSession(context, ref, session),
         ),
         ContextMenuItem(
-          label: 'Duplicate',
+          label: S.of(context).duplicate,
           icon: Icons.copy,
           onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
         ),
         const ContextMenuItem.divider(),
         ContextMenuItem(
-          label: 'Delete',
+          label: S.of(context).delete,
           icon: Icons.delete,
           color: AppTheme.red,
           onTap: () => _confirmDelete(context, ref, session),
@@ -509,8 +528,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
   }
 
-  void _showMobileSessionSheet(BuildContext context, WidgetRef ref, Session session) {
-    final label = session.label.isNotEmpty ? session.label : session.displayName;
+  void _showMobileSessionSheet(
+    BuildContext context,
+    WidgetRef ref,
+    Session session,
+  ) {
+    final label = session.label.isNotEmpty
+        ? session.label
+        : session.displayName;
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -523,7 +548,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Text(
                   label,
-                  style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: AppFonts.xl,
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -534,49 +562,75 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                     session.host,
                     style: TextStyle(
                       fontSize: AppFonts.lg,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
               const AppDivider(),
               ListTile(
                 leading: Icon(Icons.terminal, color: AppTheme.blue),
-                title: const Text('Terminal'),
-                onTap: () { Navigator.pop(ctx); widget.onConnect(session); },
+                title: Text(S.of(ctx).terminal),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onConnect(session);
+                },
               ),
               if (widget.onSftpConnect != null)
                 ListTile(
                   leading: Icon(Icons.folder, color: AppTheme.yellow),
-                  title: const Text('Files'),
-                  onTap: () { Navigator.pop(ctx); widget.onSftpConnect?.call(session); },
+                  title: Text(S.of(ctx).files),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    widget.onSftpConnect?.call(session);
+                  },
                 ),
               const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.settings),
-                title: const Text('Edit Connection'),
-                onTap: () { Navigator.pop(ctx); _editSession(context, ref, session); },
+                title: Text(S.of(ctx).editConnection),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _editSession(context, ref, session);
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.copy),
-                title: const Text('Duplicate'),
-                onTap: () { Navigator.pop(ctx); ref.read(sessionProvider.notifier).duplicate(session.id); },
+                title: Text(S.of(ctx).duplicate),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ref.read(sessionProvider.notifier).duplicate(session.id);
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.drive_file_move),
-                title: const Text('Move to...'),
-                onTap: () { Navigator.pop(ctx); _moveSession(context, ref, session); },
+                title: Text(S.of(ctx).moveTo),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _moveSession(context, ref, session);
+                },
               ),
               const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.delete, color: AppTheme.disconnected),
-                title: const Text('Delete', style: TextStyle(color: AppTheme.disconnected)),
-                onTap: () { Navigator.pop(ctx); _confirmDelete(context, ref, session); },
+                title: Text(
+                  S.of(ctx).delete,
+                  style: const TextStyle(color: AppTheme.disconnected),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _confirmDelete(context, ref, session);
+                },
               ),
               const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.checklist),
-                title: const Text('Select'),
-                onTap: () { Navigator.pop(ctx); enterSelectModeWithSession(session.id); },
+                title: Text(S.of(ctx).select),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  enterSelectModeWithSession(session.id);
+                },
               ),
             ],
           ),
@@ -585,14 +639,18 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
   }
 
-  Future<void> _moveSession(BuildContext context, WidgetRef ref, Session session) async {
+  Future<void> _moveSession(
+    BuildContext context,
+    WidgetRef ref,
+    Session session,
+  ) async {
     final store = ref.read(sessionStoreProvider);
     final allFolders = <String>{'', ...store.folders(), ...store.emptyFolders};
 
     final selected = await AppDialog.show<String>(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Move to Folder',
+        title: S.of(context).moveToFolder,
         scrollable: false,
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
@@ -601,13 +659,13 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             shrinkWrap: true,
             itemCount: allFolders.length,
             itemBuilder: (ctx, index) => _buildMoveFolderTile(
-              ctx, allFolders.elementAt(index), session.folder,
+              ctx,
+              allFolders.elementAt(index),
+              session.folder,
             ),
           ),
         ),
-        actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop()),
-        ],
+        actions: [AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop())],
       ),
     );
 
@@ -616,7 +674,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
-  Widget _buildMoveFolderTile(BuildContext context, String folder, String currentFolder) {
+  Widget _buildMoveFolderTile(
+    BuildContext context,
+    String folder,
+    String currentFolder,
+  ) {
     final isCurrent = folder == currentFolder;
     return ListTile(
       leading: Icon(
@@ -624,7 +686,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         color: isCurrent ? Theme.of(context).colorScheme.primary : null,
       ),
       title: Text(
-        folder.isEmpty ? '/ (root)' : folder,
+        folder.isEmpty ? S.of(context).rootFolder : folder,
         style: TextStyle(fontWeight: isCurrent ? FontWeight.bold : null),
       ),
       trailing: isCurrent ? const Icon(Icons.check, size: 18) : null,
@@ -632,11 +694,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
   }
 
-  Future<void> _editSession(BuildContext context, WidgetRef ref, Session session) async {
-    final result = await SessionEditDialog.show(
-      context,
-      session: session,
-    );
+  Future<void> _editSession(
+    BuildContext context,
+    WidgetRef ref,
+    Session session,
+  ) async {
+    final result = await SessionEditDialog.show(context, session: session);
     if (result == null) return;
     if (result is SaveResult) {
       await ref.read(sessionProvider.notifier).update(result.session);
@@ -659,24 +722,24 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       position: position,
       items: [
         ContextMenuItem(
-          label: _kNewConnection,
+          label: S.of(context).newConnection,
           icon: Icons.add,
           onTap: () => _addSessionInFolder(context, ref, folderPath),
         ),
         ContextMenuItem(
-          label: _kNewFolder,
+          label: S.of(context).newFolder,
           icon: Icons.create_new_folder,
           onTap: () => _createFolder(context, ref, folderPath),
         ),
         if (folderPath.isNotEmpty) ...[
           const ContextMenuItem.divider(),
           ContextMenuItem(
-            label: _kRenameFolder,
+            label: S.of(context).renameFolder,
             icon: Icons.drive_file_rename_outline,
             onTap: () => _renameFolder(context, ref, folderPath),
           ),
           ContextMenuItem(
-            label: _kDeleteFolder,
+            label: S.of(context).deleteFolder,
             icon: Icons.delete,
             color: AppTheme.red,
             onTap: () => _confirmDeleteFolder(context, ref, folderPath),
@@ -686,7 +749,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
   }
 
-  void _showMobileFolderSheet(BuildContext context, WidgetRef ref, String folderPath) {
+  void _showMobileFolderSheet(
+    BuildContext context,
+    WidgetRef ref,
+    String folderPath,
+  ) {
     final folderName = folderPath.isEmpty ? 'Root' : folderPath.split('/').last;
     showModalBottomSheet(
       context: context,
@@ -700,38 +767,62 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Text(
                   folderName,
-                  style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: AppFonts.xl,
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.add),
-                title: const Text(_kNewConnection),
-                onTap: () { Navigator.pop(ctx); _addSessionInFolder(context, ref, folderPath); },
+                title: Text(S.of(ctx).newConnection),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _addSessionInFolder(context, ref, folderPath);
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.create_new_folder),
-                title: const Text('New Folder'),
-                onTap: () { Navigator.pop(ctx); _createFolder(context, ref, folderPath); },
+                title: Text(S.of(ctx).newFolder),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _createFolder(context, ref, folderPath);
+                },
               ),
               if (folderPath.isNotEmpty) ...[
                 const AppDivider(),
                 ListTile(
                   leading: const Icon(Icons.drive_file_rename_outline),
-                  title: const Text(_kRenameFolder),
-                  onTap: () { Navigator.pop(ctx); _renameFolder(context, ref, folderPath); },
+                  title: Text(S.of(ctx).renameFolder),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _renameFolder(context, ref, folderPath);
+                  },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete, color: AppTheme.disconnected),
-                  title: const Text(_kDeleteFolder, style: TextStyle(color: AppTheme.disconnected)),
-                  onTap: () { Navigator.pop(ctx); _confirmDeleteFolder(context, ref, folderPath); },
+                  leading: const Icon(
+                    Icons.delete,
+                    color: AppTheme.disconnected,
+                  ),
+                  title: Text(
+                    S.of(ctx).deleteFolder,
+                    style: const TextStyle(color: AppTheme.disconnected),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _confirmDeleteFolder(context, ref, folderPath);
+                  },
                 ),
                 const AppDivider(),
                 ListTile(
                   leading: const Icon(Icons.checklist),
-                  title: const Text('Select'),
-                  onTap: () { Navigator.pop(ctx); enterSelectModeWithFolder(folderPath); },
+                  title: Text(S.of(ctx).select),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    enterSelectModeWithFolder(folderPath);
+                  },
                 ),
               ],
             ],
@@ -741,7 +832,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
   }
 
-  Future<void> _addSessionInFolder(BuildContext context, WidgetRef ref, String folderPath) async {
+  Future<void> _addSessionInFolder(
+    BuildContext context,
+    WidgetRef ref,
+    String folderPath,
+  ) async {
     final result = await SessionEditDialog.show(
       context,
       defaultFolder: folderPath,
@@ -750,12 +845,16 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     await _handleDialogResult(ref, result);
   }
 
-  Future<void> _createFolder(BuildContext context, WidgetRef ref, String parentFolder) async {
+  Future<void> _createFolder(
+    BuildContext context,
+    WidgetRef ref,
+    String parentFolder,
+  ) async {
     final existingFolders = _collectAllFolderPaths(ref);
 
     final result = await _showFolderNameDialog(
       context,
-      title: _kNewFolder,
+      title: S.of(context).newFolder,
       confirmLabel: 'Create',
       existingFolders: existingFolders,
       parentPath: parentFolder,
@@ -763,21 +862,29 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     if (result == null || result.trim().isEmpty) return;
 
-    final newFolder = parentFolder.isEmpty ? result.trim() : '$parentFolder/${result.trim()}';
+    final newFolder = parentFolder.isEmpty
+        ? result.trim()
+        : '$parentFolder/${result.trim()}';
     await ref.read(sessionProvider.notifier).addEmptyFolder(newFolder);
   }
 
-  Future<void> _renameFolder(BuildContext context, WidgetRef ref, String folderPath) async {
+  Future<void> _renameFolder(
+    BuildContext context,
+    WidgetRef ref,
+    String folderPath,
+  ) async {
     // Extract the folder's own name (last segment)
     final parts = folderPath.split('/');
     final currentName = parts.last;
-    final parentPath = parts.length > 1 ? parts.sublist(0, parts.length - 1).join('/') : '';
+    final parentPath = parts.length > 1
+        ? parts.sublist(0, parts.length - 1).join('/')
+        : '';
 
     final existingFolders = _collectAllFolderPaths(ref);
 
     final result = await _showFolderNameDialog(
       context,
-      title: _kRenameFolder,
+      title: S.of(context).renameFolder,
       confirmLabel: 'Rename',
       initialValue: currentName,
       existingFolders: existingFolders,
@@ -785,9 +892,15 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       currentName: currentName,
     );
 
-    if (result == null || result.trim().isEmpty || result.trim() == currentName) return;
+    if (result == null ||
+        result.trim().isEmpty ||
+        result.trim() == currentName) {
+      return;
+    }
 
-    final newPath = parentPath.isEmpty ? result.trim() : '$parentPath/${result.trim()}';
+    final newPath = parentPath.isEmpty
+        ? result.trim()
+        : '$parentPath/${result.trim()}';
     await ref.read(sessionProvider.notifier).renameFolder(folderPath, newPath);
   }
 
@@ -833,15 +946,20 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               errorText: errorText,
               onChanged: (_) {
                 final name = nameCtrl.text.trim();
-                final fullPath = parentPath.isEmpty ? name : '$parentPath/$name';
-                final isDuplicate = name.isNotEmpty
-                    && name != currentName
-                    && existingFolders.contains(fullPath);
+                final fullPath = parentPath.isEmpty
+                    ? name
+                    : '$parentPath/$name';
+                final isDuplicate =
+                    name.isNotEmpty &&
+                    name != currentName &&
+                    existingFolders.contains(fullPath);
                 setDialogState(() {
-                  errorText = isDuplicate ? 'Folder "$name" already exists' : null;
+                  errorText = isDuplicate
+                      ? 'Folder "$name" already exists'
+                      : null;
                 });
               },
-              hintText: 'e.g. Production',
+              hintText: S.of(context).hintFolderExample,
             );
           },
         ),
@@ -884,11 +1002,17 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+              hintStyle: AppFonts.mono(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgFaint,
+              ),
               filled: true,
               fillColor: AppTheme.bg3,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
               border: OutlineInputBorder(
                 borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.borderLight),
@@ -931,24 +1055,31 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
   }
 
-  Future<void> _confirmDeleteFolder(BuildContext context, WidgetRef ref, String folderPath) async {
+  Future<void> _confirmDeleteFolder(
+    BuildContext context,
+    WidgetRef ref,
+    String folderPath,
+  ) async {
     final store = ref.read(sessionStoreProvider);
     final sessionCount = store.countSessionsInFolder(folderPath);
     final folderName = folderPath.split('/').last;
 
     final confirmed = await ConfirmDialog.show(
       context,
-      title: _kDeleteFolder,
+      title: S.of(context).deleteFolder,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Delete folder "$folderName"?'),
+          Text(S.of(context).deleteFolderConfirm(folderName)),
           if (sessionCount > 0) ...[
             const SizedBox(height: 8),
             Text(
-              'This will also delete $sessionCount session(s) inside.',
-              style: TextStyle(color: AppTheme.disconnected, fontSize: AppFonts.lg),
+              S.of(context).willDeleteSessionsInside(sessionCount),
+              style: TextStyle(
+                color: AppTheme.disconnected,
+                fontSize: AppFonts.lg,
+              ),
             ),
           ],
         ],
@@ -959,26 +1090,28 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Session session) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Session session,
+  ) async {
     final confirmed = await ConfirmDialog.show(
       context,
-      title: 'Delete Session',
-      content: Text('Delete "${session.label.isNotEmpty ? session.label : session.displayName}"?'),
+      title: S.of(context).deleteSession,
+      content: Text(
+        'Delete "${session.label.isNotEmpty ? session.label : session.displayName}"?',
+      ),
     );
     if (confirmed) {
       await ref.read(sessionProvider.notifier).delete(session.id);
     }
   }
-
 }
 
 class _PanelHeader extends StatelessWidget {
   final VoidCallback onAddSession;
   final VoidCallback onAddFolder;
-  const _PanelHeader({
-    required this.onAddSession,
-    required this.onAddFolder,
-  });
+  const _PanelHeader({required this.onAddSession, required this.onAddFolder});
 
   @override
   Widget build(BuildContext context) {
@@ -993,7 +1126,7 @@ class _PanelHeader extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              'SESSIONS',
+              S.of(context).sessionsHeader,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: 'Inter',
@@ -1007,14 +1140,14 @@ class _PanelHeader extends StatelessWidget {
           AppIconButton(
             icon: Icons.create_new_folder,
             onTap: onAddFolder,
-            tooltip: _kNewFolder,
+            tooltip: S.of(context).newFolder,
             size: 14,
             boxSize: 24,
           ),
           AppIconButton(
             icon: Icons.add,
             onTap: onAddSession,
-            tooltip: _kNewConnection,
+            tooltip: S.of(context).newConnection,
             size: 16,
             boxSize: 24,
           ),
@@ -1052,34 +1185,41 @@ class _SelectActionBar extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 8),
-          Text(
-            '$selectedCount selected',
-            style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+          Flexible(
+            child: Text(
+              S.of(context).nSelectedCount(selectedCount),
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
+            ),
           ),
           const Spacer(),
           AppIconButton(
             icon: Icons.select_all,
             onTap: onSelectAll,
-            tooltip: 'Select All',
+            tooltip: S.of(context).selectAll,
             size: 18,
           ),
           AppIconButton(
             icon: Icons.drive_file_move,
             onTap: selectedCount > 0 ? onMove : null,
-            tooltip: 'Move to...',
+            tooltip: S.of(context).moveTo,
             size: 18,
           ),
           AppIconButton(
             icon: Icons.delete,
             onTap: selectedCount > 0 ? onDelete : null,
-            tooltip: 'Delete',
+            tooltip: S.of(context).delete,
             size: 18,
             color: selectedCount > 0 ? AppTheme.disconnected : null,
           ),
           AppIconButton(
             icon: Icons.close,
             onTap: onCancel,
-            tooltip: 'Cancel',
+            tooltip: S.of(context).cancel,
             size: 18,
           ),
         ],
@@ -1099,7 +1239,7 @@ class _SearchBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(8),
       child: AppBorderedBox(
-        height: 28,
+        height: AppTheme.controlHeightSm,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         color: AppTheme.bg3,
         child: Row(
@@ -1109,8 +1249,11 @@ class _SearchBar extends StatelessWidget {
             Expanded(
               child: TextField(
                 decoration: InputDecoration(
-                  hintText: 'Filter...',
-                  hintStyle: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+                  hintText: S.of(context).filter,
+                  hintStyle: AppFonts.mono(
+                    fontSize: AppFonts.sm,
+                    color: AppTheme.fgFaint,
+                  ),
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
@@ -1148,21 +1291,28 @@ class _EmptyState extends StatelessWidget {
           Icon(
             Icons.dns_outlined,
             size: 40,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 8),
           Text(
-            'No saved sessions',
+            S.of(context).noSavedSessions,
             style: TextStyle(
               fontSize: AppFonts.md,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.4),
             ),
           ),
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: onAdd,
             icon: const Icon(Icons.add, size: 16),
-            label: Text('Add Session', style: TextStyle(fontSize: AppFonts.md)),
+            label: Text(
+              S.of(context).addSession,
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
           ),
         ],
       ),
@@ -1204,24 +1354,23 @@ class _SidebarFooter extends ConsumerWidget {
           StatusIndicator(
             icon: Icons.dns_outlined,
             count: savedCount,
-            tooltip: 'Saved sessions',
+            tooltip: S.of(context).savedSessions,
           ),
           const Spacer(),
           StatusIndicator(
             icon: Icons.wifi,
             count: activeCount,
-            tooltip: 'Active connections',
+            tooltip: S.of(context).activeConnections,
             iconColor: connectionIconColor,
           ),
           const SizedBox(width: 10),
           StatusIndicator(
             icon: Icons.tab_outlined,
             count: tabCount,
-            tooltip: 'Open tabs',
+            tooltip: S.of(context).openTabs,
           ),
         ],
       ),
     );
   }
 }
-

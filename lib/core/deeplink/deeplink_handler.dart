@@ -54,7 +54,8 @@ class DeepLinkHandler {
     // Listen for links while app is running (warm start)
     _sub = _appLinks.uriLinkStream.listen(
       handleUri,
-      onError: (e) => AppLogger.instance.log('Stream error: $e', name: 'DeepLink'),
+      onError: (e) =>
+          AppLogger.instance.log('Stream error: $e', name: 'DeepLink'),
     );
   }
 
@@ -77,7 +78,10 @@ class DeepLinkHandler {
     if (_lastProcessedUri == uri &&
         _lastProcessedTime != null &&
         now.difference(_lastProcessedTime!) < _deduplicationWindow) {
-      AppLogger.instance.log('Skipping duplicate: ${_sanitizeUri(uri)}', name: 'DeepLink');
+      AppLogger.instance.log(
+        'Skipping duplicate: ${_sanitizeUri(uri)}',
+        name: 'DeepLink',
+      );
       return;
     }
     _lastProcessedUri = uri;
@@ -90,7 +94,10 @@ class DeepLinkHandler {
     } else if (uri.scheme == 'file' || uri.scheme == 'content') {
       handleFileUri(uri);
     } else {
-      AppLogger.instance.log('Unhandled scheme "${uri.scheme}"', name: 'DeepLink');
+      AppLogger.instance.log(
+        'Unhandled scheme "${uri.scheme}"',
+        name: 'DeepLink',
+      );
     }
   }
 
@@ -100,12 +107,18 @@ class DeepLinkHandler {
       if (config != null) {
         onConnect?.call(config);
       } else {
-        AppLogger.instance.log('Invalid connect params — host and user required', name: 'DeepLink');
+        AppLogger.instance.log(
+          'Invalid connect params — host and user required',
+          name: 'DeepLink',
+        );
       }
     } else if (uri.host == 'import') {
       final data = decodeImportUri(uri);
       if (data != null) {
-        AppLogger.instance.log('QR import: ${data.sessions.length} session(s)', name: 'DeepLink');
+        AppLogger.instance.log(
+          'QR import: ${data.sessions.length} session(s)',
+          name: 'DeepLink',
+        );
         onQrImport?.call(data);
       } else {
         AppLogger.instance.log('Invalid import data', name: 'DeepLink');
@@ -119,7 +132,9 @@ class DeepLinkHandler {
     final path = uri.path.toLowerCase();
     if (path.endsWith('.lfs')) {
       onLfsFileOpened?.call(uri.toFilePath());
-    } else if (path.endsWith('.pem') || path.endsWith('.key') || path.endsWith('.pub')) {
+    } else if (path.endsWith('.pem') ||
+        path.endsWith('.key') ||
+        path.endsWith('.pub')) {
       onKeyFileOpened?.call(uri.toFilePath());
     } else {
       AppLogger.instance.log('Unsupported file type "$path"', name: 'DeepLink');
@@ -138,7 +153,10 @@ class DeepLinkHandler {
     }
 
     // Validate host: no path separators, null bytes, reasonable length
-    if (host.length > 253 || host.contains('/') || host.contains('\\') || host.contains('\x00')) {
+    if (host.length > 253 ||
+        host.contains('/') ||
+        host.contains('\\') ||
+        host.contains('\x00')) {
       AppLogger.instance.log('Invalid host', name: 'DeepLink');
       return null;
     }

@@ -12,8 +12,7 @@ void main() {
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('logger_test_');
 
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (call) async {
         if (call.method == 'getApplicationSupportDirectory') {
@@ -27,8 +26,7 @@ void main() {
   tearDown(() async {
     await AppLogger.instance.setEnabled(false);
     await AppLogger.instance.dispose();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       null,
     );
@@ -60,8 +58,7 @@ void main() {
     });
 
     test('log does not crash with error parameter', () {
-      AppLogger.instance
-          .log('error msg', name: 'Test', error: Exception('boom'));
+      AppLogger.instance.log('error msg', name: 'Test', error: Exception('boom'));
     });
 
     test('setEnabled(true) without init does not crash', () async {
@@ -86,8 +83,7 @@ void main() {
     test('init() resolves logPath', () async {
       await AppLogger.instance.init();
       expect(AppLogger.instance.logPath, isNotNull);
-      expect(AppLogger.instance.logPath!,
-          contains('letsflutssh.log'));
+      expect(AppLogger.instance.logPath!, contains('letsflutssh.log'));
     });
 
     test('setEnabled(true) creates log file', () async {
@@ -115,8 +111,7 @@ void main() {
       await AppLogger.instance.init();
       await AppLogger.instance.setEnabled(true);
 
-      AppLogger.instance
-          .log('something broke', name: 'Err', error: 'DetailedError');
+      AppLogger.instance.log('something broke', name: 'Err', error: 'DetailedError');
 
       final content = await AppLogger.instance.readLog();
       expect(content, contains('[Err] something broke'));

@@ -14,6 +14,7 @@ import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/app_dialog.dart';
 import 'package:letsflutssh/utils/platform.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 /// A SessionNotifier subclass that starts with pre-populated sessions.
 class _PrePopulatedSessionNotifier extends SessionNotifier {
@@ -33,11 +34,9 @@ class FakeSessionStore extends SessionStore {
   final List<Session> _fakeSessions;
   final Set<String> _fakeEmptyFolders;
 
-  FakeSessionStore({
-    List<Session>? sessions,
-    Set<String>? emptyFolders,
-  })  : _fakeSessions = sessions ?? [],
-        _fakeEmptyFolders = emptyFolders ?? {};
+  FakeSessionStore({List<Session>? sessions, Set<String>? emptyFolders})
+    : _fakeSessions = sessions ?? [],
+      _fakeEmptyFolders = emptyFolders ?? {};
 
   @override
   List<Session> get sessions => List.unmodifiable(_fakeSessions);
@@ -47,21 +46,14 @@ class FakeSessionStore extends SessionStore {
 
   @override
   List<String> folders() {
-    final g = _fakeSessions
-        .map((s) => s.folder)
-        .where((g) => g.isNotEmpty)
-        .toSet()
-        .toList();
+    final g = _fakeSessions.map((s) => s.folder).where((g) => g.isNotEmpty).toSet().toList();
     g.sort();
     return g;
   }
 
   @override
   int countSessionsInFolder(String groupPath) {
-    return _fakeSessions
-        .where(
-            (s) => s.folder == groupPath || s.folder.startsWith('$groupPath/'))
-        .length;
+    return _fakeSessions.where((s) => s.folder == groupPath || s.folder.startsWith('$groupPath/')).length;
   }
 
   @override
@@ -72,7 +64,12 @@ class FakeSessionStore extends SessionStore {
   @override
   Future<Session> duplicateSession(String id) async {
     final original = _fakeSessions.firstWhere((s) => s.id == id);
-    final copy = Session(label: '${original.label} (copy)', folder: original.folder, server: ServerAddress(host: original.host, port: original.port, user: original.user), auth: SessionAuth(authType: original.authType));
+    final copy = Session(
+      label: '${original.label} (copy)',
+      folder: original.folder,
+      server: ServerAddress(host: original.host, port: original.port, user: original.user),
+      auth: SessionAuth(authType: original.authType),
+    );
     _fakeSessions.add(copy);
     return copy;
   }
@@ -90,8 +87,7 @@ class FakeSessionStore extends SessionStore {
 
   @override
   Future<void> deleteFolder(String groupPath) async {
-    _fakeSessions.removeWhere(
-        (s) => s.folder == groupPath || s.folder.startsWith('$groupPath/'));
+    _fakeSessions.removeWhere((s) => s.folder == groupPath || s.folder.startsWith('$groupPath/'));
     _fakeEmptyFolders.remove(groupPath);
   }
 
@@ -106,9 +102,19 @@ class FakeSessionStore extends SessionStore {
     for (var i = 0; i < _fakeSessions.length; i++) {
       final s = _fakeSessions[i];
       if (s.folder == oldPath) {
-        _fakeSessions[i] = Session(id: s.id, label: s.label, folder: newPath, server: ServerAddress(host: s.host, port: s.port, user: s.user));
+        _fakeSessions[i] = Session(
+          id: s.id,
+          label: s.label,
+          folder: newPath,
+          server: ServerAddress(host: s.host, port: s.port, user: s.user),
+        );
       } else if (s.folder.startsWith('$oldPath/')) {
-        _fakeSessions[i] = Session(id: s.id, label: s.label, folder: s.folder.replaceFirst(oldPath, newPath), server: ServerAddress(host: s.host, port: s.port, user: s.user));
+        _fakeSessions[i] = Session(
+          id: s.id,
+          label: s.label,
+          folder: s.folder.replaceFirst(oldPath, newPath),
+          server: ServerAddress(host: s.host, port: s.port, user: s.user),
+        );
       }
     }
     _fakeEmptyFolders.remove(oldPath);
@@ -134,7 +140,12 @@ class FakeSessionStore extends SessionStore {
     final idx = _fakeSessions.indexWhere((s) => s.id == sessionId);
     if (idx >= 0) {
       final s = _fakeSessions[idx];
-      _fakeSessions[idx] = Session(id: s.id, label: s.label, folder: newFolder, server: ServerAddress(host: s.host, port: s.port, user: s.user));
+      _fakeSessions[idx] = Session(
+        id: s.id,
+        label: s.label,
+        folder: newFolder,
+        server: ServerAddress(host: s.host, port: s.port, user: s.user),
+      );
     }
   }
 
@@ -153,7 +164,12 @@ class FakeSessionStore extends SessionStore {
     for (var i = 0; i < _fakeSessions.length; i++) {
       if (ids.contains(_fakeSessions[i].id)) {
         final s = _fakeSessions[i];
-        _fakeSessions[i] = Session(id: s.id, label: s.label, folder: newFolder, server: ServerAddress(host: s.host, port: s.port, user: s.user));
+        _fakeSessions[i] = Session(
+          id: s.id,
+          label: s.label,
+          folder: newFolder,
+          server: ServerAddress(host: s.host, port: s.port, user: s.user),
+        );
       }
     }
   }
@@ -162,7 +178,11 @@ class FakeSessionStore extends SessionStore {
   Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async => {};
 
   @override
-  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyFolders, [Map<String, CredentialData> credentials = const {}]) async {
+  Future<void> restoreSnapshot(
+    List<Session> sessions,
+    Set<String> emptyFolders, [
+    Map<String, CredentialData> credentials = const {},
+  ]) async {
     _fakeSessions
       ..clear()
       ..addAll(sessions);
@@ -177,9 +197,27 @@ void main() {
 
   setUp(() {
     testSessions = [
-      Session(id: '1', label: 'web1', folder: 'Production', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
-      Session(id: '2', label: 'db1', folder: 'Production/DB', server: const ServerAddress(host: '10.0.1.1', user: 'admin'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
-      Session(id: '3', label: 'staging', folder: '', server: const ServerAddress(host: '192.168.1.1', user: 'deploy'), auth: const SessionAuth(authType: AuthType.password, password: 'pass')),
+      Session(
+        id: '1',
+        label: 'web1',
+        folder: 'Production',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(authType: AuthType.password, password: 'pass'),
+      ),
+      Session(
+        id: '2',
+        label: 'db1',
+        folder: 'Production/DB',
+        server: const ServerAddress(host: '10.0.1.1', user: 'admin'),
+        auth: const SessionAuth(authType: AuthType.password, password: 'pass'),
+      ),
+      Session(
+        id: '3',
+        label: 'staging',
+        folder: '',
+        server: const ServerAddress(host: '192.168.1.1', user: 'deploy'),
+        auth: const SessionAuth(authType: AuthType.password, password: 'pass'),
+      ),
     ];
   });
 
@@ -191,20 +229,19 @@ void main() {
     void Function(Session)? onSftpConnect,
   }) {
     final sessionList = sessions ?? testSessions;
-    final store =
-        FakeSessionStore(sessions: sessionList, emptyFolders: emptyFolders);
-    final tree = SessionTree.build(sessionList,
-        emptyFolders: emptyFolders ?? const {});
+    final store = FakeSessionStore(sessions: sessionList, emptyFolders: emptyFolders);
+    final tree = SessionTree.build(sessionList, emptyFolders: emptyFolders ?? const {});
 
     return ProviderScope(
       overrides: [
         sessionStoreProvider.overrideWithValue(store),
-        sessionProvider.overrideWith(() =>
-            _PrePopulatedSessionNotifier(sessionList)),
+        sessionProvider.overrideWith(() => _PrePopulatedSessionNotifier(sessionList)),
         sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
         filteredSessionTreeProvider.overrideWithValue(tree),
       ],
       child: MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
         theme: AppTheme.dark(),
         home: Scaffold(
           body: SizedBox(
@@ -293,14 +330,25 @@ void main() {
     });
 
     testWidgets('renders terminal icon for key auth session', (tester) async {
-      final keySession = Session(id: '4', label: 'key-server', folder: '', server: const ServerAddress(host: '10.0.0.5', user: 'ubuntu'), auth: const SessionAuth(authType: AuthType.key));
+      final keySession = Session(
+        id: '4',
+        label: 'key-server',
+        folder: '',
+        server: const ServerAddress(host: '10.0.0.5', user: 'ubuntu'),
+        auth: const SessionAuth(authType: AuthType.key),
+      );
       await tester.pumpWidget(buildApp(sessions: [keySession]));
       expect(find.byIcon(Icons.terminal), findsWidgets);
     });
 
-    testWidgets('renders terminal icon for keyWithPassword auth session',
-        (tester) async {
-      final keyPassSession = Session(id: '5', label: 'key-pass-server', folder: '', server: const ServerAddress(host: '10.0.0.6', user: 'user'), auth: const SessionAuth(authType: AuthType.keyWithPassword));
+    testWidgets('renders terminal icon for keyWithPassword auth session', (tester) async {
+      final keyPassSession = Session(
+        id: '5',
+        label: 'key-pass-server',
+        folder: '',
+        server: const ServerAddress(host: '10.0.0.6', user: 'user'),
+        auth: const SessionAuth(authType: AuthType.keyWithPassword),
+      );
       await tester.pumpWidget(buildApp(sessions: [keyPassSession]));
       expect(find.byIcon(Icons.terminal), findsWidgets);
     });
@@ -321,11 +369,8 @@ void main() {
       expect(find.byIcon(Icons.add), findsWidgets);
     });
 
-    testWidgets('shows tree view when empty folders exist without sessions',
-        (tester) async {
-      await tester.pumpWidget(
-        buildApp(sessions: [], emptyFolders: {'Staging'}),
-      );
+    testWidgets('shows tree view when empty folders exist without sessions', (tester) async {
+      await tester.pumpWidget(buildApp(sessions: [], emptyFolders: {'Staging'}));
       // Should show the folder, not the empty state
       expect(find.text('No saved sessions'), findsNothing);
       expect(find.text('Staging'), findsOneWidget);
@@ -333,8 +378,7 @@ void main() {
   });
 
   group('SessionPanel — search bar', () {
-    testWidgets('search bar has close button when text present',
-        (tester) async {
+    testWidgets('search bar has close button when text present', (tester) async {
       await tester.pumpWidget(buildApp());
 
       final searchField = find.byType(TextField);
@@ -366,10 +410,7 @@ void main() {
 
       // Simulate right-click (secondary tap up)
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -383,17 +424,13 @@ void main() {
       expect(find.text('Delete'), findsOneWidget);
     });
 
-    testWidgets('context menu without sftp callback hides SFTP item',
-        (tester) async {
+    testWidgets('context menu without sftp callback hides SFTP item', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: null));
       await tester.pumpAndSettle();
 
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -405,19 +442,13 @@ void main() {
 
     testWidgets('SSH menu action calls onConnect', (tester) async {
       Session? connected;
-      await tester.pumpWidget(buildApp(
-        onConnect: (s) => connected = s,
-        onSftpConnect: (_) {},
-      ));
+      await tester.pumpWidget(buildApp(onConnect: (s) => connected = s, onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
       // Right-click on staging session
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -433,17 +464,12 @@ void main() {
 
     testWidgets('SFTP menu action calls onSftpConnect', (tester) async {
       Session? sftpConnected;
-      await tester.pumpWidget(buildApp(
-        onSftpConnect: (s) => sftpConnected = s,
-      ));
+      await tester.pumpWidget(buildApp(onSftpConnect: (s) => sftpConnected = s));
       await tester.pumpAndSettle();
 
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -462,10 +488,7 @@ void main() {
 
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -485,10 +508,7 @@ void main() {
 
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -507,8 +527,7 @@ void main() {
   });
 
   group('SessionPanel — folder context menu', () {
-    testWidgets('right-click on folder shows folder context menu',
-        (tester) async {
+    testWidgets('right-click on folder shows folder context menu', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -516,10 +535,7 @@ void main() {
       final folderText = find.text('Production');
       expect(folderText, findsOneWidget);
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -548,8 +564,7 @@ void main() {
   });
 
   group('SessionPanel — New Folder dialog', () {
-    testWidgets('New Folder button in header opens folder name dialog',
-        (tester) async {
+    testWidgets('New Folder button in header opens folder name dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -603,8 +618,7 @@ void main() {
       expect(find.text('Folder "Production" already exists'), findsOneWidget);
     });
 
-    testWidgets('folder name dialog shows error on duplicate name',
-        (tester) async {
+    testWidgets('folder name dialog shows error on duplicate name', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -619,8 +633,7 @@ void main() {
       expect(find.text('Folder "Production" already exists'), findsOneWidget);
     });
 
-    testWidgets('folder name dialog has no error for new name',
-        (tester) async {
+    testWidgets('folder name dialog has no error for new name', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -637,18 +650,14 @@ void main() {
   });
 
   group('SessionPanel — Delete folder confirmation', () {
-    testWidgets('Delete Folder from folder context menu shows confirmation',
-        (tester) async {
+    testWidgets('Delete Folder from folder context menu shows confirmation', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       // Right-click on Production folder
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -659,18 +668,13 @@ void main() {
 
       expect(find.text('Delete Folder'), findsWidgets);
       expect(find.textContaining('Delete folder "Production"?'), findsOneWidget);
-      expect(
-          find.textContaining('This will also delete 2 session(s) inside.'),
-          findsOneWidget);
+      expect(find.textContaining('This will also delete 2 session(s) inside.'), findsOneWidget);
     });
   });
 
   group('SessionPanel — empty folders', () {
     testWidgets('renders empty folders', (tester) async {
-      await tester.pumpWidget(buildApp(
-        sessions: [],
-        emptyFolders: {'EmptyFolder'},
-      ));
+      await tester.pumpWidget(buildApp(sessions: [], emptyFolders: {'EmptyFolder'}));
       // With sessions empty, the empty state is shown. But with
       // filteredSessionTreeProvider override, we need to override the tree too.
       // Since buildApp already handles this, we just check the tree renders.
@@ -683,12 +687,14 @@ void main() {
 
     testWidgets('renders empty folder alongside sessions', (tester) async {
       final sessions = [
-        Session(id: '1', label: 'web1', folder: '', server: const ServerAddress(host: '10.0.0.1', user: 'root')),
+        Session(
+          id: '1',
+          label: 'web1',
+          folder: '',
+          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
       ];
-      await tester.pumpWidget(buildApp(
-        sessions: sessions,
-        emptyFolders: {'EmptyFolder'},
-      ));
+      await tester.pumpWidget(buildApp(sessions: sessions, emptyFolders: {'EmptyFolder'}));
       await tester.pumpAndSettle();
 
       expect(find.text('web1'), findsOneWidget);
@@ -699,9 +705,7 @@ void main() {
   group('SessionPanel — double tap', () {
     testWidgets('double-tap on session calls onConnect', (tester) async {
       Session? connected;
-      await tester.pumpWidget(buildApp(
-        onConnect: (s) => connected = s,
-      ));
+      await tester.pumpWidget(buildApp(onConnect: (s) => connected = s));
       await tester.pumpAndSettle();
 
       // Find the staging session and double-tap
@@ -717,9 +721,7 @@ void main() {
 
   group('SessionPanel — with sftp connect callback', () {
     testWidgets('renders with sftp connect callback', (tester) async {
-      await tester.pumpWidget(buildApp(
-        onSftpConnect: (_) {},
-      ));
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       expect(find.text('SESSIONS'), findsOneWidget);
     });
   });
@@ -732,10 +734,7 @@ void main() {
       // Right-click on staging
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -757,10 +756,7 @@ void main() {
 
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -782,10 +778,7 @@ void main() {
 
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -804,17 +797,13 @@ void main() {
   });
 
   group('SessionPanel — Rename folder', () {
-    testWidgets('Rename from folder context menu opens rename dialog',
-        (tester) async {
+    testWidgets('Rename from folder context menu opens rename dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -833,17 +822,13 @@ void main() {
   });
 
   group('SessionPanel — New Session from folder context', () {
-    testWidgets('New Session from folder context opens edit dialog',
-        (tester) async {
+    testWidgets('New Session from folder context opens edit dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -859,17 +844,13 @@ void main() {
   });
 
   group('SessionPanel — Edit action', () {
-    testWidgets('Edit from context menu opens session edit dialog',
-        (tester) async {
+    testWidgets('Edit from context menu opens session edit dialog', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -938,10 +919,7 @@ void main() {
       // exercises the _confirmDeleteFolder path with session count.
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1011,10 +989,7 @@ void main() {
       // Right-click on Production group
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1038,10 +1013,7 @@ void main() {
       // Right-click on Production group
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1090,19 +1062,13 @@ void main() {
 
   group('SessionPanel — move session dialog', () {
     testWidgets('Move context menu opens Move to Folder dialog', (tester) async {
-      await tester.pumpWidget(buildApp(
-        emptyFolders: {'Archive'},
-        onSftpConnect: (_) {},
-      ));
+      await tester.pumpWidget(buildApp(emptyFolders: {'Archive'}, onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
       // Right-click on session to open context menu
       final session = find.text('web1');
       expect(session, findsOneWidget);
-      await tester.tapAt(
-        tester.getCenter(session),
-        buttons: kSecondaryMouseButton,
-      );
+      await tester.tapAt(tester.getCenter(session), buttons: kSecondaryMouseButton);
       await tester.pumpAndSettle();
 
       // Tap Move
@@ -1123,18 +1089,12 @@ void main() {
     });
 
     testWidgets('Move dialog — selecting a folder moves session', (tester) async {
-      await tester.pumpWidget(buildApp(
-        emptyFolders: {'Archive'},
-        onSftpConnect: (_) {},
-      ));
+      await tester.pumpWidget(buildApp(emptyFolders: {'Archive'}, onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
       // Right-click on session
       final session = find.text('web1');
-      await tester.tapAt(
-        tester.getCenter(session),
-        buttons: kSecondaryMouseButton,
-      );
+      await tester.tapAt(tester.getCenter(session), buttons: kSecondaryMouseButton);
       await tester.pumpAndSettle();
 
       final moveItem = find.text('Move');
@@ -1162,10 +1122,7 @@ void main() {
       // Right-click on empty area (background context menu)
       final panel = find.byType(SessionPanel);
       final panelBox = tester.getRect(panel);
-      await tester.tapAt(
-        Offset(panelBox.center.dx, panelBox.bottom - 20),
-        buttons: kSecondaryMouseButton,
-      );
+      await tester.tapAt(Offset(panelBox.center.dx, panelBox.bottom - 20), buttons: kSecondaryMouseButton);
       await tester.pumpAndSettle();
 
       // Delete All Sessions should NOT be in the menu
@@ -1195,10 +1152,7 @@ void main() {
 
     testWidgets('Add Session with Connect-only calls onQuickConnect', (tester) async {
       SSHConfig? quickConnected;
-      await tester.pumpWidget(buildApp(
-        sessions: [],
-        onQuickConnect: (config) => quickConnected = config,
-      ));
+      await tester.pumpWidget(buildApp(sessions: [], onQuickConnect: (config) => quickConnected = config));
       await tester.pumpAndSettle();
 
       final addButton = find.text('Add Session');
@@ -1225,9 +1179,7 @@ void main() {
     });
 
     testWidgets('Add Session with Save saves session', (tester) async {
-      await tester.pumpWidget(buildApp(
-        sessions: [],
-      ));
+      await tester.pumpWidget(buildApp(sessions: []));
       await tester.pumpAndSettle();
 
       final addButton = find.text('Add Session');
@@ -1257,18 +1209,13 @@ void main() {
   group('SessionPanel — _handleDialogResult ConnectOnly', () {
     testWidgets('Connect-only from new session calls onQuickConnect', (tester) async {
       SSHConfig? quickConnected;
-      await tester.pumpWidget(buildApp(
-        onQuickConnect: (config) => quickConnected = config,
-      ));
+      await tester.pumpWidget(buildApp(onQuickConnect: (config) => quickConnected = config));
       await tester.pumpAndSettle();
 
       // Open New Session dialog via group context menu
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1303,10 +1250,7 @@ void main() {
       // Open New Session dialog via group context menu
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1341,10 +1285,7 @@ void main() {
       // Right-click on staging to open context menu
       final sessionText = find.text('staging');
       final center = tester.getCenter(sessionText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1374,10 +1315,7 @@ void main() {
       final panel = find.byType(SessionPanel);
       final panelBox = tester.getRect(panel);
 
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: Offset(panelBox.center.dx, panelBox.bottom - 10));
       await gesture.down(Offset(panelBox.center.dx, panelBox.bottom - 10));
       await gesture.up();
@@ -1395,10 +1333,7 @@ void main() {
       // Right-click on Production to open context menu
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1428,10 +1363,7 @@ void main() {
       final dbText = find.text('DB');
       expect(dbText, findsOneWidget);
       final center = tester.getCenter(dbText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1457,23 +1389,21 @@ void main() {
   });
 
   group('SessionPanel — delete dialog with empty label', () {
-    testWidgets('delete dialog uses displayName when label is empty',
-        (tester) async {
-      final noLabelSession = Session(id: '10', label: '', folder: '', server: const ServerAddress(host: '10.0.0.10', user: 'admin'));
-      await tester.pumpWidget(buildApp(
-        sessions: [noLabelSession],
-        onSftpConnect: (_) {},
-      ));
+    testWidgets('delete dialog uses displayName when label is empty', (tester) async {
+      final noLabelSession = Session(
+        id: '10',
+        label: '',
+        folder: '',
+        server: const ServerAddress(host: '10.0.0.10', user: 'admin'),
+      );
+      await tester.pumpWidget(buildApp(sessions: [noLabelSession], onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
       final hostText = find.text('10.0.0.10');
       expect(hostText, findsWidgets);
 
       final center = tester.getCenter(hostText.first);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1490,20 +1420,14 @@ void main() {
   });
 
   group('SessionPanel — delete empty folder no count warning', () {
-    testWidgets('delete folder dialog for empty folder hides session count',
-        (tester) async {
-      await tester.pumpWidget(
-        buildApp(emptyFolders: {'EmptyGroup'}),
-      );
+    testWidgets('delete folder dialog for empty folder hides session count', (tester) async {
+      await tester.pumpWidget(buildApp(emptyFolders: {'EmptyGroup'}));
       await tester.pumpAndSettle();
 
       final emptyFolderFinder = find.text('EmptyGroup');
       if (emptyFolderFinder.evaluate().isNotEmpty) {
         final center = tester.getCenter(emptyFolderFinder);
-        final gesture = await tester.createGesture(
-          kind: PointerDeviceKind.mouse,
-          buttons: kSecondaryMouseButton,
-        );
+        final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
         await gesture.addPointer(location: center);
         await gesture.down(center);
         await gesture.up();
@@ -1522,16 +1446,12 @@ void main() {
   });
 
   group('SessionPanel — rename nested folder pre-fills leaf name', () {
-    testWidgets('renaming DB (nested) shows correct pre-filled name',
-        (tester) async {
+    testWidgets('renaming DB (nested) shows correct pre-filled name', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       final center = tester.getCenter(find.text('DB'));
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1540,8 +1460,7 @@ void main() {
       await tester.tap(find.text('Rename Folder'));
       await tester.pumpAndSettle();
 
-      final textField =
-          tester.widget<TextField>(find.byType(TextField).last);
+      final textField = tester.widget<TextField>(find.byType(TextField).last);
       expect(textField.controller?.text, 'DB');
 
       await tester.enterText(find.byType(TextField).last, 'Database');
@@ -1555,20 +1474,13 @@ void main() {
   });
 
   group('SessionPanel — edit mode Save does not call onConnect', () {
-    testWidgets('Save without connect from edit does not call onConnect',
-        (tester) async {
+    testWidgets('Save without connect from edit does not call onConnect', (tester) async {
       Session? connected;
-      await tester.pumpWidget(buildApp(
-        onConnect: (s) => connected = s,
-        onSftpConnect: (_) {},
-      ));
+      await tester.pumpWidget(buildApp(onConnect: (s) => connected = s, onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
       final center = tester.getCenter(find.text('staging'));
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1585,11 +1497,8 @@ void main() {
   });
 
   group('SessionPanel — empty folders in folder validation', () {
-    testWidgets('empty groups are included in folder name validation',
-        (tester) async {
-      await tester.pumpWidget(
-        buildApp(emptyFolders: {'Archive', 'Archive/Old'}),
-      );
+    testWidgets('empty groups are included in folder name validation', (tester) async {
+      await tester.pumpWidget(buildApp(emptyFolders: {'Archive', 'Archive/Old'}));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('New Folder'));
@@ -1599,8 +1508,7 @@ void main() {
       await tester.enterText(textField, 'Archive');
       await tester.pump();
 
-      expect(
-          find.text('Folder "Archive" already exists'), findsOneWidget);
+      expect(find.text('Folder "Archive" already exists'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -1608,16 +1516,12 @@ void main() {
   });
 
   group('SessionPanel — context menu dismiss', () {
-    testWidgets('dismissing session context menu does nothing',
-        (tester) async {
+    testWidgets('dismissing session context menu does nothing', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
       final center = tester.getCenter(find.text('staging'));
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1629,16 +1533,12 @@ void main() {
       expect(find.text('staging'), findsWidgets);
     });
 
-    testWidgets('dismissing folder context menu does nothing',
-        (tester) async {
+    testWidgets('dismissing folder context menu does nothing', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       final center = tester.getCenter(find.text('Production'));
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1652,8 +1552,7 @@ void main() {
   });
 
   group('SessionPanel — folder name Enter on empty is no-op', () {
-    testWidgets('pressing Enter on empty name does not submit',
-        (tester) async {
+    testWidgets('pressing Enter on empty name does not submit', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -1676,10 +1575,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final center = tester.getCenter(find.text('Production'));
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1698,18 +1594,12 @@ void main() {
   });
 
   group('SessionPanel — rename to existing name shows error then clears', () {
-    testWidgets('renaming to existing name shows error, fixing clears it',
-        (tester) async {
-      await tester.pumpWidget(
-        buildApp(emptyFolders: {'Staging'}),
-      );
+    testWidgets('renaming to existing name shows error, fixing clears it', (tester) async {
+      await tester.pumpWidget(buildApp(emptyFolders: {'Staging'}));
       await tester.pumpAndSettle();
 
       final center = tester.getCenter(find.text('Staging'));
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1722,14 +1612,12 @@ void main() {
       await tester.enterText(textField, 'Production');
       await tester.pump();
 
-      expect(
-          find.text('Folder "Production" already exists'), findsOneWidget);
+      expect(find.text('Folder "Production" already exists'), findsOneWidget);
 
       await tester.enterText(textField, 'StagingNew');
       await tester.pump();
 
-      expect(
-          find.text('Folder "Production" already exists'), findsNothing);
+      expect(find.text('Folder "Production" already exists'), findsNothing);
 
       await tester.tap(find.text('Rename'));
       await tester.pumpAndSettle();
@@ -1743,14 +1631,9 @@ void main() {
 
       final panel = find.byType(SessionPanel);
       final panelBox = tester.getRect(panel);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.addPointer(
-          location: Offset(panelBox.center.dx, panelBox.bottom - 10));
-      await gesture.down(
-          Offset(panelBox.center.dx, panelBox.bottom - 10));
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.addPointer(location: Offset(panelBox.center.dx, panelBox.bottom - 10));
+      await gesture.down(Offset(panelBox.center.dx, panelBox.bottom - 10));
       await gesture.up();
       await tester.pumpAndSettle();
 
@@ -1771,10 +1654,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final center = tester.getCenter(find.text('Production'));
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -1789,8 +1669,7 @@ void main() {
       expect(find.text('Delete Folder'), findsNothing);
     });
 
-    testWidgets('Add Session from empty state cancel does nothing',
-        (tester) async {
+    testWidgets('Add Session from empty state cancel does nothing', (tester) async {
       await tester.pumpWidget(buildApp(sessions: []));
       await tester.pumpAndSettle();
 
@@ -1818,8 +1697,7 @@ void main() {
   });
 
   group('SessionPanel — drag session to folder (onSessionMoved)', () {
-    testWidgets('dragging a session onto a folder calls moveSession',
-        (tester) async {
+    testWidgets('dragging a session onto a folder calls moveSession', (tester) async {
       // Use sessions where staging is at root and Production is a group
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
@@ -1852,8 +1730,7 @@ void main() {
   });
 
   group('SessionPanel — drag folder to root (onFolderMoved)', () {
-    testWidgets('dragging a folder to root area triggers onFolderMoved',
-        (tester) async {
+    testWidgets('dragging a folder to root area triggers onFolderMoved', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -1882,15 +1759,12 @@ void main() {
   });
 
   group('SessionPanel — onSessionMoved/onFolderMoved callbacks via SessionTreeView', () {
-    testWidgets('onSessionMoved callback calls moveSession on notifier',
-        (tester) async {
+    testWidgets('onSessionMoved callback calls moveSession on notifier', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       // Find the SessionTreeView and invoke its onSessionMoved callback directly
-      final treeView = tester.widget<SessionTreeView>(
-        find.byType(SessionTreeView),
-      );
+      final treeView = tester.widget<SessionTreeView>(find.byType(SessionTreeView));
 
       // Call onSessionMoved with staging session id '3' moving to 'Production'
       treeView.onSessionMoved!('3', 'Production');
@@ -1900,15 +1774,12 @@ void main() {
       expect(find.byType(SessionPanel), findsOneWidget);
     });
 
-    testWidgets('onFolderMoved callback calls moveFolder on notifier',
-        (tester) async {
+    testWidgets('onFolderMoved callback calls moveFolder on notifier', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
       // Find the SessionTreeView and invoke its onFolderMoved callback directly
-      final treeView = tester.widget<SessionTreeView>(
-        find.byType(SessionTreeView),
-      );
+      final treeView = tester.widget<SessionTreeView>(find.byType(SessionTreeView));
 
       // Call onFolderMoved to move Production/DB to root
       treeView.onFolderMoved!('Production/DB', '');
@@ -1928,8 +1799,7 @@ void main() {
       debugMobilePlatformOverride = null;
     });
 
-    testWidgets('Move to... item appears in bottom sheet on mobile',
-        (tester) async {
+    testWidgets('Move to... item appears in bottom sheet on mobile', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
@@ -1944,12 +1814,8 @@ void main() {
       expect(find.text('Files'), findsOneWidget);
     });
 
-    testWidgets('Move to... opens move dialog with groups',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        onSftpConnect: (_) {},
-        emptyFolders: {'Archive'},
-      ));
+    testWidgets('Move to... opens move dialog with groups', (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}, emptyFolders: {'Archive'}));
       await tester.pumpAndSettle();
 
       await tester.longPress(find.text('web1'));
@@ -1966,16 +1832,12 @@ void main() {
       // Should show Production folder (in tree + in dialog)
       expect(find.text('Production'), findsWidgets);
       // Should show Archive (empty folder) — may appear in tree and dialog
-      expect(find.descendant(
-        of: find.byType(AppDialog),
-        matching: find.text('Archive'),
-      ), findsOneWidget);
+      expect(find.descendant(of: find.byType(AppDialog), matching: find.text('Archive')), findsOneWidget);
       // Should show Cancel button
       expect(find.text('Cancel'), findsOneWidget);
     });
 
-    testWidgets('Move dialog current group tile has check icon and bold text',
-        (tester) async {
+    testWidgets('Move dialog current group tile has check icon and bold text', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
@@ -1994,8 +1856,7 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsWidgets);
     });
 
-    testWidgets('Move dialog — tapping current group does nothing (disabled)',
-        (tester) async {
+    testWidgets('Move dialog — tapping current group does nothing (disabled)', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
@@ -2007,10 +1868,7 @@ void main() {
 
       // Tap the current folder (Production) in the dialog — should be disabled
       // Find Production inside the dialog (there are multiple 'Production' texts)
-      final dialogProductionTiles = find.descendant(
-        of: find.byType(AppDialog),
-        matching: find.text('Production'),
-      );
+      final dialogProductionTiles = find.descendant(of: find.byType(AppDialog), matching: find.text('Production'));
       expect(dialogProductionTiles, findsOneWidget);
       await tester.tap(dialogProductionTiles);
       await tester.pumpAndSettle();
@@ -2019,8 +1877,7 @@ void main() {
       expect(find.text('Move to Folder'), findsOneWidget);
     });
 
-    testWidgets('Move dialog — selecting different group moves session',
-        (tester) async {
+    testWidgets('Move dialog — selecting different group moves session', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
@@ -2038,8 +1895,7 @@ void main() {
       expect(find.text('Move to Folder'), findsNothing);
     });
 
-    testWidgets('Move dialog — Cancel dismisses without moving',
-        (tester) async {
+    testWidgets('Move dialog — Cancel dismisses without moving', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
@@ -2057,8 +1913,7 @@ void main() {
       expect(find.text('Move to Folder'), findsNothing);
     });
 
-    testWidgets('Move dialog — root session shows root as current folder',
-        (tester) async {
+    testWidgets('Move dialog — root session shows root as current folder', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
@@ -2079,18 +1934,14 @@ void main() {
       expect(find.text('Move to Folder'), findsOneWidget);
 
       // Tapping a different folder should close dialog
-      final dialogProduction = find.descendant(
-        of: find.byType(AppDialog),
-        matching: find.text('Production'),
-      );
+      final dialogProduction = find.descendant(of: find.byType(AppDialog), matching: find.text('Production'));
       await tester.tap(dialogProduction);
       await tester.pumpAndSettle();
 
       expect(find.text('Move to Folder'), findsNothing);
     });
 
-    testWidgets('Move dialog shows Production/DB as selectable folder',
-        (tester) async {
+    testWidgets('Move dialog shows Production/DB as selectable folder', (tester) async {
       await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
       await tester.pumpAndSettle();
 
@@ -2192,9 +2043,7 @@ void main() {
       expect(selectedText, findsOneWidget);
 
       // Verify rendered height of the action bar container
-      final actionBarBox = tester.getSize(
-        find.ancestor(of: selectedText, matching: find.byType(Container)).first,
-      );
+      final actionBarBox = tester.getSize(find.ancestor(of: selectedText, matching: find.byType(Container)).first);
       expect(actionBarBox.height, AppTheme.barHeightSm);
     });
 
@@ -2367,7 +2216,6 @@ void main() {
   });
 
   group('SessionPanel — desktop marquee selection', () {
-
     testWidgets('marquee selection highlights rows without action bar', (tester) async {
       await tester.pumpWidget(buildApp());
 
@@ -2496,7 +2344,13 @@ void main() {
     testWidgets('Ctrl+V ignored when nothing copied', (tester) async {
       debugMobilePlatformOverride = false;
       final sessions = [
-        Session(id: '1', label: 'only', folder: '', server: const ServerAddress(host: '1.2.3.4', user: 'u'), auth: const SessionAuth(authType: AuthType.password)),
+        Session(
+          id: '1',
+          label: 'only',
+          folder: '',
+          server: const ServerAddress(host: '1.2.3.4', user: 'u'),
+          auth: const SessionAuth(authType: AuthType.password),
+        ),
       ];
       await tester.pumpWidget(buildApp(sessions: sessions));
       await tester.pumpAndSettle();
@@ -2529,11 +2383,9 @@ void main() {
       expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
-    testWidgets('footer has saved left, active and tabs right',
-        (tester) async {
+    testWidgets('footer has saved left, active and tabs right', (tester) async {
       await tester.pumpWidget(buildApp());
-      final savedRight =
-          tester.getTopRight(find.byIcon(Icons.dns_outlined));
+      final savedRight = tester.getTopRight(find.byIcon(Icons.dns_outlined));
       final wifiLeft = tester.getTopLeft(find.byIcon(Icons.wifi));
       expect(wifiLeft.dx, greaterThan(savedRight.dx));
     });

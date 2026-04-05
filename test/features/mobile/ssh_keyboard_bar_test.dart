@@ -4,20 +4,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/mobile/ssh_keyboard_bar.dart';
 import 'package:letsflutssh/features/mobile/ssh_key_sequences.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   // Suppress HapticFeedback calls in tests
   setUp(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async => null,
     );
   });
 
   tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    );
   });
 
   Widget buildApp({
@@ -27,6 +29,8 @@ void main() {
     ValueChanged<bool>? onSelectModeChanged,
   }) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
         body: SshKeyboardBar(
@@ -389,10 +393,7 @@ void main() {
 
     testWidgets('tapping select button toggles select mode and fires callback', (tester) async {
       final modes = <bool>[];
-      await tester.pumpWidget(buildApp(
-        onInput: (_) {},
-        onSelectModeChanged: modes.add,
-      ));
+      await tester.pumpWidget(buildApp(onInput: (_) {}, onSelectModeChanged: modes.add));
 
       await tester.tap(find.byIcon(Icons.select_all));
       await tester.pump();
@@ -421,11 +422,7 @@ void main() {
     testWidgets('exitSelectMode resets state and fires callback', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
       final modes = <bool>[];
-      await tester.pumpWidget(buildApp(
-        onInput: (_) {},
-        keyboardKey: key,
-        onSelectModeChanged: modes.add,
-      ));
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key, onSelectModeChanged: modes.add));
 
       // Activate select mode
       await tester.tap(find.byIcon(Icons.select_all));
@@ -442,11 +439,7 @@ void main() {
     testWidgets('exitSelectMode is no-op when already off', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
       final modes = <bool>[];
-      await tester.pumpWidget(buildApp(
-        onInput: (_) {},
-        keyboardKey: key,
-        onSelectModeChanged: modes.add,
-      ));
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key, onSelectModeChanged: modes.add));
 
       key.currentState!.exitSelectMode();
       await tester.pump();
@@ -462,10 +455,7 @@ void main() {
 
     testWidgets('tapping paste button fires onPaste callback', (tester) async {
       var pasteCalled = false;
-      await tester.pumpWidget(buildApp(
-        onInput: (_) {},
-        onPaste: () => pasteCalled = true,
-      ));
+      await tester.pumpWidget(buildApp(onInput: (_) {}, onPaste: () => pasteCalled = true));
 
       await tester.tap(find.byIcon(Icons.paste));
       await tester.pump();

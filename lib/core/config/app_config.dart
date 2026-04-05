@@ -15,7 +15,9 @@ class TerminalConfig {
 
   String? validate() {
     if (fontSize < 6 || fontSize > 72) return 'Font size must be 6-72';
-    if (!_validThemes.contains(theme)) return 'Theme must be one of: ${_validThemes.join(', ')}';
+    if (!_validThemes.contains(theme)) {
+      return 'Theme must be one of: ${_validThemes.join(', ')}';
+    }
     if (scrollback < 100) return 'Scrollback must be at least 100';
     return null;
   }
@@ -29,15 +31,12 @@ class TerminalConfig {
     );
   }
 
-  TerminalConfig copyWith({
-    double? fontSize,
-    String? theme,
-    int? scrollback,
-  }) => TerminalConfig(
-    fontSize: fontSize ?? this.fontSize,
-    theme: theme ?? this.theme,
-    scrollback: scrollback ?? this.scrollback,
-  );
+  TerminalConfig copyWith({double? fontSize, String? theme, int? scrollback}) =>
+      TerminalConfig(
+        fontSize: fontSize ?? this.fontSize,
+        theme: theme ?? this.theme,
+        scrollback: scrollback ?? this.scrollback,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -91,7 +90,9 @@ class SshDefaults {
     const d = SshDefaults.defaults;
     return SshDefaults(
       keepAliveSec: keepAliveSec < 0 ? d.keepAliveSec : keepAliveSec,
-      defaultPort: (defaultPort < 1 || defaultPort > 65535) ? d.defaultPort : defaultPort,
+      defaultPort: (defaultPort < 1 || defaultPort > 65535)
+          ? d.defaultPort
+          : defaultPort,
       sshTimeoutSec: sshTimeoutSec < 1 ? d.sshTimeoutSec : sshTimeoutSec,
     );
   }
@@ -162,7 +163,9 @@ class UiConfig {
   UiConfig sanitized() {
     const d = UiConfig.defaults;
     return UiConfig(
-      toastDurationMs: toastDurationMs < 500 ? d.toastDurationMs : toastDurationMs,
+      toastDurationMs: toastDurationMs < 500
+          ? d.toastDurationMs
+          : toastDurationMs,
       windowWidth: windowWidth < 200 ? d.windowWidth : windowWidth,
       windowHeight: windowHeight < 200 ? d.windowHeight : windowHeight,
       uiScale: uiScale.clamp(0.5, 2.0),
@@ -195,7 +198,13 @@ class UiConfig {
           showFolderSizes == other.showFolderSizes;
 
   @override
-  int get hashCode => Object.hash(toastDurationMs, windowWidth, windowHeight, uiScale, showFolderSizes);
+  int get hashCode => Object.hash(
+    toastDurationMs,
+    windowWidth,
+    windowHeight,
+    uiScale,
+    showFolderSizes,
+  );
 
   Map<String, dynamic> toJson() => {
     'toast_duration_ms': toastDurationMs,
@@ -210,7 +219,8 @@ class UiConfig {
     return UiConfig(
       toastDurationMs: json['toast_duration_ms'] as int? ?? d.toastDurationMs,
       windowWidth: (json['window_width'] as num?)?.toDouble() ?? d.windowWidth,
-      windowHeight: (json['window_height'] as num?)?.toDouble() ?? d.windowHeight,
+      windowHeight:
+          (json['window_height'] as num?)?.toDouble() ?? d.windowHeight,
       uiScale: (json['ui_scale'] as num?)?.toDouble() ?? d.uiScale,
       showFolderSizes: json['show_folder_sizes'] as bool? ?? d.showFolderSizes,
     ).sanitized();
@@ -230,6 +240,26 @@ class AppConfig {
   final bool enableLogging;
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
+  final String? locale;
+
+  /// Locale codes supported by the app.
+  static const supportedLocales = [
+    'en',
+    'ru',
+    'zh',
+    'de',
+    'ja',
+    'pt',
+    'es',
+    'fr',
+    'ko',
+    'ar',
+    'fa',
+    'tr',
+    'vi',
+    'id',
+    'hi',
+  ];
 
   const AppConfig({
     this.terminal = const TerminalConfig(),
@@ -240,6 +270,7 @@ class AppConfig {
     this.enableLogging = false,
     this.checkUpdatesOnStart = true,
     this.skippedVersion,
+    this.locale,
   });
 
   static const AppConfig defaults = AppConfig();
@@ -273,11 +304,16 @@ class AppConfig {
       terminal: terminal.sanitized(),
       ssh: ssh.sanitized(),
       ui: ui.sanitized(),
-      transferWorkers: transferWorkers < 1 ? d.transferWorkers : transferWorkers,
+      transferWorkers: transferWorkers < 1
+          ? d.transferWorkers
+          : transferWorkers,
       maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
       enableLogging: enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart,
       skippedVersion: skippedVersion,
+      locale: locale != null && supportedLocales.contains(locale)
+          ? locale
+          : null,
     );
   }
 
@@ -299,6 +335,7 @@ class AppConfig {
       enableLogging: enableLogging ?? this.enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
       skippedVersion: skippedVersion,
+      locale: locale,
     );
   }
 
@@ -311,6 +348,19 @@ class AppConfig {
     enableLogging: enableLogging,
     checkUpdatesOnStart: checkUpdatesOnStart,
     skippedVersion: version,
+    locale: locale,
+  );
+
+  AppConfig withLocale(String? locale) => AppConfig(
+    terminal: terminal,
+    ssh: ssh,
+    ui: ui,
+    transferWorkers: transferWorkers,
+    maxHistory: maxHistory,
+    enableLogging: enableLogging,
+    checkUpdatesOnStart: checkUpdatesOnStart,
+    skippedVersion: skippedVersion,
+    locale: locale,
   );
 
   @override
@@ -324,13 +374,21 @@ class AppConfig {
           maxHistory == other.maxHistory &&
           enableLogging == other.enableLogging &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
-          skippedVersion == other.skippedVersion;
+          skippedVersion == other.skippedVersion &&
+          locale == other.locale;
 
   @override
   int get hashCode => Object.hash(
-        terminal, ssh, ui, transferWorkers, maxHistory, enableLogging,
-        checkUpdatesOnStart, skippedVersion,
-      );
+    terminal,
+    ssh,
+    ui,
+    transferWorkers,
+    maxHistory,
+    enableLogging,
+    checkUpdatesOnStart,
+    skippedVersion,
+    locale,
+  );
 
   /// JSON stays flat for backward compatibility.
   Map<String, dynamic> toJson() => {
@@ -342,6 +400,7 @@ class AppConfig {
     'enable_logging': enableLogging,
     'check_updates_on_start': checkUpdatesOnStart,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
+    if (locale != null) 'locale': locale,
   };
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
@@ -353,8 +412,10 @@ class AppConfig {
       transferWorkers: json['transfer_workers'] as int? ?? d.transferWorkers,
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
-      checkUpdatesOnStart: json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
+      checkUpdatesOnStart:
+          json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
       skippedVersion: json['skipped_version'] as String?,
+      locale: json['locale'] as String?,
     ).sanitized();
   }
 }

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/widgets/clipped_row.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   group('ClippedRow', () {
     testWidgets('renders children normally when they fit', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: SizedBox(
             width: 400,
             height: 40,
@@ -28,6 +31,8 @@ void main() {
       // Children total 600px in a 200px container — overflow is clipped.
       await tester.pumpWidget(
         const MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: SizedBox(
             width: 200,
             height: 40,
@@ -49,6 +54,8 @@ void main() {
     testWidgets('supports Expanded children', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: SizedBox(
             width: 400,
             height: 40,

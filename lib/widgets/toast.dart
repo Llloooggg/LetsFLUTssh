@@ -17,8 +17,12 @@ class Toast {
   static void clearAllForTest() {
     for (final e in _entries) {
       e.timer?.cancel();
-      try { e.entry.remove(); } catch (_) {}
-      try { e.controller.dispose(); } catch (_) {}
+      try {
+        e.entry.remove();
+      } catch (_) {}
+      try {
+        e.controller.dispose();
+      } catch (_) {}
     }
     _entries.clear();
   }
@@ -57,10 +61,7 @@ class Toast {
       },
     );
 
-    toastEntry = _ToastOverlayEntry(
-      entry: entry,
-      controller: controller,
-    );
+    toastEntry = _ToastOverlayEntry(entry: entry, controller: controller);
 
     // Rebuild existing entries to update positions before adding new one
     for (final e in _entries) {
@@ -141,10 +142,7 @@ class _ToastWidget extends StatelessWidget {
           position: Tween<Offset>(
             begin: const Offset(0.3, 0),
             end: Offset.zero,
-          ).animate(CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOut,
-          )),
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
           child: Semantics(
             liveRegion: true,
             label: '${level.name}: $message',
@@ -153,7 +151,10 @@ class _ToastWidget extends StatelessWidget {
               borderRadius: AppTheme.radiusLg,
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 360),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHigh,
                   borderRadius: AppTheme.radiusLg,

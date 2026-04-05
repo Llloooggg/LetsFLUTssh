@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../utils/platform.dart';
@@ -55,10 +56,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    final keyPath = _keyPathCtrl.text.trim().replaceFirst(
-      '~',
-      homeDirectory,
-    );
+    final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
 
     final config = SSHConfig(
       server: ServerAddress(
@@ -122,7 +120,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Quick Connect',
+                    S.of(context).quickConnect,
                     style: AppFonts.inter(
                       fontSize: AppFonts.lg,
                       fontWeight: FontWeight.w600,
@@ -141,43 +139,58 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                     Row(
                       children: [
                         Expanded(
-                          child: _field('Host *', _hostCtrl,
-                              hint: '192.168.1.1', validator: _requiredValidator),
+                          child: _field(
+                            S.of(context).hostRequired,
+                            _hostCtrl,
+                            hint: S.of(context).hintHost,
+                            validator: _requiredValidator,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         SizedBox(
                           width: 80,
-                          child: _field('Port', _portCtrl,
-                              hint: '22',
-                              keyboardType: TextInputType.number,
-                              validator: (v) {
-                                final port = int.tryParse(v ?? '');
-                                if (port == null || port < 1 || port > 65535) {
-                                  return '1-65535';
-                                }
-                                return null;
-                              }),
+                          child: _field(
+                            S.of(context).port,
+                            _portCtrl,
+                            hint: S.of(context).hintPort,
+                            keyboardType: TextInputType.number,
+                            validator: (v) {
+                              final port = int.tryParse(v ?? '');
+                              if (port == null || port < 1 || port > 65535) {
+                                return S.of(context).portRange;
+                              }
+                              return null;
+                            },
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _field('Username *', _userCtrl,
-                        hint: 'root', validator: _requiredValidator),
+                    _field(
+                      S.of(context).usernameRequired,
+                      _userCtrl,
+                      hint: S.of(context).hintUsername,
+                      validator: _requiredValidator,
+                    ),
                     const SizedBox(height: 12),
-                    _field('Password', _passwordCtrl,
-                        hint: '••••••••',
-                        obscure: _obscurePassword,
-                        suffixIcon: GestureDetector(
-                          onTap: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                          child: Icon(
-                            _obscurePassword
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            size: 12,
-                            color: AppTheme.fgFaint,
-                          ),
-                        )),
+                    _field(
+                      S.of(context).password,
+                      _passwordCtrl,
+                      hint: S.of(context).hintPassword,
+                      obscure: _obscurePassword,
+                      suffixIcon: GestureDetector(
+                        onTap: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                        child: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          size: 12,
+                          color: AppTheme.fgFaint,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     _buildKeyFileButton(),
                     const SizedBox(height: 8),
@@ -185,31 +198,37 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                     if (_showKeyText) ...[
                       TextFormField(
                         controller: _keyDataCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Key Text (PEM)',
-                          hintText: '-----BEGIN OPENSSH PRIVATE KEY-----',
+                        decoration: InputDecoration(
+                          labelText: S.of(context).keyTextPem,
+                          hintText: S.of(context).hintPemKey,
                           alignLabelWithHint: true,
                         ),
                         maxLines: 5,
                         style: TextStyle(
-                            fontFamily: 'monospace', fontSize: AppFonts.sm),
+                          fontFamily: 'monospace',
+                          fontSize: AppFonts.sm,
+                        ),
                       ),
                       const SizedBox(height: 12),
                     ],
-                    _field('Key Passphrase', _passphraseCtrl,
-                        hint: 'Optional',
-                        obscure: _obscurePassphrase,
-                        suffixIcon: GestureDetector(
-                          onTap: () => setState(
-                              () => _obscurePassphrase = !_obscurePassphrase),
-                          child: Icon(
-                            _obscurePassphrase
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            size: 12,
-                            color: AppTheme.fgFaint,
-                          ),
-                        )),
+                    _field(
+                      S.of(context).keyPassphrase,
+                      _passphraseCtrl,
+                      hint: S.of(context).hintOptional,
+                      obscure: _obscurePassphrase,
+                      suffixIcon: GestureDetector(
+                        onTap: () => setState(
+                          () => _obscurePassphrase = !_obscurePassphrase,
+                        ),
+                        child: Icon(
+                          _obscurePassphrase
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          size: 12,
+                          color: AppTheme.fgFaint,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -223,11 +242,11 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       child: GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
                         child: Container(
-                          height: 38,
+                          height: AppTheme.controlHeightXl,
                           alignment: Alignment.center,
                           color: AppTheme.bg3,
                           child: Text(
-                            'Cancel',
+                            S.of(context).cancel,
                             style: AppFonts.inter(
                               fontSize: AppFonts.md,
                               fontWeight: FontWeight.w500,
@@ -242,11 +261,11 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       child: GestureDetector(
                         onTap: _submit,
                         child: Container(
-                          height: 38,
+                          height: AppTheme.controlHeightXl,
                           alignment: Alignment.center,
                           color: AppTheme.accent,
                           child: Text(
-                            'Connect',
+                            S.of(context).connect,
                             style: AppFonts.inter(
                               fontSize: AppFonts.md,
                               fontWeight: FontWeight.w500,
@@ -277,7 +296,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
             onPressed: _pickKeyFile,
             icon: Icon(hasKey ? Icons.vpn_key : Icons.folder_open, size: 18),
             label: Text(
-              fileName ?? 'Select Key File',
+              fileName ?? S.of(context).selectKeyFile,
               overflow: TextOverflow.ellipsis,
             ),
             style: OutlinedButton.styleFrom(
@@ -290,7 +309,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
           AppIconButton(
             icon: Icons.close,
             onTap: () => setState(() => _keyPathCtrl.clear()),
-            tooltip: 'Clear key file',
+            tooltip: S.of(context).clearKeyFile,
             size: 18,
           ),
       ],
@@ -303,21 +322,21 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
       child: TextButton.icon(
         onPressed: () => setState(() => _showKeyText = !_showKeyText),
         icon: Icon(
-          _showKeyText
-              ? Icons.keyboard_arrow_up
-              : Icons.keyboard_arrow_down,
+          _showKeyText ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
           size: 16,
         ),
         label: Text(
-          _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
+          _showKeyText
+              ? S.of(context).hidePemText
+              : S.of(context).pastePemKeyText,
           style: TextStyle(fontSize: AppFonts.md),
         ),
       ),
     );
   }
 
-  static String? _requiredValidator(String? v) =>
-      v == null || v.trim().isEmpty ? 'Required' : null;
+  String? Function(String?) get _requiredValidator =>
+      (v) => v == null || v.trim().isEmpty ? S.of(context).required : null;
 
   Widget _field(
     String label,
@@ -345,7 +364,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
           ),
         ),
         SizedBox(
-          height: 30,
+          height: AppTheme.controlHeightMd,
           child: TextFormField(
             controller: controller,
             obscureText: obscure,
@@ -365,8 +384,10 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
               ),
               filled: true,
               fillColor: AppTheme.bg3,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 0,
+              ),
               border: OutlineInputBorder(
                 borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.borderLight),
@@ -389,7 +410,9 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       child: suffixIcon,
                     )
                   : null,
-              suffixIconConstraints: const BoxConstraints(maxHeight: 30),
+              suffixIconConstraints: const BoxConstraints(
+                maxHeight: AppTheme.controlHeightMd,
+              ),
             ),
           ),
         ),

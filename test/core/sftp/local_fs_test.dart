@@ -51,10 +51,7 @@ void main() {
     });
 
     test('throws on non-existent directory', () async {
-      expect(
-        () => fs.list('${tempDir.path}/nonexistent'),
-        throwsA(isA<FileSystemException>()),
-      );
+      expect(() => fs.list('${tempDir.path}/nonexistent'), throwsA(isA<FileSystemException>()));
     });
   });
 

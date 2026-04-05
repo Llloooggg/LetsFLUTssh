@@ -109,6 +109,7 @@ lib/
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
 │   └── mobile/                       # Mobile version (bottom nav)
+├── l10n/                             # Internationalization (10 languages: en, ru, zh, de, ja, pt, es, fr, ko, ar)
 ├── providers/                        # Riverpod providers (global state)
 ├── widgets/                          # Reusable UI components
 │   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
@@ -510,6 +511,7 @@ class AppConfig {
   final bool enableLogging;
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
+  final String? locale;             // null = OS auto-detect, or 'en'|'ru'|'zh'|'de'|'ja'|'pt'|'es'|'fr'|'ko'
 }
 ```
 
@@ -657,6 +659,7 @@ class UpdateService {
 | `configStoreProvider` | Provider | — | Singleton ConfigStore |
 | `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger |
 | `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
+| `localeProvider` | Provider | configProvider | Locale? (null = system default) |
 | `knownHostsProvider` | Provider | — | KnownHostsManager |
 | `connectionManagerProvider` | Provider | knownHostsProvider | ConnectionManager singleton |
 | `connectionsProvider` | StreamProvider | connectionManagerProvider | Real-time connection list |
@@ -959,6 +962,8 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_screen.dart` | `SettingsSidebar` | Desktop nav panel — embedded in `AppShell`'s sidebar slot |
 | `settings_screen.dart` | `SettingsContent` | Desktop content pane — embedded in `AppShell`'s body slot |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
+
+**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
 
 **Desktop:** Settings are embedded directly in `MainScreen` via `ShellMode`. The toolbar settings button toggles between `ShellMode.sessions` and `ShellMode.settings` — no route navigation. `SettingsSidebar` + `SettingsContent` replace the session panel and tab area while sharing the same `AppShell` frame (sidebar width preserved).
 
@@ -1385,7 +1390,22 @@ abstract final class AppTheme {
   static Border get borderBottom;    // Border(bottom: borderSide)
 
   // Bar height scale
-  static const double barHeightSm;  // 34 px — all bars (toolbar, headers, footers, status bars)
+  static const double barHeightSm;  // 34 px — toolbars, headers, footers, status bars
+  static const double barHeightMd;  // 40 px — dialog title bars, mobile breadcrumbs
+  static const double barHeightLg;  // 44 px — mobile app bars, selection toolbars
+
+  // Control height scale
+  static const double controlHeightXs; // 26 px — compact buttons, file rows, settings items
+  static const double controlHeightSm; // 28 px — context menu items, search inputs
+  static const double controlHeightMd; // 30 px — input fields, auth-type selectors
+  static const double controlHeightLg; // 32 px — tab selectors, mode selectors
+  static const double controlHeightXl; // 38 px — dialog action buttons
+
+  // Item height scale
+  static const double itemHeightXs;  // 22 px — compact rows (path editors, transfer details)
+  static const double itemHeightSm;  // 24 px — small items (resize handles, transfer entries)
+  static const double itemHeightLg;  // 48 px — icon containers, mobile list items, drag targets
+  static const double itemHeightXl;  // 56 px — mobile bottom navigation bar
 
   // Border radius scale
   static const radiusSm;  // 4 px — inputs, buttons, small elements
@@ -1418,11 +1438,92 @@ abstract final class AppFonts {
 
 Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/fonts/`.
 
+**CJK & non-Latin in language picker:** Native language names (中文, 日本語, 한국어, العربية, فارسی, हिन्दी) rely on system fonts. Each entry has an English secondary label (Chinese, Japanese, Korean, Arabic, Persian, Hindi) as fallback for systems without those fonts. No bundled CJK/Arabic/Devanagari fonts — keeps the binary small.
+
 **Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware: mobile gets +2 px automatically for touch readability.
 
 **Rule:** Never use hardcoded `BorderRadius.circular(N)` or `BorderRadius.zero` — always use `AppTheme.radiusSm`, `radiusMd`, or `radiusLg`. Exception: pill-shaped elements (e.g. toggle tracks) that need full rounding.
 
-**Rule:** Never hardcode bar/toolbar heights — always use `AppTheme.barHeightSm` (34 px). All toolbars, panel headers, footers, status bars, and column headers use this single constant. Panels sit flush without borders; resizable dividers use `Stack` overlays (6 px invisible hit zone, 1 px visible line where needed).
+**Rule:** Never hardcode height numeric literals for UI elements — always use `AppTheme` height constants. Three scales are available: `barHeight{Sm,Md,Lg}` for toolbars/headers/bars, `controlHeight{Xs..Xl}` for buttons/inputs/selectors, `itemHeight{Xs..Xl}` for rows/containers/list items. Panels sit flush without borders; resizable dividers use `Stack` overlays (6 px invisible hit zone, 1 px visible line where needed).
+
+---
+
+## 8.1 Internationalization (i18n)
+
+All user-facing strings are externalized via Flutter's built-in `gen_l10n` system.
+
+### Supported languages
+
+| Code | Language | File |
+|------|----------|------|
+| `en` | English (template) | `app_en.arb` |
+| `ru` | Russian | `app_ru.arb` |
+| `zh` | Chinese (Simplified) | `app_zh.arb` |
+| `de` | German | `app_de.arb` |
+| `ja` | Japanese | `app_ja.arb` |
+| `pt` | Portuguese | `app_pt.arb` |
+| `es` | Spanish | `app_es.arb` |
+| `fr` | French | `app_fr.arb` |
+| `ko` | Korean | `app_ko.arb` |
+| `ar` | Arabic (العربية) | `app_ar.arb` |
+| `fa` | Persian (فارسی) | `app_fa.arb` |
+| `tr` | Turkish | `app_tr.arb` |
+| `vi` | Vietnamese | `app_vi.arb` |
+| `id` | Indonesian | `app_id.arb` |
+| `hi` | Hindi (हिन्दी) | `app_hi.arb` |
+
+### Language selection
+
+The user selects a language in **Settings → Appearance → Language**. Options: "System Default" (auto-detect from OS) or any of the 15 supported languages. Stored as `AppConfig.locale` (`null` = system default, `'ru'` = Russian, etc.). Wired via `localeProvider` → `MaterialApp.locale`.
+
+iOS requires `CFBundleLocalizations` in `Info.plist` listing all supported locale codes for proper OS locale detection.
+
+### Setup
+
+| File | Purpose |
+|------|---------|
+| `l10n.yaml` | Config: ARB dir, template, output class `S`, non-nullable getter |
+| `lib/l10n/app_en.arb` | English strings (template) — add new keys here |
+| `lib/l10n/app_XX.arb` | Translations — one file per language |
+| `lib/l10n/app_localizations.dart` | Generated — `S` class with all getters |
+| `lib/l10n/app_localizations_XX.dart` | Generated — per-language implementations |
+
+### Usage
+
+```dart
+import '../l10n/app_localizations.dart';
+
+// In any widget with BuildContext:
+Text(S.of(context).settings)
+Text(S.of(context).nSessions(count))  // parameterized
+```
+
+`S.of(context)` is non-nullable — no `!` needed. `MaterialApp` in `main.dart` has `locale: ref.watch(localeProvider)`, `localizationsDelegates: S.localizationsDelegates` and `supportedLocales: S.supportedLocales`.
+
+### Adding a new language
+
+1. Copy `lib/l10n/app_en.arb` → `lib/l10n/app_XX.arb` (e.g., `app_it.arb`)
+2. Set `"@@locale": "XX"` and translate all values (keep keys and placeholders intact)
+3. Do NOT copy `@key` metadata entries — only the template needs them
+4. Run `flutter gen-l10n` — generates `app_localizations_xx.dart` automatically
+5. Add the locale code to `AppConfig.supportedLocales` list
+6. Add the locale entry to `_LanguageTile._localeLabels` in `settings_screen.dart`
+7. Add the locale code to `CFBundleLocalizations` in `ios/Runner/Info.plist`
+
+### Adding a new string
+
+1. Add the key + value to `lib/l10n/app_en.arb` (with `@key` metadata for placeholders)
+2. Add the translated key to ALL `app_XX.arb` files
+3. Run `flutter gen-l10n`
+4. Use `S.of(context).newKey` in the widget
+
+### Rules
+
+- **Never hardcode user-facing strings** — always use `S.of(context).xxx`
+- Constructor default parameters (e.g., `confirmLabel = 'Delete'`) stay hardcoded — no `context` available
+- Strings only used in logs (`AppLogger`) stay hardcoded — not user-facing
+- Tests must include `localizationsDelegates: S.localizationsDelegates` and `supportedLocales: S.supportedLocales` in every `MaterialApp`
+- Generated files (`app_localizations*.dart`) are committed to the repo
 
 ---
 
@@ -1656,6 +1757,7 @@ AppConfig {
   enableLogging: bool
   checkUpdatesOnStart: bool
   skippedVersion: String?
+  locale: String?           // null = OS auto-detect, or supported locale code
 }
 ```
 
@@ -1899,6 +2001,12 @@ Manual build
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 
+**External Integrations:**
+
+| Service | Config | Purpose |
+|---------|--------|---------|
+| GitGuardian | `.gitguardian.yml` | Secret detection on PRs. Test files (`test/**`) and localization files (`lib/l10n/**`) are excluded — they contain fake credentials and translated "password" labels that trigger false positives |
+
 ### 15.4 Makefile Targets
 
 #### Development
@@ -2000,6 +2108,8 @@ Manual build
 
 | Package | Purpose |
 |---------|---------|
+| `flutter_localizations` | Flutter i18n delegates (SDK package) |
+| `intl` | ICU message formatting for l10n |
 | `dartssh2` | SSH2 protocol (auth, shell, SFTP) |
 | `xterm` | Terminal emulator widget |
 | `flutter_riverpod` | State management |
@@ -2026,6 +2136,13 @@ Manual build
 | `build_runner` | Code generation |
 | `json_serializable` | JSON code gen |
 | `flutter_launcher_icons` | App icon gen |
+
+### Bundled Fonts
+
+| Font | Purpose | Location |
+|------|---------|----------|
+| Inter | UI text | `assets/fonts/` |
+| JetBrains Mono | Terminal, monospaced data | `assets/fonts/` |
 
 ### SDK Constraints
 

@@ -1,0 +1,45 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/format-dart.sh",
+            "timeout": 10,
+            "statusMessage": "Formatting..."
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/gen-l10n.sh",
+            "timeout": 15,
+            "statusMessage": "Generating l10n..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "if": "Bash(git commit *)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-commit-check.sh",
+            "timeout": 120,
+            "statusMessage": "Pre-commit: analyze + tests..."
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Edit(/.claude/skills/commit/**)"
+    ]
+  }
+}

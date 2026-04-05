@@ -15,8 +15,7 @@ void main() {
 
     test('load() reads version from PackageInfo', () async {
       // Mock the platform channel that PackageInfo uses
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('dev.fluttercommunity.plus/package_info'),
         (call) async {
           if (call.method == 'getAll') {
@@ -36,8 +35,7 @@ void main() {
       final container = ProviderContainer();
       addTearDown(() {
         container.dispose();
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
           const MethodChannel('dev.fluttercommunity.plus/package_info'),
           null,
         );

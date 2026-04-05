@@ -29,15 +29,15 @@ class AppDivider extends StatelessWidget {
 
   /// Indented divider (8 px each side) for grouping items in menus.
   const AppDivider.indented({super.key, this.color})
-      : indent = 8,
-        endIndent = 8;
+    : indent = 8,
+      endIndent = 8;
 
   @override
   Widget build(BuildContext context) => Divider(
-        height: 1,
-        thickness: 1,
-        indent: indent,
-        endIndent: endIndent,
-        color: color ?? AppTheme.border,
-      );
+    height: 1,
+    thickness: 1,
+    indent: indent,
+    endIndent: endIndent,
+    color: color ?? AppTheme.border,
+  );
 }

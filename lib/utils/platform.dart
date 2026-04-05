@@ -29,4 +29,5 @@ bool get isMobilePlatform =>
 
 /// True on Linux, macOS, or Windows.
 bool get isDesktopPlatform =>
-    debugDesktopPlatformOverride ?? (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+    debugDesktopPlatformOverride ??
+    (Platform.isLinux || Platform.isMacOS || Platform.isWindows);

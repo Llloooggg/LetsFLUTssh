@@ -54,12 +54,15 @@ class Connection {
   ///
   /// Sets [connectionError] on timeout. No-op if not currently connecting.
   /// Shared by desktop and mobile views to avoid duplicated wait logic.
-  Future<void> waitUntilReady({Duration timeout = const Duration(seconds: 30)}) async {
+  Future<void> waitUntilReady({
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
     if (!isConnecting) return;
     try {
       await ready.timeout(timeout);
     } on TimeoutException {
-      connectionError = 'Connection timed out after ${timeout.inSeconds} seconds';
+      connectionError =
+          'Connection timed out after ${timeout.inSeconds} seconds';
     }
   }
 

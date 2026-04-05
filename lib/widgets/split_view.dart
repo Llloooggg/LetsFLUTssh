@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// Resizable horizontal split pane with a draggable divider.
 class SplitView extends StatefulWidget {
   final Widget left;
@@ -36,32 +38,30 @@ class _SplitViewState extends State<SplitView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Clamp left width to valid range
-        final maxLeft = (constraints.maxWidth - 100)
-            .clamp(widget.minLeftWidth, widget.maxLeftWidth);
+        final maxLeft = (constraints.maxWidth - 100).clamp(
+          widget.minLeftWidth,
+          widget.maxLeftWidth,
+        );
         _leftWidth = _leftWidth.clamp(widget.minLeftWidth, maxLeft);
 
         return Row(
           children: [
-            SizedBox(
-              width: _leftWidth,
-              child: widget.left,
-            ),
+            SizedBox(width: _leftWidth, child: widget.left),
             Semantics(
-              label: 'Resize panel divider',
+              label: S.of(context).resizePanelDivider,
               slider: true,
               child: MouseRegion(
                 cursor: SystemMouseCursors.resizeColumn,
                 child: GestureDetector(
                   onHorizontalDragUpdate: (details) {
                     setState(() {
-                      _leftWidth = (_leftWidth + details.delta.dx)
-                          .clamp(widget.minLeftWidth, maxLeft);
+                      _leftWidth = (_leftWidth + details.delta.dx).clamp(
+                        widget.minLeftWidth,
+                        maxLeft,
+                      );
                     });
                   },
-                  child: Container(
-                    width: 4,
-                    color: theme.dividerColor,
-                  ),
+                  child: Container(width: 4, color: theme.dividerColor),
                 ),
               ),
             ),

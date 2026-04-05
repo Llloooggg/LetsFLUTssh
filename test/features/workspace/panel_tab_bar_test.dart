@@ -6,6 +6,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/workspace/panel_tab_bar.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   TabEntry makeTab({
@@ -42,6 +43,8 @@ void main() {
   }) {
     final tabList = tabs ?? [makeTab(id: 'tab-0')];
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
         body: SizedBox(
@@ -66,7 +69,9 @@ void main() {
   group('PanelTabBar — rendering', () {
     testWidgets('renders a single tab with label', (tester) async {
       await tester.pumpWidget(
-        buildBar(tabs: [makeTab(id: 't1', label: 'MyServer')]),
+        buildBar(
+          tabs: [makeTab(id: 't1', label: 'MyServer')],
+        ),
       );
 
       expect(find.text('MyServer'), findsOneWidget);
@@ -87,7 +92,9 @@ void main() {
 
     testWidgets('renders terminal icon for terminal tab', (tester) async {
       await tester.pumpWidget(
-        buildBar(tabs: [makeTab(id: 't1', kind: TabKind.terminal)]),
+        buildBar(
+          tabs: [makeTab(id: 't1', kind: TabKind.terminal)],
+        ),
       );
 
       expect(find.byIcon(Icons.terminal), findsOneWidget);
@@ -95,7 +102,9 @@ void main() {
 
     testWidgets('renders folder icon for sftp tab', (tester) async {
       await tester.pumpWidget(
-        buildBar(tabs: [makeTab(id: 't1', kind: TabKind.sftp)]),
+        buildBar(
+          tabs: [makeTab(id: 't1', kind: TabKind.sftp)],
+        ),
       );
 
       expect(find.byIcon(Icons.folder), findsOneWidget);
@@ -114,9 +123,7 @@ void main() {
 
       // Active tab has a 2px accent colored box at the top.
       final coloredBoxes = tester.widgetList<ColoredBox>(find.byType(ColoredBox));
-      final accentBoxes = coloredBoxes
-          .where((b) => b.color == AppTheme.accent)
-          .toList();
+      final accentBoxes = coloredBoxes.where((b) => b.color == AppTheme.accent).toList();
       expect(accentBoxes, isNotEmpty);
     });
 
@@ -128,8 +135,7 @@ void main() {
   });
 
   group('PanelTabBar — callbacks', () {
-    testWidgets('tapping a tab calls onSelect with correct index',
-        (tester) async {
+    testWidgets('tapping a tab calls onSelect with correct index', (tester) async {
       int? selectedIndex;
       await tester.pumpWidget(
         buildBar(
@@ -149,13 +155,7 @@ void main() {
     testWidgets('close button calls onClose with tab id', (tester) async {
       String? closedTabId;
       final tabs = [makeTab(id: 'tab-close-me', label: 'ToClose')];
-      await tester.pumpWidget(
-        buildBar(
-          tabs: tabs,
-          activeIndex: 0,
-          onClose: (id) => closedTabId = id,
-        ),
-      );
+      await tester.pumpWidget(buildBar(tabs: tabs, activeIndex: 0, onClose: (id) => closedTabId = id));
 
       // Active tab shows close button — find the close icon and tap it.
       await tester.tap(find.byIcon(Icons.close));
@@ -187,9 +187,7 @@ void main() {
     testWidgets('connected tab shows green dot', (tester) async {
       await tester.pumpWidget(
         buildBar(
-          tabs: [
-            makeTab(id: 't1', connState: SSHConnectionState.connected),
-          ],
+          tabs: [makeTab(id: 't1', connState: SSHConnectionState.connected)],
         ),
       );
 
@@ -202,18 +200,13 @@ void main() {
       }).toList();
       expect(dots, isNotEmpty);
       final dotDec = dots.first.decoration as BoxDecoration;
-      expect(
-        dotDec.color,
-        AppTheme.connectedColor(Brightness.dark),
-      );
+      expect(dotDec.color, AppTheme.connectedColor(Brightness.dark));
     });
 
     testWidgets('disconnected tab shows faint dot', (tester) async {
       await tester.pumpWidget(
         buildBar(
-          tabs: [
-            makeTab(id: 't1', connState: SSHConnectionState.disconnected),
-          ],
+          tabs: [makeTab(id: 't1', connState: SSHConnectionState.disconnected)],
         ),
       );
 
@@ -231,9 +224,7 @@ void main() {
     testWidgets('connecting tab shows connecting color dot', (tester) async {
       await tester.pumpWidget(
         buildBar(
-          tabs: [
-            makeTab(id: 't1', connState: SSHConnectionState.connecting),
-          ],
+          tabs: [makeTab(id: 't1', connState: SSHConnectionState.connecting)],
         ),
       );
 
@@ -245,43 +236,28 @@ void main() {
       }).toList();
       expect(dots, isNotEmpty);
       final dotDec = dots.first.decoration as BoxDecoration;
-      expect(
-        dotDec.color,
-        AppTheme.connectingColor(Brightness.dark),
-      );
+      expect(dotDec.color, AppTheme.connectingColor(Brightness.dark));
     });
   });
 
   group('PanelTabBar — tab width clamping', () {
     testWidgets('tabs clamp to max 180px width', (tester) async {
       // Single tab at 600px wide container → natural = 600 → clamped to 180.
-      await tester.pumpWidget(
-        buildBar(
-          tabs: [makeTab(id: 't1')],
-          width: 600,
-        ),
-      );
+      await tester.pumpWidget(buildBar(tabs: [makeTab(id: 't1')], width: 600));
 
       // The tab item SizedBox should be clamped to 180.
       final tabSizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
-      final tabWidth = tabSizedBoxes
-          .where((s) => s.width == 180.0)
-          .toList();
+      final tabWidth = tabSizedBoxes.where((s) => s.width == 180.0).toList();
       expect(tabWidth, isNotEmpty);
     });
 
     testWidgets('many tabs shrink to min 80px width', (tester) async {
       // 10 tabs at 600px → natural = 60 → clamped to 80.
-      final tabs = List.generate(
-        10,
-        (i) => makeTab(id: 'tab-$i', label: 'S$i'),
-      );
+      final tabs = List.generate(10, (i) => makeTab(id: 'tab-$i', label: 'S$i'));
       await tester.pumpWidget(buildBar(tabs: tabs, width: 600));
 
       final tabSizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
-      final minWidthBoxes = tabSizedBoxes
-          .where((s) => s.width == 80.0)
-          .toList();
+      final minWidthBoxes = tabSizedBoxes.where((s) => s.width == 80.0).toList();
       expect(minWidthBoxes.length, 10);
     });
   });

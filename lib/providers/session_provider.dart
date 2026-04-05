@@ -13,8 +13,9 @@ final sessionStoreProvider = Provider<SessionStore>((ref) {
 });
 
 /// Session list state — loaded async, notifies on changes.
-final sessionProvider =
-    NotifierProvider<SessionNotifier, List<Session>>(SessionNotifier.new);
+final sessionProvider = NotifierProvider<SessionNotifier, List<Session>>(
+  SessionNotifier.new,
+);
 
 class SessionNotifier extends Notifier<List<Session>> {
   final SessionHistory _history = SessionHistory();
@@ -27,7 +28,8 @@ class SessionNotifier extends Notifier<List<Session>> {
   bool get canUndo => _history.canUndo;
   bool get canRedo => _history.canRedo;
 
-  SessionSnapshot _snapshot(String description, {
+  SessionSnapshot _snapshot(
+    String description, {
     Map<String, CredentialData> credentials = const {},
   }) => SessionSnapshot(
     sessions: List.of(_store.sessions),
@@ -43,7 +45,11 @@ class SessionNotifier extends Notifier<List<Session>> {
   }
 
   /// Run an undoable delete: save credentials before deleting.
-  Future<T> _runUndoableDelete<T>(String op, Set<String> ids, Future<T> Function() fn) async {
+  Future<T> _runUndoableDelete<T>(
+    String op,
+    Set<String> ids,
+    Future<T> Function() fn,
+  ) async {
     final creds = await _store.loadCredentials(ids);
     _history.pushUndo(_snapshot(op, credentials: creds));
     return _run(op, fn);
@@ -56,7 +62,11 @@ class SessionNotifier extends Notifier<List<Session>> {
       state = _store.sessions;
       return result;
     } catch (e) {
-      AppLogger.instance.log('Failed to $op', name: 'SessionProvider', error: e);
+      AppLogger.instance.log(
+        'Failed to $op',
+        name: 'SessionProvider',
+        error: e,
+      );
       rethrow;
     }
   }
@@ -65,30 +75,62 @@ class SessionNotifier extends Notifier<List<Session>> {
     try {
       state = await _store.load();
     } catch (e) {
-      AppLogger.instance.log('Failed to load sessions', name: 'SessionProvider', error: e);
+      AppLogger.instance.log(
+        'Failed to load sessions',
+        name: 'SessionProvider',
+        error: e,
+      );
     }
   }
 
-  Future<void> add(Session session) => _run('add session', () => _store.add(session));
-  Future<void> update(Session session) => _run('update session', () => _store.update(session));
-  Future<void> delete(String id) => _runUndoableDelete('delete session', {id}, () => _store.delete(id));
-  Future<Session> duplicate(String id) => _run('duplicate session', () => _store.duplicateSession(id));
-  Future<void> addEmptyFolder(String folderPath) => _run('add folder', () => _store.addEmptyFolder(folderPath));
-  Future<void> renameFolder(String oldPath, String newPath) => _runUndoable('rename folder', () => _store.renameFolder(oldPath, newPath));
+  Future<void> add(Session session) =>
+      _run('add session', () => _store.add(session));
+  Future<void> update(Session session) =>
+      _run('update session', () => _store.update(session));
+  Future<void> delete(String id) =>
+      _runUndoableDelete('delete session', {id}, () => _store.delete(id));
+  Future<Session> duplicate(String id) =>
+      _run('duplicate session', () => _store.duplicateSession(id));
+  Future<void> addEmptyFolder(String folderPath) =>
+      _run('add folder', () => _store.addEmptyFolder(folderPath));
+  Future<void> renameFolder(String oldPath, String newPath) => _runUndoable(
+    'rename folder',
+    () => _store.renameFolder(oldPath, newPath),
+  );
   Future<void> deleteFolder(String folderPath) {
     final ids = _store.sessions
-        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
-        .map((s) => s.id).toSet();
-    return _runUndoableDelete('delete folder', ids, () => _store.deleteFolder(folderPath));
+        .where(
+          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+        )
+        .map((s) => s.id)
+        .toSet();
+    return _runUndoableDelete(
+      'delete folder',
+      ids,
+      () => _store.deleteFolder(folderPath),
+    );
   }
+
   Future<void> deleteAll() {
     final ids = _store.sessions.map((s) => s.id).toSet();
     return _runUndoableDelete('delete all', ids, () => _store.deleteAll());
   }
-  Future<void> moveSession(String sessionId, String newFolder) => _runUndoable('move session', () => _store.moveSession(sessionId, newFolder));
-  Future<void> moveFolder(String folderPath, String newParent) => _runUndoable('move folder', () => _store.moveFolder(folderPath, newParent));
-  Future<void> deleteMultiple(Set<String> ids) => _runUndoableDelete('delete multiple', ids, () => _store.deleteMultiple(ids));
-  Future<void> moveMultiple(Set<String> ids, String newFolder) => _runUndoable('move multiple', () => _store.moveMultiple(ids, newFolder));
+
+  Future<void> moveSession(String sessionId, String newFolder) => _runUndoable(
+    'move session',
+    () => _store.moveSession(sessionId, newFolder),
+  );
+  Future<void> moveFolder(String folderPath, String newParent) => _runUndoable(
+    'move folder',
+    () => _store.moveFolder(folderPath, newParent),
+  );
+  Future<void> deleteMultiple(Set<String> ids) => _runUndoableDelete(
+    'delete multiple',
+    ids,
+    () => _store.deleteMultiple(ids),
+  );
+  Future<void> moveMultiple(Set<String> ids, String newFolder) =>
+      _runUndoable('move multiple', () => _store.moveMultiple(ids, newFolder));
 
   Future<SessionSnapshot> _snapshotWithCreds(String description) async {
     final ids = _store.sessions.map((s) => s.id).toSet();
@@ -100,7 +142,11 @@ class SessionNotifier extends Notifier<List<Session>> {
     final current = await _snapshotWithCreds('current');
     final restored = _history.undo(current);
     if (restored == null) return false;
-    await _store.restoreSnapshot(restored.sessions, restored.emptyFolders, restored.credentials);
+    await _store.restoreSnapshot(
+      restored.sessions,
+      restored.emptyFolders,
+      restored.credentials,
+    );
     state = _store.sessions;
     return true;
   }
@@ -109,7 +155,11 @@ class SessionNotifier extends Notifier<List<Session>> {
     final current = await _snapshotWithCreds('current');
     final restored = _history.redo(current);
     if (restored == null) return false;
-    await _store.restoreSnapshot(restored.sessions, restored.emptyFolders, restored.credentials);
+    await _store.restoreSnapshot(
+      restored.sessions,
+      restored.emptyFolders,
+      restored.credentials,
+    );
     state = _store.sessions;
     return true;
   }
@@ -123,8 +173,9 @@ final sessionTreeProvider = Provider<List<SessionTreeNode>>((ref) {
 });
 
 /// Search query state.
-final sessionSearchProvider =
-    NotifierProvider<SessionSearchNotifier, String>(SessionSearchNotifier.new);
+final sessionSearchProvider = NotifierProvider<SessionSearchNotifier, String>(
+  SessionSearchNotifier.new,
+);
 
 class SessionSearchNotifier extends Notifier<String> {
   @override

@@ -47,7 +47,7 @@ windows/flutter/ephemeral/
 *.freezed.dart
 
 # Coverage
-coverage/
+/coverage/
 *.lcov
 
 # Secrets
@@ -60,5 +60,8 @@ coverage/
 # Logs
 *.log
 
-# Claude
-.claude
+# Claude (local-only files)
+.claude/settings.local.json
+.claude/memory/
+.claude/plans/
+.claude/worktrees/

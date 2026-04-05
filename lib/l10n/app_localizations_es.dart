@@ -1,0 +1,832 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Spanish Castilian (`es`).
+class SEs extends S {
+  SEs([String locale = 'es']) : super(locale);
+
+  @override
+  String get appTitle => 'LetsFLUTssh';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get cancel => 'Cancelar';
+
+  @override
+  String get close => 'Cerrar';
+
+  @override
+  String get delete => 'Eliminar';
+
+  @override
+  String get save => 'Guardar';
+
+  @override
+  String get connect => 'Conectar';
+
+  @override
+  String get retry => 'Reintentar';
+
+  @override
+  String get import_ => 'Importar';
+
+  @override
+  String get export_ => 'Exportar';
+
+  @override
+  String get rename => 'Renombrar';
+
+  @override
+  String get create => 'Crear';
+
+  @override
+  String get back => 'Atrás';
+
+  @override
+  String get copy => 'Copiar';
+
+  @override
+  String get paste => 'Pegar';
+
+  @override
+  String get select => 'Seleccionar';
+
+  @override
+  String get required => 'Obligatorio';
+
+  @override
+  String get settings => 'Ajustes';
+
+  @override
+  String get terminal => 'Terminal';
+
+  @override
+  String get files => 'Archivos';
+
+  @override
+  String get transfer => 'Transferencia';
+
+  @override
+  String get open => 'Abrir';
+
+  @override
+  String get search => 'Buscar...';
+
+  @override
+  String get filter => 'Filtrar...';
+
+  @override
+  String get merge => 'Fusionar';
+
+  @override
+  String get replace => 'Reemplazar';
+
+  @override
+  String get reconnect => 'Reconectar';
+
+  @override
+  String get updateAvailable => 'Actualización disponible';
+
+  @override
+  String updateVersionAvailable(String version, String current) {
+    return 'La versión $version está disponible (actual: v$current).';
+  }
+
+  @override
+  String get releaseNotes => 'Notas de la versión:';
+
+  @override
+  String get skipThisVersion => 'Omitir esta versión';
+
+  @override
+  String get unskip => 'Dejar de omitir';
+
+  @override
+  String get downloadAndInstall => 'Descargar e instalar';
+
+  @override
+  String get openInBrowser => 'Abrir en el navegador';
+
+  @override
+  String get couldNotOpenBrowser =>
+      'No se pudo abrir el navegador — URL copiada al portapapeles';
+
+  @override
+  String get checkForUpdates => 'Buscar actualizaciones';
+
+  @override
+  String get checkForUpdatesOnStartup => 'Buscar actualizaciones al iniciar';
+
+  @override
+  String get checking => 'Comprobando...';
+
+  @override
+  String get youreUpToDate => 'Estás al día';
+
+  @override
+  String get updateCheckFailed => 'Error al buscar actualizaciones';
+
+  @override
+  String get unknownError => 'Error desconocido';
+
+  @override
+  String downloadingPercent(int percent) {
+    return 'Descargando... $percent%';
+  }
+
+  @override
+  String get downloadComplete => 'Descarga completada';
+
+  @override
+  String get installNow => 'Instalar ahora';
+
+  @override
+  String get couldNotOpenInstaller => 'No se pudo abrir el instalador';
+
+  @override
+  String versionAvailable(String version) {
+    return 'Versión $version disponible';
+  }
+
+  @override
+  String currentVersion(String version) {
+    return 'Actual: v$version';
+  }
+
+  @override
+  String sshKeyReceived(String filename) {
+    return 'Clave SSH recibida: $filename';
+  }
+
+  @override
+  String importedSessionsViaQr(int count) {
+    return '$count sesión/sesiones importadas vía QR';
+  }
+
+  @override
+  String importedSessions(int count) {
+    return '$count sesión/sesiones importadas';
+  }
+
+  @override
+  String importFailed(String error) {
+    return 'Error al importar: $error';
+  }
+
+  @override
+  String get sessions => 'Sesiones';
+
+  @override
+  String get sessionsHeader => 'SESIONES';
+
+  @override
+  String get savedSessions => 'Sesiones guardadas';
+
+  @override
+  String get activeConnections => 'Conexiones activas';
+
+  @override
+  String get openTabs => 'Pestañas abiertas';
+
+  @override
+  String get noSavedSessions => 'No hay sesiones guardadas';
+
+  @override
+  String get addSession => 'Añadir sesión';
+
+  @override
+  String get noSessions => 'Sin sesiones';
+
+  @override
+  String get noSessionsToExport => 'No hay sesiones para exportar';
+
+  @override
+  String nSelectedCount(int count) {
+    return '$count seleccionados';
+  }
+
+  @override
+  String get selectAll => 'Seleccionar todo';
+
+  @override
+  String get moveTo => 'Mover a...';
+
+  @override
+  String get moveToFolder => 'Mover a carpeta';
+
+  @override
+  String get rootFolder => '/ (raíz)';
+
+  @override
+  String get newFolder => 'Nueva carpeta';
+
+  @override
+  String get newConnection => 'Nueva conexión';
+
+  @override
+  String get editConnection => 'Editar conexión';
+
+  @override
+  String get duplicate => 'Duplicar';
+
+  @override
+  String get deleteSession => 'Eliminar sesión';
+
+  @override
+  String get renameFolder => 'Renombrar carpeta';
+
+  @override
+  String get deleteFolder => 'Eliminar carpeta';
+
+  @override
+  String get deleteSelected => 'Eliminar seleccionados';
+
+  @override
+  String deleteNSessionsAndFolders(String parts) {
+    return '¿Eliminar $parts?\n\nEsta acción no se puede deshacer.';
+  }
+
+  @override
+  String nSessions(int count) {
+    return '$count sesión/sesiones';
+  }
+
+  @override
+  String nFolders(int count) {
+    return '$count carpeta(s)';
+  }
+
+  @override
+  String deleteFolderConfirm(String name) {
+    return '¿Eliminar la carpeta \"$name\"?';
+  }
+
+  @override
+  String willDeleteSessionsInside(int count) {
+    return 'También se eliminarán $count sesión/sesiones dentro.';
+  }
+
+  @override
+  String deleteSessionConfirm(String name) {
+    return '¿Eliminar \"$name\"?';
+  }
+
+  @override
+  String get connection => 'Conexión';
+
+  @override
+  String get auth => 'Autenticación';
+
+  @override
+  String get options => 'Opciones';
+
+  @override
+  String get sessionName => 'Nombre de la sesión';
+
+  @override
+  String get hintMyServer => 'Mi servidor';
+
+  @override
+  String get hostRequired => 'Host *';
+
+  @override
+  String get hintHost => '192.168.1.1';
+
+  @override
+  String get port => 'Puerto';
+
+  @override
+  String get hintPort => '22';
+
+  @override
+  String get usernameRequired => 'Usuario *';
+
+  @override
+  String get hintUsername => 'root';
+
+  @override
+  String get password => 'Contraseña';
+
+  @override
+  String get hintPassword => '••••••••';
+
+  @override
+  String get keyPassphrase => 'Frase de paso de la clave';
+
+  @override
+  String get hintOptional => 'Opcional';
+
+  @override
+  String get hidePemText => 'Ocultar texto PEM';
+
+  @override
+  String get pastePemKeyText => 'Pegar texto de clave PEM';
+
+  @override
+  String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get noAdditionalOptionsYet => 'Aún no hay opciones adicionales';
+
+  @override
+  String get saveAndConnect => 'Guardar y conectar';
+
+  @override
+  String get portRange => '1-65535';
+
+  @override
+  String get provideKeyFirst =>
+      'Primero proporcione un archivo de clave o texto PEM';
+
+  @override
+  String get keyTextPem => 'Texto de clave (PEM)';
+
+  @override
+  String get selectKeyFile => 'Seleccionar archivo de clave';
+
+  @override
+  String get clearKeyFile => 'Borrar archivo de clave';
+
+  @override
+  String get quickConnect => 'Conexión rápida';
+
+  @override
+  String get scanQrCode => 'Escanear código QR';
+
+  @override
+  String get qrGenerationFailed => 'Error al generar QR';
+
+  @override
+  String get scanWithCameraApp =>
+      'Escanee con cualquier aplicación de cámara en un dispositivo\nque tenga LetsFLUTssh instalado.';
+
+  @override
+  String get noPasswordsInQr =>
+      'Este código QR no contiene contraseñas ni claves';
+
+  @override
+  String get copyLink => 'Copiar enlace';
+
+  @override
+  String get linkCopied => 'Enlace copiado al portapapeles';
+
+  @override
+  String get hostKeyChanged => '¡La clave del host ha cambiado!';
+
+  @override
+  String get unknownHost => 'Host desconocido';
+
+  @override
+  String get hostKeyChangedWarning =>
+      'ADVERTENCIA: La clave del host de este servidor ha cambiado. Esto podría indicar un ataque de intermediario, o el servidor puede haber sido reinstalado.';
+
+  @override
+  String get unknownHostMessage =>
+      'No se puede establecer la autenticidad de este host. ¿Está seguro de que desea continuar conectando?';
+
+  @override
+  String get host => 'Host';
+
+  @override
+  String get keyType => 'Tipo de clave';
+
+  @override
+  String get fingerprint => 'Huella digital';
+
+  @override
+  String get fingerprintCopied => 'Huella digital copiada';
+
+  @override
+  String get copyFingerprint => 'Copiar huella digital';
+
+  @override
+  String get acceptAnyway => 'Aceptar de todos modos';
+
+  @override
+  String get accept => 'Aceptar';
+
+  @override
+  String get importData => 'Importar datos';
+
+  @override
+  String get masterPassword => 'Contraseña maestra';
+
+  @override
+  String get confirmPassword => 'Confirmar contraseña';
+
+  @override
+  String get importModeMergeDescription =>
+      'Añadir sesiones nuevas, conservar las existentes';
+
+  @override
+  String get importModeReplaceDescription =>
+      'Reemplazar todas las sesiones con las importadas';
+
+  @override
+  String errorPrefix(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get folderName => 'Nombre de la carpeta';
+
+  @override
+  String get newName => 'Nuevo nombre';
+
+  @override
+  String deleteItems(String names) {
+    return '¿Eliminar $names?';
+  }
+
+  @override
+  String deleteNItems(int count) {
+    return 'Eliminar $count elementos';
+  }
+
+  @override
+  String deletedItem(String name) {
+    return '$name eliminado';
+  }
+
+  @override
+  String deletedNItems(int count) {
+    return '$count elementos eliminados';
+  }
+
+  @override
+  String failedToCreateFolder(String error) {
+    return 'Error al crear la carpeta: $error';
+  }
+
+  @override
+  String failedToRename(String error) {
+    return 'Error al renombrar: $error';
+  }
+
+  @override
+  String failedToDeleteItem(String name, String error) {
+    return 'Error al eliminar $name: $error';
+  }
+
+  @override
+  String get editPath => 'Editar ruta';
+
+  @override
+  String get root => 'Raíz';
+
+  @override
+  String get controllersNotInitialized => 'Controladores no inicializados';
+
+  @override
+  String get initializingSftp => 'Inicializando SFTP...';
+
+  @override
+  String get clearHistory => 'Borrar historial';
+
+  @override
+  String get noTransfersYet => 'Aún no hay transferencias';
+
+  @override
+  String get copyRight => 'Copiar a la derecha';
+
+  @override
+  String get copyDown => 'Copiar abajo';
+
+  @override
+  String get closePane => 'Cerrar panel';
+
+  @override
+  String get previous => 'Anterior';
+
+  @override
+  String get next => 'Siguiente';
+
+  @override
+  String get closeEsc => 'Cerrar (Esc)';
+
+  @override
+  String get copyRightShortcut => 'Copiar a la derecha (Ctrl+\\)';
+
+  @override
+  String get copyDownShortcut => 'Copiar abajo (Ctrl+Shift+\\)';
+
+  @override
+  String get closeOthers => 'Cerrar otras';
+
+  @override
+  String get closeTabsToTheLeft => 'Cerrar pestañas a la izquierda';
+
+  @override
+  String get closeTabsToTheRight => 'Cerrar pestañas a la derecha';
+
+  @override
+  String get noActiveSession => 'Sin sesión activa';
+
+  @override
+  String get createConnectionHint =>
+      'Cree una nueva conexión o seleccione una de la barra lateral';
+
+  @override
+  String get hideSidebar => 'Ocultar barra lateral (Ctrl+B)';
+
+  @override
+  String get showSidebar => 'Mostrar barra lateral (Ctrl+B)';
+
+  @override
+  String get language => 'Idioma';
+
+  @override
+  String get languageSystemDefault => 'Auto';
+
+  @override
+  String get theme => 'Tema';
+
+  @override
+  String get themeDark => 'Oscuro';
+
+  @override
+  String get themeLight => 'Claro';
+
+  @override
+  String get themeSystem => 'Sistema';
+
+  @override
+  String get appearance => 'Apariencia';
+
+  @override
+  String get connectionSection => 'Conexión';
+
+  @override
+  String get transfers => 'Transferencias';
+
+  @override
+  String get data => 'Datos';
+
+  @override
+  String get logging => 'Registro';
+
+  @override
+  String get updates => 'Actualizaciones';
+
+  @override
+  String get about => 'Acerca de';
+
+  @override
+  String get resetToDefaults => 'Restablecer valores predeterminados';
+
+  @override
+  String get uiScale => 'Escala de la interfaz';
+
+  @override
+  String get terminalFontSize => 'Tamaño de fuente del terminal';
+
+  @override
+  String get scrollbackLines => 'Líneas de desplazamiento';
+
+  @override
+  String get keepAliveInterval => 'Intervalo de Keep-Alive (seg)';
+
+  @override
+  String get sshTimeout => 'Tiempo de espera SSH (seg)';
+
+  @override
+  String get defaultPort => 'Puerto predeterminado';
+
+  @override
+  String get parallelWorkers => 'Trabajadores en paralelo';
+
+  @override
+  String get maxHistory => 'Historial máximo';
+
+  @override
+  String get calculateFolderSizes => 'Calcular tamaños de carpetas';
+
+  @override
+  String get exportData => 'Exportar datos';
+
+  @override
+  String get exportDataSubtitle =>
+      'Guardar sesiones, configuración y claves en un archivo .lfs cifrado';
+
+  @override
+  String get importDataSubtitle => 'Cargar datos desde un archivo .lfs';
+
+  @override
+  String get setMasterPasswordHint =>
+      'Establezca una contraseña maestra para cifrar el archivo.';
+
+  @override
+  String get passwordsDoNotMatch => 'Las contraseñas no coinciden';
+
+  @override
+  String exportedTo(String path) {
+    return 'Exportado a: $path';
+  }
+
+  @override
+  String exportFailed(String error) {
+    return 'Error al exportar: $error';
+  }
+
+  @override
+  String get pathToLfsFile => 'Ruta al archivo .lfs';
+
+  @override
+  String get hintLfsPath => '/ruta/al/archivo.lfs';
+
+  @override
+  String get shareViaQrCode => 'Compartir vía código QR';
+
+  @override
+  String get shareViaQrSubtitle =>
+      'Exportar sesiones a QR para escanear desde otro dispositivo';
+
+  @override
+  String get dataLocation => 'Ubicación de los datos';
+
+  @override
+  String get pathCopied => 'Ruta copiada al portapapeles';
+
+  @override
+  String get urlCopied => 'URL copiada al portapapeles';
+
+  @override
+  String aboutSubtitle(String version) {
+    return 'v$version — Cliente SSH/SFTP';
+  }
+
+  @override
+  String get sourceCode => 'Código fuente';
+
+  @override
+  String get enableLogging => 'Activar registro';
+
+  @override
+  String get logIsEmpty => 'El registro está vacío';
+
+  @override
+  String logExportedTo(String path) {
+    return 'Registro exportado a: $path';
+  }
+
+  @override
+  String logExportFailed(String error) {
+    return 'Error al exportar el registro: $error';
+  }
+
+  @override
+  String get logsCleared => 'Registros borrados';
+
+  @override
+  String get copiedToClipboard => 'Copiado al portapapeles';
+
+  @override
+  String get copyLog => 'Copiar registro';
+
+  @override
+  String get exportLog => 'Exportar registro';
+
+  @override
+  String get clearLogs => 'Borrar registros';
+
+  @override
+  String get local => 'Local';
+
+  @override
+  String get remote => 'Remoto';
+
+  @override
+  String get pickFolder => 'Elegir carpeta';
+
+  @override
+  String get refresh => 'Actualizar';
+
+  @override
+  String get up => 'Subir';
+
+  @override
+  String get emptyDirectory => 'Directorio vacío';
+
+  @override
+  String get cancelSelection => 'Cancelar selección';
+
+  @override
+  String get openSftpBrowser => 'Abrir explorador SFTP';
+
+  @override
+  String get openSshTerminal => 'Abrir terminal SSH';
+
+  @override
+  String get noActiveFileBrowsers => 'No hay exploradores de archivos activos';
+
+  @override
+  String get useSftpFromSessions => 'Use \"SFTP\" desde Sesiones';
+
+  @override
+  String get anotherInstanceRunning =>
+      'Otra instancia de LetsFLUTssh ya está en ejecución.';
+
+  @override
+  String importFailedShort(String error) {
+    return 'Error al importar: $error';
+  }
+
+  @override
+  String get saveLogAs => 'Guardar registro como';
+
+  @override
+  String get chooseSaveLocation => 'Elegir ubicación de guardado';
+
+  @override
+  String get forward => 'Adelante';
+
+  @override
+  String get name => 'Nombre';
+
+  @override
+  String get size => 'Tamaño';
+
+  @override
+  String get modified => 'Modificado';
+
+  @override
+  String get mode => 'Modo';
+
+  @override
+  String get owner => 'Propietario';
+
+  @override
+  String get connectionError => 'Error de conexión';
+
+  @override
+  String get resizeWindowToViewFiles =>
+      'Cambie el tamaño de la ventana para ver los archivos';
+
+  @override
+  String get completed => 'Completado';
+
+  @override
+  String get connected => 'Conectado';
+
+  @override
+  String get disconnected => 'Desconectado';
+
+  @override
+  String get exit => 'Salir';
+
+  @override
+  String get exitConfirmation =>
+      'Las sesiones activas serán desconectadas. ¿Salir?';
+
+  @override
+  String get hintFolderExample => 'ej. Production';
+
+  @override
+  String get credentialsNotSet => 'Credenciales no configuradas';
+
+  @override
+  String get exportSessionsViaQr => 'Exportar sesiones vía QR';
+
+  @override
+  String get qrNoCredentialsWarning =>
+      'Las contraseñas y claves SSH NO están incluidas.\nLas sesiones importadas necesitarán que se completen las credenciales.';
+
+  @override
+  String get qrTooManyForSingleCode =>
+      'Demasiadas sesiones para un solo código QR. Deseleccione algunas o use la exportación .lfs.';
+
+  @override
+  String get qrTooLarge =>
+      'Demasiado grande — deseleccione algunas sesiones o use la exportación en archivo .lfs.';
+
+  @override
+  String get exportAll => 'Exportar todo';
+
+  @override
+  String get showQr => 'Mostrar QR';
+
+  @override
+  String get resizePanelDivider => 'Redimensionar divisor de panel';
+
+  @override
+  String get youreRunningLatest => 'Está usando la versión más reciente';
+
+  @override
+  String get liveLog => 'Log en vivo';
+
+  @override
+  String transferNItems(int count) {
+    return 'Transferir $count elementos';
+  }
+
+  @override
+  String get time => 'Tiempo';
+
+  @override
+  String get failed => 'Fallido';
+}

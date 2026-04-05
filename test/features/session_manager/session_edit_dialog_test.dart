@@ -5,6 +5,7 @@ import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/session_edit_dialog.dart';
 import 'package:letsflutssh/utils/platform.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   SessionDialogResult? dialogResult;
@@ -12,15 +13,13 @@ void main() {
   Widget buildApp({Session? session, String? defaultFolder}) {
     dialogResult = null;
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       home: Scaffold(
         body: Builder(
           builder: (context) => ElevatedButton(
             onPressed: () async {
-              dialogResult = await SessionEditDialog.show(
-                context,
-                session: session,
-                defaultFolder: defaultFolder,
-              );
+              dialogResult = await SessionEditDialog.show(context, session: session, defaultFolder: defaultFolder);
             },
             child: const Text('Open'),
           ),
@@ -30,10 +29,14 @@ void main() {
   }
 
   /// Finds a TextFormField by its hint text.
-  Finder fieldByHint(String hint) =>
-      find.widgetWithText(TextFormField, hint);
+  Finder fieldByHint(String hint) => find.widgetWithText(TextFormField, hint);
 
-  Future<void> fillRequiredFields(WidgetTester tester, {String host = 'example.com', String user = 'testuser', String password = 'pass'}) async {
+  Future<void> fillRequiredFields(
+    WidgetTester tester, {
+    String host = 'example.com',
+    String user = 'testuser',
+    String password = 'pass',
+  }) async {
     await tester.enterText(fieldByHint('192.168.1.1'), host);
     await tester.enterText(fieldByHint('root'), user);
     // Fill password on Auth tab (required for default password auth)
@@ -237,7 +240,11 @@ void main() {
 
   group('SessionEditDialog — edit session submit', () {
     testWidgets('Save returns SaveResult with connect=false', (tester) async {
-      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
+      final session = Session(
+        label: 'test-server',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(authType: AuthType.password, password: 'pass'),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -253,7 +260,11 @@ void main() {
     });
 
     testWidgets('Save & Connect returns SaveResult with connect=true', (tester) async {
-      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
+      final session = Session(
+        label: 'test-server',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(authType: AuthType.password, password: 'pass'),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -269,7 +280,11 @@ void main() {
     });
 
     testWidgets('Save preserves edited fields', (tester) async {
-      final session = Session(label: 'old-label', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
+      final session = Session(
+        label: 'old-label',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(authType: AuthType.password, password: 'pass'),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -313,20 +328,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Click toggle to show PEM text — scroll down to find it first
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: find.byType(Scrollable).last);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
       // PEM field should now be visible
-      await tester.scrollUntilVisible(
-        find.text('Hide PEM text'),
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.scrollUntilVisible(find.text('Hide PEM text'), 100, scrollable: find.byType(Scrollable).last);
       expect(find.text('Hide PEM text'), findsOneWidget);
 
       // Click toggle to hide PEM text
@@ -350,11 +357,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open PEM text and enter key data (required for passphrase validation)
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: find.byType(Scrollable).last);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
@@ -370,23 +373,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll to passphrase field and fill it
-      await tester.scrollUntilVisible(
-        find.text('KEY PASSPHRASE'),
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.enterText(
-        fieldByHint('Optional'),
-        'mypassphrase',
-      );
+      await tester.scrollUntilVisible(find.text('KEY PASSPHRASE'), 100, scrollable: find.byType(Scrollable).last);
+      await tester.enterText(fieldByHint('Optional'), 'mypassphrase');
       await tester.pumpAndSettle();
 
       // Scroll back to Connect button
-      await tester.scrollUntilVisible(
-        find.text('Connect'),
-        -100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.scrollUntilVisible(find.text('Connect'), -100, scrollable: find.byType(Scrollable).last);
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
@@ -424,23 +416,12 @@ void main() {
       final scrollable = find.byType(Scrollable).last;
 
       // Scroll to password field
-      await tester.scrollUntilVisible(
-        fieldByHint('••••••••'),
-        100,
-        scrollable: scrollable,
-      );
-      await tester.enterText(
-        fieldByHint('••••••••'),
-        'secret',
-      );
+      await tester.scrollUntilVisible(fieldByHint('••••••••'), 100, scrollable: scrollable);
+      await tester.enterText(fieldByHint('••••••••'), 'secret');
       await tester.pumpAndSettle();
 
       // Add PEM key data (required for key auth)
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: scrollable);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
@@ -456,11 +437,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll back to action buttons
-      await tester.scrollUntilVisible(
-        find.text('Connect'),
-        -100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Connect'), -100, scrollable: scrollable);
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
@@ -511,7 +488,15 @@ void main() {
 
   group('SessionEditDialog — edit with key auth', () {
     testWidgets('editing session with key auth shows key fields pre-filled', (tester) async {
-      final session = Session(label: 'key-server', server: const ServerAddress(host: '10.0.0.1', user: 'ubuntu'), auth: const SessionAuth(authType: AuthType.key, keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'pass123'));
+      final session = Session(
+        label: 'key-server',
+        server: const ServerAddress(host: '10.0.0.1', user: 'ubuntu'),
+        auth: const SessionAuth(
+          authType: AuthType.key,
+          keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----',
+          passphrase: 'pass123',
+        ),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -528,21 +513,22 @@ void main() {
 
   group('SessionEditDialog — defaultFolder parameter', () {
     testWidgets('defaultFolder is applied to saved session', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                dialogResult = await SessionEditDialog.show(
-                  context,
-                  defaultFolder: 'Production/Web',
-                );
-              },
-              child: const Text('Open'),
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  dialogResult = await SessionEditDialog.show(context, defaultFolder: 'Production/Web');
+                },
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
@@ -568,11 +554,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll to passphrase field
-      await tester.scrollUntilVisible(
-        find.text('KEY PASSPHRASE'),
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.scrollUntilVisible(find.text('KEY PASSPHRASE'), 100, scrollable: find.byType(Scrollable).last);
 
       // Find visibility icons — there should be one for passphrase
       final visIcons = find.byIcon(Icons.visibility);
@@ -589,7 +571,10 @@ void main() {
 
   group('SessionEditDialog — edit session', () {
     testWidgets('shows Edit Session title', (tester) async {
-      final session = Session(label: 'test-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(
+        label: 'test-server',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -598,7 +583,10 @@ void main() {
     });
 
     testWidgets('Save button present for edit mode', (tester) async {
-      final session = Session(label: 'test', server: const ServerAddress(host: 'h', user: 'u'));
+      final session = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -607,7 +595,11 @@ void main() {
     });
 
     testWidgets('fields pre-populated from session', (tester) async {
-      final session = Session(label: 'my-server', folder: 'Production', server: const ServerAddress(host: '192.168.1.1', port: 2222, user: 'admin'));
+      final session = Session(
+        label: 'my-server',
+        folder: 'Production',
+        server: const ServerAddress(host: '192.168.1.1', port: 2222, user: 'admin'),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -633,7 +625,10 @@ void main() {
     });
 
     testWidgets('cancel in edit mode returns null', (tester) async {
-      final session = Session(label: 'srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'));
+      final session = Session(
+        label: 'srv',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -646,15 +641,17 @@ void main() {
   });
 
   group('SessionEditDialog — edit mode validation and id preservation', () {
-    testWidgets('Save in edit mode fails validation if host cleared',
-        (tester) async {
-      final session = Session(label: 'srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password));
+    testWidgets('Save in edit mode fails validation if host cleared', (tester) async {
+      final session = Session(
+        label: 'srv',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(authType: AuthType.password),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-          fieldByHint('192.168.1.1'), '');
+      await tester.enterText(fieldByHint('192.168.1.1'), '');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -664,15 +661,18 @@ void main() {
       expect(find.text('Edit Connection'), findsOneWidget);
     });
 
-    testWidgets('editing session preserves original session id',
-        (tester) async {
-      final session = Session(id: 'original-id-123', label: 'edit-me', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password, password: 'pass'));
+    testWidgets('editing session preserves original session id', (tester) async {
+      final session = Session(
+        id: 'original-id-123',
+        label: 'edit-me',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(authType: AuthType.password, password: 'pass'),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-          fieldByHint('My Server'), 'new-label');
+      await tester.enterText(fieldByHint('My Server'), 'new-label');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -686,7 +686,11 @@ void main() {
     });
 
     testWidgets('edit mode has Save, Save & Connect and Cancel buttons', (tester) async {
-      final session = Session(label: 'edit-me', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.password));
+      final session = Session(
+        label: 'edit-me',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(authType: AuthType.password),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -700,15 +704,23 @@ void main() {
   });
 
   group('SessionEditDialog — edit key session preserves all key fields', () {
-    testWidgets('editing key session and saving preserves key data',
-        (tester) async {
-      final session = Session(id: 'key-edit-1', label: 'key-srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.key, keyPath: '/path/to/key', keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'phrase123'));
+    testWidgets('editing key session and saving preserves key data', (tester) async {
+      final session = Session(
+        id: 'key-edit-1',
+        label: 'key-srv',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(
+          authType: AuthType.key,
+          keyPath: '/path/to/key',
+          keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
+          passphrase: 'phrase123',
+        ),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-          fieldByHint('My Server'), 'key-srv-updated');
+      await tester.enterText(fieldByHint('My Server'), 'key-srv-updated');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -725,14 +737,12 @@ void main() {
   });
 
   group('SessionEditDialog — additional validation', () {
-    testWidgets('Connect with empty host fails validation',
-        (tester) async {
+    testWidgets('Connect with empty host fails validation', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-          fieldByHint('root'), 'user');
+      await tester.enterText(fieldByHint('root'), 'user');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -742,14 +752,12 @@ void main() {
       expect(dialogResult, isNull);
     });
 
-    testWidgets('Connect with empty username fails validation',
-        (tester) async {
+    testWidgets('Connect with empty username fails validation', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-          fieldByHint('192.168.1.1'), 'host.com');
+      await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -765,8 +773,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
-      await tester.enterText(
-          fieldByHint('22'), 'abc');
+      await tester.enterText(fieldByHint('22'), 'abc');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -781,8 +788,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
-      await tester.enterText(
-          fieldByHint('22'), '0');
+      await tester.enterText(fieldByHint('22'), '0');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -797,8 +803,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
-      await tester.enterText(
-          fieldByHint('22'), '');
+      await tester.enterText(fieldByHint('22'), '');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -815,8 +820,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
-      await tester.enterText(
-          fieldByHint('22'), '1');
+      await tester.enterText(fieldByHint('22'), '1');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -832,8 +836,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await fillRequiredFields(tester);
-      await tester.enterText(
-          fieldByHint('22'), '65535');
+      await tester.enterText(fieldByHint('22'), '65535');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));
@@ -845,8 +848,7 @@ void main() {
   });
 
   group('SessionEditDialog — label is optional', () {
-    testWidgets('label field is optional — can submit without it',
-        (tester) async {
+    testWidgets('label field is optional — can submit without it', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -861,8 +863,7 @@ void main() {
   });
 
   group('SessionEditDialog — validation switches to correct tab', () {
-    testWidgets('switches to Connection tab when username is empty and on Auth tab',
-        (tester) async {
+    testWidgets('switches to Connection tab when username is empty and on Auth tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -885,8 +886,7 @@ void main() {
       expect(fieldByHint('root'), findsOneWidget);
     });
 
-    testWidgets('switches to Connection tab when host is empty and on Auth tab',
-        (tester) async {
+    testWidgets('switches to Connection tab when host is empty and on Auth tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -910,8 +910,7 @@ void main() {
   });
 
   group('SessionEditDialog — auth type switching', () {
-    testWidgets('switching to Both shows both password and key fields',
-        (tester) async {
+    testWidgets('switching to Both shows both password and key fields', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -962,8 +961,7 @@ void main() {
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Provide a password, key file, or PEM text'),
-          findsOneWidget);
+      expect(find.text('Provide a password, key file, or PEM text'), findsOneWidget);
       expect(dialogResult, isNull);
     });
 
@@ -1009,8 +1007,7 @@ void main() {
       expect(find.text('Required'), findsOneWidget);
     });
 
-    testWidgets('password field shows required marker only in password mode',
-        (tester) async {
+    testWidgets('password field shows required marker only in password mode', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1039,9 +1036,17 @@ void main() {
   });
 
   group('SessionEditDialog — editing keyWithPassword session', () {
-    testWidgets('editing Both session shows both password and key fields',
-        (tester) async {
-      final session = Session(label: 'kp-server', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.keyWithPassword, password: 'secret', keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----', passphrase: 'kp123'));
+    testWidgets('editing Both session shows both password and key fields', (tester) async {
+      final session = Session(
+        label: 'kp-server',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(
+          authType: AuthType.keyWithPassword,
+          password: 'secret',
+          keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
+          passphrase: 'kp123',
+        ),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1056,36 +1061,23 @@ void main() {
   });
 
   group('SessionEditDialog — ConnectOnly with password and custom port', () {
-    testWidgets('ConnectOnly preserves password and custom port',
-        (tester) async {
+    testWidgets('ConnectOnly preserves password and custom port', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-          fieldByHint('192.168.1.1'), 'h.com');
-      await tester.enterText(
-          fieldByHint('root'), 'u');
-      await tester.enterText(
-          fieldByHint('22'), '2222');
+      await tester.enterText(fieldByHint('192.168.1.1'), 'h.com');
+      await tester.enterText(fieldByHint('root'), 'u');
+      await tester.enterText(fieldByHint('22'), '2222');
 
       await switchToAuth(tester);
 
       final scrollable = find.byType(Scrollable).last;
-      await tester.scrollUntilVisible(
-        fieldByHint('••••••••'),
-        100,
-        scrollable: scrollable,
-      );
-      await tester.enterText(
-          fieldByHint('••••••••'), 'secret');
+      await tester.scrollUntilVisible(fieldByHint('••••••••'), 100, scrollable: scrollable);
+      await tester.enterText(fieldByHint('••••••••'), 'secret');
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Connect'),
-        -100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Connect'), -100, scrollable: scrollable);
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
@@ -1099,8 +1091,7 @@ void main() {
   });
 
   group('SessionEditDialog — Connect with Both all fields', () {
-    testWidgets('Connect with Both auth includes all fields',
-        (tester) async {
+    testWidgets('Connect with Both auth includes all fields', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1112,21 +1103,12 @@ void main() {
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
-      await tester.scrollUntilVisible(
-        fieldByHint('••••••••'),
-        100,
-        scrollable: scrollable,
-      );
-      await tester.enterText(
-          fieldByHint('••••••••'), 'pass123');
+      await tester.scrollUntilVisible(fieldByHint('••••••••'), 100, scrollable: scrollable);
+      await tester.enterText(fieldByHint('••••••••'), 'pass123');
       await tester.pumpAndSettle();
 
       // Add PEM key data (required for key auth)
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: scrollable);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
@@ -1141,11 +1123,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Connect'),
-        -100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Connect'), -100, scrollable: scrollable);
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
@@ -1156,16 +1134,12 @@ void main() {
   });
 
   group('SessionEditDialog — new session with folder', () {
-    testWidgets('Connect for new session returns ConnectOnlyResult',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        defaultFolder: 'Production',
-      ));
+    testWidgets('Connect for new session returns ConnectOnlyResult', (tester) async {
+      await tester.pumpWidget(buildApp(defaultFolder: 'Production'));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-          fieldByHint('My Server'), 'my-server');
+      await tester.enterText(fieldByHint('My Server'), 'my-server');
       await fillRequiredFields(tester, host: 'new.host', user: 'newuser');
 
       await tester.tap(find.text('Connect'));
@@ -1179,8 +1153,7 @@ void main() {
   });
 
   group('SessionEditDialog — key file button', () {
-    testWidgets('key auth shows Select Key File button',
-        (tester) async {
+    testWidgets('key auth shows Select Key File button', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1193,8 +1166,7 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
 
-    testWidgets('key file button is OutlinedButton, not TextFormField',
-        (tester) async {
+    testWidgets('key file button is OutlinedButton, not TextFormField', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1213,17 +1185,14 @@ void main() {
   });
 
   group('SessionEditDialog — PEM key data in connect result', () {
-    testWidgets('entering PEM key data is included in connect result',
-        (tester) async {
+    testWidgets('entering PEM key data is included in connect result', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       // Fill required fields on Connection tab first
-      await tester.enterText(
-          fieldByHint('192.168.1.1'), 'h.com');
-      await tester.enterText(
-          fieldByHint('root'), 'u');
+      await tester.enterText(fieldByHint('192.168.1.1'), 'h.com');
+      await tester.enterText(fieldByHint('root'), 'u');
       await tester.pumpAndSettle();
 
       await switchToAuth(tester);
@@ -1232,11 +1201,7 @@ void main() {
 
       final scrollable = find.byType(Scrollable).last;
 
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: scrollable);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
@@ -1246,15 +1211,12 @@ void main() {
         scrollable: scrollable,
       );
       await tester.enterText(
-          find.widgetWithText(TextFormField, '-----BEGIN OPENSSH PRIVATE KEY-----'),
-          '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----');
+        find.widgetWithText(TextFormField, '-----BEGIN OPENSSH PRIVATE KEY-----'),
+        '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----',
+      );
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Connect'),
-        -200,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Connect'), -200, scrollable: scrollable);
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
@@ -1265,17 +1227,13 @@ void main() {
   });
 
   group('SessionEditDialog — tilde expansion in key path', () {
-    testWidgets('tilde in key path from edited session is expanded in result',
-        (tester) async {
+    testWidgets('tilde in key path from edited session is expanded in result', (tester) async {
       // Editing a session that already has a key path with tilde
       final session = Session(
         id: 'tilde-test',
         label: 'Tilde Server',
         server: const ServerAddress(host: 'h.com', user: 'u'),
-        auth: const SessionAuth(
-          authType: AuthType.key,
-          keyPath: '~/.ssh/id_rsa',
-        ),
+        auth: const SessionAuth(authType: AuthType.key, keyPath: '~/.ssh/id_rsa'),
       );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
@@ -1291,8 +1249,7 @@ void main() {
   });
 
   group('SessionEditDialog — password visibility in Both mode', () {
-    testWidgets('toggling password visibility in Both mode',
-        (tester) async {
+    testWidgets('toggling password visibility in Both mode', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1302,11 +1259,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
-      await tester.scrollUntilVisible(
-        find.byIcon(Icons.visibility).first,
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.byIcon(Icons.visibility).first, 100, scrollable: scrollable);
 
       final visIcons = find.byIcon(Icons.visibility);
       expect(visIcons, findsWidgets);
@@ -1317,8 +1270,7 @@ void main() {
       expect(find.byIcon(Icons.visibility_off), findsWidgets);
     });
 
-    testWidgets('toggling passphrase visibility in Both mode',
-        (tester) async {
+    testWidgets('toggling passphrase visibility in Both mode', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1328,11 +1280,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
-      await tester.scrollUntilVisible(
-        find.text('KEY PASSPHRASE'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('KEY PASSPHRASE'), 100, scrollable: scrollable);
 
       final visIcons = find.byIcon(Icons.visibility);
       expect(visIcons.evaluate().length, greaterThanOrEqualTo(2));
@@ -1359,38 +1307,22 @@ void main() {
       final scrollable = find.byType(Scrollable).last;
 
       // Fill password (required for Both)
-      await tester.scrollUntilVisible(
-        fieldByHint('••••••••'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(fieldByHint('••••••••'), 100, scrollable: scrollable);
       await tester.enterText(fieldByHint('••••••••'), 'pass');
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: scrollable);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('-----BEGIN OPENSSH PRIVATE KEY-----'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('-----BEGIN OPENSSH PRIVATE KEY-----'), 100, scrollable: scrollable);
       await tester.enterText(
         find.widgetWithText(TextFormField, '-----BEGIN OPENSSH PRIVATE KEY-----'),
         '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----',
       );
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Connect'),
-        -100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Connect'), -100, scrollable: scrollable);
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
@@ -1403,20 +1335,28 @@ void main() {
   group('SessionDialogResult sealed classes', () {
     test('ConnectOnlyResult holds SSHConfig', () {
       final config = ConnectOnlyResult(
-        const SSHConfig(server: ServerAddress(host: 'h', port: 22, user: 'u')),
+        const SSHConfig(
+          server: ServerAddress(host: 'h', port: 22, user: 'u'),
+        ),
       );
       expect(config.config.host, 'h');
     });
 
     test('SaveResult holds Session with connect flag', () {
-      final session = Session(label: 'test', server: const ServerAddress(host: 'h', user: 'u'));
+      final session = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+      );
       final result = SaveResult(session, connect: true);
       expect(result.session.label, 'test');
       expect(result.connect, isTrue);
     });
 
     test('SaveResult defaults connect to false', () {
-      final session = Session(label: 'test', server: const ServerAddress(host: 'h', user: 'u'));
+      final session = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+      );
       final result = SaveResult(session);
       expect(result.connect, isFalse);
     });
@@ -1433,11 +1373,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: scrollable);
 
       // Down arrow icon when PEM text is hidden
       expect(find.byIcon(Icons.keyboard_arrow_down), findsOneWidget);
@@ -1454,20 +1390,12 @@ void main() {
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: scrollable);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
       // Up arrow icon when PEM text is shown
-      await tester.scrollUntilVisible(
-        find.text('Hide PEM text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Hide PEM text'), 100, scrollable: scrollable);
       expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
     });
 
@@ -1481,11 +1409,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final scrollable = find.byType(Scrollable).last;
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: scrollable);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
@@ -1501,9 +1425,15 @@ void main() {
   });
 
   group('SessionEditDialog — editing session with keyData starts with PEM visible', () {
-    testWidgets('editing session with keyData shows PEM text and Hide PEM text toggle',
-        (tester) async {
-      final session = Session(label: 'key-srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.key, keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----'));
+    testWidgets('editing session with keyData shows PEM text and Hide PEM text toggle', (tester) async {
+      final session = Session(
+        label: 'key-srv',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(
+          authType: AuthType.key,
+          keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
+        ),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1513,11 +1443,7 @@ void main() {
       // Since keyData is not empty, _showKeyText starts as true
       // PEM toggle should say "Hide PEM text"
       final scrollable = find.byType(Scrollable).last;
-      await tester.scrollUntilVisible(
-        find.text('Hide PEM text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Hide PEM text'), 100, scrollable: scrollable);
       expect(find.text('Hide PEM text'), findsOneWidget);
       expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
 
@@ -1526,9 +1452,15 @@ void main() {
       expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
     });
 
-    testWidgets('toggling PEM off then on preserves keyData content',
-        (tester) async {
-      final session = Session(label: 'key-srv', server: const ServerAddress(host: '10.0.0.1', user: 'root'), auth: const SessionAuth(authType: AuthType.key, keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----'));
+    testWidgets('toggling PEM off then on preserves keyData content', (tester) async {
+      final session = Session(
+        label: 'key-srv',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(
+          authType: AuthType.key,
+          keyData: '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
+        ),
+      );
       await tester.pumpWidget(buildApp(session: session));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1538,11 +1470,7 @@ void main() {
       final scrollable = find.byType(Scrollable).last;
 
       // Hide PEM text
-      await tester.scrollUntilVisible(
-        find.text('Hide PEM text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Hide PEM text'), 100, scrollable: scrollable);
       await tester.tap(find.text('Hide PEM text'));
       await tester.pumpAndSettle();
 
@@ -1550,20 +1478,12 @@ void main() {
       expect(find.text('-----BEGIN OPENSSH PRIVATE KEY-----'), findsNothing);
 
       // Show PEM text again
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: scrollable);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
       // Save and verify keyData is preserved
-      await tester.scrollUntilVisible(
-        find.text('Save'),
-        -100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Save'), -100, scrollable: scrollable);
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
@@ -1590,23 +1510,12 @@ void main() {
 
       // Scroll to passphrase field and fill it
       final scrollable = find.byType(Scrollable).last;
-      await tester.scrollUntilVisible(
-        find.text('KEY PASSPHRASE'),
-        100,
-        scrollable: scrollable,
-      );
-      await tester.enterText(
-        fieldByHint('Optional'),
-        'mypassphrase',
-      );
+      await tester.scrollUntilVisible(find.text('KEY PASSPHRASE'), 100, scrollable: scrollable);
+      await tester.enterText(fieldByHint('Optional'), 'mypassphrase');
       await tester.pumpAndSettle();
 
       // Scroll back to Connect button and tap
-      await tester.scrollUntilVisible(
-        find.text('Connect'),
-        -100,
-        scrollable: scrollable,
-      );
+      await tester.scrollUntilVisible(find.text('Connect'), -100, scrollable: scrollable);
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 
@@ -1617,8 +1526,7 @@ void main() {
   });
 
   group('SessionEditDialog — desktop key path DropTarget rendering', () {
-    testWidgets('key auth on desktop wraps key field in DropTarget',
-        (tester) async {
+    testWidgets('key auth on desktop wraps key field in DropTarget', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1644,8 +1552,7 @@ void main() {
       debugDesktopPlatformOverride = null;
     });
 
-    testWidgets('mobile key path field renders without DropTarget',
-        (tester) async {
+    testWidgets('mobile key path field renders without DropTarget', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1663,8 +1570,7 @@ void main() {
       expect(find.widgetWithText(OutlinedButton, 'Select Key File'), findsOneWidget);
     });
 
-    testWidgets('PEM toggle shows and hides key text area on mobile',
-        (tester) async {
+    testWidgets('PEM toggle shows and hides key text area on mobile', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1674,11 +1580,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // PEM toggle should be visible
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: find.byType(Scrollable).last);
       expect(find.text('Paste PEM key text'), findsOneWidget);
 
       // PEM text field should not be visible yet
@@ -1705,8 +1607,7 @@ void main() {
       expect(find.text('Paste PEM key text'), findsOneWidget);
     });
 
-    testWidgets('PEM text field accepts key text input on mobile',
-        (tester) async {
+    testWidgets('PEM text field accepts key text input on mobile', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1716,11 +1617,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open PEM text area
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: find.byType(Scrollable).last);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
@@ -1731,17 +1628,13 @@ void main() {
         scrollable: find.byType(Scrollable).last,
       );
       const pemText = '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----';
-      await tester.enterText(
-        find.widgetWithText(TextFormField, '-----BEGIN OPENSSH PRIVATE KEY-----'),
-        pemText,
-      );
+      await tester.enterText(find.widgetWithText(TextFormField, '-----BEGIN OPENSSH PRIVATE KEY-----'), pemText);
       await tester.pumpAndSettle();
 
       expect(find.text(pemText), findsOneWidget);
     });
 
-    testWidgets('PEM key data included in Connect result on mobile',
-        (tester) async {
+    testWidgets('PEM key data included in Connect result on mobile', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1753,11 +1646,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open PEM text and enter key data
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.scrollUntilVisible(find.text('Paste PEM key text'), 100, scrollable: find.byType(Scrollable).last);
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
@@ -1773,11 +1662,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll back and tap Connect
-      await tester.scrollUntilVisible(
-        find.text('Connect'),
-        -100,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.scrollUntilVisible(find.text('Connect'), -100, scrollable: find.byType(Scrollable).last);
       await tester.tap(find.text('Connect'));
       await tester.pumpAndSettle();
 

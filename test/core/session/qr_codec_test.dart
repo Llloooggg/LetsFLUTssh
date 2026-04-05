@@ -248,9 +248,7 @@ void main() {
     });
 
     test('roundtrip wrap/unwrap preserves data', () {
-      final sessions = [
-        makeSession(label: 'nginx', host: 'prod.com', port: 2222, user: 'deploy', folder: 'Prod'),
-      ];
+      final sessions = [makeSession(label: 'nginx', host: 'prod.com', port: 2222, user: 'deploy', folder: 'Prod')];
       final payload = encodeSessionsForQr(sessions, emptyFolders: {'Staging'});
       final url = wrapInDeepLink(payload);
       final result = decodeImportUri(Uri.parse(url));
@@ -264,9 +262,7 @@ void main() {
     });
 
     test('base64url encoded — no +/= issues in URL', () {
-      final payload = encodeSessionsForQr([
-        makeSession(label: 'test+special/chars=yes'),
-      ]);
+      final payload = encodeSessionsForQr([makeSession(label: 'test+special/chars=yes')]);
       final url = wrapInDeepLink(payload);
       final dPart = url.split('d=').last;
       // base64url uses - and _ instead of + and /
@@ -337,9 +333,7 @@ void main() {
       );
       expect(s.incomplete, isTrue);
 
-      final updated = s.copyWith(
-        auth: const SessionAuth(password: 'pass'),
-      );
+      final updated = s.copyWith(auth: const SessionAuth(password: 'pass'));
       expect(updated.incomplete, isFalse);
     });
 
@@ -372,22 +366,13 @@ void main() {
     });
 
     test('deserialized from JSON', () {
-      const json = {
-        'id': 'test-id',
-        'host': 'h',
-        'user': 'u',
-        'incomplete': true,
-      };
+      const json = {'id': 'test-id', 'host': 'h', 'user': 'u', 'incomplete': true};
       final s = Session.fromJson(json);
       expect(s.incomplete, isTrue);
     });
 
     test('defaults to false when not in JSON', () {
-      const json = {
-        'id': 'test-id',
-        'host': 'h',
-        'user': 'u',
-      };
+      const json = {'id': 'test-id', 'host': 'h', 'user': 'u'};
       final s = Session.fromJson(json);
       expect(s.incomplete, isFalse);
     });

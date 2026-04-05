@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'l10n/app_localizations.dart';
 import 'core/config/config_store.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
@@ -29,6 +30,7 @@ import 'features/workspace/workspace_view.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/session_provider.dart';
+import 'providers/locale_provider.dart';
 import 'providers/theme_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -70,12 +72,12 @@ Future<void> main() async {
   final config = await configStore.load();
   AppLogger.instance.setEnabled(config.enableLogging);
 
-  runApp(ProviderScope(
-    overrides: [
-      configStoreProvider.overrideWithValue(configStore),
-    ],
-    child: const LetsFLUTsshApp(),
-  ));
+  runApp(
+    ProviderScope(
+      overrides: [configStoreProvider.overrideWithValue(configStore)],
+      child: const LetsFLUTsshApp(),
+    ),
+  );
 }
 
 class LetsFLUTsshApp extends ConsumerStatefulWidget {
@@ -148,29 +150,36 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
     final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
 
     // Sync AppTheme brightness before building the widget tree
-    final isDark = themeMode == ThemeMode.dark ||
+    final isDark =
+        themeMode == ThemeMode.dark ||
         (themeMode == ThemeMode.system &&
-            WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                Brightness.dark);
     AppTheme.setBrightness(isDark ? Brightness.dark : Brightness.light);
 
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: 'LetsFLUTssh',
       debugShowCheckedModeBanner: false,
+      locale: locale,
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       themeMode: themeMode,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeAnimationDuration: Duration.zero,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
-        return MediaQuery(
-          data: mediaQuery.copyWith(
-            textScaler: TextScaler.linear(uiScale),
+        return Directionality(
+          textDirection: TextDirection.ltr,
+          child: MediaQuery(
+            data: mediaQuery.copyWith(textScaler: TextScaler.linear(uiScale)),
+            child: child!,
           ),
-          child: child!,
         );
       },
       home: const MainScreen(),
@@ -217,16 +226,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _handleUpdateState(UpdateState next) {
     if (_updateDialogShown) return;
-    if (next.status != UpdateStatus.updateAvailable || next.info == null) return;
+    if (next.status != UpdateStatus.updateAvailable || next.info == null) {
+      return;
+    }
 
     final skipped = ref.read(configProvider).skippedVersion;
     if (skipped != null && skipped == next.info!.latestVersion) return;
 
     // A newer version supersedes the previously skipped one — clear stale skip.
     if (skipped != null) {
-      ref.read(configProvider.notifier).update(
-        (c) => c.withSkippedVersion(null),
-      );
+      ref
+          .read(configProvider.notifier)
+          .update((c) => c.withSkippedVersion(null));
     }
 
     _updateDialogShown = true;
@@ -241,20 +252,29 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     AppDialog.show(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Update Available',
+        title: S.of(ctx).updateAvailable,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Version ${info.latestVersion} is available (current: v${info.currentVersion}).',
+              S
+                  .of(ctx)
+                  .updateVersionAvailable(
+                    info.latestVersion,
+                    info.currentVersion,
+                  ),
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             ),
             if (info.changelog != null && info.changelog!.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
-                'Release notes:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppFonts.md, color: AppTheme.fg),
+                S.of(ctx).releaseNotes,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppFonts.md,
+                  color: AppTheme.fg,
+                ),
               ),
               const SizedBox(height: 4),
               ConstrainedBox(
@@ -262,7 +282,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 child: SingleChildScrollView(
                   child: Text(
                     info.changelog!,
-                    style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
+                    style: TextStyle(
+                      fontSize: AppFonts.md,
+                      color: AppTheme.fgDim,
+                    ),
                   ),
                 ),
               ),
@@ -272,12 +295,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         actions: [
           AppDialogAction.cancel(onTap: () => Navigator.pop(ctx)),
           AppDialogAction.secondary(
-            label: 'Skip This Version',
+            label: S.of(ctx).skipThisVersion,
             onTap: () {
               Navigator.pop(ctx);
-              ref.read(configProvider.notifier).update(
-                (c) => c.withSkippedVersion(info.latestVersion),
-              );
+              ref
+                  .read(configProvider.notifier)
+                  .update((c) => c.withSkippedVersion(info.latestVersion));
             },
           ),
           _buildPrimaryUpdateAction(ctx, context, info, hasAsset),
@@ -294,7 +317,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   ) {
     if (hasAsset) {
       return AppDialogAction.primary(
-        label: 'Download & Install',
+        label: S.of(ctx).downloadAndInstall,
         onTap: () {
           Navigator.pop(ctx);
           ref.read(updateProvider.notifier).download(autoInstall: true);
@@ -302,16 +325,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
     return AppDialogAction.primary(
-      label: 'Open in Browser',
+      label: S.of(ctx).openInBrowser,
       onTap: () async {
         Navigator.pop(ctx);
         final url = Uri.parse(info.releaseUrl);
         if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
           if (outerContext.mounted) {
             Clipboard.setData(ClipboardData(text: info.releaseUrl));
-            Toast.show(outerContext,
-                message: 'Could not open browser — URL copied to clipboard',
-                level: ToastLevel.warning);
+            Toast.show(
+              outerContext,
+              message: S.of(outerContext).couldNotOpenBrowser,
+              level: ToastLevel.warning,
+            );
           }
         }
       },
@@ -342,7 +367,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = navigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
-          Toast.show(ctx, message: 'SSH key received: ${filePath.split('/').last}', level: ToastLevel.info);
+          Toast.show(
+            ctx,
+            message: S.of(ctx).sshKeyReceived(filePath.split('/').last),
+            level: ToastLevel.info,
+          );
         }
       });
     };
@@ -364,8 +393,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return CallbackShortcuts(
       bindings: _buildKeyBindings(context, ws),
       child: DropTarget(
-          onDragDone: (details) => _handleLfsDrop(context, details),
-          child: LayoutBuilder(
+        onDragDone: (details) => _handleLfsDrop(context, details),
+        child: LayoutBuilder(
           builder: (context, constraints) =>
               _buildDesktopLayout(context, constraints, ws),
         ),
@@ -374,7 +403,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Map<ShortcutActivator, VoidCallback> _buildKeyBindings(
-      BuildContext context, WorkspaceState ws) {
+    BuildContext context,
+    WorkspaceState ws,
+  ) {
     final notifier = ref.read(workspaceProvider.notifier);
     final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
     final activeTab = focusedPanel?.activeTab;
@@ -391,7 +422,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       const SingleActivator(LogicalKeyboardKey.tab, control: true): () {
         _switchTab(ws, 1);
       },
-      const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): () {
+      const SingleActivator(
+        LogicalKeyboardKey.tab,
+        control: true,
+        shift: true,
+      ): () {
         _switchTab(ws, -1);
       },
       const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
@@ -403,7 +438,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           notifier.copyToNewPanel(ws.focusedPanelId, Axis.horizontal);
         }
       },
-      const SingleActivator(LogicalKeyboardKey.backslash, control: true, shift: true): () {
+      const SingleActivator(
+        LogicalKeyboardKey.backslash,
+        control: true,
+        shift: true,
+      ): () {
         if (activeTab != null) {
           notifier.copyToNewPanel(ws.focusedPanelId, Axis.vertical);
         }
@@ -418,7 +457,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   void _switchTab(WorkspaceState ws, int delta) {
     final panel = findPanel(ws.root, ws.focusedPanelId);
     if (panel != null && panel.tabs.length > 1) {
-      final index = (panel.activeTabIndex + delta + panel.tabs.length) %
+      final index =
+          (panel.activeTabIndex + delta + panel.tabs.length) %
           panel.tabs.length;
       ref.read(workspaceProvider.notifier).selectTab(ws.focusedPanelId, index);
     }
@@ -442,7 +482,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildDesktopLayout(
-      BuildContext context, BoxConstraints constraints, WorkspaceState ws) {
+    BuildContext context,
+    BoxConstraints constraints,
+    WorkspaceState ws,
+  ) {
     final isNarrow = constraints.maxWidth < 600;
     final inSettings = _mode == ShellMode.settings;
     final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
@@ -470,7 +513,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     } else {
       sidebar = SessionPanel(
         onConnect: (session) => _connectSession(context, ref, session),
-        onQuickConnect: (config) => SessionConnect.connectConfig(context, ref, config),
+        onQuickConnect: (config) =>
+            SessionConnect.connectConfig(context, ref, config),
         onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
         crossMarquee: _crossMarquee,
       );
@@ -506,19 +550,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       onSplitVertical: hasTab
           ? () {
               final ws = ref.read(workspaceProvider);
-              ref.read(workspaceProvider.notifier).copyToNewPanel(
-                    ws.focusedPanelId,
-                    Axis.horizontal,
-                  );
+              ref
+                  .read(workspaceProvider.notifier)
+                  .copyToNewPanel(ws.focusedPanelId, Axis.horizontal);
             }
           : null,
       onSplitHorizontal: hasTab
           ? () {
               final ws = ref.read(workspaceProvider);
-              ref.read(workspaceProvider.notifier).copyToNewPanel(
-                    ws.focusedPanelId,
-                    Axis.vertical,
-                  );
+              ref
+                  .read(workspaceProvider.notifier)
+                  .copyToNewPanel(ws.focusedPanelId, Axis.vertical);
             }
           : null,
       onSettings: _toggleSettings,
@@ -562,15 +604,21 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       if (ctx != null && ctx.mounted) {
         Toast.show(
           ctx,
-          message: 'Imported ${data.sessions.length} session(s) via QR',
+          message: S.of(ctx).importedSessionsViaQr(data.sessions.length),
           level: ToastLevel.success,
         );
       }
     });
   }
 
-  Future<void> _showLfsImportDialog(BuildContext context, String filePath) async {
-    AppLogger.instance.log('LFS import started: ${filePath.split('/').last}', name: 'App');
+  Future<void> _showLfsImportDialog(
+    BuildContext context,
+    String filePath,
+  ) async {
+    AppLogger.instance.log(
+      'LFS import started: ${filePath.split('/').last}',
+      name: 'App',
+    );
     final result = await LfsImportDialog.show(context, filePath: filePath);
     if (result == null || !context.mounted) return;
 
@@ -596,7 +644,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         Navigator.of(context).pop(); // close progress
         Toast.show(
           context,
-          message: 'Imported ${importResult.sessions.length} session(s)',
+          message: S.of(context).importedSessions(importResult.sessions.length),
           level: ToastLevel.success,
         );
       }
@@ -604,7 +652,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       AppLogger.instance.log('LFS import failed: $e', name: 'App', error: e);
       if (context.mounted) {
         Navigator.of(context).pop(); // close progress
-        Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: S.of(context).importFailed(e.toString()),
+          level: ToastLevel.error,
+        );
       }
     }
   }
@@ -614,7 +666,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       addSession: (s) => ref.read(sessionProvider.notifier).add(s),
       deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
       getSessions: () => ref.read(sessionProvider),
-      applyConfig: (config) => ref.read(configProvider.notifier).update((_) => config),
+      applyConfig: (config) =>
+          ref.read(configProvider.notifier).update((_) => config),
     );
   }
 }
@@ -649,30 +702,28 @@ class _Toolbar extends StatelessWidget {
           AppIconButton(
             icon: Icons.menu,
             onTap: () => Scaffold.of(context).openDrawer(),
-            tooltip: 'Sessions',
+            tooltip: S.of(context).sessions,
             color: AppTheme.fgDim,
           )
         else
           AppIconButton(
-            icon: sidebarOpen
-                ? Icons.chevron_left
-                : Icons.chevron_right,
+            icon: sidebarOpen ? Icons.chevron_left : Icons.chevron_right,
             onTap: onToggleSidebar,
             tooltip: sidebarOpen
-                ? 'Hide Sidebar (Ctrl+B)'
-                : 'Show Sidebar (Ctrl+B)',
+                ? S.of(context).hideSidebar
+                : S.of(context).showSidebar,
           ),
         const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
             icon: Icons.vertical_split,
             onTap: onSplitVertical,
-            tooltip: 'Copy Right (Ctrl+\\)',
+            tooltip: S.of(context).copyRightShortcut,
           ),
           AppIconButton(
             icon: Icons.horizontal_split,
             onTap: onSplitHorizontal,
-            tooltip: 'Copy Down (Ctrl+Shift+\\)',
+            tooltip: S.of(context).copyDownShortcut,
           ),
           _Divider(),
         ] else
@@ -680,7 +731,7 @@ class _Toolbar extends StatelessWidget {
         AppIconButton(
           icon: inSettings ? Icons.arrow_back : Icons.settings,
           onTap: onSettings,
-          tooltip: inSettings ? 'Back' : 'Settings',
+          tooltip: inSettings ? S.of(context).back : S.of(context).settings,
         ),
         const SizedBox(width: 2),
       ],
@@ -716,15 +767,12 @@ class _AlreadyRunningApp extends StatelessWidget {
             children: [
               Icon(Icons.block, size: 48, color: AppTheme.fgDim),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Another instance of LetsFLUTssh is already running.',
-                style: TextStyle(fontSize: 16),
+                style: TextStyle(fontSize: AppFonts.lg),
               ),
               const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () => exit(0),
-                child: const Text('OK'),
-              ),
+              FilledButton(onPressed: () => exit(0), child: const Text('OK')),
             ],
           ),
         ),

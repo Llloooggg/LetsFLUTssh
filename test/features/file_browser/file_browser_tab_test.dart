@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/sftp/sftp_client.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
@@ -22,7 +21,6 @@ import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-
 @GenerateNiceMocks([MockSpec<SftpClient>()])
 import 'file_browser_tab_test.mocks.dart';
 
@@ -33,55 +31,59 @@ class _TrackingSFTPService extends SFTPService {
   _TrackingSFTPService(super.sftp);
 
   @override
-  Future<void> upload(String localPath, String remotePath,
-      void Function(TransferProgress)? onProgress) async {
+  Future<void> upload(String localPath, String remotePath, void Function(TransferProgress)? onProgress) async {
     calls.add((method: 'upload', src: localPath, dst: remotePath));
-    onProgress?.call(TransferProgress(
-      fileName: localPath.split('/').last,
-      totalBytes: 100,
-      doneBytes: 100,
-      isUpload: true,
-      isCompleted: true,
-    ));
+    onProgress?.call(
+      TransferProgress(
+        fileName: localPath.split('/').last,
+        totalBytes: 100,
+        doneBytes: 100,
+        isUpload: true,
+        isCompleted: true,
+      ),
+    );
   }
 
   @override
-  Future<void> download(String remotePath, String localPath,
-      void Function(TransferProgress)? onProgress) async {
+  Future<void> download(String remotePath, String localPath, void Function(TransferProgress)? onProgress) async {
     calls.add((method: 'download', src: remotePath, dst: localPath));
-    onProgress?.call(TransferProgress(
-      fileName: remotePath.split('/').last,
-      totalBytes: 100,
-      doneBytes: 100,
-      isUpload: false,
-      isCompleted: true,
-    ));
+    onProgress?.call(
+      TransferProgress(
+        fileName: remotePath.split('/').last,
+        totalBytes: 100,
+        doneBytes: 100,
+        isUpload: false,
+        isCompleted: true,
+      ),
+    );
   }
 
   @override
-  Future<void> uploadDir(String localDir, String remoteDir,
-      void Function(TransferProgress)? onProgress) async {
+  Future<void> uploadDir(String localDir, String remoteDir, void Function(TransferProgress)? onProgress) async {
     calls.add((method: 'uploadDir', src: localDir, dst: remoteDir));
-    onProgress?.call(TransferProgress(
-      fileName: localDir.split('/').last,
-      totalBytes: 1,
-      doneBytes: 1,
-      isUpload: true,
-      isCompleted: true,
-    ));
+    onProgress?.call(
+      TransferProgress(
+        fileName: localDir.split('/').last,
+        totalBytes: 1,
+        doneBytes: 1,
+        isUpload: true,
+        isCompleted: true,
+      ),
+    );
   }
 
   @override
-  Future<void> downloadDir(String remoteDir, String localDir,
-      void Function(TransferProgress)? onProgress) async {
+  Future<void> downloadDir(String remoteDir, String localDir, void Function(TransferProgress)? onProgress) async {
     calls.add((method: 'downloadDir', src: remoteDir, dst: localDir));
-    onProgress?.call(TransferProgress(
-      fileName: remoteDir.split('/').last,
-      totalBytes: 1,
-      doneBytes: 1,
-      isUpload: false,
-      isCompleted: true,
-    ));
+    onProgress?.call(
+      TransferProgress(
+        fileName: remoteDir.split('/').last,
+        totalBytes: 1,
+        doneBytes: 1,
+        isUpload: false,
+        isCompleted: true,
+      ),
+    );
   }
 }
 
@@ -106,7 +108,6 @@ class _FakeFSWithDir implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
-
 }
 
 /// Creates a fake SFTPInitResult using a tracking SFTPService.
@@ -132,14 +133,7 @@ Future<(SFTPInitResult, _TrackingSFTPService)> _trackingInitFactory(
 
   await Future.wait([localCtrl.init(), remoteCtrl.init()]);
 
-  return (
-    SFTPInitResult(
-      localCtrl: localCtrl,
-      remoteCtrl: remoteCtrl,
-      sftpService: trackingService,
-    ),
-    trackingService,
-  );
+  return (SFTPInitResult(localCtrl: localCtrl, remoteCtrl: remoteCtrl, sftpService: trackingService), trackingService);
 }
 
 /// Fake FileSystem for testing.
@@ -162,20 +156,33 @@ class _FakeFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
-
 }
 
 /// Test file entries for local pane.
 List<FileEntry> _localEntries() => [
-      FileEntry(name: 'local.txt', path: '/test/local.txt', size: 100, mode: 0x1A4, modTime: DateTime(2024), isDir: false),
-      FileEntry(name: 'localdir', path: '/test/localdir', size: 4096, mode: 0x1ED, modTime: DateTime(2024), isDir: true),
-    ];
+  FileEntry(name: 'local.txt', path: '/test/local.txt', size: 100, mode: 0x1A4, modTime: DateTime(2024), isDir: false),
+  FileEntry(name: 'localdir', path: '/test/localdir', size: 4096, mode: 0x1ED, modTime: DateTime(2024), isDir: true),
+];
 
 /// Test file entries for remote pane.
 List<FileEntry> _remoteEntries() => [
-      FileEntry(name: 'remote.txt', path: '/remote/remote.txt', size: 200, mode: 0x1A4, modTime: DateTime(2024), isDir: false),
-      FileEntry(name: 'remotedir', path: '/remote/remotedir', size: 4096, mode: 0x1ED, modTime: DateTime(2024), isDir: true),
-    ];
+  FileEntry(
+    name: 'remote.txt',
+    path: '/remote/remote.txt',
+    size: 200,
+    mode: 0x1A4,
+    modTime: DateTime(2024),
+    isDir: false,
+  ),
+  FileEntry(
+    name: 'remotedir',
+    path: '/remote/remotedir',
+    size: 4096,
+    mode: 0x1ED,
+    modTime: DateTime(2024),
+    isDir: true,
+  ),
+];
 
 /// Creates a fake SFTPInitResult for testing (empty panes).
 Future<SFTPInitResult> _fakeInitFactory(Connection conn) async {
@@ -193,16 +200,18 @@ Future<SFTPInitResult> _fakeInitFactoryWithEntries(
   when(mockSftp.listdir(any)).thenAnswer((_) async => []);
 
   final sftpService = SFTPService(mockSftp);
-  final localCtrl = FilePaneController(fs: _FakeFS(entries: localFiles ?? []), label: 'Local');
-  final remoteCtrl = FilePaneController(fs: _FakeFS(entries: remoteFiles ?? []), label: 'Remote');
+  final localCtrl = FilePaneController(
+    fs: _FakeFS(entries: localFiles ?? []),
+    label: 'Local',
+  );
+  final remoteCtrl = FilePaneController(
+    fs: _FakeFS(entries: remoteFiles ?? []),
+    label: 'Remote',
+  );
 
   await Future.wait([localCtrl.init(), remoteCtrl.init()]);
 
-  return SFTPInitResult(
-    localCtrl: localCtrl,
-    remoteCtrl: remoteCtrl,
-    sftpService: sftpService,
-  );
+  return SFTPInitResult(localCtrl: localCtrl, remoteCtrl: remoteCtrl, sftpService: sftpService);
 }
 
 void main() {
@@ -221,7 +230,9 @@ void main() {
       final conn = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'SSH connection not available',
@@ -229,14 +240,12 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: FileBrowserTab(connection: conn),
-            ),
+            home: Scaffold(body: FileBrowserTab(connection: conn)),
           ),
         ),
       );
@@ -252,7 +261,9 @@ void main() {
       final conn = Connection(
         id: 'test-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'SSH connection not available',
@@ -260,14 +271,12 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: FileBrowserTab(connection: conn),
-            ),
+            home: Scaffold(body: FileBrowserTab(connection: conn)),
           ),
         ),
       );
@@ -281,7 +290,9 @@ void main() {
       final conn = Connection(
         id: 'test-3',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'Connection failed',
@@ -289,14 +300,12 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: FileBrowserTab(connection: conn),
-            ),
+            home: Scaffold(body: FileBrowserTab(connection: conn)),
           ),
         ),
       );
@@ -321,7 +330,9 @@ void main() {
       final conn = Connection(
         id: 'test-loading',
         label: 'Loading Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'Connection failed',
@@ -329,14 +340,12 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: FileBrowserTab(connection: conn),
-            ),
+            home: Scaffold(body: FileBrowserTab(connection: conn)),
           ),
         ),
       );
@@ -349,7 +358,6 @@ void main() {
       // Loading indicator should NOT be showing anymore
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
-
   });
 
   group('FileBrowserTab — success path (injectable factory)', () {
@@ -357,25 +365,24 @@ void main() {
       final conn = Connection(
         id: 'success-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: _fakeInitFactory),
               ),
             ),
           ),
@@ -391,25 +398,24 @@ void main() {
       final conn = Connection(
         id: 'success-4',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: _fakeInitFactory),
               ),
             ),
           ),
@@ -428,25 +434,24 @@ void main() {
       final conn = Connection(
         id: 'loading-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: (_) => completer.future,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: (_) => completer.future),
               ),
             ),
           ),
@@ -469,22 +474,21 @@ void main() {
       final conn = Connection(
         id: 'loading-3',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: FileBrowserTab(
-                connection: conn,
-                sftpInitFactory: (_) => completer.future,
-              ),
+              body: FileBrowserTab(connection: conn, sftpInitFactory: (_) => completer.future),
             ),
           ),
         ),
@@ -508,25 +512,24 @@ void main() {
       final conn = Connection(
         id: 'upload-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: _fakeInitFactory),
               ),
             ),
           ),
@@ -547,16 +550,18 @@ void main() {
       final conn = Connection(
         id: 'retry-success',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -596,16 +601,18 @@ void main() {
       final conn = Connection(
         id: 'xfer-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -613,10 +620,8 @@ void main() {
                 height: 800,
                 child: FileBrowserTab(
                   connection: conn,
-                  sftpInitFactory: (c) => _fakeInitFactoryWithEntries(c,
-                    localFiles: _localEntries(),
-                    remoteFiles: _remoteEntries(),
-                  ),
+                  sftpInitFactory: (c) =>
+                      _fakeInitFactoryWithEntries(c, localFiles: _localEntries(), remoteFiles: _remoteEntries()),
                 ),
               ),
             ),
@@ -644,16 +649,18 @@ void main() {
       final conn = Connection(
         id: 'xfer-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -661,10 +668,8 @@ void main() {
                 height: 800,
                 child: FileBrowserTab(
                   connection: conn,
-                  sftpInitFactory: (c) => _fakeInitFactoryWithEntries(c,
-                    localFiles: _localEntries(),
-                    remoteFiles: _remoteEntries(),
-                  ),
+                  sftpInitFactory: (c) =>
+                      _fakeInitFactoryWithEntries(c, localFiles: _localEntries(), remoteFiles: _remoteEntries()),
                 ),
               ),
             ),
@@ -693,16 +698,18 @@ void main() {
       final conn = Connection(
         id: 'xfer-ctx',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -710,10 +717,8 @@ void main() {
                 height: 800,
                 child: FileBrowserTab(
                   connection: conn,
-                  sftpInitFactory: (c) => _fakeInitFactoryWithEntries(c,
-                    localFiles: _localEntries(),
-                    remoteFiles: _remoteEntries(),
-                  ),
+                  sftpInitFactory: (c) =>
+                      _fakeInitFactoryWithEntries(c, localFiles: _localEntries(), remoteFiles: _remoteEntries()),
                 ),
               ),
             ),
@@ -746,27 +751,26 @@ void main() {
       final conn = Connection(
         id: 'dispose-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       final key = GlobalKey();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 key: key,
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: _fakeInitFactory),
               ),
             ),
           ),
@@ -777,10 +781,10 @@ void main() {
       // Remove from tree
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: const Scaffold(body: SizedBox()),
           ),
@@ -795,22 +799,21 @@ void main() {
       final conn = Connection(
         id: 'dispose-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: FileBrowserTab(
-                connection: conn,
-                sftpInitFactory: (_) => completer.future,
-              ),
+              body: FileBrowserTab(connection: conn, sftpInitFactory: (_) => completer.future),
             ),
           ),
         ),
@@ -821,10 +824,10 @@ void main() {
       // Remove from tree while still loading
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: const Scaffold(body: SizedBox()),
           ),
@@ -851,16 +854,18 @@ void main() {
       final conn = Connection(
         id: 'upload-file-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -869,7 +874,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: _remoteEntries(),
                     );
@@ -919,7 +925,9 @@ void main() {
       final conn = Connection(
         id: 'upload-dir-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -931,10 +939,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -943,7 +951,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: dirEntry,
                       remoteFiles: _remoteEntries(),
                     );
@@ -995,16 +1004,18 @@ void main() {
       final conn = Connection(
         id: 'download-file-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1013,7 +1024,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: _remoteEntries(),
                     );
@@ -1062,7 +1074,9 @@ void main() {
       final conn = Connection(
         id: 'download-dir-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -1072,10 +1086,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1084,7 +1098,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: remoteDir,
                     );
@@ -1134,16 +1149,18 @@ void main() {
       final conn = Connection(
         id: 'multi-upload-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1152,7 +1169,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: _remoteEntries(),
                     );
@@ -1194,7 +1212,9 @@ void main() {
       expect(methods, containsAll(['upload', 'uploadDir']));
     });
 
-    testWidgets('context menu Transfer with multiple remote files selected enqueues multiple downloads', (tester) async {
+    testWidgets('context menu Transfer with multiple remote files selected enqueues multiple downloads', (
+      tester,
+    ) async {
       final origHandler = FlutterError.onError;
       FlutterError.onError = (details) {
         if (details.toString().contains('overflowed')) return;
@@ -1207,16 +1227,18 @@ void main() {
       final conn = Connection(
         id: 'multi-download-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1225,7 +1247,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: _remoteEntries(),
                     );
@@ -1280,16 +1303,18 @@ void main() {
       final conn = Connection(
         id: 'drop-local-to-remote',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1298,7 +1323,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: _remoteEntries(),
                     );
@@ -1317,9 +1343,7 @@ void main() {
       // The remote pane has a DragTarget<PaneDragData> that accepts drops
       // from the local pane (different sourcePaneId).
       // We simulate this by finding the DragTarget and calling its callbacks.
-      final dragTargets = find.byWidgetPredicate(
-        (w) => w is DragTarget<PaneDragData>,
-      );
+      final dragTargets = find.byWidgetPredicate((w) => w is DragTarget<PaneDragData>);
       // There should be 2 DragTargets (one per pane)
       expect(dragTargets, findsNWidgets(2));
 
@@ -1335,11 +1359,7 @@ void main() {
         tester.getSize(find.byType(FileBrowserTab)).height * 0.5,
       );
 
-      await tester.timedDragFrom(
-        localTxtCenter,
-        remotePaneCenter - localTxtCenter,
-        const Duration(milliseconds: 500),
-      );
+      await tester.timedDragFrom(localTxtCenter, remotePaneCenter - localTxtCenter, const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
 
       // When a local file is dropped onto the remote pane, the remote pane's
@@ -1367,16 +1387,18 @@ void main() {
       final conn = Connection(
         id: 'drop-remote-to-local',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1385,7 +1407,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: _remoteEntries(),
                     );
@@ -1414,11 +1437,7 @@ void main() {
         tester.getSize(find.byType(FileBrowserTab)).height * 0.5,
       );
 
-      await tester.timedDragFrom(
-        remoteTxt,
-        localPaneTarget - remoteTxt,
-        const Duration(milliseconds: 500),
-      );
+      await tester.timedDragFrom(remoteTxt, localPaneTarget - remoteTxt, const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
 
       // If drag succeeded, downloads should be enqueued.
@@ -1442,16 +1461,18 @@ void main() {
       final conn = Connection(
         id: 'size-check',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1460,8 +1481,9 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, _) = await _trackingInitFactory(c,
-                      localFiles: _localEntries(),  // local.txt has size: 100
+                    final (result, _) = await _trackingInitFactory(
+                      c,
+                      localFiles: _localEntries(), // local.txt has size: 100
                       remoteFiles: _remoteEntries(),
                     );
                     return result;
@@ -1494,16 +1516,18 @@ void main() {
       final conn = Connection(
         id: 'size-check-dl',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1512,9 +1536,10 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, _) = await _trackingInitFactory(c,
+                    final (result, _) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
-                      remoteFiles: _remoteEntries(),  // remote.txt has size: 200
+                      remoteFiles: _remoteEntries(), // remote.txt has size: 200
                     );
                     return result;
                   },
@@ -1549,16 +1574,18 @@ void main() {
       final conn = Connection(
         id: 'run-upload',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1567,7 +1594,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: _remoteEntries(),
                     );
@@ -1615,16 +1643,18 @@ void main() {
       final conn = Connection(
         id: 'run-download',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1633,7 +1663,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: _remoteEntries(),
                     );
@@ -1681,7 +1712,9 @@ void main() {
       final conn = Connection(
         id: 'run-upload-dir',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -1691,10 +1724,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1703,7 +1736,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: dirEntries,
                       remoteFiles: _remoteEntries(),
                     );
@@ -1745,7 +1779,9 @@ void main() {
       final conn = Connection(
         id: 'run-download-dir',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -1755,10 +1791,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1767,7 +1803,8 @@ void main() {
                 child: FileBrowserTab(
                   connection: conn,
                   sftpInitFactory: (c) async {
-                    final (result, svc) = await _trackingInitFactory(c,
+                    final (result, svc) = await _trackingInitFactory(
+                      c,
                       localFiles: _localEntries(),
                       remoteFiles: dirEntries,
                     );
@@ -1806,7 +1843,9 @@ void main() {
       final conn = Connection(
         id: 'narrow-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -1820,19 +1859,16 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: _fakeInitFactory),
               ),
             ),
           ),
@@ -1849,25 +1885,24 @@ void main() {
       final conn = Connection(
         id: 'narrow-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 800,
                 height: 400,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: _fakeInitFactory),
               ),
             ),
           ),
@@ -1888,7 +1923,9 @@ void main() {
       final conn = Connection(
         id: 'clip-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -1900,19 +1937,16 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: (_) async => initResult,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: (_) async => initResult),
               ),
             ),
           ),
@@ -1935,7 +1969,9 @@ void main() {
       final conn = Connection(
         id: 'clip-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -1947,19 +1983,16 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: (_) async => initResult,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: (_) async => initResult),
               ),
             ),
           ),
@@ -1990,7 +2023,9 @@ void main() {
       final conn = Connection(
         id: 'clip-3',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -2002,19 +2037,16 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: (_) async => initResult,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: (_) async => initResult),
               ),
             ),
           ),
@@ -2044,7 +2076,9 @@ void main() {
       final conn = Connection(
         id: 'clip-4',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -2056,19 +2090,16 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: (_) async => initResult,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: (_) async => initResult),
               ),
             ),
           ),
@@ -2104,25 +2135,24 @@ void main() {
       final conn = Connection(
         id: 'divider-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: _fakeInitFactory),
               ),
             ),
           ),
@@ -2134,9 +2164,7 @@ void main() {
       // a SizedBox(width: 6). Use ancestor matching to find the right one.
       final dividerFinder = find.descendant(
         of: find.byType(Positioned),
-        matching: find.byWidgetPredicate(
-          (w) => w is GestureDetector && w.behavior == HitTestBehavior.opaque,
-        ),
+        matching: find.byWidgetPredicate((w) => w is GestureDetector && w.behavior == HitTestBehavior.opaque),
       );
       expect(dividerFinder, findsOneWidget);
 
@@ -2157,7 +2185,9 @@ void main() {
       final conn = Connection(
         id: 'activate-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -2169,19 +2199,16 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 1200,
                 height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: (_) async => initResult,
-                ),
+                child: FileBrowserTab(connection: conn, sftpInitFactory: (_) async => initResult),
               ),
             ),
           ),

@@ -21,8 +21,7 @@ void main() {
   });
 
   void mockPathProvider() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (call) async => tempDir.path,
     );
@@ -90,8 +89,7 @@ void main() {
     test('save creates parent directories', () async {
       // Use a nested path
       final nestedDir = Directory('${tempDir.path}/nested/deep');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'),
         (call) async => nestedDir.path,
       );

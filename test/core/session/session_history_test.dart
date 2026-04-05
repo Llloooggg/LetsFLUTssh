@@ -140,11 +140,7 @@ void main() {
 
   group('SessionSnapshot', () {
     test('holds sessions and folders', () {
-      final snap = SessionSnapshot(
-        sessions: [makeSession('1')],
-        emptyFolders: {'A/B'},
-        description: 'test',
-      );
+      final snap = SessionSnapshot(sessions: [makeSession('1')], emptyFolders: {'A/B'}, description: 'test');
       expect(snap.sessions.length, 1);
       expect(snap.emptyFolders, {'A/B'});
       expect(snap.description, 'test');

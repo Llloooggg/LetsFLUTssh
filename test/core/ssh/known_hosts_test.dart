@@ -106,7 +106,10 @@ void main() {
     });
 
     Future<bool> verify(
-      String host, int port, String keyType, List<int> keyBytes, {
+      String host,
+      int port,
+      String keyType,
+      List<int> keyBytes, {
       bool hasUnknownCallback = true,
       bool hasChangedCallback = true,
     }) async {
@@ -158,10 +161,7 @@ void main() {
     });
 
     test('unknown host without callback — rejected', () async {
-      final result = await verify(
-        'example.com', 22, 'ssh-rsa', [1, 2, 3],
-        hasUnknownCallback: false,
-      );
+      final result = await verify('example.com', 22, 'ssh-rsa', [1, 2, 3], hasUnknownCallback: false);
       expect(result, isFalse);
       expect(unknownHostCalls, isEmpty);
       expect(hosts.containsKey('example.com:22'), isFalse);
@@ -194,10 +194,7 @@ void main() {
 
     test('known host with changed key — rejected when no callback', () async {
       hosts['server:22'] = 'ssh-rsa ${base64Encode([1, 2, 3])}';
-      final result = await verify(
-        'server', 22, 'ssh-rsa', [4, 5, 6],
-        hasChangedCallback: false,
-      );
+      final result = await verify('server', 22, 'ssh-rsa', [4, 5, 6], hasChangedCallback: false);
       expect(result, isFalse);
     });
 
@@ -224,10 +221,7 @@ void main() {
 
     test('write and read back known_hosts file', () async {
       final file = File('${tempDir.path}/known_hosts');
-      final entries = {
-        'host1.com:22': 'ssh-rsa AAAA',
-        'host2.com:2222': 'ssh-ed25519 BBBB',
-      };
+      final entries = {'host1.com:22': 'ssh-rsa AAAA', 'host2.com:2222': 'ssh-ed25519 BBBB'};
 
       // Write
       final sb = StringBuffer();
@@ -270,16 +264,14 @@ void main() {
 
     setUp(() {
       mgrTempDir = Directory.systemTemp.createTempSync('known_hosts_mgr_test_');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'),
         (call) async => mgrTempDir.path,
       );
     });
 
     tearDown(() {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         const MethodChannel('plugins.flutter.io/path_provider'),
         null,
       );
@@ -298,9 +290,7 @@ void main() {
       final manager = KnownHostsManager();
       await manager.load();
 
-      final result = await manager.verify(
-        'myhost.com', 22, 'ssh-rsa', base64Decode('AAAA'),
-      );
+      final result = await manager.verify('myhost.com', 22, 'ssh-rsa', base64Decode('AAAA'));
       expect(result, isTrue);
     });
 
@@ -339,9 +329,7 @@ void main() {
     test('verify known host with matching key accepts silently', () async {
       final keyBytes = [10, 20, 30];
       final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString(
-        'server.com:22 ssh-rsa ${base64Encode(keyBytes)}\n',
-      );
+      await file.writeAsString('server.com:22 ssh-rsa ${base64Encode(keyBytes)}\n');
 
       final manager = KnownHostsManager();
       await manager.load();
@@ -352,9 +340,7 @@ void main() {
 
     test('verify known host with changed key rejects without callback', () async {
       final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString(
-        'server.com:22 ssh-rsa ${base64Encode([1, 2, 3])}\n',
-      );
+      await file.writeAsString('server.com:22 ssh-rsa ${base64Encode([1, 2, 3])}\n');
 
       final manager = KnownHostsManager();
       await manager.load();
@@ -365,9 +351,7 @@ void main() {
 
     test('verify known host with changed key and accepting callback updates', () async {
       final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString(
-        'server.com:22 ssh-rsa ${base64Encode([1, 2, 3])}\n',
-      );
+      await file.writeAsString('server.com:22 ssh-rsa ${base64Encode([1, 2, 3])}\n');
 
       final manager = KnownHostsManager();
       String? receivedFingerprint;
@@ -393,16 +377,12 @@ void main() {
 
     test('load skips comment and empty lines', () async {
       final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString(
-        '# This is a comment\n\nhost.com:22 ssh-rsa S0VZ\n\n',
-      );
+      await file.writeAsString('# This is a comment\n\nhost.com:22 ssh-rsa S0VZ\n\n');
 
       final manager = KnownHostsManager();
       await manager.load();
 
-      final result = await manager.verify(
-        'host.com', 22, 'ssh-rsa', base64Decode('S0VZ'),
-      );
+      final result = await manager.verify('host.com', 22, 'ssh-rsa', base64Decode('S0VZ'));
       expect(result, isTrue);
     });
 

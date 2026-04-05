@@ -29,11 +29,7 @@ class PanelTabBar extends StatefulWidget {
   final ValueChanged<String> onClose;
   final void Function(int oldIndex, int newIndex) onReorder;
   final void Function(TabDragData data, int index) onAcceptCrossPanel;
-  final void Function(
-    String tabId,
-    int index,
-    Offset position,
-  ) onContextMenu;
+  final void Function(String tabId, int index, Offset position) onContextMenu;
 
   const PanelTabBar({
     super.key,
@@ -78,12 +74,16 @@ class _PanelTabBarState extends State<PanelTabBar> {
       builder: (context, constraints) {
         const maxTabW = 180.0;
         const minTabW = 80.0;
-        final natural = tabs.isEmpty ? maxTabW : constraints.maxWidth / tabs.length;
+        final natural = tabs.isEmpty
+            ? maxTabW
+            : constraints.maxWidth / tabs.length;
         final tabW = natural.clamp(minTabW, maxTabW);
 
         final tabsWidth = tabW * tabs.length;
-        final endZoneW =
-            (constraints.maxWidth - tabsWidth).clamp(24.0, double.infinity);
+        final endZoneW = (constraints.maxWidth - tabsWidth).clamp(
+          24.0,
+          double.infinity,
+        );
 
         return Listener(
           onPointerSignal: _onPointerSignal,
@@ -301,10 +301,7 @@ class _PanelTabItemState extends State<_PanelTabItem> {
           feedback: Material(
             elevation: 4,
             color: Colors.transparent,
-            child: Opacity(
-              opacity: 0.85,
-              child: _TabDragChip(tab: widget.tab),
-            ),
+            child: Opacity(opacity: 0.85, child: _TabDragChip(tab: widget.tab)),
           ),
           childWhenDragging: Opacity(opacity: 0.4, child: content),
           child: content,

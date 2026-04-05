@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_icon_button.dart';
 import 'hover_region.dart';
@@ -55,10 +56,7 @@ class AppDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget body = Padding(
-      padding: contentPadding,
-      child: content,
-    );
+    Widget body = Padding(padding: contentPadding, child: content);
     if (scrollable) {
       body = Flexible(child: SingleChildScrollView(child: body));
     }
@@ -76,8 +74,7 @@ class AppDialog extends StatelessWidget {
               onClose: dismissible ? () => Navigator.of(context).pop() : null,
             ),
             body,
-            if (actions.isNotEmpty)
-              AppDialogFooter(actions: actions),
+            if (actions.isNotEmpty) AppDialogFooter(actions: actions),
           ],
         ),
       ),
@@ -94,16 +91,12 @@ class AppDialogHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onClose;
 
-  const AppDialogHeader({
-    super.key,
-    required this.title,
-    this.onClose,
-  });
+  const AppDialogHeader({super.key, required this.title, this.onClose});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
+      height: AppTheme.barHeightMd,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(border: AppTheme.borderBottom),
       child: Row(
@@ -138,15 +131,12 @@ class AppDialogHeader extends StatelessWidget {
 class AppDialogFooter extends StatelessWidget {
   final List<Widget> actions;
 
-  const AppDialogFooter({
-    super.key,
-    required this.actions,
-  });
+  const AppDialogFooter({super.key, required this.actions});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 40),
+      constraints: const BoxConstraints(minHeight: AppTheme.barHeightMd),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       decoration: BoxDecoration(border: AppTheme.borderTop),
       child: Wrap(
@@ -186,10 +176,8 @@ class AppDialogAction extends StatelessWidget {
   });
 
   /// Cancel / dismiss button — no background, dim text.
-  const factory AppDialogAction.cancel({
-    Key? key,
-    VoidCallback? onTap,
-  }) = _CancelAction;
+  const factory AppDialogAction.cancel({Key? key, VoidCallback? onTap}) =
+      _CancelAction;
 
   /// Primary action — accent background.
   factory AppDialogAction.primary({
@@ -226,7 +214,7 @@ class AppDialogAction extends StatelessWidget {
       cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
       onTap: enabled ? onTap : null,
       builder: (hovered) => Container(
-        height: 26,
+        height: AppTheme.controlHeightXs,
         padding: EdgeInsets.symmetric(horizontal: hasBg ? 16 : 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -258,7 +246,17 @@ class AppDialogAction extends StatelessWidget {
 
 class _CancelAction extends AppDialogAction {
   const _CancelAction({super.key, super.onTap})
-      : super(label: 'Cancel', enabled: true);
+    : super(label: '', enabled: true);
+
+  @override
+  Widget build(BuildContext context) {
+    return _CancelActionResolved(label: S.of(context).cancel, onTap: onTap);
+  }
+}
+
+class _CancelActionResolved extends AppDialogAction {
+  const _CancelActionResolved({required super.label, super.onTap})
+    : super(enabled: true);
 }
 
 class _PrimaryAction extends AppDialogAction {

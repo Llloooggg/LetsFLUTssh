@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 
 /// Shown when no tabs are open.
@@ -17,15 +18,15 @@ class WelcomeScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: AppTheme.itemHeightLg,
+            height: AppTheme.itemHeightLg,
             alignment: Alignment.center,
             decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
             child: Icon(Icons.terminal, size: 22, color: faintColor),
           ),
           const SizedBox(height: 16),
           Text(
-            'No active session',
+            S.of(context).noActiveSession,
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: AppFonts.lg,
@@ -34,7 +35,7 @@ class WelcomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Create a new connection or select one from the sidebar',
+            S.of(context).createConnectionHint,
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: AppFonts.sm,

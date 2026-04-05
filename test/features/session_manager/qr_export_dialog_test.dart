@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/qr_export_dialog.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   Session makeSession({
@@ -21,14 +22,12 @@ void main() {
 
   Widget buildApp({required List<Session> sessions, Set<String> emptyFolders = const {}}) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       home: Scaffold(
         body: Builder(
           builder: (context) => ElevatedButton(
-            onPressed: () => QrExportDialog.show(
-              context,
-              sessions: sessions,
-              emptyFolders: emptyFolders,
-            ),
+            onPressed: () => QrExportDialog.show(context, sessions: sessions, emptyFolders: emptyFolders),
             child: const Text('Open'),
           ),
         ),
@@ -46,10 +45,7 @@ void main() {
     });
 
     testWidgets('shows Select All with correct count', (tester) async {
-      final sessions = [
-        makeSession(label: 'a', host: 'a.com'),
-        makeSession(label: 'b', host: 'b.com'),
-      ];
+      final sessions = [makeSession(label: 'a', host: 'a.com'), makeSession(label: 'b', host: 'b.com')];
       await tester.pumpWidget(buildApp(sessions: sessions));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -58,10 +54,7 @@ void main() {
     });
 
     testWidgets('shows session labels', (tester) async {
-      final sessions = [
-        makeSession(label: 'nginx', host: 'a.com'),
-        makeSession(label: 'api', host: 'b.com'),
-      ];
+      final sessions = [makeSession(label: 'nginx', host: 'a.com'), makeSession(label: 'api', host: 'b.com')];
       await tester.pumpWidget(buildApp(sessions: sessions));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -71,9 +64,7 @@ void main() {
     });
 
     testWidgets('shows folders', (tester) async {
-      final sessions = [
-        makeSession(label: 'web1', folder: 'Production'),
-      ];
+      final sessions = [makeSession(label: 'web1', folder: 'Production')];
       await tester.pumpWidget(buildApp(sessions: sessions, emptyFolders: {'Production'}));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -125,10 +116,7 @@ void main() {
     });
 
     testWidgets('toggling individual session updates count', (tester) async {
-      final sessions = [
-        makeSession(label: 'a', host: 'a.com'),
-        makeSession(label: 'b', host: 'b.com'),
-      ];
+      final sessions = [makeSession(label: 'a', host: 'a.com'), makeSession(label: 'b', host: 'b.com')];
       await tester.pumpWidget(buildApp(sessions: sessions));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -153,22 +141,22 @@ void main() {
 
     testWidgets('Show QR returns deep link URL', (tester) async {
       String? result;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                result = await QrExportDialog.show(
-                  context,
-                  sessions: [makeSession()],
-                  emptyFolders: const {},
-                );
-              },
-              child: const Text('Open'),
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  result = await QrExportDialog.show(context, sessions: [makeSession()], emptyFolders: const {});
+                },
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
@@ -189,10 +177,7 @@ void main() {
     });
 
     testWidgets('re-selecting deselected session updates count', (tester) async {
-      final sessions = [
-        makeSession(label: 'a', host: 'a.com'),
-        makeSession(label: 'b', host: 'b.com'),
-      ];
+      final sessions = [makeSession(label: 'a', host: 'a.com'), makeSession(label: 'b', host: 'b.com')];
       await tester.pumpWidget(buildApp(sessions: sessions));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -235,22 +220,22 @@ void main() {
 
     testWidgets('Export All returns deep link when fits', (tester) async {
       String? result;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                result = await QrExportDialog.show(
-                  context,
-                  sessions: [makeSession()],
-                  emptyFolders: const {},
-                );
-              },
-              child: const Text('Open'),
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  result = await QrExportDialog.show(context, sessions: [makeSession()], emptyFolders: const {});
+                },
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
@@ -269,22 +254,22 @@ void main() {
     testWidgets('Export All with empty folders passes all empty folders', (tester) async {
       String? result;
       final sessions = [makeSession(label: 'srv', folder: 'Prod')];
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                result = await QrExportDialog.show(
-                  context,
-                  sessions: sessions,
-                  emptyFolders: {'EmptyFolder'},
-                );
-              },
-              child: const Text('Open'),
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  result = await QrExportDialog.show(context, sessions: sessions, emptyFolders: {'EmptyFolder'});
+                },
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
@@ -296,10 +281,7 @@ void main() {
     });
 
     testWidgets('Select All deselects all when all selected', (tester) async {
-      final sessions = [
-        makeSession(label: 'a', host: 'a.com'),
-        makeSession(label: 'b', host: 'b.com'),
-      ];
+      final sessions = [makeSession(label: 'a', host: 'a.com'), makeSession(label: 'b', host: 'b.com')];
       await tester.pumpWidget(buildApp(sessions: sessions));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();

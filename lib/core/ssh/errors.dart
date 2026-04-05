@@ -23,7 +23,12 @@ class SSHError implements Exception {
     }
     final s = error.toString();
     // Strip common type prefixes for cleaner display
-    for (final prefix in ['SocketException: ', 'SSHAuthFailError: ', 'SSHAuthAbortError: ', 'Exception: ']) {
+    for (final prefix in [
+      'SocketException: ',
+      'SSHAuthFailError: ',
+      'SSHAuthAbortError: ',
+      'Exception: ',
+    ]) {
       if (s.startsWith(prefix)) return s.substring(prefix.length);
     }
     return s;

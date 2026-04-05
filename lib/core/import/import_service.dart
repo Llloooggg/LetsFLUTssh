@@ -46,7 +46,10 @@ class ImportService {
         imported++;
       } catch (e) {
         if (result.mode == ImportMode.replace) rethrow;
-        AppLogger.instance.log('Skipped session ${s.label}: $e', name: 'Import');
+        AppLogger.instance.log(
+          'Skipped session ${s.label}: $e',
+          name: 'Import',
+        );
       }
     }
 

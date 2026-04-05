@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/tabs/welcome_screen.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   Widget buildApp() {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
-      home: const Scaffold(
-        body: WelcomeScreen(),
-      ),
+      home: const Scaffold(body: WelcomeScreen()),
     );
   }
 
@@ -17,11 +18,7 @@ void main() {
     testWidgets('shows heading and description', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.text('No active session'), findsOneWidget);
-      expect(
-        find.text(
-            'Create a new connection or select one from the sidebar'),
-        findsOneWidget,
-      );
+      expect(find.text('Create a new connection or select one from the sidebar'), findsOneWidget);
     });
 
     testWidgets('shows terminal icon in container', (tester) async {

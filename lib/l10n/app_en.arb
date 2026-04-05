@@ -1,0 +1,430 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "LetsFLUTssh",
+  "ok": "OK",
+  "cancel": "Cancel",
+  "close": "Close",
+  "delete": "Delete",
+  "save": "Save",
+  "connect": "Connect",
+  "retry": "Retry",
+  "import_": "Import",
+  "export_": "Export",
+  "rename": "Rename",
+  "create": "Create",
+  "back": "Back",
+  "copy": "Copy",
+  "paste": "Paste",
+  "select": "Select",
+  "required": "Required",
+  "settings": "Settings",
+  "terminal": "Terminal",
+  "files": "Files",
+  "transfer": "Transfer",
+  "open": "Open",
+  "search": "Search...",
+  "filter": "Filter...",
+  "merge": "Merge",
+  "replace": "Replace",
+  "reconnect": "Reconnect",
+
+  "updateAvailable": "Update Available",
+  "updateVersionAvailable": "Version {version} is available (current: v{current}).",
+  "@updateVersionAvailable": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "current": { "type": "String" }
+    }
+  },
+  "releaseNotes": "Release notes:",
+  "skipThisVersion": "Skip This Version",
+  "unskip": "Unskip",
+  "downloadAndInstall": "Download & Install",
+  "openInBrowser": "Open in Browser",
+  "couldNotOpenBrowser": "Could not open browser — URL copied to clipboard",
+  "checkForUpdates": "Check for Updates",
+  "checkForUpdatesOnStartup": "Check for Updates on Startup",
+  "checking": "Checking...",
+  "youreUpToDate": "You're up to date",
+  "updateCheckFailed": "Update check failed",
+  "unknownError": "Unknown error",
+  "downloadingPercent": "Downloading... {percent}%",
+  "@downloadingPercent": {
+    "placeholders": {
+      "percent": { "type": "int" }
+    }
+  },
+  "downloadComplete": "Download complete",
+  "installNow": "Install Now",
+  "couldNotOpenInstaller": "Could not open installer",
+  "versionAvailable": "Version {version} available",
+  "@versionAvailable": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "currentVersion": "Current: v{version}",
+  "@currentVersion": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+
+  "sshKeyReceived": "SSH key received: {filename}",
+  "@sshKeyReceived": {
+    "placeholders": {
+      "filename": { "type": "String" }
+    }
+  },
+  "importedSessionsViaQr": "Imported {count} session(s) via QR",
+  "@importedSessionsViaQr": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "importedSessions": "Imported {count} session(s)",
+  "@importedSessions": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "importFailed": "Import failed: {error}",
+  "@importFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "sessions": "Sessions",
+  "sessionsHeader": "SESSIONS",
+  "savedSessions": "Saved sessions",
+  "activeConnections": "Active connections",
+  "openTabs": "Open tabs",
+  "noSavedSessions": "No saved sessions",
+  "addSession": "Add Session",
+  "noSessions": "No sessions",
+  "noSessionsToExport": "No sessions to export",
+  "nSelectedCount": "{count} selected",
+  "@nSelectedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "selectAll": "Select All",
+  "moveTo": "Move to...",
+  "moveToFolder": "Move to Folder",
+  "rootFolder": "/ (root)",
+
+  "newFolder": "New Folder",
+  "newConnection": "New Connection",
+  "editConnection": "Edit Connection",
+  "duplicate": "Duplicate",
+  "deleteSession": "Delete Session",
+  "renameFolder": "Rename Folder",
+  "deleteFolder": "Delete Folder",
+  "deleteSelected": "Delete Selected",
+  "deleteNSessionsAndFolders": "Delete {parts}?\n\nThis cannot be undone.",
+  "@deleteNSessionsAndFolders": {
+    "placeholders": {
+      "parts": { "type": "String" }
+    }
+  },
+  "nSessions": "{count} session(s)",
+  "@nSessions": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "nFolders": "{count} folder(s)",
+  "@nFolders": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "deleteFolderConfirm": "Delete folder \"{name}\"?",
+  "@deleteFolderConfirm": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "willDeleteSessionsInside": "This will also delete {count} session(s) inside.",
+  "@willDeleteSessionsInside": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "deleteSessionConfirm": "Delete \"{name}\"?",
+  "@deleteSessionConfirm": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
+  "connection": "Connection",
+  "auth": "Auth",
+  "options": "Options",
+  "sessionName": "Session Name",
+  "hintMyServer": "My Server",
+  "hostRequired": "Host *",
+  "hintHost": "192.168.1.1",
+  "port": "Port",
+  "hintPort": "22",
+  "usernameRequired": "Username *",
+  "hintUsername": "root",
+  "password": "Password",
+  "hintPassword": "••••••••",
+  "keyPassphrase": "Key Passphrase",
+  "hintOptional": "Optional",
+  "hidePemText": "Hide PEM text",
+  "pastePemKeyText": "Paste PEM key text",
+  "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
+  "noAdditionalOptionsYet": "No additional options yet",
+  "saveAndConnect": "Save & Connect",
+  "portRange": "1-65535",
+  "provideKeyFirst": "Provide a key file or PEM text first",
+  "keyTextPem": "Key Text (PEM)",
+  "selectKeyFile": "Select Key File",
+  "clearKeyFile": "Clear key file",
+
+  "quickConnect": "Quick Connect",
+
+  "scanQrCode": "Scan QR Code",
+  "qrGenerationFailed": "QR generation failed",
+  "scanWithCameraApp": "Scan with any camera app on a device\nthat has LetsFLUTssh installed.",
+  "noPasswordsInQr": "No passwords or keys are in this QR code",
+  "copyLink": "Copy Link",
+  "linkCopied": "Link copied to clipboard",
+
+  "hostKeyChanged": "Host Key Changed!",
+  "unknownHost": "Unknown Host",
+  "hostKeyChangedWarning": "WARNING: The host key for this server has changed. This could indicate a man-in-the-middle attack, or the server may have been reinstalled.",
+  "unknownHostMessage": "The authenticity of this host cannot be established. Are you sure you want to continue connecting?",
+  "host": "Host",
+  "keyType": "Key type",
+  "fingerprint": "Fingerprint",
+  "fingerprintCopied": "Fingerprint copied",
+  "copyFingerprint": "Copy fingerprint",
+  "acceptAnyway": "Accept Anyway",
+  "accept": "Accept",
+
+  "importData": "Import Data",
+  "masterPassword": "Master Password",
+  "confirmPassword": "Confirm Password",
+  "importModeMergeDescription": "Add new sessions, keep existing",
+  "importModeReplaceDescription": "Replace all sessions with imported",
+
+  "errorPrefix": "Error: {error}",
+  "@errorPrefix": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "folderName": "Folder name",
+  "newName": "New name",
+  "deleteItems": "Delete {names}?",
+  "@deleteItems": {
+    "placeholders": {
+      "names": { "type": "String" }
+    }
+  },
+  "deleteNItems": "Delete {count} items",
+  "@deleteNItems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "deletedItem": "Deleted {name}",
+  "@deletedItem": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "deletedNItems": "Deleted {count} items",
+  "@deletedNItems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "failedToCreateFolder": "Failed to create folder: {error}",
+  "@failedToCreateFolder": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "failedToRename": "Failed to rename: {error}",
+  "@failedToRename": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "failedToDeleteItem": "Failed to delete {name}: {error}",
+  "@failedToDeleteItem": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "error": { "type": "String" }
+    }
+  },
+
+  "editPath": "Edit Path",
+  "root": "Root",
+  "controllersNotInitialized": "Controllers not initialized",
+  "initializingSftp": "Initializing SFTP...",
+  "clearHistory": "Clear history",
+  "noTransfersYet": "No transfers yet",
+
+  "copyRight": "Copy Right",
+  "copyDown": "Copy Down",
+  "closePane": "Close Pane",
+  "previous": "Previous",
+  "next": "Next",
+  "closeEsc": "Close (Esc)",
+  "copyRightShortcut": "Copy Right (Ctrl+\\)",
+  "copyDownShortcut": "Copy Down (Ctrl+Shift+\\)",
+
+  "closeOthers": "Close Others",
+  "closeTabsToTheLeft": "Close Tabs to the Left",
+  "closeTabsToTheRight": "Close Tabs to the Right",
+
+  "noActiveSession": "No active session",
+  "createConnectionHint": "Create a new connection or select one from the sidebar",
+
+  "hideSidebar": "Hide Sidebar (Ctrl+B)",
+  "showSidebar": "Show Sidebar (Ctrl+B)",
+
+  "language": "Language",
+  "languageSystemDefault": "Auto",
+
+  "theme": "Theme",
+  "themeDark": "Dark",
+  "themeLight": "Light",
+  "themeSystem": "System",
+
+  "appearance": "Appearance",
+  "connectionSection": "Connection",
+  "transfers": "Transfers",
+  "data": "Data",
+  "logging": "Logging",
+  "updates": "Updates",
+  "about": "About",
+  "resetToDefaults": "Reset to Defaults",
+  "uiScale": "UI Scale",
+  "terminalFontSize": "Terminal Font Size",
+  "scrollbackLines": "Scrollback Lines",
+  "keepAliveInterval": "Keep-Alive Interval (sec)",
+  "sshTimeout": "SSH Timeout (sec)",
+  "defaultPort": "Default Port",
+  "parallelWorkers": "Parallel Workers",
+  "maxHistory": "Max History",
+  "calculateFolderSizes": "Calculate Folder Sizes",
+
+  "exportData": "Export Data",
+  "exportDataSubtitle": "Save sessions, config, and keys to encrypted .lfs file",
+  "importDataSubtitle": "Load data from .lfs file",
+  "setMasterPasswordHint": "Set a master password to encrypt the archive.",
+  "passwordsDoNotMatch": "Passwords do not match",
+  "exportedTo": "Exported to: {path}",
+  "@exportedTo": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+  "exportFailed": "Export failed: {error}",
+  "@exportFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "pathToLfsFile": "Path to .lfs file",
+  "hintLfsPath": "/path/to/export.lfs",
+
+  "shareViaQrCode": "Share via QR Code",
+  "shareViaQrSubtitle": "Export sessions to QR for scanning by another device",
+  "dataLocation": "Data Location",
+  "pathCopied": "Path copied to clipboard",
+  "urlCopied": "URL copied to clipboard",
+
+  "aboutSubtitle": "v{version} — SSH/SFTP client",
+  "@aboutSubtitle": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "sourceCode": "Source Code",
+
+  "enableLogging": "Enable Logging",
+  "logIsEmpty": "Log is empty",
+  "logExportedTo": "Log exported to: {path}",
+  "@logExportedTo": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+  "logExportFailed": "Log export failed: {error}",
+  "@logExportFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "logsCleared": "Logs cleared",
+  "copiedToClipboard": "Copied to clipboard",
+  "copyLog": "Copy log",
+  "exportLog": "Export log",
+  "clearLogs": "Clear logs",
+
+  "local": "Local",
+  "remote": "Remote",
+  "pickFolder": "Pick Folder",
+  "refresh": "Refresh",
+  "up": "Up",
+  "emptyDirectory": "Empty directory",
+  "cancelSelection": "Cancel selection",
+  "openSftpBrowser": "Open SFTP Browser",
+  "openSshTerminal": "Open SSH Terminal",
+  "noActiveFileBrowsers": "No active file browsers",
+  "useSftpFromSessions": "Use \"SFTP\" from Sessions",
+
+  "anotherInstanceRunning": "Another instance of LetsFLUTssh is already running.",
+  "importFailedShort": "Import failed: {error}",
+  "@importFailedShort": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "saveLogAs": "Save log as",
+  "chooseSaveLocation": "Choose save location",
+
+  "forward": "Forward",
+  "name": "Name",
+  "size": "Size",
+  "modified": "Modified",
+  "mode": "Mode",
+  "owner": "Owner",
+  "connectionError": "Connection error",
+  "resizeWindowToViewFiles": "Resize window to view files",
+  "completed": "Completed",
+  "connected": "Connected",
+  "disconnected": "Disconnected",
+  "exit": "Exit",
+  "exitConfirmation": "Active sessions will be disconnected. Exit?",
+  "hintFolderExample": "e.g. Production",
+  "credentialsNotSet": "Credentials not set",
+  "exportSessionsViaQr": "Export Sessions via QR",
+  "qrNoCredentialsWarning": "Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.",
+  "qrTooManyForSingleCode": "Too many sessions for a single QR code. Deselect some or use .lfs export.",
+  "qrTooLarge": "Too large — deselect some sessions or use .lfs file export.",
+  "exportAll": "Export All",
+  "showQr": "Show QR",
+  "resizePanelDivider": "Resize panel divider",
+  "youreRunningLatest": "You're running the latest version",
+  "liveLog": "Live Log",
+  "transferNItems": "Transfer {count} items",
+  "time": "Time",
+  "failed": "Failed",
+  "@transferNItems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
+}

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/confirm_dialog.dart';
 
 void main() {
   Widget wrap(Widget child) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(body: child),
     );
@@ -14,18 +16,16 @@ void main() {
 
   group('ConfirmDialog', () {
     testWidgets('shows title, content, and buttons', (tester) async {
-      await tester.pumpWidget(wrap(
-        Builder(
-          builder: (ctx) => ElevatedButton(
-            onPressed: () => ConfirmDialog.show(
-              ctx,
-              title: 'Delete Item',
-              content: const Text('Are you sure?'),
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => ConfirmDialog.show(ctx, title: 'Delete Item', content: const Text('Are you sure?')),
+              child: const Text('Open'),
             ),
-            child: const Text('Open'),
           ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -38,20 +38,18 @@ void main() {
 
     testWidgets('returns true on confirm', (tester) async {
       bool? result;
-      await tester.pumpWidget(wrap(
-        Builder(
-          builder: (ctx) => ElevatedButton(
-            onPressed: () async {
-              result = await ConfirmDialog.show(
-                ctx,
-                title: 'Test',
-                content: const Text('Confirm?'),
-              );
-            },
-            child: const Text('Open'),
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () async {
+                result = await ConfirmDialog.show(ctx, title: 'Test', content: const Text('Confirm?'));
+              },
+              child: const Text('Open'),
+            ),
           ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -63,20 +61,18 @@ void main() {
 
     testWidgets('returns false on cancel', (tester) async {
       bool? result;
-      await tester.pumpWidget(wrap(
-        Builder(
-          builder: (ctx) => ElevatedButton(
-            onPressed: () async {
-              result = await ConfirmDialog.show(
-                ctx,
-                title: 'Test',
-                content: const Text('Cancel?'),
-              );
-            },
-            child: const Text('Open'),
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () async {
+                result = await ConfirmDialog.show(ctx, title: 'Test', content: const Text('Cancel?'));
+              },
+              child: const Text('Open'),
+            ),
           ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -87,19 +83,17 @@ void main() {
     });
 
     testWidgets('shows custom confirm label', (tester) async {
-      await tester.pumpWidget(wrap(
-        Builder(
-          builder: (ctx) => ElevatedButton(
-            onPressed: () => ConfirmDialog.show(
-              ctx,
-              title: 'Test',
-              content: const Text('Content'),
-              confirmLabel: 'Delete All',
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () =>
+                  ConfirmDialog.show(ctx, title: 'Test', content: const Text('Content'), confirmLabel: 'Delete All'),
+              child: const Text('Open'),
             ),
-            child: const Text('Open'),
           ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -108,20 +102,22 @@ void main() {
     });
 
     testWidgets('non-destructive style does not use red', (tester) async {
-      await tester.pumpWidget(wrap(
-        Builder(
-          builder: (ctx) => ElevatedButton(
-            onPressed: () => ConfirmDialog.show(
-              ctx,
-              title: 'Save',
-              content: const Text('Save changes?'),
-              confirmLabel: 'Save',
-              destructive: false,
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => ConfirmDialog.show(
+                ctx,
+                title: 'Save',
+                content: const Text('Save changes?'),
+                confirmLabel: 'Save',
+                destructive: false,
+              ),
+              child: const Text('Open'),
             ),
-            child: const Text('Open'),
           ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();

@@ -61,8 +61,9 @@ String sanitizeError(Object error) {
   }
 
   // SocketException / HttpException: strip localized OS error
-  final osErrorMatch =
-      RegExp(r'OS Error:\s*[^,]+,\s*errno\s*=\s*(\d+)').firstMatch(msg);
+  final osErrorMatch = RegExp(
+    r'OS Error:\s*[^,]+,\s*errno\s*=\s*(\d+)',
+  ).firstMatch(msg);
   if (osErrorMatch != null) {
     final errno = int.parse(osErrorMatch.group(1)!);
     final english = _errnoMessages[errno];

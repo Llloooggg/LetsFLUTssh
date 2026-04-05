@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/quick_connect_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   SSHConfig? dialogResult;
@@ -10,6 +11,8 @@ void main() {
   Widget buildApp() {
     dialogResult = null;
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
         body: Builder(
@@ -24,8 +27,7 @@ void main() {
     );
   }
 
-  Finder fieldByHint(String hint) =>
-      find.widgetWithText(TextFormField, hint);
+  Finder fieldByHint(String hint) => find.widgetWithText(TextFormField, hint);
 
   group('QuickConnectDialog', () {
     testWidgets('shows bottom sheet with title', (tester) async {

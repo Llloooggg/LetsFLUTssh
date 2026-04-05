@@ -11,7 +11,10 @@ class TransferTask {
   final String sourcePath;
   final String targetPath;
   final int sizeBytes;
-  final Future<void> Function(void Function(double percent, String message) update) run;
+  final Future<void> Function(
+    void Function(double percent, String message) update,
+  )
+  run;
 
   const TransferTask({
     required this.name,
@@ -55,10 +58,9 @@ class HistoryEntry {
     this.sizeBytes = 0,
   });
 
-  Duration? get duration =>
-      startedAt != null && endedAt != null
-          ? endedAt!.difference(startedAt!)
-          : null;
+  Duration? get duration => startedAt != null && endedAt != null
+      ? endedAt!.difference(startedAt!)
+      : null;
 
   String get directionIcon => direction == TransferDirection.upload ? '↑' : '↓';
 }

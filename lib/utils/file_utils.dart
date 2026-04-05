@@ -17,8 +17,12 @@ Future<void> writeFileAtomic(String path, String content) async {
     await tmp.rename(path);
   } catch (e) {
     AppLogger.instance.log(
-      'Atomic write failed for $path: $e', name: 'FileUtils');
-    try { await tmp.delete(); } catch (_) {}
+      'Atomic write failed for $path: $e',
+      name: 'FileUtils',
+    );
+    try {
+      await tmp.delete();
+    } catch (_) {}
     rethrow;
   }
 }
@@ -34,8 +38,12 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
     await tmp.rename(path);
   } catch (e) {
     AppLogger.instance.log(
-      'Atomic byte write failed for $path: $e', name: 'FileUtils');
-    try { await tmp.delete(); } catch (_) {}
+      'Atomic byte write failed for $path: $e',
+      name: 'FileUtils',
+    );
+    try {
+      await tmp.delete();
+    } catch (_) {}
     rethrow;
   }
 }
@@ -47,12 +55,16 @@ void restrictFilePermissions(String path) {
     try {
       final result = Process.runSync('chmod', ['600', path]);
       if (result.exitCode != 0) {
-        AppLogger.instance
-            .log('chmod 600 failed: ${result.stderr}', name: 'FileUtils');
+        AppLogger.instance.log(
+          'chmod 600 failed: ${result.stderr}',
+          name: 'FileUtils',
+        );
       }
     } catch (e) {
-      AppLogger.instance
-          .log('Failed to restrict permissions: $e', name: 'FileUtils');
+      AppLogger.instance.log(
+        'Failed to restrict permissions: $e',
+        name: 'FileUtils',
+      );
     }
   }
 }

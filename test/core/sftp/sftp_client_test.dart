@@ -9,33 +9,30 @@ import 'package:mockito/mockito.dart';
 import 'package:letsflutssh/core/sftp/sftp_client.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 
-@GenerateNiceMocks([
-  MockSpec<SftpClient>(),
-  MockSpec<SftpFile>(),
-])
+@GenerateNiceMocks([MockSpec<SftpClient>(), MockSpec<SftpFile>()])
 import 'sftp_client_test.mocks.dart';
 
 /// Helper to create a directory SftpFileAttrs.
 SftpFileAttrs _dirAttrs({int? modifyTime, int? size}) => SftpFileAttrs(
-      size: size ?? 4096,
-      mode: const SftpFileMode.value(0x4000 | 0x1ED), // directory 0755
-      accessTime: 0,
-      modifyTime: modifyTime ?? 1000,
-    );
+  size: size ?? 4096,
+  mode: const SftpFileMode.value(0x4000 | 0x1ED), // directory 0755
+  accessTime: 0,
+  modifyTime: modifyTime ?? 1000,
+);
 
 /// Helper to create a regular file SftpFileAttrs.
 SftpFileAttrs _fileAttrs({int? size, int? modifyTime}) => SftpFileAttrs(
-      size: size ?? 100,
-      mode: const SftpFileMode.value(0x81A4), // regular file 0644
-      accessTime: 0,
-      modifyTime: modifyTime ?? 1000,
-    );
+  size: size ?? 100,
+  mode: const SftpFileMode.value(0x81A4), // regular file 0644
+  accessTime: 0,
+  modifyTime: modifyTime ?? 1000,
+);
 
 /// Helper: dot and dotdot entries.
 List<SftpName> _dotEntries() => [
-      SftpName(filename: '.', longname: 'drwxr-xr-x 2 root root 4096 .', attr: _dirAttrs()),
-      SftpName(filename: '..', longname: 'drwxr-xr-x 2 root root 4096 ..', attr: _dirAttrs()),
-    ];
+  SftpName(filename: '.', longname: 'drwxr-xr-x 2 root root 4096 .', attr: _dirAttrs()),
+  SftpName(filename: '..', longname: 'drwxr-xr-x 2 root root 4096 ..', attr: _dirAttrs()),
+];
 
 void main() {
   late MockSftpClient mockSftp;
@@ -139,13 +136,7 @@ void main() {
     });
 
     test('owner empty when longname has fewer than 3 parts', () async {
-      final items = [
-        SftpName(
-          filename: 'short.txt',
-          longname: 'ab',
-          attr: _fileAttrs(size: 10),
-        ),
-      ];
+      final items = [SftpName(filename: 'short.txt', longname: 'ab', attr: _fileAttrs(size: 10))];
 
       when(mockSftp.listdir('/test')).thenAnswer((_) async => items);
 
@@ -165,8 +156,7 @@ void main() {
 
   group('SFTPService.stat', () {
     test('returns FileEntry with correct fields', () async {
-      when(mockSftp.stat('/test/file.txt'))
-          .thenAnswer((_) async => _fileAttrs(size: 1024, modifyTime: 5000));
+      when(mockSftp.stat('/test/file.txt')).thenAnswer((_) async => _fileAttrs(size: 1024, modifyTime: 5000));
 
       final result = await service.stat('/test/file.txt');
       expect(result.name, 'file.txt');
@@ -176,19 +166,16 @@ void main() {
     });
 
     test('returns directory entry', () async {
-      when(mockSftp.stat('/test/dir'))
-          .thenAnswer((_) async => _dirAttrs(modifyTime: 3000));
+      when(mockSftp.stat('/test/dir')).thenAnswer((_) async => _dirAttrs(modifyTime: 3000));
 
       final result = await service.stat('/test/dir');
       expect(result.isDir, isTrue);
     });
 
     test('uses DateTime.now() fallback when modifyTime is null', () async {
-      when(mockSftp.stat('/test/notime.txt'))
-          .thenAnswer((_) async => SftpFileAttrs(
-                size: 42,
-                mode: const SftpFileMode.value(0x81A4),
-              ));
+      when(
+        mockSftp.stat('/test/notime.txt'),
+      ).thenAnswer((_) async => SftpFileAttrs(size: 42, mode: const SftpFileMode.value(0x81A4)));
 
       final before = DateTime.now();
       final result = await service.stat('/test/notime.txt');
@@ -218,19 +205,13 @@ void main() {
   group('SFTPService.removeDir', () {
     test('removes files and subdirectories recursively', () async {
       // Top level: one file and one subdir
-      when(mockSftp.listdir('/test/dir')).thenAnswer((_) async => [
-            ..._dotEntries(),
-            SftpName(
-              filename: 'file.txt',
-              longname: '-rw-r--r-- 1 root root 100 file.txt',
-              attr: _fileAttrs(size: 100),
-            ),
-            SftpName(
-              filename: 'subdir',
-              longname: 'drwxr-xr-x 2 root root 4096 subdir',
-              attr: _dirAttrs(),
-            ),
-          ]);
+      when(mockSftp.listdir('/test/dir')).thenAnswer(
+        (_) async => [
+          ..._dotEntries(),
+          SftpName(filename: 'file.txt', longname: '-rw-r--r-- 1 root root 100 file.txt', attr: _fileAttrs(size: 100)),
+          SftpName(filename: 'subdir', longname: 'drwxr-xr-x 2 root root 4096 subdir', attr: _dirAttrs()),
+        ],
+      );
 
       // Subdir is empty
       when(mockSftp.listdir('/test/dir/subdir')).thenAnswer((_) async => _dotEntries());
@@ -249,25 +230,19 @@ void main() {
       for (var i = 0; i <= SFTPService.maxRecursionDepth; i++) {
         final path = '/deep${List.generate(i, (j) => '/d').join()}';
         final childPath = '$path/d';
-        when(mockSftp.listdir(path)).thenAnswer((_) async => [
-              ..._dotEntries(),
-              SftpName(
-                filename: 'd',
-                longname: 'drwxr-xr-x 2 root root 4096 d',
-                attr: _dirAttrs(),
-              ),
-            ]);
+        when(mockSftp.listdir(path)).thenAnswer(
+          (_) async => [
+            ..._dotEntries(),
+            SftpName(filename: 'd', longname: 'drwxr-xr-x 2 root root 4096 d', attr: _dirAttrs()),
+          ],
+        );
         // Last level — mock listdir for the deepest path too
         if (i == SFTPService.maxRecursionDepth) {
-          when(mockSftp.listdir(childPath))
-              .thenAnswer((_) async => _dotEntries());
+          when(mockSftp.listdir(childPath)).thenAnswer((_) async => _dotEntries());
         }
       }
 
-      expect(
-        () => service.removeDir('/deep'),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => service.removeDir('/deep'), throwsA(isA<StateError>()));
     });
 
     test('maxRecursionDepth is 100', () {
@@ -336,8 +311,7 @@ void main() {
       final mockFile = MockSftpFile();
       final fileContent = Uint8List.fromList(List.filled(1024, 65));
 
-      when(mockSftp.stat('/remote/file.txt'))
-          .thenAnswer((_) async => _fileAttrs(size: 1024));
+      when(mockSftp.stat('/remote/file.txt')).thenAnswer((_) async => _fileAttrs(size: 1024));
       when(mockSftp.open('/remote/file.txt')).thenAnswer((_) async => mockFile);
       when(mockFile.read()).thenAnswer((_) => Stream.fromIterable([fileContent]));
 
@@ -366,8 +340,7 @@ void main() {
       final mockFile = MockSftpFile();
       final fileContent = Uint8List.fromList(List.filled(64, 66));
 
-      when(mockSftp.stat('/remote/small.txt'))
-          .thenAnswer((_) async => _fileAttrs(size: 64));
+      when(mockSftp.stat('/remote/small.txt')).thenAnswer((_) async => _fileAttrs(size: 64));
       when(mockSftp.open('/remote/small.txt')).thenAnswer((_) async => mockFile);
       when(mockFile.read()).thenAnswer((_) => Stream.fromIterable([fileContent]));
 
@@ -387,22 +360,22 @@ void main() {
   group('SFTPService.downloadDir', () {
     test('downloads directory structure recursively with progress', () async {
       // Remote dir has one file
-      when(mockSftp.listdir('/remote/dir')).thenAnswer((_) async => [
-            ..._dotEntries(),
-            SftpName(
-              filename: 'readme.txt',
-              longname: '-rw-r--r-- 1 root root 10 readme.txt',
-              attr: _fileAttrs(size: 10),
-            ),
-          ]);
+      when(mockSftp.listdir('/remote/dir')).thenAnswer(
+        (_) async => [
+          ..._dotEntries(),
+          SftpName(
+            filename: 'readme.txt',
+            longname: '-rw-r--r-- 1 root root 10 readme.txt',
+            attr: _fileAttrs(size: 10),
+          ),
+        ],
+      );
 
       // Mock download of the file
       final mockFile = MockSftpFile();
-      when(mockSftp.stat('/remote/dir/readme.txt'))
-          .thenAnswer((_) async => _fileAttrs(size: 10));
+      when(mockSftp.stat('/remote/dir/readme.txt')).thenAnswer((_) async => _fileAttrs(size: 10));
       when(mockSftp.open('/remote/dir/readme.txt')).thenAnswer((_) async => mockFile);
-      when(mockFile.read())
-          .thenAnswer((_) => Stream.fromIterable([Uint8List.fromList(List.filled(10, 65))]));
+      when(mockFile.read()).thenAnswer((_) => Stream.fromIterable([Uint8List.fromList(List.filled(10, 65))]));
 
       final progressUpdates = <TransferProgress>[];
       final tempDir = await Directory.systemTemp.createTemp('sftp_test_');
@@ -438,10 +411,8 @@ void main() {
         final localFile = File('${tempDir.path}/test.txt');
         await localFile.writeAsString('hello world');
 
-        when(mockSftp.open(any, mode: anyNamed('mode')))
-            .thenAnswer((_) async => mockFile);
-        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
-            .thenAnswer((_) async {});
+        when(mockSftp.open(any, mode: anyNamed('mode'))).thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset'))).thenAnswer((_) async {});
 
         final progress = <TransferProgress>[];
         await service.upload(localFile.path, '/remote/test.txt', (p) => progress.add(p));
@@ -461,15 +432,10 @@ void main() {
         final localFile = File('${tempDir.path}/test.txt');
         await localFile.writeAsString('data');
 
-        when(mockSftp.open(any, mode: anyNamed('mode')))
-            .thenAnswer((_) async => mockFile);
-        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
-            .thenThrow(Exception('write failed'));
+        when(mockSftp.open(any, mode: anyNamed('mode'))).thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset'))).thenThrow(Exception('write failed'));
 
-        expect(
-          () => service.upload(localFile.path, '/remote/test.txt', null),
-          throwsA(anything),
-        );
+        expect(() => service.upload(localFile.path, '/remote/test.txt', null), throwsA(anything));
       } finally {
         await tempDir.delete(recursive: true);
       }
@@ -494,10 +460,8 @@ void main() {
         await File('${tempDir.path}/file.txt').writeAsString('content');
 
         when(mockSftp.mkdir(any)).thenAnswer((_) async {});
-        when(mockSftp.open(any, mode: anyNamed('mode')))
-            .thenAnswer((_) async => mockFile);
-        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
-            .thenAnswer((_) async {});
+        when(mockSftp.open(any, mode: anyNamed('mode'))).thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset'))).thenAnswer((_) async {});
 
         final progress = <TransferProgress>[];
         await service.uploadDir(tempDir.path, '/remote/dir', (p) => progress.add(p));
@@ -520,10 +484,8 @@ void main() {
         await File('${tempDir.path}/sub/c.txt').writeAsString('ccc');
 
         when(mockSftp.mkdir(any)).thenAnswer((_) async {});
-        when(mockSftp.open(any, mode: anyNamed('mode')))
-            .thenAnswer((_) async => mockFile);
-        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
-            .thenAnswer((_) async {});
+        when(mockSftp.open(any, mode: anyNamed('mode'))).thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset'))).thenAnswer((_) async {});
 
         final progress = <TransferProgress>[];
         await service.uploadDir(tempDir.path, '/remote/dir', (p) => progress.add(p));
@@ -559,10 +521,8 @@ void main() {
 
         // mkdir throws (directory already exists)
         when(mockSftp.mkdir(any)).thenThrow(Exception('dir exists'));
-        when(mockSftp.open(any, mode: anyNamed('mode')))
-            .thenAnswer((_) async => mockFile);
-        when(mockFile.writeBytes(any, offset: anyNamed('offset')))
-            .thenAnswer((_) async {});
+        when(mockSftp.open(any, mode: anyNamed('mode'))).thenAnswer((_) async => mockFile);
+        when(mockFile.writeBytes(any, offset: anyNamed('offset'))).thenAnswer((_) async {});
 
         // Should not throw
         await service.uploadDir(tempDir.path, '/remote/existing', null);
@@ -594,7 +554,7 @@ void main() {
       final items = [
         SftpName(
           filename: 'test.txt',
-          longname: '-rw-r--r--',  // no owner field
+          longname: '-rw-r--r--', // no owner field
           attr: _fileAttrs(),
         ),
       ];
@@ -615,55 +575,40 @@ void main() {
   group('SFTPService.downloadDir — nested directories', () {
     test('downloads nested subdirectories recursively', () async {
       // Remote dir has a file and a subdirectory
-      when(mockSftp.listdir('/remote/root')).thenAnswer((_) async => [
-            ..._dotEntries(),
-            SftpName(
-              filename: 'top.txt',
-              longname: '-rw-r--r-- 1 root root 10 top.txt',
-              attr: _fileAttrs(size: 10),
-            ),
-            SftpName(
-              filename: 'subdir',
-              longname: 'drwxr-xr-x 2 root root 4096 subdir',
-              attr: _dirAttrs(),
-            ),
-          ]);
+      when(mockSftp.listdir('/remote/root')).thenAnswer(
+        (_) async => [
+          ..._dotEntries(),
+          SftpName(filename: 'top.txt', longname: '-rw-r--r-- 1 root root 10 top.txt', attr: _fileAttrs(size: 10)),
+          SftpName(filename: 'subdir', longname: 'drwxr-xr-x 2 root root 4096 subdir', attr: _dirAttrs()),
+        ],
+      );
 
       // Subdirectory has one file
-      when(mockSftp.listdir('/remote/root/subdir')).thenAnswer((_) async => [
-            ..._dotEntries(),
-            SftpName(
-              filename: 'nested.txt',
-              longname: '-rw-r--r-- 1 root root 5 nested.txt',
-              attr: _fileAttrs(size: 5),
-            ),
-          ]);
+      when(mockSftp.listdir('/remote/root/subdir')).thenAnswer(
+        (_) async => [
+          ..._dotEntries(),
+          SftpName(filename: 'nested.txt', longname: '-rw-r--r-- 1 root root 5 nested.txt', attr: _fileAttrs(size: 5)),
+        ],
+      );
 
       // Mock download of top.txt
       final mockFile1 = MockSftpFile();
-      when(mockSftp.stat('/remote/root/top.txt'))
-          .thenAnswer((_) async => _fileAttrs(size: 10));
-      when(mockSftp.open('/remote/root/top.txt'))
-          .thenAnswer((_) async => mockFile1);
-      when(mockFile1.read()).thenAnswer(
-          (_) => Stream.fromIterable([Uint8List.fromList(List.filled(10, 65))]));
+      when(mockSftp.stat('/remote/root/top.txt')).thenAnswer((_) async => _fileAttrs(size: 10));
+      when(mockSftp.open('/remote/root/top.txt')).thenAnswer((_) async => mockFile1);
+      when(mockFile1.read()).thenAnswer((_) => Stream.fromIterable([Uint8List.fromList(List.filled(10, 65))]));
 
       // Mock download of nested.txt
       final mockFile2 = MockSftpFile();
-      when(mockSftp.stat('/remote/root/subdir/nested.txt'))
-          .thenAnswer((_) async => _fileAttrs(size: 5));
-      when(mockSftp.open('/remote/root/subdir/nested.txt'))
-          .thenAnswer((_) async => mockFile2);
-      when(mockFile2.read()).thenAnswer(
-          (_) => Stream.fromIterable([Uint8List.fromList(List.filled(5, 66))]));
+      when(mockSftp.stat('/remote/root/subdir/nested.txt')).thenAnswer((_) async => _fileAttrs(size: 5));
+      when(mockSftp.open('/remote/root/subdir/nested.txt')).thenAnswer((_) async => mockFile2);
+      when(mockFile2.read()).thenAnswer((_) => Stream.fromIterable([Uint8List.fromList(List.filled(5, 66))]));
 
       final progressUpdates = <TransferProgress>[];
       final tempDir = await Directory.systemTemp.createTemp('sftp_nested_dl_');
       final localDir = '${tempDir.path}/root';
 
       try {
-        await service.downloadDir(
-            '/remote/root', localDir, (p) => progressUpdates.add(p));
+        await service.downloadDir('/remote/root', localDir, (p) => progressUpdates.add(p));
 
         // Should have progress for top.txt (from top level) and nested.txt (from recursive call)
         expect(progressUpdates, isNotEmpty);
@@ -680,9 +625,7 @@ void main() {
     });
 
     test('downloadDir with null progress callback does not crash', () async {
-      when(mockSftp.listdir('/remote/empty')).thenAnswer((_) async => [
-            ..._dotEntries(),
-          ]);
+      when(mockSftp.listdir('/remote/empty')).thenAnswer((_) async => [..._dotEntries()]);
 
       final tempDir = await Directory.systemTemp.createTemp('sftp_dl_null_');
       final localDir = '${tempDir.path}/empty';
@@ -698,13 +641,7 @@ void main() {
 
   group('SFTPService._parseOwner — edge cases', () {
     test('empty longname returns empty owner', () async {
-      final items = [
-        SftpName(
-          filename: 'empty_long.txt',
-          longname: '',
-          attr: _fileAttrs(),
-        ),
-      ];
+      final items = [SftpName(filename: 'empty_long.txt', longname: '', attr: _fileAttrs())];
       when(mockSftp.listdir('/test')).thenAnswer((_) async => items);
 
       final result = await service.list('/test');
@@ -726,13 +663,7 @@ void main() {
     });
 
     test('longname with single field returns empty owner', () async {
-      final items = [
-        SftpName(
-          filename: 'single.txt',
-          longname: 'onlyperms',
-          attr: _fileAttrs(),
-        ),
-      ];
+      final items = [SftpName(filename: 'single.txt', longname: 'onlyperms', attr: _fileAttrs())];
       when(mockSftp.listdir('/test')).thenAnswer((_) async => items);
 
       final result = await service.list('/test');
@@ -741,13 +672,7 @@ void main() {
     });
 
     test('longname with exactly 3 fields returns owner', () async {
-      final items = [
-        SftpName(
-          filename: 'three.txt',
-          longname: 'perms links owneronly',
-          attr: _fileAttrs(),
-        ),
-      ];
+      final items = [SftpName(filename: 'three.txt', longname: 'perms links owneronly', attr: _fileAttrs())];
       when(mockSftp.listdir('/test')).thenAnswer((_) async => items);
 
       final result = await service.list('/test');

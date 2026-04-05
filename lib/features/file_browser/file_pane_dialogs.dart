@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/sftp/sftp_models.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
@@ -49,7 +50,10 @@ class FilePaneDialogs {
                   filled: true,
                   fillColor: AppTheme.bg3,
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: AppTheme.radiusSm,
                     borderSide: BorderSide(color: AppTheme.borderLight),
@@ -82,12 +86,15 @@ class FilePaneDialogs {
   }
 
   /// Show a dialog to create a new folder in [ctrl]'s current directory.
-  static Future<void> showNewFolder(BuildContext context, FilePaneController ctrl) async {
+  static Future<void> showNewFolder(
+    BuildContext context,
+    FilePaneController ctrl,
+  ) async {
     final result = await _showTextInputDialog(
       context,
-      title: 'New Folder',
-      label: 'Folder name',
-      confirmText: 'Create',
+      title: S.of(context).newFolder,
+      label: S.of(context).folderName,
+      confirmText: S.of(context).create,
     );
 
     if (result != null && result.isNotEmpty) {
@@ -96,21 +103,33 @@ class FilePaneDialogs {
         await ctrl.fs.mkdir(path);
         await ctrl.refresh();
       } catch (e) {
-        AppLogger.instance.log('mkdir failed: $path: $e', name: 'FilePane', error: e);
+        AppLogger.instance.log(
+          'mkdir failed: $path: $e',
+          name: 'FilePane',
+          error: e,
+        );
         if (context.mounted) {
-          Toast.show(context, message: 'Failed to create folder: ${sanitizeError(e)}', level: ToastLevel.error);
+          Toast.show(
+            context,
+            message: S.of(context).failedToCreateFolder(sanitizeError(e)),
+            level: ToastLevel.error,
+          );
         }
       }
     }
   }
 
   /// Show a dialog to rename [entry] in [ctrl]'s current directory.
-  static Future<void> showRename(BuildContext context, FilePaneController ctrl, FileEntry entry) async {
+  static Future<void> showRename(
+    BuildContext context,
+    FilePaneController ctrl,
+    FileEntry entry,
+  ) async {
     final result = await _showTextInputDialog(
       context,
-      title: 'Rename',
-      label: 'New name',
-      confirmText: 'Rename',
+      title: S.of(context).rename,
+      label: S.of(context).newName,
+      confirmText: S.of(context).rename,
       initialValue: entry.name,
     );
 
@@ -120,31 +139,43 @@ class FilePaneDialogs {
         await ctrl.fs.rename(entry.path, newPath);
         await ctrl.refresh();
       } catch (e) {
-        AppLogger.instance.log('Rename failed: ${entry.path} → $newPath: $e', name: 'FilePane', error: e);
+        AppLogger.instance.log(
+          'Rename failed: ${entry.path} → $newPath: $e',
+          name: 'FilePane',
+          error: e,
+        );
         if (context.mounted) {
-          Toast.show(context, message: 'Failed to rename: ${sanitizeError(e)}', level: ToastLevel.error);
+          Toast.show(
+            context,
+            message: S.of(context).failedToRename(sanitizeError(e)),
+            level: ToastLevel.error,
+          );
         }
       }
     }
   }
 
   /// Show a confirmation dialog and delete [entries] from [ctrl].
-  static Future<void> confirmDelete(BuildContext context, FilePaneController ctrl, List<FileEntry> entries) async {
+  static Future<void> confirmDelete(
+    BuildContext context,
+    FilePaneController ctrl,
+    List<FileEntry> entries,
+  ) async {
     final names = entries.length == 1
         ? '"${entries.first.name}"'
         : '${entries.length} items';
     final confirmed = await AppDialog.show<bool>(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Delete',
+        title: S.of(context).delete,
         content: Text(
-          'Delete $names?',
+          S.of(context).deleteItems(names),
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
         ),
         actions: [
           AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
           AppDialogAction.destructive(
-            label: 'Delete',
+            label: S.of(context).delete,
             onTap: () => Navigator.of(ctx).pop(true),
           ),
         ],
@@ -165,6 +196,7 @@ class FilePaneDialogs {
     FilePaneController ctrl,
     List<FileEntry> entries,
   ) async {
+    final l10n = S.of(context);
     var deleted = 0;
     final errors = <String>[];
     for (final entry in entries) {
@@ -172,8 +204,12 @@ class FilePaneDialogs {
         await _deleteSingleEntry(ctrl, entry);
         deleted++;
       } catch (e) {
-        AppLogger.instance.log('Delete failed: ${entry.path}: $e', name: 'FilePane', error: e);
-        errors.add('Failed to delete ${entry.name}: $e');
+        AppLogger.instance.log(
+          'Delete failed: ${entry.path}: $e',
+          name: 'FilePane',
+          error: e,
+        );
+        errors.add(l10n.failedToDeleteItem(entry.name, e.toString()));
       }
     }
     if (errors.isNotEmpty && context.mounted) {
@@ -184,7 +220,10 @@ class FilePaneDialogs {
     return deleted;
   }
 
-  static Future<void> _deleteSingleEntry(FilePaneController ctrl, FileEntry entry) async {
+  static Future<void> _deleteSingleEntry(
+    FilePaneController ctrl,
+    FileEntry entry,
+  ) async {
     if (entry.isDir) {
       await ctrl.fs.removeDir(entry.path);
     } else {
@@ -192,9 +231,15 @@ class FilePaneDialogs {
     }
   }
 
-  static void _showDeletedToast(BuildContext context, List<FileEntry> entries, int deleted) {
+  static void _showDeletedToast(
+    BuildContext context,
+    List<FileEntry> entries,
+    int deleted,
+  ) {
     if (deleted > 0 && context.mounted) {
-      final msg = deleted == 1 ? 'Deleted ${entries.first.name}' : 'Deleted $deleted items';
+      final msg = deleted == 1
+          ? S.of(context).deletedItem(entries.first.name)
+          : S.of(context).deletedNItems(deleted);
       Toast.show(context, message: msg, level: ToastLevel.success);
     }
   }

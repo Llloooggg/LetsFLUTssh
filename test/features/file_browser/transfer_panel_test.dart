@@ -1,9 +1,8 @@
 import 'dart:async';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/transfer_panel.dart';
@@ -22,6 +21,8 @@ Widget _buildTestWidget({
       transferStatusProvider.overrideWith((ref) => Stream.value(status)),
     ],
     child: MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: const Scaffold(
         body: Column(
@@ -42,11 +43,12 @@ Widget _buildTestWidgetWithHistoryError({
   return ProviderScope(
     overrides: [
       transferManagerProvider.overrideWithValue(manager),
-      transferHistoryProvider.overrideWith(
-          (ref) => Stream<List<HistoryEntry>>.error(Exception('load failed'))),
+      transferHistoryProvider.overrideWith((ref) => Stream<List<HistoryEntry>>.error(Exception('load failed'))),
       transferStatusProvider.overrideWith((ref) => Stream.value(status)),
     ],
     child: MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: const Scaffold(
         body: Column(
@@ -67,11 +69,12 @@ Widget _buildTestWidgetWithHistoryLoading({
   return ProviderScope(
     overrides: [
       transferManagerProvider.overrideWithValue(manager),
-      transferHistoryProvider.overrideWith(
-          (ref) => StreamController<List<HistoryEntry>>().stream),
+      transferHistoryProvider.overrideWith((ref) => StreamController<List<HistoryEntry>>().stream),
       transferStatusProvider.overrideWith((ref) => Stream.value(status)),
     ],
     child: MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: const Scaffold(
         body: Column(
@@ -299,9 +302,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the resize handle by the resizeRow cursor
-      final resizeHandle = find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
-      );
+      final resizeHandle = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow);
       expect(resizeHandle, findsOneWidget);
 
       // Drag the resize handle up
@@ -320,9 +321,7 @@ void main() {
       await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      final resizeHandle = find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
-      );
+      final resizeHandle = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow);
       expect(resizeHandle, findsOneWidget);
 
       // Drag up by a large amount (should clamp to max 500)
@@ -421,11 +420,7 @@ void main() {
     });
 
     testWidgets('auto-expands when active transfers start', (tester) async {
-      const status = ActiveTransferState(
-        running: 1,
-        queued: 0,
-        currentInfo: 'Uploading file.txt...',
-      );
+      const status = ActiveTransferState(running: 1, queued: 0, currentInfo: 'Uploading file.txt...');
 
       await tester.pumpWidget(_buildTestWidget(manager: manager, status: status));
       await tester.pumpAndSettle();
@@ -681,11 +676,7 @@ void main() {
     });
 
     testWidgets('shows active transfer status in header', (tester) async {
-      const status = ActiveTransferState(
-        running: 2,
-        queued: 3,
-        currentInfo: 'Uploading test.txt...',
-      );
+      const status = ActiveTransferState(running: 2, queued: 3, currentInfo: 'Uploading test.txt...');
 
       await tester.pumpWidget(_buildTestWidget(manager: manager, status: status));
       await tester.pumpAndSettle();
