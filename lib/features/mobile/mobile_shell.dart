@@ -583,9 +583,11 @@ class _MobileTerminalPage extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: MobileTerminalView(
-            key: ValueKey(activeTermTab.id),
-            connection: activeTermTab.connection,
+          child: ClipRect(
+            child: MobileTerminalView(
+              key: ValueKey(activeTermTab.id),
+              connection: activeTermTab.connection,
+            ),
           ),
         ),
       ],
@@ -658,9 +660,11 @@ class _MobileSftpPage extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: MobileFileBrowser(
-            key: ValueKey(activeSftpTab.id),
-            connection: activeSftpTab.connection,
+          child: ClipRect(
+            child: MobileFileBrowser(
+              key: ValueKey(activeSftpTab.id),
+              connection: activeSftpTab.connection,
+            ),
           ),
         ),
       ],
