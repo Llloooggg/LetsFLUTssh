@@ -1,0 +1,8 @@
+version: 2
+
+secret:
+  # Test files contain fake credentials for unit testing (not real secrets)
+  # Localization files contain translated UI labels like "password" -> "Passwort"
+  ignored_paths:
+    - 'test/**'
+    - 'lib/l10n/**'
