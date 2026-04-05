@@ -15,8 +15,9 @@ class TerminalConfig {
 
   String? validate() {
     if (fontSize < 6 || fontSize > 72) return 'Font size must be 6-72';
-    if (!_validThemes.contains(theme))
+    if (!_validThemes.contains(theme)) {
       return 'Theme must be one of: ${_validThemes.join(', ')}';
+    }
     if (scrollback < 100) return 'Scrollback must be at least 100';
     return null;
   }

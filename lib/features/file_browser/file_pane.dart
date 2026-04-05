@@ -94,14 +94,18 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final d = 10 + _modeColWidth;
     final o = hasOwner ? 10 + _ownerColWidth : 0.0;
     final avail = width - base;
-    if (avail >= s + m + d + o)
+    if (avail >= s + m + d + o) {
       return (size: true, modified: true, mode: true, owner: hasOwner);
-    if (avail >= s + m + d)
+    }
+    if (avail >= s + m + d) {
       return (size: true, modified: true, mode: true, owner: false);
-    if (avail >= s + m)
+    }
+    if (avail >= s + m) {
       return (size: true, modified: true, mode: false, owner: false);
-    if (avail >= s)
+    }
+    if (avail >= s) {
       return (size: true, modified: false, mode: false, owner: false);
+    }
     return (size: false, modified: false, mode: false, owner: false);
   }
 

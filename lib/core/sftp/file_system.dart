@@ -37,8 +37,9 @@ class LocalFS implements FileSystem {
   @override
   Future<List<FileEntry>> list(String path) async {
     final dir = Directory(path);
-    if (!await dir.exists())
+    if (!await dir.exists()) {
       throw FileSystemException('Directory not found', path);
+    }
 
     // On Windows, collect hidden/system file names to filter out.
     final hiddenNames = Platform.isWindows

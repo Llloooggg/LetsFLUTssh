@@ -217,8 +217,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _handleUpdateState(UpdateState next) {
     if (_updateDialogShown) return;
-    if (next.status != UpdateStatus.updateAvailable || next.info == null)
+    if (next.status != UpdateStatus.updateAvailable || next.info == null) {
       return;
+    }
 
     final skipped = ref.read(configProvider).skippedVersion;
     if (skipped != null && skipped == next.info!.latestVersion) return;

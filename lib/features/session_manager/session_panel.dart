@@ -894,8 +894,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       currentName: currentName,
     );
 
-    if (result == null || result.trim().isEmpty || result.trim() == currentName)
+    if (result == null ||
+        result.trim().isEmpty ||
+        result.trim() == currentName) {
       return;
+    }
 
     final newPath = parentPath.isEmpty
         ? result.trim()
