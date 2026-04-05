@@ -71,3 +71,9 @@ For detailed technical documentation — module structure, data models, data flo
 ## Contributing
 
 Contributions welcome — see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for build instructions, dev workflow, and PR guidelines.
+
+## Support
+
+If you find this project useful, you can support its development:
+
+[![Donate](https://img.shields.io/badge/Donate-DonationAlerts-orange?style=for-the-badge)](https://www.donationalerts.com/r/llloooggg)
