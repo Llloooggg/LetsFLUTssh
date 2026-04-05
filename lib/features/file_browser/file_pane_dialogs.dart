@@ -196,6 +196,7 @@ class FilePaneDialogs {
     FilePaneController ctrl,
     List<FileEntry> entries,
   ) async {
+    final l10n = S.of(context);
     var deleted = 0;
     final errors = <String>[];
     for (final entry in entries) {
@@ -208,7 +209,7 @@ class FilePaneDialogs {
           name: 'FilePane',
           error: e,
         );
-        errors.add(S.of(context).failedToDeleteItem(entry.name, e.toString()));
+        errors.add(l10n.failedToDeleteItem(entry.name, e.toString()));
       }
     }
     if (errors.isNotEmpty && context.mounted) {
