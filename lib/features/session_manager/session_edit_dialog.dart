@@ -536,7 +536,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           AppIconButton(
             icon: Icons.close,
             onTap: () => setState(() => _keyPathCtrl.clear()),
-            tooltip: 'Clear key file',
+            tooltip: S.of(context).clearKeyFile,
             size: 18,
           ),
       ],

@@ -240,6 +240,21 @@ class AppConfig {
   final bool enableLogging;
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
+  final String? locale;
+
+  /// Locale codes supported by the app.
+  static const supportedLocales = [
+    'en',
+    'ru',
+    'zh',
+    'de',
+    'ja',
+    'pt',
+    'es',
+    'fr',
+    'ko',
+    'ar',
+  ];
 
   const AppConfig({
     this.terminal = const TerminalConfig(),
@@ -250,6 +265,7 @@ class AppConfig {
     this.enableLogging = false,
     this.checkUpdatesOnStart = true,
     this.skippedVersion,
+    this.locale,
   });
 
   static const AppConfig defaults = AppConfig();
@@ -290,6 +306,9 @@ class AppConfig {
       enableLogging: enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart,
       skippedVersion: skippedVersion,
+      locale: locale != null && supportedLocales.contains(locale)
+          ? locale
+          : null,
     );
   }
 
@@ -311,6 +330,7 @@ class AppConfig {
       enableLogging: enableLogging ?? this.enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
       skippedVersion: skippedVersion,
+      locale: locale,
     );
   }
 
@@ -323,6 +343,19 @@ class AppConfig {
     enableLogging: enableLogging,
     checkUpdatesOnStart: checkUpdatesOnStart,
     skippedVersion: version,
+    locale: locale,
+  );
+
+  AppConfig withLocale(String? locale) => AppConfig(
+    terminal: terminal,
+    ssh: ssh,
+    ui: ui,
+    transferWorkers: transferWorkers,
+    maxHistory: maxHistory,
+    enableLogging: enableLogging,
+    checkUpdatesOnStart: checkUpdatesOnStart,
+    skippedVersion: skippedVersion,
+    locale: locale,
   );
 
   @override
@@ -336,7 +369,8 @@ class AppConfig {
           maxHistory == other.maxHistory &&
           enableLogging == other.enableLogging &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
-          skippedVersion == other.skippedVersion;
+          skippedVersion == other.skippedVersion &&
+          locale == other.locale;
 
   @override
   int get hashCode => Object.hash(
@@ -348,6 +382,7 @@ class AppConfig {
     enableLogging,
     checkUpdatesOnStart,
     skippedVersion,
+    locale,
   );
 
   /// JSON stays flat for backward compatibility.
@@ -360,6 +395,7 @@ class AppConfig {
     'enable_logging': enableLogging,
     'check_updates_on_start': checkUpdatesOnStart,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
+    if (locale != null) 'locale': locale,
   };
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
@@ -374,6 +410,7 @@ class AppConfig {
       checkUpdatesOnStart:
           json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
       skippedVersion: json['skipped_version'] as String?,
+      locale: json['locale'] as String?,
     ).sanitized();
   }
 }

@@ -314,20 +314,26 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           const SizedBox(width: 4),
           SizedBox(width: 20, child: Text('', style: style)),
           const SizedBox(width: 4),
-          Expanded(child: headerCell('Name', TransferSortColumn.name)),
+          Expanded(
+            child: headerCell(S.of(context).name, TransferSortColumn.name),
+          ),
           ColumnResizeHandle(
             onDrag: (dx) => setState(
               () => _localColWidth = (_localColWidth - dx).clamp(60, 300),
             ),
           ),
-          headerCell('Local', TransferSortColumn.local, width: _localColWidth),
+          headerCell(
+            S.of(context).local,
+            TransferSortColumn.local,
+            width: _localColWidth,
+          ),
           ColumnResizeHandle(
             onDrag: (dx) => setState(
               () => _remoteColWidth = (_remoteColWidth - dx).clamp(60, 300),
             ),
           ),
           headerCell(
-            'Remote',
+            S.of(context).remote,
             TransferSortColumn.remote,
             width: _remoteColWidth,
           ),
@@ -336,13 +342,21 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               () => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 150),
             ),
           ),
-          headerCell('Size', TransferSortColumn.size, width: _sizeColWidth),
+          headerCell(
+            S.of(context).size,
+            TransferSortColumn.size,
+            width: _sizeColWidth,
+          ),
           ColumnResizeHandle(
             onDrag: (dx) => setState(
               () => _timeColWidth = (_timeColWidth - dx).clamp(60, 200),
             ),
           ),
-          headerCell('Time', TransferSortColumn.time, width: _timeColWidth),
+          headerCell(
+            S.of(context).time,
+            TransferSortColumn.time,
+            width: _timeColWidth,
+          ),
         ],
       ),
     );
@@ -400,7 +414,9 @@ class _HistoryRow extends StatelessWidget {
           SizedBox(
             width: 20,
             child: Tooltip(
-              message: isFailed ? (entry.error ?? 'Failed') : 'Completed',
+              message: isFailed
+                  ? (entry.error ?? S.of(context).failed)
+                  : S.of(context).completed,
               child: Icon(
                 isFailed ? Icons.error_outline : Icons.check_circle_outline,
                 size: 10,

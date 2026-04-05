@@ -448,11 +448,17 @@ class _AppearanceSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(configProvider.select((c) => c.locale));
     final theme = ref.watch(configProvider.select((c) => c.theme));
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
     final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
     return Column(
       children: [
+        _LanguageTile(
+          value: locale,
+          onChanged: (v) =>
+              ref.read(configProvider.notifier).update((c) => c.withLocale(v)),
+        ),
         _ThemeTile(
           value: theme,
           onChanged: (v) => ref
@@ -815,7 +821,7 @@ class _UpdateSection extends ConsumerWidget {
     return Column(
       children: [
         _Toggle(
-          label: 'Check for Updates on Startup',
+          label: S.of(context).checkForUpdatesOnStartup,
           value: checkOnStart,
           onChanged: (v) => ref
               .read(configProvider.notifier)
@@ -841,7 +847,9 @@ class _UpdateSection extends ConsumerWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.refresh, size: 20),
-      title: Text(isChecking ? 'Checking...' : 'Check for Updates'),
+      title: Text(
+        isChecking ? S.of(context).checking : S.of(context).checkForUpdates,
+      ),
       contentPadding: EdgeInsets.zero,
       onTap: isChecking
           ? null
@@ -852,19 +860,21 @@ class _UpdateSection extends ConsumerWidget {
               if (state.status == UpdateStatus.upToDate) {
                 Toast.show(
                   context,
-                  message: 'You\'re running the latest version',
+                  message: S.of(context).youreRunningLatest,
                   level: ToastLevel.success,
                 );
               } else if (state.status == UpdateStatus.updateAvailable) {
                 Toast.show(
                   context,
-                  message: 'Version ${state.info!.latestVersion} available',
+                  message: S
+                      .of(context)
+                      .versionAvailable(state.info!.latestVersion),
                   level: ToastLevel.info,
                 );
               } else if (state.status == UpdateStatus.error) {
                 Toast.show(
                   context,
-                  message: state.error ?? 'Update check failed',
+                  message: state.error ?? S.of(context).updateCheckFailed,
                   level: ToastLevel.error,
                 );
               }
@@ -891,7 +901,7 @@ class _UpdateSection extends ConsumerWidget {
             size: 20,
             color: theme.colorScheme.primary,
           ),
-          title: const Text('You\'re up to date'),
+          title: Text(S.of(context).youreUpToDate),
           contentPadding: EdgeInsets.zero,
         );
 
@@ -909,7 +919,9 @@ class _UpdateSection extends ConsumerWidget {
             ),
           ),
           title: Text(
-            'Downloading... ${(updateState.progress * 100).toInt()}%',
+            S
+                .of(context)
+                .downloadingPercent((updateState.progress * 100).toInt()),
           ),
           contentPadding: EdgeInsets.zero,
         );
@@ -924,9 +936,9 @@ class _UpdateSection extends ConsumerWidget {
             size: 20,
             color: theme.colorScheme.error,
           ),
-          title: const Text('Update check failed'),
+          title: Text(S.of(context).updateCheckFailed),
           subtitle: Text(
-            updateState.error ?? 'Unknown error',
+            updateState.error ?? S.of(context).unknownError,
             style: TextStyle(
               fontSize: AppFonts.md,
               color: theme.colorScheme.error,
@@ -951,8 +963,8 @@ class _UpdateSection extends ConsumerWidget {
       children: [
         ListTile(
           leading: const Icon(Icons.system_update, size: 20),
-          title: Text('Version ${info.latestVersion} available'),
-          subtitle: Text('Current: v${info.currentVersion}'),
+          title: Text(S.of(context).versionAvailable(info.latestVersion)),
+          subtitle: Text(S.of(context).currentVersion(info.currentVersion)),
           contentPadding: EdgeInsets.zero,
         ),
         Padding(
@@ -964,7 +976,7 @@ class _UpdateSection extends ConsumerWidget {
                 FilledButton.icon(
                   onPressed: () => ref.read(updateProvider.notifier).download(),
                   icon: const Icon(Icons.download, size: 18),
-                  label: const Text('Download & Install'),
+                  label: Text(S.of(context).downloadAndInstall),
                 )
               else
                 OutlinedButton.icon(
@@ -978,29 +990,28 @@ class _UpdateSection extends ConsumerWidget {
                         Clipboard.setData(ClipboardData(text: info.releaseUrl));
                         Toast.show(
                           context,
-                          message:
-                              'Could not open browser — URL copied to clipboard',
+                          message: S.of(context).couldNotOpenBrowser,
                           level: ToastLevel.warning,
                         );
                       }
                     }
                   },
                   icon: const Icon(Icons.open_in_new, size: 18),
-                  label: const Text('Open in Browser'),
+                  label: Text(S.of(context).openInBrowser),
                 ),
               if (!isSkipped)
                 TextButton(
                   onPressed: () => ref
                       .read(configProvider.notifier)
                       .update((c) => c.withSkippedVersion(info.latestVersion)),
-                  child: const Text('Skip This Version'),
+                  child: Text(S.of(context).skipThisVersion),
                 )
               else
                 TextButton(
                   onPressed: () => ref
                       .read(configProvider.notifier)
                       .update((c) => c.withSkippedVersion(null)),
-                  child: const Text('Unskip'),
+                  child: Text(S.of(context).unskip),
                 ),
             ],
           ),
@@ -1018,7 +1029,7 @@ class _UpdateSection extends ConsumerWidget {
       children: [
         ListTile(
           leading: const Icon(Icons.check_circle, size: 20),
-          title: const Text('Download complete'),
+          title: Text(S.of(context).downloadComplete),
           subtitle: Text(
             updateState.downloadedPath ?? '',
             style: TextStyle(fontSize: AppFonts.md),
@@ -1034,13 +1045,13 @@ class _UpdateSection extends ConsumerWidget {
               if (!ok && context.mounted) {
                 Toast.show(
                   context,
-                  message: 'Could not open installer',
+                  message: S.of(context).couldNotOpenInstaller,
                   level: ToastLevel.error,
                 );
               }
             },
             icon: const Icon(Icons.install_desktop, size: 18),
-            label: const Text('Install Now'),
+            label: Text(S.of(context).installNow),
           ),
         ),
       ],
@@ -1059,13 +1070,13 @@ class _AboutSection extends ConsumerWidget {
       children: [
         ListTile(
           leading: const Icon(Icons.info_outline, size: 20),
-          title: const Text('LetsFLUTssh'),
-          subtitle: Text('v$version — SSH/SFTP client'),
+          title: Text(S.of(context).appTitle),
+          subtitle: Text(S.of(context).aboutSubtitle(version)),
           contentPadding: EdgeInsets.zero,
         ),
         ListTile(
           leading: const Icon(Icons.code, size: 20),
-          title: const Text('Source Code'),
+          title: Text(S.of(context).sourceCode),
           subtitle: Text(
             _githubUrl,
             style: TextStyle(
@@ -1078,7 +1089,7 @@ class _AboutSection extends ConsumerWidget {
             Clipboard.setData(const ClipboardData(text: _githubUrl));
             Toast.show(
               context,
-              message: 'URL copied to clipboard',
+              message: S.of(context).urlCopied,
               level: ToastLevel.info,
             );
           },
@@ -1434,13 +1445,119 @@ class _ThemeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
     return _SettingsRow(
-      label: 'Theme',
+      label: s.theme,
       child: _SegmentControl(
         values: const ['dark', 'light', 'system'],
-        labels: const ['Dark', 'Light', 'System'],
+        labels: [s.themeDark, s.themeLight, s.themeSystem],
         selected: value,
         onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class _LanguageTile extends StatelessWidget {
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  const _LanguageTile({required this.value, required this.onChanged});
+
+  /// Sentinel used in PopupMenuItem instead of null (which Flutter treats as
+  /// "menu dismissed"). Converted back to null in onSelected.
+  static const _systemDefault = '\x00';
+
+  static const _localeLabels = <String, (String, String)>{
+    _systemDefault: ('', ''),
+    'en': ('English', ''),
+    'zh': ('中文', 'Chinese'),
+    'es': ('Español', 'Spanish'),
+    'ar': ('العربية', 'Arabic'),
+    'fr': ('Français', 'French'),
+    'pt': ('Português', 'Portuguese'),
+    'ru': ('Русский', 'Russian'),
+    'de': ('Deutsch', 'German'),
+    'ja': ('日本語', 'Japanese'),
+    'ko': ('한국어', 'Korean'),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveValue = value ?? _systemDefault;
+    final s = S.of(context);
+    final current = _localeLabels[effectiveValue];
+    final label = effectiveValue == _systemDefault
+        ? s.languageSystemDefault
+        : current?.$1 ?? effectiveValue;
+
+    return _SettingsRow(
+      label: s.language,
+      child: PopupMenuButton<String>(
+        onSelected: (v) => onChanged(v == _systemDefault ? null : v),
+        tooltip: '',
+        offset: const Offset(0, AppTheme.controlHeightSm),
+        constraints: const BoxConstraints(minWidth: 200),
+        color: AppTheme.bg2,
+        shape: const RoundedRectangleBorder(borderRadius: AppTheme.radiusMd),
+        itemBuilder: (_) => _localeLabels.entries.map((e) {
+          final code = e.key;
+          final (native, secondary) = e.value;
+          final displayNative = code == _systemDefault
+              ? s.languageSystemDefault
+              : native;
+          return PopupMenuItem<String>(
+            value: code,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    displayNative,
+                    style: TextStyle(
+                      fontSize: AppFonts.sm,
+                      color: code == effectiveValue
+                          ? AppTheme.accent
+                          : AppTheme.fg,
+                    ),
+                  ),
+                ),
+                if (secondary.isNotEmpty)
+                  Text(
+                    secondary,
+                    style: AppFonts.inter(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgDim,
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+        child: Container(
+          height: AppTheme.controlHeightSm,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: AppTheme.bg3,
+            borderRadius: AppTheme.radiusSm,
+            border: Border.all(color: AppTheme.borderLight),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.language, size: 16, color: AppTheme.fgDim),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fg,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1521,8 +1638,8 @@ class _QrExportTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _ActionTile(
       icon: Icons.qr_code,
-      title: 'Share via QR Code',
-      subtitle: 'Export sessions to QR for scanning by another device',
+      title: S.of(context).shareViaQrCode,
+      subtitle: S.of(context).shareViaQrSubtitle,
       onTap: () => _showQrExport(context, ref),
     );
   }
@@ -1532,7 +1649,7 @@ class _QrExportTile extends ConsumerWidget {
     if (sessions.isEmpty) {
       Toast.show(
         context,
-        message: 'No sessions to export',
+        message: S.of(context).noSessionsToExport,
         level: ToastLevel.warning,
       );
       return;
@@ -1562,13 +1679,13 @@ class _DataPathTile extends StatelessWidget {
         final path = snapshot.data?.path ?? '...';
         return _ActionTile(
           icon: Icons.folder_special,
-          title: 'Data Location',
+          title: S.of(context).dataLocation,
           subtitle: path,
           onTap: () {
             Clipboard.setData(ClipboardData(text: path));
             Toast.show(
               context,
-              message: 'Path copied to clipboard',
+              message: S.of(context).pathCopied,
               level: ToastLevel.info,
             );
           },
@@ -1589,7 +1706,7 @@ class _LoggingSection extends ConsumerWidget {
     return Column(
       children: [
         _Toggle(
-          label: 'Enable Logging',
+          label: S.of(context).enableLogging,
           value: enabled,
           onChanged: (v) => ref
               .read(configProvider.notifier)
@@ -1611,7 +1728,11 @@ class _LoggingSection extends ConsumerWidget {
       final content = await AppLogger.instance.readLog();
       if (!context.mounted) return;
       if (content.isEmpty) {
-        Toast.show(context, message: 'Log is empty', level: ToastLevel.info);
+        Toast.show(
+          context,
+          message: S.of(context).logIsEmpty,
+          level: ToastLevel.info,
+        );
         return;
       }
 
@@ -1625,14 +1746,14 @@ class _LoggingSection extends ConsumerWidget {
       String? outputPath;
       if (plat.isDesktopPlatform) {
         outputPath = await FilePicker.platform.saveFile(
-          dialogTitle: 'Save log as',
+          dialogTitle: S.of(context).saveLogAs,
           fileName: defaultName,
           type: FileType.custom,
           allowedExtensions: ['txt', 'log'],
         );
       } else {
         final dir = await FilePicker.platform.getDirectoryPath(
-          dialogTitle: 'Choose save location',
+          dialogTitle: S.of(context).chooseSaveLocation,
         );
         if (dir != null) outputPath = p.join(dir, defaultName);
       }
@@ -1643,7 +1764,7 @@ class _LoggingSection extends ConsumerWidget {
       if (context.mounted) {
         Toast.show(
           context,
-          message: 'Log exported to: $outputPath',
+          message: S.of(context).logExportedTo(outputPath),
           level: ToastLevel.success,
         );
       }
@@ -1656,7 +1777,7 @@ class _LoggingSection extends ConsumerWidget {
       if (context.mounted) {
         Toast.show(
           context,
-          message: 'Log export failed: $e',
+          message: S.of(context).logExportFailed('$e'),
           level: ToastLevel.error,
         );
       }
@@ -1666,7 +1787,11 @@ class _LoggingSection extends ConsumerWidget {
   Future<void> _clearLogs(BuildContext context) async {
     await AppLogger.instance.clearLogs();
     if (!context.mounted) return;
-    Toast.show(context, message: 'Logs cleared', level: ToastLevel.info);
+    Toast.show(
+      context,
+      message: S.of(context).logsCleared,
+      level: ToastLevel.info,
+    );
   }
 }
 
@@ -1730,7 +1855,7 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
             Icon(Icons.circle, size: 8, color: fg),
             const SizedBox(width: 6),
             Text(
-              'Live Log',
+              S.of(context).liveLog,
               style: TextStyle(
                 fontSize: AppFonts.md,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -1744,18 +1869,18 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
                 Toast.show(
                   context,
                   message: _content.isEmpty
-                      ? 'Log is empty'
-                      : 'Copied to clipboard',
+                      ? S.of(context).logIsEmpty
+                      : S.of(context).copiedToClipboard,
                   level: ToastLevel.info,
                 );
               },
-              tooltip: 'Copy log',
+              tooltip: S.of(context).copyLog,
               size: 16,
             ),
             AppIconButton(
               icon: Icons.save_alt,
               onTap: widget.onExport,
-              tooltip: 'Export log',
+              tooltip: S.of(context).exportLog,
               size: 16,
             ),
             AppIconButton(
@@ -1765,7 +1890,7 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
                 await Future<void>.delayed(const Duration(milliseconds: 100));
                 await _refresh();
               },
-              tooltip: 'Clear logs',
+              tooltip: S.of(context).clearLogs,
               size: 16,
             ),
           ],
@@ -1823,30 +1948,30 @@ class _ExportPasswordDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: 'Export Data',
+      title: S.of(context).exportData,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Set a master password to encrypt the archive.',
+            S.of(context).setMasterPasswordHint,
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
           ),
           const SizedBox(height: 16),
-          _styledPasswordField(passwordCtrl, 'Master Password'),
+          _styledPasswordField(passwordCtrl, S.of(context).masterPassword),
           const SizedBox(height: 8),
-          _styledPasswordField(confirmCtrl, 'Confirm Password'),
+          _styledPasswordField(confirmCtrl, S.of(context).confirmPassword),
         ],
       ),
       actions: [
         AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
         AppDialogAction.primary(
-          label: 'Export',
+          label: S.of(context).export_,
           onTap: () {
             if (passwordCtrl.text.isEmpty) return;
             if (passwordCtrl.text != confirmCtrl.text) {
               Toast.show(
                 context,
-                message: 'Passwords do not match',
+                message: S.of(context).passwordsDoNotMatch,
                 level: ToastLevel.warning,
               );
               return;
@@ -1911,14 +2036,14 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: 'Import Data',
+      title: S.of(context).importData,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _styledTextField(
             widget.pathCtrl,
-            'Path to .lfs file',
-            hint: '/path/to/export.lfs',
+            S.of(context).pathToLfsFile,
+            hint: S.of(context).hintLfsPath,
           ),
           const SizedBox(height: 8),
           TextField(
@@ -1926,7 +2051,7 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
             obscureText: true,
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             decoration: InputDecoration(
-              labelText: 'Master Password',
+              labelText: S.of(context).masterPassword,
               labelStyle: TextStyle(color: AppTheme.fgFaint),
               filled: true,
               fillColor: AppTheme.bg3,
@@ -1954,8 +2079,8 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
           const SizedBox(height: 4),
           Text(
             widget.modeHolder.value == ImportMode.merge
-                ? 'Add new sessions, keep existing'
-                : 'Replace all sessions with imported',
+                ? S.of(context).importModeMergeDescription
+                : S.of(context).importModeReplaceDescription,
             style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         ],
@@ -1963,7 +2088,7 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
       actions: [
         AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
         AppDialogAction.primary(
-          label: 'Import',
+          label: S.of(context).import_,
           onTap: () {
             if (widget.pathCtrl.text.isEmpty ||
                 widget.passwordCtrl.text.isEmpty) {
@@ -1983,9 +2108,13 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
   Widget _buildModeSelector() {
     return Row(
       children: [
-        _modeButton('Merge', Icons.merge, ImportMode.merge),
+        _modeButton(S.of(context).merge, Icons.merge, ImportMode.merge),
         const SizedBox(width: 8),
-        _modeButton('Replace', Icons.swap_horiz, ImportMode.replace),
+        _modeButton(
+          S.of(context).replace,
+          Icons.swap_horiz,
+          ImportMode.replace,
+        ),
       ],
     );
   }

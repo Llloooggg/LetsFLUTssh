@@ -535,6 +535,24 @@ class SEn extends S {
   String get showSidebar => 'Show Sidebar (Ctrl+B)';
 
   @override
+  String get language => 'Language';
+
+  @override
+  String get languageSystemDefault => 'Auto';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeSystem => 'System';
+
+  @override
   String get appearance => 'Appearance';
 
   @override
@@ -720,4 +738,90 @@ class SEn extends S {
 
   @override
   String get chooseSaveLocation => 'Choose save location';
+
+  @override
+  String get forward => 'Forward';
+
+  @override
+  String get name => 'Name';
+
+  @override
+  String get size => 'Size';
+
+  @override
+  String get modified => 'Modified';
+
+  @override
+  String get mode => 'Mode';
+
+  @override
+  String get owner => 'Owner';
+
+  @override
+  String get connectionError => 'Connection error';
+
+  @override
+  String get resizeWindowToViewFiles => 'Resize window to view files';
+
+  @override
+  String get completed => 'Completed';
+
+  @override
+  String get connected => 'Connected';
+
+  @override
+  String get disconnected => 'Disconnected';
+
+  @override
+  String get exit => 'Exit';
+
+  @override
+  String get exitConfirmation => 'Active sessions will be disconnected. Exit?';
+
+  @override
+  String get hintFolderExample => 'e.g. Production';
+
+  @override
+  String get credentialsNotSet => 'Credentials not set';
+
+  @override
+  String get exportSessionsViaQr => 'Export Sessions via QR';
+
+  @override
+  String get qrNoCredentialsWarning =>
+      'Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.';
+
+  @override
+  String get qrTooManyForSingleCode =>
+      'Too many sessions for a single QR code. Deselect some or use .lfs export.';
+
+  @override
+  String get qrTooLarge =>
+      'Too large — deselect some sessions or use .lfs file export.';
+
+  @override
+  String get exportAll => 'Export All';
+
+  @override
+  String get showQr => 'Show QR';
+
+  @override
+  String get resizePanelDivider => 'Resize panel divider';
+
+  @override
+  String get youreRunningLatest => 'You\'re running the latest version';
+
+  @override
+  String get liveLog => 'Live Log';
+
+  @override
+  String transferNItems(int count) {
+    return 'Transfer $count items';
+  }
+
+  @override
+  String get time => 'Time';
+
+  @override
+  String get failed => 'Failed';
 }

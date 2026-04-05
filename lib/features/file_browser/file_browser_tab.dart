@@ -252,7 +252,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   Widget _buildTooNarrowHint(BuildContext context) {
     return Center(
       child: Text(
-        'Resize window to view files',
+        S.of(context).resizeWindowToViewFiles,
         style: TextStyle(
           fontFamily: 'Inter',
           fontSize: AppFonts.sm,

@@ -109,7 +109,7 @@ lib/
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
 │   └── mobile/                       # Mobile version (bottom nav)
-├── l10n/                             # Internationalization (ARB files + generated code)
+├── l10n/                             # Internationalization (10 languages: en, ru, zh, de, ja, pt, es, fr, ko, ar)
 ├── providers/                        # Riverpod providers (global state)
 ├── widgets/                          # Reusable UI components
 │   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
@@ -511,6 +511,7 @@ class AppConfig {
   final bool enableLogging;
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
+  final String? locale;             // null = OS auto-detect, or 'en'|'ru'|'zh'|'de'|'ja'|'pt'|'es'|'fr'|'ko'
 }
 ```
 
@@ -658,6 +659,7 @@ class UpdateService {
 | `configStoreProvider` | Provider | — | Singleton ConfigStore |
 | `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger |
 | `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
+| `localeProvider` | Provider | configProvider | Locale? (null = system default) |
 | `knownHostsProvider` | Provider | — | KnownHostsManager |
 | `connectionManagerProvider` | Provider | knownHostsProvider | ConnectionManager singleton |
 | `connectionsProvider` | StreamProvider | connectionManagerProvider | Real-time connection list |
@@ -960,6 +962,8 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_screen.dart` | `SettingsSidebar` | Desktop nav panel — embedded in `AppShell`'s sidebar slot |
 | `settings_screen.dart` | `SettingsContent` | Desktop content pane — embedded in `AppShell`'s body slot |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
+
+**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
 
 **Desktop:** Settings are embedded directly in `MainScreen` via `ShellMode`. The toolbar settings button toggles between `ShellMode.sessions` and `ShellMode.settings` — no route navigation. `SettingsSidebar` + `SettingsContent` replace the session panel and tab area while sharing the same `AppShell` frame (sidebar width preserved).
 
@@ -1434,6 +1438,8 @@ abstract final class AppFonts {
 
 Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/fonts/`.
 
+**CJK & Arabic in language picker:** Native language names (中文, 日本語, 한국어, العربية) rely on system fonts. Each entry has an English secondary label (Chinese, Japanese, Korean, Arabic) as fallback for systems without CJK/Arabic fonts. No bundled CJK/Arabic fonts — keeps the binary small.
+
 **Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware: mobile gets +2 px automatically for touch readability.
 
 **Rule:** Never use hardcoded `BorderRadius.circular(N)` or `BorderRadius.zero` — always use `AppTheme.radiusSm`, `radiusMd`, or `radiusLg`. Exception: pill-shaped elements (e.g. toggle tracks) that need full rounding.
@@ -1446,14 +1452,36 @@ Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/font
 
 All user-facing strings are externalized via Flutter's built-in `gen_l10n` system.
 
+### Supported languages
+
+| Code | Language | File |
+|------|----------|------|
+| `en` | English (template) | `app_en.arb` |
+| `ru` | Russian | `app_ru.arb` |
+| `zh` | Chinese (Simplified) | `app_zh.arb` |
+| `de` | German | `app_de.arb` |
+| `ja` | Japanese | `app_ja.arb` |
+| `pt` | Portuguese | `app_pt.arb` |
+| `es` | Spanish | `app_es.arb` |
+| `fr` | French | `app_fr.arb` |
+| `ko` | Korean | `app_ko.arb` |
+| `ar` | Arabic (العربية) | `app_ar.arb` |
+
+### Language selection
+
+The user selects a language in **Settings → Appearance → Language**. Options: "System Default" (auto-detect from OS) or any of the 10 supported languages. Stored as `AppConfig.locale` (`null` = system default, `'ru'` = Russian, etc.). Wired via `localeProvider` → `MaterialApp.locale`.
+
+iOS requires `CFBundleLocalizations` in `Info.plist` listing all supported locale codes for proper OS locale detection.
+
 ### Setup
 
 | File | Purpose |
 |------|---------|
 | `l10n.yaml` | Config: ARB dir, template, output class `S`, non-nullable getter |
 | `lib/l10n/app_en.arb` | English strings (template) — add new keys here |
+| `lib/l10n/app_XX.arb` | Translations — one file per language |
 | `lib/l10n/app_localizations.dart` | Generated — `S` class with all getters |
-| `lib/l10n/app_localizations_en.dart` | Generated — English implementation |
+| `lib/l10n/app_localizations_XX.dart` | Generated — per-language implementations |
 
 ### Usage
 
@@ -1465,20 +1493,24 @@ Text(S.of(context).settings)
 Text(S.of(context).nSessions(count))  // parameterized
 ```
 
-`S.of(context)` is non-nullable — no `!` needed. `MaterialApp` in `main.dart` has `localizationsDelegates: S.localizationsDelegates` and `supportedLocales: S.supportedLocales`.
+`S.of(context)` is non-nullable — no `!` needed. `MaterialApp` in `main.dart` has `locale: ref.watch(localeProvider)`, `localizationsDelegates: S.localizationsDelegates` and `supportedLocales: S.supportedLocales`.
 
 ### Adding a new language
 
-1. Copy `lib/l10n/app_en.arb` → `lib/l10n/app_XX.arb` (e.g., `app_de.arb`)
-2. Translate all values (keep keys and placeholders intact)
-3. Run `flutter gen-l10n` — generates `app_localizations_xx.dart` automatically
-4. The app picks the locale from the OS; no code changes needed
+1. Copy `lib/l10n/app_en.arb` → `lib/l10n/app_XX.arb` (e.g., `app_it.arb`)
+2. Set `"@@locale": "XX"` and translate all values (keep keys and placeholders intact)
+3. Do NOT copy `@key` metadata entries — only the template needs them
+4. Run `flutter gen-l10n` — generates `app_localizations_xx.dart` automatically
+5. Add the locale code to `AppConfig.supportedLocales` list
+6. Add the locale entry to `_LanguageTile._localeLabels` in `settings_screen.dart`
+7. Add the locale code to `CFBundleLocalizations` in `ios/Runner/Info.plist`
 
 ### Adding a new string
 
 1. Add the key + value to `lib/l10n/app_en.arb` (with `@key` metadata for placeholders)
-2. Run `flutter gen-l10n`
-3. Use `S.of(context).newKey` in the widget
+2. Add the translated key to ALL `app_XX.arb` files
+3. Run `flutter gen-l10n`
+4. Use `S.of(context).newKey` in the widget
 
 ### Rules
 
@@ -1720,6 +1752,7 @@ AppConfig {
   enableLogging: bool
   checkUpdatesOnStart: bool
   skippedVersion: String?
+  locale: String?           // null = OS auto-detect, or supported locale code
 }
 ```
 
@@ -2092,6 +2125,13 @@ Manual build
 | `build_runner` | Code generation |
 | `json_serializable` | JSON code gen |
 | `flutter_launcher_icons` | App icon gen |
+
+### Bundled Fonts
+
+| Font | Purpose | Location |
+|------|---------|----------|
+| Inter | UI text | `assets/fonts/` |
+| JetBrains Mono | Terminal, monospaced data | `assets/fonts/` |
 
 ### SDK Constraints
 

@@ -5,7 +5,16 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_ar.dart';
+import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
+import 'app_localizations_es.dart';
+import 'app_localizations_fr.dart';
+import 'app_localizations_ja.dart';
+import 'app_localizations_ko.dart';
+import 'app_localizations_pt.dart';
+import 'app_localizations_ru.dart';
+import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
 
@@ -91,7 +100,18 @@ abstract class S {
       ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('en')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('ar'),
+    Locale('de'),
+    Locale('en'),
+    Locale('es'),
+    Locale('fr'),
+    Locale('ja'),
+    Locale('ko'),
+    Locale('pt'),
+    Locale('ru'),
+    Locale('zh'),
+  ];
 
   /// No description provided for @appTitle.
   ///
@@ -1041,6 +1061,42 @@ abstract class S {
   /// **'Show Sidebar (Ctrl+B)'**
   String get showSidebar;
 
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @languageSystemDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get languageSystemDefault;
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get themeDark;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get themeLight;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get themeSystem;
+
   /// No description provided for @appearance.
   ///
   /// In en, this message translates to:
@@ -1382,6 +1438,168 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Choose save location'**
   String get chooseSaveLocation;
+
+  /// No description provided for @forward.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward'**
+  String get forward;
+
+  /// No description provided for @name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get name;
+
+  /// No description provided for @size.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get size;
+
+  /// No description provided for @modified.
+  ///
+  /// In en, this message translates to:
+  /// **'Modified'**
+  String get modified;
+
+  /// No description provided for @mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Mode'**
+  String get mode;
+
+  /// No description provided for @owner.
+  ///
+  /// In en, this message translates to:
+  /// **'Owner'**
+  String get owner;
+
+  /// No description provided for @connectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection error'**
+  String get connectionError;
+
+  /// No description provided for @resizeWindowToViewFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize window to view files'**
+  String get resizeWindowToViewFiles;
+
+  /// No description provided for @completed.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get completed;
+
+  /// No description provided for @connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get connected;
+
+  /// No description provided for @disconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get disconnected;
+
+  /// No description provided for @exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit'**
+  String get exit;
+
+  /// No description provided for @exitConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Active sessions will be disconnected. Exit?'**
+  String get exitConfirmation;
+
+  /// No description provided for @hintFolderExample.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Production'**
+  String get hintFolderExample;
+
+  /// No description provided for @credentialsNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials not set'**
+  String get credentialsNotSet;
+
+  /// No description provided for @exportSessionsViaQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Sessions via QR'**
+  String get exportSessionsViaQr;
+
+  /// No description provided for @qrNoCredentialsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.'**
+  String get qrNoCredentialsWarning;
+
+  /// No description provided for @qrTooManyForSingleCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many sessions for a single QR code. Deselect some or use .lfs export.'**
+  String get qrTooManyForSingleCode;
+
+  /// No description provided for @qrTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Too large — deselect some sessions or use .lfs file export.'**
+  String get qrTooLarge;
+
+  /// No description provided for @exportAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Export All'**
+  String get exportAll;
+
+  /// No description provided for @showQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Show QR'**
+  String get showQr;
+
+  /// No description provided for @resizePanelDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize panel divider'**
+  String get resizePanelDivider;
+
+  /// No description provided for @youreRunningLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re running the latest version'**
+  String get youreRunningLatest;
+
+  /// No description provided for @liveLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Log'**
+  String get liveLog;
+
+  /// No description provided for @transferNItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer {count} items'**
+  String transferNItems(int count);
+
+  /// No description provided for @time.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get time;
+
+  /// No description provided for @failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get failed;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
@@ -1393,8 +1611,18 @@ class _SDelegate extends LocalizationsDelegate<S> {
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>[
+    'ar',
+    'de',
+    'en',
+    'es',
+    'fr',
+    'ja',
+    'ko',
+    'pt',
+    'ru',
+    'zh',
+  ].contains(locale.languageCode);
 
   @override
   bool shouldReload(_SDelegate old) => false;
@@ -1403,8 +1631,26 @@ class _SDelegate extends LocalizationsDelegate<S> {
 S lookupS(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'ar':
+      return SAr();
+    case 'de':
+      return SDe();
     case 'en':
       return SEn();
+    case 'es':
+      return SEs();
+    case 'fr':
+      return SFr();
+    case 'ja':
+      return SJa();
+    case 'ko':
+      return SKo();
+    case 'pt':
+      return SPt();
+    case 'ru':
+      return SRu();
+    case 'zh':
+      return SZh();
   }
 
   throw FlutterError(
