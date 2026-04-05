@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
 import 'app_icon_button.dart';
@@ -71,7 +72,9 @@ class _HostKeyDialogWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: isChanged ? 'Host Key Changed!' : 'Unknown Host',
+      title: isChanged
+          ? S.of(context).hostKeyChanged
+          : S.of(context).unknownHost,
       dismissible: false,
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -97,9 +100,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'WARNING: The host key for this server has changed. '
-                      'This could indicate a man-in-the-middle attack, '
-                      'or the server may have been reinstalled.',
+                      S.of(context).hostKeyChangedWarning,
                       style: TextStyle(
                         fontSize: AppFonts.md,
                         color: AppTheme.fg,
@@ -112,22 +113,21 @@ class _HostKeyDialogWidget extends StatelessWidget {
             const SizedBox(height: 16),
           ] else
             Text(
-              'The authenticity of this host cannot be established. '
-              'Are you sure you want to continue connecting?',
+              S.of(context).unknownHostMessage,
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             ),
           const SizedBox(height: 12),
-          _InfoRow(label: 'Host', value: '$host:$port'),
+          _InfoRow(label: S.of(context).host, value: '$host:$port'),
           const SizedBox(height: 6),
-          _InfoRow(label: 'Key type', value: keyType),
+          _InfoRow(label: S.of(context).keyType, value: keyType),
           const SizedBox(height: 6),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 70,
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 70, maxWidth: 100),
                 child: Text(
-                  'Fingerprint',
+                  S.of(context).fingerprint,
                   style: TextStyle(
                     fontSize: AppFonts.sm,
                     color: AppTheme.fgFaint,
@@ -149,13 +149,13 @@ class _HostKeyDialogWidget extends StatelessWidget {
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: fingerprint));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Fingerprint copied'),
-                      duration: Duration(seconds: 1),
+                    SnackBar(
+                      content: Text(S.of(context).fingerprintCopied),
+                      duration: const Duration(seconds: 1),
                     ),
                   );
                 },
-                tooltip: 'Copy fingerprint',
+                tooltip: S.of(context).copyFingerprint,
                 size: 14,
                 boxSize: 28,
               ),
@@ -167,12 +167,12 @@ class _HostKeyDialogWidget extends StatelessWidget {
         AppDialogAction.cancel(onTap: () => Navigator.pop(context, false)),
         if (isChanged)
           AppDialogAction.destructive(
-            label: 'Accept Anyway',
+            label: S.of(context).acceptAnyway,
             onTap: () => Navigator.pop(context, true),
           )
         else
           AppDialogAction.primary(
-            label: 'Accept',
+            label: S.of(context).accept,
             onTap: () => Navigator.pop(context, true),
           ),
       ],
@@ -190,8 +190,8 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(
-          width: 70,
+        ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 70, maxWidth: 100),
           child: Text(
             label,
             style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgFaint),

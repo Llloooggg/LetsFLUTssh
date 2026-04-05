@@ -18,6 +18,7 @@ import '../../providers/version_provider.dart';
 import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_dialog.dart';
@@ -44,40 +45,44 @@ class _Section {
 }
 
 /// Ordered list of all settings sections.
-List<_Section> _buildSections() => [
-  const _Section(
-    title: 'Appearance',
+List<_Section> _buildSections(BuildContext context) => [
+  _Section(
+    title: S.of(context).appearance,
     icon: Icons.palette,
     builder: _AppearanceSection.new,
   ),
-  const _Section(
-    title: 'Terminal',
+  _Section(
+    title: S.of(context).terminal,
     icon: Icons.terminal,
     builder: _TerminalSection.new,
   ),
-  const _Section(
-    title: 'Connection',
+  _Section(
+    title: S.of(context).connectionSection,
     icon: Icons.lan,
     builder: _ConnectionSection.new,
   ),
-  const _Section(
-    title: 'Transfers',
+  _Section(
+    title: S.of(context).transfers,
     icon: Icons.swap_horiz,
     builder: _TransferSection.new,
   ),
-  const _Section(title: 'Data', icon: Icons.storage, builder: _DataSection.new),
-  const _Section(
-    title: 'Logging',
+  _Section(
+    title: S.of(context).data,
+    icon: Icons.storage,
+    builder: _DataSection.new,
+  ),
+  _Section(
+    title: S.of(context).logging,
     icon: Icons.description,
     builder: _LoggingSection.new,
   ),
-  const _Section(
-    title: 'Updates',
+  _Section(
+    title: S.of(context).updates,
     icon: Icons.system_update,
     builder: _UpdateSection.new,
   ),
-  const _Section(
-    title: 'About',
+  _Section(
+    title: S.of(context).about,
     icon: Icons.info_outline,
     builder: _AboutSection.new,
   ),
@@ -120,9 +125,9 @@ class _MobileSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sections = _buildSections();
+    final sections = _buildSections(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(S.of(context).settings)),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         children: [
@@ -139,7 +144,7 @@ class _MobileSettingsScreen extends ConsumerWidget {
                   .read(configProvider.notifier)
                   .update((_) => AppConfig.defaults),
               icon: const Icon(Icons.restore, size: 18),
-              label: const Text('Reset to Defaults'),
+              label: Text(S.of(context).resetToDefaults),
             ),
           ),
           const SizedBox(height: 16),
@@ -216,7 +221,7 @@ class SettingsSidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sections = _buildSections();
+    final sections = _buildSections(context);
     final theme = Theme.of(context);
     return Container(
       color: theme.colorScheme.surfaceContainerLow,
@@ -233,7 +238,7 @@ class SettingsSidebar extends ConsumerWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'SETTINGS',
+                    S.of(context).settings.toUpperCase(),
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'Inter',
@@ -285,7 +290,7 @@ class SettingsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sections = _buildSections();
+    final sections = _buildSections(context);
     final scheme = Theme.of(context).colorScheme;
     return ListTileTheme(
       data: ListTileThemeData(
@@ -408,7 +413,7 @@ class _ResetButtonState extends State<_ResetButton> {
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
-                  'Reset to Defaults',
+                  S.of(context).resetToDefaults,
                   overflow: TextOverflow.ellipsis,
                   style: AppFonts.inter(
                     fontSize: AppFonts.xs,
@@ -457,7 +462,7 @@ class _AppearanceSection extends ConsumerWidget {
               ),
         ),
         _SliderTile(
-          title: 'UI Scale',
+          title: S.of(context).uiScale,
           value: uiScale,
           min: 0.5,
           max: 2.0,
@@ -468,7 +473,7 @@ class _AppearanceSection extends ConsumerWidget {
               .update((c) => c.copyWith(ui: c.ui.copyWith(uiScale: v))),
         ),
         _SliderTile(
-          title: 'Terminal Font Size',
+          title: S.of(context).terminalFontSize,
           value: fontSize,
           min: 8,
           max: 24,
@@ -492,7 +497,7 @@ class _TerminalSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scrollback = ref.watch(configProvider.select((c) => c.scrollback));
     return _IntTile(
-      title: 'Scrollback Lines',
+      title: S.of(context).scrollbackLines,
       value: scrollback,
       min: 100,
       max: 100000,
@@ -516,7 +521,7 @@ class _ConnectionSection extends ConsumerWidget {
     return Column(
       children: [
         _IntTile(
-          title: 'Keep-Alive Interval (sec)',
+          title: S.of(context).keepAliveInterval,
           value: keepAlive,
           min: 0,
           max: 300,
@@ -525,7 +530,7 @@ class _ConnectionSection extends ConsumerWidget {
               .update((c) => c.copyWith(ssh: c.ssh.copyWith(keepAliveSec: v))),
         ),
         _IntTile(
-          title: 'SSH Timeout (sec)',
+          title: S.of(context).sshTimeout,
           value: timeout,
           min: 1,
           max: 60,
@@ -534,7 +539,7 @@ class _ConnectionSection extends ConsumerWidget {
               .update((c) => c.copyWith(ssh: c.ssh.copyWith(sshTimeoutSec: v))),
         ),
         _IntTile(
-          title: 'Default Port',
+          title: S.of(context).defaultPort,
           value: port,
           min: 1,
           max: 65535,
@@ -560,7 +565,7 @@ class _TransferSection extends ConsumerWidget {
     return Column(
       children: [
         _IntTile(
-          title: 'Parallel Workers',
+          title: S.of(context).parallelWorkers,
           value: workers,
           min: 1,
           max: 10,
@@ -569,7 +574,7 @@ class _TransferSection extends ConsumerWidget {
               .update((c) => c.copyWith(transferWorkers: v)),
         ),
         _IntTile(
-          title: 'Max History',
+          title: S.of(context).maxHistory,
           value: maxHistory,
           min: 10,
           max: 5000,
@@ -578,7 +583,7 @@ class _TransferSection extends ConsumerWidget {
               .update((c) => c.copyWith(maxHistory: v)),
         ),
         _Toggle(
-          label: 'Calculate Folder Sizes',
+          label: S.of(context).calculateFolderSizes,
           value: showFolderSizes,
           onChanged: (v) => ref
               .read(configProvider.notifier)
@@ -596,14 +601,14 @@ class _ExportImportTile extends ConsumerWidget {
       children: [
         _ActionTile(
           icon: Icons.upload_file,
-          title: 'Export Data',
-          subtitle: 'Save sessions, config, and keys to encrypted .lfs file',
+          title: S.of(context).exportData,
+          subtitle: S.of(context).exportDataSubtitle,
           onTap: () => _showExportDialog(context, ref),
         ),
         _ActionTile(
           icon: Icons.download,
-          title: 'Import Data',
-          subtitle: 'Load data from .lfs file',
+          title: S.of(context).importData,
+          subtitle: S.of(context).importDataSubtitle,
           onTap: () => _showImportDialog(context, ref),
         ),
       ],
@@ -630,7 +635,11 @@ class _ExportImportTile extends ConsumerWidget {
           .replaceAll(':', '-')
           .split('.')
           .first;
-      final outputPath = await _pickSavePath('export_$timestamp.lfs', 'lfs');
+      final outputPath = await _pickSavePath(
+        context,
+        'export_$timestamp.lfs',
+        'lfs',
+      );
       if (outputPath == null || !context.mounted) return;
 
       await _runExport(context, ref, password, outputPath);
@@ -639,7 +648,7 @@ class _ExportImportTile extends ConsumerWidget {
       if (context.mounted) {
         Toast.show(
           context,
-          message: 'Export failed: $e',
+          message: S.of(context).exportFailed(e.toString()),
           level: ToastLevel.error,
         );
       }
@@ -668,7 +677,7 @@ class _ExportImportTile extends ConsumerWidget {
         Navigator.of(context).pop();
         Toast.show(
           context,
-          message: 'Exported to: $outputPath',
+          message: S.of(context).exportedTo(outputPath),
           level: ToastLevel.success,
         );
       }
@@ -680,10 +689,14 @@ class _ExportImportTile extends ConsumerWidget {
 
   /// Opens a save-file picker. Desktop uses native save dialog,
   /// mobile uses directory picker + default filename.
-  Future<String?> _pickSavePath(String defaultName, String extension) async {
+  Future<String?> _pickSavePath(
+    BuildContext context,
+    String defaultName,
+    String extension,
+  ) async {
     if (plat.isDesktopPlatform) {
       return FilePicker.platform.saveFile(
-        dialogTitle: 'Save as',
+        dialogTitle: S.of(context).chooseSaveLocation,
         fileName: defaultName,
         type: FileType.custom,
         allowedExtensions: [extension],
@@ -691,7 +704,7 @@ class _ExportImportTile extends ConsumerWidget {
     }
     // Mobile: pick directory, append default filename
     final dir = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: 'Choose save location',
+      dialogTitle: S.of(context).chooseSaveLocation,
     );
     if (dir == null) return null;
     return p.join(dir, defaultName);

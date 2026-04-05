@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'l10n/app_localizations.dart';
 import 'core/config/config_store.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
@@ -162,6 +163,8 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       navigatorKey: navigatorKey,
       title: 'LetsFLUTssh',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       themeMode: themeMode,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
@@ -243,19 +246,24 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     AppDialog.show(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Update Available',
+        title: S.of(ctx).updateAvailable,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Version ${info.latestVersion} is available (current: v${info.currentVersion}).',
+              S
+                  .of(ctx)
+                  .updateVersionAvailable(
+                    info.latestVersion,
+                    info.currentVersion,
+                  ),
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             ),
             if (info.changelog != null && info.changelog!.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
-                'Release notes:',
+                S.of(ctx).releaseNotes,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: AppFonts.md,
@@ -281,7 +289,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         actions: [
           AppDialogAction.cancel(onTap: () => Navigator.pop(ctx)),
           AppDialogAction.secondary(
-            label: 'Skip This Version',
+            label: S.of(ctx).skipThisVersion,
             onTap: () {
               Navigator.pop(ctx);
               ref
@@ -303,7 +311,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   ) {
     if (hasAsset) {
       return AppDialogAction.primary(
-        label: 'Download & Install',
+        label: S.of(ctx).downloadAndInstall,
         onTap: () {
           Navigator.pop(ctx);
           ref.read(updateProvider.notifier).download(autoInstall: true);
@@ -311,7 +319,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
     return AppDialogAction.primary(
-      label: 'Open in Browser',
+      label: S.of(ctx).openInBrowser,
       onTap: () async {
         Navigator.pop(ctx);
         final url = Uri.parse(info.releaseUrl);
@@ -320,7 +328,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             Clipboard.setData(ClipboardData(text: info.releaseUrl));
             Toast.show(
               outerContext,
-              message: 'Could not open browser — URL copied to clipboard',
+              message: S.of(outerContext).couldNotOpenBrowser,
               level: ToastLevel.warning,
             );
           }
@@ -355,7 +363,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         if (ctx != null && ctx.mounted) {
           Toast.show(
             ctx,
-            message: 'SSH key received: ${filePath.split('/').last}',
+            message: S.of(ctx).sshKeyReceived(filePath.split('/').last),
             level: ToastLevel.info,
           );
         }
@@ -590,7 +598,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       if (ctx != null && ctx.mounted) {
         Toast.show(
           ctx,
-          message: 'Imported ${data.sessions.length} session(s) via QR',
+          message: S.of(ctx).importedSessionsViaQr(data.sessions.length),
           level: ToastLevel.success,
         );
       }
@@ -630,7 +638,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         Navigator.of(context).pop(); // close progress
         Toast.show(
           context,
-          message: 'Imported ${importResult.sessions.length} session(s)',
+          message: S.of(context).importedSessions(importResult.sessions.length),
           level: ToastLevel.success,
         );
       }
@@ -640,7 +648,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         Navigator.of(context).pop(); // close progress
         Toast.show(
           context,
-          message: 'Import failed: $e',
+          message: S.of(context).importFailed(e.toString()),
           level: ToastLevel.error,
         );
       }
@@ -688,7 +696,7 @@ class _Toolbar extends StatelessWidget {
           AppIconButton(
             icon: Icons.menu,
             onTap: () => Scaffold.of(context).openDrawer(),
-            tooltip: 'Sessions',
+            tooltip: S.of(context).sessions,
             color: AppTheme.fgDim,
           )
         else
@@ -696,20 +704,20 @@ class _Toolbar extends StatelessWidget {
             icon: sidebarOpen ? Icons.chevron_left : Icons.chevron_right,
             onTap: onToggleSidebar,
             tooltip: sidebarOpen
-                ? 'Hide Sidebar (Ctrl+B)'
-                : 'Show Sidebar (Ctrl+B)',
+                ? S.of(context).hideSidebar
+                : S.of(context).showSidebar,
           ),
         const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
             icon: Icons.vertical_split,
             onTap: onSplitVertical,
-            tooltip: 'Copy Right (Ctrl+\\)',
+            tooltip: S.of(context).copyRightShortcut,
           ),
           AppIconButton(
             icon: Icons.horizontal_split,
             onTap: onSplitHorizontal,
-            tooltip: 'Copy Down (Ctrl+Shift+\\)',
+            tooltip: S.of(context).copyDownShortcut,
           ),
           _Divider(),
         ] else
@@ -717,7 +725,7 @@ class _Toolbar extends StatelessWidget {
         AppIconButton(
           icon: inSettings ? Icons.arrow_back : Icons.settings,
           onTap: onSettings,
-          tooltip: inSettings ? 'Back' : 'Settings',
+          tooltip: inSettings ? S.of(context).back : S.of(context).settings,
         ),
         const SizedBox(width: 2),
       ],

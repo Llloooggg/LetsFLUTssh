@@ -7,9 +7,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 void main() {
   group('DeepLinkHandler.parseConnectUri', () {
     test('extracts host and user', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=10.0.0.1&user=root'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=10.0.0.1&user=root'));
       expect(config, isNotNull);
       expect(config!.host, '10.0.0.1');
       expect(config.user, 'root');
@@ -19,9 +17,7 @@ void main() {
 
     test('extracts host, port, user — ignores credentials in URL', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse(
-          'letsflutssh://connect?host=myserver.com&port=2222&user=admin&password=secret&key=id_rsa',
-        ),
+        Uri.parse('letsflutssh://connect?host=myserver.com&port=2222&user=admin&password=secret&key=id_rsa'),
       );
       expect(config, isNotNull);
       expect(config!.host, 'myserver.com');
@@ -33,31 +29,23 @@ void main() {
     });
 
     test('returns null without host', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?user=root'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?user=root'));
       expect(config, isNull);
     });
 
     test('returns null without user', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=10.0.0.1'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=10.0.0.1'));
       expect(config, isNull);
     });
 
     test('defaults port to 22 for invalid value', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u&port=abc'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h&user=u&port=abc'));
       expect(config, isNotNull);
       expect(config!.port, 22);
     });
 
     test('returns null for empty host', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=&user=root'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=&user=root'));
       expect(config, isNull);
     });
 
@@ -71,75 +59,55 @@ void main() {
     });
 
     test('returns null for empty user', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user='),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h&user='));
       expect(config, isNull);
     });
 
     test('returns null for missing both host and user', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect'));
       expect(config, isNull);
     });
 
     test('defaults keyPath to empty string when not provided', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h&user=u'));
       expect(config, isNotNull);
       expect(config!.keyPath, '');
     });
 
     test('defaults password to empty string when not provided', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h&user=u'));
       expect(config, isNotNull);
       expect(config!.password, '');
     });
 
     test('returns null for port 0', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u&port=0'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h&user=u&port=0'));
       expect(config, isNull);
     });
 
     test('returns null for port > 65535', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u&port=70000'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h&user=u&port=70000'));
       expect(config, isNull);
     });
 
     test('returns null for negative port', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u&port=-1'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h&user=u&port=-1'));
       expect(config, isNull);
     });
 
     test('returns null for host with slash', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h/evil&user=u'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h/evil&user=u'));
       expect(config, isNull);
     });
 
     test('returns null for host with backslash', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h%5Cevil&user=u'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h%5Cevil&user=u'));
       expect(config, isNull);
     });
 
     test('returns null for excessively long host', () {
       final longHost = 'a' * 300;
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=$longHost&user=u'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=$longHost&user=u'));
       expect(config, isNull);
     });
 
@@ -161,9 +129,7 @@ void main() {
     });
 
     test('trims whitespace from host and user', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=%20h%20&user=%20u%20'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=%20h%20&user=%20u%20'));
       expect(config, isNotNull);
       expect(config!.host, 'h');
       expect(config.user, 'u');
@@ -267,9 +233,7 @@ void main() {
       SSHConfig? received;
       handler.onConnect = (c) => received = c;
 
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://connect?host=h&user=u'),
-      );
+      handler.handleCustomScheme(Uri.parse('letsflutssh://connect?host=h&user=u'));
       expect(received, isNotNull);
     });
 
@@ -277,9 +241,7 @@ void main() {
       SSHConfig? received;
       handler.onConnect = (c) => received = c;
 
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://connect?host=&user='),
-      );
+      handler.handleCustomScheme(Uri.parse('letsflutssh://connect?host=&user='));
       expect(received, isNull);
     });
 
@@ -293,9 +255,7 @@ void main() {
 
     test('onConnect null does not crash', () {
       handler.onConnect = null;
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://connect?host=h&user=u'),
-      );
+      handler.handleCustomScheme(Uri.parse('letsflutssh://connect?host=h&user=u'));
       // Should not throw
     });
 
@@ -321,9 +281,7 @@ void main() {
       QrImportData? received;
       handler.onQrImport = (d) => received = d;
 
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://import?d=invalidbase64'),
-      );
+      handler.handleCustomScheme(Uri.parse('letsflutssh://import?d=invalidbase64'));
       expect(received, isNull);
     });
 
@@ -447,24 +405,18 @@ void main() {
   // ---------------------------------------------------------------------------
   group('DeepLinkHandler — URI classification', () {
     test('parseConnectUri returns null for empty user', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=myhost&user='),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=myhost&user='));
       expect(config, isNull);
     });
 
     test('parseConnectUri with no params returns null', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect'));
       expect(config, isNull);
     });
 
     test('parseConnectUri preserves host/port/user, ignores credentials', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse(
-          'letsflutssh://connect?host=h&user=u&port=8022&password=pass&key=mykey',
-        ),
+        Uri.parse('letsflutssh://connect?host=h&user=u&port=8022&password=pass&key=mykey'),
       );
       expect(config, isNotNull);
       expect(config!.host, 'h');
@@ -476,16 +428,12 @@ void main() {
     });
 
     test('parseConnectUri with whitespace-only host returns null', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=%20%20%20&user=u'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=%20%20%20&user=u'));
       expect(config, isNull);
     });
 
     test('parseConnectUri with whitespace-only user returns null', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=%20%20'),
-      );
+      final config = DeepLinkHandler.parseConnectUri(Uri.parse('letsflutssh://connect?host=h&user=%20%20'));
       expect(config, isNull);
     });
 
@@ -510,9 +458,7 @@ void main() {
     });
 
     test('content URI scheme recognized', () {
-      final uri = Uri.parse(
-        'content://com.android.providers/document/file.lfs',
-      );
+      final uri = Uri.parse('content://com.android.providers/document/file.lfs');
       expect(uri.scheme, 'content');
     });
 
@@ -577,9 +523,7 @@ void main() {
 
     test('handleCustomScheme with null onConnect does not crash', () {
       handler.onConnect = null;
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://connect?host=h&user=u'),
-      );
+      handler.handleCustomScheme(Uri.parse('letsflutssh://connect?host=h&user=u'));
     });
 
     test('handleFileUri .key with null callback does not crash', () {

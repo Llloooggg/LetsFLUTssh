@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,7 +11,6 @@ import 'package:letsflutssh/features/terminal/split_node.dart';
 import 'package:letsflutssh/features/terminal/terminal_pane.dart';
 import 'package:letsflutssh/features/terminal/tiling_view.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-
 import '../../core/ssh/shell_helper_test.mocks.dart';
 
 /// Helper to create a connected Connection with mock SSHConnection + session.
@@ -47,17 +46,15 @@ void main() {
     testWidgets('renders single leaf pane (TerminalPane)', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(
-        mockSsh: mockSsh,
-        mockSession: mockSession,
-        id: 'c1',
-      );
+      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'c1');
 
       final leaf = LeafNode(id: 'leaf-1');
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -87,14 +84,14 @@ void main() {
       expect(find.byType(TilingView), findsOneWidget);
     });
 
-    testWidgets('renders SizedBox.shrink when connection not found', (
-      tester,
-    ) async {
+    testWidgets('renders SizedBox.shrink when connection not found', (tester) async {
       final leaf = LeafNode(id: 'orphan');
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -125,32 +122,21 @@ void main() {
     testWidgets('renders two panes in a vertical split (Row)', (tester) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(
-        mockSsh: mockSsh1,
-        mockSession: mockSession1,
-        id: 'c1',
-      );
+      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'c1');
 
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(
-        mockSsh: mockSsh2,
-        mockSession: mockSession2,
-        id: 'c2',
-      );
+      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'c2');
 
       final leaf1 = LeafNode(id: 'l1');
       final leaf2 = LeafNode(id: 'l2');
-      final branch = BranchNode(
-        direction: SplitDirection.vertical,
-        ratio: 0.5,
-        first: leaf1,
-        second: leaf2,
-      );
+      final branch = BranchNode(direction: SplitDirection.vertical, ratio: 0.5, first: leaf1, second: leaf2);
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -178,37 +164,24 @@ void main() {
       // The LayoutBuilder creates the Row internally
     });
 
-    testWidgets('renders two panes in a horizontal split (Column)', (
-      tester,
-    ) async {
+    testWidgets('renders two panes in a horizontal split (Column)', (tester) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(
-        mockSsh: mockSsh1,
-        mockSession: mockSession1,
-        id: 'c1',
-      );
+      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'c1');
 
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(
-        mockSsh: mockSsh2,
-        mockSession: mockSession2,
-        id: 'c2',
-      );
+      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'c2');
 
       final leaf1 = LeafNode(id: 'h1');
       final leaf2 = LeafNode(id: 'h2');
-      final branch = BranchNode(
-        direction: SplitDirection.horizontal,
-        ratio: 0.5,
-        first: leaf1,
-        second: leaf2,
-      );
+      final branch = BranchNode(direction: SplitDirection.horizontal, ratio: 0.5, first: leaf1, second: leaf2);
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -239,33 +212,22 @@ void main() {
     testWidgets('dragging divider changes ratio', (tester) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(
-        mockSsh: mockSsh1,
-        mockSession: mockSession1,
-        id: 'c1',
-      );
+      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'c1');
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(
-        mockSsh: mockSsh2,
-        mockSession: mockSession2,
-        id: 'c2',
-      );
+      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'c2');
 
       final leaf1 = LeafNode(id: 'd1');
       final leaf2 = LeafNode(id: 'd2');
-      final branch = BranchNode(
-        direction: SplitDirection.vertical,
-        ratio: 0.5,
-        first: leaf1,
-        second: leaf2,
-      );
+      final branch = BranchNode(direction: SplitDirection.vertical, ratio: 0.5, first: leaf1, second: leaf2);
 
       SplitNode? changedRoot;
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -289,9 +251,7 @@ void main() {
       await tester.pump();
 
       // Find the divider (Container with divider color, between two panes)
-      final divider = find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
-      );
+      final divider = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
       if (divider.evaluate().isNotEmpty) {
         await tester.drag(divider.first, const Offset(50, 0));
         await tester.pump();
@@ -306,33 +266,22 @@ void main() {
     testWidgets('dragging horizontal divider changes ratio', (tester) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(
-        mockSsh: mockSsh1,
-        mockSession: mockSession1,
-        id: 'c1',
-      );
+      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'c1');
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(
-        mockSsh: mockSsh2,
-        mockSession: mockSession2,
-        id: 'c2',
-      );
+      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'c2');
 
       final leaf1 = LeafNode(id: 'hd1');
       final leaf2 = LeafNode(id: 'hd2');
-      final branch = BranchNode(
-        direction: SplitDirection.horizontal,
-        ratio: 0.5,
-        first: leaf1,
-        second: leaf2,
-      );
+      final branch = BranchNode(direction: SplitDirection.horizontal, ratio: 0.5, first: leaf1, second: leaf2);
 
       SplitNode? changedRoot;
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -356,9 +305,7 @@ void main() {
       await tester.pump();
 
       // Find the horizontal divider (resizeRow cursor)
-      final divider = find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
-      );
+      final divider = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow);
       if (divider.evaluate().isNotEmpty) {
         await tester.drag(divider.first, const Offset(0, 30));
         await tester.pump();
@@ -369,15 +316,15 @@ void main() {
   });
 
   group('TilingView — no connection', () {
-    testWidgets('renders SizedBox.shrink when paneConnections is empty', (
-      tester,
-    ) async {
+    testWidgets('renders SizedBox.shrink when paneConnections is empty', (tester) async {
       final leaf = LeafNode(id: 'no-conn');
       String? focusedId;
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -410,16 +357,10 @@ void main() {
   // Leaf callbacks (from tiling_view_callbacks_test.dart)
   // ---------------------------------------------------------------------------
   group('TilingView — leaf callbacks', () {
-    testWidgets('onFocused callback fires with correct pane id', (
-      tester,
-    ) async {
+    testWidgets('onFocused callback fires with correct pane id', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(
-        mockSsh: mockSsh,
-        mockSession: mockSession,
-        id: 'focus-cb',
-      );
+      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'focus-cb');
 
       final leaf = LeafNode(id: 'leaf-focus');
       String? focusedId;
@@ -427,6 +368,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -454,16 +397,10 @@ void main() {
       expect(focusedId, 'leaf-focus');
     });
 
-    testWidgets('onSplitVertical callback fires with correct direction', (
-      tester,
-    ) async {
+    testWidgets('onSplitVertical callback fires with correct direction', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(
-        mockSsh: mockSsh,
-        mockSession: mockSession,
-        id: 'split-v-cb',
-      );
+      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'split-v-cb');
 
       final leaf = LeafNode(id: 'leaf-sv');
       String? splitPaneId;
@@ -473,6 +410,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -506,16 +445,10 @@ void main() {
       expect(splitInsertBefore, false);
     });
 
-    testWidgets('onSplitHorizontal callback fires with correct direction', (
-      tester,
-    ) async {
+    testWidgets('onSplitHorizontal callback fires with correct direction', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(
-        mockSsh: mockSsh,
-        mockSession: mockSession,
-        id: 'split-h-cb',
-      );
+      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'split-h-cb');
 
       final leaf = LeafNode(id: 'leaf-sh');
       String? splitPaneId;
@@ -524,6 +457,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -558,17 +493,15 @@ void main() {
     testWidgets('onClose is null for single pane', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(
-        mockSsh: mockSsh,
-        mockSession: mockSession,
-        id: 'single',
-      );
+      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'single');
 
       final leaf = LeafNode(id: 'only-leaf');
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -595,38 +528,26 @@ void main() {
       expect(pane.onClose, isNull);
     });
 
-    testWidgets('onClose fires with correct pane id for multi-pane', (
-      tester,
-    ) async {
+    testWidgets('onClose fires with correct pane id for multi-pane', (tester) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(
-        mockSsh: mockSsh1,
-        mockSession: mockSession1,
-        id: 'mp1',
-      );
+      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'mp1');
 
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(
-        mockSsh: mockSsh2,
-        mockSession: mockSession2,
-        id: 'mp2',
-      );
+      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'mp2');
 
       final leaf1 = LeafNode(id: 'mp-l1');
       final leaf2 = LeafNode(id: 'mp-l2');
-      final branch = BranchNode(
-        direction: SplitDirection.vertical,
-        first: leaf1,
-        second: leaf2,
-      );
+      final branch = BranchNode(direction: SplitDirection.vertical, first: leaf1, second: leaf2);
 
       String? closedPaneId;
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -649,9 +570,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final panes = tester
-          .widgetList<TerminalPane>(find.byType(TerminalPane))
-          .toList();
+      final panes = tester.widgetList<TerminalPane>(find.byType(TerminalPane)).toList();
       for (final p in panes) {
         expect(p.onClose, isNotNull);
       }

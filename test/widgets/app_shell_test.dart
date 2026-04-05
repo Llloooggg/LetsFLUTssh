@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/app_shell.dart';
 
 void main() {
   Widget buildApp(Widget child, {double width = 800, double height = 600}) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: SizedBox(width: width, height: height, child: child),
     );
@@ -44,11 +46,7 @@ void main() {
     testWidgets('renders toolbar, body, and sidebar', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          buildShell(
-            toolbar: const Text('my-toolbar'),
-            sidebar: const Text('my-sidebar'),
-            body: const Text('my-body'),
-          ),
+          buildShell(toolbar: const Text('my-toolbar'), sidebar: const Text('my-sidebar'), body: const Text('my-body')),
         ),
       );
 
@@ -67,40 +65,26 @@ void main() {
           final box = c.decoration as BoxDecoration?;
           return box?.border != null &&
               box?.color != null &&
-              (c.constraints?.maxHeight == 40 ||
-                  tester.getSize(find.byWidget(c)).height == 40);
+              (c.constraints?.maxHeight == 40 || tester.getSize(find.byWidget(c)).height == 40);
         }),
       );
       expect(toolbar, isNotNull);
     });
 
     testWidgets('hides sidebar when sidebarOpen is false', (tester) async {
-      await tester.pumpWidget(
-        buildApp(
-          buildShell(
-            sidebar: const Text('sidebar-content'),
-            sidebarOpen: false,
-          ),
-        ),
-      );
+      await tester.pumpWidget(buildApp(buildShell(sidebar: const Text('sidebar-content'), sidebarOpen: false)));
 
       expect(find.text('sidebar-content'), findsNothing);
     });
 
     testWidgets('shows sidebar when sidebarOpen is true', (tester) async {
-      await tester.pumpWidget(
-        buildApp(
-          buildShell(sidebar: const Text('sidebar-content'), sidebarOpen: true),
-        ),
-      );
+      await tester.pumpWidget(buildApp(buildShell(sidebar: const Text('sidebar-content'), sidebarOpen: true)));
 
       expect(find.text('sidebar-content'), findsOneWidget);
     });
 
     testWidgets('renders status bar when provided', (tester) async {
-      await tester.pumpWidget(
-        buildApp(buildShell(statusBar: const Text('my-status'))),
-      );
+      await tester.pumpWidget(buildApp(buildShell(statusBar: const Text('my-status'))));
 
       expect(find.text('my-status'), findsOneWidget);
     });
@@ -116,10 +100,7 @@ void main() {
 
       // No resize cursor present
       expect(
-        find.byWidgetPredicate(
-          (w) =>
-              w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
-        ),
+        find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn),
         findsNothing,
       );
       expect(find.text('body'), findsOneWidget);
@@ -127,12 +108,7 @@ void main() {
 
     testWidgets('sidebar has initial width', (tester) async {
       await tester.pumpWidget(
-        buildApp(
-          buildShell(
-            sidebar: const SizedBox.expand(key: Key('sb')),
-            initialSidebarWidth: 200,
-          ),
-        ),
+        buildApp(buildShell(sidebar: const SizedBox.expand(key: Key('sb')), initialSidebarWidth: 200)),
       );
 
       final sbBox = tester.getSize(find.byKey(const Key('sb')));
@@ -152,9 +128,7 @@ void main() {
       );
 
       // Find the resize divider (3px wide Container inside GestureDetector)
-      final divider = find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
-      );
+      final divider = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
       expect(divider, findsOneWidget);
 
       // Drag right by 50 px
@@ -177,9 +151,7 @@ void main() {
         ),
       );
 
-      final divider = find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
-      );
+      final divider = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
 
       // Drag left way past minimum
       await tester.drag(divider, const Offset(-200, 0));
@@ -201,9 +173,7 @@ void main() {
         ),
       );
 
-      final divider = find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
-      );
+      final divider = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
 
       // Drag right past maximum
       await tester.drag(divider, const Offset(200, 0));
@@ -213,22 +183,14 @@ void main() {
       expect(sbBox.width, 250);
     });
 
-    testWidgets('drawer mode renders Drawer instead of inline sidebar', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        buildApp(
-          buildShell(sidebar: const Text('drawer-sidebar'), useDrawer: true),
-        ),
-      );
+    testWidgets('drawer mode renders Drawer instead of inline sidebar', (tester) async {
+      await tester.pumpWidget(buildApp(buildShell(sidebar: const Text('drawer-sidebar'), useDrawer: true)));
 
       // Sidebar not visible inline
       expect(find.text('drawer-sidebar'), findsNothing);
 
       // Open the drawer
-      final scaffoldState = tester.firstState<ScaffoldState>(
-        find.byType(Scaffold),
-      );
+      final scaffoldState = tester.firstState<ScaffoldState>(find.byType(Scaffold));
       scaffoldState.openDrawer();
       await tester.pumpAndSettle();
 
@@ -237,13 +199,7 @@ void main() {
 
     testWidgets('drawer mode ignores sidebarOpen flag', (tester) async {
       await tester.pumpWidget(
-        buildApp(
-          buildShell(
-            sidebar: const Text('drawer-sidebar'),
-            useDrawer: true,
-            sidebarOpen: true,
-          ),
-        ),
+        buildApp(buildShell(sidebar: const Text('drawer-sidebar'), useDrawer: true, sidebarOpen: true)),
       );
 
       // Sidebar not visible inline even with sidebarOpen true

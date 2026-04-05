@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
@@ -382,7 +383,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               _pathController.text = ctrl.currentPath;
               setState(() => _editingPath = true);
             },
-            tooltip: 'Edit Path',
+            tooltip: S.of(context).editPath,
             size: 11,
             boxSize: 20,
             color: AppTheme.fgFaint,
@@ -409,7 +410,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     return AppIconButton(
       icon: Icons.home,
       onTap: () => ctrl.navigateTo(rootPath),
-      tooltip: 'Root',
+      tooltip: S.of(context).root,
       size: 11,
       boxSize: 20,
       color: AppTheme.fgFaint,
@@ -1052,14 +1053,14 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         ),
         if (!hasMultiple)
           ContextMenuItem(
-            label: 'Rename',
+            label: S.of(context).rename,
             icon: Icons.edit,
             onTap: () => _showRenameDialog(context, entry),
           ),
         ContextMenuItem(
           label: hasMultiple
-              ? 'Delete ${selectedEntries.length} items'
-              : 'Delete',
+              ? S.of(context).deleteNItems(selectedEntries.length)
+              : S.of(context).delete,
           icon: Icons.delete,
           color: AppTheme.red,
           onTap: () => _confirmDelete(context, selectedEntries),

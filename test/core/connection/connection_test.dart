@@ -6,14 +6,8 @@ void main() {
   group('SSHConnectionState', () {
     test('has all states', () {
       expect(SSHConnectionState.values.length, 3);
-      expect(
-        SSHConnectionState.values,
-        contains(SSHConnectionState.disconnected),
-      );
-      expect(
-        SSHConnectionState.values,
-        contains(SSHConnectionState.connecting),
-      );
+      expect(SSHConnectionState.values, contains(SSHConnectionState.disconnected));
+      expect(SSHConnectionState.values, contains(SSHConnectionState.connecting));
       expect(SSHConnectionState.values, contains(SSHConnectionState.connected));
     });
   });

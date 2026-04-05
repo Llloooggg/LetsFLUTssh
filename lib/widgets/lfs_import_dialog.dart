@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../features/settings/export_import.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
 
@@ -51,7 +52,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: 'Import Data',
+      title: S.of(context).importData,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -66,7 +67,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
             autofocus: true,
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             decoration: InputDecoration(
-              labelText: 'Master Password',
+              labelText: S.of(context).masterPassword,
               labelStyle: TextStyle(color: AppTheme.fgFaint),
               filled: true,
               fillColor: AppTheme.bg3,
@@ -99,15 +100,15 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
           const SizedBox(height: 4),
           Text(
             _mode == ImportMode.merge
-                ? 'Add new sessions, keep existing'
-                : 'Replace all sessions with imported',
+                ? S.of(context).importModeMergeDescription
+                : S.of(context).importModeReplaceDescription,
             style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         ],
       ),
       actions: [
         AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: 'Import', onTap: _submit),
+        AppDialogAction.primary(label: S.of(context).import_, onTap: _submit),
       ],
     );
   }
@@ -115,9 +116,13 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
   Widget _buildModeSelector() {
     return Row(
       children: [
-        _modeButton('Merge', Icons.merge, ImportMode.merge),
+        _modeButton(S.of(context).merge, Icons.merge, ImportMode.merge),
         const SizedBox(width: 8),
-        _modeButton('Replace', Icons.swap_horiz, ImportMode.replace),
+        _modeButton(
+          S.of(context).replace,
+          Icons.swap_horiz,
+          ImportMode.replace,
+        ),
       ],
     );
   }

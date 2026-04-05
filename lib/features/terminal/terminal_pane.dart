@@ -17,6 +17,7 @@ import 'cursor_overlay.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/error_state.dart';
+import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart' as plat;
 
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
@@ -298,13 +299,13 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       items: [
         if (hasSelection)
           ContextMenuItem(
-            label: 'Copy',
+            label: S.of(context).copy,
             icon: Icons.copy,
             shortcut: 'Ctrl+C',
             onTap: _copySelection,
           ),
         ContextMenuItem(
-          label: 'Paste',
+          label: S.of(context).paste,
           icon: Icons.paste,
           shortcut: 'Ctrl+V',
           onTap: _pasteClipboard,
@@ -312,18 +313,18 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         if (hasSplit) ...[
           const ContextMenuItem.divider(),
           ContextMenuItem(
-            label: 'Copy Right',
+            label: S.of(context).copyRight,
             icon: Icons.vertical_split,
             onTap: () => widget.onSplitVertical?.call(),
           ),
           ContextMenuItem(
-            label: 'Copy Down',
+            label: S.of(context).copyDown,
             icon: Icons.horizontal_split,
             onTap: () => widget.onSplitHorizontal?.call(),
           ),
           if (widget.onClose != null)
             ContextMenuItem(
-              label: 'Close Pane',
+              label: S.of(context).closePane,
               icon: Icons.close,
               onTap: () => widget.onClose?.call(),
             ),
@@ -518,7 +519,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
                   borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.accent),
                 ),
-                hintText: 'Search...',
+                hintText: S.of(context).search,
                 hintStyle: AppFonts.mono(
                   fontSize: AppFonts.sm,
                   color: AppTheme.fgFaint,
@@ -539,21 +540,21 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
           AppIconButton(
             icon: Icons.keyboard_arrow_up,
             onTap: _totalMatches > 0 ? _prevMatch : null,
-            tooltip: 'Previous',
+            tooltip: S.of(context).previous,
             size: 18,
             boxSize: 28,
           ),
           AppIconButton(
             icon: Icons.keyboard_arrow_down,
             onTap: _totalMatches > 0 ? _nextMatch : null,
-            tooltip: 'Next',
+            tooltip: S.of(context).next,
             size: 18,
             boxSize: 28,
           ),
           AppIconButton(
             icon: Icons.close,
             onTap: _close,
-            tooltip: 'Close (Esc)',
+            tooltip: S.of(context).closeEsc,
             size: 18,
             boxSize: 28,
           ),

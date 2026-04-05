@@ -8,9 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_client.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_tab.dart';
-import 'package:letsflutssh/features/settings/export_import.dart'
-    show ImportMode;
+import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/features/terminal/terminal_tab.dart';
+import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
@@ -48,9 +48,7 @@ class _PrePopulatedWorkspaceNotifier extends WorkspaceNotifier {
 }
 
 /// Helper to build a WorkspaceState with tabs added via a setup callback.
-WorkspaceState _buildWorkspaceState(
-  void Function(_WorkspaceStateBuilder) setup,
-) {
+WorkspaceState _buildWorkspaceState(void Function(_WorkspaceStateBuilder) setup) {
   final builder = _WorkspaceStateBuilder();
   setup(builder);
   final panel = PanelLeaf(
@@ -66,24 +64,12 @@ class _WorkspaceStateBuilder {
   int _counter = 0;
 
   void addTerminalTab(Connection conn, {String? label}) {
-    _tabs.add(
-      TabEntry(
-        id: 'tab-${_counter++}',
-        label: label ?? conn.label,
-        connection: conn,
-        kind: TabKind.terminal,
-      ),
-    );
+    _tabs.add(TabEntry(id: 'tab-${_counter++}', label: label ?? conn.label, connection: conn, kind: TabKind.terminal));
   }
 
   void addSftpTab(Connection conn, {String? label}) {
     _tabs.add(
-      TabEntry(
-        id: 'tab-${_counter++}',
-        label: label ?? '${conn.label} (SFTP)',
-        connection: conn,
-        kind: TabKind.sftp,
-      ),
+      TabEntry(id: 'tab-${_counter++}', label: label ?? '${conn.label} (SFTP)', connection: conn, kind: TabKind.sftp),
     );
   }
 
@@ -100,24 +86,22 @@ void main() {
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('main_screen_test_');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async {
-            if (call.method == 'getApplicationSupportDirectory') {
-              return tempDir.path;
-            }
-            return null;
-          },
-        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (call) async {
+        if (call.method == 'getApplicationSupportDirectory') {
+          return tempDir.path;
+        }
+        return null;
+      },
+    );
   });
 
   tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          null,
-        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      null,
+    );
     await tempDir.delete(recursive: true);
   });
 
@@ -125,29 +109,22 @@ void main() {
     return ProviderScope(
       overrides: [configProvider.overrideWith(ConfigNotifier.new)],
       child: MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
         navigatorKey: navigatorKey,
         theme: AppTheme.dark(),
         home: MediaQuery(
           data: MediaQueryData(size: Size(width, height)),
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: const MainScreen(),
-          ),
+          child: SizedBox(width: width, height: height, child: const MainScreen()),
         ),
       ),
     );
   }
 
   group('LetsFLUTsshApp — top-level app widget', () {
-    testWidgets('renders MaterialApp with correct title and themes', (
-      tester,
-    ) async {
+    testWidgets('renders MaterialApp with correct title and themes', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [configProvider.overrideWith(ConfigNotifier.new)],
-          child: const LetsFLUTsshApp(),
-        ),
+        ProviderScope(overrides: [configProvider.overrideWith(ConfigNotifier.new)], child: const LetsFLUTsshApp()),
       );
       await tester.pump();
 
@@ -164,10 +141,7 @@ void main() {
 
     testWidgets('uses navigatorKey from main.dart', (tester) async {
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [configProvider.overrideWith(ConfigNotifier.new)],
-          child: const LetsFLUTsshApp(),
-        ),
+        ProviderScope(overrides: [configProvider.overrideWith(ConfigNotifier.new)], child: const LetsFLUTsshApp()),
       );
       await tester.pump();
 
@@ -181,11 +155,11 @@ void main() {
       return ProviderScope(
         overrides: [configProvider.overrideWith(ConfigNotifier.new)],
         child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           navigatorKey: navigatorKey,
           theme: AppTheme.dark(),
-          home: const Center(
-            child: SizedBox(width: 500, height: 600, child: MainScreen()),
-          ),
+          home: const Center(child: SizedBox(width: 500, height: 600, child: MainScreen())),
         ),
       );
     }
@@ -235,9 +209,7 @@ void main() {
   });
 
   group('MainScreen — toolbar details', () {
-    testWidgets('toolbar does not show SFTP button when no active tab', (
-      tester,
-    ) async {
+    testWidgets('toolbar does not show SFTP button when no active tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
@@ -248,9 +220,7 @@ void main() {
   });
 
   group('MainScreen — desktop layout', () {
-    testWidgets('renders toolbar with New Session and Settings buttons', (
-      tester,
-    ) async {
+    testWidgets('renders toolbar with New Session and Settings buttons', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
@@ -335,9 +305,7 @@ void main() {
       expect(find.byIcon(Icons.menu), findsNothing);
     });
 
-    testWidgets('wide layout renders SplitView with session panel', (
-      tester,
-    ) async {
+    testWidgets('wide layout renders SplitView with session panel', (tester) async {
       await tester.pumpWidget(buildApp(width: 1000));
       await tester.pump();
 
@@ -347,9 +315,7 @@ void main() {
       expect(find.byTooltip('Hide Sidebar (Ctrl+B)'), findsOneWidget);
     });
 
-    testWidgets('wide layout shows welcome screen when no tabs', (
-      tester,
-    ) async {
+    testWidgets('wide layout shows welcome screen when no tabs', (tester) async {
       await tester.pumpWidget(buildApp(width: 1000));
       await tester.pump();
 
@@ -402,9 +368,7 @@ void main() {
   });
 
   group('MainScreen — _newSession dialog flow', () {
-    testWidgets('new session dialog cancel returns to main screen', (
-      tester,
-    ) async {
+    testWidgets('new session dialog cancel returns to main screen', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
@@ -440,10 +404,7 @@ void main() {
 
   // --- Tests requiring active tabs ---
 
-  Connection makeConn({
-    String label = 'TestServer',
-    SSHConnectionState state = SSHConnectionState.connected,
-  }) {
+  Connection makeConn({String label = 'TestServer', SSHConnectionState state = SSHConnectionState.connected}) {
     return Connection(
       id: 'conn-1',
       label: label,
@@ -454,45 +415,28 @@ void main() {
     );
   }
 
-  Widget buildAppWithTabs({
-    double width = 1000,
-    double height = 600,
-    List<TabEntry>? tabs,
-    int activeIndex = 0,
-  }) {
+  Widget buildAppWithTabs({double width = 1000, double height = 600, List<TabEntry>? tabs, int activeIndex = 0}) {
     return ProviderScope(
       overrides: [
         configProvider.overrideWith(ConfigNotifier.new),
         sessionStoreProvider.overrideWithValue(SessionStore()),
         knownHostsProvider.overrideWithValue(KnownHostsManager()),
-        connectionManagerProvider.overrideWithValue(
-          ConnectionManager(knownHosts: KnownHostsManager()),
-        ),
+        connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
         if (tabs != null)
           workspaceProvider.overrideWith(() {
-            final idx = activeIndex >= 0 && activeIndex < tabs.length
-                ? activeIndex
-                : (tabs.isEmpty ? -1 : 0);
-            final panel = PanelLeaf(
-              id: 'panel-0',
-              tabs: tabs,
-              activeTabIndex: idx,
-            );
-            return _PrePopulatedWorkspaceNotifier(
-              WorkspaceState(root: panel, focusedPanelId: panel.id),
-            );
+            final idx = activeIndex >= 0 && activeIndex < tabs.length ? activeIndex : (tabs.isEmpty ? -1 : 0);
+            final panel = PanelLeaf(id: 'panel-0', tabs: tabs, activeTabIndex: idx);
+            return _PrePopulatedWorkspaceNotifier(WorkspaceState(root: panel, focusedPanelId: panel.id));
           }),
       ],
       child: MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
         navigatorKey: navigatorKey,
         theme: AppTheme.dark(),
         home: MediaQuery(
           data: MediaQueryData(size: Size(width, height)),
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: const MainScreen(),
-          ),
+          child: SizedBox(width: width, height: height, child: const MainScreen()),
         ),
       ),
     );
@@ -503,14 +447,7 @@ void main() {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'SSH Tab',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'SSH Tab', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -518,23 +455,11 @@ void main() {
       expect(find.text('SSH Tab'), findsWidgets);
     });
 
-    testWidgets('status bar shows connected state for active tab', (
-      tester,
-    ) async {
-      final conn = makeConn(
-        label: 'MyBox',
-        state: SSHConnectionState.connected,
-      );
+    testWidgets('status bar shows connected state for active tab', (tester) async {
+      final conn = makeConn(label: 'MyBox', state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'MyBox',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'MyBox', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -542,20 +467,11 @@ void main() {
       expect(find.textContaining('Connected'), findsWidgets);
     });
 
-    testWidgets('status bar shows disconnected state for disconnected tab', (
-      tester,
-    ) async {
+    testWidgets('status bar shows disconnected state for disconnected tab', (tester) async {
       final conn = makeConn(state: SSHConnectionState.disconnected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Down',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Down', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -563,20 +479,11 @@ void main() {
       expect(find.textContaining('Disconnected'), findsWidgets);
     });
 
-    testWidgets('SFTP button visible when active tab is connected', (
-      tester,
-    ) async {
+    testWidgets('SFTP button visible when active tab is connected', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Tab',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Tab', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -591,18 +498,8 @@ void main() {
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'First',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't2',
-              label: 'Second',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
+            TabEntry(id: 't1', label: 'First', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Second', connection: conn, kind: TabKind.terminal),
           ],
         ),
       );
@@ -621,18 +518,8 @@ void main() {
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'First',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't2',
-              label: 'Second',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
+            TabEntry(id: 't1', label: 'First', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Second', connection: conn, kind: TabKind.terminal),
           ],
           activeIndex: 1,
         ),
@@ -653,14 +540,7 @@ void main() {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Only',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Only', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -679,14 +559,7 @@ void main() {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Term',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -706,14 +579,7 @@ void main() {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'ToClose',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'ToClose', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -757,14 +623,7 @@ void main() {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Term1',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Term1', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -778,14 +637,7 @@ void main() {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 's1',
-              label: 'SFTP1',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
-          ],
+          tabs: [TabEntry(id: 's1', label: 'SFTP1', connection: conn, kind: TabKind.sftp)],
         ),
       );
       await tester.pumpAndSettle();
@@ -793,25 +645,13 @@ void main() {
       expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
-    testWidgets('IndexedStack preserves both terminal and sftp tabs', (
-      tester,
-    ) async {
+    testWidgets('IndexedStack preserves both terminal and sftp tabs', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Term',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 's1',
-              label: 'SFTP',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
+            TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 's1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
           ],
         ),
       );
@@ -827,14 +667,7 @@ void main() {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'ToClose',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'ToClose', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -859,25 +692,13 @@ void main() {
       expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
-    testWidgets('Ctrl+W with two tabs closes active and keeps other', (
-      tester,
-    ) async {
+    testWidgets('Ctrl+W with two tabs closes active and keeps other', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'First',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't2',
-              label: 'Second',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
+            TabEntry(id: 't1', label: 'First', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Second', connection: conn, kind: TabKind.terminal),
           ],
         ),
       );
@@ -901,9 +722,7 @@ void main() {
   });
 
   group('MainScreen — _newSession save flow', () {
-    testWidgets('opening new session dialog and filling in shows save option', (
-      tester,
-    ) async {
+    testWidgets('opening new session dialog and filling in shows save option', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump();
 
@@ -935,24 +754,9 @@ void main() {
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Tab1',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't2',
-              label: 'Tab2',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't3',
-              label: 'Tab3',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
+            TabEntry(id: 't1', label: 'Tab1', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Tab2', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't3', label: 'Tab3', connection: conn, kind: TabKind.terminal),
           ],
           activeIndex: 0,
         ),
@@ -983,31 +787,14 @@ void main() {
       expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
     });
 
-    testWidgets('Ctrl+Shift+Tab cycles backward through 3 tabs', (
-      tester,
-    ) async {
+    testWidgets('Ctrl+Shift+Tab cycles backward through 3 tabs', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Tab1',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't2',
-              label: 'Tab2',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't3',
-              label: 'Tab3',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
+            TabEntry(id: 't1', label: 'Tab1', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Tab2', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't3', label: 'Tab3', connection: conn, kind: TabKind.terminal),
           ],
           activeIndex: 0,
         ),
@@ -1035,20 +822,11 @@ void main() {
   });
 
   group('MainScreen — _buildTabContent with mixed tab types', () {
-    testWidgets('IndexedStack contains TerminalTab widget for terminal tab', (
-      tester,
-    ) async {
+    testWidgets('IndexedStack contains TerminalTab widget for terminal tab', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Term',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1057,20 +835,11 @@ void main() {
       expect(find.byType(TerminalTab), findsOneWidget);
     });
 
-    testWidgets('IndexedStack contains FileBrowserTab widget for sftp tab', (
-      tester,
-    ) async {
+    testWidgets('IndexedStack contains FileBrowserTab widget for sftp tab', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 's1',
-              label: 'SFTP',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
-          ],
+          tabs: [TabEntry(id: 's1', label: 'SFTP', connection: conn, kind: TabKind.sftp)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1079,25 +848,13 @@ void main() {
       expect(find.byType(FileBrowserTab), findsOneWidget);
     });
 
-    testWidgets('IndexedStack has correct children count for mixed tabs', (
-      tester,
-    ) async {
+    testWidgets('IndexedStack has correct children count for mixed tabs', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Term',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 's1',
-              label: 'SFTP',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
+            TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 's1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
           ],
         ),
       );
@@ -1114,18 +871,8 @@ void main() {
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Term',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 's1',
-              label: 'SFTP',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
+            TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 's1', label: 'SFTP', connection: conn, kind: TabKind.sftp),
           ],
           activeIndex: 1,
         ),
@@ -1138,20 +885,11 @@ void main() {
   });
 
   group('MainScreen — _buildRightSide onOpenSftp visibility', () {
-    testWidgets('SFTP button shows when active tab connection is connected', (
-      tester,
-    ) async {
+    testWidgets('SFTP button shows when active tab connection is connected', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Active',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Active', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1161,20 +899,11 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
 
-    testWidgets('SFTP button hidden when active tab is disconnected', (
-      tester,
-    ) async {
+    testWidgets('SFTP button hidden when active tab is disconnected', (tester) async {
       final conn = makeConn(state: SSHConnectionState.disconnected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Dead',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Dead', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1183,20 +912,11 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsNothing);
     });
 
-    testWidgets('tapping SFTP button opens SFTP tab alongside terminal', (
-      tester,
-    ) async {
+    testWidgets('tapping SFTP button opens SFTP tab alongside terminal', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Term',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1215,14 +935,7 @@ void main() {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 's1',
-              label: 'Files',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
-          ],
+          tabs: [TabEntry(id: 's1', label: 'Files', connection: conn, kind: TabKind.sftp)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1232,20 +945,11 @@ void main() {
   });
 
   group('MainScreen — _buildRightSide onOpenSsh visibility', () {
-    testWidgets('SSH button shows when active tab is SFTP and connected', (
-      tester,
-    ) async {
+    testWidgets('SSH button shows when active tab is SFTP and connected', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 's1',
-              label: 'Files',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
-          ],
+          tabs: [TabEntry(id: 's1', label: 'Files', connection: conn, kind: TabKind.sftp)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1254,20 +958,11 @@ void main() {
       expect(find.byIcon(Icons.terminal), findsAtLeastNWidgets(1));
     });
 
-    testWidgets('SSH button hidden when active tab is terminal', (
-      tester,
-    ) async {
+    testWidgets('SSH button hidden when active tab is terminal', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Term',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1275,20 +970,11 @@ void main() {
       expect(find.byTooltip('Terminal'), findsNothing);
     });
 
-    testWidgets('SSH button hidden when SFTP tab is disconnected', (
-      tester,
-    ) async {
+    testWidgets('SSH button hidden when SFTP tab is disconnected', (tester) async {
       final conn = makeConn(state: SSHConnectionState.disconnected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 's1',
-              label: 'Files',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
-          ],
+          tabs: [TabEntry(id: 's1', label: 'Files', connection: conn, kind: TabKind.sftp)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1296,20 +982,11 @@ void main() {
       expect(find.byTooltip('Terminal'), findsNothing);
     });
 
-    testWidgets('tapping SSH button opens terminal tab alongside SFTP', (
-      tester,
-    ) async {
+    testWidgets('tapping SSH button opens terminal tab alongside SFTP', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 's1',
-              label: 'Files',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
-          ],
+          tabs: [TabEntry(id: 's1', label: 'Files', connection: conn, kind: TabKind.sftp)],
         ),
       );
       await tester.pumpAndSettle();
@@ -1328,38 +1005,31 @@ void main() {
   // Uses fileName string to avoid File() constructor in widget build (causes hang in tests).
   Widget buildImportDialogContent({required String fileName}) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
-        body: SingleChildScrollView(
-          child: _ImportDialogTestWidget(fileName: fileName),
-        ),
+        body: SingleChildScrollView(child: _ImportDialogTestWidget(fileName: fileName)),
       ),
     );
   }
 
   group('MainScreen — LFS import dialog content', () {
-    testWidgets(
-      'dialog content shows file name, password label, and mode selector',
-      (tester) async {
-        await tester.pumpWidget(
-          buildImportDialogContent(fileName: 'backup.lfs'),
-        );
-        await tester.pump();
+    testWidgets('dialog content shows file name, password label, and mode selector', (tester) async {
+      await tester.pumpWidget(buildImportDialogContent(fileName: 'backup.lfs'));
+      await tester.pump();
 
-        expect(find.text('Import Data'), findsOneWidget);
-        expect(find.text('backup.lfs'), findsOneWidget);
-        expect(find.text('Master Password'), findsOneWidget);
-        expect(find.text('Merge'), findsOneWidget);
-        expect(find.text('Replace'), findsOneWidget);
-        expect(find.text('Add new sessions, keep existing'), findsOneWidget);
-        expect(find.text('Cancel'), findsOneWidget);
-        expect(find.text('Import'), findsOneWidget);
-      },
-    );
+      expect(find.text('Import Data'), findsOneWidget);
+      expect(find.text('backup.lfs'), findsOneWidget);
+      expect(find.text('Master Password'), findsOneWidget);
+      expect(find.text('Merge'), findsOneWidget);
+      expect(find.text('Replace'), findsOneWidget);
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Import'), findsOneWidget);
+    });
 
-    testWidgets('toggling mode to Replace updates description text', (
-      tester,
-    ) async {
+    testWidgets('toggling mode to Replace updates description text', (tester) async {
       await tester.pumpWidget(buildImportDialogContent(fileName: 'data.lfs'));
       await tester.pump();
 
@@ -1384,9 +1054,7 @@ void main() {
       expect(find.text('Import Data'), findsOneWidget);
     });
 
-    testWidgets('toggling mode back to Merge restores description', (
-      tester,
-    ) async {
+    testWidgets('toggling mode back to Merge restores description', (tester) async {
       await tester.pumpWidget(buildImportDialogContent(fileName: 'toggle.lfs'));
       await tester.pump();
 
@@ -1404,15 +1072,12 @@ void main() {
   ConnectionManager makeFailingConnectionManager() {
     return ConnectionManager(
       knownHosts: KnownHostsManager(),
-      connectionFactory: (config, kh) =>
-          _FailingSSHConnection(config: config, knownHosts: kh),
+      connectionFactory: (config, kh) => _FailingSSHConnection(config: config, knownHosts: kh),
     );
   }
 
   group('MainScreen — _connectSession via session double-click', () {
-    testWidgets('double-clicking a session triggers _connectSession', (
-      tester,
-    ) async {
+    testWidgets('double-clicking a session triggers _connectSession', (tester) async {
       final store = SessionStore();
       final testSession = Session(
         id: 'test-sess-1',
@@ -1426,15 +1091,13 @@ void main() {
           overrides: [
             configProvider.overrideWith(ConfigNotifier.new),
             sessionStoreProvider.overrideWithValue(store),
-            sessionProvider.overrideWith(
-              () => _PrePopulatedSessionNotifier([testSession]),
-            ),
+            sessionProvider.overrideWith(() => _PrePopulatedSessionNotifier([testSession])),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              makeFailingConnectionManager(),
-            ),
+            connectionManagerProvider.overrideWithValue(makeFailingConnectionManager()),
           ],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             navigatorKey: navigatorKey,
             theme: AppTheme.dark(),
             home: const MediaQuery(
@@ -1468,210 +1131,184 @@ void main() {
   });
 
   group('MainScreen — _connectSessionSftp via context menu', () {
-    testWidgets(
-      'right-click session and select SFTP triggers _connectSessionSftp',
-      (tester) async {
-        final store = SessionStore();
-        final testSession = Session(
-          id: 'test-sess-2',
-          label: 'SftpServer',
-          server: const ServerAddress(host: '10.0.0.100', user: 'sftpuser'),
-          auth: const SessionAuth(password: 'secret'),
-        );
+    testWidgets('right-click session and select SFTP triggers _connectSessionSftp', (tester) async {
+      final store = SessionStore();
+      final testSession = Session(
+        id: 'test-sess-2',
+        label: 'SftpServer',
+        server: const ServerAddress(host: '10.0.0.100', user: 'sftpuser'),
+        auth: const SessionAuth(password: 'secret'),
+      );
 
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              configProvider.overrideWith(ConfigNotifier.new),
-              sessionStoreProvider.overrideWithValue(store),
-              sessionProvider.overrideWith(
-                () => _PrePopulatedSessionNotifier([testSession]),
-              ),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                makeFailingConnectionManager(),
-              ),
-            ],
-            child: MaterialApp(
-              navigatorKey: navigatorKey,
-              theme: AppTheme.dark(),
-              home: const MediaQuery(
-                data: MediaQueryData(size: Size(1000, 600)),
-                child: SizedBox(width: 1000, height: 600, child: MainScreen()),
-              ),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith(ConfigNotifier.new),
+            sessionStoreProvider.overrideWithValue(store),
+            sessionProvider.overrideWith(() => _PrePopulatedSessionNotifier([testSession])),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(makeFailingConnectionManager()),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            navigatorKey: navigatorKey,
+            theme: AppTheme.dark(),
+            home: const MediaQuery(
+              data: MediaQueryData(size: Size(1000, 600)),
+              child: SizedBox(width: 1000, height: 600, child: MainScreen()),
             ),
           ),
-        );
-        await tester.pump();
-        await tester.pump();
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
 
-        // Session should appear in sidebar
-        expect(find.text('SftpServer'), findsOneWidget);
+      // Session should appear in sidebar
+      expect(find.text('SftpServer'), findsOneWidget);
 
-        // Right-click the session to open context menu
-        final sessionFinder = find.text('SftpServer');
-        final gesture = await tester.createGesture(
-          kind: PointerDeviceKind.mouse,
-          buttons: kSecondaryMouseButton,
-        );
-        await gesture.addPointer(location: tester.getCenter(sessionFinder));
-        await gesture.down(tester.getCenter(sessionFinder));
-        await gesture.up();
-        await tester.pump();
-        await tester.pump();
+      // Right-click the session to open context menu
+      final sessionFinder = find.text('SftpServer');
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+      await gesture.addPointer(location: tester.getCenter(sessionFinder));
+      await gesture.down(tester.getCenter(sessionFinder));
+      await gesture.up();
+      await tester.pump();
+      await tester.pump();
 
-        // Context menu should show "Files" option
-        expect(find.text('Files'), findsOneWidget);
+      // Context menu should show "Files" option
+      expect(find.text('Files'), findsOneWidget);
 
-        // Tap SFTP to trigger _connectSessionSftp
-        await tester.tap(find.text('Files'));
-        await tester.pump();
-        await tester.pump(const Duration(seconds: 1));
-        await tester.pump();
+      // Tap SFTP to trigger _connectSessionSftp
+      await tester.tap(find.text('Files'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
 
-        // Line 288-289 is covered — connection fails but code path is exercised
-        expect(find.byType(MainScreen), findsOneWidget);
+      // Line 288-289 is covered — connection fails but code path is exercised
+      expect(find.byType(MainScreen), findsOneWidget);
 
-        // Pump past the 3-second toast auto-dismiss timer and its animation
-        await tester.pump(const Duration(seconds: 4));
-        await tester.pump(const Duration(milliseconds: 500));
-      },
-    );
+      // Pump past the 3-second toast auto-dismiss timer and its animation
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 500));
+    });
   });
 
   group('MainScreen — _newSession ConnectOnlyResult path', () {
-    testWidgets(
-      'filling host+user and clicking Connect triggers ConnectOnlyResult',
-      (tester) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              configProvider.overrideWith(ConfigNotifier.new),
-              sessionStoreProvider.overrideWithValue(SessionStore()),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                makeFailingConnectionManager(),
-              ),
-            ],
-            child: MaterialApp(
-              navigatorKey: navigatorKey,
-              theme: AppTheme.dark(),
-              home: const MediaQuery(
-                data: MediaQueryData(size: Size(1000, 600)),
-                child: SizedBox(width: 1000, height: 600, child: MainScreen()),
-              ),
+    testWidgets('filling host+user and clicking Connect triggers ConnectOnlyResult', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith(ConfigNotifier.new),
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(makeFailingConnectionManager()),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            navigatorKey: navigatorKey,
+            theme: AppTheme.dark(),
+            home: const MediaQuery(
+              data: MediaQueryData(size: Size(1000, 600)),
+              child: SizedBox(width: 1000, height: 600, child: MainScreen()),
             ),
           ),
-        );
-        await tester.pump();
+        ),
+      );
+      await tester.pump();
 
-        // Open new session dialog via tab bar "+" button
-        await tester.tap(find.byIcon(Icons.add).first);
-        await tester.pump();
-        await tester.pump();
+      // Open new session dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
+      await tester.pump();
+      await tester.pump();
 
-        // Fill in required fields
-        final hostField = find.widgetWithText(TextFormField, '192.168.1.1');
-        await tester.enterText(hostField, 'connect-only.example.com');
-        await tester.pump();
+      // Fill in required fields
+      final hostField = find.widgetWithText(TextFormField, '192.168.1.1');
+      await tester.enterText(hostField, 'connect-only.example.com');
+      await tester.pump();
 
-        final userField = find.widgetWithText(TextFormField, 'root');
-        await tester.enterText(userField, 'testuser');
-        await tester.pump();
+      final userField = find.widgetWithText(TextFormField, 'root');
+      await tester.enterText(userField, 'testuser');
+      await tester.pump();
 
-        // Click "Connect" (not "Save & Connect") → ConnectOnlyResult
-        await tester.tap(find.text('Connect'));
-        await tester.pump();
-        await tester.pump(const Duration(seconds: 1));
-        await tester.pump();
+      // Click "Connect" (not "Save & Connect") → ConnectOnlyResult
+      await tester.tap(find.text('Connect'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
 
-        // Lines 302-303 (ConnectOnlyResult case) covered
-        expect(find.byType(MainScreen), findsOneWidget);
+      // Lines 302-303 (ConnectOnlyResult case) covered
+      expect(find.byType(MainScreen), findsOneWidget);
 
-        // Pump past the 3-second toast auto-dismiss timer and its animation
-        await tester.pump(const Duration(seconds: 4));
-        await tester.pump(const Duration(milliseconds: 500));
-      },
-    );
+      // Pump past the 3-second toast auto-dismiss timer and its animation
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 500));
+    });
   });
 
   group('MainScreen — _newSession SaveResult path', () {
-    testWidgets(
-      'filling label+host+user and clicking Save & Connect triggers SaveResult',
-      (tester) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              configProvider.overrideWith(ConfigNotifier.new),
-              sessionStoreProvider.overrideWithValue(SessionStore()),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                makeFailingConnectionManager(),
-              ),
-            ],
-            child: MaterialApp(
-              navigatorKey: navigatorKey,
-              theme: AppTheme.dark(),
-              home: const MediaQuery(
-                data: MediaQueryData(size: Size(1000, 600)),
-                child: SizedBox(width: 1000, height: 600, child: MainScreen()),
-              ),
+    testWidgets('filling label+host+user and clicking Save & Connect triggers SaveResult', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith(ConfigNotifier.new),
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(makeFailingConnectionManager()),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            navigatorKey: navigatorKey,
+            theme: AppTheme.dark(),
+            home: const MediaQuery(
+              data: MediaQueryData(size: Size(1000, 600)),
+              child: SizedBox(width: 1000, height: 600, child: MainScreen()),
             ),
           ),
-        );
-        await tester.pump();
+        ),
+      );
+      await tester.pump();
 
-        // Open new session dialog via tab bar "+" button
-        await tester.tap(find.byIcon(Icons.add).first);
-        await tester.pump();
-        await tester.pump();
+      // Open new session dialog via tab bar "+" button
+      await tester.tap(find.byIcon(Icons.add).first);
+      await tester.pump();
+      await tester.pump();
 
-        // Fill in required fields including label
-        final hostField = find.widgetWithText(TextFormField, '192.168.1.1');
-        await tester.enterText(hostField, 'save.example.com');
-        await tester.pump();
+      // Fill in required fields including label
+      final hostField = find.widgetWithText(TextFormField, '192.168.1.1');
+      await tester.enterText(hostField, 'save.example.com');
+      await tester.pump();
 
-        final userField = find.widgetWithText(TextFormField, 'root');
-        await tester.enterText(userField, 'saveuser');
-        await tester.pump();
+      final userField = find.widgetWithText(TextFormField, 'root');
+      await tester.enterText(userField, 'saveuser');
+      await tester.pump();
 
-        // Click "Save & Connect" → SaveResult with connect: true
-        await tester.tap(find.text('Save'));
-        await tester.pump();
-        await tester.pump(const Duration(seconds: 1));
-        await tester.pump();
-        await tester.pump();
+      // Click "Save & Connect" → SaveResult with connect: true
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      await tester.pump();
 
-        // Lines 304-307 (SaveResult case with connect: true) covered
-        expect(find.byType(MainScreen), findsOneWidget);
+      // Lines 304-307 (SaveResult case with connect: true) covered
+      expect(find.byType(MainScreen), findsOneWidget);
 
-        // Pump past the 3-second toast auto-dismiss timer and its animation
-        await tester.pump(const Duration(seconds: 4));
-        await tester.pump(const Duration(milliseconds: 500));
-      },
-    );
+      // Pump past the 3-second toast auto-dismiss timer and its animation
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 500));
+    });
   });
 
   group('MainScreen — _switchTab verifies active index changes', () {
-    testWidgets('Ctrl+Tab changes IndexedStack.index from 0 to 1', (
-      tester,
-    ) async {
+    testWidgets('Ctrl+Tab changes IndexedStack.index from 0 to 1', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'First',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't2',
-              label: 'Second',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
+            TabEntry(id: 't1', label: 'First', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Second', connection: conn, kind: TabKind.terminal),
           ],
           activeIndex: 0,
         ),
@@ -1702,31 +1339,14 @@ void main() {
       expect(stack.index, anyOf(0, 1));
     });
 
-    testWidgets('Ctrl+Shift+Tab changes IndexedStack.index from 0 to last', (
-      tester,
-    ) async {
+    testWidgets('Ctrl+Shift+Tab changes IndexedStack.index from 0 to last', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'First',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't2',
-              label: 'Second',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't3',
-              label: 'Third',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
+            TabEntry(id: 't1', label: 'First', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Second', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't3', label: 'Third', connection: conn, kind: TabKind.terminal),
           ],
           activeIndex: 0,
         ),
@@ -1758,25 +1378,13 @@ void main() {
       expect(stack.index, anyOf(0, 2));
     });
 
-    testWidgets('clicking a tab in tab bar switches active tab', (
-      tester,
-    ) async {
+    testWidgets('clicking a tab in tab bar switches active tab', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'First',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't2',
-              label: 'Second',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
+            TabEntry(id: 't1', label: 'First', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Second', connection: conn, kind: TabKind.terminal),
           ],
           activeIndex: 0,
         ),
@@ -1801,25 +1409,13 @@ void main() {
   });
 
   group('MainScreen — _switchTab via direct tab click changes IndexedStack', () {
-    testWidgets('clicking second tab changes IndexedStack.index to 1', (
-      tester,
-    ) async {
+    testWidgets('clicking second tab changes IndexedStack.index to 1', (tester) async {
       final conn = makeConn();
       await tester.pumpWidget(
         buildAppWithTabs(
           tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Alpha',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-            TabEntry(
-              id: 't2',
-              label: 'Beta',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
+            TabEntry(id: 't1', label: 'Alpha', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Beta', connection: conn, kind: TabKind.sftp),
           ],
           activeIndex: 0,
         ),
@@ -1842,50 +1438,35 @@ void main() {
       expect(find.textContaining('Connected'), findsWidgets);
     });
 
-    testWidgets(
-      'clicking first tab after selecting second changes IndexedStack.index back to 0',
-      (tester) async {
-        final conn = makeConn();
-        await tester.pumpWidget(
-          buildAppWithTabs(
-            tabs: [
-              TabEntry(
-                id: 't1',
-                label: 'Alpha',
-                connection: conn,
-                kind: TabKind.terminal,
-              ),
-              TabEntry(
-                id: 't2',
-                label: 'Beta',
-                connection: conn,
-                kind: TabKind.terminal,
-              ),
-            ],
-            activeIndex: 1,
-          ),
-        );
-        await tester.pumpAndSettle();
+    testWidgets('clicking first tab after selecting second changes IndexedStack.index back to 0', (tester) async {
+      final conn = makeConn();
+      await tester.pumpWidget(
+        buildAppWithTabs(
+          tabs: [
+            TabEntry(id: 't1', label: 'Alpha', connection: conn, kind: TabKind.terminal),
+            TabEntry(id: 't2', label: 'Beta', connection: conn, kind: TabKind.terminal),
+          ],
+          activeIndex: 1,
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Verify initial state is tab 1
-        var stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
-        expect(stack.index, 1);
+      // Verify initial state is tab 1
+      var stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, 1);
 
-        // Click the first tab
-        await tester.tap(find.text('Alpha'));
-        await tester.pumpAndSettle();
+      // Click the first tab
+      await tester.tap(find.text('Alpha'));
+      await tester.pumpAndSettle();
 
-        // IndexedStack should now show index 0
-        stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
-        expect(stack.index, 0);
-      },
-    );
+      // IndexedStack should now show index 0
+      stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, 0);
+    });
   });
 
   group('MainScreen — narrow layout isNarrow path', () {
-    testWidgets('narrow layout (< 600px) uses Drawer instead of SplitView', (
-      tester,
-    ) async {
+    testWidgets('narrow layout (< 600px) uses Drawer instead of SplitView', (tester) async {
       tester.view.physicalSize = const Size(500, 600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1895,11 +1476,11 @@ void main() {
         ProviderScope(
           overrides: [configProvider.overrideWith(ConfigNotifier.new)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             navigatorKey: navigatorKey,
             theme: AppTheme.dark(),
-            home: const Center(
-              child: SizedBox(width: 500, height: 600, child: MainScreen()),
-            ),
+            home: const Center(child: SizedBox(width: 500, height: 600, child: MainScreen())),
           ),
         ),
       );
@@ -1909,9 +1490,7 @@ void main() {
       expect(find.byIcon(Icons.menu), findsOneWidget);
     });
 
-    testWidgets('narrow layout with active tab shows content and menu button', (
-      tester,
-    ) async {
+    testWidgets('narrow layout with active tab shows content and menu button', (tester) async {
       tester.view.physicalSize = const Size(500, 600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1924,23 +1503,19 @@ void main() {
             configProvider.overrideWith(ConfigNotifier.new),
             sessionStoreProvider.overrideWithValue(SessionStore()),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
               () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState(
-                  (b) => b.addTerminalTab(conn, label: 'NarrowTab'),
-                ),
+                _buildWorkspaceState((b) => b.addTerminalTab(conn, label: 'NarrowTab')),
               ),
             ),
           ],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             navigatorKey: navigatorKey,
             theme: AppTheme.dark(),
-            home: const Center(
-              child: SizedBox(width: 500, height: 600, child: MainScreen()),
-            ),
+            home: const Center(child: SizedBox(width: 500, height: 600, child: MainScreen())),
           ),
         ),
       );
@@ -1969,11 +1544,11 @@ void main() {
         ProviderScope(
           overrides: [configProvider.overrideWith(ConfigNotifier.new)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             navigatorKey: navigatorKey,
             theme: AppTheme.dark(),
-            home: const Center(
-              child: SizedBox(width: 500, height: 600, child: MainScreen()),
-            ),
+            home: const Center(child: SizedBox(width: 500, height: 600, child: MainScreen())),
           ),
         ),
       );
@@ -2009,14 +1584,7 @@ void main() {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'Term',
-              connection: conn,
-              kind: TabKind.terminal,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'Term', connection: conn, kind: TabKind.terminal)],
         ),
       );
       await tester.pumpAndSettle();
@@ -2029,14 +1597,7 @@ void main() {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
-          tabs: [
-            TabEntry(
-              id: 't1',
-              label: 'SFTP',
-              connection: conn,
-              kind: TabKind.sftp,
-            ),
-          ],
+          tabs: [TabEntry(id: 't1', label: 'SFTP', connection: conn, kind: TabKind.sftp)],
         ),
       );
       await tester.pumpAndSettle();
@@ -2072,8 +1633,7 @@ class _ImportDialogTestWidget extends StatefulWidget {
   const _ImportDialogTestWidget({required this.fileName});
 
   @override
-  State<_ImportDialogTestWidget> createState() =>
-      _ImportDialogTestWidgetState();
+  State<_ImportDialogTestWidget> createState() => _ImportDialogTestWidgetState();
 }
 
 class _ImportDialogTestWidgetState extends State<_ImportDialogTestWidget> {
@@ -2082,10 +1642,7 @@ class _ImportDialogTestWidgetState extends State<_ImportDialogTestWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final subtleStyle = TextStyle(
-      fontSize: 12,
-      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-    );
+    final subtleStyle = TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6));
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2099,31 +1656,20 @@ class _ImportDialogTestWidgetState extends State<_ImportDialogTestWidget> {
         const SizedBox(height: 12),
         Row(
           children: [
-            TextButton(
-              onPressed: () => setState(() => _mode = ImportMode.merge),
-              child: const Text('Merge'),
-            ),
-            TextButton(
-              onPressed: () => setState(() => _mode = ImportMode.replace),
-              child: const Text('Replace'),
-            ),
+            TextButton(onPressed: () => setState(() => _mode = ImportMode.merge), child: const Text('Merge')),
+            TextButton(onPressed: () => setState(() => _mode = ImportMode.replace), child: const Text('Replace')),
           ],
         ),
         const SizedBox(height: 4),
         Text(
-          _mode == ImportMode.merge
-              ? 'Add new sessions, keep existing'
-              : 'Replace all sessions with imported',
+          _mode == ImportMode.merge ? 'Add new sessions, keep existing' : 'Replace all sessions with imported',
           style: subtleStyle,
         ),
         const SizedBox(height: 12),
         Row(
           children: [
             TextButton(onPressed: () {}, child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () => setState(() => _submitted = true),
-              child: const Text('Import'),
-            ),
+            ElevatedButton(onPressed: () => setState(() => _submitted = true), child: const Text('Import')),
           ],
         ),
         if (_submitted) const Text('SUBMITTED'),

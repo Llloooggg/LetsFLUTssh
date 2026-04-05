@@ -14,20 +14,16 @@ import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 /// A fake ConnectionManager that returns a disconnected connection with error.
 class _FailingConnectionManager extends ConnectionManager {
   final Object error;
 
-  _FailingConnectionManager(this.error)
-    : super(knownHosts: KnownHostsManager());
+  _FailingConnectionManager(this.error) : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(
-    SSHConfig config, {
-    String? label,
-    String? sessionId,
-  }) {
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
     return Connection(
       id: 'conn-fail',
       label: label ?? config.displayName,
@@ -48,11 +44,7 @@ class _FakeConnectionManager extends ConnectionManager {
   _FakeConnectionManager() : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(
-    SSHConfig config, {
-    String? label,
-    String? sessionId,
-  }) {
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
     lastLabel = label;
     lastSessionId = sessionId;
     return Connection(
@@ -110,6 +102,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -119,11 +113,7 @@ void main() {
                       final session = Session(
                         id: 's1',
                         label: 'Test Server',
-                        server: const ServerAddress(
-                          host: '10.0.0.1',
-                          port: 22,
-                          user: 'root',
-                        ),
+                        server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -152,6 +142,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -161,11 +153,7 @@ void main() {
                       final session = Session(
                         id: 's1',
                         label: 'My Server',
-                        server: const ServerAddress(
-                          host: '10.0.0.1',
-                          port: 22,
-                          user: 'root',
-                        ),
+                        server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -195,6 +183,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -204,10 +194,7 @@ void main() {
                       final session = Session(
                         id: 'sess-42',
                         label: 'Test',
-                        server: const ServerAddress(
-                          host: '10.0.0.1',
-                          user: 'root',
-                        ),
+                        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -236,6 +223,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -245,11 +234,7 @@ void main() {
                       final session = Session(
                         id: 's1',
                         label: '',
-                        server: const ServerAddress(
-                          host: '10.0.0.1',
-                          port: 22,
-                          user: 'root',
-                        ),
+                        server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -280,6 +265,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -290,10 +277,7 @@ void main() {
                       final session = Session(
                         id: 's1',
                         label: 'Test',
-                        server: const ServerAddress(
-                          host: '10.0.0.1',
-                          user: 'root',
-                        ),
+                        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -328,6 +312,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -338,10 +324,7 @@ void main() {
                       final session = Session(
                         id: 's2',
                         label: 'SFTP Server',
-                        server: const ServerAddress(
-                          host: '10.0.0.1',
-                          user: 'test',
-                        ),
+                        server: const ServerAddress(host: '10.0.0.1', user: 'test'),
                       );
                       SessionConnect.connectSftp(context, ref, session);
                     },
@@ -366,15 +349,15 @@ void main() {
       fakeManager.dispose();
     });
 
-    testWidgets('uses displayName when label is empty for SFTP', (
-      tester,
-    ) async {
+    testWidgets('uses displayName when label is empty for SFTP', (tester) async {
       final fakeManager = _FakeConnectionManager();
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -384,10 +367,7 @@ void main() {
                       final session = Session(
                         id: 's2',
                         label: '',
-                        server: const ServerAddress(
-                          host: '10.0.0.1',
-                          user: 'admin',
-                        ),
+                        server: const ServerAddress(host: '10.0.0.1', user: 'admin'),
                       );
                       SessionConnect.connectSftp(context, ref, session);
                     },
@@ -411,18 +391,16 @@ void main() {
   });
 
   group('SessionConnect — failed connection still adds tab', () {
-    testWidgets('connectTerminal adds tab even when connection fails', (
-      tester,
-    ) async {
-      final failManager = _FailingConnectionManager(
-        Exception('Wrong password'),
-      );
+    testWidgets('connectTerminal adds tab even when connection fails', (tester) async {
+      final failManager = _FailingConnectionManager(Exception('Wrong password'));
       late WidgetRef capturedRef;
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(failManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -433,10 +411,7 @@ void main() {
                       final session = Session(
                         id: 's1',
                         label: 'Test',
-                        server: const ServerAddress(
-                          host: '10.0.0.1',
-                          user: 'root',
-                        ),
+                        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -462,9 +437,7 @@ void main() {
       failManager.dispose();
     });
 
-    testWidgets('connectSftp adds tab even when connection fails', (
-      tester,
-    ) async {
+    testWidgets('connectSftp adds tab even when connection fails', (tester) async {
       final failManager = _FailingConnectionManager(Exception('Auth failed'));
       late WidgetRef capturedRef;
 
@@ -472,6 +445,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(failManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -482,10 +457,7 @@ void main() {
                       final session = Session(
                         id: 's1',
                         label: 'Test',
-                        server: const ServerAddress(
-                          host: '10.0.0.1',
-                          user: 'root',
-                        ),
+                        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
                       );
                       SessionConnect.connectSftp(context, ref, session);
                     },
@@ -510,9 +482,7 @@ void main() {
       failManager.dispose();
     });
 
-    testWidgets('connectConfig adds tab even when connection fails', (
-      tester,
-    ) async {
+    testWidgets('connectConfig adds tab even when connection fails', (tester) async {
       final failManager = _FailingConnectionManager(Exception('Refused'));
       late WidgetRef capturedRef;
 
@@ -520,6 +490,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(failManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -555,9 +527,7 @@ void main() {
   });
 
   group('SessionConnect.connectConfig', () {
-    testWidgets('adds terminal tab on successful config connection', (
-      tester,
-    ) async {
+    testWidgets('adds terminal tab on successful config connection', (tester) async {
       final fakeManager = _FakeConnectionManager();
       late WidgetRef capturedRef;
 
@@ -565,6 +535,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -573,11 +545,7 @@ void main() {
                   body: ElevatedButton(
                     onPressed: () {
                       const config = SSHConfig(
-                        server: ServerAddress(
-                          host: '10.0.0.1',
-                          port: 22,
-                          user: 'test',
-                        ),
+                        server: ServerAddress(host: '10.0.0.1', port: 22, user: 'test'),
                       );
                       SessionConnect.connectConfig(context, ref, config);
                     },
@@ -609,6 +577,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -616,11 +586,7 @@ void main() {
                   body: ElevatedButton(
                     onPressed: () {
                       const config = SSHConfig(
-                        server: ServerAddress(
-                          host: '10.0.0.1',
-                          port: 2222,
-                          user: 'admin',
-                        ),
+                        server: ServerAddress(host: '10.0.0.1', port: 2222, user: 'admin'),
                       );
                       SessionConnect.connectConfig(context, ref, config);
                     },
@@ -645,9 +611,7 @@ void main() {
   });
 
   group('SessionConnect — incomplete session blocking', () {
-    testWidgets('connectTerminal returns false for incomplete session', (
-      tester,
-    ) async {
+    testWidgets('connectTerminal returns false for incomplete session', (tester) async {
       final fakeManager = _FakeConnectionManager();
       bool? result;
 
@@ -655,6 +619,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -666,11 +632,7 @@ void main() {
                         server: const ServerAddress(host: 'h', user: 'u'),
                         incomplete: true,
                       );
-                      result = SessionConnect.connectTerminal(
-                        context,
-                        ref,
-                        session,
-                      );
+                      result = SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Go'),
                   ),
@@ -690,9 +652,7 @@ void main() {
       fakeManager.dispose();
     });
 
-    testWidgets('connectSftp returns false for incomplete session', (
-      tester,
-    ) async {
+    testWidgets('connectSftp returns false for incomplete session', (tester) async {
       final fakeManager = _FakeConnectionManager();
       bool? result;
 
@@ -700,6 +660,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -711,11 +673,7 @@ void main() {
                         server: const ServerAddress(host: 'h', user: 'u'),
                         incomplete: true,
                       );
-                      result = SessionConnect.connectSftp(
-                        context,
-                        ref,
-                        session,
-                      );
+                      result = SessionConnect.connectSftp(context, ref, session);
                     },
                     child: const Text('Go'),
                   ),
@@ -735,9 +693,7 @@ void main() {
       fakeManager.dispose();
     });
 
-    testWidgets('connectTerminal returns true for complete session', (
-      tester,
-    ) async {
+    testWidgets('connectTerminal returns true for complete session', (tester) async {
       final fakeManager = _FakeConnectionManager();
       bool? result;
 
@@ -745,6 +701,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {
@@ -756,11 +714,7 @@ void main() {
                         server: const ServerAddress(host: 'h', user: 'u'),
                         auth: const SessionAuth(password: 'pass'),
                       );
-                      result = SessionConnect.connectTerminal(
-                        context,
-                        ref,
-                        session,
-                      );
+                      result = SessionConnect.connectTerminal(context, ref, session);
                     },
                     child: const Text('Go'),
                   ),
@@ -786,6 +740,8 @@ void main() {
         ProviderScope(
           overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Consumer(
               builder: (context, ref, _) {

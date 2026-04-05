@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/widgets/lfs_import_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   late Directory tempDir;
@@ -21,6 +22,8 @@ void main() {
   /// Uses SingleChildScrollView to prevent overflow from AlertDialog content.
   Widget buildRealDialog(String filePath) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
         body: SingleChildScrollView(child: LfsImportDialog(filePath: filePath)),
@@ -29,9 +32,7 @@ void main() {
   }
 
   group('LfsImportDialog — real widget', () {
-    testWidgets('renders title, file name, password field, and mode selector', (
-      tester,
-    ) async {
+    testWidgets('renders title, file name, password field, and mode selector', (tester) async {
       final lfsFile = File('${tempDir.path}/backup.lfs');
       lfsFile.writeAsBytesSync([0]);
 
@@ -80,9 +81,7 @@ void main() {
       expect(find.text('Add new sessions, keep existing'), findsOneWidget);
     });
 
-    testWidgets('empty password: Import button triggers _submit guard', (
-      tester,
-    ) async {
+    testWidgets('empty password: Import button triggers _submit guard', (tester) async {
       final lfsFile = File('${tempDir.path}/empty.lfs');
       lfsFile.writeAsBytesSync([0]);
 
@@ -155,9 +154,7 @@ void main() {
   });
 
   group('LfsImportDialog — dialog route (Navigator.pop coverage)', () {
-    testWidgets('Import with password returns result with password and mode', (
-      tester,
-    ) async {
+    testWidgets('Import with password returns result with password and mode', (tester) async {
       final lfsFile = File('${tempDir.path}/test.lfs');
       lfsFile.writeAsBytesSync([0]);
 
@@ -166,15 +163,14 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Builder(
             builder: (context) => Scaffold(
               body: ElevatedButton(
                 onPressed: () async {
-                  result = await LfsImportDialog.show(
-                    context,
-                    filePath: lfsFile.path,
-                  );
+                  result = await LfsImportDialog.show(context, filePath: lfsFile.path);
                   dialogCompleted = true;
                 },
                 child: const Text('Open'),
@@ -201,9 +197,7 @@ void main() {
       expect(result!.mode, ImportMode.merge);
     });
 
-    testWidgets('onSubmitted with non-empty password returns result', (
-      tester,
-    ) async {
+    testWidgets('onSubmitted with non-empty password returns result', (tester) async {
       final lfsFile = File('${tempDir.path}/submit.lfs');
       lfsFile.writeAsBytesSync([0]);
 
@@ -212,15 +206,14 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Builder(
             builder: (context) => Scaffold(
               body: ElevatedButton(
                 onPressed: () async {
-                  result = await LfsImportDialog.show(
-                    context,
-                    filePath: lfsFile.path,
-                  );
+                  result = await LfsImportDialog.show(context, filePath: lfsFile.path);
                   dialogCompleted = true;
                 },
                 child: const Text('Open'),
@@ -244,9 +237,7 @@ void main() {
       expect(result!.mode, ImportMode.merge);
     });
 
-    testWidgets('onSubmitted with empty password keeps dialog open', (
-      tester,
-    ) async {
+    testWidgets('onSubmitted with empty password keeps dialog open', (tester) async {
       final lfsFile = File('${tempDir.path}/empty_submit.lfs');
       lfsFile.writeAsBytesSync([0]);
 
@@ -254,6 +245,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Builder(
             builder: (context) => Scaffold(
@@ -290,15 +283,14 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Builder(
             builder: (context) => Scaffold(
               body: ElevatedButton(
                 onPressed: () async {
-                  result = await LfsImportDialog.show(
-                    context,
-                    filePath: lfsFile.path,
-                  );
+                  result = await LfsImportDialog.show(context, filePath: lfsFile.path);
                   dialogCompleted = true;
                 },
                 child: const Text('Open'),

@@ -12,6 +12,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_divider.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/context_menu.dart';
+import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/cross_marquee_controller.dart';
@@ -20,11 +21,6 @@ import '../workspace/workspace_controller.dart';
 import '../workspace/workspace_node.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
-
-const _kNewFolder = 'New Folder';
-const _kNewConnection = 'New Connection';
-const _kRenameFolder = 'Rename Folder';
-const _kDeleteFolder = 'Delete Folder';
 
 /// Session sidebar — tree view + search + actions.
 class SessionPanel extends ConsumerStatefulWidget {
@@ -167,13 +163,15 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final sessionCount = _selectedIds.length;
     final folderCount = _selectedFolderPaths.length;
     final parts = <String>[
-      if (sessionCount > 0) '$sessionCount session(s)',
-      if (folderCount > 0) '$folderCount folder(s)',
+      if (sessionCount > 0) S.of(context).nSessions(sessionCount),
+      if (folderCount > 0) S.of(context).nFolders(folderCount),
     ];
     final confirmed = await ConfirmDialog.show(
       context,
-      title: 'Delete Selected',
-      content: Text('Delete ${parts.join(' and ')}?\n\nThis cannot be undone.'),
+      title: S.of(context).deleteSelected,
+      content: Text(
+        S.of(context).deleteNSessionsAndFolders(parts.join(' and ')),
+      ),
     );
     if (confirmed) {
       final notifier = ref.read(sessionProvider.notifier);
@@ -199,7 +197,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final selected = await AppDialog.show<String>(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Move to Folder',
+        title: S.of(context).moveToFolder,
         scrollable: false,
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
@@ -211,7 +209,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               final folder = allFolders.elementAt(index);
               return ListTile(
                 leading: Icon(folder.isEmpty ? Icons.home : Icons.folder),
-                title: Text(folder.isEmpty ? '/ (root)' : folder),
+                title: Text(folder.isEmpty ? S.of(context).rootFolder : folder),
                 onTap: () => Navigator.of(ctx).pop(folder),
               );
             },
@@ -496,32 +494,32 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       position: position,
       items: [
         ContextMenuItem(
-          label: 'Terminal',
+          label: S.of(context).terminal,
           icon: Icons.terminal,
           color: AppTheme.blue,
           onTap: () => widget.onConnect(session),
         ),
         if (widget.onSftpConnect != null)
           ContextMenuItem(
-            label: 'Files',
+            label: S.of(context).files,
             icon: Icons.folder,
             color: AppTheme.yellow,
             onTap: () => widget.onSftpConnect?.call(session),
           ),
         const ContextMenuItem.divider(),
         ContextMenuItem(
-          label: 'Edit Connection',
+          label: S.of(context).editConnection,
           icon: Icons.settings,
           onTap: () => _editSession(context, ref, session),
         ),
         ContextMenuItem(
-          label: 'Duplicate',
+          label: S.of(context).duplicate,
           icon: Icons.copy,
           onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
         ),
         const ContextMenuItem.divider(),
         ContextMenuItem(
-          label: 'Delete',
+          label: S.of(context).delete,
           icon: Icons.delete,
           color: AppTheme.red,
           onTap: () => _confirmDelete(context, ref, session),
@@ -573,7 +571,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               const AppDivider(),
               ListTile(
                 leading: Icon(Icons.terminal, color: AppTheme.blue),
-                title: const Text('Terminal'),
+                title: Text(S.of(ctx).terminal),
                 onTap: () {
                   Navigator.pop(ctx);
                   widget.onConnect(session);
@@ -582,7 +580,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               if (widget.onSftpConnect != null)
                 ListTile(
                   leading: Icon(Icons.folder, color: AppTheme.yellow),
-                  title: const Text('Files'),
+                  title: Text(S.of(ctx).files),
                   onTap: () {
                     Navigator.pop(ctx);
                     widget.onSftpConnect?.call(session);
@@ -591,7 +589,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.settings),
-                title: const Text('Edit Connection'),
+                title: Text(S.of(ctx).editConnection),
                 onTap: () {
                   Navigator.pop(ctx);
                   _editSession(context, ref, session);
@@ -599,7 +597,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               ),
               ListTile(
                 leading: const Icon(Icons.copy),
-                title: const Text('Duplicate'),
+                title: Text(S.of(ctx).duplicate),
                 onTap: () {
                   Navigator.pop(ctx);
                   ref.read(sessionProvider.notifier).duplicate(session.id);
@@ -607,7 +605,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               ),
               ListTile(
                 leading: const Icon(Icons.drive_file_move),
-                title: const Text('Move to...'),
+                title: Text(S.of(ctx).moveTo),
                 onTap: () {
                   Navigator.pop(ctx);
                   _moveSession(context, ref, session);
@@ -616,9 +614,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.delete, color: AppTheme.disconnected),
-                title: const Text(
-                  'Delete',
-                  style: TextStyle(color: AppTheme.disconnected),
+                title: Text(
+                  S.of(ctx).delete,
+                  style: const TextStyle(color: AppTheme.disconnected),
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -628,7 +626,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.checklist),
-                title: const Text('Select'),
+                title: Text(S.of(ctx).select),
                 onTap: () {
                   Navigator.pop(ctx);
                   enterSelectModeWithSession(session.id);
@@ -652,7 +650,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final selected = await AppDialog.show<String>(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Move to Folder',
+        title: S.of(context).moveToFolder,
         scrollable: false,
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
@@ -688,7 +686,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         color: isCurrent ? Theme.of(context).colorScheme.primary : null,
       ),
       title: Text(
-        folder.isEmpty ? '/ (root)' : folder,
+        folder.isEmpty ? S.of(context).rootFolder : folder,
         style: TextStyle(fontWeight: isCurrent ? FontWeight.bold : null),
       ),
       trailing: isCurrent ? const Icon(Icons.check, size: 18) : null,
@@ -724,24 +722,24 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       position: position,
       items: [
         ContextMenuItem(
-          label: _kNewConnection,
+          label: S.of(context).newConnection,
           icon: Icons.add,
           onTap: () => _addSessionInFolder(context, ref, folderPath),
         ),
         ContextMenuItem(
-          label: _kNewFolder,
+          label: S.of(context).newFolder,
           icon: Icons.create_new_folder,
           onTap: () => _createFolder(context, ref, folderPath),
         ),
         if (folderPath.isNotEmpty) ...[
           const ContextMenuItem.divider(),
           ContextMenuItem(
-            label: _kRenameFolder,
+            label: S.of(context).renameFolder,
             icon: Icons.drive_file_rename_outline,
             onTap: () => _renameFolder(context, ref, folderPath),
           ),
           ContextMenuItem(
-            label: _kDeleteFolder,
+            label: S.of(context).deleteFolder,
             icon: Icons.delete,
             color: AppTheme.red,
             onTap: () => _confirmDeleteFolder(context, ref, folderPath),
@@ -779,7 +777,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               const AppDivider(),
               ListTile(
                 leading: const Icon(Icons.add),
-                title: const Text(_kNewConnection),
+                title: Text(S.of(ctx).newConnection),
                 onTap: () {
                   Navigator.pop(ctx);
                   _addSessionInFolder(context, ref, folderPath);
@@ -787,7 +785,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               ),
               ListTile(
                 leading: const Icon(Icons.create_new_folder),
-                title: const Text('New Folder'),
+                title: Text(S.of(ctx).newFolder),
                 onTap: () {
                   Navigator.pop(ctx);
                   _createFolder(context, ref, folderPath);
@@ -797,7 +795,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 const AppDivider(),
                 ListTile(
                   leading: const Icon(Icons.drive_file_rename_outline),
-                  title: const Text(_kRenameFolder),
+                  title: Text(S.of(ctx).renameFolder),
                   onTap: () {
                     Navigator.pop(ctx);
                     _renameFolder(context, ref, folderPath);
@@ -808,9 +806,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                     Icons.delete,
                     color: AppTheme.disconnected,
                   ),
-                  title: const Text(
-                    _kDeleteFolder,
-                    style: TextStyle(color: AppTheme.disconnected),
+                  title: Text(
+                    S.of(ctx).deleteFolder,
+                    style: const TextStyle(color: AppTheme.disconnected),
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -820,7 +818,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                 const AppDivider(),
                 ListTile(
                   leading: const Icon(Icons.checklist),
-                  title: const Text('Select'),
+                  title: Text(S.of(ctx).select),
                   onTap: () {
                     Navigator.pop(ctx);
                     enterSelectModeWithFolder(folderPath);
@@ -856,7 +854,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final result = await _showFolderNameDialog(
       context,
-      title: _kNewFolder,
+      title: S.of(context).newFolder,
       confirmLabel: 'Create',
       existingFolders: existingFolders,
       parentPath: parentFolder,
@@ -886,7 +884,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final result = await _showFolderNameDialog(
       context,
-      title: _kRenameFolder,
+      title: S.of(context).renameFolder,
       confirmLabel: 'Rename',
       initialValue: currentName,
       existingFolders: existingFolders,
@@ -1068,16 +1066,16 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final confirmed = await ConfirmDialog.show(
       context,
-      title: _kDeleteFolder,
+      title: S.of(context).deleteFolder,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Delete folder "$folderName"?'),
+          Text(S.of(context).deleteFolderConfirm(folderName)),
           if (sessionCount > 0) ...[
             const SizedBox(height: 8),
             Text(
-              'This will also delete $sessionCount session(s) inside.',
+              S.of(context).willDeleteSessionsInside(sessionCount),
               style: TextStyle(
                 color: AppTheme.disconnected,
                 fontSize: AppFonts.lg,
@@ -1099,7 +1097,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   ) async {
     final confirmed = await ConfirmDialog.show(
       context,
-      title: 'Delete Session',
+      title: S.of(context).deleteSession,
       content: Text(
         'Delete "${session.label.isNotEmpty ? session.label : session.displayName}"?',
       ),
@@ -1128,7 +1126,7 @@ class _PanelHeader extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              'SESSIONS',
+              S.of(context).sessionsHeader,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: 'Inter',
@@ -1142,14 +1140,14 @@ class _PanelHeader extends StatelessWidget {
           AppIconButton(
             icon: Icons.create_new_folder,
             onTap: onAddFolder,
-            tooltip: _kNewFolder,
+            tooltip: S.of(context).newFolder,
             size: 14,
             boxSize: 24,
           ),
           AppIconButton(
             icon: Icons.add,
             onTap: onAddSession,
-            tooltip: _kNewConnection,
+            tooltip: S.of(context).newConnection,
             size: 16,
             boxSize: 24,
           ),
@@ -1187,38 +1185,41 @@ class _SelectActionBar extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 8),
-          Text(
-            '$selectedCount selected',
-            style: TextStyle(
-              fontSize: AppFonts.md,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.primary,
+          Flexible(
+            child: Text(
+              S.of(context).nSelectedCount(selectedCount),
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
             ),
           ),
           const Spacer(),
           AppIconButton(
             icon: Icons.select_all,
             onTap: onSelectAll,
-            tooltip: 'Select All',
+            tooltip: S.of(context).selectAll,
             size: 18,
           ),
           AppIconButton(
             icon: Icons.drive_file_move,
             onTap: selectedCount > 0 ? onMove : null,
-            tooltip: 'Move to...',
+            tooltip: S.of(context).moveTo,
             size: 18,
           ),
           AppIconButton(
             icon: Icons.delete,
             onTap: selectedCount > 0 ? onDelete : null,
-            tooltip: 'Delete',
+            tooltip: S.of(context).delete,
             size: 18,
             color: selectedCount > 0 ? AppTheme.disconnected : null,
           ),
           AppIconButton(
             icon: Icons.close,
             onTap: onCancel,
-            tooltip: 'Cancel',
+            tooltip: S.of(context).cancel,
             size: 18,
           ),
         ],
@@ -1248,7 +1249,7 @@ class _SearchBar extends StatelessWidget {
             Expanded(
               child: TextField(
                 decoration: InputDecoration(
-                  hintText: 'Filter...',
+                  hintText: S.of(context).filter,
                   hintStyle: AppFonts.mono(
                     fontSize: AppFonts.sm,
                     color: AppTheme.fgFaint,
@@ -1296,7 +1297,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'No saved sessions',
+            S.of(context).noSavedSessions,
             style: TextStyle(
               fontSize: AppFonts.md,
               color: Theme.of(
@@ -1308,7 +1309,10 @@ class _EmptyState extends StatelessWidget {
           TextButton.icon(
             onPressed: onAdd,
             icon: const Icon(Icons.add, size: 16),
-            label: Text('Add Session', style: TextStyle(fontSize: AppFonts.md)),
+            label: Text(
+              S.of(context).addSession,
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
           ),
         ],
       ),
@@ -1350,20 +1354,20 @@ class _SidebarFooter extends ConsumerWidget {
           StatusIndicator(
             icon: Icons.dns_outlined,
             count: savedCount,
-            tooltip: 'Saved sessions',
+            tooltip: S.of(context).savedSessions,
           ),
           const Spacer(),
           StatusIndicator(
             icon: Icons.wifi,
             count: activeCount,
-            tooltip: 'Active connections',
+            tooltip: S.of(context).activeConnections,
             iconColor: connectionIconColor,
           ),
           const SizedBox(width: 10),
           StatusIndicator(
             icon: Icons.tab_outlined,
             count: tabCount,
-            tooltip: 'Open tabs',
+            tooltip: S.of(context).openTabs,
           ),
         ],
       ),

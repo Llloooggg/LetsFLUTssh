@@ -92,18 +92,11 @@ void main() {
     test('copyWith preserves unchanged fields', () {
       const config = SSHConfig(
         server: ServerAddress(host: 'example.com', port: 2222, user: 'admin'),
-        auth: SshAuth(
-          password: 'pass',
-          keyPath: '/key',
-          keyData: 'PEM',
-          passphrase: 'phrase',
-        ),
+        auth: SshAuth(password: 'pass', keyPath: '/key', keyData: 'PEM', passphrase: 'phrase'),
         keepAliveSec: 60,
         timeoutSec: 15,
       );
-      final copy = config.copyWith(
-        server: config.server.copyWith(host: 'new.com'),
-      );
+      final copy = config.copyWith(server: config.server.copyWith(host: 'new.com'));
       expect(copy.host, 'new.com');
       expect(copy.port, 2222);
       expect(copy.user, 'admin');

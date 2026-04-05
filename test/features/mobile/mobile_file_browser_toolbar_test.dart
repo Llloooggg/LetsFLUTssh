@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
@@ -13,8 +13,7 @@ class _FakeFS implements FileSystem {
   final List<FileEntry> fakeEntries;
   final String fakeInitialDir;
 
-  _FakeFS({this.fakeEntries = const [], String initialDir = '/home/test'})
-    : fakeInitialDir = initialDir;
+  _FakeFS({this.fakeEntries = const [], String initialDir = '/home/test'}) : fakeInitialDir = initialDir;
 
   @override
   Future<String> initialDir() async => fakeInitialDir;
@@ -71,13 +70,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: ctrl,
-                onTransfer: (e) => transferred = e,
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: ctrl, onTransfer: (e) => transferred = e, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -104,13 +101,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: ctrl,
-                onTransfer: (_) {},
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -136,13 +131,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: ctrl,
-                onTransfer: (_) {},
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -167,9 +160,7 @@ void main() {
   });
 
   group('MobileFileList — bottom sheet actions', () {
-    testWidgets('bottom sheet Transfer action calls onTransfer', (
-      tester,
-    ) async {
+    testWidgets('bottom sheet Transfer action calls onTransfer', (tester) async {
       final fs = _FakeFS(fakeEntries: _entries());
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       await ctrl.init();
@@ -179,13 +170,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: ctrl,
-                onTransfer: (e) => transferred = e,
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: ctrl, onTransfer: (e) => transferred = e, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -218,13 +207,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: ctrl,
-                onTransfer: (_) {},
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -248,9 +235,7 @@ void main() {
       ctrl.dispose();
     });
 
-    testWidgets('bottom sheet Rename action opens rename dialog', (
-      tester,
-    ) async {
+    testWidgets('bottom sheet Rename action opens rename dialog', (tester) async {
       final fs = _FakeFS(fakeEntries: _entries());
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       await ctrl.init();
@@ -258,13 +243,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: ctrl,
-                onTransfer: (_) {},
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -304,13 +287,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: ctrl,
-                onTransfer: (_) {},
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -344,9 +325,7 @@ void main() {
   });
 
   group('MobileFileList — error state', () {
-    testWidgets('controller with error shows error message and retry', (
-      tester,
-    ) async {
+    testWidgets('controller with error shows error message and retry', (tester) async {
       final fs = _FakeFS(fakeEntries: []);
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       // Navigate to a path that will throw
@@ -357,13 +336,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: badCtrl,
-                onTransfer: (_) {},
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: badCtrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -379,9 +356,7 @@ void main() {
   });
 
   group('MobileFileList — file row details', () {
-    testWidgets('file rows show size, dir rows show folder icon', (
-      tester,
-    ) async {
+    testWidgets('file rows show size, dir rows show folder icon', (tester) async {
       final fs = _FakeFS(fakeEntries: _entries());
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       await ctrl.init();
@@ -389,13 +364,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: ctrl,
-                onTransfer: (_) {},
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -418,13 +391,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(
-                controller: ctrl,
-                onTransfer: (_) {},
-                onTransferMultiple: (_) {},
-              ),
+              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
             ),
           ),
         ),
@@ -448,8 +419,7 @@ class _ErrorFS implements FileSystem {
   @override
   Future<String> initialDir() async => '/error';
   @override
-  Future<List<FileEntry>> list(String path) async =>
-      throw Exception('FS error');
+  Future<List<FileEntry>> list(String path) async => throw Exception('FS error');
   @override
   Future<void> mkdir(String path) async {}
   @override

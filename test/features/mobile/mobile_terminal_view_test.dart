@@ -1,12 +1,11 @@
 import 'dart:async';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:xterm/xterm.dart';
-
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_terminal_view.dart';
@@ -14,13 +13,9 @@ import 'package:letsflutssh/features/mobile/ssh_key_sequences.dart';
 import 'package:letsflutssh/features/mobile/ssh_keyboard_bar.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-
 import '../../core/ssh/shell_helper_test.mocks.dart';
 
-Connection connectedConn(
-  MockSSHConnection mockSsh,
-  MockSSHSession mockSession,
-) {
+Connection connectedConn(MockSSHConnection mockSsh, MockSSHSession mockSession) {
   final stdoutCtrl = StreamController<Uint8List>.broadcast();
   final stderrCtrl = StreamController<Uint8List>.broadcast();
   final doneCompleter = Completer<void>();
@@ -47,9 +42,7 @@ void main() {
     testWidgets('shows loading indicator while connecting', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
-      when(
-        mockSsh.openShell(any, any),
-      ).thenAnswer((_) => Completer<Never>().future);
+      when(mockSsh.openShell(any, any)).thenAnswer((_) => Completer<Never>().future);
 
       final conn = Connection(
         id: 'test-1',
@@ -64,6 +57,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -94,6 +89,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -118,6 +115,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -131,9 +130,7 @@ void main() {
     testWidgets('error text shows specific error message', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
-      when(
-        mockSsh.openShell(any, any),
-      ).thenThrow(Exception('Connection refused'));
+      when(mockSsh.openShell(any, any)).thenThrow(Exception('Connection refused'));
 
       final conn = Connection(
         id: 'test-err',
@@ -148,6 +145,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -172,6 +171,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -184,9 +185,7 @@ void main() {
       expect(icon.size, 48);
     });
 
-    testWidgets('error text has disconnected color and center alignment', (
-      tester,
-    ) async {
+    testWidgets('error text has disconnected color and center alignment', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
       when(mockSsh.openShell(any, any)).thenThrow(Exception('fail'));
@@ -204,6 +203,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -213,18 +214,13 @@ void main() {
 
       final errorText = tester.widget<Text>(
         find.byWidgetPredicate(
-          (w) =>
-              w is Text &&
-              w.style?.color == AppTheme.disconnected &&
-              w.textAlign == TextAlign.center,
+          (w) => w is Text && w.style?.color == AppTheme.disconnected && w.textAlign == TextAlign.center,
         ),
       );
       expect(errorText, isNotNull);
     });
 
-    testWidgets('error widget contains SizedBox(height: 16) spacer', (
-      tester,
-    ) async {
+    testWidgets('error widget contains SizedBox(height: 16) spacer', (tester) async {
       final conn = Connection(
         id: 'test-spacer',
         label: 'Test',
@@ -238,6 +234,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -260,6 +258,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -276,9 +276,7 @@ void main() {
       expect(find.text('Alt'), findsOneWidget);
     });
 
-    testWidgets('shell done callback sets session closed error', (
-      tester,
-    ) async {
+    testWidgets('shell done callback sets session closed error', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       when(mockSsh.isConnected).thenReturn(true);
@@ -305,6 +303,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -329,6 +329,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -347,6 +349,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -357,6 +361,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: const Scaffold(body: SizedBox()),
           ),
@@ -365,9 +371,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('Column layout has Expanded terminal and keyboard bar', (
-      tester,
-    ) async {
+    testWidgets('Column layout has Expanded terminal and keyboard bar', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = connectedConn(mockSsh, mockSession);
@@ -375,6 +379,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -389,9 +395,7 @@ void main() {
   });
 
   group('MobileTerminalView — pinch-to-zoom', () {
-    testWidgets('pinch zoom changes font size and clamps between 8 and 24', (
-      tester,
-    ) async {
+    testWidgets('pinch zoom changes font size and clamps between 8 and 24', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = connectedConn(mockSsh, mockSession);
@@ -399,6 +403,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -435,6 +441,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -469,6 +477,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -476,18 +486,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final gds = tester.widgetList<GestureDetector>(
-        find.byType(GestureDetector),
-      );
+      final gds = tester.widgetList<GestureDetector>(find.byType(GestureDetector));
       final scaleGd = gds.where((g) => g.onScaleEnd != null).toList();
       expect(scaleGd, isNotEmpty);
     });
   });
 
   group('MobileTerminalView — font size from settings', () {
-    testWidgets('font size updates reactively from configProvider', (
-      tester,
-    ) async {
+    testWidgets('font size updates reactively from configProvider', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = connectedConn(mockSsh, mockSession);
@@ -495,6 +501,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -553,6 +561,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -574,9 +584,7 @@ void main() {
   });
 
   group('MobileTerminalView — selection toolbar', () {
-    testWidgets('no selection toolbar when no text is selected', (
-      tester,
-    ) async {
+    testWidgets('no selection toolbar when no text is selected', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = connectedConn(mockSsh, mockSession);
@@ -584,6 +592,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -595,9 +605,7 @@ void main() {
       expect(find.text('Copy'), findsNothing);
     });
 
-    testWidgets('GestureDetector does not have onLongPressStart', (
-      tester,
-    ) async {
+    testWidgets('GestureDetector does not have onLongPressStart', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = connectedConn(mockSsh, mockSession);
@@ -605,6 +613,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -614,9 +624,7 @@ void main() {
 
       // The outer GestureDetector should NOT have onLongPressStart
       // (xterm handles long press internally for word selection)
-      final gds = tester.widgetList<GestureDetector>(
-        find.byType(GestureDetector),
-      );
+      final gds = tester.widgetList<GestureDetector>(find.byType(GestureDetector));
       final outerGd = gds.where((g) => g.onScaleStart != null).toList();
       expect(outerGd, isNotEmpty);
       expect(outerGd.first.onLongPressStart, isNull);
@@ -630,6 +638,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -642,70 +652,65 @@ void main() {
   });
 
   group('MobileTerminalView — system keyboard with modifiers', () {
-    testWidgets(
-      'Ctrl modifier applies to system keyboard input via terminal.onOutput',
-      (tester) async {
-        final mockSsh = MockSSHConnection();
-        final mockSession = MockSSHSession();
+    testWidgets('Ctrl modifier applies to system keyboard input via terminal.onOutput', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
 
-        final stdoutCtrl = StreamController<Uint8List>.broadcast();
-        final stderrCtrl = StreamController<Uint8List>.broadcast();
-        final doneCompleter = Completer<void>();
+      final stdoutCtrl = StreamController<Uint8List>.broadcast();
+      final stderrCtrl = StreamController<Uint8List>.broadcast();
+      final doneCompleter = Completer<void>();
 
-        when(mockSsh.isConnected).thenReturn(true);
-        when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
-        when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
-        when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
-        when(mockSession.done).thenAnswer((_) => doneCompleter.future);
-        when(mockSession.write(any)).thenReturn(null);
+      when(mockSsh.isConnected).thenReturn(true);
+      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+      when(mockSession.write(any)).thenReturn(null);
 
-        final conn = Connection(
-          id: 'test-sysmod',
-          label: 'Test',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
+      final conn = Connection(
+        id: 'test-sysmod',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
-          sshConnection: mockSsh,
-          state: SSHConnectionState.connected,
-        );
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              theme: AppTheme.dark(),
-              home: Scaffold(body: MobileTerminalView(connection: conn)),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
+      // Find the SshKeyboardBar state via its GlobalKey
+      final barState = tester.state<SshKeyboardBarState>(find.byType(SshKeyboardBar));
 
-        // Find the SshKeyboardBar state via its GlobalKey
-        final barState = tester.state<SshKeyboardBarState>(
-          find.byType(SshKeyboardBar),
-        );
+      // Activate Ctrl (one-shot)
+      await tester.tap(find.text('Ctrl'));
+      await tester.pump();
 
-        // Activate Ctrl (one-shot)
-        await tester.tap(find.text('Ctrl'));
-        await tester.pump();
+      // Simulate system keyboard typing 'c' via terminal.onOutput
+      // The terminal.onOutput is overridden in MobileTerminalView to
+      // route through applyModifiers before sending to shell.
+      // We can verify by calling applyModifiers directly and checking
+      // the keyboard bar state transitions work with the bar widget.
+      final transformed = barState.applyModifiers('c');
+      expect(transformed, SshKeySequences.ctrlKey('c'));
+      // Ctrl+C = 0x03
+      expect(transformed.codeUnitAt(0), 0x03);
 
-        // Simulate system keyboard typing 'c' via terminal.onOutput
-        // The terminal.onOutput is overridden in MobileTerminalView to
-        // route through applyModifiers before sending to shell.
-        // We can verify by calling applyModifiers directly and checking
-        // the keyboard bar state transitions work with the bar widget.
-        final transformed = barState.applyModifiers('c');
-        expect(transformed, SshKeySequences.ctrlKey('c'));
-        // Ctrl+C = 0x03
-        expect(transformed.codeUnitAt(0), 0x03);
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
 
-        await stdoutCtrl.close();
-        await stderrCtrl.close();
-      },
-    );
-
-    testWidgets('system keyboard input without modifier sends raw character', (
-      tester,
-    ) async {
+    testWidgets('system keyboard input without modifier sends raw character', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
 
@@ -733,6 +738,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -740,9 +747,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final barState = tester.state<SshKeyboardBarState>(
-        find.byType(SshKeyboardBar),
-      );
+      final barState = tester.state<SshKeyboardBarState>(find.byType(SshKeyboardBar));
 
       // No modifier active — raw pass-through
       expect(barState.applyModifiers('c'), 'c');
@@ -762,6 +767,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -798,6 +805,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(body: MobileTerminalView(connection: conn)),
           ),
@@ -806,9 +815,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the TerminalController via TerminalView
-      final terminalView = tester.widget<TerminalView>(
-        find.byType(TerminalView),
-      );
+      final terminalView = tester.widget<TerminalView>(find.byType(TerminalView));
       final controller = terminalView.controller!;
 
       expect(controller.suspendedPointerInputs, isFalse);

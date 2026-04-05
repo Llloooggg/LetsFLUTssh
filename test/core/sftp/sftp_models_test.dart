@@ -5,14 +5,7 @@ import 'package:letsflutssh/core/sftp/sftp_models.dart';
 void main() {
   group('FileEntry', () {
     test('modeString for zero mode', () {
-      final entry = FileEntry(
-        name: 'test',
-        path: '/test',
-        size: 0,
-        mode: 0,
-        modTime: DateTime(2025),
-        isDir: false,
-      );
+      final entry = FileEntry(name: 'test', path: '/test', size: 0, mode: 0, modTime: DateTime(2025), isDir: false);
       expect(entry.modeString, '---');
     });
 
@@ -45,32 +38,17 @@ void main() {
 
   group('TransferProgress', () {
     test('percent calculation', () {
-      const p = TransferProgress(
-        fileName: 'test',
-        totalBytes: 1000,
-        doneBytes: 500,
-        isUpload: true,
-      );
+      const p = TransferProgress(fileName: 'test', totalBytes: 1000, doneBytes: 500, isUpload: true);
       expect(p.percent, 50.0);
     });
 
     test('percent is 0 when totalBytes is 0', () {
-      const p = TransferProgress(
-        fileName: 'test',
-        totalBytes: 0,
-        doneBytes: 0,
-        isUpload: false,
-      );
+      const p = TransferProgress(fileName: 'test', totalBytes: 0, doneBytes: 0, isUpload: false);
       expect(p.percent, 0.0);
     });
 
     test('percent clamped to 100', () {
-      const p = TransferProgress(
-        fileName: 'test',
-        totalBytes: 100,
-        doneBytes: 150,
-        isUpload: true,
-      );
+      const p = TransferProgress(fileName: 'test', totalBytes: 100, doneBytes: 150, isUpload: true);
       expect(p.percent, 100.0);
     });
   });

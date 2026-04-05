@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/widgets/toast.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   Widget buildApp({required void Function(BuildContext) onPressed}) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       home: Scaffold(
         body: Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () => onPressed(context),
-            child: const Text('Show Toast'),
-          ),
+          builder: (context) => ElevatedButton(onPressed: () => onPressed(context), child: const Text('Show Toast')),
         ),
       ),
     );
@@ -22,9 +22,7 @@ void main() {
 
   group('Toast — basic display', () {
     testWidgets('shows info toast with message', (tester) async {
-      await tester.pumpWidget(
-        buildApp(onPressed: (ctx) => Toast.show(ctx, message: 'Hello info')),
-      );
+      await tester.pumpWidget(buildApp(onPressed: (ctx) => Toast.show(ctx, message: 'Hello info')));
 
       await tester.tap(find.text('Show Toast'));
       await tester.pump();
@@ -40,8 +38,7 @@ void main() {
     testWidgets('shows success toast', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          onPressed: (ctx) =>
-              Toast.show(ctx, message: 'Done!', level: ToastLevel.success),
+          onPressed: (ctx) => Toast.show(ctx, message: 'Done!', level: ToastLevel.success),
         ),
       );
 
@@ -59,8 +56,7 @@ void main() {
     testWidgets('shows warning toast', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          onPressed: (ctx) =>
-              Toast.show(ctx, message: 'Watch out', level: ToastLevel.warning),
+          onPressed: (ctx) => Toast.show(ctx, message: 'Watch out', level: ToastLevel.warning),
         ),
       );
 
@@ -78,8 +74,7 @@ void main() {
     testWidgets('shows error toast', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          onPressed: (ctx) =>
-              Toast.show(ctx, message: 'Oops', level: ToastLevel.error),
+          onPressed: (ctx) => Toast.show(ctx, message: 'Oops', level: ToastLevel.error),
         ),
       );
 
@@ -99,11 +94,7 @@ void main() {
     testWidgets('toast disappears after duration', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          onPressed: (ctx) => Toast.show(
-            ctx,
-            message: 'Temp',
-            duration: const Duration(seconds: 1),
-          ),
+          onPressed: (ctx) => Toast.show(ctx, message: 'Temp', duration: const Duration(seconds: 1)),
         ),
       );
 
@@ -122,11 +113,7 @@ void main() {
     testWidgets('auto-dismiss triggers reverse animation', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          onPressed: (ctx) => Toast.show(
-            ctx,
-            message: 'Auto Close',
-            duration: const Duration(milliseconds: 500),
-          ),
+          onPressed: (ctx) => Toast.show(ctx, message: 'Auto Close', duration: const Duration(milliseconds: 500)),
         ),
       );
 
@@ -148,11 +135,7 @@ void main() {
     testWidgets('tapping close icon dismisses toast', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          onPressed: (ctx) => Toast.show(
-            ctx,
-            message: 'Closeable',
-            duration: const Duration(seconds: 30),
-          ),
+          onPressed: (ctx) => Toast.show(ctx, message: 'Closeable', duration: const Duration(seconds: 30)),
         ),
       );
 
@@ -171,11 +154,7 @@ void main() {
     testWidgets('reverse animation completes on dismiss', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          onPressed: (ctx) => Toast.show(
-            ctx,
-            message: 'Dismiss Me',
-            duration: const Duration(seconds: 30),
-          ),
+          onPressed: (ctx) => Toast.show(ctx, message: 'Dismiss Me', duration: const Duration(seconds: 30)),
         ),
       );
 
@@ -199,24 +178,18 @@ void main() {
     testWidgets('multiple toasts stack vertically', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: Scaffold(
             body: Builder(
               builder: (context) => Column(
                 children: [
                   ElevatedButton(
-                    onPressed: () => Toast.show(
-                      context,
-                      message: 'Toast 1',
-                      duration: const Duration(seconds: 10),
-                    ),
+                    onPressed: () => Toast.show(context, message: 'Toast 1', duration: const Duration(seconds: 10)),
                     child: const Text('Toast 1'),
                   ),
                   ElevatedButton(
-                    onPressed: () => Toast.show(
-                      context,
-                      message: 'Toast 2',
-                      duration: const Duration(seconds: 10),
-                    ),
+                    onPressed: () => Toast.show(context, message: 'Toast 2', duration: const Duration(seconds: 10)),
                     child: const Text('Toast 2 btn'),
                   ),
                 ],
@@ -243,29 +216,21 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('dismissing first toast updates remaining positions', (
-      tester,
-    ) async {
+    testWidgets('dismissing first toast updates remaining positions', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: Scaffold(
             body: Builder(
               builder: (context) => Column(
                 children: [
                   ElevatedButton(
-                    onPressed: () => Toast.show(
-                      context,
-                      message: 'First',
-                      duration: const Duration(seconds: 5),
-                    ),
+                    onPressed: () => Toast.show(context, message: 'First', duration: const Duration(seconds: 5)),
                     child: const Text('Show First'),
                   ),
                   ElevatedButton(
-                    onPressed: () => Toast.show(
-                      context,
-                      message: 'Second',
-                      duration: const Duration(seconds: 5),
-                    ),
+                    onPressed: () => Toast.show(context, message: 'Second', duration: const Duration(seconds: 5)),
                     child: const Text('Show Second'),
                   ),
                 ],
@@ -304,21 +269,9 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            Toast.show(
-              ctx,
-              message: 'Stack1',
-              duration: const Duration(seconds: 2),
-            );
-            Toast.show(
-              ctx,
-              message: 'Stack2',
-              duration: const Duration(seconds: 2),
-            );
-            Toast.show(
-              ctx,
-              message: 'Stack3',
-              duration: const Duration(seconds: 2),
-            );
+            Toast.show(ctx, message: 'Stack1', duration: const Duration(seconds: 2));
+            Toast.show(ctx, message: 'Stack2', duration: const Duration(seconds: 2));
+            Toast.show(ctx, message: 'Stack3', duration: const Duration(seconds: 2));
           },
         ),
       );
@@ -340,11 +293,7 @@ void main() {
     testWidgets('toast is positioned at top-right', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          onPressed: (ctx) => Toast.show(
-            ctx,
-            message: 'Top Right',
-            duration: const Duration(seconds: 2),
-          ),
+          onPressed: (ctx) => Toast.show(ctx, message: 'Top Right', duration: const Duration(seconds: 2)),
         ),
       );
 
@@ -365,16 +314,8 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            Toast.show(
-              ctx,
-              message: 'Pos1',
-              duration: const Duration(seconds: 2),
-            );
-            Toast.show(
-              ctx,
-              message: 'Pos2',
-              duration: const Duration(seconds: 2),
-            );
+            Toast.show(ctx, message: 'Pos1', duration: const Duration(seconds: 2));
+            Toast.show(ctx, message: 'Pos2', duration: const Duration(seconds: 2));
           },
         ),
       );
@@ -383,9 +324,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
-      final positioned = tester
-          .widgetList<Positioned>(find.byType(Positioned))
-          .toList();
+      final positioned = tester.widgetList<Positioned>(find.byType(Positioned)).toList();
       // First toast at top=16, second at top=68
       expect(positioned[0].top, 16.0);
       expect(positioned[1].top, 68.0);

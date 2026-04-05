@@ -33,6 +33,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 | Use or create widgets | [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference) |
 | Use utilities | [§7 Utilities API](docs/ARCHITECTURE.md#7-utilities--public-api-reference) |
 | Work with theme / colors | [§8 Theme System](docs/ARCHITECTURE.md#8-theme-system) |
+| Add/change user-facing strings | [§8.1 i18n](docs/ARCHITECTURE.md#81-internationalization-i18n) |
 | Understand Riverpod providers | [§4 State Management](docs/ARCHITECTURE.md#4-state-management--riverpod) |
 | Understand data persistence | [§11 Persistence](docs/ARCHITECTURE.md#11-persistence--storage) |
 | Check data models | [§10 Data Models](docs/ARCHITECTURE.md#10-data-models) |
@@ -65,6 +66,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 | New CI workflow / changed pipeline | Update [§15 CI/CD](docs/ARCHITECTURE.md#15-cicd-pipeline) |
 | Platform-specific change | Update [§12 Platform-Specific](docs/ARCHITECTURE.md#12-platform-specific-behavior) |
 | New DI hook for testing | Update [§14 Testing Patterns](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks) |
+| New/changed user-facing string | Add key to `lib/l10n/app_en.arb`, run `flutter gen-l10n`, use `S.of(context).key` |
 | Architecture changed | Update this file (CLAUDE.md) if navigation links affected |
 | User-visible change | Update README.md |
 | Security scope change | Update SECURITY.md |
@@ -179,6 +181,7 @@ Custom skills and hooks live in `.claude/skills/` and `.claude/hooks/` and are c
 | Hook | Trigger | What it does |
 |------|---------|-------------|
 | `format-dart.sh` | PostToolUse on Edit/Write | Auto-runs `dart format` on .dart files after every edit |
+| `gen-l10n.sh` | PostToolUse on Edit/Write | Auto-runs `flutter gen-l10n` on .arb files after every edit |
 | `pre-commit-check.sh` | PreToolUse on `git commit *` | Runs `make check` (analyzer + tests), blocks commit on failure |
 
 ### Post-change checklist
@@ -278,4 +281,6 @@ All rules are in `analysis_options.yaml` (extends `flutter_lints/flutter.yaml`).
 - **Heights** — never hardcode height numeric literals for UI elements. Use `AppTheme` height constants: `barHeight{Sm,Md,Lg}` for bars/headers, `controlHeight{Xs..Xl}` for buttons/inputs/selectors, `itemHeight{Xs..Xl}` for rows/containers/list items. See [§8 Theme](docs/ARCHITECTURE.md#8-theme-system)
 - **Buttons & hover** — `AppIconButton` for all icon buttons (rectangular hover, no splash, disabled dimming). `HoverRegion` for custom hover containers (builder pattern). Never use bare `IconButton`, `InkWell` for buttons, or manual `MouseRegion`+`GestureDetector`+`setState(_hovered)`. Exception: `context_menu.dart` (centralized keyboard nav state), mobile touch buttons (`ssh_keyboard_bar.dart`, `mobile_file_browser.dart`, `mobile_terminal_view.dart`) → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
 - **Dialogs** — `AppDialog` for all modal dialogs (dark bg, header+close, footer+actions). Never use bare `AlertDialog`. For complex dialogs (tabs, trees), compose from `AppDialogHeader`/`AppDialogFooter`/`AppDialogAction`. Progress spinners via `AppProgressDialog.show()`. Exception: mobile touch buttons keep `Material`+`InkWell` for ripple → [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference)
+- **Localization (i18n)** — all user-facing strings MUST use `S.of(context).xxx` from `l10n/app_localizations.dart`. Never hardcode strings in widgets. Add new keys to `lib/l10n/app_en.arb`, run `flutter gen-l10n`, then use `S.of(context).newKey`. Exceptions: constructor default parameters (no context available), log messages (not user-facing), `_AlreadyRunningApp` (own MaterialApp without delegates). Tests must include `localizationsDelegates: S.localizationsDelegates, supportedLocales: S.supportedLocales` in every `MaterialApp`. See [§8.1 i18n](docs/ARCHITECTURE.md#81-internationalization-i18n)
+- **Text overflow protection** — when placing localized text in `Row` or fixed-width containers, always wrap with `Flexible`/`Expanded` and add `overflow: TextOverflow.ellipsis`. Translations can be 30-50% longer than English. For label columns use `ConstrainedBox(maxWidth:)` instead of fixed `SizedBox(width:)`
 - `.lfs` export format: `[salt 32B] [iv 12B] [encrypted ZIP + GCM tag]`, merge/replace import modes → [§3.9 Import](docs/ARCHITECTURE.md#39-import-coreimport)

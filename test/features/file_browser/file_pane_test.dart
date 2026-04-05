@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -96,6 +96,8 @@ void main() {
     CrossMarqueeController? crossMarquee,
   }) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
         body: SizedBox(
@@ -119,73 +121,17 @@ void main() {
   }
 
   List<FileEntry> makeEntries() => [
-    FileEntry(
-      name: 'docs',
-      path: '/home/docs',
-      size: 0,
-      mode: 0x41ED,
-      modTime: now,
-      isDir: true,
-    ),
-    FileEntry(
-      name: 'readme.md',
-      path: '/home/readme.md',
-      size: 1024,
-      mode: 0x81A4,
-      modTime: now,
-      isDir: false,
-    ),
-    FileEntry(
-      name: 'script.sh',
-      path: '/home/script.sh',
-      size: 512,
-      mode: 0x81ED,
-      modTime: now,
-      isDir: false,
-    ),
+    FileEntry(name: 'docs', path: '/home/docs', size: 0, mode: 0x41ED, modTime: now, isDir: true),
+    FileEntry(name: 'readme.md', path: '/home/readme.md', size: 1024, mode: 0x81A4, modTime: now, isDir: false),
+    FileEntry(name: 'script.sh', path: '/home/script.sh', size: 512, mode: 0x81ED, modTime: now, isDir: false),
   ];
 
   List<FileEntry> manyEntries() => [
-    FileEntry(
-      name: 'a.txt',
-      path: '/home/a.txt',
-      size: 100,
-      mode: 0x81A4,
-      modTime: now,
-      isDir: false,
-    ),
-    FileEntry(
-      name: 'b.txt',
-      path: '/home/b.txt',
-      size: 200,
-      mode: 0x81A4,
-      modTime: now,
-      isDir: false,
-    ),
-    FileEntry(
-      name: 'c.txt',
-      path: '/home/c.txt',
-      size: 300,
-      mode: 0x81A4,
-      modTime: now,
-      isDir: false,
-    ),
-    FileEntry(
-      name: 'd.txt',
-      path: '/home/d.txt',
-      size: 400,
-      mode: 0x81A4,
-      modTime: now,
-      isDir: false,
-    ),
-    FileEntry(
-      name: 'e.txt',
-      path: '/home/e.txt',
-      size: 500,
-      mode: 0x81A4,
-      modTime: now,
-      isDir: false,
-    ),
+    FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+    FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
+    FileEntry(name: 'c.txt', path: '/home/c.txt', size: 300, mode: 0x81A4, modTime: now, isDir: false),
+    FileEntry(name: 'd.txt', path: '/home/d.txt', size: 400, mode: 0x81A4, modTime: now, isDir: false),
+    FileEntry(name: 'e.txt', path: '/home/e.txt', size: 500, mode: 0x81A4, modTime: now, isDir: false),
   ];
 
   // ---------------------------------------------------------------------------
@@ -222,9 +168,7 @@ void main() {
   // Empty state
   // ---------------------------------------------------------------------------
   group('FilePane — empty state', () {
-    testWidgets('shows "Empty directory" when entries are empty', (
-      tester,
-    ) async {
+    testWidgets('shows "Empty directory" when entries are empty', (tester) async {
       final fs = _MockFS({'/home': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
@@ -275,14 +219,7 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
 
       fs.dirs['/broken'] = [
-        FileEntry(
-          name: 'fixed.txt',
-          path: '/broken/fixed.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'fixed.txt', path: '/broken/fixed.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       await tester.tap(find.text('Retry'));
       await tester.pump();
@@ -323,22 +260,8 @@ void main() {
   group('FilePane — file list rendering', () {
     testWidgets('renders file entries in list', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'docs',
-          path: '/home/docs',
-          size: 0,
-          mode: 0x41ED,
-          modTime: now,
-          isDir: true,
-        ),
-        FileEntry(
-          name: 'readme.md',
-          path: '/home/readme.md',
-          size: 1024,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'docs', path: '/home/docs', size: 0, mode: 0x41ED, modTime: now, isDir: true),
+        FileEntry(name: 'readme.md', path: '/home/readme.md', size: 1024, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -384,16 +307,7 @@ void main() {
 
     testWidgets('up button navigates to parent directory', (tester) async {
       final fs = _MockFS({
-        '/home': [
-          FileEntry(
-            name: 'docs',
-            path: '/home/docs',
-            size: 0,
-            mode: 0x41ED,
-            modTime: now,
-            isDir: true,
-          ),
-        ],
+        '/home': [FileEntry(name: 'docs', path: '/home/docs', size: 0, mode: 0x41ED, modTime: now, isDir: true)],
         '/home/docs': [],
         '/': [],
       });
@@ -462,14 +376,7 @@ void main() {
   group('FilePane — column headers', () {
     testWidgets('renders sortable column headers', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'readme.md',
-          path: '/home/readme.md',
-          size: 1024,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'readme.md', path: '/home/readme.md', size: 1024, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -592,9 +499,7 @@ void main() {
       expect(find.text('Owner'), findsOneWidget);
     });
 
-    testWidgets('hides Owner column when no entries have owner', (
-      tester,
-    ) async {
+    testWidgets('hides Owner column when no entries have owner', (tester) async {
       final entries = makeEntries();
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -646,30 +551,9 @@ void main() {
   group('FilePane — footer', () {
     testWidgets('shows item count and total size', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'docs',
-          path: '/home/docs',
-          size: 0,
-          mode: 0x41ED,
-          modTime: now,
-          isDir: true,
-        ),
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 2048,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
-        FileEntry(
-          name: 'big.bin',
-          path: '/home/big.bin',
-          size: 1048576,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'docs', path: '/home/docs', size: 0, mode: 0x41ED, modTime: now, isDir: true),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 2048, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'big.bin', path: '/home/big.bin', size: 1048576, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -694,22 +578,8 @@ void main() {
 
     testWidgets('shows selection count when items selected', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'a.txt',
-          path: '/home/a.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
-        FileEntry(
-          name: 'b.txt',
-          path: '/home/b.txt',
-          size: 200,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -764,16 +634,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group('FilePane — double-tap', () {
     testWidgets('double-tap on directory navigates into it', (tester) async {
-      final entries = [
-        FileEntry(
-          name: 'docs',
-          path: '/home/docs',
-          size: 0,
-          mode: 0x41ED,
-          modTime: now,
-          isDir: true,
-        ),
-      ];
+      final entries = [FileEntry(name: 'docs', path: '/home/docs', size: 0, mode: 0x41ED, modTime: now, isDir: true)];
       final fs = _MockFS({'/home': entries, '/home/docs': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
@@ -792,22 +653,13 @@ void main() {
     testWidgets('double-tap on file calls onTransfer', (tester) async {
       FileEntry? transferred;
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, onTransfer: (entry) => transferred = entry),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onTransfer: (entry) => transferred = entry));
       await tester.pump();
 
       await tester.tap(find.text('file.txt'));
@@ -826,14 +678,7 @@ void main() {
   group('FilePane — context menu on files', () {
     testWidgets('right-click on file shows context menu', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'test.txt',
-          path: '/home/test.txt',
-          size: 512,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'test.txt', path: '/home/test.txt', size: 512, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -844,10 +689,7 @@ void main() {
 
       final fileText = find.text('test.txt');
       final center = tester.getCenter(fileText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -860,16 +702,7 @@ void main() {
     });
 
     testWidgets('right-click on directory shows Open option', (tester) async {
-      final entries = [
-        FileEntry(
-          name: 'docs',
-          path: '/home/docs',
-          size: 0,
-          mode: 0x41ED,
-          modTime: now,
-          isDir: true,
-        ),
-      ];
+      final entries = [FileEntry(name: 'docs', path: '/home/docs', size: 0, mode: 0x41ED, modTime: now, isDir: true)];
       final fs = _MockFS({'/home': entries, '/home/docs': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
@@ -879,10 +712,7 @@ void main() {
 
       final dirText = find.text('docs');
       final center = tester.getCenter(dirText);
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: center);
       await gesture.down(center);
       await gesture.up();
@@ -899,14 +729,7 @@ void main() {
   group('FilePane — context menu actions', () {
     testWidgets('Open navigates into directory', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'subdir',
-          path: '/home/subdir',
-          size: 0,
-          mode: 0x41ED,
-          modTime: now,
-          isDir: true,
-        ),
+        FileEntry(name: 'subdir', path: '/home/subdir', size: 0, mode: 0x41ED, modTime: now, isDir: true),
       ];
       final fs = _MockFS({'/home': entries, '/home/subdir': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -926,14 +749,7 @@ void main() {
 
     testWidgets('New Folder opens dialog', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -956,14 +772,7 @@ void main() {
 
     testWidgets('Rename opens rename dialog', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'old.txt',
-          path: '/home/old.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'old.txt', path: '/home/old.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -986,14 +795,7 @@ void main() {
 
     testWidgets('Delete opens confirmation', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'del.txt',
-          path: '/home/del.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'del.txt', path: '/home/del.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1017,22 +819,13 @@ void main() {
     testWidgets('Transfer calls onTransfer for single file', (tester) async {
       FileEntry? transferred;
       final entries = [
-        FileEntry(
-          name: 'data.bin',
-          path: '/home/data.bin',
-          size: 1000,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'data.bin', path: '/home/data.bin', size: 1000, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, onTransfer: (entry) => transferred = entry),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onTransfer: (entry) => transferred = entry));
       await tester.pump();
 
       await tester.tap(find.text('data.bin'), buttons: kSecondaryMouseButton);
@@ -1052,22 +845,8 @@ void main() {
   group('FilePane — multi-select context menu', () {
     testWidgets('shows item count for Transfer and Delete', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'a.txt',
-          path: '/home/a.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
-        FileEntry(
-          name: 'b.txt',
-          path: '/home/b.txt',
-          size: 200,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1090,22 +869,8 @@ void main() {
     testWidgets('Transfer calls onTransferMultiple', (tester) async {
       List<FileEntry>? transferred;
       final entries = [
-        FileEntry(
-          name: 'a.txt',
-          path: '/home/a.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
-        FileEntry(
-          name: 'b.txt',
-          path: '/home/b.txt',
-          size: 200,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1113,12 +878,7 @@ void main() {
       ctrl.toggleSelect('/home/a.txt');
       ctrl.toggleSelect('/home/b.txt');
 
-      await tester.pumpWidget(
-        buildApp(
-          controller: ctrl,
-          onTransferMultiple: (entries) => transferred = entries,
-        ),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onTransferMultiple: (entries) => transferred = entries));
       await tester.pump();
 
       await tester.tap(find.text('a.txt'), buttons: kSecondaryMouseButton);
@@ -1167,10 +927,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      await tester.tap(
-        find.text('Empty directory'),
-        buttons: kSecondaryMouseButton,
-      );
+      await tester.tap(find.text('Empty directory'), buttons: kSecondaryMouseButton);
       await tester.pumpAndSettle();
 
       expect(find.text('New Folder'), findsOneWidget);
@@ -1185,21 +942,11 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      await tester.tap(
-        find.text('Empty directory'),
-        buttons: kSecondaryMouseButton,
-      );
+      await tester.tap(find.text('Empty directory'), buttons: kSecondaryMouseButton);
       await tester.pumpAndSettle();
 
       fs.dirs['/home'] = [
-        FileEntry(
-          name: 'new.txt',
-          path: '/home/new.txt',
-          size: 50,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'new.txt', path: '/home/new.txt', size: 50, mode: 0x81A4, modTime: now, isDir: false),
       ];
 
       await tester.tap(find.text('Refresh'));
@@ -1216,10 +963,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      await tester.tap(
-        find.text('Empty directory'),
-        buttons: kSecondaryMouseButton,
-      );
+      await tester.tap(find.text('Empty directory'), buttons: kSecondaryMouseButton);
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('New Folder'));
@@ -1236,9 +980,7 @@ void main() {
   // Delete key
   // ---------------------------------------------------------------------------
   group('FilePane — Delete key', () {
-    testWidgets('Del key with selected file shows delete confirmation', (
-      tester,
-    ) async {
+    testWidgets('Del key with selected file shows delete confirmation', (tester) async {
       final entries = [
         FileEntry(
           name: 'to_delete.txt',
@@ -1370,9 +1112,7 @@ void main() {
       await ctrl.init();
       var copyCalled = false;
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, onCopy: () => copyCalled = true),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onCopy: () => copyCalled = true));
       await tester.pump();
 
       await tester.tap(find.text('a.txt'));
@@ -1396,9 +1136,7 @@ void main() {
       await ctrl.init();
       var pasteCalled = false;
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, onPaste: () => pasteCalled = true),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onPaste: () => pasteCalled = true));
       await tester.pump();
 
       await tester.tap(find.text('a.txt'));
@@ -1420,14 +1158,7 @@ void main() {
   group('FilePane — drag feedback', () {
     testWidgets('selected file renders Draggable', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'a.txt',
-          path: '/home/a.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1442,14 +1173,7 @@ void main() {
 
     testWidgets('unselected file has no Draggable', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'a.txt',
-          path: '/home/a.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1463,14 +1187,7 @@ void main() {
 
     testWidgets('single selected has correct PaneDragData', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'single.txt',
-          path: '/home/single.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'single.txt', path: '/home/single.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1480,9 +1197,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'pane-X'));
       await tester.pump();
 
-      final draggable = tester.widget<Draggable<PaneDragData>>(
-        find.byType(Draggable<PaneDragData>),
-      );
+      final draggable = tester.widget<Draggable<PaneDragData>>(find.byType(Draggable<PaneDragData>));
       expect(draggable.data!.sourcePaneId, 'pane-X');
       expect(draggable.data!.entries.length, 1);
       expect(draggable.data!.entries.first.name, 'single.txt');
@@ -1490,22 +1205,8 @@ void main() {
 
     testWidgets('multiple selected carry all entries', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'a.txt',
-          path: '/home/a.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
-        FileEntry(
-          name: 'b.txt',
-          path: '/home/b.txt',
-          size: 200,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1516,9 +1217,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'pane-Y'));
       await tester.pump();
 
-      final draggables = tester.widgetList<Draggable<PaneDragData>>(
-        find.byType(Draggable<PaneDragData>),
-      );
+      final draggables = tester.widgetList<Draggable<PaneDragData>>(find.byType(Draggable<PaneDragData>));
       expect(draggables.length, 2);
 
       for (final d in draggables) {
@@ -1528,16 +1227,7 @@ void main() {
     });
 
     testWidgets('selected directory wraps in Draggable', (tester) async {
-      final entries = [
-        FileEntry(
-          name: 'mydir',
-          path: '/home/mydir',
-          size: 0,
-          mode: 0x41ED,
-          modTime: now,
-          isDir: true,
-        ),
-      ];
+      final entries = [FileEntry(name: 'mydir', path: '/home/mydir', size: 0, mode: 0x41ED, modTime: now, isDir: true)];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
@@ -1546,9 +1236,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      final draggable = tester.widget<Draggable<PaneDragData>>(
-        find.byType(Draggable<PaneDragData>),
-      );
+      final draggable = tester.widget<Draggable<PaneDragData>>(find.byType(Draggable<PaneDragData>));
       expect(draggable.data!.entries.first.isDir, isTrue);
     });
 
@@ -1564,9 +1252,7 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'pane-multi'));
       await tester.pump();
 
-      final draggables = tester.widgetList<Draggable<PaneDragData>>(
-        find.byType(Draggable<PaneDragData>),
-      );
+      final draggables = tester.widgetList<Draggable<PaneDragData>>(find.byType(Draggable<PaneDragData>));
       expect(draggables.length, 3);
       for (final d in draggables) {
         expect(d.data!.entries.length, 3);
@@ -1580,22 +1266,13 @@ void main() {
   group('FilePane — DragTarget cross-pane', () {
     testWidgets('renders with onDropReceived callback', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, paneId: 'pane-A', onDropReceived: (_) {}),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'pane-A', onDropReceived: (_) {}));
       await tester.pump();
 
       expect(find.text('file.txt'), findsOneWidget);
@@ -1603,22 +1280,13 @@ void main() {
 
     testWidgets('rejects when onDropReceived is null', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, paneId: 'pane-A', onDropReceived: null),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'pane-A', onDropReceived: null));
       await tester.pump();
 
       expect(find.text('file.txt'), findsOneWidget);
@@ -1650,9 +1318,7 @@ void main() {
       expect(find.text('a.txt'), findsOneWidget);
     });
 
-    testWidgets('pointer move past threshold activates marquee', (
-      tester,
-    ) async {
+    testWidgets('pointer move past threshold activates marquee', (tester) async {
       final entries = manyEntries();
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1677,9 +1343,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('pointer move below threshold does not activate', (
-      tester,
-    ) async {
+    testWidgets('pointer move below threshold does not activate', (tester) async {
       final entries = manyEntries();
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1727,9 +1391,7 @@ void main() {
       expect(find.text('a.txt'), findsOneWidget);
     });
 
-    testWidgets('pointer down on selected row does not set anchor', (
-      tester,
-    ) async {
+    testWidgets('pointer down on selected row does not set anchor', (tester) async {
       final entries = manyEntries();
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1755,22 +1417,8 @@ void main() {
 
     testWidgets('right-click does not trigger marquee', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'a.txt',
-          path: '/home/a.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
-        FileEntry(
-          name: 'b.txt',
-          path: '/home/b.txt',
-          size: 200,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
+        FileEntry(name: 'b.txt', path: '/home/b.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1780,10 +1428,7 @@ void main() {
       await tester.pump();
 
       final startPos = tester.getCenter(find.text('a.txt'));
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: startPos);
       await gesture.down(startPos);
       await tester.pump();
@@ -1875,9 +1520,7 @@ void main() {
       final center = tester.getCenter(find.byType(FilePane));
 
       await tester.runAsync(() async {
-        mouseListener.onPointerDown!(
-          PointerDownEvent(position: center, buttons: kBackMouseButton),
-        );
+        mouseListener.onPointerDown!(PointerDownEvent(position: center, buttons: kBackMouseButton));
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });
 
@@ -1903,9 +1546,7 @@ void main() {
       final center = tester.getCenter(find.byType(FilePane));
 
       await tester.runAsync(() async {
-        mouseListener.onPointerDown!(
-          PointerDownEvent(position: center, buttons: kForwardMouseButton),
-        );
+        mouseListener.onPointerDown!(PointerDownEvent(position: center, buttons: kForwardMouseButton));
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });
 
@@ -1925,9 +1566,7 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, onOsDropReceived: (_) {}),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onOsDropReceived: (_) {}));
       await tester.pump();
 
       expect(find.text('Empty directory'), findsOneWidget);
@@ -1951,19 +1590,10 @@ void main() {
   // Background context menu on non-empty file list
   // ---------------------------------------------------------------------------
   group('FilePane — background context menu on non-empty list', () {
-    testWidgets('right-click in empty area of non-empty list shows menu', (
-      tester,
-    ) async {
+    testWidgets('right-click in empty area of non-empty list shows menu', (tester) async {
       // Use entries that don't fill the viewport — empty area below
       final entries = [
-        FileEntry(
-          name: 'only.txt',
-          path: '/home/only.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'only.txt', path: '/home/only.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -1980,10 +1610,7 @@ void main() {
       // Click in lower area of list (below the single 28px row)
       final emptyAreaPos = Offset(listBox.center.dx, listBox.top + 80);
 
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
       await gesture.addPointer(location: emptyAreaPos);
       await gesture.down(emptyAreaPos);
       await gesture.up();
@@ -2034,14 +1661,7 @@ void main() {
       expect(find.text('Empty directory'), findsOneWidget);
 
       fs.dirs['/home'] = [
-        FileEntry(
-          name: 'new.txt',
-          path: '/home/new.txt',
-          size: 50,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'new.txt', path: '/home/new.txt', size: 50, mode: 0x81A4, modTime: now, isDir: false),
       ];
       await ctrl.refresh();
       await tester.pump();
@@ -2070,28 +1690,17 @@ void main() {
   // OS drag & drop — DropTarget callbacks
   // ---------------------------------------------------------------------------
   group('FilePane — DropTarget onDragEntered/onDragExited/onDragDone', () {
-    testWidgets('onDragEntered sets _osDragging true and shows border', (
-      tester,
-    ) async {
+    testWidgets('onDragEntered sets _osDragging true and shows border', (tester) async {
       final fs = _MockFS({'/home': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, onOsDropReceived: (_) {}),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onOsDropReceived: (_) {}));
       await tester.pump();
 
       // Find the DropTarget and invoke onDragEntered
-      final dropTarget = tester.widget<DropTarget>(
-        find.byType(DropTarget).first,
-      );
-      dropTarget.onDragEntered!(
-        DropEventDetails(
-          localPosition: Offset.zero,
-          globalPosition: Offset.zero,
-        ),
-      );
+      final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget).first);
+      dropTarget.onDragEntered!(DropEventDetails(localPosition: Offset.zero, globalPosition: Offset.zero));
       await tester.pump();
 
       // The Container should now have a border decoration (primary color)
@@ -2104,18 +1713,13 @@ void main() {
         final dec = container.decoration;
         if (dec is BoxDecoration && dec.border != null) {
           final border = dec.border as Border;
-          if (border.top.color == theme.colorScheme.primary &&
-              border.top.width == 2) {
+          if (border.top.color == theme.colorScheme.primary && border.top.width == 2) {
             foundBorder = true;
             break;
           }
         }
       }
-      expect(
-        foundBorder,
-        isTrue,
-        reason: 'Should show primary border on OS drag enter',
-      );
+      expect(foundBorder, isTrue, reason: 'Should show primary border on OS drag enter');
     });
 
     testWidgets('onDragExited reverts border decoration', (tester) async {
@@ -2123,31 +1727,17 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, onOsDropReceived: (_) {}),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onOsDropReceived: (_) {}));
       await tester.pump();
 
-      final dropTarget = tester.widget<DropTarget>(
-        find.byType(DropTarget).first,
-      );
+      final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget).first);
 
       // Enter drag
-      dropTarget.onDragEntered!(
-        DropEventDetails(
-          localPosition: Offset.zero,
-          globalPosition: Offset.zero,
-        ),
-      );
+      dropTarget.onDragEntered!(DropEventDetails(localPosition: Offset.zero, globalPosition: Offset.zero));
       await tester.pump();
 
       // Exit drag
-      dropTarget.onDragExited!(
-        DropEventDetails(
-          localPosition: Offset.zero,
-          globalPosition: Offset.zero,
-        ),
-      );
+      dropTarget.onDragExited!(DropEventDetails(localPosition: Offset.zero, globalPosition: Offset.zero));
       await tester.pump();
 
       // Verify no primary-colored border remains
@@ -2159,56 +1749,34 @@ void main() {
         final dec = container.decoration;
         if (dec is BoxDecoration && dec.border != null) {
           final border = dec.border as Border;
-          if (border.top.color == theme.colorScheme.primary &&
-              border.top.width == 2) {
+          if (border.top.color == theme.colorScheme.primary && border.top.width == 2) {
             foundOsBorder = true;
             break;
           }
         }
       }
-      expect(
-        foundOsBorder,
-        isFalse,
-        reason: 'Border should be gone after drag exit',
-      );
+      expect(foundOsBorder, isFalse, reason: 'Border should be gone after drag exit');
     });
 
-    testWidgets('onDragDone resets _osDragging and calls onOsDropReceived', (
-      tester,
-    ) async {
+    testWidgets('onDragDone resets _osDragging and calls onOsDropReceived', (tester) async {
       List<String>? receivedPaths;
       final fs = _MockFS({'/home': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(
-          controller: ctrl,
-          onOsDropReceived: (paths) => receivedPaths = paths,
-        ),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onOsDropReceived: (paths) => receivedPaths = paths));
       await tester.pump();
 
-      final dropTarget = tester.widget<DropTarget>(
-        find.byType(DropTarget).first,
-      );
+      final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget).first);
 
       // Enter drag first
-      dropTarget.onDragEntered!(
-        DropEventDetails(
-          localPosition: Offset.zero,
-          globalPosition: Offset.zero,
-        ),
-      );
+      dropTarget.onDragEntered!(DropEventDetails(localPosition: Offset.zero, globalPosition: Offset.zero));
       await tester.pump();
 
       // Now complete the drag with files
       dropTarget.onDragDone!(
         DropDoneDetails(
-          files: [
-            DropItemFile('/tmp/file1.txt'),
-            DropItemFile('/tmp/file2.txt'),
-          ],
+          files: [DropItemFile('/tmp/file1.txt'), DropItemFile('/tmp/file2.txt')],
           localPosition: Offset.zero,
           globalPosition: Offset.zero,
         ),
@@ -2230,46 +1798,26 @@ void main() {
         final dec = container.decoration;
         if (dec is BoxDecoration && dec.border != null) {
           final border = dec.border as Border;
-          if (border.top.color == theme.colorScheme.primary &&
-              border.top.width == 2) {
+          if (border.top.color == theme.colorScheme.primary && border.top.width == 2) {
             foundOsBorder = true;
             break;
           }
         }
       }
-      expect(
-        foundOsBorder,
-        isFalse,
-        reason: 'Border should be gone after drag done',
-      );
+      expect(foundOsBorder, isFalse, reason: 'Border should be gone after drag done');
     });
 
-    testWidgets('onDragDone with empty files does not call onOsDropReceived', (
-      tester,
-    ) async {
+    testWidgets('onDragDone with empty files does not call onOsDropReceived', (tester) async {
       List<String>? receivedPaths;
       final fs = _MockFS({'/home': []});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(
-          controller: ctrl,
-          onOsDropReceived: (paths) => receivedPaths = paths,
-        ),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onOsDropReceived: (paths) => receivedPaths = paths));
       await tester.pump();
 
-      final dropTarget = tester.widget<DropTarget>(
-        find.byType(DropTarget).first,
-      );
-      dropTarget.onDragDone!(
-        const DropDoneDetails(
-          files: [],
-          localPosition: Offset.zero,
-          globalPosition: Offset.zero,
-        ),
-      );
+      final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget).first);
+      dropTarget.onDragDone!(const DropDoneDetails(files: [], localPosition: Offset.zero, globalPosition: Offset.zero));
       await tester.pump();
 
       expect(receivedPaths, isNull);
@@ -2282,36 +1830,22 @@ void main() {
   group('FilePane — DragTarget onWillAcceptWithDetails', () {
     testWidgets('rejects drag when onDropReceived is null', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, paneId: 'target-pane', onDropReceived: null),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'target-pane', onDropReceived: null));
       await tester.pump();
 
       // Find the inner DragTarget<PaneDragData>
-      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
-        find.byType(DragTarget<PaneDragData>),
-      );
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(find.byType(DragTarget<PaneDragData>));
 
       // Call onWillAcceptWithDetails directly
       final result = dragTarget.onWillAcceptWithDetails!(
         DragTargetDetails<PaneDragData>(
-          data: PaneDragData(
-            sourcePaneId: 'other-pane',
-            entries: [entries.first],
-          ),
+          data: PaneDragData(sourcePaneId: 'other-pane', entries: [entries.first]),
           offset: Offset.zero,
         ),
       );
@@ -2320,76 +1854,42 @@ void main() {
 
     testWidgets('rejects drag from same pane', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, paneId: 'same-pane', onDropReceived: (_) {}),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'same-pane', onDropReceived: (_) {}));
       await tester.pump();
 
-      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
-        find.byType(DragTarget<PaneDragData>),
-      );
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(find.byType(DragTarget<PaneDragData>));
 
       final result = dragTarget.onWillAcceptWithDetails!(
         DragTargetDetails<PaneDragData>(
-          data: PaneDragData(
-            sourcePaneId: 'same-pane',
-            entries: [entries.first],
-          ),
+          data: PaneDragData(sourcePaneId: 'same-pane', entries: [entries.first]),
           offset: Offset.zero,
         ),
       );
       expect(result, isFalse);
     });
 
-    testWidgets('accepts drag from different pane with onDropReceived', (
-      tester,
-    ) async {
+    testWidgets('accepts drag from different pane with onDropReceived', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(
-          controller: ctrl,
-          paneId: 'target-pane',
-          onDropReceived: (_) {},
-        ),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'target-pane', onDropReceived: (_) {}));
       await tester.pump();
 
-      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
-        find.byType(DragTarget<PaneDragData>),
-      );
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(find.byType(DragTarget<PaneDragData>));
 
       final result = dragTarget.onWillAcceptWithDetails!(
         DragTargetDetails<PaneDragData>(
-          data: PaneDragData(
-            sourcePaneId: 'source-pane',
-            entries: [entries.first],
-          ),
+          data: PaneDragData(sourcePaneId: 'source-pane', entries: [entries.first]),
           offset: Offset.zero,
         ),
       );
@@ -2401,54 +1901,29 @@ void main() {
   // DragTarget — onAcceptWithDetails calls onDropReceived
   // ---------------------------------------------------------------------------
   group('FilePane — DragTarget onAcceptWithDetails', () {
-    testWidgets('onAcceptWithDetails calls onDropReceived with entries', (
-      tester,
-    ) async {
+    testWidgets('onAcceptWithDetails calls onDropReceived with entries', (tester) async {
       List<FileEntry>? droppedEntries;
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
       await tester.pumpWidget(
-        buildApp(
-          controller: ctrl,
-          paneId: 'target-pane',
-          onDropReceived: (e) => droppedEntries = e,
-        ),
+        buildApp(controller: ctrl, paneId: 'target-pane', onDropReceived: (e) => droppedEntries = e),
       );
       await tester.pump();
 
-      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
-        find.byType(DragTarget<PaneDragData>),
-      );
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(find.byType(DragTarget<PaneDragData>));
 
       final sourceEntries = [
-        FileEntry(
-          name: 'remote.txt',
-          path: '/remote/remote.txt',
-          size: 200,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'remote.txt', path: '/remote/remote.txt', size: 200, mode: 0x81A4, modTime: now, isDir: false),
       ];
 
       dragTarget.onAcceptWithDetails!(
         DragTargetDetails<PaneDragData>(
-          data: PaneDragData(
-            sourcePaneId: 'source-pane',
-            entries: sourceEntries,
-          ),
+          data: PaneDragData(sourcePaneId: 'source-pane', entries: sourceEntries),
           offset: Offset.zero,
         ),
       );
@@ -2464,44 +1939,23 @@ void main() {
   // DragTarget — hover state decoration (isHovering)
   // ---------------------------------------------------------------------------
   group('FilePane — DragTarget hover decoration', () {
-    testWidgets('builder shows border when candidateData is non-empty', (
-      tester,
-    ) async {
+    testWidgets('builder shows border when candidateData is non-empty', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(
-          controller: ctrl,
-          paneId: 'target-pane',
-          onDropReceived: (_) {},
-        ),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'target-pane', onDropReceived: (_) {}));
       await tester.pump();
 
-      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
-        find.byType(DragTarget<PaneDragData>),
-      );
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(find.byType(DragTarget<PaneDragData>));
 
       // Call the builder with non-empty candidateData to simulate hover
-      final hoverWidget = dragTarget.builder(
-        tester.element(find.byType(DragTarget<PaneDragData>)),
-        [
-          PaneDragData(sourcePaneId: 'source-pane', entries: [entries.first]),
-        ],
-        [],
-      );
+      final hoverWidget = dragTarget.builder(tester.element(find.byType(DragTarget<PaneDragData>)), [
+        PaneDragData(sourcePaneId: 'source-pane', entries: [entries.first]),
+      ], []);
 
       // The returned widget should be a Container with a BoxDecoration border
       expect(hoverWidget, isA<Container>());
@@ -2513,42 +1967,21 @@ void main() {
       expect(border.top.width, 2);
     });
 
-    testWidgets('builder shows no border when candidateData is empty', (
-      tester,
-    ) async {
+    testWidgets('builder shows no border when candidateData is empty', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/home/file.txt',
-          size: 100,
-          mode: 0x81A4,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'file.txt', path: '/home/file.txt', size: 100, mode: 0x81A4, modTime: now, isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
-      await tester.pumpWidget(
-        buildApp(
-          controller: ctrl,
-          paneId: 'target-pane',
-          onDropReceived: (_) {},
-        ),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, paneId: 'target-pane', onDropReceived: (_) {}));
       await tester.pump();
 
-      final dragTarget = tester.widget<DragTarget<PaneDragData>>(
-        find.byType(DragTarget<PaneDragData>),
-      );
+      final dragTarget = tester.widget<DragTarget<PaneDragData>>(find.byType(DragTarget<PaneDragData>));
 
       // Call the builder with empty candidateData (no hover)
-      final noHoverWidget = dragTarget.builder(
-        tester.element(find.byType(DragTarget<PaneDragData>)),
-        [],
-        [],
-      );
+      final noHoverWidget = dragTarget.builder(tester.element(find.byType(DragTarget<PaneDragData>)), [], []);
 
       expect(noHoverWidget, isA<Container>());
       final container = noHoverWidget as Container;
@@ -2560,9 +1993,7 @@ void main() {
   // Ctrl+tap selection
   // ---------------------------------------------------------------------------
   group('FilePane — Ctrl+tap toggles selection', () {
-    testWidgets('Ctrl+tap on file row calls toggleSelect via onCtrlTap', (
-      tester,
-    ) async {
+    testWidgets('Ctrl+tap on file row calls toggleSelect via onCtrlTap', (tester) async {
       final entries = manyEntries();
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -2600,18 +2031,9 @@ void main() {
   // Click on empty space clears selection
   // ---------------------------------------------------------------------------
   group('FilePane — click empty space clears selection', () {
-    testWidgets('clicking empty area below files clears selection', (
-      tester,
-    ) async {
+    testWidgets('clicking empty area below files clears selection', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'a.txt',
-          path: '/home/a.txt',
-          size: 10,
-          mode: 0x81A4,
-          modTime: DateTime(2024),
-          isDir: false,
-        ),
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 10, mode: 0x81A4, modTime: DateTime(2024), isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
@@ -2652,27 +2074,16 @@ void main() {
   // onPaneActivated callback
   // ---------------------------------------------------------------------------
   group('FilePane — onPaneActivated', () {
-    testWidgets('fires onPaneActivated when interacting with file list', (
-      tester,
-    ) async {
+    testWidgets('fires onPaneActivated when interacting with file list', (tester) async {
       final entries = [
-        FileEntry(
-          name: 'a.txt',
-          path: '/home/a.txt',
-          size: 10,
-          mode: 0x81A4,
-          modTime: DateTime(2024),
-          isDir: false,
-        ),
+        FileEntry(name: 'a.txt', path: '/home/a.txt', size: 10, mode: 0x81A4, modTime: DateTime(2024), isDir: false),
       ];
       final fs = _MockFS({'/home': entries});
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.init();
 
       var activated = false;
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, onPaneActivated: () => activated = true),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onPaneActivated: () => activated = true));
       await tester.pump();
 
       await tester.tap(find.text('a.txt'));
@@ -2689,9 +2100,7 @@ void main() {
       await ctrl.init();
 
       var activated = false;
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, onPaneActivated: () => activated = true),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, onPaneActivated: () => activated = true));
       await tester.pump();
 
       await tester.tap(find.text('Empty directory'));
@@ -2714,9 +2123,7 @@ void main() {
       final crossMarquee = CrossMarqueeController();
       addTearDown(crossMarquee.dispose);
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, crossMarquee: crossMarquee),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, crossMarquee: crossMarquee));
       await tester.pump();
 
       // Get the global position of the file list area
@@ -2746,9 +2153,7 @@ void main() {
       final crossMarquee = CrossMarqueeController();
       addTearDown(crossMarquee.dispose);
 
-      await tester.pumpWidget(
-        buildApp(controller: ctrl, crossMarquee: crossMarquee),
-      );
+      await tester.pumpWidget(buildApp(controller: ctrl, crossMarquee: crossMarquee));
       await tester.pump();
 
       final pane = find.byType(FilePane);
@@ -2856,6 +2261,8 @@ void main() {
       // Very narrow — only name should show
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -2883,25 +2290,21 @@ void main() {
   // Folder size display
   // ===========================================================================
   group('FilePane — folder sizes', () {
-    testWidgets('shows loading indicator when showFolderSizes enabled', (
-      tester,
-    ) async {
+    testWidgets('shows loading indicator when showFolderSizes enabled', (tester) async {
       final fs = _MockFS({'/home': makeEntries()});
       final ctrl = FilePaneController(fs: fs, label: 'L');
       await ctrl.init();
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
               width: 600,
               height: 400,
-              child: FilePane(
-                controller: ctrl,
-                paneId: 'test',
-                showFolderSizes: true,
-              ),
+              child: FilePane(controller: ctrl, paneId: 'test', showFolderSizes: true),
             ),
           ),
         ),
@@ -2924,9 +2327,7 @@ void main() {
   // _isWindowsPath static helper
   // ===========================================================================
   group('FilePane — Windows path detection', () {
-    testWidgets('Windows path shows backslash separator and drive label', (
-      tester,
-    ) async {
+    testWidgets('Windows path shows backslash separator and drive label', (tester) async {
       final fs = _WindowsMockFS({'C:\\Users\\test': makeEntries()});
       final ctrl = FilePaneController(fs: fs, label: 'L');
       await ctrl.init();

@@ -24,11 +24,7 @@ void main() {
     test('creates with required fields', () {
       final first = LeafNode(id: 'a');
       final second = LeafNode(id: 'b');
-      final branch = BranchNode(
-        direction: SplitDirection.horizontal,
-        first: first,
-        second: second,
-      );
+      final branch = BranchNode(direction: SplitDirection.horizontal, first: first, second: second);
       expect(branch.direction, SplitDirection.horizontal);
       expect(branch.ratio, 0.5);
       expect(branch.first, first);
@@ -85,12 +81,7 @@ void main() {
     test('replaces first child of branch', () {
       final first = LeafNode(id: 'a');
       final second = LeafNode(id: 'b');
-      final root = BranchNode(
-        id: 'branch',
-        direction: SplitDirection.horizontal,
-        first: first,
-        second: second,
-      );
+      final root = BranchNode(id: 'branch', direction: SplitDirection.horizontal, first: first, second: second);
       final replacement = LeafNode(id: 'new-a');
       final result = replaceNode(root, 'a', replacement) as BranchNode;
       expect(result.id, 'branch');
@@ -161,8 +152,7 @@ void main() {
         first: LeafNode(id: 'a'),
         second: LeafNode(id: 'b'),
       );
-      final result =
-          replaceNode(root, 'a', LeafNode(id: 'new-a')) as BranchNode;
+      final result = replaceNode(root, 'a', LeafNode(id: 'new-a')) as BranchNode;
       expect(result.direction, SplitDirection.vertical);
       expect(result.ratio, 0.3);
     });

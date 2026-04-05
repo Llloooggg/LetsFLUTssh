@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../utils/platform.dart';
@@ -119,7 +120,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Quick Connect',
+                    S.of(context).quickConnect,
                     style: AppFonts.inter(
                       fontSize: AppFonts.lg,
                       fontWeight: FontWeight.w600,
@@ -139,9 +140,9 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       children: [
                         Expanded(
                           child: _field(
-                            'Host *',
+                            S.of(context).hostRequired,
                             _hostCtrl,
-                            hint: '192.168.1.1',
+                            hint: S.of(context).hintHost,
                             validator: _requiredValidator,
                           ),
                         ),
@@ -149,14 +150,14 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                         SizedBox(
                           width: 80,
                           child: _field(
-                            'Port',
+                            S.of(context).port,
                             _portCtrl,
-                            hint: '22',
+                            hint: S.of(context).hintPort,
                             keyboardType: TextInputType.number,
                             validator: (v) {
                               final port = int.tryParse(v ?? '');
                               if (port == null || port < 1 || port > 65535) {
-                                return '1-65535';
+                                return S.of(context).portRange;
                               }
                               return null;
                             },
@@ -166,16 +167,16 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                     ),
                     const SizedBox(height: 12),
                     _field(
-                      'Username *',
+                      S.of(context).usernameRequired,
                       _userCtrl,
-                      hint: 'root',
+                      hint: S.of(context).hintUsername,
                       validator: _requiredValidator,
                     ),
                     const SizedBox(height: 12),
                     _field(
-                      'Password',
+                      S.of(context).password,
                       _passwordCtrl,
-                      hint: '••••••••',
+                      hint: S.of(context).hintPassword,
                       obscure: _obscurePassword,
                       suffixIcon: GestureDetector(
                         onTap: () => setState(
@@ -197,9 +198,9 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                     if (_showKeyText) ...[
                       TextFormField(
                         controller: _keyDataCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Key Text (PEM)',
-                          hintText: '-----BEGIN OPENSSH PRIVATE KEY-----',
+                        decoration: InputDecoration(
+                          labelText: S.of(context).keyTextPem,
+                          hintText: S.of(context).hintPemKey,
                           alignLabelWithHint: true,
                         ),
                         maxLines: 5,
@@ -211,9 +212,9 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       const SizedBox(height: 12),
                     ],
                     _field(
-                      'Key Passphrase',
+                      S.of(context).keyPassphrase,
                       _passphraseCtrl,
-                      hint: 'Optional',
+                      hint: S.of(context).hintOptional,
                       obscure: _obscurePassphrase,
                       suffixIcon: GestureDetector(
                         onTap: () => setState(
@@ -245,7 +246,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           alignment: Alignment.center,
                           color: AppTheme.bg3,
                           child: Text(
-                            'Cancel',
+                            S.of(context).cancel,
                             style: AppFonts.inter(
                               fontSize: AppFonts.md,
                               fontWeight: FontWeight.w500,
@@ -264,7 +265,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           alignment: Alignment.center,
                           color: AppTheme.accent,
                           child: Text(
-                            'Connect',
+                            S.of(context).connect,
                             style: AppFonts.inter(
                               fontSize: AppFonts.md,
                               fontWeight: FontWeight.w500,
@@ -295,7 +296,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
             onPressed: _pickKeyFile,
             icon: Icon(hasKey ? Icons.vpn_key : Icons.folder_open, size: 18),
             label: Text(
-              fileName ?? 'Select Key File',
+              fileName ?? S.of(context).selectKeyFile,
               overflow: TextOverflow.ellipsis,
             ),
             style: OutlinedButton.styleFrom(
@@ -308,7 +309,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
           AppIconButton(
             icon: Icons.close,
             onTap: () => setState(() => _keyPathCtrl.clear()),
-            tooltip: 'Clear key file',
+            tooltip: S.of(context).clearKeyFile,
             size: 18,
           ),
       ],
@@ -325,15 +326,17 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
           size: 16,
         ),
         label: Text(
-          _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
+          _showKeyText
+              ? S.of(context).hidePemText
+              : S.of(context).pastePemKeyText,
           style: TextStyle(fontSize: AppFonts.md),
         ),
       ),
     );
   }
 
-  static String? _requiredValidator(String? v) =>
-      v == null || v.trim().isEmpty ? 'Required' : null;
+  String? Function(String?) get _requiredValidator =>
+      (v) => v == null || v.trim().isEmpty ? S.of(context).required : null;
 
   Widget _field(
     String label,

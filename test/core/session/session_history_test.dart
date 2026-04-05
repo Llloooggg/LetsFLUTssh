@@ -13,15 +13,8 @@ void main() {
     server: const ServerAddress(host: '10.0.0.1', user: 'root'),
   );
 
-  SessionSnapshot makeSnap(
-    List<Session> sessions, {
-    Set<String> folders = const {},
-    String desc = 'op',
-  }) => SessionSnapshot(
-    sessions: sessions,
-    emptyFolders: folders,
-    description: desc,
-  );
+  SessionSnapshot makeSnap(List<Session> sessions, {Set<String> folders = const {}, String desc = 'op'}) =>
+      SessionSnapshot(sessions: sessions, emptyFolders: folders, description: desc);
 
   setUp(() {
     history = SessionHistory();
@@ -43,10 +36,7 @@ void main() {
     });
 
     test('undo returns snapshot and enables redo', () {
-      final before = makeSnap([
-        makeSession('1'),
-        makeSession('2'),
-      ], desc: 'before delete');
+      final before = makeSnap([makeSession('1'), makeSession('2')], desc: 'before delete');
       history.pushUndo(before);
 
       // Current state: session 1 was deleted
@@ -61,18 +51,13 @@ void main() {
     });
 
     test('redo returns snapshot', () {
-      final before = makeSnap([
-        makeSession('1'),
-        makeSession('2'),
-      ], desc: 'before');
+      final before = makeSnap([makeSession('1'), makeSession('2')], desc: 'before');
       history.pushUndo(before);
       final afterDelete = makeSnap([makeSession('2')], desc: 'after delete');
       history.undo(afterDelete);
 
       // Now redo
-      final restored = history.redo(
-        makeSnap([makeSession('1'), makeSession('2')], desc: 'current'),
-      );
+      final restored = history.redo(makeSnap([makeSession('1'), makeSession('2')], desc: 'current'));
       expect(restored, isNotNull);
       expect(restored!.sessions.length, 1); // back to deleted state
       expect(history.canRedo, isFalse);
@@ -100,11 +85,7 @@ void main() {
     test('multiple undo/redo roundtrip', () {
       final s1 = makeSnap([makeSession('1')], desc: 'step1');
       final s2 = makeSnap([makeSession('1'), makeSession('2')], desc: 'step2');
-      final s3 = makeSnap([
-        makeSession('1'),
-        makeSession('2'),
-        makeSession('3'),
-      ], desc: 'step3');
+      final s3 = makeSnap([makeSession('1'), makeSession('2'), makeSession('3')], desc: 'step3');
 
       history.pushUndo(s1);
       history.pushUndo(s2);
@@ -150,11 +131,7 @@ void main() {
     });
 
     test('preserves empty folders in snapshot', () {
-      final snap = makeSnap(
-        [makeSession('1')],
-        folders: {'Production', 'Dev'},
-        desc: 'with folders',
-      );
+      final snap = makeSnap([makeSession('1')], folders: {'Production', 'Dev'}, desc: 'with folders');
       history.pushUndo(snap);
       final restored = history.undo(makeSnap([], desc: 'current'));
       expect(restored!.emptyFolders, {'Production', 'Dev'});
@@ -163,11 +140,7 @@ void main() {
 
   group('SessionSnapshot', () {
     test('holds sessions and folders', () {
-      final snap = SessionSnapshot(
-        sessions: [makeSession('1')],
-        emptyFolders: {'A/B'},
-        description: 'test',
-      );
+      final snap = SessionSnapshot(sessions: [makeSession('1')], emptyFolders: {'A/B'}, description: 'test');
       expect(snap.sessions.length, 1);
       expect(snap.emptyFolders, {'A/B'});
       expect(snap.description, 'test');

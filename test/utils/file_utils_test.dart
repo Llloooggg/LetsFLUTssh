@@ -43,11 +43,7 @@ void main() {
     test('preserves content on concurrent writes', () async {
       final path = '${tempDir.path}/test.txt';
       // Write multiple times; final file should have last content
-      await Future.wait([
-        writeFileAtomic(path, 'a'),
-        writeFileAtomic(path, 'b'),
-        writeFileAtomic(path, 'c'),
-      ]);
+      await Future.wait([writeFileAtomic(path, 'a'), writeFileAtomic(path, 'b'), writeFileAtomic(path, 'c')]);
       final content = File(path).readAsStringSync();
       expect(content.length, 1); // one of a, b, c — not corrupted
     });
@@ -100,10 +96,7 @@ void main() {
 
     test('handles non-existent file gracefully', () {
       // Should not throw — logs error internally
-      expect(
-        () => restrictFilePermissions('${tempDir.path}/no_such_file'),
-        returnsNormally,
-      );
+      expect(() => restrictFilePermissions('${tempDir.path}/no_such_file'), returnsNormally);
     });
   });
 }

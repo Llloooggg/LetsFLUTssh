@@ -4,20 +4,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/mobile/ssh_keyboard_bar.dart';
 import 'package:letsflutssh/features/mobile/ssh_key_sequences.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   // Suppress HapticFeedback calls in tests
   setUp(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          SystemChannels.platform,
-          (call) async => null,
-        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async => null,
+    );
   });
 
   tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    );
   });
 
   Widget buildApp({
@@ -27,6 +29,8 @@ void main() {
     ValueChanged<bool>? onSelectModeChanged,
   }) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
         body: SshKeyboardBar(
@@ -158,9 +162,7 @@ void main() {
       expect(find.text('F1'), findsNothing);
     });
 
-    testWidgets('F1 sends correct sequence when Fn row is open', (
-      tester,
-    ) async {
+    testWidgets('F1 sends correct sequence when Fn row is open', (tester) async {
       String? sent;
       await tester.pumpWidget(buildApp(onInput: (s) => sent = s));
       // Open Fn row
@@ -259,9 +261,7 @@ void main() {
   });
 
   group('SshKeyboardBar — layout', () {
-    testWidgets('main row keys are inside a horizontal ListView', (
-      tester,
-    ) async {
+    testWidgets('main row keys are inside a horizontal ListView', (tester) async {
       await tester.pumpWidget(buildApp(onInput: (_) {}));
       // The main row should contain a horizontal ListView for scrollable keys
       final listViews = find.byType(ListView);
@@ -292,9 +292,7 @@ void main() {
       expect(insideListView, isFalse);
     });
 
-    testWidgets('F-keys row appears with its own ListView when Fn active', (
-      tester,
-    ) async {
+    testWidgets('F-keys row appears with its own ListView when Fn active', (tester) async {
       await tester.pumpWidget(buildApp(onInput: (_) {}));
 
       // Initially one ListView (main row)
@@ -310,9 +308,7 @@ void main() {
   });
 
   group('SshKeyboardBar — applyModifiers for system keyboard', () {
-    testWidgets('applyModifiers returns raw data when no modifier active', (
-      tester,
-    ) async {
+    testWidgets('applyModifiers returns raw data when no modifier active', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
       await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
 
@@ -343,10 +339,7 @@ void main() {
       await tester.pump();
 
       // First call applies Ctrl
-      expect(
-        key.currentState!.applyModifiers('c'),
-        SshKeySequences.ctrlKey('c'),
-      );
+      expect(key.currentState!.applyModifiers('c'), SshKeySequences.ctrlKey('c'));
       await tester.pump(); // process setState
 
       // Second call — modifier consumed, raw char
@@ -360,10 +353,7 @@ void main() {
       await tester.tap(find.text('Alt'));
       await tester.pump();
 
-      expect(
-        key.currentState!.applyModifiers('x'),
-        SshKeySequences.altKey('x'),
-      );
+      expect(key.currentState!.applyModifiers('x'), SshKeySequences.altKey('x'));
     });
 
     testWidgets('applyModifiers skips multi-char strings', (tester) async {
@@ -377,9 +367,7 @@ void main() {
       expect(key.currentState!.applyModifiers('hello'), 'hello');
     });
 
-    testWidgets('applyModifiers with locked Ctrl persists across calls', (
-      tester,
-    ) async {
+    testWidgets('applyModifiers with locked Ctrl persists across calls', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
       await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
 
@@ -389,20 +377,11 @@ void main() {
       await tester.tap(find.text('Ctrl'));
       await tester.pump();
 
-      expect(
-        key.currentState!.applyModifiers('a'),
-        SshKeySequences.ctrlKey('a'),
-      );
+      expect(key.currentState!.applyModifiers('a'), SshKeySequences.ctrlKey('a'));
       await tester.pump();
-      expect(
-        key.currentState!.applyModifiers('c'),
-        SshKeySequences.ctrlKey('c'),
-      );
+      expect(key.currentState!.applyModifiers('c'), SshKeySequences.ctrlKey('c'));
       await tester.pump();
-      expect(
-        key.currentState!.applyModifiers('d'),
-        SshKeySequences.ctrlKey('d'),
-      );
+      expect(key.currentState!.applyModifiers('d'), SshKeySequences.ctrlKey('d'));
     });
   });
 
@@ -412,23 +391,18 @@ void main() {
       expect(find.byIcon(Icons.select_all), findsOneWidget);
     });
 
-    testWidgets(
-      'tapping select button toggles select mode and fires callback',
-      (tester) async {
-        final modes = <bool>[];
-        await tester.pumpWidget(
-          buildApp(onInput: (_) {}, onSelectModeChanged: modes.add),
-        );
+    testWidgets('tapping select button toggles select mode and fires callback', (tester) async {
+      final modes = <bool>[];
+      await tester.pumpWidget(buildApp(onInput: (_) {}, onSelectModeChanged: modes.add));
 
-        await tester.tap(find.byIcon(Icons.select_all));
-        await tester.pump();
-        expect(modes, [true]);
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+      expect(modes, [true]);
 
-        await tester.tap(find.byIcon(Icons.select_all));
-        await tester.pump();
-        expect(modes, [true, false]);
-      },
-    );
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+      expect(modes, [true, false]);
+    });
 
     testWidgets('selectMode getter reflects state', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
@@ -445,18 +419,10 @@ void main() {
       expect(key.currentState!.selectMode, isFalse);
     });
 
-    testWidgets('exitSelectMode resets state and fires callback', (
-      tester,
-    ) async {
+    testWidgets('exitSelectMode resets state and fires callback', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
       final modes = <bool>[];
-      await tester.pumpWidget(
-        buildApp(
-          onInput: (_) {},
-          keyboardKey: key,
-          onSelectModeChanged: modes.add,
-        ),
-      );
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key, onSelectModeChanged: modes.add));
 
       // Activate select mode
       await tester.tap(find.byIcon(Icons.select_all));
@@ -473,13 +439,7 @@ void main() {
     testWidgets('exitSelectMode is no-op when already off', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
       final modes = <bool>[];
-      await tester.pumpWidget(
-        buildApp(
-          onInput: (_) {},
-          keyboardKey: key,
-          onSelectModeChanged: modes.add,
-        ),
-      );
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key, onSelectModeChanged: modes.add));
 
       key.currentState!.exitSelectMode();
       await tester.pump();
@@ -495,9 +455,7 @@ void main() {
 
     testWidgets('tapping paste button fires onPaste callback', (tester) async {
       var pasteCalled = false;
-      await tester.pumpWidget(
-        buildApp(onInput: (_) {}, onPaste: () => pasteCalled = true),
-      );
+      await tester.pumpWidget(buildApp(onInput: (_) {}, onPaste: () => pasteCalled = true));
 
       await tester.tap(find.byIcon(Icons.paste));
       await tester.pump();

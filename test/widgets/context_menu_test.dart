@@ -2,29 +2,23 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/context_menu.dart';
 
 void main() {
   Widget wrap(Widget child) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(body: child),
     );
   }
 
-  List<ContextMenuItem> testItems({
-    VoidCallback? onCopy,
-    VoidCallback? onPaste,
-  }) {
+  List<ContextMenuItem> testItems({VoidCallback? onCopy, VoidCallback? onPaste}) {
     return [
-      ContextMenuItem(
-        label: 'Copy',
-        icon: Icons.copy,
-        shortcut: 'Ctrl+C',
-        onTap: onCopy,
-      ),
+      ContextMenuItem(label: 'Copy', icon: Icons.copy, shortcut: 'Ctrl+C', onTap: onCopy),
       const ContextMenuItem.divider(),
       ContextMenuItem(label: 'Paste', icon: Icons.paste, onTap: onPaste),
     ];
@@ -41,11 +35,7 @@ void main() {
       wrap(
         Builder(
           builder: (ctx) => ElevatedButton(
-            onPressed: () => showAppContextMenu(
-              context: ctx,
-              position: const Offset(100, 100),
-              items: menuItems,
-            ),
+            onPressed: () => showAppContextMenu(context: ctx, position: const Offset(100, 100), items: menuItems),
             child: const Text('Open'),
           ),
         ),
@@ -180,9 +170,7 @@ void main() {
       await sendKey(tester, LogicalKeyboardKey.arrowDown);
 
       final containers = tester.widgetList<Container>(find.byType(Container));
-      final highlighted = containers.where(
-        (c) => c.color == AppTheme.selection,
-      );
+      final highlighted = containers.where((c) => c.color == AppTheme.selection);
       expect(highlighted, isNotEmpty);
     });
 
@@ -280,16 +268,8 @@ void main() {
       expect(find.text('Copy'), findsNothing);
     });
 
-    testWidgets('keyboard navigation with all dividers does nothing', (
-      tester,
-    ) async {
-      await openMenu(
-        tester,
-        items: [
-          const ContextMenuItem.divider(),
-          const ContextMenuItem.divider(),
-        ],
-      );
+    testWidgets('keyboard navigation with all dividers does nothing', (tester) async {
+      await openMenu(tester, items: [const ContextMenuItem.divider(), const ContextMenuItem.divider()]);
 
       await sendKey(tester, LogicalKeyboardKey.arrowDown);
       await tester.pump();
@@ -309,9 +289,7 @@ void main() {
       await tester.pump();
 
       final containers = tester.widgetList<Container>(find.byType(Container));
-      final highlighted = containers.where(
-        (c) => c.color == AppTheme.selection,
-      );
+      final highlighted = containers.where((c) => c.color == AppTheme.selection);
       expect(highlighted, isNotEmpty);
     });
 
@@ -329,9 +307,7 @@ void main() {
       await tester.pump();
 
       final containers = tester.widgetList<Container>(find.byType(Container));
-      final highlighted = containers.where(
-        (c) => c.color == AppTheme.selection,
-      );
+      final highlighted = containers.where((c) => c.color == AppTheme.selection);
       expect(highlighted, isEmpty);
     });
 

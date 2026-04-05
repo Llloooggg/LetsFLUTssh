@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/sftp/sftp_models.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
@@ -91,9 +92,9 @@ class FilePaneDialogs {
   ) async {
     final result = await _showTextInputDialog(
       context,
-      title: 'New Folder',
-      label: 'Folder name',
-      confirmText: 'Create',
+      title: S.of(context).newFolder,
+      label: S.of(context).folderName,
+      confirmText: S.of(context).create,
     );
 
     if (result != null && result.isNotEmpty) {
@@ -110,7 +111,7 @@ class FilePaneDialogs {
         if (context.mounted) {
           Toast.show(
             context,
-            message: 'Failed to create folder: ${sanitizeError(e)}',
+            message: S.of(context).failedToCreateFolder(sanitizeError(e)),
             level: ToastLevel.error,
           );
         }
@@ -126,9 +127,9 @@ class FilePaneDialogs {
   ) async {
     final result = await _showTextInputDialog(
       context,
-      title: 'Rename',
-      label: 'New name',
-      confirmText: 'Rename',
+      title: S.of(context).rename,
+      label: S.of(context).newName,
+      confirmText: S.of(context).rename,
       initialValue: entry.name,
     );
 
@@ -146,7 +147,7 @@ class FilePaneDialogs {
         if (context.mounted) {
           Toast.show(
             context,
-            message: 'Failed to rename: ${sanitizeError(e)}',
+            message: S.of(context).failedToRename(sanitizeError(e)),
             level: ToastLevel.error,
           );
         }
@@ -166,15 +167,15 @@ class FilePaneDialogs {
     final confirmed = await AppDialog.show<bool>(
       context,
       builder: (ctx) => AppDialog(
-        title: 'Delete',
+        title: S.of(context).delete,
         content: Text(
-          'Delete $names?',
+          S.of(context).deleteItems(names),
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
         ),
         actions: [
           AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
           AppDialogAction.destructive(
-            label: 'Delete',
+            label: S.of(context).delete,
             onTap: () => Navigator.of(ctx).pop(true),
           ),
         ],
@@ -207,7 +208,7 @@ class FilePaneDialogs {
           name: 'FilePane',
           error: e,
         );
-        errors.add('Failed to delete ${entry.name}: $e');
+        errors.add(S.of(context).failedToDeleteItem(entry.name, e.toString()));
       }
     }
     if (errors.isNotEmpty && context.mounted) {
@@ -236,8 +237,8 @@ class FilePaneDialogs {
   ) {
     if (deleted > 0 && context.mounted) {
       final msg = deleted == 1
-          ? 'Deleted ${entries.first.name}'
-          : 'Deleted $deleted items';
+          ? S.of(context).deletedItem(entries.first.name)
+          : S.of(context).deletedNItems(deleted);
       Toast.show(context, message: msg, level: ToastLevel.success);
     }
   }

@@ -5,6 +5,7 @@ import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/qr_display_screen.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   final testPayload = wrapInDeepLink(
@@ -18,6 +19,8 @@ void main() {
 
   Widget buildApp({required String data, int sessionCount = 1}) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       home: QrDisplayScreen(data: data, sessionCount: sessionCount),
     );
   }
@@ -62,14 +65,12 @@ void main() {
     testWidgets('static show method navigates to screen', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () => QrDisplayScreen.show(
-                  context,
-                  data: testPayload,
-                  sessionCount: 5,
-                ),
+                onPressed: () => QrDisplayScreen.show(context, data: testPayload, sessionCount: 5),
                 child: const Text('Show'),
               ),
             ),
@@ -87,6 +88,8 @@ void main() {
     testWidgets('works with dark theme', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: ThemeData.dark(),
           home: QrDisplayScreen(data: testPayload, sessionCount: 1),
         ),
@@ -99,6 +102,8 @@ void main() {
     testWidgets('works with light theme', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: ThemeData.light(),
           home: QrDisplayScreen(data: testPayload, sessionCount: 1),
         ),
@@ -118,15 +123,12 @@ void main() {
 
     testWidgets('Copy Link button copies data to clipboard', (tester) async {
       String? clipboardContent;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            clipboardContent = (call.arguments as Map)['text'] as String;
-          }
-          return null;
-        },
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          clipboardContent = (call.arguments as Map)['text'] as String;
+        }
+        return null;
+      });
 
       await tester.pumpWidget(buildApp(data: testPayload));
       await tester.pumpAndSettle();
