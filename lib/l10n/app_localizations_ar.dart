@@ -822,4 +822,178 @@ class SAr extends S {
 
   @override
   String get failed => 'فشل';
+
+  @override
+  String get errOperationNotPermitted => 'العملية غير مسموح بها';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'لا يوجد ملف أو مجلد بهذا الاسم';
+
+  @override
+  String get errNoSuchProcess => 'لا توجد عملية بهذا المعرّف';
+
+  @override
+  String get errIoError => 'خطأ في الإدخال/الإخراج';
+
+  @override
+  String get errBadFileDescriptor => 'واصف ملف غير صالح';
+
+  @override
+  String get errResourceTemporarilyUnavailable => 'المورد غير متاح مؤقتاً';
+
+  @override
+  String get errOutOfMemory => 'نفدت الذاكرة';
+
+  @override
+  String get errPermissionDenied => 'تم رفض الإذن';
+
+  @override
+  String get errFileExists => 'الملف موجود بالفعل';
+
+  @override
+  String get errNotADirectory => 'ليس مجلداً';
+
+  @override
+  String get errIsADirectory => 'هو مجلد';
+
+  @override
+  String get errInvalidArgument => 'وسيطة غير صالحة';
+
+  @override
+  String get errTooManyOpenFiles => 'عدد الملفات المفتوحة كبير جداً';
+
+  @override
+  String get errNoSpaceLeftOnDevice => 'لا توجد مساحة متبقية على الجهاز';
+
+  @override
+  String get errReadOnlyFileSystem => 'نظام ملفات للقراءة فقط';
+
+  @override
+  String get errBrokenPipe => 'أنبوب مكسور';
+
+  @override
+  String get errFileNameTooLong => 'اسم الملف طويل جداً';
+
+  @override
+  String get errDirectoryNotEmpty => 'المجلد ليس فارغاً';
+
+  @override
+  String get errAddressAlreadyInUse => 'العنوان مستخدم بالفعل';
+
+  @override
+  String get errCannotAssignAddress => 'لا يمكن تعيين العنوان المطلوب';
+
+  @override
+  String get errNetworkIsDown => 'الشبكة معطّلة';
+
+  @override
+  String get errNetworkIsUnreachable => 'الشبكة غير قابلة للوصول';
+
+  @override
+  String get errConnectionResetByPeer =>
+      'أُعيد تعيين الاتصال من قبل الطرف الآخر';
+
+  @override
+  String get errConnectionTimedOut => 'انتهت مهلة الاتصال';
+
+  @override
+  String get errConnectionRefused => 'تم رفض الاتصال';
+
+  @override
+  String get errHostIsDown => 'المضيف معطّل';
+
+  @override
+  String get errNoRouteToHost => 'لا يوجد مسار إلى المضيف';
+
+  @override
+  String get errConnectionAborted => 'تم إجهاض الاتصال';
+
+  @override
+  String get errAlreadyConnected => 'متصل بالفعل';
+
+  @override
+  String get errNotConnected => 'غير متصل';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return 'فشل الاتصال بـ $host:$port';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return 'فشلت المصادقة لـ $user@$host';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return 'فشل الاتصال بـ $host:$port';
+  }
+
+  @override
+  String get errSshAuthAborted => 'تم إلغاء المصادقة';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return 'تم رفض مفتاح المضيف لـ $host:$port — اقبل مفتاح المضيف أو تحقق من known_hosts';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'فشل فتح الصدفة';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'فشل تحميل ملف مفتاح SSH';
+
+  @override
+  String get errSshParseKeyFailed => 'فشل تحليل بيانات مفتاح PEM';
+
+  @override
+  String get errSshConnectionDisposed => 'تم التخلص من الاتصال';
+
+  @override
+  String get errSshNotConnected => 'غير متصل';
+
+  @override
+  String get errConnectionFailed => 'فشل الاتصال';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return 'انتهت مهلة الاتصال بعد $seconds ثانية';
+  }
+
+  @override
+  String get errSessionClosed => 'تم إغلاق الجلسة';
+
+  @override
+  String errShellError(String error) {
+    return 'خطأ في الصدفة: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'فشلت إعادة الاتصال: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'فشلت تهيئة SFTP: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'فشل التنزيل: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

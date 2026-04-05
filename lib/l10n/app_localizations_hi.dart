@@ -825,4 +825,179 @@ class SHi extends S {
 
   @override
   String get failed => 'विफल';
+
+  @override
+  String get errOperationNotPermitted => 'ऑपरेशन की अनुमति नहीं है';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'ऐसी कोई फ़ाइल या डायरेक्टरी नहीं';
+
+  @override
+  String get errNoSuchProcess => 'ऐसी कोई प्रक्रिया नहीं';
+
+  @override
+  String get errIoError => 'I/O त्रुटि';
+
+  @override
+  String get errBadFileDescriptor => 'खराब फ़ाइल डिस्क्रिप्टर';
+
+  @override
+  String get errResourceTemporarilyUnavailable =>
+      'संसाधन अस्थायी रूप से अनुपलब्ध';
+
+  @override
+  String get errOutOfMemory => 'मेमोरी समाप्त';
+
+  @override
+  String get errPermissionDenied => 'अनुमति अस्वीकृत';
+
+  @override
+  String get errFileExists => 'फ़ाइल पहले से मौजूद है';
+
+  @override
+  String get errNotADirectory => 'डायरेक्टरी नहीं है';
+
+  @override
+  String get errIsADirectory => 'डायरेक्टरी है';
+
+  @override
+  String get errInvalidArgument => 'अमान्य आर्गुमेंट';
+
+  @override
+  String get errTooManyOpenFiles => 'बहुत अधिक खुली फ़ाइलें';
+
+  @override
+  String get errNoSpaceLeftOnDevice => 'डिवाइस पर कोई स्थान शेष नहीं';
+
+  @override
+  String get errReadOnlyFileSystem => 'केवल-पठन फ़ाइल सिस्टम';
+
+  @override
+  String get errBrokenPipe => 'टूटा हुआ पाइप';
+
+  @override
+  String get errFileNameTooLong => 'फ़ाइल का नाम बहुत लंबा';
+
+  @override
+  String get errDirectoryNotEmpty => 'डायरेक्टरी खाली नहीं है';
+
+  @override
+  String get errAddressAlreadyInUse => 'पता पहले से उपयोग में है';
+
+  @override
+  String get errCannotAssignAddress =>
+      'अनुरोधित पता निर्दिष्ट नहीं किया जा सकता';
+
+  @override
+  String get errNetworkIsDown => 'नेटवर्क बंद है';
+
+  @override
+  String get errNetworkIsUnreachable => 'नेटवर्क पहुंच योग्य नहीं है';
+
+  @override
+  String get errConnectionResetByPeer => 'पीयर द्वारा कनेक्शन रीसेट किया गया';
+
+  @override
+  String get errConnectionTimedOut => 'कनेक्शन का समय समाप्त';
+
+  @override
+  String get errConnectionRefused => 'कनेक्शन अस्वीकृत';
+
+  @override
+  String get errHostIsDown => 'होस्ट बंद है';
+
+  @override
+  String get errNoRouteToHost => 'होस्ट तक कोई मार्ग नहीं';
+
+  @override
+  String get errConnectionAborted => 'कनेक्शन निरस्त';
+
+  @override
+  String get errAlreadyConnected => 'पहले से कनेक्टेड';
+
+  @override
+  String get errNotConnected => 'कनेक्टेड नहीं';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return '$host:$port से कनेक्ट करने में विफल';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return '$user@$host के लिए प्रमाणीकरण विफल';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return '$host:$port से कनेक्शन विफल';
+  }
+
+  @override
+  String get errSshAuthAborted => 'प्रमाणीकरण निरस्त';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return '$host:$port के लिए होस्ट कुंजी अस्वीकृत — होस्ट कुंजी स्वीकार करें या known_hosts जांचें';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'शेल खोलने में विफल';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'SSH कुंजी फ़ाइल लोड करने में विफल';
+
+  @override
+  String get errSshParseKeyFailed => 'PEM कुंजी डेटा पार्स करने में विफल';
+
+  @override
+  String get errSshConnectionDisposed => 'कनेक्शन निपटाया गया';
+
+  @override
+  String get errSshNotConnected => 'कनेक्टेड नहीं';
+
+  @override
+  String get errConnectionFailed => 'कनेक्शन विफल';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return '$seconds सेकंड के बाद कनेक्शन का समय समाप्त';
+  }
+
+  @override
+  String get errSessionClosed => 'सत्र बंद';
+
+  @override
+  String errShellError(String error) {
+    return 'शेल त्रुटि: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'पुनः कनेक्ट विफल: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'SFTP आरंभ करने में विफल: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'डाउनलोड विफल: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

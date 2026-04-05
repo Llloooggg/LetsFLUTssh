@@ -824,4 +824,178 @@ class SEn extends S {
 
   @override
   String get failed => 'Failed';
+
+  @override
+  String get errOperationNotPermitted => 'Operation not permitted';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'No such file or directory';
+
+  @override
+  String get errNoSuchProcess => 'No such process';
+
+  @override
+  String get errIoError => 'I/O error';
+
+  @override
+  String get errBadFileDescriptor => 'Bad file descriptor';
+
+  @override
+  String get errResourceTemporarilyUnavailable =>
+      'Resource temporarily unavailable';
+
+  @override
+  String get errOutOfMemory => 'Out of memory';
+
+  @override
+  String get errPermissionDenied => 'Permission denied';
+
+  @override
+  String get errFileExists => 'File exists';
+
+  @override
+  String get errNotADirectory => 'Not a directory';
+
+  @override
+  String get errIsADirectory => 'Is a directory';
+
+  @override
+  String get errInvalidArgument => 'Invalid argument';
+
+  @override
+  String get errTooManyOpenFiles => 'Too many open files';
+
+  @override
+  String get errNoSpaceLeftOnDevice => 'No space left on device';
+
+  @override
+  String get errReadOnlyFileSystem => 'Read-only file system';
+
+  @override
+  String get errBrokenPipe => 'Broken pipe';
+
+  @override
+  String get errFileNameTooLong => 'File name too long';
+
+  @override
+  String get errDirectoryNotEmpty => 'Directory not empty';
+
+  @override
+  String get errAddressAlreadyInUse => 'Address already in use';
+
+  @override
+  String get errCannotAssignAddress => 'Cannot assign requested address';
+
+  @override
+  String get errNetworkIsDown => 'Network is down';
+
+  @override
+  String get errNetworkIsUnreachable => 'Network is unreachable';
+
+  @override
+  String get errConnectionResetByPeer => 'Connection reset by peer';
+
+  @override
+  String get errConnectionTimedOut => 'Connection timed out';
+
+  @override
+  String get errConnectionRefused => 'Connection refused';
+
+  @override
+  String get errHostIsDown => 'Host is down';
+
+  @override
+  String get errNoRouteToHost => 'No route to host';
+
+  @override
+  String get errConnectionAborted => 'Connection aborted';
+
+  @override
+  String get errAlreadyConnected => 'Already connected';
+
+  @override
+  String get errNotConnected => 'Not connected';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return 'Failed to connect to $host:$port';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return 'Authentication failed for $user@$host';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return 'Connection failed to $host:$port';
+  }
+
+  @override
+  String get errSshAuthAborted => 'Authentication aborted';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return 'Host key rejected for $host:$port — accept the host key or check known_hosts';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'Failed to open shell';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'Failed to load SSH key file';
+
+  @override
+  String get errSshParseKeyFailed => 'Failed to parse PEM key data';
+
+  @override
+  String get errSshConnectionDisposed => 'Connection disposed';
+
+  @override
+  String get errSshNotConnected => 'Not connected';
+
+  @override
+  String get errConnectionFailed => 'Connection failed';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return 'Connection timed out after $seconds seconds';
+  }
+
+  @override
+  String get errSessionClosed => 'Session closed';
+
+  @override
+  String errShellError(String error) {
+    return 'Shell error: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'Reconnect failed: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'Failed to initialize SFTP: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'Download failed: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'Failed to decrypt credentials. Key file may be corrupted.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

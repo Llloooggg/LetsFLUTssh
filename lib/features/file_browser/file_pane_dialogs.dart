@@ -111,7 +111,9 @@ class FilePaneDialogs {
         if (context.mounted) {
           Toast.show(
             context,
-            message: S.of(context).failedToCreateFolder(sanitizeError(e)),
+            message: S
+                .of(context)
+                .failedToCreateFolder(localizeError(S.of(context), e)),
             level: ToastLevel.error,
           );
         }
@@ -147,7 +149,9 @@ class FilePaneDialogs {
         if (context.mounted) {
           Toast.show(
             context,
-            message: S.of(context).failedToRename(sanitizeError(e)),
+            message: S
+                .of(context)
+                .failedToRename(localizeError(S.of(context), e)),
             level: ToastLevel.error,
           );
         }

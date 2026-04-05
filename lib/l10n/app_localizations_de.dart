@@ -829,4 +829,183 @@ class SDe extends S {
 
   @override
   String get failed => 'Fehlgeschlagen';
+
+  @override
+  String get errOperationNotPermitted => 'Operation nicht erlaubt';
+
+  @override
+  String get errNoSuchFileOrDirectory =>
+      'Datei oder Verzeichnis nicht gefunden';
+
+  @override
+  String get errNoSuchProcess => 'Kein solcher Prozess';
+
+  @override
+  String get errIoError => 'E/A-Fehler';
+
+  @override
+  String get errBadFileDescriptor => 'Ungültiger Dateideskriptor';
+
+  @override
+  String get errResourceTemporarilyUnavailable =>
+      'Ressource vorübergehend nicht verfügbar';
+
+  @override
+  String get errOutOfMemory => 'Nicht genügend Speicher';
+
+  @override
+  String get errPermissionDenied => 'Zugriff verweigert';
+
+  @override
+  String get errFileExists => 'Datei existiert bereits';
+
+  @override
+  String get errNotADirectory => 'Kein Verzeichnis';
+
+  @override
+  String get errIsADirectory => 'Ist ein Verzeichnis';
+
+  @override
+  String get errInvalidArgument => 'Ungültiges Argument';
+
+  @override
+  String get errTooManyOpenFiles => 'Zu viele offene Dateien';
+
+  @override
+  String get errNoSpaceLeftOnDevice => 'Kein Speicherplatz mehr auf dem Gerät';
+
+  @override
+  String get errReadOnlyFileSystem => 'Schreibgeschütztes Dateisystem';
+
+  @override
+  String get errBrokenPipe => 'Unterbrochene Pipe';
+
+  @override
+  String get errFileNameTooLong => 'Dateiname zu lang';
+
+  @override
+  String get errDirectoryNotEmpty => 'Verzeichnis nicht leer';
+
+  @override
+  String get errAddressAlreadyInUse => 'Adresse wird bereits verwendet';
+
+  @override
+  String get errCannotAssignAddress =>
+      'Angeforderte Adresse kann nicht zugewiesen werden';
+
+  @override
+  String get errNetworkIsDown => 'Netzwerk ist ausgefallen';
+
+  @override
+  String get errNetworkIsUnreachable => 'Netzwerk ist nicht erreichbar';
+
+  @override
+  String get errConnectionResetByPeer =>
+      'Verbindung von Gegenstelle zurückgesetzt';
+
+  @override
+  String get errConnectionTimedOut => 'Zeitüberschreitung der Verbindung';
+
+  @override
+  String get errConnectionRefused => 'Verbindung abgelehnt';
+
+  @override
+  String get errHostIsDown => 'Host ist nicht erreichbar';
+
+  @override
+  String get errNoRouteToHost => 'Keine Route zum Host';
+
+  @override
+  String get errConnectionAborted => 'Verbindung abgebrochen';
+
+  @override
+  String get errAlreadyConnected => 'Bereits verbunden';
+
+  @override
+  String get errNotConnected => 'Nicht verbunden';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return 'Verbindung zu $host:$port fehlgeschlagen';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return 'Authentifizierung für $user@$host fehlgeschlagen';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return 'Verbindung zu $host:$port fehlgeschlagen';
+  }
+
+  @override
+  String get errSshAuthAborted => 'Authentifizierung abgebrochen';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return 'Hostschlüssel für $host:$port abgelehnt — akzeptieren Sie den Hostschlüssel oder prüfen Sie known_hosts';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'Shell konnte nicht geöffnet werden';
+
+  @override
+  String get errSshLoadKeyFileFailed =>
+      'SSH-Schlüsseldatei konnte nicht geladen werden';
+
+  @override
+  String get errSshParseKeyFailed =>
+      'PEM-Schlüsseldaten konnten nicht analysiert werden';
+
+  @override
+  String get errSshConnectionDisposed => 'Verbindung beendet';
+
+  @override
+  String get errSshNotConnected => 'Nicht verbunden';
+
+  @override
+  String get errConnectionFailed => 'Verbindung fehlgeschlagen';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return 'Zeitüberschreitung der Verbindung nach $seconds Sekunden';
+  }
+
+  @override
+  String get errSessionClosed => 'Sitzung geschlossen';
+
+  @override
+  String errShellError(String error) {
+    return 'Shell-Fehler: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'Wiederverbindung fehlgeschlagen: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'SFTP-Initialisierung fehlgeschlagen: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'Download fehlgeschlagen: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'Zugangsdaten konnten nicht entschlüsselt werden. Die Schlüsseldatei ist möglicherweise beschädigt.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

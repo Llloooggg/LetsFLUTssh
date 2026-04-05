@@ -829,4 +829,178 @@ class STr extends S {
 
   @override
   String get failed => 'Başarısız';
+
+  @override
+  String get errOperationNotPermitted => 'İşleme izin verilmiyor';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'Dosya veya dizin bulunamadı';
+
+  @override
+  String get errNoSuchProcess => 'İşlem bulunamadı';
+
+  @override
+  String get errIoError => 'G/Ç hatası';
+
+  @override
+  String get errBadFileDescriptor => 'Geçersiz dosya tanımlayıcı';
+
+  @override
+  String get errResourceTemporarilyUnavailable =>
+      'Kaynak geçici olarak kullanılamıyor';
+
+  @override
+  String get errOutOfMemory => 'Bellek yetersiz';
+
+  @override
+  String get errPermissionDenied => 'Erişim reddedildi';
+
+  @override
+  String get errFileExists => 'Dosya zaten mevcut';
+
+  @override
+  String get errNotADirectory => 'Bir dizin değil';
+
+  @override
+  String get errIsADirectory => 'Bir dizin';
+
+  @override
+  String get errInvalidArgument => 'Geçersiz argüman';
+
+  @override
+  String get errTooManyOpenFiles => 'Çok fazla açık dosya';
+
+  @override
+  String get errNoSpaceLeftOnDevice => 'Cihazda boş alan kalmadı';
+
+  @override
+  String get errReadOnlyFileSystem => 'Salt okunur dosya sistemi';
+
+  @override
+  String get errBrokenPipe => 'Boru kırıldı';
+
+  @override
+  String get errFileNameTooLong => 'Dosya adı çok uzun';
+
+  @override
+  String get errDirectoryNotEmpty => 'Dizin boş değil';
+
+  @override
+  String get errAddressAlreadyInUse => 'Adres zaten kullanımda';
+
+  @override
+  String get errCannotAssignAddress => 'İstenen adres atanamıyor';
+
+  @override
+  String get errNetworkIsDown => 'Ağ çalışmıyor';
+
+  @override
+  String get errNetworkIsUnreachable => 'Ağa erişilemiyor';
+
+  @override
+  String get errConnectionResetByPeer => 'Bağlantı karşı tarafça sıfırlandı';
+
+  @override
+  String get errConnectionTimedOut => 'Bağlantı zaman aşımına uğradı';
+
+  @override
+  String get errConnectionRefused => 'Bağlantı reddedildi';
+
+  @override
+  String get errHostIsDown => 'Ana bilgisayar çalışmıyor';
+
+  @override
+  String get errNoRouteToHost => 'Ana bilgisayara yol bulunamadı';
+
+  @override
+  String get errConnectionAborted => 'Bağlantı iptal edildi';
+
+  @override
+  String get errAlreadyConnected => 'Zaten bağlı';
+
+  @override
+  String get errNotConnected => 'Bağlı değil';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return '$host:$port adresine bağlanılamadı';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return '$user@$host için kimlik doğrulama başarısız';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return '$host:$port adresine bağlantı başarısız';
+  }
+
+  @override
+  String get errSshAuthAborted => 'Kimlik doğrulama iptal edildi';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return '$host:$port için ana bilgisayar anahtarı reddedildi — anahtarı kabul edin veya known_hosts dosyasını kontrol edin';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'Kabuk açılamadı';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'SSH anahtar dosyası yüklenemedi';
+
+  @override
+  String get errSshParseKeyFailed => 'PEM anahtar verisi ayrıştırılamadı';
+
+  @override
+  String get errSshConnectionDisposed => 'Bağlantı sonlandırıldı';
+
+  @override
+  String get errSshNotConnected => 'Bağlı değil';
+
+  @override
+  String get errConnectionFailed => 'Bağlantı başarısız';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return '$seconds saniye sonra bağlantı zaman aşımına uğradı';
+  }
+
+  @override
+  String get errSessionClosed => 'Oturum kapatıldı';
+
+  @override
+  String errShellError(String error) {
+    return 'Kabuk hatası: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'Yeniden bağlanma başarısız: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'SFTP başlatılamadı: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'İndirme başarısız: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

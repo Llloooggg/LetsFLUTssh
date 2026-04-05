@@ -828,4 +828,179 @@ class SId extends S {
 
   @override
   String get failed => 'Gagal';
+
+  @override
+  String get errOperationNotPermitted => 'Operasi tidak diizinkan';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'File atau direktori tidak ditemukan';
+
+  @override
+  String get errNoSuchProcess => 'Proses tidak ditemukan';
+
+  @override
+  String get errIoError => 'Kesalahan I/O';
+
+  @override
+  String get errBadFileDescriptor => 'Deskriptor file buruk';
+
+  @override
+  String get errResourceTemporarilyUnavailable =>
+      'Sumber daya sementara tidak tersedia';
+
+  @override
+  String get errOutOfMemory => 'Kehabisan memori';
+
+  @override
+  String get errPermissionDenied => 'Izin ditolak';
+
+  @override
+  String get errFileExists => 'File sudah ada';
+
+  @override
+  String get errNotADirectory => 'Bukan sebuah direktori';
+
+  @override
+  String get errIsADirectory => 'Adalah sebuah direktori';
+
+  @override
+  String get errInvalidArgument => 'Argumen tidak valid';
+
+  @override
+  String get errTooManyOpenFiles => 'Terlalu banyak file terbuka';
+
+  @override
+  String get errNoSpaceLeftOnDevice => 'Tidak ada ruang tersisa di perangkat';
+
+  @override
+  String get errReadOnlyFileSystem => 'Sistem file hanya-baca';
+
+  @override
+  String get errBrokenPipe => 'Pipa rusak';
+
+  @override
+  String get errFileNameTooLong => 'Nama file terlalu panjang';
+
+  @override
+  String get errDirectoryNotEmpty => 'Direktori tidak kosong';
+
+  @override
+  String get errAddressAlreadyInUse => 'Alamat sudah digunakan';
+
+  @override
+  String get errCannotAssignAddress =>
+      'Tidak dapat menetapkan alamat yang diminta';
+
+  @override
+  String get errNetworkIsDown => 'Jaringan tidak aktif';
+
+  @override
+  String get errNetworkIsUnreachable => 'Jaringan tidak dapat dijangkau';
+
+  @override
+  String get errConnectionResetByPeer => 'Koneksi direset oleh rekan';
+
+  @override
+  String get errConnectionTimedOut => 'Koneksi habis waktu';
+
+  @override
+  String get errConnectionRefused => 'Koneksi ditolak';
+
+  @override
+  String get errHostIsDown => 'Host tidak aktif';
+
+  @override
+  String get errNoRouteToHost => 'Tidak ada rute ke host';
+
+  @override
+  String get errConnectionAborted => 'Koneksi dibatalkan';
+
+  @override
+  String get errAlreadyConnected => 'Sudah terhubung';
+
+  @override
+  String get errNotConnected => 'Tidak terhubung';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return 'Gagal menghubungkan ke $host:$port';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return 'Autentikasi gagal untuk $user@$host';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return 'Koneksi gagal ke $host:$port';
+  }
+
+  @override
+  String get errSshAuthAborted => 'Autentikasi dibatalkan';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return 'Kunci host ditolak untuk $host:$port — terima kunci host atau periksa known_hosts';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'Gagal membuka shell';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'Gagal memuat file kunci SSH';
+
+  @override
+  String get errSshParseKeyFailed => 'Gagal mengurai data kunci PEM';
+
+  @override
+  String get errSshConnectionDisposed => 'Koneksi telah dibuang';
+
+  @override
+  String get errSshNotConnected => 'Tidak terhubung';
+
+  @override
+  String get errConnectionFailed => 'Koneksi gagal';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return 'Koneksi habis waktu setelah $seconds detik';
+  }
+
+  @override
+  String get errSessionClosed => 'Sesi ditutup';
+
+  @override
+  String errShellError(String error) {
+    return 'Kesalahan shell: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'Gagal menghubungkan ulang: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'Gagal menginisialisasi SFTP: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'Unduhan gagal: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'Gagal mendekripsi kredensial. File kunci mungkin rusak.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

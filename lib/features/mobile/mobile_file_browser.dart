@@ -69,8 +69,11 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
 
     if (!conn.isConnected) {
       if (mounted) {
+        final l10n = S.of(context);
         setState(() {
-          _error = conn.connectionError ?? 'Connection failed';
+          _error = conn.connectionError != null
+              ? localizeError(l10n, conn.connectionError!)
+              : l10n.errConnectionFailed;
           _initializing = false;
         });
       }
@@ -89,8 +92,9 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
         error: e,
       );
       if (mounted) {
+        final l10n = S.of(context);
         setState(() {
-          _error = 'Failed to init SFTP: $e';
+          _error = l10n.errSftpInitFailed(localizeError(l10n, e));
           _initializing = false;
         });
       }
@@ -383,7 +387,7 @@ class _MobileFileListState extends State<MobileFileList> {
         children: [
           Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
           const SizedBox(height: 8),
-          Text(ctrl.error!),
+          Text(localizeError(S.of(context), ctrl.error!)),
           const SizedBox(height: 8),
           FilledButton.tonal(
             onPressed: ctrl.refresh,

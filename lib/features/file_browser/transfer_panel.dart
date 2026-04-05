@@ -415,7 +415,9 @@ class _HistoryRow extends StatelessWidget {
             width: 20,
             child: Tooltip(
               message: isFailed
-                  ? (entry.error ?? S.of(context).failed)
+                  ? (entry.error != null
+                        ? localizeError(S.of(context), entry.error!)
+                        : S.of(context).failed)
                   : S.of(context).completed,
               child: Icon(
                 isFailed ? Icons.error_outline : Icons.check_circle_outline,

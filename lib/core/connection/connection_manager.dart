@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:uuid/uuid.dart';
 
-import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../ssh/known_hosts.dart';
 import '../ssh/ssh_client.dart';
@@ -98,7 +97,7 @@ class ConnectionManager {
         error: e,
       );
       conn.state = SSHConnectionState.disconnected;
-      conn.connectionError = sanitizeError(e);
+      conn.connectionError = e;
       conn.completeReady();
       _notify();
     }
