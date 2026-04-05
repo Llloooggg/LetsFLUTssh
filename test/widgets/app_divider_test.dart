@@ -7,9 +7,7 @@ void main() {
   group('AppDivider', () {
     testWidgets('default is full-width with height 1', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: AppDivider()),
-        ),
+        const MaterialApp(home: Scaffold(body: AppDivider())),
       );
 
       final divider = tester.widget<Divider>(find.byType(Divider));
@@ -21,9 +19,7 @@ void main() {
 
     testWidgets('uses AppTheme.border color by default', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: AppDivider()),
-        ),
+        const MaterialApp(home: Scaffold(body: AppDivider())),
       );
 
       final divider = tester.widget<Divider>(find.byType(Divider));
@@ -32,9 +28,7 @@ void main() {
 
     testWidgets('.indented() has 8px indent on each side', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: AppDivider.indented()),
-        ),
+        const MaterialApp(home: Scaffold(body: AppDivider.indented())),
       );
 
       final divider = tester.widget<Divider>(find.byType(Divider));
@@ -80,5 +74,4 @@ void main() {
       expect(divider.color, custom);
     });
   });
-
 }

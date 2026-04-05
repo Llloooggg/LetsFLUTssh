@@ -65,7 +65,9 @@ class AppLogger {
 
       final now = DateTime.now().toIso8601String();
       _sink!.writeln('--- Log started $now ---');
-      _sink!.writeln('Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
+      _sink!.writeln(
+        'Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      );
       _sink!.writeln('Dart: ${Platform.version.split(' ').first}');
       _sink!.writeln('');
     } catch (e) {
@@ -83,7 +85,8 @@ class AppLogger {
 
     try {
       final now = DateTime.now();
-      final ts = '${now.hour.toString().padLeft(2, '0')}:'
+      final ts =
+          '${now.hour.toString().padLeft(2, '0')}:'
           '${now.minute.toString().padLeft(2, '0')}:'
           '${now.second.toString().padLeft(2, '0')}';
       _sink!.writeln('$ts [$tag] $message');

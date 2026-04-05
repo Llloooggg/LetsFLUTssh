@@ -61,7 +61,8 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     if (_ctrl != _ModifierState.off && data.length == 1) {
       result = SshKeySequences.ctrlKey(data);
     }
-    if (_ctrl == _ModifierState.once) setState(() => _ctrl = _ModifierState.off);
+    if (_ctrl == _ModifierState.once)
+      setState(() => _ctrl = _ModifierState.off);
     if (_alt == _ModifierState.once) setState(() => _alt = _ModifierState.off);
     return result;
   }
@@ -71,7 +72,10 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     widget.onInput(data);
   }
 
-  void _toggleModifier(_ModifierState current, void Function(_ModifierState) set) {
+  void _toggleModifier(
+    _ModifierState current,
+    void Function(_ModifierState) set,
+  ) {
     switch (current) {
       case _ModifierState.off:
         set(_ModifierState.once);
@@ -119,21 +123,27 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    _KeyButton(label: 'Esc', onTap: () => _send(SshKeySequences.escape)),
-                    _KeyButton(label: 'Tab', onTap: () => _send(SshKeySequences.tab)),
+                    _KeyButton(
+                      label: 'Esc',
+                      onTap: () => _send(SshKeySequences.escape),
+                    ),
+                    _KeyButton(
+                      label: 'Tab',
+                      onTap: () => _send(SshKeySequences.tab),
+                    ),
                     _ModifierButton(
                       label: 'Ctrl',
                       state: _ctrl,
-                      onTap: () => setState(() => _toggleModifier(
-                        _ctrl, (s) => _ctrl = s,
-                      )),
+                      onTap: () => setState(
+                        () => _toggleModifier(_ctrl, (s) => _ctrl = s),
+                      ),
                     ),
                     _ModifierButton(
                       label: 'Alt',
                       state: _alt,
-                      onTap: () => setState(() => _toggleModifier(
-                        _alt, (s) => _alt = s,
-                      )),
+                      onTap: () => setState(
+                        () => _toggleModifier(_alt, (s) => _alt = s),
+                      ),
                     ),
                     _KeyButton(
                       icon: Icons.keyboard_arrow_left,

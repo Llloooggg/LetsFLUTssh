@@ -59,7 +59,9 @@ Connection _testConnection({String id = 'test'}) {
   return Connection(
     id: id,
     label: 'Test $id',
-    sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+    sshConfig: const SSHConfig(
+      server: ServerAddress(host: 'h', user: 'u'),
+    ),
     sshConnection: null,
     state: SSHConnectionState.connected,
   );
@@ -67,22 +69,26 @@ Connection _testConnection({String id = 'test'}) {
 
 void main() {
   group('TerminalPane — error state UI', () {
-    testWidgets('error state shows centered error icon and message', (tester) async {
+    testWidgets('error state shows centered error icon and message', (
+      tester,
+    ) async {
       final conn = Connection(
         id: 'err-1',
         label: 'ErrorTest',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'fail.host', user: 'user')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'fail.host', user: 'user'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn),
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn)),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -92,26 +98,32 @@ void main() {
       expect(icon.size, 48);
     });
 
-    testWidgets('error from thrown exception displays exception text', (tester) async {
+    testWidgets('error from thrown exception displays exception text', (
+      tester,
+    ) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
-      when(mockSsh.openShell(any, any)).thenThrow(Exception('Connection refused'));
+      when(
+        mockSsh.openShell(any, any),
+      ).thenThrow(Exception('Connection refused'));
 
       final conn = Connection(
         id: 'err-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn),
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn)),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -120,50 +132,57 @@ void main() {
   });
 
   group('TerminalPane — context menu', () {
-    testWidgets('right-click on connected terminal shows context menu with Paste', (tester) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      when(mockSsh.isConnected).thenReturn(true);
+    testWidgets(
+      'right-click on connected terminal shows context menu with Paste',
+      (tester) async {
+        final mockSsh = MockSSHConnection();
+        final mockSession = MockSSHSession();
+        when(mockSsh.isConnected).thenReturn(true);
 
-      final stdoutCtrl = StreamController<Uint8List>.broadcast();
-      final stderrCtrl = StreamController<Uint8List>.broadcast();
-      final doneCompleter = Completer<void>();
+        final stdoutCtrl = StreamController<Uint8List>.broadcast();
+        final stderrCtrl = StreamController<Uint8List>.broadcast();
+        final doneCompleter = Completer<void>();
 
-      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
-      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
-      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
-      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
+        when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+        when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+        when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+        when(mockSession.done).thenAnswer((_) => doneCompleter.future);
 
-      final conn = Connection(
-        id: 'ctx-1',
-        label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
-        sshConnection: mockSsh,
-        state: SSHConnectionState.connected,
-      );
+        final conn = Connection(
+          id: 'ctx-1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          sshConnection: mockSsh,
+          state: SSHConnectionState.connected,
+        );
 
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              onClose: () {},
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              theme: AppTheme.dark(),
+              home: Scaffold(
+                body: TerminalPane(
+                  connection: conn,
+                  isFocused: true,
+                  onSplitVertical: () {},
+                  onSplitHorizontal: () {},
+                  onClose: () {},
+                ),
+              ),
             ),
           ),
-        )),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.byIcon(Icons.error_outline), findsNothing);
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.byIcon(Icons.error_outline), findsNothing);
 
-      await stdoutCtrl.close();
-      await stderrCtrl.close();
-    });
+        await stdoutCtrl.close();
+        await stderrCtrl.close();
+      },
+    );
   });
 
   group('TerminalPane — split callbacks wired', () {
@@ -186,24 +205,28 @@ void main() {
       final conn = Connection(
         id: 'split-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () => splitV = true,
-              onSplitHorizontal: () => splitH = true,
-              onClose: () {},
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () => splitV = true,
+                onSplitHorizontal: () => splitH = true,
+                onClose: () {},
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -220,23 +243,27 @@ void main() {
     testWidgets('shows spinner while shell is opening', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
-      when(mockSsh.openShell(any, any)).thenAnswer((_) => Completer<Never>().future);
+      when(
+        mockSsh.openShell(any, any),
+      ).thenAnswer((_) => Completer<Never>().future);
 
       final conn = Connection(
         id: 'load-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn),
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn)),
           ),
-        )),
+        ),
       );
       await tester.pump();
 
@@ -262,18 +289,20 @@ void main() {
       final conn = Connection(
         id: 'done-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn),
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(body: TerminalPane(connection: conn)),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -306,18 +335,22 @@ void main() {
       final conn = Connection(
         id: 'border-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn, isFocused: true),
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: true),
+            ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -344,18 +377,22 @@ void main() {
       final conn = Connection(
         id: 'border-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: mockSsh,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(connection: conn, isFocused: false),
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(connection: conn, isFocused: false),
+            ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -368,20 +405,24 @@ void main() {
   });
 
   group('TerminalPane — shellFactory connected state', () {
-    testWidgets('renders TerminalView when shellFactory succeeds', (tester) async {
+    testWidgets('renders TerminalView when shellFactory succeeds', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sf-1');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -394,15 +435,17 @@ void main() {
       final conn = _testConnection(id: 'sf-2');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _errorShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory: _errorShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -410,78 +453,97 @@ void main() {
       expect(find.textContaining('Shell factory error'), findsOneWidget);
     });
 
-    testWidgets('no border on pane even with hasMultiplePanes=true (focused)', (tester) async {
+    testWidgets('no border on pane even with hasMultiplePanes=true (focused)', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sf-border-f');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              hasMultiplePanes: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                hasMultiplePanes: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
-      final containers = tester.widgetList<Container>(find.byType(Container)).where((c) {
-        final deco = c.decoration;
-        return deco is BoxDecoration && deco.border != null;
-      });
+      final containers = tester
+          .widgetList<Container>(find.byType(Container))
+          .where((c) {
+            final deco = c.decoration;
+            return deco is BoxDecoration && deco.border != null;
+          });
       expect(containers, isEmpty);
     });
 
-    testWidgets('no border on pane even with hasMultiplePanes=true (unfocused)', (tester) async {
-      final conn = _testConnection(id: 'sf-border-u');
+    testWidgets(
+      'no border on pane even with hasMultiplePanes=true (unfocused)',
+      (tester) async {
+        final conn = _testConnection(id: 'sf-border-u');
 
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: false,
-              hasMultiplePanes: true,
-              shellFactory: _successShellFactory,
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              theme: AppTheme.dark(),
+              home: Scaffold(
+                body: TerminalPane(
+                  connection: conn,
+                  isFocused: false,
+                  hasMultiplePanes: true,
+                  shellFactory: _successShellFactory,
+                ),
+              ),
             ),
           ),
-        )),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final containers = tester.widgetList<Container>(find.byType(Container)).where((c) {
-        final deco = c.decoration;
-        return deco is BoxDecoration && deco.border != null;
-      });
-      expect(containers, isEmpty);
-    });
+        final containers = tester
+            .widgetList<Container>(find.byType(Container))
+            .where((c) {
+              final deco = c.decoration;
+              return deco is BoxDecoration && deco.border != null;
+            });
+        expect(containers, isEmpty);
+      },
+    );
 
-    testWidgets('single pane (hasMultiplePanes=false) has no border', (tester) async {
+    testWidgets('single pane (hasMultiplePanes=false) has no border', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sf-border-none');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              hasMultiplePanes: false,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                hasMultiplePanes: false,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
-      final containers = tester.widgetList<Container>(find.byType(Container)).where((c) {
-        final deco = c.decoration;
-        return deco is BoxDecoration && deco.border != null;
-      });
+      final containers = tester
+          .widgetList<Container>(find.byType(Container))
+          .where((c) {
+            final deco = c.decoration;
+            return deco is BoxDecoration && deco.border != null;
+          });
       expect(containers, isEmpty);
     });
   });
@@ -491,19 +553,21 @@ void main() {
       final conn = _testConnection(id: 'sf-ctx');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              onClose: () {},
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                onClose: () {},
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -524,18 +588,20 @@ void main() {
       final conn = _testConnection(id: 'sf-split-v');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () => splitVCalled = true,
-              onSplitHorizontal: () {},
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () => splitVCalled = true,
+                onSplitHorizontal: () {},
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -555,18 +621,20 @@ void main() {
       final conn = _testConnection(id: 'sf-split-h');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () => splitHCalled = true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () => splitHCalled = true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -586,19 +654,21 @@ void main() {
       final conn = _testConnection(id: 'sf-close');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              onClose: () => closeCalled = true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                onClose: () => closeCalled = true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -617,19 +687,21 @@ void main() {
       final conn = _testConnection(id: 'sf-no-close');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              onClose: null,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                onClose: null,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -647,18 +719,20 @@ void main() {
       final conn = _testConnection(id: 'sf-no-split');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: null,
-              onSplitHorizontal: null,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: null,
+                onSplitHorizontal: null,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -674,22 +748,26 @@ void main() {
   });
 
   group('TerminalPane — onFocused callback', () {
-    testWidgets('onFocused callback is wired to the pane widget', (tester) async {
+    testWidgets('onFocused callback is wired to the pane widget', (
+      tester,
+    ) async {
       var focusCalled = false;
       final conn = _testConnection(id: 'sf-focus');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: false,
-              onFocused: () => focusCalled = true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: false,
+                onFocused: () => focusCalled = true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -706,22 +784,25 @@ void main() {
       final conn = _testConnection(id: 'sf-done');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: ({
-                required Connection connection,
-                required Terminal terminal,
-                VoidCallback? onDone,
-              }) async {
-                capturedOnDone = onDone;
-                return _fakeShellConnection();
-              },
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory:
+                    ({
+                      required Connection connection,
+                      required Terminal terminal,
+                      VoidCallback? onDone,
+                    }) async {
+                      capturedOnDone = onDone;
+                      return _fakeShellConnection();
+                    },
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -750,16 +831,18 @@ void main() {
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -774,7 +857,8 @@ void main() {
       expect(find.text('Paste'), findsNothing);
 
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
+        SystemChannels.platform,
+        null,
       );
     });
 
@@ -792,16 +876,18 @@ void main() {
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -816,7 +902,8 @@ void main() {
       expect(find.text('Paste'), findsNothing);
 
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
+        SystemChannels.platform,
+        null,
       );
     });
 
@@ -834,16 +921,18 @@ void main() {
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -858,28 +947,33 @@ void main() {
       expect(find.text('Paste'), findsNothing);
 
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
+        SystemChannels.platform,
+        null,
       );
     });
   });
 
   group('TerminalPane — copy selection from context menu', () {
-    testWidgets('context menu without selection does not show Copy', (tester) async {
+    testWidgets('context menu without selection does not show Copy', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sf-copy-no-sel');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -914,16 +1008,18 @@ void main() {
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -940,13 +1036,16 @@ void main() {
       await tester.pumpAndSettle();
 
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
+        SystemChannels.platform,
+        null,
       );
     });
   });
 
   group('TerminalPane — dispose cleans up shell', () {
-    testWidgets('disposing the widget closes the shell connection', (tester) async {
+    testWidgets('disposing the widget closes the shell connection', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sf-dispose');
 
       final mockSession = MockSSHSession();
@@ -966,30 +1065,31 @@ void main() {
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: ({
-                required Connection connection,
-                required Terminal terminal,
-                VoidCallback? onDone,
-              }) async {
-                return shellConn;
-              },
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory:
+                    ({
+                      required Connection connection,
+                      required Terminal terminal,
+                      VoidCallback? onDone,
+                    }) async {
+                      return shellConn;
+                    },
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
       expect(find.byType(TerminalView), findsOneWidget);
 
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: SizedBox()),
-        ),
+        const MaterialApp(home: Scaffold(body: SizedBox())),
       );
       await tester.pumpAndSettle();
 
@@ -999,19 +1099,23 @@ void main() {
       await stderrCtrl.close();
     });
 
-    testWidgets('dispose is safe when shellConn is null (connection failed)', (tester) async {
+    testWidgets('dispose is safe when shellConn is null (connection failed)', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sf-dispose-null');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _errorShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory: _errorShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1019,31 +1123,33 @@ void main() {
 
       // Dispose should not throw even though _shellConn is null
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: SizedBox()),
-        ),
+        const MaterialApp(home: Scaffold(body: SizedBox())),
       );
       await tester.pumpAndSettle();
     });
   });
 
   group('TerminalPane — context menu dismiss without action', () {
-    testWidgets('dismissing context menu without selecting does nothing', (tester) async {
+    testWidgets('dismissing context menu without selecting does nothing', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sf-ctx-dismiss');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              onSplitVertical: () {},
-              onSplitHorizontal: () {},
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                onSplitVertical: () {},
+                onSplitHorizontal: () {},
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1063,24 +1169,29 @@ void main() {
   });
 
   group('TerminalPane — shellFactory loading state', () {
-    testWidgets('shows spinner when shellFactory is slow then shows terminal', (tester) async {
+    testWidgets('shows spinner when shellFactory is slow then shows terminal', (
+      tester,
+    ) async {
       final completer = Completer<ShellConnection>();
       final conn = _testConnection(id: 'sf-slow');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: ({
-                required Connection connection,
-                required Terminal terminal,
-                VoidCallback? onDone,
-              }) => completer.future,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory:
+                    ({
+                      required Connection connection,
+                      required Terminal terminal,
+                      VoidCallback? onDone,
+                    }) => completer.future,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pump();
 
@@ -1095,19 +1206,23 @@ void main() {
   });
 
   group('TerminalPane — error state layout', () {
-    testWidgets('error state shows icon and text wrapped in Center', (tester) async {
+    testWidgets('error state shows icon and text wrapped in Center', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sf-error-layout');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _errorShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory: _errorShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1122,45 +1237,55 @@ void main() {
       expect(centerFinder, findsOneWidget);
     });
 
-    testWidgets('error text uses textAlign center and disconnected color', (tester) async {
+    testWidgets('error text uses textAlign center and disconnected color', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sf-error-align');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _errorShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory: _errorShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
-      final text = tester.widget<Text>(find.textContaining('Shell factory error'));
+      final text = tester.widget<Text>(
+        find.textContaining('Shell factory error'),
+      );
       expect(text.textAlign, TextAlign.center);
       expect(text.style?.color, AppTheme.disconnected);
     });
   });
 
   group('TerminalPane — search bar toggle via showSearchNotifier', () {
-    testWidgets('toggling showSearchNotifier shows the search bar', (tester) async {
+    testWidgets('toggling showSearchNotifier shows the search bar', (
+      tester,
+    ) async {
       final key = GlobalKey<TerminalPaneState>();
       final conn = _testConnection(id: 'sf-search-toggle');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1178,22 +1303,26 @@ void main() {
       expect(find.byTooltip('Close (Esc)'), findsOneWidget);
     });
 
-    testWidgets('toggling showSearchNotifier off hides the search bar', (tester) async {
+    testWidgets('toggling showSearchNotifier off hides the search bar', (
+      tester,
+    ) async {
       final key = GlobalKey<TerminalPaneState>();
       final conn = _testConnection(id: 'sf-search-toggle-off');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1213,17 +1342,19 @@ void main() {
       final conn = _testConnection(id: 'sf-search-close-btn');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1262,7 +1393,9 @@ void main() {
 
     testWidgets('close button calls onClose callback', (tester) async {
       var closeCalled = false;
-      await tester.pumpWidget(buildSearchBar(onClose: () => closeCalled = true));
+      await tester.pumpWidget(
+        buildSearchBar(onClose: () => closeCalled = true),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Close (Esc)'));
@@ -1271,7 +1404,9 @@ void main() {
       expect(closeCalled, isTrue);
     });
 
-    testWidgets('typing in search field with empty text clears matches', (tester) async {
+    testWidgets('typing in search field with empty text clears matches', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       terminal.write('Hello World\r\n');
 
@@ -1285,40 +1420,47 @@ void main() {
       await tester.pumpAndSettle();
 
       // No match counter should be shown
-      final prevButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(AppIconButton),
-      ));
+      final prevButton = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.keyboard_arrow_up),
+          matching: find.byType(AppIconButton),
+        ),
+      );
       expect(prevButton.onTap, isNull);
     });
 
-    testWidgets('searching for existing text shows match count', (tester) async {
+    testWidgets('searching for existing text shows match count', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
       // Write enough text to be searchable in the buffer
       terminal.write('Hello World\r\n');
       terminal.write('Hello Again\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBar(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Hello');
       await tester.pumpAndSettle();
 
       // prev/next buttons should now be enabled (matches found)
-      final prevButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(AppIconButton),
-      ));
+      final prevButton = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.keyboard_arrow_up),
+          matching: find.byType(AppIconButton),
+        ),
+      );
       expect(prevButton.onTap, isNotNull);
 
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.keyboard_arrow_down),
+          matching: find.byType(AppIconButton),
+        ),
+      );
       expect(nextButton.onTap, isNotNull);
     });
 
@@ -1327,10 +1469,9 @@ void main() {
       final controller = TerminalController();
       terminal.write('AAA BBB AAA\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBar(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'AAA');
@@ -1344,14 +1485,18 @@ void main() {
       await tester.pumpAndSettle();
 
       // Buttons should still be enabled after cycling
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.keyboard_arrow_down),
+          matching: find.byType(AppIconButton),
+        ),
+      );
       expect(nextButton.onTap, isNotNull);
     });
 
-    testWidgets('searching for non-existent text shows no matches', (tester) async {
+    testWidgets('searching for non-existent text shows no matches', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       terminal.write('Hello World\r\n');
 
@@ -1362,22 +1507,25 @@ void main() {
       await tester.pumpAndSettle();
 
       // Buttons should be disabled — no matches
-      final prevButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(AppIconButton),
-      ));
+      final prevButton = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.keyboard_arrow_up),
+          matching: find.byType(AppIconButton),
+        ),
+      );
       expect(prevButton.onTap, isNull);
     });
 
-    testWidgets('submitting search field advances to next match', (tester) async {
+    testWidgets('submitting search field advances to next match', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
       terminal.write('Test Test Test\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBar(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Test');
@@ -1388,10 +1536,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Still has matches, buttons enabled
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.keyboard_arrow_down),
+          matching: find.byType(AppIconButton),
+        ),
+      );
       expect(nextButton.onTap, isNotNull);
     });
 
@@ -1400,20 +1550,21 @@ void main() {
       final controller = TerminalController();
       terminal.write('Hello HELLO hello\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBar(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'hello');
       await tester.pumpAndSettle();
 
       // Should find matches (case-insensitive)
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.keyboard_arrow_down),
+          matching: find.byType(AppIconButton),
+        ),
+      );
       expect(nextButton.onTap, isNotNull);
     });
 
@@ -1422,10 +1573,9 @@ void main() {
       final controller = TerminalController();
       terminal.write('Highlight me\r\n');
 
-      await tester.pumpWidget(buildSearchBar(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBar(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Highlight');
@@ -1433,10 +1583,12 @@ void main() {
 
       // Now dispose the search bar by replacing the widget
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: const Scaffold(body: SizedBox()),
-        )),
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const Scaffold(body: SizedBox()),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1462,17 +1614,19 @@ void main() {
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1480,11 +1634,14 @@ void main() {
       expect(copiedText, isNull);
 
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
+        SystemChannels.platform,
+        null,
       );
     });
 
-    testWidgets('Ctrl+Shift+V pastes from clipboard into terminal', (tester) async {
+    testWidgets('Ctrl+Shift+V pastes from clipboard into terminal', (
+      tester,
+    ) async {
       final key = GlobalKey<TerminalPaneState>();
       final conn = _testConnection(id: 'sf-key-paste');
 
@@ -1499,17 +1656,19 @@ void main() {
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1517,7 +1676,8 @@ void main() {
       expect(find.byType(TerminalView), findsOneWidget);
 
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform, null,
+        SystemChannels.platform,
+        null,
       );
     });
   });
@@ -1528,17 +1688,19 @@ void main() {
       final conn = _testConnection(id: 'sf-notifier-init');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1550,17 +1712,19 @@ void main() {
       final conn = _testConnection(id: 'sf-close-search');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              key: key,
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1597,15 +1761,16 @@ void main() {
       );
     }
 
-    testWidgets('match counter shows "1/2" when two matches found', (tester) async {
+    testWidgets('match counter shows "1/2" when two matches found', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBarForCounter(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1614,15 +1779,16 @@ void main() {
       expect(find.text('1/2'), findsOneWidget);
     });
 
-    testWidgets('next button advances match counter from 1/2 to 2/2', (tester) async {
+    testWidgets('next button advances match counter from 1/2 to 2/2', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBarForCounter(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1639,10 +1805,9 @@ void main() {
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBarForCounter(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1663,10 +1828,9 @@ void main() {
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBarForCounter(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1678,15 +1842,16 @@ void main() {
       expect(find.text('2/2'), findsOneWidget);
     });
 
-    testWidgets('prev then next cycling works correctly with 3 matches', (tester) async {
+    testWidgets('prev then next cycling works correctly with 3 matches', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
       terminal.write('abc def abc ghi abc\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBarForCounter(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'abc');
@@ -1711,10 +1876,9 @@ void main() {
       final controller = TerminalController();
       terminal.write('Hello World\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBarForCounter(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'ZZZZZ');
@@ -1725,15 +1889,16 @@ void main() {
       expect(find.text('0/0'), findsNothing);
     });
 
-    testWidgets('match counter disappears when search text is cleared', (tester) async {
+    testWidgets('match counter disappears when search text is cleared', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBarForCounter(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1750,10 +1915,9 @@ void main() {
       final controller = TerminalController();
       terminal.write('foo bar foo\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBarForCounter(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'foo');
@@ -1765,15 +1929,16 @@ void main() {
       expect(find.text('2/2'), findsOneWidget);
     });
 
-    testWidgets('single match shows 1/1 and next/prev stay at 1/1', (tester) async {
+    testWidgets('single match shows 1/1 and next/prev stay at 1/1', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
       terminal.write('unique_string here\r\n');
 
-      await tester.pumpWidget(buildSearchBarForCounter(
-        terminal: terminal,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        buildSearchBarForCounter(terminal: terminal, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'unique_string');
@@ -1791,23 +1956,27 @@ void main() {
   });
 
   group('TerminalSearchBar — close clears highlights', () {
-    testWidgets('close button clears highlights and calls onClose', (tester) async {
+    testWidgets('close button clears highlights and calls onClose', (
+      tester,
+    ) async {
       var closeCalled = false;
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
       terminal.write('Hello World\r\n');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalSearchBar(
-              terminal: terminal,
-              terminalController: controller,
-              onClose: () => closeCalled = true,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalSearchBar(
+                terminal: terminal,
+                terminalController: controller,
+                onClose: () => closeCalled = true,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1825,92 +1994,113 @@ void main() {
   });
 
   group('TerminalSearchBar — _nextMatch/_prevMatch with zero matches', () {
-    testWidgets('next/prev are no-op when there are zero matches', (tester) async {
+    testWidgets('next/prev are no-op when there are zero matches', (
+      tester,
+    ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalSearchBar(
-              terminal: terminal,
-              terminalController: controller,
-              onClose: () {},
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalSearchBar(
+                terminal: terminal,
+                terminalController: controller,
+                onClose: () {},
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
-      final prevButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_up),
-        matching: find.byType(AppIconButton),
-      ));
+      final prevButton = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.keyboard_arrow_up),
+          matching: find.byType(AppIconButton),
+        ),
+      );
       expect(prevButton.onTap, isNull);
 
-      final nextButton = tester.widget<AppIconButton>(find.ancestor(
-        of: find.byIcon(Icons.keyboard_arrow_down),
-        matching: find.byType(AppIconButton),
-      ));
+      final nextButton = tester.widget<AppIconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.keyboard_arrow_down),
+          matching: find.byType(AppIconButton),
+        ),
+      );
       expect(nextButton.onTap, isNull);
     });
   });
 
   group('TerminalPane — connecting state waits for connection', () {
-    testWidgets('shows spinner while connection is connecting, then shows terminal', (tester) async {
-      final conn = Connection(
-        id: 'connecting-1',
-        label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
-        sshConnection: null,
-        state: SSHConnectionState.connecting,
-      );
+    testWidgets(
+      'shows spinner while connection is connecting, then shows terminal',
+      (tester) async {
+        final conn = Connection(
+          id: 'connecting-1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          sshConnection: null,
+          state: SSHConnectionState.connecting,
+        );
 
-      await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _successShellFactory,
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              theme: AppTheme.dark(),
+              home: Scaffold(
+                body: TerminalPane(
+                  connection: conn,
+                  shellFactory: _successShellFactory,
+                ),
+              ),
             ),
           ),
-        )),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      // Should show spinner while connecting
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        // Should show spinner while connecting
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-      // Transition to connected — ready completer fires
-      conn.state = SSHConnectionState.connected;
-      conn.completeReady();
-      await tester.pumpAndSettle();
+        // Transition to connected — ready completer fires
+        conn.state = SSHConnectionState.connected;
+        conn.completeReady();
+        await tester.pumpAndSettle();
 
-      // Now terminal should be visible
-      expect(find.byType(TerminalView), findsOneWidget);
-    });
+        // Now terminal should be visible
+        expect(find.byType(TerminalView), findsOneWidget);
+      },
+    );
 
-    testWidgets('shows error when connection transitions to disconnected', (tester) async {
+    testWidgets('shows error when connection transitions to disconnected', (
+      tester,
+    ) async {
       final conn = Connection(
         id: 'connecting-2',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'fail', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'fail', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.connecting,
       );
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pump();
 
@@ -1927,38 +2117,44 @@ void main() {
   });
 
   group('TerminalPane — selection cleared on focus loss', () {
-    testWidgets('clearSelection called when isFocused changes to false', (tester) async {
+    testWidgets('clearSelection called when isFocused changes to false', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'sel-clear-1');
 
       // Build with isFocused: true
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              hasMultiplePanes: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                hasMultiplePanes: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
       // Rebuild with isFocused: false — should trigger clearSelection
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: false,
-              hasMultiplePanes: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: false,
+                hasMultiplePanes: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1968,20 +2164,24 @@ void main() {
   });
 
   group('TerminalPane — Shift-bypass for mouse mode', () {
-    testWidgets('Shift suspends pointer input when terminal is in mouse mode', (tester) async {
+    testWidgets('Shift suspends pointer input when terminal is in mouse mode', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'shift-mouse-1');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -2003,20 +2203,24 @@ void main() {
       expect(state.terminalController.suspendedPointerInputs, isFalse);
     });
 
-    testWidgets('Shift does NOT suspend when terminal is not in mouse mode', (tester) async {
+    testWidgets('Shift does NOT suspend when terminal is not in mouse mode', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'shift-mouse-2');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -2032,20 +2236,24 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     });
 
-    testWidgets('suspend clears when mouse mode is disabled while Shift held', (tester) async {
+    testWidgets('suspend clears when mouse mode is disabled while Shift held', (
+      tester,
+    ) async {
       final conn = _testConnection(id: 'shift-mouse-3');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -2072,16 +2280,18 @@ void main() {
       final conn = _testConnection(id: 'shift-mouse-4');
 
       await tester.pumpWidget(
-        ProviderScope(child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: TerminalPane(
-              connection: conn,
-              isFocused: true,
-              shellFactory: _successShellFactory,
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
             ),
           ),
-        )),
+        ),
       );
       await tester.pumpAndSettle();
 

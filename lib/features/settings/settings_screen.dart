@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -37,19 +36,51 @@ class _Section {
   final IconData icon;
   final Widget Function() builder;
 
-  const _Section({required this.title, required this.icon, required this.builder});
+  const _Section({
+    required this.title,
+    required this.icon,
+    required this.builder,
+  });
 }
 
 /// Ordered list of all settings sections.
 List<_Section> _buildSections() => [
-  const _Section(title: 'Appearance', icon: Icons.palette, builder: _AppearanceSection.new),
-  const _Section(title: 'Terminal', icon: Icons.terminal, builder: _TerminalSection.new),
-  const _Section(title: 'Connection', icon: Icons.lan, builder: _ConnectionSection.new),
-  const _Section(title: 'Transfers', icon: Icons.swap_horiz, builder: _TransferSection.new),
+  const _Section(
+    title: 'Appearance',
+    icon: Icons.palette,
+    builder: _AppearanceSection.new,
+  ),
+  const _Section(
+    title: 'Terminal',
+    icon: Icons.terminal,
+    builder: _TerminalSection.new,
+  ),
+  const _Section(
+    title: 'Connection',
+    icon: Icons.lan,
+    builder: _ConnectionSection.new,
+  ),
+  const _Section(
+    title: 'Transfers',
+    icon: Icons.swap_horiz,
+    builder: _TransferSection.new,
+  ),
   const _Section(title: 'Data', icon: Icons.storage, builder: _DataSection.new),
-  const _Section(title: 'Logging', icon: Icons.description, builder: _LoggingSection.new),
-  const _Section(title: 'Updates', icon: Icons.system_update, builder: _UpdateSection.new),
-  const _Section(title: 'About', icon: Icons.info_outline, builder: _AboutSection.new),
+  const _Section(
+    title: 'Logging',
+    icon: Icons.description,
+    builder: _LoggingSection.new,
+  ),
+  const _Section(
+    title: 'Updates',
+    icon: Icons.system_update,
+    builder: _UpdateSection.new,
+  ),
+  const _Section(
+    title: 'About',
+    icon: Icons.info_outline,
+    builder: _AboutSection.new,
+  ),
 ];
 
 /// Settings screen with config editing.
@@ -104,7 +135,9 @@ class _MobileSettingsScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           Center(
             child: TextButton.icon(
-              onPressed: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
+              onPressed: () => ref
+                  .read(configProvider.notifier)
+                  .update((_) => AppConfig.defaults),
               icon: const Icon(Icons.restore, size: 18),
               label: const Text('Reset to Defaults'),
             ),
@@ -153,7 +186,10 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
       ),
       child: ExpansionTile(
         leading: Icon(widget.icon, size: 20),
-        title: Text(widget.title, style: TextStyle(fontSize: AppFonts.lg, fontWeight: FontWeight.w500)),
+        title: Text(
+          widget.title,
+          style: TextStyle(fontSize: AppFonts.lg, fontWeight: FontWeight.w500),
+        ),
         initiallyExpanded: _expanded,
         onExpansionChanged: (v) => setState(() => _expanded = v),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -204,7 +240,9 @@ class SettingsSidebar extends ConsumerWidget {
                       fontSize: AppFonts.sm,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.45,
+                      ),
                     ),
                   ),
                 ),
@@ -227,7 +265,9 @@ class SettingsSidebar extends ConsumerWidget {
             ),
           ),
           _ResetButton(
-            onTap: () => ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
+            onTap: () => ref
+                .read(configProvider.notifier)
+                .update((_) => AppConfig.defaults),
           ),
         ],
       ),
@@ -252,13 +292,16 @@ class SettingsContent extends StatelessWidget {
         dense: true,
         contentPadding: EdgeInsets.zero,
         titleTextStyle: AppFonts.inter(
-          fontSize: AppFonts.sm, color: scheme.onSurface,
+          fontSize: AppFonts.sm,
+          color: scheme.onSurface,
         ),
         subtitleTextStyle: AppFonts.inter(
-          fontSize: AppFonts.xs, color: scheme.onSurfaceVariant,
+          fontSize: AppFonts.xs,
+          color: scheme.onSurfaceVariant,
         ),
         leadingAndTrailingTextStyle: AppFonts.inter(
-          fontSize: AppFonts.xs, color: scheme.onSurface.withValues(alpha: 0.45),
+          fontSize: AppFonts.xs,
+          color: scheme.onSurface.withValues(alpha: 0.45),
         ),
       ),
       child: DefaultTextStyle(
@@ -407,7 +450,11 @@ class _AppearanceSection extends ConsumerWidget {
       children: [
         _ThemeTile(
           value: theme,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(terminal: c.terminal.copyWith(theme: v))),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWith(terminal: c.terminal.copyWith(theme: v)),
+              ),
         ),
         _SliderTile(
           title: 'UI Scale',
@@ -416,7 +463,9 @@ class _AppearanceSection extends ConsumerWidget {
           max: 2.0,
           divisions: 15,
           format: (v) => '${(v * 100).round()}%',
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ui: c.ui.copyWith(uiScale: v))),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(ui: c.ui.copyWith(uiScale: v))),
         ),
         _SliderTile(
           title: 'Terminal Font Size',
@@ -425,7 +474,11 @@ class _AppearanceSection extends ConsumerWidget {
           max: 24,
           divisions: 16,
           format: (v) => '${v.round()}',
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: v))),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: v)),
+              ),
         ),
       ],
     );
@@ -443,7 +496,11 @@ class _TerminalSection extends ConsumerWidget {
       value: scrollback,
       min: 100,
       max: 100000,
-      onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(terminal: c.terminal.copyWith(scrollback: v))),
+      onChanged: (v) => ref
+          .read(configProvider.notifier)
+          .update(
+            (c) => c.copyWith(terminal: c.terminal.copyWith(scrollback: v)),
+          ),
     );
   }
 }
@@ -463,21 +520,27 @@ class _ConnectionSection extends ConsumerWidget {
           value: keepAlive,
           min: 0,
           max: 300,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ssh: c.ssh.copyWith(keepAliveSec: v))),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(ssh: c.ssh.copyWith(keepAliveSec: v))),
         ),
         _IntTile(
           title: 'SSH Timeout (sec)',
           value: timeout,
           min: 1,
           max: 60,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ssh: c.ssh.copyWith(sshTimeoutSec: v))),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(ssh: c.ssh.copyWith(sshTimeoutSec: v))),
         ),
         _IntTile(
           title: 'Default Port',
           value: port,
           min: 1,
           max: 65535,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ssh: c.ssh.copyWith(defaultPort: v))),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(ssh: c.ssh.copyWith(defaultPort: v))),
         ),
       ],
     );
@@ -491,7 +554,9 @@ class _TransferSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final workers = ref.watch(configProvider.select((c) => c.transferWorkers));
     final maxHistory = ref.watch(configProvider.select((c) => c.maxHistory));
-    final showFolderSizes = ref.watch(configProvider.select((c) => c.showFolderSizes));
+    final showFolderSizes = ref.watch(
+      configProvider.select((c) => c.showFolderSizes),
+    );
     return Column(
       children: [
         _IntTile(
@@ -499,19 +564,25 @@ class _TransferSection extends ConsumerWidget {
           value: workers,
           min: 1,
           max: 10,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(transferWorkers: v)),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(transferWorkers: v)),
         ),
         _IntTile(
           title: 'Max History',
           value: maxHistory,
           min: 10,
           max: 5000,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(maxHistory: v)),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(maxHistory: v)),
         ),
         _Toggle(
           label: 'Calculate Folder Sizes',
           value: showFolderSizes,
-          onChanged: (v) => ref.read(configProvider.notifier).update((c) => c.copyWith(ui: c.ui.copyWith(showFolderSizes: v))),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(ui: c.ui.copyWith(showFolderSizes: v))),
         ),
       ],
     );
@@ -554,7 +625,11 @@ class _ExportImportTile extends ConsumerWidget {
 
       if (password == null || !context.mounted) return;
 
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
       final outputPath = await _pickSavePath('export_$timestamp.lfs', 'lfs');
       if (outputPath == null || !context.mounted) return;
 
@@ -562,7 +637,11 @@ class _ExportImportTile extends ConsumerWidget {
     } catch (e) {
       AppLogger.instance.log('Export failed: $e', name: 'Settings', error: e);
       if (context.mounted) {
-        Toast.show(context, message: 'Export failed: $e', level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: 'Export failed: $e',
+          level: ToastLevel.error,
+        );
       }
     } finally {
       passwordCtrl.dispose();
@@ -587,7 +666,11 @@ class _ExportImportTile extends ConsumerWidget {
       );
       if (context.mounted) {
         Navigator.of(context).pop();
-        Toast.show(context, message: 'Exported to: $outputPath', level: ToastLevel.success);
+        Toast.show(
+          context,
+          message: 'Exported to: $outputPath',
+          level: ToastLevel.success,
+        );
       }
     } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
@@ -620,14 +703,17 @@ class _ExportImportTile extends ConsumerWidget {
     final modeHolder = _ValueHolder(ImportMode.merge);
 
     try {
-      final result = await AppDialog.show<({String path, String password, ImportMode mode})>(
-        context,
-        builder: (ctx) => _ImportDataDialog(
-          pathCtrl: pathCtrl,
-          passwordCtrl: passwordCtrl,
-          modeHolder: modeHolder,
-        ),
-      );
+      final result =
+          await AppDialog.show<
+            ({String path, String password, ImportMode mode})
+          >(
+            context,
+            builder: (ctx) => _ImportDataDialog(
+              pathCtrl: pathCtrl,
+              passwordCtrl: passwordCtrl,
+              modeHolder: modeHolder,
+            ),
+          );
 
       if (result == null || !context.mounted) return;
       await _executeImport(context, ref, result);
@@ -636,7 +722,6 @@ class _ExportImportTile extends ConsumerWidget {
       passwordCtrl.dispose();
     }
   }
-
 
   Future<void> _executeImport(
     BuildContext context,
@@ -647,7 +732,11 @@ class _ExportImportTile extends ConsumerWidget {
       final file = File(result.path);
       if (!await file.exists()) {
         if (context.mounted) {
-          Toast.show(context, message: 'File not found: ${result.path}', level: ToastLevel.error);
+          Toast.show(
+            context,
+            message: 'File not found: ${result.path}',
+            level: ToastLevel.error,
+          );
         }
         return;
       }
@@ -670,7 +759,8 @@ class _ExportImportTile extends ConsumerWidget {
           addSession: (s) => ref.read(sessionProvider.notifier).add(s),
           deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
           getSessions: () => ref.read(sessionProvider),
-          applyConfig: (config) => ref.read(configProvider.notifier).update((_) => config),
+          applyConfig: (config) =>
+              ref.read(configProvider.notifier).update((_) => config),
         );
         await importService.applyResult(importResult);
 
@@ -689,11 +779,14 @@ class _ExportImportTile extends ConsumerWidget {
     } catch (e) {
       AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);
       if (context.mounted) {
-        Toast.show(context, message: 'Import failed: $e', level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: 'Import failed: $e',
+          level: ToastLevel.error,
+        );
       }
     }
   }
-
 }
 
 class _UpdateSection extends ConsumerWidget {
@@ -711,9 +804,9 @@ class _UpdateSection extends ConsumerWidget {
         _Toggle(
           label: 'Check for Updates on Startup',
           value: checkOnStart,
-          onChanged: (v) => ref.read(configProvider.notifier).update(
-            (c) => c.copyWith(checkUpdatesOnStart: v),
-          ),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(checkUpdatesOnStart: v)),
         ),
         _buildCheckButton(context, ref, updateState),
         _buildStatusWidget(context, ref, updateState),
@@ -737,24 +830,32 @@ class _UpdateSection extends ConsumerWidget {
           : const Icon(Icons.refresh, size: 20),
       title: Text(isChecking ? 'Checking...' : 'Check for Updates'),
       contentPadding: EdgeInsets.zero,
-      onTap: isChecking ? null : () async {
-        await ref.read(updateProvider.notifier).check();
-        if (!context.mounted) return;
-        final state = ref.read(updateProvider);
-        if (state.status == UpdateStatus.upToDate) {
-          Toast.show(context,
-              message: 'You\'re running the latest version',
-              level: ToastLevel.success);
-        } else if (state.status == UpdateStatus.updateAvailable) {
-          Toast.show(context,
-              message: 'Version ${state.info!.latestVersion} available',
-              level: ToastLevel.info);
-        } else if (state.status == UpdateStatus.error) {
-          Toast.show(context,
-              message: state.error ?? 'Update check failed',
-              level: ToastLevel.error);
-        }
-      },
+      onTap: isChecking
+          ? null
+          : () async {
+              await ref.read(updateProvider.notifier).check();
+              if (!context.mounted) return;
+              final state = ref.read(updateProvider);
+              if (state.status == UpdateStatus.upToDate) {
+                Toast.show(
+                  context,
+                  message: 'You\'re running the latest version',
+                  level: ToastLevel.success,
+                );
+              } else if (state.status == UpdateStatus.updateAvailable) {
+                Toast.show(
+                  context,
+                  message: 'Version ${state.info!.latestVersion} available',
+                  level: ToastLevel.info,
+                );
+              } else if (state.status == UpdateStatus.error) {
+                Toast.show(
+                  context,
+                  message: state.error ?? 'Update check failed',
+                  level: ToastLevel.error,
+                );
+              }
+            },
     );
   }
 
@@ -772,8 +873,11 @@ class _UpdateSection extends ConsumerWidget {
 
       case UpdateStatus.upToDate:
         return ListTile(
-          leading: Icon(Icons.check_circle_outline, size: 20,
-              color: theme.colorScheme.primary),
+          leading: Icon(
+            Icons.check_circle_outline,
+            size: 20,
+            color: theme.colorScheme.primary,
+          ),
           title: const Text('You\'re up to date'),
           contentPadding: EdgeInsets.zero,
         );
@@ -802,12 +906,18 @@ class _UpdateSection extends ConsumerWidget {
 
       case UpdateStatus.error:
         return ListTile(
-          leading: Icon(Icons.error_outline, size: 20,
-              color: theme.colorScheme.error),
+          leading: Icon(
+            Icons.error_outline,
+            size: 20,
+            color: theme.colorScheme.error,
+          ),
           title: const Text('Update check failed'),
           subtitle: Text(
             updateState.error ?? 'Unknown error',
-            style: TextStyle(fontSize: AppFonts.md, color: theme.colorScheme.error),
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              color: theme.colorScheme.error,
+            ),
           ),
           contentPadding: EdgeInsets.zero,
         );
@@ -847,12 +957,18 @@ class _UpdateSection extends ConsumerWidget {
                 OutlinedButton.icon(
                   onPressed: () async {
                     final url = Uri.parse(info.releaseUrl);
-                    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                    if (!await launchUrl(
+                      url,
+                      mode: LaunchMode.externalApplication,
+                    )) {
                       if (context.mounted) {
                         Clipboard.setData(ClipboardData(text: info.releaseUrl));
-                        Toast.show(context,
-                            message: 'Could not open browser — URL copied to clipboard',
-                            level: ToastLevel.warning);
+                        Toast.show(
+                          context,
+                          message:
+                              'Could not open browser — URL copied to clipboard',
+                          level: ToastLevel.warning,
+                        );
                       }
                     }
                   },
@@ -861,16 +977,16 @@ class _UpdateSection extends ConsumerWidget {
                 ),
               if (!isSkipped)
                 TextButton(
-                  onPressed: () => ref.read(configProvider.notifier).update(
-                    (c) => c.withSkippedVersion(info.latestVersion),
-                  ),
+                  onPressed: () => ref
+                      .read(configProvider.notifier)
+                      .update((c) => c.withSkippedVersion(info.latestVersion)),
                   child: const Text('Skip This Version'),
                 )
               else
                 TextButton(
-                  onPressed: () => ref.read(configProvider.notifier).update(
-                    (c) => c.withSkippedVersion(null),
-                  ),
+                  onPressed: () => ref
+                      .read(configProvider.notifier)
+                      .update((c) => c.withSkippedVersion(null)),
                   child: const Text('Unskip'),
                 ),
             ],
@@ -903,9 +1019,11 @@ class _UpdateSection extends ConsumerWidget {
             onPressed: () async {
               final ok = await ref.read(updateProvider.notifier).install();
               if (!ok && context.mounted) {
-                Toast.show(context,
-                    message: 'Could not open installer',
-                    level: ToastLevel.error);
+                Toast.show(
+                  context,
+                  message: 'Could not open installer',
+                  level: ToastLevel.error,
+                );
               }
             },
             icon: const Icon(Icons.install_desktop, size: 18),
@@ -945,7 +1063,11 @@ class _AboutSection extends ConsumerWidget {
           contentPadding: EdgeInsets.zero,
           onTap: () {
             Clipboard.setData(const ClipboardData(text: _githubUrl));
-            Toast.show(context, message: 'URL copied to clipboard', level: ToastLevel.info);
+            Toast.show(
+              context,
+              message: 'URL copied to clipboard',
+              level: ToastLevel.info,
+            );
           },
         ),
       ],
@@ -962,9 +1084,7 @@ class _SectionHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.only(bottom: 12),
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        border: AppTheme.borderBottom,
-      ),
+      decoration: BoxDecoration(border: AppTheme.borderBottom),
       child: Text(
         title,
         style: AppFonts.inter(
@@ -1014,11 +1134,17 @@ class _ActionTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+                    style: AppFonts.inter(
+                      fontSize: AppFonts.sm,
+                      color: AppTheme.fg,
+                    ),
                   ),
                   Text(
                     subtitle,
-                    style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+                    style: AppFonts.inter(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgDim,
+                    ),
                   ),
                 ],
               ),
@@ -1047,7 +1173,10 @@ class _SettingsRow extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fg,
+                ),
               ),
             ),
             const SizedBox(width: 24),
@@ -1228,17 +1357,9 @@ class _CircleThumbShape extends SliderComponentShape {
   }) {
     final canvas = context.canvas;
     // Accent border
-    canvas.drawCircle(
-      center,
-      6,
-      Paint()..color = AppTheme.accent,
-    );
+    canvas.drawCircle(center, 6, Paint()..color = AppTheme.accent);
     // Inner circle
-    canvas.drawCircle(
-      center,
-      4,
-      Paint()..color = AppTheme.bg2,
-    );
+    canvas.drawCircle(center, 4, Paint()..color = AppTheme.bg2);
   }
 }
 
@@ -1269,7 +1390,10 @@ class _InputField extends StatelessWidget {
           isDense: true,
           filled: true,
           fillColor: AppTheme.bg3,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 4,
+          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: AppTheme.radiusSm,
             borderSide: BorderSide(color: AppTheme.borderLight),
@@ -1393,7 +1517,11 @@ class _QrExportTile extends ConsumerWidget {
   Future<void> _showQrExport(BuildContext context, WidgetRef ref) async {
     final sessions = ref.read(sessionProvider);
     if (sessions.isEmpty) {
-      Toast.show(context, message: 'No sessions to export', level: ToastLevel.warning);
+      Toast.show(
+        context,
+        message: 'No sessions to export',
+        level: ToastLevel.warning,
+      );
       return;
     }
     final store = ref.read(sessionStoreProvider);
@@ -1425,7 +1553,11 @@ class _DataPathTile extends StatelessWidget {
           subtitle: path,
           onTap: () {
             Clipboard.setData(ClipboardData(text: path));
-            Toast.show(context, message: 'Path copied to clipboard', level: ToastLevel.info);
+            Toast.show(
+              context,
+              message: 'Path copied to clipboard',
+              level: ToastLevel.info,
+            );
           },
         );
       },
@@ -1446,13 +1578,16 @@ class _LoggingSection extends ConsumerWidget {
         _Toggle(
           label: 'Enable Logging',
           value: enabled,
-          onChanged: (v) => ref.read(configProvider.notifier).update(
-            (c) => c.copyWith(enableLogging: v),
-          ),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(enableLogging: v)),
         ),
         if (enabled && logPath != null) ...[
           const SizedBox(height: 8),
-          _LiveLogViewer(onExport: () => _exportLog(context), onClear: () => _clearLogs(context)),
+          _LiveLogViewer(
+            onExport: () => _exportLog(context),
+            onClear: () => _clearLogs(context),
+          ),
         ],
       ],
     );
@@ -1467,7 +1602,11 @@ class _LoggingSection extends ConsumerWidget {
         return;
       }
 
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
       final defaultName = 'letsflutssh_log_$timestamp.txt';
 
       String? outputPath;
@@ -1489,12 +1628,24 @@ class _LoggingSection extends ConsumerWidget {
 
       await File(outputPath).writeAsString(content);
       if (context.mounted) {
-        Toast.show(context, message: 'Log exported to: $outputPath', level: ToastLevel.success);
+        Toast.show(
+          context,
+          message: 'Log exported to: $outputPath',
+          level: ToastLevel.success,
+        );
       }
     } catch (e) {
-      AppLogger.instance.log('Log export failed: $e', name: 'Settings', error: e);
+      AppLogger.instance.log(
+        'Log export failed: $e',
+        name: 'Settings',
+        error: e,
+      );
       if (context.mounted) {
-        Toast.show(context, message: 'Log export failed: $e', level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: 'Log export failed: $e',
+          level: ToastLevel.error,
+        );
       }
     }
   }
@@ -1565,14 +1716,23 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
           children: [
             Icon(Icons.circle, size: 8, color: fg),
             const SizedBox(width: 6),
-            Text('Live Log', style: TextStyle(fontSize: AppFonts.md, color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
+            Text(
+              'Live Log',
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
             const Spacer(),
             AppIconButton(
               icon: Icons.copy,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: _content));
-                Toast.show(context,
-                  message: _content.isEmpty ? 'Log is empty' : 'Copied to clipboard',
+                Toast.show(
+                  context,
+                  message: _content.isEmpty
+                      ? 'Log is empty'
+                      : 'Copied to clipboard',
                   level: ToastLevel.info,
                 );
               },
@@ -1614,7 +1774,12 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
                 controller: _scrollController,
                 child: SelectableText(
                   _content.isEmpty ? '(no log entries yet)' : _content,
-                  style: TextStyle(fontSize: AppFonts.sm, fontFamily: 'monospace', color: fg, height: 1.4),
+                  style: TextStyle(
+                    fontSize: AppFonts.sm,
+                    fontFamily: 'monospace',
+                    color: fg,
+                    height: 1.4,
+                  ),
                 ),
               ),
             );
@@ -1666,7 +1831,11 @@ class _ExportPasswordDialog extends StatelessWidget {
           onTap: () {
             if (passwordCtrl.text.isEmpty) return;
             if (passwordCtrl.text != confirmCtrl.text) {
-              Toast.show(context, message: 'Passwords do not match', level: ToastLevel.warning);
+              Toast.show(
+                context,
+                message: 'Passwords do not match',
+                level: ToastLevel.warning,
+              );
               return;
             }
             Navigator.pop(context, passwordCtrl.text);
@@ -1687,7 +1856,10 @@ class _ExportPasswordDialog extends StatelessWidget {
         filled: true,
         fillColor: AppTheme.bg3,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
         border: OutlineInputBorder(
           borderRadius: AppTheme.radiusSm,
           borderSide: BorderSide(color: AppTheme.borderLight),
@@ -1730,7 +1902,11 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _styledTextField(widget.pathCtrl, 'Path to .lfs file', hint: '/path/to/export.lfs'),
+          _styledTextField(
+            widget.pathCtrl,
+            'Path to .lfs file',
+            hint: '/path/to/export.lfs',
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: widget.passwordCtrl,
@@ -1742,7 +1918,10 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
               filled: true,
               fillColor: AppTheme.bg3,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.borderLight),
@@ -1773,7 +1952,9 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
         AppDialogAction.primary(
           label: 'Import',
           onTap: () {
-            if (widget.pathCtrl.text.isEmpty || widget.passwordCtrl.text.isEmpty) return;
+            if (widget.pathCtrl.text.isEmpty ||
+                widget.passwordCtrl.text.isEmpty)
+              return;
             Navigator.pop(context, (
               path: widget.pathCtrl.text,
               password: widget.passwordCtrl.text,
@@ -1812,7 +1993,11 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: selected ? AppTheme.onAccent : AppTheme.fgDim),
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? AppTheme.onAccent : AppTheme.fgDim,
+              ),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -1829,7 +2014,11 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
     );
   }
 
-  static Widget _styledTextField(TextEditingController ctrl, String label, {String? hint}) {
+  static Widget _styledTextField(
+    TextEditingController ctrl,
+    String label, {
+    String? hint,
+  }) {
     return TextField(
       controller: ctrl,
       style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
@@ -1841,7 +2030,10 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
         filled: true,
         fillColor: AppTheme.bg3,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
         border: OutlineInputBorder(
           borderRadius: AppTheme.radiusSm,
           borderSide: BorderSide(color: AppTheme.borderLight),

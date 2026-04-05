@@ -49,9 +49,7 @@ void main() {
 
     test('returns ThemeMode.system for empty string', () {
       final container = ProviderContainer(
-        overrides: [
-          configProvider.overrideWith(() => _FakeConfigNotifier('')),
-        ],
+        overrides: [configProvider.overrideWith(() => _FakeConfigNotifier(''))],
       );
       addTearDown(container.dispose);
       expect(container.read(themeModeProvider), ThemeMode.system);
@@ -65,6 +63,6 @@ class _FakeConfigNotifier extends ConfigNotifier {
 
   @override
   AppConfig build() => AppConfig.defaults.copyWith(
-        terminal: AppConfig.defaults.terminal.copyWith(theme: _theme),
-      );
+    terminal: AppConfig.defaults.terminal.copyWith(theme: _theme),
+  );
 }

@@ -5,8 +5,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 ///
 /// Single source of truth is `pubspec.yaml` — Flutter bakes the version
 /// into each platform build, and [PackageInfo] reads it back.
-final appVersionProvider =
-    NotifierProvider<AppVersionNotifier, String>(AppVersionNotifier.new);
+final appVersionProvider = NotifierProvider<AppVersionNotifier, String>(
+  AppVersionNotifier.new,
+);
 
 class AppVersionNotifier extends Notifier<String> {
   @override

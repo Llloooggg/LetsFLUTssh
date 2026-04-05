@@ -73,8 +73,14 @@ class TransferManager {
     final id = 'tr-$_counter';
     final entry = _QueueEntry(id: id, task: task, createdAt: DateTime.now());
     _queue.add(entry);
-    _activeProgress[id] = _ActiveProgressData(task: task, createdAt: DateTime.now());
-    AppLogger.instance.log('Enqueued: ${task.name} (${task.direction.name})', name: 'Transfer');
+    _activeProgress[id] = _ActiveProgressData(
+      task: task,
+      createdAt: DateTime.now(),
+    );
+    AppLogger.instance.log(
+      'Enqueued: ${task.name} (${task.direction.name})',
+      name: 'Transfer',
+    );
     _notify();
     _processQueue();
     return id;
@@ -89,17 +95,22 @@ class TransferManager {
     if (qIdx >= 0) {
       final entry = _queue.removeAt(qIdx);
       _activeProgress.remove(id);
-      AppLogger.instance.log('Cancelled (queued): ${entry.task.name}', name: 'Transfer');
-      _addHistory(HistoryEntry(
-        id: entry.id,
-        name: entry.task.name,
-        direction: entry.task.direction,
-        sourcePath: entry.task.sourcePath,
-        targetPath: entry.task.targetPath,
-        status: TransferStatus.cancelled,
-        createdAt: entry.createdAt,
-        endedAt: DateTime.now(),
-      ));
+      AppLogger.instance.log(
+        'Cancelled (queued): ${entry.task.name}',
+        name: 'Transfer',
+      );
+      _addHistory(
+        HistoryEntry(
+          id: entry.id,
+          name: entry.task.name,
+          direction: entry.task.direction,
+          sourcePath: entry.task.sourcePath,
+          targetPath: entry.task.targetPath,
+          status: TransferStatus.cancelled,
+          createdAt: entry.createdAt,
+          endedAt: DateTime.now(),
+        ),
+      );
       _notify();
       return true;
     }
@@ -118,16 +129,18 @@ class TransferManager {
   void cancelAll() {
     // Cancel all queued
     for (final entry in _queue) {
-      _addHistory(HistoryEntry(
-        id: entry.id,
-        name: entry.task.name,
-        direction: entry.task.direction,
-        sourcePath: entry.task.sourcePath,
-        targetPath: entry.task.targetPath,
-        status: TransferStatus.cancelled,
-        createdAt: entry.createdAt,
-        endedAt: DateTime.now(),
-      ));
+      _addHistory(
+        HistoryEntry(
+          id: entry.id,
+          name: entry.task.name,
+          direction: entry.task.direction,
+          sourcePath: entry.task.sourcePath,
+          targetPath: entry.task.targetPath,
+          status: TransferStatus.cancelled,
+          createdAt: entry.createdAt,
+          endedAt: DateTime.now(),
+        ),
+      );
     }
     _queue.clear();
 
@@ -173,7 +186,8 @@ class TransferManager {
         }
         lastPercent = percent;
         lastMessage = message;
-        _activeTransfers[entry.id] = '${entry.task.name} ${percent.toStringAsFixed(0)}%';
+        _activeTransfers[entry.id] =
+            '${entry.task.name} ${percent.toStringAsFixed(0)}%';
         final progress = _activeProgress[entry.id];
         if (progress != null) {
           progress.percent = percent;
@@ -185,53 +199,63 @@ class TransferManager {
       await _awaitWithTimeout(taskFuture, entry.id);
 
       AppLogger.instance.log('Completed: ${entry.task.name}', name: 'Transfer');
-      _addHistory(HistoryEntry(
-        id: entry.id,
-        name: entry.task.name,
-        direction: entry.task.direction,
-        sourcePath: entry.task.sourcePath,
-        targetPath: entry.task.targetPath,
-        status: TransferStatus.completed,
-        lastPercent: 100,
-        lastMessage: 'Done',
-        createdAt: entry.createdAt,
-        startedAt: startedAt,
-        endedAt: DateTime.now(),
-        sizeBytes: entry.task.sizeBytes,
-      ));
+      _addHistory(
+        HistoryEntry(
+          id: entry.id,
+          name: entry.task.name,
+          direction: entry.task.direction,
+          sourcePath: entry.task.sourcePath,
+          targetPath: entry.task.targetPath,
+          status: TransferStatus.completed,
+          lastPercent: 100,
+          lastMessage: 'Done',
+          createdAt: entry.createdAt,
+          startedAt: startedAt,
+          endedAt: DateTime.now(),
+          sizeBytes: entry.task.sizeBytes,
+        ),
+      );
     } on _CancelledException {
       AppLogger.instance.log('Cancelled: ${entry.task.name}', name: 'Transfer');
-      _addHistory(HistoryEntry(
-        id: entry.id,
-        name: entry.task.name,
-        direction: entry.task.direction,
-        sourcePath: entry.task.sourcePath,
-        targetPath: entry.task.targetPath,
-        status: TransferStatus.cancelled,
-        lastPercent: lastPercent,
-        lastMessage: 'Cancelled',
-        createdAt: entry.createdAt,
-        startedAt: startedAt,
-        endedAt: DateTime.now(),
-        sizeBytes: entry.task.sizeBytes,
-      ));
+      _addHistory(
+        HistoryEntry(
+          id: entry.id,
+          name: entry.task.name,
+          direction: entry.task.direction,
+          sourcePath: entry.task.sourcePath,
+          targetPath: entry.task.targetPath,
+          status: TransferStatus.cancelled,
+          lastPercent: lastPercent,
+          lastMessage: 'Cancelled',
+          createdAt: entry.createdAt,
+          startedAt: startedAt,
+          endedAt: DateTime.now(),
+          sizeBytes: entry.task.sizeBytes,
+        ),
+      );
     } catch (e) {
-      AppLogger.instance.log('Failed: ${entry.task.name}: $e', name: 'Transfer', error: e);
-      _addHistory(HistoryEntry(
-        id: entry.id,
-        name: entry.task.name,
-        direction: entry.task.direction,
-        sourcePath: entry.task.sourcePath,
-        targetPath: entry.task.targetPath,
-        status: TransferStatus.failed,
-        error: _sanitizeError(e),
-        lastPercent: lastPercent,
-        lastMessage: lastMessage,
-        createdAt: entry.createdAt,
-        startedAt: startedAt,
-        endedAt: DateTime.now(),
-        sizeBytes: entry.task.sizeBytes,
-      ));
+      AppLogger.instance.log(
+        'Failed: ${entry.task.name}: $e',
+        name: 'Transfer',
+        error: e,
+      );
+      _addHistory(
+        HistoryEntry(
+          id: entry.id,
+          name: entry.task.name,
+          direction: entry.task.direction,
+          sourcePath: entry.task.sourcePath,
+          targetPath: entry.task.targetPath,
+          status: TransferStatus.failed,
+          error: _sanitizeError(e),
+          lastPercent: lastPercent,
+          lastMessage: lastMessage,
+          createdAt: entry.createdAt,
+          startedAt: startedAt,
+          endedAt: DateTime.now(),
+          sizeBytes: entry.task.sizeBytes,
+        ),
+      );
     } finally {
       _cancelledIds.remove(entry.id);
       _timeoutTimers.remove(entry.id)?.cancel();
@@ -243,7 +267,10 @@ class TransferManager {
     }
   }
 
-  Future<void> _awaitWithTimeout(Future<void> taskFuture, String entryId) async {
+  Future<void> _awaitWithTimeout(
+    Future<void> taskFuture,
+    String entryId,
+  ) async {
     if (taskTimeout <= Duration.zero) {
       await taskFuture;
       return;
@@ -251,17 +278,25 @@ class TransferManager {
     final completer = Completer<void>();
     final timer = Timer(taskTimeout, () {
       if (!completer.isCompleted) {
-        completer.completeError(TimeoutException(
-          'Transfer timed out after ${taskTimeout.inMinutes} minutes',
-          taskTimeout,
-        ));
+        completer.completeError(
+          TimeoutException(
+            'Transfer timed out after ${taskTimeout.inMinutes} minutes',
+            taskTimeout,
+          ),
+        );
       }
     });
     _timeoutTimers[entryId] = timer;
-    unawaited(taskFuture.then(
-      (_) { if (!completer.isCompleted) completer.complete(); },
-      onError: (Object e) { if (!completer.isCompleted) completer.completeError(e); },
-    ));
+    unawaited(
+      taskFuture.then(
+        (_) {
+          if (!completer.isCompleted) completer.complete();
+        },
+        onError: (Object e) {
+          if (!completer.isCompleted) completer.completeError(e);
+        },
+      ),
+    );
     await completer.future;
   }
 
@@ -276,8 +311,9 @@ class TransferManager {
   /// English, then strip absolute file paths to avoid leaking directory
   /// structure.
   String _sanitizeError(Object e) {
-    return sanitizeError(e)
-        .replaceAll(RegExp(r'(?:[/\\][^\s/\\]+)+'), '<path>');
+    return sanitizeError(
+      e,
+    ).replaceAll(RegExp(r'(?:[/\\][^\s/\\]+)+'), '<path>');
   }
 
   void _notify() {

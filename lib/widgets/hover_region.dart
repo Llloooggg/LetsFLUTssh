@@ -43,7 +43,8 @@ class _HoverRegionState extends State<HoverRegion> {
 
   @override
   Widget build(BuildContext context) {
-    final hasGesture = widget.onTap != null ||
+    final hasGesture =
+        widget.onTap != null ||
         widget.onDoubleTap != null ||
         widget.onSecondaryTapUp != null ||
         widget.onLongPressStart != null;

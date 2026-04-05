@@ -66,7 +66,9 @@ void main() {
   group('PanelTabBar — rendering', () {
     testWidgets('renders a single tab with label', (tester) async {
       await tester.pumpWidget(
-        buildBar(tabs: [makeTab(id: 't1', label: 'MyServer')]),
+        buildBar(
+          tabs: [makeTab(id: 't1', label: 'MyServer')],
+        ),
       );
 
       expect(find.text('MyServer'), findsOneWidget);
@@ -87,7 +89,9 @@ void main() {
 
     testWidgets('renders terminal icon for terminal tab', (tester) async {
       await tester.pumpWidget(
-        buildBar(tabs: [makeTab(id: 't1', kind: TabKind.terminal)]),
+        buildBar(
+          tabs: [makeTab(id: 't1', kind: TabKind.terminal)],
+        ),
       );
 
       expect(find.byIcon(Icons.terminal), findsOneWidget);
@@ -95,7 +99,9 @@ void main() {
 
     testWidgets('renders folder icon for sftp tab', (tester) async {
       await tester.pumpWidget(
-        buildBar(tabs: [makeTab(id: 't1', kind: TabKind.sftp)]),
+        buildBar(
+          tabs: [makeTab(id: 't1', kind: TabKind.sftp)],
+        ),
       );
 
       expect(find.byIcon(Icons.folder), findsOneWidget);
@@ -113,7 +119,9 @@ void main() {
       );
 
       // Active tab has a 2px accent colored box at the top.
-      final coloredBoxes = tester.widgetList<ColoredBox>(find.byType(ColoredBox));
+      final coloredBoxes = tester.widgetList<ColoredBox>(
+        find.byType(ColoredBox),
+      );
       final accentBoxes = coloredBoxes
           .where((b) => b.color == AppTheme.accent)
           .toList();
@@ -128,8 +136,9 @@ void main() {
   });
 
   group('PanelTabBar — callbacks', () {
-    testWidgets('tapping a tab calls onSelect with correct index',
-        (tester) async {
+    testWidgets('tapping a tab calls onSelect with correct index', (
+      tester,
+    ) async {
       int? selectedIndex;
       await tester.pumpWidget(
         buildBar(
@@ -150,11 +159,7 @@ void main() {
       String? closedTabId;
       final tabs = [makeTab(id: 'tab-close-me', label: 'ToClose')];
       await tester.pumpWidget(
-        buildBar(
-          tabs: tabs,
-          activeIndex: 0,
-          onClose: (id) => closedTabId = id,
-        ),
+        buildBar(tabs: tabs, activeIndex: 0, onClose: (id) => closedTabId = id),
       );
 
       // Active tab shows close button — find the close icon and tap it.
@@ -187,14 +192,14 @@ void main() {
     testWidgets('connected tab shows green dot', (tester) async {
       await tester.pumpWidget(
         buildBar(
-          tabs: [
-            makeTab(id: 't1', connState: SSHConnectionState.connected),
-          ],
+          tabs: [makeTab(id: 't1', connState: SSHConnectionState.connected)],
         ),
       );
 
       // The dot is a 5x5 Container with BoxDecoration circle.
-      final dotContainers = tester.widgetList<Container>(find.byType(Container));
+      final dotContainers = tester.widgetList<Container>(
+        find.byType(Container),
+      );
       final dots = dotContainers.where((c) {
         final dec = c.decoration;
         if (dec is BoxDecoration && dec.shape == BoxShape.circle) return true;
@@ -202,22 +207,19 @@ void main() {
       }).toList();
       expect(dots, isNotEmpty);
       final dotDec = dots.first.decoration as BoxDecoration;
-      expect(
-        dotDec.color,
-        AppTheme.connectedColor(Brightness.dark),
-      );
+      expect(dotDec.color, AppTheme.connectedColor(Brightness.dark));
     });
 
     testWidgets('disconnected tab shows faint dot', (tester) async {
       await tester.pumpWidget(
         buildBar(
-          tabs: [
-            makeTab(id: 't1', connState: SSHConnectionState.disconnected),
-          ],
+          tabs: [makeTab(id: 't1', connState: SSHConnectionState.disconnected)],
         ),
       );
 
-      final dotContainers = tester.widgetList<Container>(find.byType(Container));
+      final dotContainers = tester.widgetList<Container>(
+        find.byType(Container),
+      );
       final dots = dotContainers.where((c) {
         final dec = c.decoration;
         if (dec is BoxDecoration && dec.shape == BoxShape.circle) return true;
@@ -231,13 +233,13 @@ void main() {
     testWidgets('connecting tab shows connecting color dot', (tester) async {
       await tester.pumpWidget(
         buildBar(
-          tabs: [
-            makeTab(id: 't1', connState: SSHConnectionState.connecting),
-          ],
+          tabs: [makeTab(id: 't1', connState: SSHConnectionState.connecting)],
         ),
       );
 
-      final dotContainers = tester.widgetList<Container>(find.byType(Container));
+      final dotContainers = tester.widgetList<Container>(
+        find.byType(Container),
+      );
       final dots = dotContainers.where((c) {
         final dec = c.decoration;
         if (dec is BoxDecoration && dec.shape == BoxShape.circle) return true;
@@ -245,28 +247,18 @@ void main() {
       }).toList();
       expect(dots, isNotEmpty);
       final dotDec = dots.first.decoration as BoxDecoration;
-      expect(
-        dotDec.color,
-        AppTheme.connectingColor(Brightness.dark),
-      );
+      expect(dotDec.color, AppTheme.connectingColor(Brightness.dark));
     });
   });
 
   group('PanelTabBar — tab width clamping', () {
     testWidgets('tabs clamp to max 180px width', (tester) async {
       // Single tab at 600px wide container → natural = 600 → clamped to 180.
-      await tester.pumpWidget(
-        buildBar(
-          tabs: [makeTab(id: 't1')],
-          width: 600,
-        ),
-      );
+      await tester.pumpWidget(buildBar(tabs: [makeTab(id: 't1')], width: 600));
 
       // The tab item SizedBox should be clamped to 180.
       final tabSizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
-      final tabWidth = tabSizedBoxes
-          .where((s) => s.width == 180.0)
-          .toList();
+      final tabWidth = tabSizedBoxes.where((s) => s.width == 180.0).toList();
       expect(tabWidth, isNotEmpty);
     });
 
@@ -300,7 +292,9 @@ void main() {
 
       // Inactive tab (Second) should have opacity 0 for close button.
       // Find all Opacity widgets wrapping close buttons.
-      final opacities = tester.widgetList<Opacity>(find.byType(Opacity)).toList();
+      final opacities = tester
+          .widgetList<Opacity>(find.byType(Opacity))
+          .toList();
       final hiddenClose = opacities.where((o) => o.opacity == 0.0).toList();
       expect(hiddenClose, isNotEmpty);
     });

@@ -131,13 +131,17 @@ class AppShellState extends State<AppShell> {
                   behavior: HitTestBehavior.opaque,
                   onHorizontalDragUpdate: (d) {
                     setState(() {
-                      _sidebarWidth = (_sidebarWidth + d.delta.dx)
-                          .clamp(widget.minSidebarWidth, widget.maxSidebarWidth);
+                      _sidebarWidth = (_sidebarWidth + d.delta.dx).clamp(
+                        widget.minSidebarWidth,
+                        widget.maxSidebarWidth,
+                      );
                     });
                   },
                   child: SizedBox(
                     width: 6,
-                    child: Center(child: Container(width: 1, color: theme.dividerColor)),
+                    child: Center(
+                      child: Container(width: 1, color: theme.dividerColor),
+                    ),
                   ),
                 ),
               ),

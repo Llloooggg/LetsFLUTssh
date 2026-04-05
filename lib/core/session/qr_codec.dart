@@ -15,12 +15,14 @@ const qrMaxPayloadBytes = 2000;
 /// Format: `{"v":1,"s":[{"l":"label","g":"folder","h":"host","p":22,"u":"user","a":"password"}],"eg":["Folder1"]}`
 /// Short keys minimize payload size.
 /// No credentials are included — only connection metadata.
-String encodeSessionsForQr(List<Session> sessions, {Set<String> emptyFolders = const {}}) {
+String encodeSessionsForQr(
+  List<Session> sessions, {
+  Set<String> emptyFolders = const {},
+}) {
   final payload = <String, dynamic>{
     'v': 1,
     's': sessions.map((s) => _encodeSession(s)).toList(),
-    if (emptyFolders.isNotEmpty)
-      'eg': emptyFolders.toList(),
+    if (emptyFolders.isNotEmpty) 'eg': emptyFolders.toList(),
   };
   return jsonEncode(payload);
 }
@@ -42,9 +44,8 @@ QrImportData? decodeSessionsFromQr(String payload) {
         .map(_decodeSession)
         .toList();
 
-    final emptyFolders = (json['eg'] as List?)
-        ?.cast<String>()
-        .toSet() ?? <String>{};
+    final emptyFolders =
+        (json['eg'] as List?)?.cast<String>().toSet() ?? <String>{};
 
     return QrImportData(sessions: sessions, emptyFolders: emptyFolders);
   } catch (_) {
@@ -53,8 +54,13 @@ QrImportData? decodeSessionsFromQr(String payload) {
 }
 
 /// Calculate the byte size of the encoded payload for the given sessions.
-int calculateQrPayloadSize(List<Session> sessions, {Set<String> emptyFolders = const {}}) {
-  return utf8.encode(encodeSessionsForQr(sessions, emptyFolders: emptyFolders)).length;
+int calculateQrPayloadSize(
+  List<Session> sessions, {
+  Set<String> emptyFolders = const {},
+}) {
+  return utf8
+      .encode(encodeSessionsForQr(sessions, emptyFolders: emptyFolders))
+      .length;
 }
 
 /// Wrap encoded sessions into a deep link URI for QR code.
@@ -91,11 +97,7 @@ class QrImportData {
 }
 
 Map<String, dynamic> _encodeSession(Session s) {
-  final m = <String, dynamic>{
-    'l': s.label,
-    'h': s.host,
-    'u': s.user,
-  };
+  final m = <String, dynamic>{'l': s.label, 'h': s.host, 'u': s.user};
   // Only include non-default values to save space
   if (s.port != 22) m['p'] = s.port;
   if (s.folder.isNotEmpty) m['g'] = s.folder;

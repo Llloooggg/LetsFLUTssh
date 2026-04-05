@@ -15,7 +15,8 @@ class TerminalConfig {
 
   String? validate() {
     if (fontSize < 6 || fontSize > 72) return 'Font size must be 6-72';
-    if (!_validThemes.contains(theme)) return 'Theme must be one of: ${_validThemes.join(', ')}';
+    if (!_validThemes.contains(theme))
+      return 'Theme must be one of: ${_validThemes.join(', ')}';
     if (scrollback < 100) return 'Scrollback must be at least 100';
     return null;
   }
@@ -29,15 +30,12 @@ class TerminalConfig {
     );
   }
 
-  TerminalConfig copyWith({
-    double? fontSize,
-    String? theme,
-    int? scrollback,
-  }) => TerminalConfig(
-    fontSize: fontSize ?? this.fontSize,
-    theme: theme ?? this.theme,
-    scrollback: scrollback ?? this.scrollback,
-  );
+  TerminalConfig copyWith({double? fontSize, String? theme, int? scrollback}) =>
+      TerminalConfig(
+        fontSize: fontSize ?? this.fontSize,
+        theme: theme ?? this.theme,
+        scrollback: scrollback ?? this.scrollback,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -91,7 +89,9 @@ class SshDefaults {
     const d = SshDefaults.defaults;
     return SshDefaults(
       keepAliveSec: keepAliveSec < 0 ? d.keepAliveSec : keepAliveSec,
-      defaultPort: (defaultPort < 1 || defaultPort > 65535) ? d.defaultPort : defaultPort,
+      defaultPort: (defaultPort < 1 || defaultPort > 65535)
+          ? d.defaultPort
+          : defaultPort,
       sshTimeoutSec: sshTimeoutSec < 1 ? d.sshTimeoutSec : sshTimeoutSec,
     );
   }
@@ -162,7 +162,9 @@ class UiConfig {
   UiConfig sanitized() {
     const d = UiConfig.defaults;
     return UiConfig(
-      toastDurationMs: toastDurationMs < 500 ? d.toastDurationMs : toastDurationMs,
+      toastDurationMs: toastDurationMs < 500
+          ? d.toastDurationMs
+          : toastDurationMs,
       windowWidth: windowWidth < 200 ? d.windowWidth : windowWidth,
       windowHeight: windowHeight < 200 ? d.windowHeight : windowHeight,
       uiScale: uiScale.clamp(0.5, 2.0),
@@ -195,7 +197,13 @@ class UiConfig {
           showFolderSizes == other.showFolderSizes;
 
   @override
-  int get hashCode => Object.hash(toastDurationMs, windowWidth, windowHeight, uiScale, showFolderSizes);
+  int get hashCode => Object.hash(
+    toastDurationMs,
+    windowWidth,
+    windowHeight,
+    uiScale,
+    showFolderSizes,
+  );
 
   Map<String, dynamic> toJson() => {
     'toast_duration_ms': toastDurationMs,
@@ -210,7 +218,8 @@ class UiConfig {
     return UiConfig(
       toastDurationMs: json['toast_duration_ms'] as int? ?? d.toastDurationMs,
       windowWidth: (json['window_width'] as num?)?.toDouble() ?? d.windowWidth,
-      windowHeight: (json['window_height'] as num?)?.toDouble() ?? d.windowHeight,
+      windowHeight:
+          (json['window_height'] as num?)?.toDouble() ?? d.windowHeight,
       uiScale: (json['ui_scale'] as num?)?.toDouble() ?? d.uiScale,
       showFolderSizes: json['show_folder_sizes'] as bool? ?? d.showFolderSizes,
     ).sanitized();
@@ -273,7 +282,9 @@ class AppConfig {
       terminal: terminal.sanitized(),
       ssh: ssh.sanitized(),
       ui: ui.sanitized(),
-      transferWorkers: transferWorkers < 1 ? d.transferWorkers : transferWorkers,
+      transferWorkers: transferWorkers < 1
+          ? d.transferWorkers
+          : transferWorkers,
       maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
       enableLogging: enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart,
@@ -328,9 +339,15 @@ class AppConfig {
 
   @override
   int get hashCode => Object.hash(
-        terminal, ssh, ui, transferWorkers, maxHistory, enableLogging,
-        checkUpdatesOnStart, skippedVersion,
-      );
+    terminal,
+    ssh,
+    ui,
+    transferWorkers,
+    maxHistory,
+    enableLogging,
+    checkUpdatesOnStart,
+    skippedVersion,
+  );
 
   /// JSON stays flat for backward compatibility.
   Map<String, dynamic> toJson() => {
@@ -353,7 +370,8 @@ class AppConfig {
       transferWorkers: json['transfer_workers'] as int? ?? d.transferWorkers,
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
-      checkUpdatesOnStart: json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
+      checkUpdatesOnStart:
+          json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
       skippedVersion: json['skipped_version'] as String?,
     ).sanitized();
   }

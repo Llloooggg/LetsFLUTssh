@@ -30,10 +30,8 @@ class QrExportDialog extends StatefulWidget {
   }) {
     return AppDialog.show<String>(
       context,
-      builder: (_) => QrExportDialog(
-        sessions: sessions,
-        emptyFolders: emptyFolders,
-      ),
+      builder: (_) =>
+          QrExportDialog(sessions: sessions, emptyFolders: emptyFolders),
     );
   }
 
@@ -57,7 +55,9 @@ class _QrExportDialogState extends State<QrExportDialog> {
     final selectedFolders = _selectedSessions.map((s) => s.folder).toSet();
     return widget.emptyFolders.where((g) {
       // Include empty folder if it or its parent is relevant
-      return selectedFolders.any((sf) => sf.startsWith(g) || g.startsWith(sf)) ||
+      return selectedFolders.any(
+            (sf) => sf.startsWith(g) || g.startsWith(sf),
+          ) ||
           _selectedIds.length == widget.sessions.length;
     }).toSet();
   }
@@ -101,7 +101,9 @@ class _QrExportDialogState extends State<QrExportDialog> {
 
   void _toggleFolder(String folderPath) {
     final folderSessionIds = widget.sessions
-        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
+        .where(
+          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+        )
         .map((s) => s.id)
         .toSet();
     final allSelected = folderSessionIds.every(_selectedIds.contains);
@@ -116,7 +118,9 @@ class _QrExportDialogState extends State<QrExportDialog> {
 
   bool? _isFolderPartial(String folderPath) {
     final folderSessionIds = widget.sessions
-        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
+        .where(
+          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+        )
         .map((s) => s.id)
         .toSet();
     if (folderSessionIds.isEmpty) return false;
@@ -132,7 +136,9 @@ class _QrExportDialogState extends State<QrExportDialog> {
       _showTooLargeSnackbar();
       return;
     }
-    _popWithDeepLink(_allSelected ? widget.emptyFolders : _relevantEmptyFolders);
+    _popWithDeepLink(
+      _allSelected ? widget.emptyFolders : _relevantEmptyFolders,
+    );
   }
 
   void _showQr() {
@@ -140,14 +146,19 @@ class _QrExportDialogState extends State<QrExportDialog> {
   }
 
   void _popWithDeepLink(Set<String> folders) {
-    final payload = encodeSessionsForQr(_selectedSessions, emptyFolders: folders);
+    final payload = encodeSessionsForQr(
+      _selectedSessions,
+      emptyFolders: folders,
+    );
     Navigator.of(context).pop(wrapInDeepLink(payload));
   }
 
   void _showTooLargeSnackbar() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Too many sessions for a single QR code. Deselect some or use .lfs export.'),
+        content: Text(
+          'Too many sessions for a single QR code. Deselect some or use .lfs export.',
+        ),
         duration: Duration(seconds: 3),
       ),
     );
@@ -155,7 +166,10 @@ class _QrExportDialogState extends State<QrExportDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final tree = SessionTree.build(widget.sessions, emptyFolders: widget.emptyFolders);
+    final tree = SessionTree.build(
+      widget.sessions,
+      emptyFolders: widget.emptyFolders,
+    );
     final sizePercent = qrMaxPayloadBytes > 0
         ? (_payloadSize / qrMaxPayloadBytes).clamp(0.0, 1.0)
         : 0.0;
@@ -186,17 +200,26 @@ class _QrExportDialogState extends State<QrExportDialog> {
                       decoration: BoxDecoration(
                         color: AppTheme.accent.withValues(alpha: 0.1),
                         borderRadius: AppTheme.radiusLg,
-                        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: AppTheme.accent.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, size: 16, color: AppTheme.accent),
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: AppTheme.accent,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Passwords and SSH keys are NOT included.\n'
                               'Imported sessions will need credentials filled in.',
-                              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+                              style: TextStyle(
+                                fontSize: AppFonts.md,
+                                color: AppTheme.fg,
+                              ),
                             ),
                           ),
                         ],
@@ -260,7 +283,10 @@ class _QrExportDialogState extends State<QrExportDialog> {
                       const SizedBox(height: 8),
                       Text(
                         'Too large — deselect some sessions or use .lfs file export.',
-                        style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
+                        style: TextStyle(
+                          fontSize: AppFonts.sm,
+                          color: AppTheme.red,
+                        ),
                       ),
                     ],
                   ],
@@ -355,14 +381,19 @@ class _QrExportDialogState extends State<QrExportDialog> {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  session.label.isNotEmpty ? session.label : session.displayName,
+                  session.label.isNotEmpty
+                      ? session.label
+                      : session.displayName,
                   style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
                 '${session.user}@${session.host}',
-                style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+                style: TextStyle(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fgFaint,
+                ),
               ),
             ],
           ),

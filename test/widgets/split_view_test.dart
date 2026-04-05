@@ -35,7 +35,8 @@ void main() {
     testWidgets('has a draggable divider with resize cursor', (tester) async {
       await tester.pumpWidget(buildApp());
       // Find the specific MouseRegion with resizeColumn cursor
-      final resizeCursors = tester.widgetList<MouseRegion>(find.byType(MouseRegion))
+      final resizeCursors = tester
+          .widgetList<MouseRegion>(find.byType(MouseRegion))
           .where((m) => m.cursor == SystemMouseCursors.resizeColumn);
       expect(resizeCursors.length, 1);
     });
@@ -45,7 +46,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // The SplitView creates a SizedBox with the left width
-      final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox))
+      final sizedBoxes = tester
+          .widgetList<SizedBox>(find.byType(SizedBox))
           .where((s) => s.width == 250);
       expect(sizedBoxes.length, 1);
     });
@@ -65,17 +67,16 @@ void main() {
       await tester.pumpAndSettle();
 
       // Left pane should now be 270px
-      final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox))
+      final sizedBoxes = tester
+          .widgetList<SizedBox>(find.byType(SizedBox))
           .where((s) => s.width == 270);
       expect(sizedBoxes.length, 1);
     });
 
     testWidgets('dragging divider respects min/max bounds', (tester) async {
-      await tester.pumpWidget(buildApp(
-        initialLeftWidth: 220,
-        minLeftWidth: 150,
-        maxLeftWidth: 400,
-      ));
+      await tester.pumpWidget(
+        buildApp(initialLeftWidth: 220, minLeftWidth: 150, maxLeftWidth: 400),
+      );
       await tester.pumpAndSettle();
 
       final divider = find.byWidgetPredicate(
@@ -87,7 +88,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should clamp to minLeftWidth (150)
-      final minBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox))
+      final minBoxes = tester
+          .widgetList<SizedBox>(find.byType(SizedBox))
           .where((s) => s.width == 150);
       expect(minBoxes.length, 1);
     });

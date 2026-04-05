@@ -7,7 +7,9 @@ import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
 
 TabEntry _tab(String id, {TabKind kind = TabKind.terminal}) {
-  const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
+  const config = SSHConfig(
+    server: ServerAddress(host: 'h', user: 'u'),
+  );
   final conn = Connection(id: id, sshConfig: config, label: id);
   return TabEntry(id: id, label: id, connection: conn, kind: kind);
 }

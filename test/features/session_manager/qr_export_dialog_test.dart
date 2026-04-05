@@ -19,7 +19,10 @@ void main() {
     );
   }
 
-  Widget buildApp({required List<Session> sessions, Set<String> emptyFolders = const {}}) {
+  Widget buildApp({
+    required List<Session> sessions,
+    Set<String> emptyFolders = const {},
+  }) {
     return MaterialApp(
       home: Scaffold(
         body: Builder(
@@ -42,7 +45,10 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Passwords and SSH keys are NOT included'), findsOneWidget);
+      expect(
+        find.textContaining('Passwords and SSH keys are NOT included'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows Select All with correct count', (tester) async {
@@ -71,10 +77,10 @@ void main() {
     });
 
     testWidgets('shows folders', (tester) async {
-      final sessions = [
-        makeSession(label: 'web1', folder: 'Production'),
-      ];
-      await tester.pumpWidget(buildApp(sessions: sessions, emptyFolders: {'Production'}));
+      final sessions = [makeSession(label: 'web1', folder: 'Production')];
+      await tester.pumpWidget(
+        buildApp(sessions: sessions, emptyFolders: {'Production'}),
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
@@ -101,7 +107,9 @@ void main() {
       expect(find.text('Export Sessions via QR'), findsNothing);
     });
 
-    testWidgets('Show QR button is enabled when selection fits', (tester) async {
+    testWidgets('Show QR button is enabled when selection fits', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp(sessions: [makeSession()]));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -153,22 +161,24 @@ void main() {
 
     testWidgets('Show QR returns deep link URL', (tester) async {
       String? result;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                result = await QrExportDialog.show(
-                  context,
-                  sessions: [makeSession()],
-                  emptyFolders: const {},
-                );
-              },
-              child: const Text('Open'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  result = await QrExportDialog.show(
+                    context,
+                    sessions: [makeSession()],
+                    emptyFolders: const {},
+                  );
+                },
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
@@ -188,7 +198,9 @@ void main() {
       expect(find.textContaining('root@myhost.com'), findsOneWidget);
     });
 
-    testWidgets('re-selecting deselected session updates count', (tester) async {
+    testWidgets('re-selecting deselected session updates count', (
+      tester,
+    ) async {
       final sessions = [
         makeSession(label: 'a', host: 'a.com'),
         makeSession(label: 'b', host: 'b.com'),
@@ -208,7 +220,9 @@ void main() {
       expect(find.textContaining('2/2)'), findsOneWidget);
     });
 
-    testWidgets('toggling folder toggles all sessions in folder', (tester) async {
+    testWidgets('toggling folder toggles all sessions in folder', (
+      tester,
+    ) async {
       final sessions = [
         makeSession(label: 'web1', host: 'a.com', folder: 'Prod'),
         makeSession(label: 'web2', host: 'b.com', folder: 'Prod'),
@@ -235,22 +249,24 @@ void main() {
 
     testWidgets('Export All returns deep link when fits', (tester) async {
       String? result;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                result = await QrExportDialog.show(
-                  context,
-                  sessions: [makeSession()],
-                  emptyFolders: const {},
-                );
-              },
-              child: const Text('Open'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  result = await QrExportDialog.show(
+                    context,
+                    sessions: [makeSession()],
+                    emptyFolders: const {},
+                  );
+                },
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
@@ -266,25 +282,29 @@ void main() {
       expect(result, startsWith('letsflutssh://import?d='));
     });
 
-    testWidgets('Export All with empty folders passes all empty folders', (tester) async {
+    testWidgets('Export All with empty folders passes all empty folders', (
+      tester,
+    ) async {
       String? result;
       final sessions = [makeSession(label: 'srv', folder: 'Prod')];
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async {
-                result = await QrExportDialog.show(
-                  context,
-                  sessions: sessions,
-                  emptyFolders: {'EmptyFolder'},
-                );
-              },
-              child: const Text('Open'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  result = await QrExportDialog.show(
+                    context,
+                    sessions: sessions,
+                    emptyFolders: {'EmptyFolder'},
+                  );
+                },
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 

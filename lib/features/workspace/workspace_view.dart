@@ -75,8 +75,9 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final totalSize =
-            isHorizontal ? constraints.maxWidth : constraints.maxHeight;
+        final totalSize = isHorizontal
+            ? constraints.maxWidth
+            : constraints.maxHeight;
         return _buildSplitLayout(node, isHorizontal, totalSize, focusedPanelId);
       },
     );
@@ -132,62 +133,62 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
         behavior: HitTestBehavior.translucent,
         onTap: () => notifier.setFocusedPanel(panel.id),
         child: Column(
-        children: [
-          // Tab bar.
-          Container(
-            height: AppTheme.barHeightSm,
-            color: AppTheme.bg1,
-            child: PanelTabBar(
-              panelId: panel.id,
-              tabs: panel.tabs,
-              activeIndex: panel.activeTabIndex,
-              isFocusedPanel: isFocused,
-              onSelect: (idx) => notifier.selectTab(panel.id, idx),
-              onClose: (tabId) => notifier.closeTab(panel.id, tabId),
-              onReorder: (oldIdx, newIdx) =>
-                  notifier.reorderTabs(panel.id, oldIdx, newIdx),
-              onAcceptCrossPanel: (data, idx) {
-                notifier.moveTab(
-                  data.sourcePanelId,
-                  data.tab.id,
-                  panel.id,
-                  index: idx,
-                );
-              },
-              onContextMenu: (tabId, index, offset) =>
-                  _showTabContextMenu(context, panel, tabId, index, offset),
+          children: [
+            // Tab bar.
+            Container(
+              height: AppTheme.barHeightSm,
+              color: AppTheme.bg1,
+              child: PanelTabBar(
+                panelId: panel.id,
+                tabs: panel.tabs,
+                activeIndex: panel.activeTabIndex,
+                isFocusedPanel: isFocused,
+                onSelect: (idx) => notifier.selectTab(panel.id, idx),
+                onClose: (tabId) => notifier.closeTab(panel.id, tabId),
+                onReorder: (oldIdx, newIdx) =>
+                    notifier.reorderTabs(panel.id, oldIdx, newIdx),
+                onAcceptCrossPanel: (data, idx) {
+                  notifier.moveTab(
+                    data.sourcePanelId,
+                    data.tab.id,
+                    panel.id,
+                    index: idx,
+                  );
+                },
+                onContextMenu: (tabId, index, offset) =>
+                    _showTabContextMenu(context, panel, tabId, index, offset),
+              ),
             ),
-          ),
-          // Connection bar.
-          if (panel.activeTab != null)
-            _PanelConnectionBar(
-              activeTab: panel.activeTab!,
-              panelId: panel.id,
-            ),
-          // Tab content.
-          Expanded(
-            child: panel.tabs.isEmpty
-                ? const SizedBox.shrink()
-                : IndexedStack(
-                    index: panel.activeTabIndex,
-                    children: panel.tabs.map((tab) {
-                      return switch (tab.kind) {
-                        TabKind.terminal => TerminalTab(
+            // Connection bar.
+            if (panel.activeTab != null)
+              _PanelConnectionBar(
+                activeTab: panel.activeTab!,
+                panelId: panel.id,
+              ),
+            // Tab content.
+            Expanded(
+              child: panel.tabs.isEmpty
+                  ? const SizedBox.shrink()
+                  : IndexedStack(
+                      index: panel.activeTabIndex,
+                      children: panel.tabs.map((tab) {
+                        return switch (tab.kind) {
+                          TabKind.terminal => TerminalTab(
                             key: _keyForTab(tab.id),
                             tabId: tab.id,
                             connection: tab.connection,
                           ),
-                        TabKind.sftp => FileBrowserTab(
+                          TabKind.sftp => FileBrowserTab(
                             key: ValueKey(tab.id),
                             connection: tab.connection,
                             crossMarquee: widget.crossMarquee,
                           ),
-                      };
-                    }).toList(),
-                  ),
-          ),
-        ],
-      ),
+                        };
+                      }).toList(),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
 
@@ -215,11 +216,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
           notifier.closeTab(data.sourcePanelId, data.tab.id);
         }
       case DropZone.right:
-        notifier.splitPanel(
-          targetPanelId,
-          Axis.horizontal,
-          data.tab,
-        );
+        notifier.splitPanel(targetPanelId, Axis.horizontal, data.tab);
         if (data.sourcePanelId != targetPanelId) {
           notifier.closeTab(data.sourcePanelId, data.tab.id);
         }
@@ -234,11 +231,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
           notifier.closeTab(data.sourcePanelId, data.tab.id);
         }
       case DropZone.bottom:
-        notifier.splitPanel(
-          targetPanelId,
-          Axis.vertical,
-          data.tab,
-        );
+        notifier.splitPanel(targetPanelId, Axis.vertical, data.tab);
         if (data.sourcePanelId != targetPanelId) {
           notifier.closeTab(data.sourcePanelId, data.tab.id);
         }
@@ -317,10 +310,7 @@ class _PanelConnectionBar extends ConsumerWidget {
   final TabEntry activeTab;
   final String panelId;
 
-  const _PanelConnectionBar({
-    required this.activeTab,
-    required this.panelId,
-  });
+  const _PanelConnectionBar({required this.activeTab, required this.panelId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -349,43 +339,40 @@ class _PanelConnectionBar extends ConsumerWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text.rich(
-              TextSpan(children: [
-                TextSpan(
-                  text: conn.isConnected ? 'Connected' : 'Disconnected',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: AppFonts.xs,
-                    color: dimColor,
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: conn.isConnected ? 'Connected' : 'Disconnected',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: AppFonts.xs,
+                      color: dimColor,
+                    ),
                   ),
-                ),
-                TextSpan(
-                  text: ' · ',
-                  style: TextStyle(fontSize: AppFonts.xs, color: faintColor),
-                ),
-                TextSpan(
-                  text: '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
-                  style: TextStyle(
-                    fontFamily: 'JetBrains Mono',
-                    fontSize: AppFonts.xs,
-                    color: dimColor,
+                  TextSpan(
+                    text: ' · ',
+                    style: TextStyle(fontSize: AppFonts.xs, color: faintColor),
                   ),
-                ),
-              ]),
+                  TextSpan(
+                    text: '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
+                    style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: AppFonts.xs,
+                      color: dimColor,
+                    ),
+                  ),
+                ],
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (conn.isConnected)
-            _companionButton(isTerminal, ref, scheme),
+          if (conn.isConnected) _companionButton(isTerminal, ref, scheme),
         ],
       ),
     );
   }
 
-  Widget _companionButton(
-    bool isTerminal,
-    WidgetRef ref,
-    ColorScheme scheme,
-  ) {
+  Widget _companionButton(bool isTerminal, WidgetRef ref, ColorScheme scheme) {
     final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
     final label = isTerminal ? 'Files' : 'Terminal';
     final icon = isTerminal ? Icons.folder_open : Icons.terminal;
@@ -471,13 +458,11 @@ class _WorkspaceDividerLayoutState extends State<_WorkspaceDividerLayout> {
   static const _minPanelSize = 120.0;
 
   void _onPanUpdate(DragUpdateDetails details) {
-    final box =
-        _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
 
     final local = box.globalToLocal(details.globalPosition);
-    final totalSize =
-        widget.isHorizontal ? box.size.width : box.size.height;
+    final totalSize = widget.isHorizontal ? box.size.width : box.size.height;
     final pos = widget.isHorizontal ? local.dx : local.dy;
     final newRatio = (pos / totalSize).clamp(
       _minPanelSize / totalSize,

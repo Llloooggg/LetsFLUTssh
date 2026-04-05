@@ -24,7 +24,8 @@ import 'transfer_panel.dart';
 
 /// Dual-pane SFTP file browser tab.
 /// Factory for SFTP initialization — injectable for testing.
-typedef SFTPInitFactory = Future<SFTPInitResult> Function(Connection connection);
+typedef SFTPInitFactory =
+    Future<SFTPInitResult> Function(Connection connection);
 
 typedef _PaneActions = ({
   void Function(FileEntry) transfer,
@@ -103,7 +104,11 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         setState(() => _initializing = false);
       }
     } catch (e) {
-      AppLogger.instance.log('SFTP init failed: $e', name: 'FileBrowser', error: e);
+      AppLogger.instance.log(
+        'SFTP init failed: $e',
+        name: 'FileBrowser',
+        error: e,
+      );
       if (mounted) {
         setState(() {
           _error = 'Failed to initialize SFTP: $e';
@@ -128,7 +133,8 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       builder: (context, constraints) {
         // Minimum height for the dual pane area.
         const minDualPaneHeight = 80.0;
-        final maxTransferHeight = (constraints.maxHeight - minDualPaneHeight).clamp(0.0, double.infinity);
+        final maxTransferHeight = (constraints.maxHeight - minDualPaneHeight)
+            .clamp(0.0, double.infinity);
         return Column(
           children: [
             Expanded(child: _buildDualPane(context, local, remote)),
@@ -168,8 +174,14 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     );
   }
 
-  Widget _buildDualPane(BuildContext context, FilePaneController local, FilePaneController remote) {
-    final showFolderSizes = ref.watch(configProvider.select((c) => c.showFolderSizes));
+  Widget _buildDualPane(
+    BuildContext context,
+    FilePaneController local,
+    FilePaneController remote,
+  ) {
+    final showFolderSizes = ref.watch(
+      configProvider.select((c) => c.showFolderSizes),
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
@@ -179,8 +191,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
           return _buildTooNarrowHint(context);
         }
 
-        final leftWidth = (_splitRatio * maxWidth)
-            .clamp(100.0, maxWidth - 100);
+        final leftWidth = (_splitRatio * maxWidth).clamp(100.0, maxWidth - 100);
 
         return Stack(
           children: [
@@ -287,14 +298,18 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         _clipboardEntries = List.of(controller.selectedEntries);
         _clipboardSourcePane = paneId;
       }),
-      onPaste: () => _pasteFromClipboard(actions.oppositeSourcePane, actions.paste),
+      onPaste: () =>
+          _pasteFromClipboard(actions.oppositeSourcePane, actions.paste),
       onDropReceived: (entries) => entries.forEach(actions.drop),
       onOsDropReceived: actions.onOsDropReceived,
       onPaneActivated: () => otherController.clearSelection(),
     );
   }
 
-  void _pasteFromClipboard(String expectedSource, void Function(FileEntry) action) {
+  void _pasteFromClipboard(
+    String expectedSource,
+    void Function(FileEntry) action,
+  ) {
     final entries = _clipboardEntries;
     if (entries == null || entries.isEmpty) return;
     if (_clipboardSourcePane != expectedSource) return;
@@ -337,22 +352,24 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       final targetPath = p.join(local.currentPath, name);
       final isDir = FileSystemEntity.isDirectorySync(srcPath);
 
-      manager.enqueue(TransferTask(
-        name: isDir ? '$name/' : name,
-        direction: TransferDirection.download,
-        sourcePath: srcPath,
-        targetPath: targetPath,
-        run: (update) async {
-          update(0, 'Copying...');
-          if (isDir) {
-            await _copyDirLocal(Directory(srcPath), Directory(targetPath));
-          } else {
-            await File(srcPath).copy(targetPath);
-          }
-          update(100, 'Done');
-          _localCtrl?.refresh();
-        },
-      ));
+      manager.enqueue(
+        TransferTask(
+          name: isDir ? '$name/' : name,
+          direction: TransferDirection.download,
+          sourcePath: srcPath,
+          targetPath: targetPath,
+          run: (update) async {
+            update(0, 'Copying...');
+            if (isDir) {
+              await _copyDirLocal(Directory(srcPath), Directory(targetPath));
+            } else {
+              await File(srcPath).copy(targetPath);
+            }
+            update(100, 'Done');
+            _localCtrl?.refresh();
+          },
+        ),
+      );
     }
   }
 
@@ -368,31 +385,43 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       final remotePath = p.posix.join(remote.currentPath, name);
       final isDir = FileSystemEntity.isDirectorySync(srcPath);
 
-      manager.enqueue(TransferTask(
-        name: isDir ? '$name/' : name,
-        direction: TransferDirection.upload,
-        sourcePath: srcPath,
-        targetPath: remotePath,
-        run: (update) async {
-          update(0, 'Starting upload...');
-          if (isDir) {
-            await sftp.uploadDir(srcPath, remotePath, (progress) {
-              update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
-            });
-          } else {
-            await sftp.upload(srcPath, remotePath, (progress) {
-              update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
-            });
-          }
-          _remoteCtrl?.refresh();
-        },
-      ));
+      manager.enqueue(
+        TransferTask(
+          name: isDir ? '$name/' : name,
+          direction: TransferDirection.upload,
+          sourcePath: srcPath,
+          targetPath: remotePath,
+          run: (update) async {
+            update(0, 'Starting upload...');
+            if (isDir) {
+              await sftp.uploadDir(srcPath, remotePath, (progress) {
+                update(
+                  progress.percent,
+                  '${progress.doneBytes}/${progress.totalBytes} files',
+                );
+              });
+            } else {
+              await sftp.upload(srcPath, remotePath, (progress) {
+                update(
+                  progress.percent,
+                  '${progress.doneBytes}/${progress.totalBytes}',
+                );
+              });
+            }
+            _remoteCtrl?.refresh();
+          },
+        ),
+      );
     }
   }
 
   static const _maxCopyDepth = 100;
 
-  Future<void> _copyDirLocal(Directory src, Directory dst, [int depth = 0]) async {
+  Future<void> _copyDirLocal(
+    Directory src,
+    Directory dst, [
+    int depth = 0,
+  ]) async {
     if (depth >= _maxCopyDepth) {
       throw StateError('Maximum recursion depth ($_maxCopyDepth) exceeded');
     }
@@ -402,7 +431,11 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       if (entity is File) {
         await entity.copy(p.join(dst.path, name));
       } else if (entity is Directory) {
-        await _copyDirLocal(entity, Directory(p.join(dst.path, name)), depth + 1);
+        await _copyDirLocal(
+          entity,
+          Directory(p.join(dst.path, name)),
+          depth + 1,
+        );
       }
     }
   }

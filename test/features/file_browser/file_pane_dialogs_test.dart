@@ -50,7 +50,6 @@ class _ErrorMkdirFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
-
 }
 
 /// FS that throws on rename.
@@ -81,16 +80,13 @@ class _ErrorDeleteFS implements FileSystem {
   @override
   Future<void> mkdir(String path) async {}
   @override
-  Future<void> remove(String path) async =>
-      throw Exception('delete failed');
+  Future<void> remove(String path) async => throw Exception('delete failed');
   @override
-  Future<void> removeDir(String path) async =>
-      throw Exception('delete failed');
+  Future<void> removeDir(String path) async => throw Exception('delete failed');
   @override
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
-
 }
 
 void main() {
@@ -100,14 +96,18 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -125,14 +125,18 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -150,14 +154,18 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -184,14 +192,19 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () =>
+                    FilePaneDialogs.showRename(context, ctrl, entry),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -217,14 +230,19 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () =>
+                    FilePaneDialogs.showRename(context, ctrl, entry),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -245,16 +263,20 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(builder: (context) {
-            return ElevatedButton(
-              onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
-              child: const Text('Go'),
-            );
-          }),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
+                  child: const Text('Go'),
+                );
+              },
+            ),
+          ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -278,14 +300,18 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -303,14 +329,18 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () => FilePaneDialogs.showNewFolder(context, ctrl),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -338,16 +368,21 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(builder: (context) {
-            return ElevatedButton(
-              onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
-              child: const Text('Go'),
-            );
-          }),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () =>
+                      FilePaneDialogs.showRename(context, ctrl, entry),
+                  child: const Text('Go'),
+                );
+              },
+            ),
+          ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -377,14 +412,19 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () =>
+                    FilePaneDialogs.showRename(context, ctrl, entry),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -410,14 +450,19 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () =>
+                    FilePaneDialogs.showRename(context, ctrl, entry),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -445,16 +490,21 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(builder: (context) {
-            return ElevatedButton(
-              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
-              child: const Text('Go'),
-            );
-          }),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                  child: const Text('Go'),
+                );
+              },
+            ),
+          ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -483,16 +533,21 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(builder: (context) {
-            return ElevatedButton(
-              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
-              child: const Text('Go'),
-            );
-          }),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                  child: const Text('Go'),
+                );
+              },
+            ),
+          ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -514,20 +569,37 @@ void main() {
       await ctrl.navigateTo('/test', addToHistory: false);
 
       final entries = [
-        FileEntry(name: 'a.txt', path: '/test/a.txt', size: 10, modTime: DateTime.now(), isDir: false),
-        FileEntry(name: 'b.txt', path: '/test/b.txt', size: 20, modTime: DateTime.now(), isDir: false),
+        FileEntry(
+          name: 'a.txt',
+          path: '/test/a.txt',
+          size: 10,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
+        FileEntry(
+          name: 'b.txt',
+          path: '/test/b.txt',
+          size: 20,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
       ];
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(builder: (context) {
-            return ElevatedButton(
-              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, entries),
-              child: const Text('Go'),
-            );
-          }),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, entries),
+                  child: const Text('Go'),
+                );
+              },
+            ),
+          ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -559,14 +631,19 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () =>
+                    FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -582,18 +659,35 @@ void main() {
       await ctrl.navigateTo('/test', addToHistory: false);
 
       final entries = [
-        FileEntry(name: 'a.txt', path: '/test/a.txt', size: 10, modTime: DateTime.now(), isDir: false),
-        FileEntry(name: 'b.txt', path: '/test/b.txt', size: 20, modTime: DateTime.now(), isDir: false),
+        FileEntry(
+          name: 'a.txt',
+          path: '/test/a.txt',
+          size: 10,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
+        FileEntry(
+          name: 'b.txt',
+          path: '/test/b.txt',
+          size: 20,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
       ];
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, entries),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () =>
+                    FilePaneDialogs.confirmDelete(context, ctrl, entries),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -616,16 +710,21 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(builder: (context) {
-            return ElevatedButton(
-              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
-              child: const Text('Go'),
-            );
-          }),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                  child: const Text('Go'),
+                );
+              },
+            ),
+          ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -653,16 +752,21 @@ void main() {
         isDir: true,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Builder(builder: (context) {
-            return ElevatedButton(
-              onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
-              child: const Text('Go'),
-            );
-          }),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                  child: const Text('Go'),
+                );
+              },
+            ),
+          ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
@@ -690,14 +794,19 @@ void main() {
         isDir: false,
       );
 
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
-            child: const Text('Go'),
-          );
-        }),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () =>
+                    FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                child: const Text('Go'),
+              );
+            },
+          ),
+        ),
+      );
 
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();

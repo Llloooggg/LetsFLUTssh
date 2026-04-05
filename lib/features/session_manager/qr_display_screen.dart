@@ -24,10 +24,7 @@ class QrDisplayScreen extends StatelessWidget {
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => QrDisplayScreen(
-          data: data,
-          sessionCount: sessionCount,
-        ),
+        builder: (_) => QrDisplayScreen(data: data, sessionCount: sessionCount),
       ),
     );
   }
@@ -90,17 +87,26 @@ class QrDisplayScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: isDark
                       ? theme.colorScheme.surfaceContainerHigh
-                      : theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      : theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.3,
+                        ),
                   borderRadius: AppTheme.radiusLg,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.info_outline, size: 14, color: theme.colorScheme.primary),
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: theme.colorScheme.primary,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'No passwords or keys are in this QR code',

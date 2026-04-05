@@ -57,8 +57,9 @@ final updateServiceProvider = Provider<UpdateService>((ref) {
 });
 
 /// Provider that manages the update check / download lifecycle.
-final updateProvider =
-    NotifierProvider<UpdateNotifier, UpdateState>(UpdateNotifier.new);
+final updateProvider = NotifierProvider<UpdateNotifier, UpdateState>(
+  UpdateNotifier.new,
+);
 
 class UpdateNotifier extends Notifier<UpdateState> {
   @override
@@ -83,12 +84,12 @@ class UpdateNotifier extends Notifier<UpdateState> {
         info: info,
       );
     } catch (e) {
-      AppLogger.instance
-          .log('Update check failed: $e', name: 'UpdateProvider', error: e);
-      state = UpdateState(
-        status: UpdateStatus.error,
-        error: e.toString(),
+      AppLogger.instance.log(
+        'Update check failed: $e',
+        name: 'UpdateProvider',
+        error: e,
       );
+      state = UpdateState(status: UpdateStatus.error, error: e.toString());
     }
   }
 
@@ -125,8 +126,11 @@ class UpdateNotifier extends Notifier<UpdateState> {
         await install();
       }
     } catch (e) {
-      AppLogger.instance
-          .log('Download failed: $e', name: 'UpdateProvider', error: e);
+      AppLogger.instance.log(
+        'Download failed: $e',
+        name: 'UpdateProvider',
+        error: e,
+      );
       state = state.copyWith(
         status: UpdateStatus.error,
         error: 'Download failed: $e',

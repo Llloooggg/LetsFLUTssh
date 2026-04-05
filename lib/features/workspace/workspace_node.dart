@@ -19,23 +19,15 @@ class PanelLeaf extends WorkspaceNode {
   final List<TabEntry> tabs;
   final int activeTabIndex;
 
-  PanelLeaf({
-    super.id,
-    this.tabs = const [],
-    this.activeTabIndex = -1,
-  });
+  PanelLeaf({super.id, this.tabs = const [], this.activeTabIndex = -1});
 
   /// The currently active tab, or `null` if none.
-  TabEntry? get activeTab =>
-      activeTabIndex >= 0 && activeTabIndex < tabs.length
-          ? tabs[activeTabIndex]
-          : null;
+  TabEntry? get activeTab => activeTabIndex >= 0 && activeTabIndex < tabs.length
+      ? tabs[activeTabIndex]
+      : null;
 
   /// Returns a copy with updated fields.
-  PanelLeaf copyWith({
-    List<TabEntry>? tabs,
-    int? activeTabIndex,
-  }) {
+  PanelLeaf copyWith({List<TabEntry>? tabs, int? activeTabIndex}) {
     return PanelLeaf(
       id: id,
       tabs: tabs ?? this.tabs,
@@ -119,9 +111,9 @@ List<String> collectPanelIds(WorkspaceNode node) {
   return switch (node) {
     PanelLeaf() => [node.id],
     WorkspaceBranch() => [
-        ...collectPanelIds(node.first),
-        ...collectPanelIds(node.second),
-      ],
+      ...collectPanelIds(node.first),
+      ...collectPanelIds(node.second),
+    ],
   };
 }
 
@@ -154,12 +146,12 @@ WorkspaceNode updatePanel(
     PanelLeaf() when root.id == panelId => updater(root),
     PanelLeaf() => root,
     WorkspaceBranch() => WorkspaceBranch(
-        id: root.id,
-        direction: root.direction,
-        ratio: root.ratio,
-        first: updatePanel(root.first, panelId, updater),
-        second: updatePanel(root.second, panelId, updater),
-      ),
+      id: root.id,
+      direction: root.direction,
+      ratio: root.ratio,
+      first: updatePanel(root.first, panelId, updater),
+      second: updatePanel(root.second, panelId, updater),
+    ),
   };
 }
 
@@ -168,8 +160,8 @@ List<TabEntry> collectAllTabs(WorkspaceNode root) {
   return switch (root) {
     PanelLeaf() => [...root.tabs],
     WorkspaceBranch() => [
-        ...collectAllTabs(root.first),
-        ...collectAllTabs(root.second),
-      ],
+      ...collectAllTabs(root.first),
+      ...collectAllTabs(root.second),
+    ],
   };
 }

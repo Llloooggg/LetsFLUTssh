@@ -61,7 +61,10 @@ void main() {
 
     test('encodes empty folders', () {
       final sessions = [makeSession()];
-      final json = encodeSessionsForQr(sessions, emptyFolders: {'Staging', 'Dev'});
+      final json = encodeSessionsForQr(
+        sessions,
+        emptyFolders: {'Staging', 'Dev'},
+      );
       expect(json, contains('"eg":'));
       expect(json, contains('Staging'));
       expect(json, contains('Dev'));
@@ -96,7 +99,13 @@ void main() {
   group('decodeSessionsFromQr', () {
     test('roundtrip encode/decode preserves session data', () {
       final sessions = [
-        makeSession(label: 'nginx', host: 'prod.com', port: 2222, user: 'deploy', folder: 'Production'),
+        makeSession(
+          label: 'nginx',
+          host: 'prod.com',
+          port: 2222,
+          user: 'deploy',
+          folder: 'Production',
+        ),
         makeSession(label: 'api', host: 'api.com', user: 'admin'),
       ];
       final json = encodeSessionsForQr(sessions, emptyFolders: {'Staging'});
@@ -222,13 +231,19 @@ void main() {
         makeSession(label: 'b', host: 'b.com'),
         makeSession(label: 'c', host: 'c.com'),
       ];
-      expect(calculateQrPayloadSize(three), greaterThan(calculateQrPayloadSize(one)));
+      expect(
+        calculateQrPayloadSize(three),
+        greaterThan(calculateQrPayloadSize(one)),
+      );
     });
 
     test('size increases with empty folders', () {
       final sessions = [makeSession()];
       final withoutFolders = calculateQrPayloadSize(sessions);
-      final withFolders = calculateQrPayloadSize(sessions, emptyFolders: {'A', 'B', 'C'});
+      final withFolders = calculateQrPayloadSize(
+        sessions,
+        emptyFolders: {'A', 'B', 'C'},
+      );
       expect(withFolders, greaterThan(withoutFolders));
     });
   });
@@ -249,7 +264,13 @@ void main() {
 
     test('roundtrip wrap/unwrap preserves data', () {
       final sessions = [
-        makeSession(label: 'nginx', host: 'prod.com', port: 2222, user: 'deploy', folder: 'Prod'),
+        makeSession(
+          label: 'nginx',
+          host: 'prod.com',
+          port: 2222,
+          user: 'deploy',
+          folder: 'Prod',
+        ),
       ];
       final payload = encodeSessionsForQr(sessions, emptyFolders: {'Staging'});
       final url = wrapInDeepLink(payload);
@@ -293,7 +314,10 @@ void main() {
     });
 
     test('returns null for invalid base64', () {
-      expect(decodeImportUri(Uri.parse('letsflutssh://import?d=!!!notbase64')), isNull);
+      expect(
+        decodeImportUri(Uri.parse('letsflutssh://import?d=!!!notbase64')),
+        isNull,
+      );
     });
 
     test('returns null for valid base64 but invalid JSON', () {
@@ -337,9 +361,7 @@ void main() {
       );
       expect(s.incomplete, isTrue);
 
-      final updated = s.copyWith(
-        auth: const SessionAuth(password: 'pass'),
-      );
+      final updated = s.copyWith(auth: const SessionAuth(password: 'pass'));
       expect(updated.incomplete, isFalse);
     });
 
@@ -383,11 +405,7 @@ void main() {
     });
 
     test('defaults to false when not in JSON', () {
-      const json = {
-        'id': 'test-id',
-        'host': 'h',
-        'user': 'u',
-      };
+      const json = {'id': 'test-id', 'host': 'h', 'user': 'u'};
       final s = Session.fromJson(json);
       expect(s.incomplete, isFalse);
     });

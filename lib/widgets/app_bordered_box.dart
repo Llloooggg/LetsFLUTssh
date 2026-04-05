@@ -43,7 +43,10 @@ class AppBorderedBox extends StatelessWidget {
       constraints: constraints,
       decoration: BoxDecoration(
         color: color,
-        border: Border.all(color: borderColor ?? AppTheme.borderLight, width: borderWidth),
+        border: Border.all(
+          color: borderColor ?? AppTheme.borderLight,
+          width: borderWidth,
+        ),
         borderRadius: borderRadius ?? AppTheme.radiusSm,
       ),
       child: child,

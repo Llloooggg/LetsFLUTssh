@@ -14,7 +14,7 @@ class _FakeFS implements FileSystem {
   final String fakeInitialDir;
 
   _FakeFS({this.fakeEntries = const [], String initialDir = '/home/test'})
-      : fakeInitialDir = initialDir;
+    : fakeInitialDir = initialDir;
 
   @override
   Future<String> initialDir() async => fakeInitialDir;
@@ -30,35 +30,34 @@ class _FakeFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
-
 }
 
 List<FileEntry> _entries() => [
-      FileEntry(
-        name: 'photos',
-        path: '/home/test/photos',
-        size: 4096,
-        mode: 0x1ED,
-        modTime: DateTime(2024, 1, 1),
-        isDir: true,
-      ),
-      FileEntry(
-        name: 'notes.txt',
-        path: '/home/test/notes.txt',
-        size: 2048,
-        mode: 0x1A4,
-        modTime: DateTime(2024, 1, 2),
-        isDir: false,
-      ),
-      FileEntry(
-        name: 'backup.tar',
-        path: '/home/test/backup.tar',
-        size: 10240,
-        mode: 0x1A4,
-        modTime: DateTime(2024, 1, 3),
-        isDir: false,
-      ),
-    ];
+  FileEntry(
+    name: 'photos',
+    path: '/home/test/photos',
+    size: 4096,
+    mode: 0x1ED,
+    modTime: DateTime(2024, 1, 1),
+    isDir: true,
+  ),
+  FileEntry(
+    name: 'notes.txt',
+    path: '/home/test/notes.txt',
+    size: 2048,
+    mode: 0x1A4,
+    modTime: DateTime(2024, 1, 2),
+    isDir: false,
+  ),
+  FileEntry(
+    name: 'backup.tar',
+    path: '/home/test/backup.tar',
+    size: 10240,
+    mode: 0x1A4,
+    modTime: DateTime(2024, 1, 3),
+    isDir: false,
+  ),
+];
 
 void main() {
   group('MobileFileList — onTransfer called for file tap (non-selection)', () {
@@ -168,7 +167,9 @@ void main() {
   });
 
   group('MobileFileList — bottom sheet actions', () {
-    testWidgets('bottom sheet Transfer action calls onTransfer', (tester) async {
+    testWidgets('bottom sheet Transfer action calls onTransfer', (
+      tester,
+    ) async {
       final fs = _FakeFS(fakeEntries: _entries());
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       await ctrl.init();
@@ -247,7 +248,9 @@ void main() {
       ctrl.dispose();
     });
 
-    testWidgets('bottom sheet Rename action opens rename dialog', (tester) async {
+    testWidgets('bottom sheet Rename action opens rename dialog', (
+      tester,
+    ) async {
       final fs = _FakeFS(fakeEntries: _entries());
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       await ctrl.init();
@@ -341,8 +344,9 @@ void main() {
   });
 
   group('MobileFileList — error state', () {
-    testWidgets('controller with error shows error message and retry',
-        (tester) async {
+    testWidgets('controller with error shows error message and retry', (
+      tester,
+    ) async {
       final fs = _FakeFS(fakeEntries: []);
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       // Navigate to a path that will throw
@@ -375,7 +379,9 @@ void main() {
   });
 
   group('MobileFileList — file row details', () {
-    testWidgets('file rows show size, dir rows show folder icon', (tester) async {
+    testWidgets('file rows show size, dir rows show folder icon', (
+      tester,
+    ) async {
       final fs = _FakeFS(fakeEntries: _entries());
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       await ctrl.init();
@@ -442,7 +448,8 @@ class _ErrorFS implements FileSystem {
   @override
   Future<String> initialDir() async => '/error';
   @override
-  Future<List<FileEntry>> list(String path) async => throw Exception('FS error');
+  Future<List<FileEntry>> list(String path) async =>
+      throw Exception('FS error');
   @override
   Future<void> mkdir(String path) async {}
   @override
@@ -453,5 +460,4 @@ class _ErrorFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
-
 }

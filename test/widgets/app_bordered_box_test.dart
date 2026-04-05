@@ -77,8 +77,9 @@ void main() {
       expect(border.top.width, 2);
     });
 
-    testWidgets('passes height, width, padding, alignment, constraints',
-        (tester) async {
+    testWidgets('passes height, width, padding, alignment, constraints', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,
@@ -101,6 +102,5 @@ void main() {
       expect(container.constraints?.minHeight, 28);
       expect(container.constraints?.maxHeight, 28);
     });
-
-});
+  });
 }

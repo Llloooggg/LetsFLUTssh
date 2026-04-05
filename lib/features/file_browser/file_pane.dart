@@ -84,7 +84,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   double _ownerColWidth = 50;
 
   /// Determine which data columns fit within [width], hiding from right to left.
-  ({bool size, bool modified, bool mode, bool owner}) _visibleColumns(double width) {
+  ({bool size, bool modified, bool mode, bool owner}) _visibleColumns(
+    double width,
+  ) {
     const base = 36.0; // icon(20) + padding(16)
     final hasOwner = ctrl.entries.any((e) => e.owner.isNotEmpty);
     final s = 10 + _sizeColWidth;
@@ -92,10 +94,14 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final d = 10 + _modeColWidth;
     final o = hasOwner ? 10 + _ownerColWidth : 0.0;
     final avail = width - base;
-    if (avail >= s + m + d + o) return (size: true, modified: true, mode: true, owner: hasOwner);
-    if (avail >= s + m + d) return (size: true, modified: true, mode: true, owner: false);
-    if (avail >= s + m) return (size: true, modified: true, mode: false, owner: false);
-    if (avail >= s) return (size: true, modified: false, mode: false, owner: false);
+    if (avail >= s + m + d + o)
+      return (size: true, modified: true, mode: true, owner: hasOwner);
+    if (avail >= s + m + d)
+      return (size: true, modified: true, mode: true, owner: false);
+    if (avail >= s + m)
+      return (size: true, modified: true, mode: false, owner: false);
+    if (avail >= s)
+      return (size: true, modified: false, mode: false, owner: false);
     return (size: false, modified: false, mode: false, owner: false);
   }
 
@@ -193,11 +199,14 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
-    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed
-        .intersection({LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.controlRight})
-        .isNotEmpty;
+    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed.intersection({
+      LogicalKeyboardKey.controlLeft,
+      LogicalKeyboardKey.controlRight,
+    }).isNotEmpty;
 
-    return isCtrl ? _handleCtrlKey(event.logicalKey) : _handlePlainKey(event.logicalKey);
+    return isCtrl
+        ? _handleCtrlKey(event.logicalKey)
+        : _handlePlainKey(event.logicalKey);
   }
 
   KeyEventResult _handleCtrlKey(LogicalKeyboardKey key) {
@@ -286,7 +295,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                   children: [
                     _buildHeader(theme),
                     _buildColumnHeaders(theme, cols, constraints.maxWidth),
-                    Expanded(child: _buildDropTarget(_buildFileList(theme, cols))),
+                    Expanded(
+                      child: _buildDropTarget(_buildFileList(theme, cols)),
+                    ),
                     _buildFooter(theme),
                   ],
                 );
@@ -324,8 +335,16 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               Expanded(child: _buildBreadcrumb()),
               if (showNav) ...[
                 const SizedBox(width: 4),
-                _navButton(Icons.arrow_back, ctrl.canGoBack ? ctrl.goBack : null, 'Back'),
-                _navButton(Icons.arrow_forward, ctrl.canGoForward ? ctrl.goForward : null, 'Forward'),
+                _navButton(
+                  Icons.arrow_back,
+                  ctrl.canGoBack ? ctrl.goBack : null,
+                  'Back',
+                ),
+                _navButton(
+                  Icons.arrow_forward,
+                  ctrl.canGoForward ? ctrl.goForward : null,
+                  'Forward',
+                ),
                 _navButton(Icons.arrow_upward, ctrl.navigateUp, 'Up'),
                 _navButton(Icons.refresh, ctrl.refresh, 'Refresh'),
               ],
@@ -350,21 +369,21 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-      children: [
-        _buildRootSegment(rootLabel, rootPath),
-        ..._buildPathSegments(isWindows, parts, navParts),
-        AppIconButton(
-          icon: Icons.edit,
-          onTap: () {
-            _pathController.text = ctrl.currentPath;
-            setState(() => _editingPath = true);
-          },
-          tooltip: 'Edit Path',
-          size: 11,
-          boxSize: 20,
-          color: AppTheme.fgFaint,
-        ),
-      ],
+        children: [
+          _buildRootSegment(rootLabel, rootPath),
+          ..._buildPathSegments(isWindows, parts, navParts),
+          AppIconButton(
+            icon: Icons.edit,
+            onTap: () {
+              _pathController.text = ctrl.currentPath;
+              setState(() => _editingPath = true);
+            },
+            tooltip: 'Edit Path',
+            size: 11,
+            boxSize: 20,
+            color: AppTheme.fgFaint,
+          ),
+        ],
       ),
     );
   }
@@ -376,7 +395,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         onTap: () => ctrl.navigateTo(rootPath),
         builder: (hovered) => Text(
           rootLabel,
-          style: AppFonts.mono(fontSize: AppFonts.xs, color: hovered ? AppTheme.fg : AppTheme.fgFaint),
+          style: AppFonts.mono(
+            fontSize: AppFonts.xs,
+            color: hovered ? AppTheme.fg : AppTheme.fgFaint,
+          ),
         ),
       );
     }
@@ -390,9 +412,16 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     );
   }
 
-  List<Widget> _buildPathSegments(bool isWindows, List<String> parts, List<String> navParts) {
+  List<Widget> _buildPathSegments(
+    bool isWindows,
+    List<String> parts,
+    List<String> navParts,
+  ) {
     final separatorText = isWindows ? ' \\ ' : ' / ';
-    final sepStyle = AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint);
+    final sepStyle = AppFonts.mono(
+      fontSize: AppFonts.xs,
+      color: AppTheme.fgFaint,
+    );
     return [
       for (var i = 0; i < navParts.length; i++) ...[
         Text(separatorText, style: sepStyle),
@@ -419,7 +448,12 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       path[1] == ':' &&
       RegExp(r'^[A-Za-z]$').hasMatch(path[0]);
 
-  void _navigateToPart(bool isWindows, List<String> parts, List<String> navParts, int i) {
+  void _navigateToPart(
+    bool isWindows,
+    List<String> parts,
+    List<String> navParts,
+    int i,
+  ) {
     if (isWindows) {
       ctrl.navigateTo([parts[0], ...navParts.sublist(0, i + 1)].join('\\'));
     } else {
@@ -439,7 +473,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           isDense: true,
           filled: true,
           fillColor: AppTheme.bg3,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 4,
+          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: AppTheme.radiusSm,
             borderSide: BorderSide(color: AppTheme.borderLight),
@@ -449,7 +486,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
             borderSide: BorderSide(color: AppTheme.accent),
           ),
           hintText: ctrl.currentPath,
-          hintStyle: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+          hintStyle: AppFonts.mono(
+            fontSize: AppFonts.xs,
+            color: AppTheme.fgFaint,
+          ),
         ),
         onSubmitted: (val) {
           setState(() => _editingPath = false);
@@ -493,7 +533,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
     double maxFor(double colWidth, double minWidth) {
       final others = totalOtherCols - (10 + colWidth);
-      return (availableWidth - overhead - others - 10 - minName).clamp(minWidth, 200.0);
+      return (availableWidth - overhead - others - 10 - minName).clamp(
+        minWidth,
+        200.0,
+      );
     }
 
     return Container(
@@ -504,34 +547,64 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       child: Row(
         children: [
           const SizedBox(width: 20), // icon space
-          Expanded(child: _buildHeaderCell('Name', SortColumn.name, headerStyle)),
+          Expanded(
+            child: _buildHeaderCell('Name', SortColumn.name, headerStyle),
+          ),
           if (cols.size) ...[
-            ColumnResizeHandle(onDrag: (dx) => setState(() {
-              final max = maxFor(_sizeColWidth, 40);
-              _sizeColWidth = (_sizeColWidth - dx).clamp(40, max);
-            })),
-            _buildHeaderCell('Size', SortColumn.size, headerStyle, width: _sizeColWidth),
+            ColumnResizeHandle(
+              onDrag: (dx) => setState(() {
+                final max = maxFor(_sizeColWidth, 40);
+                _sizeColWidth = (_sizeColWidth - dx).clamp(40, max);
+              }),
+            ),
+            _buildHeaderCell(
+              'Size',
+              SortColumn.size,
+              headerStyle,
+              width: _sizeColWidth,
+            ),
           ],
           if (cols.modified) ...[
-            ColumnResizeHandle(onDrag: (dx) => setState(() {
-              final max = maxFor(_modifiedColWidth, 50);
-              _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, max);
-            })),
-            _buildHeaderCell('Modified', SortColumn.modified, headerStyle, width: _modifiedColWidth),
+            ColumnResizeHandle(
+              onDrag: (dx) => setState(() {
+                final max = maxFor(_modifiedColWidth, 50);
+                _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, max);
+              }),
+            ),
+            _buildHeaderCell(
+              'Modified',
+              SortColumn.modified,
+              headerStyle,
+              width: _modifiedColWidth,
+            ),
           ],
           if (cols.mode) ...[
-            ColumnResizeHandle(onDrag: (dx) => setState(() {
-              final max = maxFor(_modeColWidth, 50);
-              _modeColWidth = (_modeColWidth - dx).clamp(50, max);
-            })),
-            _buildHeaderCell('Mode', SortColumn.mode, headerStyle, width: _modeColWidth),
+            ColumnResizeHandle(
+              onDrag: (dx) => setState(() {
+                final max = maxFor(_modeColWidth, 50);
+                _modeColWidth = (_modeColWidth - dx).clamp(50, max);
+              }),
+            ),
+            _buildHeaderCell(
+              'Mode',
+              SortColumn.mode,
+              headerStyle,
+              width: _modeColWidth,
+            ),
           ],
           if (cols.owner) ...[
-            ColumnResizeHandle(onDrag: (dx) => setState(() {
-              final max = maxFor(_ownerColWidth, 40);
-              _ownerColWidth = (_ownerColWidth - dx).clamp(40, max);
-            })),
-            _buildHeaderCell('Owner', SortColumn.owner, headerStyle, width: _ownerColWidth),
+            ColumnResizeHandle(
+              onDrag: (dx) => setState(() {
+                final max = maxFor(_ownerColWidth, 40);
+                _ownerColWidth = (_ownerColWidth - dx).clamp(40, max);
+              }),
+            ),
+            _buildHeaderCell(
+              'Owner',
+              SortColumn.owner,
+              headerStyle,
+              width: _ownerColWidth,
+            ),
           ],
         ],
       ),
@@ -556,7 +629,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           width: width,
           child: Text(
             '$label$sortSuffix',
-            style: color != null ? headerStyle.copyWith(color: color) : headerStyle,
+            style: color != null
+                ? headerStyle.copyWith(color: color)
+                : headerStyle,
             overflow: TextOverflow.ellipsis,
             textAlign: textAlign,
           ),
@@ -565,7 +640,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     );
   }
 
-  double _totalColumnWidths(({bool size, bool modified, bool mode, bool owner}) cols) {
+  double _totalColumnWidths(
+    ({bool size, bool modified, bool mode, bool owner}) cols,
+  ) {
     double total = 0;
     if (cols.size) total += 10 + _sizeColWidth;
     if (cols.modified) total += 10 + _modifiedColWidth;
@@ -596,8 +673,11 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       ctrl.selected.contains(ctrl.entries[index].path);
 
   @override
-  void applyMarqueeSelection(int firstIndex, int lastIndex,
-      {required bool ctrlHeld}) {
+  void applyMarqueeSelection(
+    int firstIndex,
+    int lastIndex, {
+    required bool ctrlHeld,
+  }) {
     final newSelection = <String>{};
     if (_preMarqueeSelection != null) {
       newSelection.addAll(_preMarqueeSelection!);
@@ -637,7 +717,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
   // ── File list ──
 
-  Widget _buildFileList(ThemeData theme, ({bool size, bool modified, bool mode, bool owner}) cols) {
+  Widget _buildFileList(
+    ThemeData theme,
+    ({bool size, bool modified, bool mode, bool owner}) cols,
+  ) {
     if (ctrl.loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -669,7 +752,10 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           const SizedBox(height: 4),
           Text(
             ctrl.error!,
-            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+            style: AppFonts.inter(
+              fontSize: AppFonts.sm,
+              color: AppTheme.fgFaint,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -701,7 +787,8 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         ctrl.clearSelection();
         widget.onPaneActivated?.call();
       },
-      onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
+      onSecondaryTapUp: (d) =>
+          _showBackgroundContextMenu(context, d.globalPosition),
       behavior: HitTestBehavior.translucent,
       child: Center(
         child: Text(
@@ -712,13 +799,17 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     );
   }
 
-  Widget _buildFileListContent(ThemeData theme, ({bool size, bool modified, bool mode, bool owner}) cols) {
+  Widget _buildFileListContent(
+    ThemeData theme,
+    ({bool size, bool modified, bool mode, bool owner}) cols,
+  ) {
     return Listener(
       onPointerDown: handleMarqueePointerDown,
       onPointerMove: handleMarqueePointerMove,
       onPointerUp: handleMarqueePointerUp,
       child: GestureDetector(
-        onSecondaryTapUp: (d) => _showBackgroundContextMenu(context, d.globalPosition),
+        onSecondaryTapUp: (d) =>
+            _showBackgroundContextMenu(context, d.globalPosition),
         behavior: HitTestBehavior.translucent,
         child: Stack(
           key: _fileListKey,
@@ -730,15 +821,19 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               itemBuilder: (context, index) =>
                   _buildFileListItem(context, index, theme, cols),
             ),
-            if (marqueeVisible)
-              buildMarqueeOverlay(theme.colorScheme.primary),
+            if (marqueeVisible) buildMarqueeOverlay(theme.colorScheme.primary),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFileListItem(BuildContext context, int index, ThemeData theme, ({bool size, bool modified, bool mode, bool owner}) cols) {
+  Widget _buildFileListItem(
+    BuildContext context,
+    int index,
+    ThemeData theme,
+    ({bool size, bool modified, bool mode, bool owner}) cols,
+  ) {
     final entry = ctrl.entries[index];
     final isSelected = ctrl.selected.contains(entry.path);
 
@@ -771,8 +866,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           widget.onTransfer?.call(entry);
         }
       },
-      onContextMenu: (offset) =>
-          _showContextMenu(context, offset, entry),
+      onContextMenu: (offset) => _showContextMenu(context, offset, entry),
     );
 
     if (!isSelected) return row;
@@ -781,10 +875,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final dragEntries = selected.length > 1 ? selected : [entry];
 
     return Draggable<PaneDragData>(
-      data: PaneDragData(
-        sourcePaneId: widget.paneId,
-        entries: dragEntries,
-      ),
+      data: PaneDragData(sourcePaneId: widget.paneId, entries: dragEntries),
       onDragStarted: onDragStarted,
       onDragEnd: onDragEnd,
       onDraggableCanceled: onDragCanceled,
@@ -838,12 +929,20 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       child: ClippedRow(
         children: [
           Flexible(
-            child: Text('$count items, ${formatSize(ctrl.totalFileSize)}', style: style, overflow: TextOverflow.ellipsis),
+            child: Text(
+              '$count items, ${formatSize(ctrl.totalFileSize)}',
+              style: style,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           if (selCount > 0) ...[
             const SizedBox(width: 8),
             Flexible(
-              child: Text('($selCount selected)', style: style, overflow: TextOverflow.ellipsis),
+              child: Text(
+                '($selCount selected)',
+                style: style,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ],
@@ -873,10 +972,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                     width: 2,
                   ),
                   borderRadius: AppTheme.radiusSm,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.08),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.08),
                 )
               : null,
           child: child,
@@ -907,7 +1005,11 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     );
   }
 
-  void _showContextMenu(BuildContext context, Offset position, FileEntry entry) {
+  void _showContextMenu(
+    BuildContext context,
+    Offset position,
+    FileEntry entry,
+  ) {
     if (!ctrl.selected.contains(entry.path)) {
       ctrl.selectSingle(entry.path);
     }
@@ -926,7 +1028,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
             onTap: () => ctrl.navigateTo(entry.path),
           ),
         ContextMenuItem(
-          label: hasMultiple ? 'Transfer ${selectedEntries.length} items' : 'Transfer',
+          label: hasMultiple
+              ? 'Transfer ${selectedEntries.length} items'
+              : 'Transfer',
           icon: Icons.swap_horiz,
           onTap: () {
             if (hasMultiple) {
@@ -949,7 +1053,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
             onTap: () => _showRenameDialog(context, entry),
           ),
         ContextMenuItem(
-          label: hasMultiple ? 'Delete ${selectedEntries.length} items' : 'Delete',
+          label: hasMultiple
+              ? 'Delete ${selectedEntries.length} items'
+              : 'Delete',
           icon: Icons.delete,
           color: AppTheme.red,
           onTap: () => _confirmDelete(context, selectedEntries),
@@ -969,4 +1075,3 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   Future<void> _confirmDelete(BuildContext context, List<FileEntry> entries) =>
       FilePaneDialogs.confirmDelete(context, ctrl, entries);
 }
-

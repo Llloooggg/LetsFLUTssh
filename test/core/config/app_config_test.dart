@@ -23,26 +23,11 @@ void main() {
       });
 
       test('returns null for boundary values', () {
-        expect(
-          const TerminalConfig(fontSize: 6).validate(),
-          isNull,
-        );
-        expect(
-          const TerminalConfig(fontSize: 72).validate(),
-          isNull,
-        );
-        expect(
-          const TerminalConfig(scrollback: 100).validate(),
-          isNull,
-        );
-        expect(
-          const TerminalConfig(theme: 'light').validate(),
-          isNull,
-        );
-        expect(
-          const TerminalConfig(theme: 'system').validate(),
-          isNull,
-        );
+        expect(const TerminalConfig(fontSize: 6).validate(), isNull);
+        expect(const TerminalConfig(fontSize: 72).validate(), isNull);
+        expect(const TerminalConfig(scrollback: 100).validate(), isNull);
+        expect(const TerminalConfig(theme: 'light').validate(), isNull);
+        expect(const TerminalConfig(theme: 'system').validate(), isNull);
       });
 
       test('rejects fontSize below 6', () {
@@ -84,7 +69,10 @@ void main() {
 
       test('replaces scrollback below 100 with default', () {
         const config = TerminalConfig(scrollback: 50);
-        expect(config.sanitized().scrollback, TerminalConfig.defaults.scrollback);
+        expect(
+          config.sanitized().scrollback,
+          TerminalConfig.defaults.scrollback,
+        );
       });
 
       test('preserves valid values', () {
@@ -122,15 +110,27 @@ void main() {
       });
 
       test('returns equal object when no arguments given', () {
-        const config = TerminalConfig(fontSize: 16, theme: 'light', scrollback: 1000);
+        const config = TerminalConfig(
+          fontSize: 16,
+          theme: 'light',
+          scrollback: 1000,
+        );
         expect(config.copyWith(), config);
       });
     });
 
     group('equality and hashCode', () {
       test('equal configs are equal', () {
-        const a = TerminalConfig(fontSize: 16, theme: 'light', scrollback: 1000);
-        const b = TerminalConfig(fontSize: 16, theme: 'light', scrollback: 1000);
+        const a = TerminalConfig(
+          fontSize: 16,
+          theme: 'light',
+          scrollback: 1000,
+        );
+        const b = TerminalConfig(
+          fontSize: 16,
+          theme: 'light',
+          scrollback: 1000,
+        );
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
       });
@@ -166,7 +166,11 @@ void main() {
 
     group('toJson() / fromJson()', () {
       test('roundtrip preserves values', () {
-        const config = TerminalConfig(fontSize: 18, theme: 'system', scrollback: 2000);
+        const config = TerminalConfig(
+          fontSize: 18,
+          theme: 'system',
+          scrollback: 2000,
+        );
         final json = config.toJson();
         final restored = TerminalConfig.fromJson(json);
         expect(restored, config);
@@ -260,22 +264,34 @@ void main() {
     group('sanitized()', () {
       test('replaces negative keepAliveSec with default', () {
         const config = SshDefaults(keepAliveSec: -5);
-        expect(config.sanitized().keepAliveSec, SshDefaults.defaults.keepAliveSec);
+        expect(
+          config.sanitized().keepAliveSec,
+          SshDefaults.defaults.keepAliveSec,
+        );
       });
 
       test('replaces port 0 with default', () {
         const config = SshDefaults(defaultPort: 0);
-        expect(config.sanitized().defaultPort, SshDefaults.defaults.defaultPort);
+        expect(
+          config.sanitized().defaultPort,
+          SshDefaults.defaults.defaultPort,
+        );
       });
 
       test('replaces port above 65535 with default', () {
         const config = SshDefaults(defaultPort: 70000);
-        expect(config.sanitized().defaultPort, SshDefaults.defaults.defaultPort);
+        expect(
+          config.sanitized().defaultPort,
+          SshDefaults.defaults.defaultPort,
+        );
       });
 
       test('replaces sshTimeoutSec 0 with default', () {
         const config = SshDefaults(sshTimeoutSec: 0);
-        expect(config.sanitized().sshTimeoutSec, SshDefaults.defaults.sshTimeoutSec);
+        expect(
+          config.sanitized().sshTimeoutSec,
+          SshDefaults.defaults.sshTimeoutSec,
+        );
       });
 
       test('preserves valid values', () {
@@ -312,15 +328,27 @@ void main() {
       });
 
       test('returns equal object when no arguments given', () {
-        const config = SshDefaults(keepAliveSec: 45, defaultPort: 443, sshTimeoutSec: 20);
+        const config = SshDefaults(
+          keepAliveSec: 45,
+          defaultPort: 443,
+          sshTimeoutSec: 20,
+        );
         expect(config.copyWith(), config);
       });
     });
 
     group('equality and hashCode', () {
       test('equal configs are equal', () {
-        const a = SshDefaults(keepAliveSec: 10, defaultPort: 22, sshTimeoutSec: 5);
-        const b = SshDefaults(keepAliveSec: 10, defaultPort: 22, sshTimeoutSec: 5);
+        const a = SshDefaults(
+          keepAliveSec: 10,
+          defaultPort: 22,
+          sshTimeoutSec: 5,
+        );
+        const b = SshDefaults(
+          keepAliveSec: 10,
+          defaultPort: 22,
+          sshTimeoutSec: 5,
+        );
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
       });
@@ -356,7 +384,11 @@ void main() {
 
     group('toJson() / fromJson()', () {
       test('roundtrip preserves values', () {
-        const config = SshDefaults(keepAliveSec: 60, defaultPort: 2222, sshTimeoutSec: 15);
+        const config = SshDefaults(
+          keepAliveSec: 60,
+          defaultPort: 2222,
+          sshTimeoutSec: 15,
+        );
         final json = config.toJson();
         final restored = SshDefaults.fromJson(json);
         expect(restored, config);
@@ -439,7 +471,10 @@ void main() {
     group('sanitized()', () {
       test('replaces toastDurationMs below 500 with default', () {
         const config = UiConfig(toastDurationMs: 100);
-        expect(config.sanitized().toastDurationMs, UiConfig.defaults.toastDurationMs);
+        expect(
+          config.sanitized().toastDurationMs,
+          UiConfig.defaults.toastDurationMs,
+        );
       });
 
       test('replaces windowWidth below 200 with default', () {
@@ -486,15 +521,27 @@ void main() {
       });
 
       test('returns equal object when no arguments given', () {
-        const config = UiConfig(toastDurationMs: 5000, windowWidth: 800, windowHeight: 600);
+        const config = UiConfig(
+          toastDurationMs: 5000,
+          windowWidth: 800,
+          windowHeight: 600,
+        );
         expect(config.copyWith(), config);
       });
     });
 
     group('equality and hashCode', () {
       test('equal configs are equal', () {
-        const a = UiConfig(toastDurationMs: 3000, windowWidth: 800, windowHeight: 600);
-        const b = UiConfig(toastDurationMs: 3000, windowWidth: 800, windowHeight: 600);
+        const a = UiConfig(
+          toastDurationMs: 3000,
+          windowWidth: 800,
+          windowHeight: 600,
+        );
+        const b = UiConfig(
+          toastDurationMs: 3000,
+          windowWidth: 800,
+          windowHeight: 600,
+        );
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
       });
@@ -530,7 +577,11 @@ void main() {
 
     group('toJson() / fromJson()', () {
       test('roundtrip preserves values', () {
-        const config = UiConfig(toastDurationMs: 2000, windowWidth: 1920, windowHeight: 1080);
+        const config = UiConfig(
+          toastDurationMs: 2000,
+          windowWidth: 1920,
+          windowHeight: 1080,
+        );
         final json = config.toJson();
         final restored = UiConfig.fromJson(json);
         expect(restored, config);
@@ -683,10 +734,7 @@ void main() {
       });
 
       test('accepts boundary values', () {
-        const config = AppConfig(
-          transferWorkers: 1,
-          maxHistory: 0,
-        );
+        const config = AppConfig(transferWorkers: 1, maxHistory: 0);
         expect(config.validate(), isNull);
       });
     });
@@ -706,7 +754,10 @@ void main() {
 
       test('replaces transferWorkers below 1 with default', () {
         const config = AppConfig(transferWorkers: 0);
-        expect(config.sanitized().transferWorkers, AppConfig.defaults.transferWorkers);
+        expect(
+          config.sanitized().transferWorkers,
+          AppConfig.defaults.transferWorkers,
+        );
       });
 
       test('replaces negative maxHistory with default', () {
@@ -761,18 +812,14 @@ void main() {
 
       test('replaces ssh', () {
         const config = AppConfig();
-        final copy = config.copyWith(
-          ssh: const SshDefaults(defaultPort: 2222),
-        );
+        final copy = config.copyWith(ssh: const SshDefaults(defaultPort: 2222));
         expect(copy.ssh.defaultPort, 2222);
         expect(copy.terminal, config.terminal);
       });
 
       test('replaces ui', () {
         const config = AppConfig();
-        final copy = config.copyWith(
-          ui: const UiConfig(windowWidth: 1920),
-        );
+        final copy = config.copyWith(ui: const UiConfig(windowWidth: 1920));
         expect(copy.ui.windowWidth, 1920);
       });
 
@@ -830,8 +877,16 @@ void main() {
 
     group('equality and hashCode', () {
       test('equal configs are equal', () {
-        const a = AppConfig(transferWorkers: 4, maxHistory: 100, enableLogging: true);
-        const b = AppConfig(transferWorkers: 4, maxHistory: 100, enableLogging: true);
+        const a = AppConfig(
+          transferWorkers: 4,
+          maxHistory: 100,
+          enableLogging: true,
+        );
+        const b = AppConfig(
+          transferWorkers: 4,
+          maxHistory: 100,
+          enableLogging: true,
+        );
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
       });
@@ -904,9 +959,21 @@ void main() {
     group('toJson() / fromJson()', () {
       test('roundtrip preserves all values', () {
         const config = AppConfig(
-          terminal: TerminalConfig(fontSize: 18, theme: 'system', scrollback: 2000),
-          ssh: SshDefaults(keepAliveSec: 60, defaultPort: 2222, sshTimeoutSec: 15),
-          ui: UiConfig(toastDurationMs: 2000, windowWidth: 1920, windowHeight: 1080),
+          terminal: TerminalConfig(
+            fontSize: 18,
+            theme: 'system',
+            scrollback: 2000,
+          ),
+          ssh: SshDefaults(
+            keepAliveSec: 60,
+            defaultPort: 2222,
+            sshTimeoutSec: 15,
+          ),
+          ui: UiConfig(
+            toastDurationMs: 2000,
+            windowWidth: 1920,
+            windowHeight: 1080,
+          ),
           transferWorkers: 4,
           maxHistory: 1000,
           enableLogging: true,

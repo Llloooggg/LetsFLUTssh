@@ -31,7 +31,9 @@ class _PrePopulatedWorkspaceNotifier extends WorkspaceNotifier {
 }
 
 /// Helper to build a WorkspaceState with tabs added via a setup callback.
-WorkspaceState _buildWorkspaceState(void Function(_WorkspaceStateBuilder) setup) {
+WorkspaceState _buildWorkspaceState(
+  void Function(_WorkspaceStateBuilder) setup,
+) {
   final builder = _WorkspaceStateBuilder();
   setup(builder);
   final panel = PanelLeaf(
@@ -47,21 +49,25 @@ class _WorkspaceStateBuilder {
   int _counter = 0;
 
   void addTerminalTab(Connection conn, {String? label}) {
-    _tabs.add(TabEntry(
-      id: 'tab-${_counter++}',
-      label: label ?? conn.label,
-      connection: conn,
-      kind: TabKind.terminal,
-    ));
+    _tabs.add(
+      TabEntry(
+        id: 'tab-${_counter++}',
+        label: label ?? conn.label,
+        connection: conn,
+        kind: TabKind.terminal,
+      ),
+    );
   }
 
   void addSftpTab(Connection conn, {String? label}) {
-    _tabs.add(TabEntry(
-      id: 'tab-${_counter++}',
-      label: label ?? '${conn.label} (SFTP)',
-      connection: conn,
-      kind: TabKind.sftp,
-    ));
+    _tabs.add(
+      TabEntry(
+        id: 'tab-${_counter++}',
+        label: label ?? '${conn.label} (SFTP)',
+        connection: conn,
+        kind: TabKind.sftp,
+      ),
+    );
   }
 }
 
@@ -82,10 +88,14 @@ class _PrePopulatedSessionNotifier extends SessionNotifier {
 class _FailingConnectionManager extends ConnectionManager {
   final Object error;
   _FailingConnectionManager(this.error)
-      : super(knownHosts: KnownHostsManager());
+    : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
+  Connection connectAsync(
+    SSHConfig config, {
+    String? label,
+    String? sessionId,
+  }) {
     final conn = Connection(
       id: 'conn-fail',
       label: label ?? config.displayName,
@@ -103,7 +113,11 @@ class _SuccessConnectionManager extends ConnectionManager {
   _SuccessConnectionManager() : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
+  Connection connectAsync(
+    SSHConfig config, {
+    String? label,
+    String? sessionId,
+  }) {
     return Connection(
       id: 'conn-success',
       label: label ?? config.displayName,
@@ -132,14 +146,13 @@ void main() {
           if (workspaceState != null)
             workspaceProvider.overrideWith(WorkspaceNotifier.new),
         ],
-        child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: const MobileShell(),
-        ),
+        child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
       );
     }
 
-    testWidgets('renders bottom navigation bar with 3 destinations', (tester) async {
+    testWidgets('renders bottom navigation bar with 3 destinations', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -188,7 +201,9 @@ void main() {
       final conn = Connection(
         id: 'conn-1',
         label: 'My Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -202,14 +217,13 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) => b.addTerminalTab(conn)),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -226,7 +240,9 @@ void main() {
       final conn = Connection(
         id: 'conn-2',
         label: 'SFTP Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'sftp.example.com', user: 'admin')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'sftp.example.com', user: 'admin'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -240,14 +256,13 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) => b.addSftpTab(conn)),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) => b.addSftpTab(conn)),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -264,7 +279,9 @@ void main() {
       final conn = Connection(
         id: 'conn-close',
         label: 'Close Me',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -278,14 +295,15 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) => b.addTerminalTab(conn, label: 'Close Me')),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState(
+                  (b) => b.addTerminalTab(conn, label: 'Close Me'),
+                ),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -304,7 +322,9 @@ void main() {
       }
     });
 
-    testWidgets('swipe gesture does not navigate between pages', (tester) async {
+    testWidgets('swipe gesture does not navigate between pages', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -342,7 +362,9 @@ void main() {
       expect(find.text('No active file browsers'), findsNothing);
     });
 
-    testWidgets('Terminal nav is disabled when no terminal tabs', (tester) async {
+    testWidgets('Terminal nav is disabled when no terminal tabs', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -368,7 +390,9 @@ void main() {
       final conn = Connection(
         id: 'conn-sftp-close',
         label: 'SFTP Close Me',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -382,14 +406,15 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) => b.addSftpTab(conn, label: 'SFTP Close Me')),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState(
+                  (b) => b.addSftpTab(conn, label: 'SFTP Close Me'),
+                ),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -415,14 +440,18 @@ void main() {
       final conn1 = Connection(
         id: 'sftp-1',
         label: 'SFTP A',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'a.com', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'a.com', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
         id: 'sftp-2',
         label: 'SFTP B',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'b.com', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'b.com', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -436,17 +465,16 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) {
-                b.addSftpTab(conn1, label: 'SFTP A');
-                b.addSftpTab(conn2, label: 'SFTP B');
-              }),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addSftpTab(conn1, label: 'SFTP A');
+                  b.addSftpTab(conn2, label: 'SFTP B');
+                }),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -468,14 +496,18 @@ void main() {
       final conn1 = Connection(
         id: 'term-1',
         label: 'Term A',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'a.com', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'a.com', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
         id: 'term-2',
         label: 'Term B',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'b.com', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'b.com', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -489,17 +521,16 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) {
-                b.addTerminalTab(conn1, label: 'Term A');
-                b.addTerminalTab(conn2, label: 'Term B');
-              }),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(conn1, label: 'Term A');
+                  b.addTerminalTab(conn2, label: 'Term B');
+                }),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -517,18 +548,24 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('SFTP page falls back to last tab when activeTab is not SFTP', (tester) async {
+    testWidgets('SFTP page falls back to last tab when activeTab is not SFTP', (
+      tester,
+    ) async {
       final termConn = Connection(
         id: 'term-x',
         label: 'Terminal',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final sftpConn = Connection(
         id: 'sftp-x',
         label: 'SFTP Tab',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -542,18 +579,17 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) {
-                // Add SFTP tab first, then terminal tab (terminal becomes active)
-                b.addSftpTab(sftpConn, label: 'SFTP Tab');
-                b.addTerminalTab(termConn, label: 'Terminal');
-              }),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  // Add SFTP tab first, then terminal tab (terminal becomes active)
+                  b.addSftpTab(sftpConn, label: 'SFTP Tab');
+                  b.addTerminalTab(termConn, label: 'Terminal');
+                }),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -565,54 +601,62 @@ void main() {
       expect(find.text('SFTP Tab'), findsOneWidget);
     });
 
-    testWidgets('Terminal page falls back to last tab when activeTab is not terminal', (tester) async {
-      final termConn = Connection(
-        id: 'term-y',
-        label: 'Term Tab',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
-        sshConnection: null,
-        state: SSHConnectionState.disconnected,
-      );
-      final sftpConn = Connection(
-        id: 'sftp-y',
-        label: 'SFTP',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
-        sshConnection: null,
-        state: SSHConnectionState.disconnected,
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) {
-                // Add terminal tab first, then SFTP tab (SFTP becomes active)
-                b.addTerminalTab(termConn, label: 'Term Tab');
-                b.addSftpTab(sftpConn, label: 'SFTP');
-              }),
-            )),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
+    testWidgets(
+      'Terminal page falls back to last tab when activeTab is not terminal',
+      (tester) async {
+        final termConn = Connection(
+          id: 'term-y',
+          label: 'Term Tab',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+          sshConnection: null,
+          state: SSHConnectionState.disconnected,
+        );
+        final sftpConn = Connection(
+          id: 'sftp-y',
+          label: 'SFTP',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          sshConnection: null,
+          state: SSHConnectionState.disconnected,
+        );
 
-      // Navigate to Terminal page — activeTab is SFTP, so terminal page should fall back
-      await tester.tap(find.text('Terminal'));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sessionStoreProvider.overrideWithValue(SessionStore()),
+              sessionProvider.overrideWith(SessionNotifier.new),
+              knownHostsProvider.overrideWithValue(KnownHostsManager()),
+              connectionManagerProvider.overrideWithValue(
+                ConnectionManager(knownHosts: KnownHostsManager()),
+              ),
+              workspaceProvider.overrideWith(
+                () => _PrePopulatedWorkspaceNotifier(
+                  _buildWorkspaceState((b) {
+                    // Add terminal tab first, then SFTP tab (SFTP becomes active)
+                    b.addTerminalTab(termConn, label: 'Term Tab');
+                    b.addSftpTab(sftpConn, label: 'SFTP');
+                  }),
+                ),
+              ),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.dark(),
+              home: const MobileShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Term Tab'), findsOneWidget);
-    });
+        // Navigate to Terminal page — activeTab is SFTP, so terminal page should fall back
+        await tester.tap(find.text('Terminal'));
+        await tester.pumpAndSettle();
 
+        expect(find.text('Term Tab'), findsOneWidget);
+      },
+    );
 
     // Helper to build widget with a session and custom ConnectionManager
     Widget buildWithSession({
@@ -624,15 +668,13 @@ void main() {
       return ProviderScope(
         overrides: [
           sessionStoreProvider.overrideWithValue(store),
-          sessionProvider.overrideWith(() =>
-              _PrePopulatedSessionNotifier(store.sessions)),
+          sessionProvider.overrideWith(
+            () => _PrePopulatedSessionNotifier(store.sessions),
+          ),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(manager),
         ],
-        child: MaterialApp(
-          theme: AppTheme.dark(),
-          home: const MobileShell(),
-        ),
+        child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
       );
     }
 
@@ -647,12 +689,20 @@ void main() {
       }
     }
 
-    testWidgets('connect session adds tab and navigates to terminal', (tester) async {
-      final session = Session(id: 'sess-1', label: 'Test Server', server: const ServerAddress(host: 'example.com', user: 'root'));
-      await tester.pumpWidget(buildWithSession(
-        session: session,
-        manager: _SuccessConnectionManager(),
-      ));
+    testWidgets('connect session adds tab and navigates to terminal', (
+      tester,
+    ) async {
+      final session = Session(
+        id: 'sess-1',
+        label: 'Test Server',
+        server: const ServerAddress(host: 'example.com', user: 'root'),
+      );
+      await tester.pumpWidget(
+        buildWithSession(
+          session: session,
+          manager: _SuccessConnectionManager(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Test Server'), findsOneWidget);
@@ -660,29 +710,40 @@ void main() {
       await doubleTapSession(tester, 'Test Server');
     });
 
-    testWidgets('connect session with failed connection still adds tab', (tester) async {
-      final session = Session(id: 'sess-fail', label: 'Fail Server', server: const ServerAddress(host: 'fail.com', user: 'root'));
-      await tester.pumpWidget(buildWithSession(
-        session: session,
-        manager: _FailingConnectionManager(Exception('bad password')),
-      ));
+    testWidgets('connect session with failed connection still adds tab', (
+      tester,
+    ) async {
+      final session = Session(
+        id: 'sess-fail',
+        label: 'Fail Server',
+        server: const ServerAddress(host: 'fail.com', user: 'root'),
+      );
+      await tester.pumpWidget(
+        buildWithSession(
+          session: session,
+          manager: _FailingConnectionManager(Exception('bad password')),
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Double-tap triggers connect + nav switch — tab is added even if disconnected
       await doubleTapSession(tester, 'Fail Server');
     });
 
-    testWidgets('SFTP connect via context menu navigates to Files page',
-        (tester) async {
+    testWidgets('SFTP connect via context menu navigates to Files page', (
+      tester,
+    ) async {
       final session = Session(
         id: 'sess-sftp',
         label: 'SFTP Target',
         server: const ServerAddress(host: 'sftp.example.com', user: 'admin'),
       );
-      await tester.pumpWidget(buildWithSession(
-        session: session,
-        manager: _SuccessConnectionManager(),
-      ));
+      await tester.pumpWidget(
+        buildWithSession(
+          session: session,
+          manager: _SuccessConnectionManager(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('SFTP Target'), findsOneWidget);
@@ -706,17 +767,21 @@ void main() {
 
     // FAB was removed — new sessions are created from SessionPanel's add button.
 
-    testWidgets('incomplete session shows toast and stays on Sessions page', (tester) async {
+    testWidgets('incomplete session shows toast and stays on Sessions page', (
+      tester,
+    ) async {
       final session = Session(
         id: 'sess-incomplete',
         label: 'Incomplete Server',
         server: const ServerAddress(host: 'example.com', user: 'root'),
         incomplete: true,
       );
-      await tester.pumpWidget(buildWithSession(
-        session: session,
-        manager: _SuccessConnectionManager(),
-      ));
+      await tester.pumpWidget(
+        buildWithSession(
+          session: session,
+          manager: _SuccessConnectionManager(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Double-tap the incomplete session
@@ -729,42 +794,51 @@ void main() {
       Toast.clearAllForTest();
     });
 
-    testWidgets('incomplete session SFTP shows toast and stays on Sessions page', (tester) async {
-      final session = Session(
-        id: 'sess-incomplete-sftp',
-        label: 'Incomplete SFTP',
-        server: const ServerAddress(host: 'example.com', user: 'root'),
-        incomplete: true,
-      );
-      await tester.pumpWidget(buildWithSession(
-        session: session,
-        manager: _SuccessConnectionManager(),
-      ));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'incomplete session SFTP shows toast and stays on Sessions page',
+      (tester) async {
+        final session = Session(
+          id: 'sess-incomplete-sftp',
+          label: 'Incomplete SFTP',
+          server: const ServerAddress(host: 'example.com', user: 'root'),
+          incomplete: true,
+        );
+        await tester.pumpWidget(
+          buildWithSession(
+            session: session,
+            manager: _SuccessConnectionManager(),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Right-click to open context menu
-      await tester.tap(
-        find.text('Incomplete SFTP'),
-        buttons: kSecondaryMouseButton,
-      );
-      await tester.pumpAndSettle();
+        // Right-click to open context menu
+        await tester.tap(
+          find.text('Incomplete SFTP'),
+          buttons: kSecondaryMouseButton,
+        );
+        await tester.pumpAndSettle();
 
-      // Tap 'Files' in the context menu (last match — first is nav bar)
-      await tester.tap(find.text('Files').last);
-      await tester.pumpAndSettle();
+        // Tap 'Files' in the context menu (last match — first is nav bar)
+        await tester.tap(find.text('Files').last);
+        await tester.pumpAndSettle();
 
-      // Should stay on Sessions page (index 0), not switch to Files
-      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
-      expect(stack.index, equals(0));
+        // Should stay on Sessions page (index 0), not switch to Files
+        final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+        expect(stack.index, equals(0));
 
-      Toast.clearAllForTest();
-    });
+        Toast.clearAllForTest();
+      },
+    );
 
-    testWidgets('SFTP button shown on terminal page when connected', (tester) async {
+    testWidgets('SFTP button shown on terminal page when connected', (
+      tester,
+    ) async {
       final conn = Connection(
         id: 'conn-sftp-btn',
         label: 'Connected Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.connected,
       );
@@ -778,14 +852,13 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) => b.addTerminalTab(conn)),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -798,11 +871,15 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
 
-    testWidgets('SFTP button hidden on terminal page when disconnected', (tester) async {
+    testWidgets('SFTP button hidden on terminal page when disconnected', (
+      tester,
+    ) async {
       final conn = Connection(
         id: 'conn-sftp-btn-off',
         label: 'Disconnected Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -816,14 +893,13 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) => b.addTerminalTab(conn)),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -840,7 +916,9 @@ void main() {
       final conn = Connection(
         id: 'conn-ssh-btn',
         label: 'Connected Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.connected,
       );
@@ -854,14 +932,13 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) => b.addSftpTab(conn)),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) => b.addSftpTab(conn)),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -874,11 +951,15 @@ void main() {
       expect(find.byTooltip('Open SSH Terminal'), findsOneWidget);
     });
 
-    testWidgets('SSH button hidden on SFTP page when disconnected', (tester) async {
+    testWidgets('SSH button hidden on SFTP page when disconnected', (
+      tester,
+    ) async {
       final conn = Connection(
         id: 'conn-ssh-btn-off',
         label: 'Disconnected Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -892,14 +973,13 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) => b.addSftpTab(conn)),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) => b.addSftpTab(conn)),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -912,12 +992,15 @@ void main() {
       expect(find.byTooltip('Open SSH Terminal'), findsNothing);
     });
 
-
-    testWidgets('tab bar and companion button share bg1 background', (tester) async {
+    testWidgets('tab bar and companion button share bg1 background', (
+      tester,
+    ) async {
       final conn = Connection(
         id: 'conn-bg',
         label: 'BG Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.connected,
       );
@@ -931,14 +1014,13 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) => b.addTerminalTab(conn)),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -958,8 +1040,11 @@ void main() {
         }
         return false;
       });
-      expect(bg1Containers, isNotEmpty,
-          reason: 'tab bar area should have bg1 background');
+      expect(
+        bg1Containers,
+        isNotEmpty,
+        reason: 'tab bar area should have bg1 background',
+      );
     });
 
     testWidgets('rebuilds with new colors when theme changes', (tester) async {
@@ -990,7 +1075,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // App bar should use dark bg1
-      final darkContainers = tester.widgetList<Container>(find.byType(Container));
+      final darkContainers = tester.widgetList<Container>(
+        find.byType(Container),
+      );
       final hasDarkBg1 = darkContainers.any((c) {
         if (c.color == darkBg1) return true;
         final dec = c.decoration;
@@ -1023,17 +1110,25 @@ void main() {
 
       // After theme change, MobileShell should rebuild with light colors
       final lightBg1 = AppTheme.bg1;
-      expect(lightBg1, isNot(equals(darkBg1)),
-          reason: 'light bg1 should differ from dark bg1');
+      expect(
+        lightBg1,
+        isNot(equals(darkBg1)),
+        reason: 'light bg1 should differ from dark bg1',
+      );
 
-      final lightContainers = tester.widgetList<Container>(find.byType(Container));
+      final lightContainers = tester.widgetList<Container>(
+        find.byType(Container),
+      );
       final hasLightBg1 = lightContainers.any((c) {
         if (c.color == lightBg1) return true;
         final dec = c.decoration;
         return dec is BoxDecoration && dec.color == lightBg1;
       });
-      expect(hasLightBg1, isTrue,
-          reason: 'app bar should use light bg1 after theme change');
+      expect(
+        hasLightBg1,
+        isTrue,
+        reason: 'app bar should use light bg1 after theme change',
+      );
 
       // Restore dark theme for other tests
       AppTheme.setBrightness(Brightness.dark);
@@ -1043,7 +1138,9 @@ void main() {
       final conn = Connection(
         id: 'conn-3',
         label: 'Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
@@ -1057,17 +1154,16 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            workspaceProvider.overrideWith(() => _PrePopulatedWorkspaceNotifier(
-              _buildWorkspaceState((b) {
-                b.addTerminalTab(conn, label: 'Tab 1');
-                b.addTerminalTab(conn, label: 'Tab 2');
-              }),
-            )),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(conn, label: 'Tab 1');
+                  b.addTerminalTab(conn, label: 'Tab 2');
+                }),
+              ),
+            ),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
@@ -1078,79 +1174,88 @@ void main() {
       expect(find.byIcon(Icons.tab_outlined), findsAtLeast(1));
     });
 
-    testWidgets('header shows StatusIndicator for saved sessions and active connections', (tester) async {
-      debugMobilePlatformOverride = true;
-      addTearDown(() => debugMobilePlatformOverride = null);
+    testWidgets(
+      'header shows StatusIndicator for saved sessions and active connections',
+      (tester) async {
+        debugMobilePlatformOverride = true;
+        addTearDown(() => debugMobilePlatformOverride = null);
 
-      final sessions = [
-        Session(
-          id: 's1',
-          label: 'Server1',
-          folder: '',
-          server: const ServerAddress(host: 'h1', user: 'u'),
-          auth: const SessionAuth(authType: AuthType.password),
-        ),
-        Session(
-          id: 's2',
-          label: 'Server2',
-          folder: '',
-          server: const ServerAddress(host: 'h2', user: 'u'),
-          auth: const SessionAuth(authType: AuthType.password),
-        ),
-      ];
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(() => _PrePopulatedSessionNotifier(sessions)),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
+        final sessions = [
+          Session(
+            id: 's1',
+            label: 'Server1',
+            folder: '',
+            server: const ServerAddress(host: 'h1', user: 'u'),
+            auth: const SessionAuth(authType: AuthType.password),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+          Session(
+            id: 's2',
+            label: 'Server2',
+            folder: '',
+            server: const ServerAddress(host: 'h2', user: 'u'),
+            auth: const SessionAuth(authType: AuthType.password),
+          ),
+        ];
 
-      // Three StatusIndicator widgets in header: saved sessions + active connections + open tabs
-      expect(find.byType(StatusIndicator), findsNWidgets(3));
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sessionStoreProvider.overrideWithValue(SessionStore()),
+              sessionProvider.overrideWith(
+                () => _PrePopulatedSessionNotifier(sessions),
+              ),
+              knownHostsProvider.overrideWithValue(KnownHostsManager()),
+              connectionManagerProvider.overrideWithValue(
+                ConnectionManager(knownHosts: KnownHostsManager()),
+              ),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.dark(),
+              home: const MobileShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Saved sessions icon (dns_outlined) — only in header (footer hidden on mobile)
-      expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
+        // Three StatusIndicator widgets in header: saved sessions + active connections + open tabs
+        expect(find.byType(StatusIndicator), findsNWidgets(3));
 
-      // Active connections icon (wifi)
-      expect(find.byIcon(Icons.wifi), findsOneWidget);
+        // Saved sessions icon (dns_outlined) — only in header (footer hidden on mobile)
+        expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
 
-      // Saved count should show "2" (two sessions)
-      final savedIndicator = tester.widget<StatusIndicator>(
-        find.byType(StatusIndicator).first,
-      );
-      expect(savedIndicator.count, 2);
-      expect(savedIndicator.tooltip, 'Saved sessions');
+        // Active connections icon (wifi)
+        expect(find.byIcon(Icons.wifi), findsOneWidget);
 
-      // Active count should be 0 (no connections)
-      final activeIndicator = tester.widgetList<StatusIndicator>(
-        find.byType(StatusIndicator),
-      ).firstWhere((s) => s.tooltip == 'Active connections');
-      expect(activeIndicator.count, 0);
+        // Saved count should show "2" (two sessions)
+        final savedIndicator = tester.widget<StatusIndicator>(
+          find.byType(StatusIndicator).first,
+        );
+        expect(savedIndicator.count, 2);
+        expect(savedIndicator.tooltip, 'Saved sessions');
 
-      // Tab count indicator present
-      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
-    });
+        // Active count should be 0 (no connections)
+        final activeIndicator = tester
+            .widgetList<StatusIndicator>(find.byType(StatusIndicator))
+            .firstWhere((s) => s.tooltip == 'Active connections');
+        expect(activeIndicator.count, 0);
 
-    testWidgets('header connection indicator uses green color when connected', (tester) async {
+        // Tab count indicator present
+        expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
+      },
+    );
+
+    testWidgets('header connection indicator uses green color when connected', (
+      tester,
+    ) async {
       debugMobilePlatformOverride = true;
       addTearDown(() => debugMobilePlatformOverride = null);
 
       final conn = Connection(
         id: 'conn-green',
         label: 'Connected Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         sshConnection: null,
         state: SSHConnectionState.connected,
       );
@@ -1166,57 +1271,59 @@ void main() {
             ),
             connectionsProvider.overrideWith((ref) => Stream.value([conn])),
           ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
-          ),
+          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
         ),
       );
       await tester.pumpAndSettle();
 
-      final activeIndicator = tester.widgetList<StatusIndicator>(
-        find.byType(StatusIndicator),
-      ).firstWhere((s) => s.tooltip == 'Active connections');
+      final activeIndicator = tester
+          .widgetList<StatusIndicator>(find.byType(StatusIndicator))
+          .firstWhere((s) => s.tooltip == 'Active connections');
       expect(activeIndicator.count, 1);
       expect(activeIndicator.iconColor, AppTheme.green);
     });
 
-    testWidgets('header connection indicator uses yellow color when connecting', (tester) async {
-      debugMobilePlatformOverride = true;
-      addTearDown(() => debugMobilePlatformOverride = null);
+    testWidgets(
+      'header connection indicator uses yellow color when connecting',
+      (tester) async {
+        debugMobilePlatformOverride = true;
+        addTearDown(() => debugMobilePlatformOverride = null);
 
-      final conn = Connection(
-        id: 'conn-yellow',
-        label: 'Connecting Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
-        sshConnection: null,
-        state: SSHConnectionState.connecting,
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
-            connectionsProvider.overrideWith((ref) => Stream.value([conn])),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.dark(),
-            home: const MobileShell(),
+        final conn = Connection(
+          id: 'conn-yellow',
+          label: 'Connecting Server',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+          sshConnection: null,
+          state: SSHConnectionState.connecting,
+        );
 
-      final activeIndicator = tester.widgetList<StatusIndicator>(
-        find.byType(StatusIndicator),
-      ).firstWhere((s) => s.tooltip == 'Active connections');
-      expect(activeIndicator.count, 1);
-      expect(activeIndicator.iconColor, AppTheme.yellow);
-    });
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sessionStoreProvider.overrideWithValue(SessionStore()),
+              sessionProvider.overrideWith(SessionNotifier.new),
+              knownHostsProvider.overrideWithValue(KnownHostsManager()),
+              connectionManagerProvider.overrideWithValue(
+                ConnectionManager(knownHosts: KnownHostsManager()),
+              ),
+              connectionsProvider.overrideWith((ref) => Stream.value([conn])),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.dark(),
+              home: const MobileShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final activeIndicator = tester
+            .widgetList<StatusIndicator>(find.byType(StatusIndicator))
+            .firstWhere((s) => s.tooltip == 'Active connections');
+        expect(activeIndicator.count, 1);
+        expect(activeIndicator.iconColor, AppTheme.yellow);
+      },
+    );
   });
 }

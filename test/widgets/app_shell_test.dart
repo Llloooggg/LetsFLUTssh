@@ -42,11 +42,15 @@ void main() {
 
   group('AppShell', () {
     testWidgets('renders toolbar, body, and sidebar', (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        toolbar: const Text('my-toolbar'),
-        sidebar: const Text('my-sidebar'),
-        body: const Text('my-body'),
-      )));
+      await tester.pumpWidget(
+        buildApp(
+          buildShell(
+            toolbar: const Text('my-toolbar'),
+            sidebar: const Text('my-sidebar'),
+            body: const Text('my-body'),
+          ),
+        ),
+      );
 
       expect(find.text('my-toolbar'), findsOneWidget);
       expect(find.text('my-sidebar'), findsOneWidget);
@@ -59,41 +63,44 @@ void main() {
       final containers = tester.widgetList<Container>(find.byType(Container));
       final toolbar = containers.firstWhere(
         (c) => c.constraints?.maxHeight == 40 && c.constraints?.minHeight == 40,
-        orElse: () => containers.firstWhere(
-          (c) {
-            final box = c.decoration as BoxDecoration?;
-            return box?.border != null &&
-                box?.color != null &&
-                (c.constraints?.maxHeight == 40 ||
-                    tester.getSize(find.byWidget(c)).height == 40);
-          },
-        ),
+        orElse: () => containers.firstWhere((c) {
+          final box = c.decoration as BoxDecoration?;
+          return box?.border != null &&
+              box?.color != null &&
+              (c.constraints?.maxHeight == 40 ||
+                  tester.getSize(find.byWidget(c)).height == 40);
+        }),
       );
       expect(toolbar, isNotNull);
     });
 
     testWidgets('hides sidebar when sidebarOpen is false', (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        sidebar: const Text('sidebar-content'),
-        sidebarOpen: false,
-      )));
+      await tester.pumpWidget(
+        buildApp(
+          buildShell(
+            sidebar: const Text('sidebar-content'),
+            sidebarOpen: false,
+          ),
+        ),
+      );
 
       expect(find.text('sidebar-content'), findsNothing);
     });
 
     testWidgets('shows sidebar when sidebarOpen is true', (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        sidebar: const Text('sidebar-content'),
-        sidebarOpen: true,
-      )));
+      await tester.pumpWidget(
+        buildApp(
+          buildShell(sidebar: const Text('sidebar-content'), sidebarOpen: true),
+        ),
+      );
 
       expect(find.text('sidebar-content'), findsOneWidget);
     });
 
     testWidgets('renders status bar when provided', (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        statusBar: const Text('my-status'),
-      )));
+      await tester.pumpWidget(
+        buildApp(buildShell(statusBar: const Text('my-status'))),
+      );
 
       expect(find.text('my-status'), findsOneWidget);
     });
@@ -110,7 +117,8 @@ void main() {
       // No resize cursor present
       expect(
         find.byWidgetPredicate(
-          (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
+          (w) =>
+              w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
         ),
         findsNothing,
       );
@@ -118,22 +126,30 @@ void main() {
     });
 
     testWidgets('sidebar has initial width', (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        sidebar: const SizedBox.expand(key: Key('sb')),
-        initialSidebarWidth: 200,
-      )));
+      await tester.pumpWidget(
+        buildApp(
+          buildShell(
+            sidebar: const SizedBox.expand(key: Key('sb')),
+            initialSidebarWidth: 200,
+          ),
+        ),
+      );
 
       final sbBox = tester.getSize(find.byKey(const Key('sb')));
       expect(sbBox.width, 200);
     });
 
     testWidgets('sidebar can be resized by dragging divider', (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        sidebar: const SizedBox.expand(key: Key('sb')),
-        initialSidebarWidth: 200,
-        minSidebarWidth: 100,
-        maxSidebarWidth: 300,
-      )));
+      await tester.pumpWidget(
+        buildApp(
+          buildShell(
+            sidebar: const SizedBox.expand(key: Key('sb')),
+            initialSidebarWidth: 200,
+            minSidebarWidth: 100,
+            maxSidebarWidth: 300,
+          ),
+        ),
+      );
 
       // Find the resize divider (3px wide Container inside GestureDetector)
       final divider = find.byWidgetPredicate(
@@ -150,12 +166,16 @@ void main() {
     });
 
     testWidgets('sidebar resize clamps to min', (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        sidebar: const SizedBox.expand(key: Key('sb')),
-        initialSidebarWidth: 200,
-        minSidebarWidth: 150,
-        maxSidebarWidth: 300,
-      )));
+      await tester.pumpWidget(
+        buildApp(
+          buildShell(
+            sidebar: const SizedBox.expand(key: Key('sb')),
+            initialSidebarWidth: 200,
+            minSidebarWidth: 150,
+            maxSidebarWidth: 300,
+          ),
+        ),
+      );
 
       final divider = find.byWidgetPredicate(
         (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
@@ -170,12 +190,16 @@ void main() {
     });
 
     testWidgets('sidebar resize clamps to max', (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        sidebar: const SizedBox.expand(key: Key('sb')),
-        initialSidebarWidth: 200,
-        minSidebarWidth: 100,
-        maxSidebarWidth: 250,
-      )));
+      await tester.pumpWidget(
+        buildApp(
+          buildShell(
+            sidebar: const SizedBox.expand(key: Key('sb')),
+            initialSidebarWidth: 200,
+            minSidebarWidth: 100,
+            maxSidebarWidth: 250,
+          ),
+        ),
+      );
 
       final divider = find.byWidgetPredicate(
         (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
@@ -189,19 +213,22 @@ void main() {
       expect(sbBox.width, 250);
     });
 
-    testWidgets('drawer mode renders Drawer instead of inline sidebar',
-        (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        sidebar: const Text('drawer-sidebar'),
-        useDrawer: true,
-      )));
+    testWidgets('drawer mode renders Drawer instead of inline sidebar', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          buildShell(sidebar: const Text('drawer-sidebar'), useDrawer: true),
+        ),
+      );
 
       // Sidebar not visible inline
       expect(find.text('drawer-sidebar'), findsNothing);
 
       // Open the drawer
-      final scaffoldState =
-          tester.firstState<ScaffoldState>(find.byType(Scaffold));
+      final scaffoldState = tester.firstState<ScaffoldState>(
+        find.byType(Scaffold),
+      );
       scaffoldState.openDrawer();
       await tester.pumpAndSettle();
 
@@ -209,11 +236,15 @@ void main() {
     });
 
     testWidgets('drawer mode ignores sidebarOpen flag', (tester) async {
-      await tester.pumpWidget(buildApp(buildShell(
-        sidebar: const Text('drawer-sidebar'),
-        useDrawer: true,
-        sidebarOpen: true,
-      )));
+      await tester.pumpWidget(
+        buildApp(
+          buildShell(
+            sidebar: const Text('drawer-sidebar'),
+            useDrawer: true,
+            sidebarOpen: true,
+          ),
+        ),
+      );
 
       // Sidebar not visible inline even with sidebarOpen true
       expect(find.text('drawer-sidebar'), findsNothing);
@@ -221,13 +252,17 @@ void main() {
 
     testWidgets('exposes sidebarWidth via state', (tester) async {
       final key = GlobalKey<AppShellState>();
-      await tester.pumpWidget(buildApp(AppShell(
-        key: key,
-        toolbar: const Text('t'),
-        sidebar: const SizedBox.expand(),
-        initialSidebarWidth: 180,
-        body: const Text('b'),
-      )));
+      await tester.pumpWidget(
+        buildApp(
+          AppShell(
+            key: key,
+            toolbar: const Text('t'),
+            sidebar: const SizedBox.expand(),
+            initialSidebarWidth: 180,
+            body: const Text('b'),
+          ),
+        ),
+      );
 
       expect(key.currentState!.sidebarWidth, 180);
     });

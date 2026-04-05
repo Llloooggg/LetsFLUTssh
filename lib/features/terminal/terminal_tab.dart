@@ -140,8 +140,14 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
         }
       }
     } catch (e) {
-      AppLogger.instance.log('Reconnect failed: $e', name: 'TerminalTab', error: e);
-      setState(() => _connectionError = 'Reconnect failed: ${sanitizeError(e)}');
+      AppLogger.instance.log(
+        'Reconnect failed: $e',
+        name: 'TerminalTab',
+        error: e,
+      );
+      setState(
+        () => _connectionError = 'Reconnect failed: ${sanitizeError(e)}',
+      );
       return;
     }
 

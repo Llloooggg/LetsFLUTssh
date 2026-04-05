@@ -11,21 +11,20 @@ import 'known_hosts.dart';
 import 'ssh_config.dart';
 
 /// Typedef for socket creation — injectable for testing.
-typedef SSHSocketFactory = Future<SSHSocket> Function(
-  String host,
-  int port, {
-  Duration? timeout,
-});
+typedef SSHSocketFactory =
+    Future<SSHSocket> Function(String host, int port, {Duration? timeout});
 
 /// Typedef for SSH client creation — injectable for testing.
-typedef SSHClientFactory = SSHClient Function(
-  SSHSocket socket, {
-  required String username,
-  String? Function()? onPasswordRequest,
-  List<SSHKeyPair>? identities,
-  FutureOr<bool> Function(String type, Uint8List fingerprint)? onVerifyHostKey,
-  Duration? keepAliveInterval,
-});
+typedef SSHClientFactory =
+    SSHClient Function(
+      SSHSocket socket, {
+      required String username,
+      String? Function()? onPasswordRequest,
+      List<SSHKeyPair>? identities,
+      FutureOr<bool> Function(String type, Uint8List fingerprint)?
+      onVerifyHostKey,
+      Duration? keepAliveInterval,
+    });
 
 /// SSH connection wrapper over dartssh2.
 ///
@@ -51,32 +50,31 @@ class SSHConnection {
     required this.knownHosts,
     SSHSocketFactory? socketFactory,
     SSHClientFactory? clientFactory,
-  })  : _socketFactory = socketFactory ?? _defaultSocketFactory,
-        _clientFactory = clientFactory ?? _defaultClientFactory;
+  }) : _socketFactory = socketFactory ?? _defaultSocketFactory,
+       _clientFactory = clientFactory ?? _defaultClientFactory;
 
   static Future<SSHSocket> _defaultSocketFactory(
     String host,
     int port, {
     Duration? timeout,
-  }) =>
-      SSHSocket.connect(host, port, timeout: timeout);
+  }) => SSHSocket.connect(host, port, timeout: timeout);
 
   static SSHClient _defaultClientFactory(
     SSHSocket socket, {
     required String username,
     String? Function()? onPasswordRequest,
     List<SSHKeyPair>? identities,
-    FutureOr<bool> Function(String type, Uint8List fingerprint)? onVerifyHostKey,
+    FutureOr<bool> Function(String type, Uint8List fingerprint)?
+    onVerifyHostKey,
     Duration? keepAliveInterval,
-  }) =>
-      SSHClient(
-        socket,
-        username: username,
-        onPasswordRequest: onPasswordRequest,
-        identities: identities,
-        onVerifyHostKey: onVerifyHostKey,
-        keepAliveInterval: keepAliveInterval,
-      );
+  }) => SSHClient(
+    socket,
+    username: username,
+    onPasswordRequest: onPasswordRequest,
+    identities: identities,
+    onVerifyHostKey: onVerifyHostKey,
+    keepAliveInterval: keepAliveInterval,
+  );
 
   bool get isConnected => _client != null && !_disposed;
 
@@ -108,17 +106,19 @@ class SSHConnection {
         onPasswordRequest: _onPasswordRequest,
         identities: await _buildIdentities(),
         onVerifyHostKey: _onVerifyHostKey,
-        keepAliveInterval:
-            config.keepAliveSec > 0
-                ? Duration(seconds: config.keepAliveSec)
-                : null,
+        keepAliveInterval: config.keepAliveSec > 0
+            ? Duration(seconds: config.keepAliveSec)
+            : null,
       );
 
       // Wait for authentication to complete
       await _client!.authenticated;
     } on SSHAuthFailError catch (e) {
       _cleanup();
-      throw AuthError('Authentication failed for ${config.user}@${config.host}', e);
+      throw AuthError(
+        'Authentication failed for ${config.user}@${config.host}',
+        e,
+      );
     } on SSHAuthAbortError catch (e) {
       _cleanup();
       if (_hostKeyRejected) throw _hostKeyError(e);
@@ -126,7 +126,10 @@ class SSHConnection {
     } catch (e) {
       _cleanup();
       if (_hostKeyRejected) throw _hostKeyError(e);
-      throw ConnectError('Connection failed to ${config.host}:${config.effectivePort}', e);
+      throw ConnectError(
+        'Connection failed to ${config.host}:${config.effectivePort}',
+        e,
+      );
     }
 
     // Listen for disconnect
@@ -145,11 +148,7 @@ class SSHConnection {
 
     try {
       _shell = await _client!.shell(
-        pty: SSHPtyConfig(
-          type: 'xterm-256color',
-          width: cols,
-          height: rows,
-        ),
+        pty: SSHPtyConfig(type: 'xterm-256color', width: cols, height: rows),
       );
       return _shell!;
     } catch (e) {
@@ -219,18 +218,14 @@ class SSHConnection {
     }
   }
 
-
   HostKeyError _hostKeyError(Object cause) => HostKeyError(
-        'Host key rejected for ${config.host}:${config.effectivePort} — '
-        'accept the host key or check known_hosts',
-        cause,
-      );
+    'Host key rejected for ${config.host}:${config.effectivePort} — '
+    'accept the host key or check known_hosts',
+    cause,
+  );
 
   // Host key verification callback for dartssh2.
-  Future<bool> _onVerifyHostKey(
-    String type,
-    Uint8List fingerprint,
-  ) async {
+  Future<bool> _onVerifyHostKey(String type, Uint8List fingerprint) async {
     final accepted = await knownHosts.verify(
       config.host,
       config.effectivePort,

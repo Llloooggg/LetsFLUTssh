@@ -29,8 +29,9 @@ class StatusIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dimColor =
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45);
+    final dimColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.45);
     final color = iconColor ?? dimColor;
     return Tooltip(
       message: tooltip,

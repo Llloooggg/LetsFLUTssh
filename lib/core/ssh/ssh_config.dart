@@ -4,11 +4,7 @@ class ServerAddress {
   final int port;
   final String user;
 
-  const ServerAddress({
-    required this.host,
-    this.port = 22,
-    required this.user,
-  });
+  const ServerAddress({required this.host, this.port = 22, required this.user});
 
   /// Effective port (default 22).
   int get effectivePort => port > 0 ? port : 22;
@@ -16,15 +12,12 @@ class ServerAddress {
   /// Display string for UI.
   String get displayName => '$user@$host:$effectivePort';
 
-  ServerAddress copyWith({
-    String? host,
-    int? port,
-    String? user,
-  }) => ServerAddress(
-    host: host ?? this.host,
-    port: port ?? this.port,
-    user: user ?? this.user,
-  );
+  ServerAddress copyWith({String? host, int? port, String? user}) =>
+      ServerAddress(
+        host: host ?? this.host,
+        port: port ?? this.port,
+        user: user ?? this.user,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -54,9 +47,7 @@ class SshAuth {
 
   /// True if any auth method is configured.
   bool get hasAuth =>
-      password.isNotEmpty ||
-      keyPath.isNotEmpty ||
-      keyData.isNotEmpty;
+      password.isNotEmpty || keyPath.isNotEmpty || keyData.isNotEmpty;
 
   SshAuth copyWith({
     String? password,

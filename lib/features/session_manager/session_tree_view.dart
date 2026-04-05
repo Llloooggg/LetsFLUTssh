@@ -36,15 +36,23 @@ class SessionTreeView extends StatefulWidget {
   final void Function(Session session)? onSessionDoubleTap;
   final void Function(Session session, Offset position)? onSessionContextMenu;
   final void Function(String folderPath, Offset position)? onFolderContextMenu;
+
   /// Context menu on empty space (no folder path).
   final void Function(Offset position)? onBackgroundContextMenu;
+
   /// Called when a session is dropped onto a folder (or root).
   final void Function(String sessionId, String targetFolder)? onSessionMoved;
+
   /// Called when a folder is dropped onto another folder (or root).
   final void Function(String folderPath, String targetParent)? onFolderMoved;
 
   /// Called when a bulk selection is dropped onto a folder (or root).
-  final void Function(Set<String> sessionIds, Set<String> folderPaths, String targetFolder)? onBulkMoved;
+  final void Function(
+    Set<String> sessionIds,
+    Set<String> folderPaths,
+    String targetFolder,
+  )?
+  onBulkMoved;
 
   /// Multi-select mode: show checkboxes, tap toggles selection.
   final bool selectMode;
@@ -57,7 +65,8 @@ class SessionTreeView extends StatefulWidget {
 
   /// Called when marquee selection starts on desktop — parent should
   /// enter select mode and provide [selectedIds] + [onToggleSelected].
-  final void Function(Set<String> ids, Set<String> folderPaths)? onMarqueeSelect;
+  final void Function(Set<String> ids, Set<String> folderPaths)?
+  onMarqueeSelect;
 
   /// Called when a marquee drag begins (threshold crossed).
   final VoidCallback? onMarqueeStart;
@@ -108,8 +117,7 @@ class SessionTreeView extends StatefulWidget {
   State<SessionTreeView> createState() => _SessionTreeViewState();
 }
 
-class _SessionTreeViewState extends State<SessionTreeView>
-    with MarqueeMixin {
+class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   final _expandedFolders = <String>{};
   String? _selectedSessionId;
   String? _dropTargetFolder; // highlight on drag hover
@@ -169,8 +177,11 @@ class _SessionTreeViewState extends State<SessionTreeView>
   }
 
   @override
-  void applyMarqueeSelection(int firstIndex, int lastIndex,
-      {required bool ctrlHeld}) {
+  void applyMarqueeSelection(
+    int firstIndex,
+    int lastIndex, {
+    required bool ctrlHeld,
+  }) {
     final flatNodes = _cachedFlatNodes;
     if (flatNodes == null) return;
 
@@ -203,7 +214,8 @@ class _SessionTreeViewState extends State<SessionTreeView>
 
   @override
   void onMarqueeClickEmpty(int rowIndex) {
-    if ((widget.selectedIds.isNotEmpty || widget.selectedFolderPaths.isNotEmpty) &&
+    if ((widget.selectedIds.isNotEmpty ||
+            widget.selectedFolderPaths.isNotEmpty) &&
         !widget.selectMode) {
       widget.onMarqueeSelect?.call({}, {});
     }
@@ -221,7 +233,9 @@ class _SessionTreeViewState extends State<SessionTreeView>
   }
 
   List<(SessionTreeNode, int)> _flattenVisible(
-      List<SessionTreeNode> nodes, int depth) {
+    List<SessionTreeNode> nodes,
+    int depth,
+  ) {
     final result = <(SessionTreeNode, int)>[];
     for (final node in nodes) {
       result.add((node, depth));
@@ -314,8 +328,11 @@ class _SessionTreeViewState extends State<SessionTreeView>
   bool _handleCrossMarquee(PointerMoveEvent e, RenderBox box) {
     final local = e.localPosition;
     final size = box.size;
-    final outside = local.dx > size.width || local.dx < 0 ||
-        local.dy < 0 || local.dy > size.height;
+    final outside =
+        local.dx > size.width ||
+        local.dx < 0 ||
+        local.dy < 0 ||
+        local.dy > size.height;
 
     if (outside) {
       if (marqueeActive) {
@@ -361,7 +378,9 @@ class _SessionTreeViewState extends State<SessionTreeView>
         child: Text(
           'No sessions',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.4),
           ),
         ),
       );
@@ -432,7 +451,10 @@ class _SessionTreeViewState extends State<SessionTreeView>
   }
 
   BoxDecoration _rowDecoration(
-    bool isDropTarget, bool hovered, bool isSelected, ThemeData theme,
+    bool isDropTarget,
+    bool hovered,
+    bool isSelected,
+    ThemeData theme,
   ) {
     final Color? bg;
     if (isDropTarget) {
@@ -453,8 +475,14 @@ class _SessionTreeViewState extends State<SessionTreeView>
     );
   }
 
-  Widget _buildDragFeedback(ThemeData theme, bool isBulk, IconData icon, String label) {
-    final totalCount = widget.selectedIds.length + widget.selectedFolderPaths.length;
+  Widget _buildDragFeedback(
+    ThemeData theme,
+    bool isBulk,
+    IconData icon,
+    String label,
+  ) {
+    final totalCount =
+        widget.selectedIds.length + widget.selectedFolderPaths.length;
     return Material(
       elevation: 4,
       borderRadius: AppTheme.radiusMd,
@@ -467,7 +495,11 @@ class _SessionTreeViewState extends State<SessionTreeView>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(isBulk ? Icons.file_copy : icon, size: 12, color: AppTheme.fgFaint),
+            Icon(
+              isBulk ? Icons.file_copy : icon,
+              size: 12,
+              color: AppTheme.fgFaint,
+            ),
             const SizedBox(width: 4),
             Text(
               isBulk ? '$totalCount items' : label,
@@ -498,16 +530,18 @@ class _SessionTreeViewState extends State<SessionTreeView>
           for (var i = 0; i < depth; i++)
             SizedBox(
               width: 16,
-              child: Center(
-                child: Container(width: 1, color: guideColor),
-              ),
+              child: Center(child: Container(width: 1, color: guideColor)),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildFolderContent(SessionTreeNode node, int depth, bool isDropTarget) {
+  Widget _buildFolderContent(
+    SessionTreeNode node,
+    int depth,
+    bool isDropTarget,
+  ) {
     final expanded = _expandedFolders.contains(node.fullPath);
     final theme = Theme.of(context);
     final isSelected = widget.selectedFolderPaths.contains(node.fullPath);
@@ -518,14 +552,14 @@ class _SessionTreeViewState extends State<SessionTreeView>
         widget.onFolderContextMenu?.call(node.fullPath, d.globalPosition);
       },
       onLongPressStart: _mobile
-          ? (d) => widget.onFolderContextMenu?.call(node.fullPath, d.globalPosition)
+          ? (d) => widget.onFolderContextMenu?.call(
+              node.fullPath,
+              d.globalPosition,
+            )
           : null,
       builder: (hovered) => Container(
         height: _rowHeight,
-        padding: EdgeInsets.only(
-          left: _mobile ? 8.0 : 12.0,
-          right: 8,
-        ),
+        padding: EdgeInsets.only(left: _mobile ? 8.0 : 12.0, right: 8),
         decoration: _rowDecoration(isDropTarget, hovered, isSelected, theme),
         child: Row(
           children: _buildFolderRowChildren(node, depth, expanded, theme),
@@ -536,7 +570,8 @@ class _SessionTreeViewState extends State<SessionTreeView>
 
   void _onFolderTap(String fullPath, bool expanded) {
     // If there's an active selection, toggle folder selection instead
-    if (widget.selectedIds.isNotEmpty || widget.selectedFolderPaths.isNotEmpty) {
+    if (widget.selectedIds.isNotEmpty ||
+        widget.selectedFolderPaths.isNotEmpty) {
       widget.onToggleFolderSelected?.call(fullPath);
       return;
     }
@@ -550,7 +585,10 @@ class _SessionTreeViewState extends State<SessionTreeView>
   }
 
   List<Widget> _buildFolderRowChildren(
-    SessionTreeNode node, int depth, bool expanded, ThemeData theme,
+    SessionTreeNode node,
+    int depth,
+    bool expanded,
+    ThemeData theme,
   ) {
     return [
       if (depth > 0) _buildIndentGuides(depth, theme),
@@ -603,7 +641,10 @@ class _SessionTreeViewState extends State<SessionTreeView>
     final isFolderSelected = widget.selectedFolderPaths.contains(node.fullPath);
     final isBulk = isFolderSelected && _hasBulkSelection;
     final SessionDragData dragData = isBulk
-        ? BulkDrag(sessionIds: widget.selectedIds, folderPaths: widget.selectedFolderPaths)
+        ? BulkDrag(
+            sessionIds: widget.selectedIds,
+            folderPaths: widget.selectedFolderPaths,
+          )
         : FolderDrag(node.fullPath);
 
     return Draggable<SessionDragData>(
@@ -617,7 +658,8 @@ class _SessionTreeViewState extends State<SessionTreeView>
         child: _buildFolderContent(node, depth, false),
       ),
       child: DragTarget<SessionDragData>(
-        onWillAcceptWithDetails: (details) => _canAcceptDrop(details.data, node.fullPath),
+        onWillAcceptWithDetails: (details) =>
+            _canAcceptDrop(details.data, node.fullPath),
         onAcceptWithDetails: (details) {
           setState(() => _dropTargetFolder = null);
           _handleDrop(details.data, node.fullPath);
@@ -633,7 +675,11 @@ class _SessionTreeViewState extends State<SessionTreeView>
           }
         },
         builder: (context, candidateData, rejectedData) {
-          return _buildFolderContent(node, depth, _dropTargetFolder == node.fullPath);
+          return _buildFolderContent(
+            node,
+            depth,
+            _dropTargetFolder == node.fullPath,
+          );
         },
       ),
     );
@@ -661,7 +707,8 @@ class _SessionTreeViewState extends State<SessionTreeView>
     ThemeData theme,
   ) {
     final isConnected = widget.connectedSessionIds.contains(session.id);
-    final isConnecting = !isConnected && widget.connectingSessionIds.contains(session.id);
+    final isConnecting =
+        !isConnected && widget.connectingSessionIds.contains(session.id);
     final Color iconColor;
     if (isConnected) {
       iconColor = AppTheme.connectedColor(theme.brightness);
@@ -688,11 +735,7 @@ class _SessionTreeViewState extends State<SessionTreeView>
       if (!widget.selectMode) ...[
         // Spacer matching the expand arrow width in folder rows
         SizedBox(width: _iconSize + 4),
-        Icon(
-          Icons.terminal,
-          size: _authIconSize,
-          color: iconColor,
-        ),
+        Icon(Icons.terminal, size: _authIconSize, color: iconColor),
         const SizedBox(width: 6),
       ],
       if (session.incomplete)
@@ -748,9 +791,14 @@ class _SessionTreeViewState extends State<SessionTreeView>
 
     final Widget content = HoverRegion(
       onTap: () => _onSessionTap(session),
-      onDoubleTap: canInteract ? () => widget.onSessionDoubleTap?.call(session) : null,
+      onDoubleTap: canInteract
+          ? () => widget.onSessionDoubleTap?.call(session)
+          : null,
       onSecondaryTapUp: canInteract
-          ? (details) => widget.onSessionContextMenu?.call(session, details.globalPosition)
+          ? (details) => widget.onSessionContextMenu?.call(
+              session,
+              details.globalPosition,
+            )
           : null,
       onLongPressStart: (_mobile && !widget.selectMode)
           ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
@@ -760,7 +808,13 @@ class _SessionTreeViewState extends State<SessionTreeView>
         padding: const EdgeInsets.only(right: 8),
         color: _sessionRowColor(isSelected || isChecked, hovered, theme),
         child: Row(
-          children: _buildSessionRowChildren(node, session, depth, isChecked, theme),
+          children: _buildSessionRowChildren(
+            node,
+            session,
+            depth,
+            isChecked,
+            theme,
+          ),
         ),
       ),
     );
@@ -771,7 +825,10 @@ class _SessionTreeViewState extends State<SessionTreeView>
     // Desktop: Draggable — if part of a bulk selection, drag all selected items
     final isBulk = isChecked && _hasBulkSelection;
     final SessionDragData dragData = isBulk
-        ? BulkDrag(sessionIds: widget.selectedIds, folderPaths: widget.selectedFolderPaths)
+        ? BulkDrag(
+            sessionIds: widget.selectedIds,
+            folderPaths: widget.selectedFolderPaths,
+          )
         : SessionDrag(session);
 
     return Draggable<SessionDragData>(
@@ -784,6 +841,4 @@ class _SessionTreeViewState extends State<SessionTreeView>
       child: content,
     );
   }
-
 }
-

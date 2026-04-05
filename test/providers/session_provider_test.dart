@@ -56,7 +56,16 @@ class FakeSessionStore extends SessionStore {
   @override
   Future<Session> duplicateSession(String id) async {
     final original = _fakeSessions.firstWhere((s) => s.id == id);
-    final copy = Session(id: '${original.id}-copy', label: '${original.label} (Copy)', folder: original.folder, server: ServerAddress(host: original.host, port: original.port, user: original.user));
+    final copy = Session(
+      id: '${original.id}-copy',
+      label: '${original.label} (Copy)',
+      folder: original.folder,
+      server: ServerAddress(
+        host: original.host,
+        port: original.port,
+        user: original.user,
+      ),
+    );
     _fakeSessions.add(copy);
     return copy;
   }
@@ -111,10 +120,15 @@ class FakeSessionStore extends SessionStore {
   }
 
   @override
-  Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async => {};
+  Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async =>
+      {};
 
   @override
-  Future<void> restoreSnapshot(List<Session> sessions, Set<String> emptyFolders, [Map<String, CredentialData> credentials = const {}]) async {
+  Future<void> restoreSnapshot(
+    List<Session> sessions,
+    Set<String> emptyFolders, [
+    Map<String, CredentialData> credentials = const {},
+  ]) async {
     _fakeSessions
       ..clear()
       ..addAll(sessions);
@@ -122,7 +136,6 @@ class FakeSessionStore extends SessionStore {
       ..clear()
       ..addAll(emptyFolders);
   }
-
 }
 
 void main() {
@@ -133,7 +146,12 @@ void main() {
     String host = '10.0.0.1',
     String user = 'root',
   }) {
-    return Session(id: id, label: label, folder: folder, server: ServerAddress(host: host, user: user));
+    return Session(
+      id: id,
+      label: label,
+      folder: folder,
+      server: ServerAddress(host: host, user: user),
+    );
   }
 
   group('SessionNotifier', () {
@@ -143,9 +161,9 @@ void main() {
 
     setUp(() {
       store = FakeSessionStore();
-      container = ProviderContainer(overrides: [
-        sessionStoreProvider.overrideWithValue(store),
-      ]);
+      container = ProviderContainer(
+        overrides: [sessionStoreProvider.overrideWithValue(store)],
+      );
       notifier = container.read(sessionProvider.notifier);
     });
 
@@ -290,9 +308,9 @@ void main() {
 
     setUp(() {
       store = ThrowingSessionStore();
-      container = ProviderContainer(overrides: [
-        sessionStoreProvider.overrideWithValue(store),
-      ]);
+      container = ProviderContainer(
+        overrides: [sessionStoreProvider.overrideWithValue(store)],
+      );
       notifier = container.read(sessionProvider.notifier);
     });
 
@@ -339,9 +357,9 @@ void main() {
 
     test('filteredSessionsProvider returns all when no search', () {
       final store = FakeSessionStore();
-      final container = ProviderContainer(overrides: [
-        sessionStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [sessionStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
       final filtered = container.read(filteredSessionsProvider);
       expect(filtered, isEmpty);
@@ -349,9 +367,9 @@ void main() {
 
     test('filteredSessionsProvider filters by label', () async {
       final store = FakeSessionStore();
-      final container = ProviderContainer(overrides: [
-        sessionStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [sessionStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
 
       // Add sessions via the notifier
@@ -368,9 +386,9 @@ void main() {
 
     test('filteredSessionsProvider filters by host', () async {
       final store = FakeSessionStore();
-      final container = ProviderContainer(overrides: [
-        sessionStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [sessionStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
 
       final notifier = container.read(sessionProvider.notifier);
@@ -385,9 +403,9 @@ void main() {
 
     test('sessionTreeProvider builds tree', () async {
       final store = FakeSessionStore();
-      final container = ProviderContainer(overrides: [
-        sessionStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [sessionStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
 
       final notifier = container.read(sessionProvider.notifier);

@@ -55,10 +55,7 @@ class AppDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget body = Padding(
-      padding: contentPadding,
-      child: content,
-    );
+    Widget body = Padding(padding: contentPadding, child: content);
     if (scrollable) {
       body = Flexible(child: SingleChildScrollView(child: body));
     }
@@ -76,8 +73,7 @@ class AppDialog extends StatelessWidget {
               onClose: dismissible ? () => Navigator.of(context).pop() : null,
             ),
             body,
-            if (actions.isNotEmpty)
-              AppDialogFooter(actions: actions),
+            if (actions.isNotEmpty) AppDialogFooter(actions: actions),
           ],
         ),
       ),
@@ -94,11 +90,7 @@ class AppDialogHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onClose;
 
-  const AppDialogHeader({
-    super.key,
-    required this.title,
-    this.onClose,
-  });
+  const AppDialogHeader({super.key, required this.title, this.onClose});
 
   @override
   Widget build(BuildContext context) {
@@ -138,10 +130,7 @@ class AppDialogHeader extends StatelessWidget {
 class AppDialogFooter extends StatelessWidget {
   final List<Widget> actions;
 
-  const AppDialogFooter({
-    super.key,
-    required this.actions,
-  });
+  const AppDialogFooter({super.key, required this.actions});
 
   @override
   Widget build(BuildContext context) {
@@ -186,10 +175,8 @@ class AppDialogAction extends StatelessWidget {
   });
 
   /// Cancel / dismiss button — no background, dim text.
-  const factory AppDialogAction.cancel({
-    Key? key,
-    VoidCallback? onTap,
-  }) = _CancelAction;
+  const factory AppDialogAction.cancel({Key? key, VoidCallback? onTap}) =
+      _CancelAction;
 
   /// Primary action — accent background.
   factory AppDialogAction.primary({
@@ -258,7 +245,7 @@ class AppDialogAction extends StatelessWidget {
 
 class _CancelAction extends AppDialogAction {
   const _CancelAction({super.key, super.onTap})
-      : super(label: 'Cancel', enabled: true);
+    : super(label: 'Cancel', enabled: true);
 }
 
 class _PrimaryAction extends AppDialogAction {

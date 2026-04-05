@@ -17,22 +17,22 @@ void main() {
     tempDir = await Directory.systemTemp.createTemp('export_import_test_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (call) async {
-        if (call.method == 'getApplicationSupportDirectory') {
-          return tempDir.path;
-        }
-        return null;
-      },
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async {
+            if (call.method == 'getApplicationSupportDirectory') {
+              return tempDir.path;
+            }
+            return null;
+          },
+        );
   });
 
   tearDown(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      null,
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
     await tempDir.delete(recursive: true);
   });
 
@@ -43,7 +43,12 @@ void main() {
     String user = 'root',
     String password = '',
   }) {
-    return Session(id: id, label: label, server: ServerAddress(host: host, user: user), auth: SessionAuth(password: password));
+    return Session(
+      id: id,
+      label: label,
+      server: ServerAddress(host: host, user: user),
+      auth: SessionAuth(password: password),
+    );
   }
 
   group('ExportImport — export and import roundtrip', () {
@@ -82,7 +87,10 @@ void main() {
 
     test('export then import restores config', () async {
       final config = AppConfig.defaults.copyWith(
-        terminal: AppConfig.defaults.terminal.copyWith(fontSize: 18, scrollback: 10000),
+        terminal: AppConfig.defaults.terminal.copyWith(
+          fontSize: 18,
+          scrollback: 10000,
+        ),
       );
       final outputPath = '${tempDir.path}/config.lfs';
 
@@ -158,9 +166,7 @@ void main() {
 
   group('ExportImport — preview', () {
     test('preview shows sessions and flags', () async {
-      final sessions = [
-        makeSession(id: 'prev-1', label: 'preview-server'),
-      ];
+      final sessions = [makeSession(id: 'prev-1', label: 'preview-server')];
       final outputPath = '${tempDir.path}/preview.lfs';
 
       await ExportImport.export(
@@ -213,10 +219,7 @@ void main() {
     });
 
     test('ImportResult holds data', () {
-      const result = ImportResult(
-        sessions: [],
-        mode: ImportMode.merge,
-      );
+      const result = ImportResult(sessions: [], mode: ImportMode.merge);
       expect(result.sessions, isEmpty);
       expect(result.config, isNull);
       expect(result.mode, ImportMode.merge);

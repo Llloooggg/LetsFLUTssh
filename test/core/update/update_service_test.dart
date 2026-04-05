@@ -8,7 +8,8 @@ import 'package:letsflutssh/core/update/update_service.dart';
 /// Minimal GitHub release JSON for testing.
 Map<String, dynamic> _releaseJson({
   String tagName = 'v2.0.0',
-  String htmlUrl = 'https://github.com/Llloooggg/LetsFLUTssh/releases/tag/v2.0.0',
+  String htmlUrl =
+      'https://github.com/Llloooggg/LetsFLUTssh/releases/tag/v2.0.0',
   String? body = 'Release notes here',
   List<Map<String, dynamic>>? assets,
 }) {
@@ -16,7 +17,8 @@ Map<String, dynamic> _releaseJson({
     'tag_name': tagName,
     'html_url': htmlUrl,
     'body': body,
-    'assets': assets ??
+    'assets':
+        assets ??
         [
           {
             'name': 'letsflutssh-2.0.0-linux-x64.AppImage',
@@ -269,15 +271,12 @@ void main() {
     });
 
     test('returns null when no matching asset', () {
-      final url = UpdateService.assetUrlForPlatform(
-        [
-          {
-            'name': 'some-other-file.zip',
-            'browser_download_url': 'https://example.com/file.zip',
-          },
-        ],
-        platformOverride: 'linux',
-      );
+      final url = UpdateService.assetUrlForPlatform([
+        {
+          'name': 'some-other-file.zip',
+          'browser_download_url': 'https://example.com/file.zip',
+        },
+      ], platformOverride: 'linux');
       expect(url, isNull);
     });
 
@@ -290,10 +289,11 @@ void main() {
     });
 
     test('skips non-map entries in assets', () {
-      final url = UpdateService.assetUrlForPlatform(
-        ['not a map', 42, null],
-        platformOverride: 'linux',
-      );
+      final url = UpdateService.assetUrlForPlatform([
+        'not a map',
+        42,
+        null,
+      ], platformOverride: 'linux');
       expect(url, isNull);
     });
   });
@@ -321,15 +321,12 @@ void main() {
     });
 
     test('returns null when no digest field', () {
-      final digest = UpdateService.digestForPlatform(
-        [
-          {
-            'name': 'file-linux-x64.AppImage',
-            'browser_download_url': 'https://example.com/file',
-          },
-        ],
-        platformOverride: 'linux',
-      );
+      final digest = UpdateService.digestForPlatform([
+        {
+          'name': 'file-linux-x64.AppImage',
+          'browser_download_url': 'https://example.com/file',
+        },
+      ], platformOverride: 'linux');
       expect(digest, isNull);
     });
 
@@ -342,15 +339,9 @@ void main() {
     });
 
     test('ignores non-sha256 digest prefix', () {
-      final digest = UpdateService.digestForPlatform(
-        [
-          {
-            'name': 'file-linux-x64.AppImage',
-            'digest': 'md5:abc123',
-          },
-        ],
-        platformOverride: 'linux',
-      );
+      final digest = UpdateService.digestForPlatform([
+        {'name': 'file-linux-x64.AppImage', 'digest': 'md5:abc123'},
+      ], platformOverride: 'linux');
       expect(digest, isNull);
     });
   });
@@ -366,7 +357,10 @@ void main() {
         _releaseJson(tagName: 'v1.0.0', body: 'One'),
       ];
 
-      final changelog = UpdateService.buildCumulativeChangelog(releases, '1.0.0');
+      final changelog = UpdateService.buildCumulativeChangelog(
+        releases,
+        '1.0.0',
+      );
       expect(changelog, contains('## v3.0.0'));
       expect(changelog, contains('Three'));
       expect(changelog, contains('## v2.0.0'));
@@ -376,11 +370,12 @@ void main() {
     });
 
     test('returns null when no newer versions', () {
-      final releases = [
-        _releaseJson(tagName: 'v1.0.0', body: 'One'),
-      ];
+      final releases = [_releaseJson(tagName: 'v1.0.0', body: 'One')];
 
-      final changelog = UpdateService.buildCumulativeChangelog(releases, '1.0.0');
+      final changelog = UpdateService.buildCumulativeChangelog(
+        releases,
+        '1.0.0',
+      );
       expect(changelog, isNull);
     });
 
@@ -390,7 +385,10 @@ void main() {
         _releaseJson(tagName: 'v1.5.0', body: 'Notes'),
       ];
 
-      final changelog = UpdateService.buildCumulativeChangelog(releases, '1.0.0');
+      final changelog = UpdateService.buildCumulativeChangelog(
+        releases,
+        '1.0.0',
+      );
       expect(changelog, isNot(contains('v2.0.0')));
       expect(changelog, contains('v1.5.0'));
       expect(changelog, contains('Notes'));
@@ -448,9 +446,7 @@ void main() {
     });
 
     test('handles empty releases array', () async {
-      final service = UpdateService(
-        fetch: (_) async => '[]',
-      );
+      final service = UpdateService(fetch: (_) async => '[]');
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -459,10 +455,9 @@ void main() {
 
     test('handles missing tag_name gracefully', () async {
       final service = UpdateService(
-        fetch: (_) async => _releasesArray([{
-          'html_url': 'https://github.com/releases',
-          'assets': <dynamic>[],
-        }]),
+        fetch: (_) async => _releasesArray([
+          {'html_url': 'https://github.com/releases', 'assets': <dynamic>[]},
+        ]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
@@ -472,10 +467,9 @@ void main() {
 
     test('handles missing html_url with fallback', () async {
       final service = UpdateService(
-        fetch: (_) async => _releasesArray([{
-          'tag_name': 'v2.0.0',
-          'assets': <dynamic>[],
-        }]),
+        fetch: (_) async => _releasesArray([
+          {'tag_name': 'v2.0.0', 'assets': <dynamic>[]},
+        ]),
       );
 
       final info = await service.checkForUpdate('1.0.0');
@@ -532,9 +526,7 @@ void main() {
     });
 
     test('propagates JSON parse errors', () async {
-      final service = UpdateService(
-        fetch: (_) async => 'not json',
-      );
+      final service = UpdateService(fetch: (_) async => 'not json');
 
       expect(
         () => service.checkForUpdate('1.0.0'),
@@ -565,7 +557,9 @@ void main() {
     test('allows https github.com', () {
       expect(
         UpdateService.isTrustedReleaseAssetUri(
-          Uri.parse('https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/a.AppImage'),
+          Uri.parse(
+            'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/a.AppImage',
+          ),
         ),
         isTrue,
       );
@@ -677,11 +671,13 @@ void main() {
             tempDir.path,
             expectedDigest: 'wrong_hash_value',
           ),
-          throwsA(isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('SHA256 mismatch'),
-          )),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('SHA256 mismatch'),
+            ),
+          ),
         );
 
         // File should be deleted after mismatch
@@ -731,19 +727,19 @@ void main() {
     });
 
     test('rejects untrusted download URL before downloader runs', () async {
-      final service = UpdateService(
-        download: (_, _, _) async {},
-      );
+      final service = UpdateService(download: (_, _, _) async {});
       expect(
         () => service.downloadAsset(
           'https://evil.example/asset.AppImage',
           '/tmp',
         ),
-        throwsA(isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('Untrusted'),
-        )),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Untrusted'),
+          ),
+        ),
       );
     });
   });
@@ -759,7 +755,10 @@ void main() {
         await file.writeAsString('hello');
         final hash = await UpdateService.computeFileSha256(file.path);
         // SHA256 of "hello" = 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
-        expect(hash, '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824');
+        expect(
+          hash,
+          '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
+        );
       } finally {
         await tempDir.delete(recursive: true);
       }
