@@ -21,11 +21,10 @@ void main() {
   });
 
   void mockPathProvider() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async => tempDir.path,
-        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (call) async => tempDir.path,
+    );
   }
 
   group('ConfigStore', () {
@@ -40,11 +39,7 @@ void main() {
     test('save and load roundtrip', () async {
       mockPathProvider();
       const custom = AppConfig(
-        terminal: TerminalConfig(
-          fontSize: 18.0,
-          theme: 'light',
-          scrollback: 10000,
-        ),
+        terminal: TerminalConfig(fontSize: 18.0, theme: 'light', scrollback: 10000),
         ssh: SshDefaults(keepAliveSec: 60),
       );
       await store.save(custom);
@@ -68,9 +63,7 @@ void main() {
     test('update applies updater function', () async {
       mockPathProvider();
       await store.load();
-      await store.update(
-        (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: 20.0)),
-      );
+      await store.update((c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: 20.0)));
       expect(store.config.fontSize, 20.0);
 
       // Verify persisted
@@ -96,11 +89,10 @@ void main() {
     test('save creates parent directories', () async {
       // Use a nested path
       final nestedDir = Directory('${tempDir.path}/nested/deep');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            (call) async => nestedDir.path,
-          );
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (call) async => nestedDir.path,
+      );
 
       await store.save(AppConfig.defaults);
       expect(File('${nestedDir.path}/config.json').existsSync(), isTrue);
@@ -108,9 +100,7 @@ void main() {
 
     test('saved file contains valid JSON', () async {
       mockPathProvider();
-      const config = AppConfig(
-        terminal: TerminalConfig(fontSize: 16.0, theme: 'system'),
-      );
+      const config = AppConfig(terminal: TerminalConfig(fontSize: 16.0, theme: 'system'));
       await store.save(config);
 
       final content = await File('${tempDir.path}/config.json').readAsString();

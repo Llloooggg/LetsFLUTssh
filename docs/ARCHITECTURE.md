@@ -109,6 +109,7 @@ lib/
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
 │   └── mobile/                       # Mobile version (bottom nav)
+├── l10n/                             # Internationalization (ARB files + generated code)
 ├── providers/                        # Riverpod providers (global state)
 ├── widgets/                          # Reusable UI components
 │   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
@@ -1441,6 +1442,54 @@ Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/font
 
 ---
 
+## 8.1 Internationalization (i18n)
+
+All user-facing strings are externalized via Flutter's built-in `gen_l10n` system.
+
+### Setup
+
+| File | Purpose |
+|------|---------|
+| `l10n.yaml` | Config: ARB dir, template, output class `S`, non-nullable getter |
+| `lib/l10n/app_en.arb` | English strings (template) — add new keys here |
+| `lib/l10n/app_localizations.dart` | Generated — `S` class with all getters |
+| `lib/l10n/app_localizations_en.dart` | Generated — English implementation |
+
+### Usage
+
+```dart
+import '../l10n/app_localizations.dart';
+
+// In any widget with BuildContext:
+Text(S.of(context).settings)
+Text(S.of(context).nSessions(count))  // parameterized
+```
+
+`S.of(context)` is non-nullable — no `!` needed. `MaterialApp` in `main.dart` has `localizationsDelegates: S.localizationsDelegates` and `supportedLocales: S.supportedLocales`.
+
+### Adding a new language
+
+1. Copy `lib/l10n/app_en.arb` → `lib/l10n/app_XX.arb` (e.g., `app_de.arb`)
+2. Translate all values (keep keys and placeholders intact)
+3. Run `flutter gen-l10n` — generates `app_localizations_xx.dart` automatically
+4. The app picks the locale from the OS; no code changes needed
+
+### Adding a new string
+
+1. Add the key + value to `lib/l10n/app_en.arb` (with `@key` metadata for placeholders)
+2. Run `flutter gen-l10n`
+3. Use `S.of(context).newKey` in the widget
+
+### Rules
+
+- **Never hardcode user-facing strings** — always use `S.of(context).xxx`
+- Constructor default parameters (e.g., `confirmLabel = 'Delete'`) stay hardcoded — no `context` available
+- Strings only used in logs (`AppLogger`) stay hardcoded — not user-facing
+- Tests must include `localizationsDelegates: S.localizationsDelegates` and `supportedLocales: S.supportedLocales` in every `MaterialApp`
+- Generated files (`app_localizations*.dart`) are committed to the repo
+
+---
+
 ## 9. Data Flow Diagrams
 
 ### 9.1 SSH Connection Flow
@@ -2015,6 +2064,8 @@ Manual build
 
 | Package | Purpose |
 |---------|---------|
+| `flutter_localizations` | Flutter i18n delegates (SDK package) |
+| `intl` | ICU message formatting for l10n |
 | `dartssh2` | SSH2 protocol (auth, shell, SFTP) |
 | `xterm` | Terminal emulator widget |
 | `flutter_riverpod` | State management |

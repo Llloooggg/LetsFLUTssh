@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
@@ -376,7 +377,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     if (widget.tree.isEmpty) {
       return Center(
         child: Text(
-          'No sessions',
+          S.of(context).noSessions,
           style: TextStyle(
             color: Theme.of(
               context,

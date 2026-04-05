@@ -9,6 +9,12 @@
             "command": "bash .claude/hooks/format-dart.sh",
             "timeout": 10,
             "statusMessage": "Formatting..."
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/gen-l10n.sh",
+            "timeout": 15,
+            "statusMessage": "Generating l10n..."
           }
         ]
       }

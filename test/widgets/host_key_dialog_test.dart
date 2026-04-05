@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/widgets/host_key_dialog.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   Widget buildApp({required void Function(BuildContext) onPressed}) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       home: Scaffold(
         body: Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () => onPressed(context),
-            child: const Text('Open'),
-          ),
+          builder: (context) => ElevatedButton(onPressed: () => onPressed(context), child: const Text('Open')),
         ),
       ),
     );
@@ -109,13 +109,7 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showNewHost(
-              ctx,
-              host: 'h',
-              port: 22,
-              keyType: 'k',
-              fingerprint: 'f',
-            );
+            HostKeyDialog.showNewHost(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'f');
           },
         ),
       );
@@ -151,13 +145,7 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showKeyChanged(
-              ctx,
-              host: 'h',
-              port: 22,
-              keyType: 'k',
-              fingerprint: 'f',
-            );
+            HostKeyDialog.showKeyChanged(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'f');
           },
         ),
       );
@@ -171,13 +159,7 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showKeyChanged(
-              ctx,
-              host: 'h',
-              port: 22,
-              keyType: 'k',
-              fingerprint: 'f',
-            );
+            HostKeyDialog.showKeyChanged(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'f');
           },
         ),
       );
@@ -191,13 +173,7 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showKeyChanged(
-              ctx,
-              host: 'h',
-              port: 22,
-              keyType: 'k',
-              fingerprint: 'f',
-            );
+            HostKeyDialog.showKeyChanged(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'f');
           },
         ),
       );
@@ -339,13 +315,7 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showNewHost(
-              ctx,
-              host: 'h',
-              port: 22,
-              keyType: 'k',
-              fingerprint: 'SHA256:selectable-fp',
-            );
+            HostKeyDialog.showNewHost(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'SHA256:selectable-fp');
           },
         ),
       );
@@ -359,13 +329,7 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showNewHost(
-              ctx,
-              host: 'new.host',
-              port: 22,
-              keyType: 'ssh-ed25519',
-              fingerprint: 'fp',
-            );
+            HostKeyDialog.showNewHost(ctx, host: 'new.host', port: 22, keyType: 'ssh-ed25519', fingerprint: 'fp');
           },
         ),
       );

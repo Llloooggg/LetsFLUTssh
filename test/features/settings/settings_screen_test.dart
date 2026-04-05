@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -87,16 +87,15 @@ void main() {
     // Mock FilePicker to prevent native dialog launches in tests.
     mockFilePicker = _MockFilePicker()..directoryPath = tempDir.path;
     FilePicker.platform = mockFilePicker;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async {
-            if (call.method == 'getApplicationSupportDirectory') {
-              return tempDir.path;
-            }
-            return null;
-          },
-        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (call) async {
+        if (call.method == 'getApplicationSupportDirectory') {
+          return tempDir.path;
+        }
+        return null;
+      },
+    );
   });
 
   tearDown(() async {
@@ -104,11 +103,10 @@ void main() {
     plat.debugDesktopPlatformOverride = null;
     debugCollapsibleSectionsExpanded = false;
     Toast.clearAllForTest();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          null,
-        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      null,
+    );
     await tempDir.delete(recursive: true);
   });
 
@@ -121,6 +119,8 @@ void main() {
         appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
       ],
       child: MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
         theme: AppTheme.dark(),
         home: SizedBox(height: height, child: const SettingsScreen()),
       ),
@@ -138,6 +138,8 @@ void main() {
         sessionProvider.overrideWith(SessionNotifier.new),
       ],
       child: MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
         theme: AppTheme.dark(),
         home: const SizedBox(height: 2000, child: SettingsScreen()),
       ),
@@ -171,32 +173,16 @@ void main() {
       expect(find.text('Terminal'), findsOneWidget);
       expect(find.text('Connection'), findsOneWidget);
 
-      await tester.scrollUntilVisible(
-        find.text('Transfers'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Transfers'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Transfers'), findsOneWidget);
 
-      await tester.scrollUntilVisible(
-        find.text('Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Data'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Data'), findsOneWidget);
 
-      await tester.scrollUntilVisible(
-        find.text('Updates'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Updates'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Updates'), findsOneWidget);
 
-      await tester.scrollUntilVisible(
-        find.text('About'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('About'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('About'), findsOneWidget);
     });
   });
@@ -246,9 +232,7 @@ void main() {
     testWidgets('slider with custom font size', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          initialConfig: AppConfig.defaults.copyWith(
-            terminal: AppConfig.defaults.terminal.copyWith(fontSize: 18.0),
-          ),
+          initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 18.0)),
         ),
       );
       expect(find.text('18'), findsOneWidget);
@@ -257,9 +241,7 @@ void main() {
     testWidgets('slider shows formatted value text', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          initialConfig: AppConfig.defaults.copyWith(
-            terminal: AppConfig.defaults.terminal.copyWith(fontSize: 16.0),
-          ),
+          initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 16.0)),
         ),
       );
       final slider = tester.widget<Slider>(fontSliderFinder());
@@ -270,9 +252,7 @@ void main() {
     testWidgets('slider with min value 8', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          initialConfig: AppConfig.defaults.copyWith(
-            terminal: AppConfig.defaults.terminal.copyWith(fontSize: 8.0),
-          ),
+          initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 8.0)),
         ),
       );
       expect(find.text('8'), findsOneWidget);
@@ -281,9 +261,7 @@ void main() {
     testWidgets('slider with max value 24', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          initialConfig: AppConfig.defaults.copyWith(
-            terminal: AppConfig.defaults.terminal.copyWith(fontSize: 24.0),
-          ),
+          initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 24.0)),
         ),
       );
       expect(find.text('24'), findsOneWidget);
@@ -292,9 +270,7 @@ void main() {
     testWidgets('value out of range is clamped', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          initialConfig: AppConfig.defaults.copyWith(
-            terminal: AppConfig.defaults.terminal.copyWith(fontSize: 4.0),
-          ),
+          initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(fontSize: 4.0)),
         ),
       );
       final slider = tester.widget<Slider>(fontSliderFinder());
@@ -303,11 +279,7 @@ void main() {
 
     testWidgets('onChanged callback is wired', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        fontSliderFinder(),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(fontSliderFinder(), 100, scrollable: find.byType(Scrollable).first);
       final slider = tester.widget<Slider>(fontSliderFinder());
       expect(slider.onChanged, isNotNull);
       slider.onChanged!(18.0);
@@ -336,9 +308,7 @@ void main() {
     testWidgets('scrollback field with custom value', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          initialConfig: AppConfig.defaults.copyWith(
-            terminal: AppConfig.defaults.terminal.copyWith(scrollback: 10000),
-          ),
+          initialConfig: AppConfig.defaults.copyWith(terminal: AppConfig.defaults.terminal.copyWith(scrollback: 10000)),
         ),
       );
       expect(find.text('10000'), findsOneWidget);
@@ -426,11 +396,7 @@ void main() {
 
     testWidgets('custom connection values display correctly', (tester) async {
       final config = AppConfig.defaults.copyWith(
-        ssh: AppConfig.defaults.ssh.copyWith(
-          keepAliveSec: 60,
-          sshTimeoutSec: 30,
-          defaultPort: 2222,
-        ),
+        ssh: AppConfig.defaults.ssh.copyWith(keepAliveSec: 60, sshTimeoutSec: 30, defaultPort: 2222),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       expect(find.text('60'), findsOneWidget);
@@ -492,12 +458,8 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('SSH timeout with custom config accepts valid value', (
-      tester,
-    ) async {
-      final config = AppConfig.defaults.copyWith(
-        ssh: AppConfig.defaults.ssh.copyWith(sshTimeoutSec: 15),
-      );
+    testWidgets('SSH timeout with custom config accepts valid value', (tester) async {
+      final config = AppConfig.defaults.copyWith(ssh: AppConfig.defaults.ssh.copyWith(sshTimeoutSec: 15));
       await tester.pumpWidget(buildFullApp(initialConfig: config));
       final field = find.widgetWithText(TextFormField, '15');
       await tester.tap(field);
@@ -548,11 +510,7 @@ void main() {
   group('SettingsScreen — Transfers section', () {
     testWidgets('renders after scrolling with defaults', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Parallel Workers'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Parallel Workers'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Transfers'), findsOneWidget);
       expect(find.text('Parallel Workers'), findsOneWidget);
       expect(find.text('Max History'), findsOneWidget);
@@ -561,27 +519,16 @@ void main() {
     });
 
     testWidgets('custom transfer values display correctly', (tester) async {
-      final config = AppConfig.defaults.copyWith(
-        transferWorkers: 4,
-        maxHistory: 1000,
-      );
+      final config = AppConfig.defaults.copyWith(transferWorkers: 4, maxHistory: 1000);
       await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Parallel Workers'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Parallel Workers'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('4'), findsOneWidget);
       expect(find.text('1000'), findsOneWidget);
     });
 
     testWidgets('workers field accepts valid value', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Parallel Workers'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Parallel Workers'), 200, scrollable: find.byType(Scrollable).first);
       final field = find.widgetWithText(TextFormField, '2');
       await tester.enterText(field, '4');
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -591,11 +538,7 @@ void main() {
 
     testWidgets('workers out of range rejected', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Parallel Workers'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Parallel Workers'), 200, scrollable: find.byType(Scrollable).first);
       final field = find.widgetWithText(TextFormField, '2');
       await tester.enterText(field, '99');
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -604,11 +547,7 @@ void main() {
 
     testWidgets('max history field accepts valid value', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Max History'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Max History'), 200, scrollable: find.byType(Scrollable).first);
       final field = find.widgetWithText(TextFormField, '500');
       await tester.enterText(field, '1000');
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -618,11 +557,7 @@ void main() {
 
     testWidgets('max history min boundary 10', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Max History'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Max History'), 200, scrollable: find.byType(Scrollable).first);
       final field = find.widgetWithText(TextFormField, '500');
       await tester.enterText(field, '10');
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -637,27 +572,16 @@ void main() {
   group('SettingsScreen — Export Data', () {
     testWidgets('renders export tile with subtitle and icon', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 400, scrollable: find.byType(Scrollable).first);
       expect(find.text('Data'), findsOneWidget);
       expect(find.text('Export Data'), findsOneWidget);
-      expect(
-        find.text('Save sessions, config, and keys to encrypted .lfs file'),
-        findsOneWidget,
-      );
+      expect(find.text('Save sessions, config, and keys to encrypted .lfs file'), findsOneWidget);
       expect(find.byIcon(Icons.upload_file), findsOneWidget);
     });
 
     testWidgets('tap opens export dialog', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 400, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
@@ -668,20 +592,12 @@ void main() {
 
     testWidgets('export dialog fields are obscured', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 400, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
-      final masterPw = tester.widget<TextField>(
-        find.widgetWithText(TextField, 'Master Password'),
-      );
-      final confirmPw = tester.widget<TextField>(
-        find.widgetWithText(TextField, 'Confirm Password'),
-      );
+      final masterPw = tester.widget<TextField>(find.widgetWithText(TextField, 'Master Password'));
+      final confirmPw = tester.widget<TextField>(find.widgetWithText(TextField, 'Confirm Password'));
       expect(masterPw.obscureText, isTrue);
       expect(confirmPw.obscureText, isTrue);
 
@@ -691,11 +607,7 @@ void main() {
 
     testWidgets('empty password does not close dialog', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 400, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Export'));
@@ -705,22 +617,12 @@ void main() {
 
     testWidgets('mismatched passwords shows warning toast', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 400, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'pass1',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Confirm Password'),
-        'pass2',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'pass1');
+      await tester.enterText(find.widgetWithText(TextField, 'Confirm Password'), 'pass2');
 
       await tester.tap(find.text('Export'));
       await tester.pump();
@@ -736,22 +638,12 @@ void main() {
 
     testWidgets('matching passwords closes dialog', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 400, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'matching',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Confirm Password'),
-        'matching',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'matching');
+      await tester.enterText(find.widgetWithText(TextField, 'Confirm Password'), 'matching');
 
       await tester.tap(find.text('Export'));
       // After tap, a progress dialog with CircularProgressIndicator appears
@@ -763,9 +655,7 @@ void main() {
       expect(find.text('Confirm Password'), findsNothing);
     });
 
-    testWidgets('export succeeds with session store and shows toast', (
-      tester,
-    ) async {
+    testWidgets('export succeeds with session store and shows toast', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -774,22 +664,12 @@ void main() {
       await tester.pumpWidget(buildFullApp());
       await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 100, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'securepass',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Confirm Password'),
-        'securepass',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'securepass');
+      await tester.enterText(find.widgetWithText(TextField, 'Confirm Password'), 'securepass');
 
       await tester.tap(find.text('Export'));
       // Progress dialog with CircularProgressIndicator appears — can't pumpAndSettle.
@@ -803,44 +683,31 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('export fails gracefully when path_provider errors', (
-      tester,
-    ) async {
+    testWidgets('export fails gracefully when path_provider errors', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            (call) async {
-              if (call.method == 'getApplicationSupportDirectory') {
-                throw PlatformException(code: 'ERROR', message: 'No dir');
-              }
-              return null;
-            },
-          );
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (call) async {
+          if (call.method == 'getApplicationSupportDirectory') {
+            throw PlatformException(code: 'ERROR', message: 'No dir');
+          }
+          return null;
+        },
+      );
 
       await tester.pumpWidget(buildFullApp());
       await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 100, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'p',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Confirm Password'),
-        'p',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'p');
+      await tester.enterText(find.widgetWithText(TextField, 'Confirm Password'), 'p');
 
       await tester.tap(find.text('Export'));
       await tester.pumpAndSettle();
@@ -857,11 +724,7 @@ void main() {
   group('SettingsScreen — Import Data', () {
     testWidgets('renders import tile with subtitle and icon', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Import Data'), findsOneWidget);
       expect(find.text('Load data from .lfs file'), findsOneWidget);
       expect(find.byIcon(Icons.download), findsOneWidget);
@@ -874,11 +737,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
@@ -889,30 +748,20 @@ void main() {
       expect(find.text('Import'), findsOneWidget);
     });
 
-    testWidgets('import dialog path field is not obscured, password is', (
-      tester,
-    ) async {
+    testWidgets('import dialog path field is not obscured, password is', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
-      final pwField = tester.widget<TextField>(
-        find.widgetWithText(TextField, 'Master Password'),
-      );
+      final pwField = tester.widget<TextField>(find.widgetWithText(TextField, 'Master Password'));
       expect(pwField.obscureText, isTrue);
-      final pathField = tester.widget<TextField>(
-        find.widgetWithText(TextField, 'Path to .lfs file'),
-      );
+      final pathField = tester.widget<TextField>(find.widgetWithText(TextField, 'Path to .lfs file'));
       expect(pathField.obscureText, isFalse);
 
       await tester.tap(find.text('Cancel'));
@@ -926,11 +775,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Import'));
@@ -945,18 +790,11 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Path to .lfs file'),
-        '/tmp/test.lfs',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Path to .lfs file'), '/tmp/test.lfs');
       await tester.tap(find.text('Import'));
       await tester.pumpAndSettle();
       expect(find.text('Path to .lfs file'), findsOneWidget);
@@ -969,11 +807,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
@@ -991,11 +825,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
       expect(find.text('Add new sessions, keep existing'), findsOneWidget);
@@ -1008,11 +838,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
@@ -1035,22 +861,12 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Path to .lfs file'),
-        '/tmp/nonexistent.lfs',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'password123',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Path to .lfs file'), '/tmp/nonexistent.lfs');
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'password123');
 
       await tester.tap(find.text('Import'));
       await tester.pumpAndSettle();
@@ -1060,9 +876,7 @@ void main() {
       expect(find.text('Path to .lfs file'), findsNothing);
     });
 
-    testWidgets('import in Replace mode sends Replace in result', (
-      tester,
-    ) async {
+    testWidgets('import in Replace mode sends Replace in result', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1071,11 +885,7 @@ void main() {
       await tester.pumpWidget(buildFullApp());
       await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 100, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
@@ -1083,14 +893,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Replace all sessions with imported'), findsOneWidget);
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Path to .lfs file'),
-        '/tmp/test_import_replace.lfs',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'pw123',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Path to .lfs file'), '/tmp/test_import_replace.lfs');
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'pw123');
 
       await tester.tap(find.text('Import'));
       await tester.pumpAndSettle();
@@ -1101,9 +905,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('import with nonexistent file shows error toast', (
-      tester,
-    ) async {
+    testWidgets('import with nonexistent file shows error toast', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1112,11 +914,7 @@ void main() {
       await tester.pumpWidget(buildFullApp());
       await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 100, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
@@ -1124,10 +922,7 @@ void main() {
         find.widgetWithText(TextField, 'Path to .lfs file'),
         '/tmp/nonexistent_file_that_does_not_exist_12345.lfs',
       );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'pw',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'pw');
 
       await tester.tap(find.text('Import'));
       await tester.pumpAndSettle();
@@ -1137,9 +932,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('import dialog mode toggle shows Replace description', (
-      tester,
-    ) async {
+    testWidgets('import dialog mode toggle shows Replace description', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1148,11 +941,7 @@ void main() {
       await tester.pumpWidget(buildFullApp());
       await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 100, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
@@ -1187,11 +976,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('LetsFLUTssh'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('LetsFLUTssh'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('About'), findsOneWidget);
       expect(find.text('LetsFLUTssh'), findsOneWidget);
       // Version string — check format, not a hardcoded number
@@ -1203,33 +988,20 @@ void main() {
 
     testWidgets('renders source code link', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Source Code'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Source Code'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Source Code'), findsOneWidget);
-      expect(
-        find.text('https://github.com/Llloooggg/LetsFLUTssh'),
-        findsOneWidget,
-      );
+      expect(find.text('https://github.com/Llloooggg/LetsFLUTssh'), findsOneWidget);
       expect(find.byIcon(Icons.code), findsOneWidget);
     });
 
-    testWidgets('tapping Source Code copies URL and shows toast', (
-      tester,
-    ) async {
+    testWidgets('tapping Source Code copies URL and shows toast', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Source Code'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Source Code'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Source Code'));
       await tester.pump();
 
@@ -1246,11 +1018,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Source Code'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Source Code'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Source Code'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 5));
@@ -1264,22 +1032,14 @@ void main() {
   group('SettingsScreen — Reset to Defaults', () {
     testWidgets('button is present after scrolling', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Reset to Defaults'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Reset to Defaults'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Reset to Defaults'), findsOneWidget);
       expect(find.byIcon(Icons.restore), findsOneWidget);
     });
 
     testWidgets('tapping Reset does not crash', (tester) async {
       await tester.pumpWidget(buildApp());
-      await tester.scrollUntilVisible(
-        find.text('Reset to Defaults'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Reset to Defaults'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Reset to Defaults'));
       await tester.pumpAndSettle();
       expect(find.byType(ListView), findsOneWidget);
@@ -1287,18 +1047,11 @@ void main() {
 
     testWidgets('reset with custom config updates fields', (tester) async {
       final custom = AppConfig.defaults.copyWith(
-        terminal: AppConfig.defaults.terminal.copyWith(
-          fontSize: 20.0,
-          scrollback: 10000,
-        ),
+        terminal: AppConfig.defaults.terminal.copyWith(fontSize: 20.0, scrollback: 10000),
         ssh: AppConfig.defaults.ssh.copyWith(keepAliveSec: 60),
       );
       await tester.pumpWidget(buildApp(initialConfig: custom));
-      await tester.scrollUntilVisible(
-        find.text('Reset to Defaults'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Reset to Defaults'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Reset to Defaults'));
       await tester.pumpAndSettle();
       expect(find.byType(ListView), findsOneWidget);
@@ -1311,11 +1064,7 @@ void main() {
   group('SettingsScreen — custom config values', () {
     testWidgets('renders with custom config values', (tester) async {
       final customConfig = AppConfig.defaults.copyWith(
-        terminal: AppConfig.defaults.terminal.copyWith(
-          fontSize: 18.0,
-          theme: 'light',
-          scrollback: 10000,
-        ),
+        terminal: AppConfig.defaults.terminal.copyWith(fontSize: 18.0, theme: 'light', scrollback: 10000),
         ssh: AppConfig.defaults.ssh.copyWith(keepAliveSec: 60),
       );
       await tester.pumpWidget(buildApp(initialConfig: customConfig));
@@ -1333,13 +1082,12 @@ void main() {
         ProviderScope(
           overrides: [configProvider.overrideWith(ConfigNotifier.new)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Builder(
               builder: (context) => Scaffold(
-                body: ElevatedButton(
-                  onPressed: () => SettingsScreen.show(context),
-                  child: const Text('Open Settings'),
-                ),
+                body: ElevatedButton(onPressed: () => SettingsScreen.show(context), child: const Text('Open Settings')),
               ),
             ),
           ),
@@ -1358,13 +1106,12 @@ void main() {
         ProviderScope(
           overrides: [configProvider.overrideWith(ConfigNotifier.new)],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Builder(
               builder: (context) => Scaffold(
-                body: ElevatedButton(
-                  onPressed: () => SettingsScreen.show(context),
-                  child: const Text('Open Settings'),
-                ),
+                body: ElevatedButton(onPressed: () => SettingsScreen.show(context), child: const Text('Open Settings')),
               ),
             ),
           ),
@@ -1394,22 +1141,12 @@ void main() {
       await tester.pumpWidget(buildFullApp());
       await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 100, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'alpha',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Confirm Password'),
-        'beta',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'alpha');
+      await tester.enterText(find.widgetWithText(TextField, 'Confirm Password'), 'beta');
 
       await tester.tap(find.text('Export'));
       await tester.pump();
@@ -1428,9 +1165,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('mismatch does not close dialog even with non-empty fields', (
-      tester,
-    ) async {
+    testWidgets('mismatch does not close dialog even with non-empty fields', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1439,22 +1174,12 @@ void main() {
       await tester.pumpWidget(buildFullApp());
       await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Export Data'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Export Data'), 100, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Export Data'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'longpassword1',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Confirm Password'),
-        'longpassword2',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'longpassword1');
+      await tester.enterText(find.widgetWithText(TextField, 'Confirm Password'), 'longpassword2');
 
       await tester.tap(find.text('Export'));
       await tester.pump();
@@ -1473,9 +1198,7 @@ void main() {
   // Import file not found toast verification
   // ---------------------------------------------------------------------------
   group('SettingsScreen - Import file not found toast', () {
-    testWidgets('nonexistent file shows File not found toast text', (
-      tester,
-    ) async {
+    testWidgets('nonexistent file shows File not found toast text', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1484,23 +1207,13 @@ void main() {
       await tester.pumpWidget(buildFullApp());
       await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Import Data'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Import Data'), 100, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Import Data'));
       await tester.pumpAndSettle();
 
       const fakePath = '/tmp/absolutely_nonexistent_file_9999.lfs';
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Path to .lfs file'),
-        fakePath,
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Master Password'),
-        'pw',
-      );
+      await tester.enterText(find.widgetWithText(TextField, 'Path to .lfs file'), fakePath);
+      await tester.enterText(find.widgetWithText(TextField, 'Master Password'), 'pw');
 
       // Tap Import — dialog closes, then _executeImport runs with real I/O
       await tester.tap(find.text('Import'));
@@ -1508,9 +1221,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       // Let real async I/O (File.exists) complete
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 200)),
-      );
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 200)));
       await tester.pump();
       await tester.pump();
       await tester.pump();
@@ -1527,45 +1238,31 @@ void main() {
   // Data Path tile — copy to clipboard
   // ---------------------------------------------------------------------------
   group('SettingsScreen — Data Path tile', () {
-    testWidgets('tapping Data Location copies path to clipboard', (
-      tester,
-    ) async {
+    testWidgets('tapping Data Location copies path to clipboard', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
       String? copiedText;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final args = call.arguments as Map<dynamic, dynamic>;
-            copiedText = args['text'] as String?;
-          }
-          return null;
-        },
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedText = args['text'] as String?;
+        }
+        return null;
+      });
       addTearDown(() {
-        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        );
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
       });
 
       await tester.pumpWidget(buildApp());
       // Wait for FutureBuilder to resolve path_provider
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 100)),
-      );
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
       await tester.pump();
       await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Data Location'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Data Location'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Data Location'));
       await tester.pump();
 
@@ -1594,11 +1291,7 @@ void main() {
     testWidgets('Enable Logging switch is visible', (tester) async {
       final config = AppConfig.defaults.copyWith(enableLogging: true);
       await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Enable Logging'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Enable Logging'), findsOneWidget);
     });
 
@@ -1610,11 +1303,7 @@ void main() {
 
       final config = AppConfig.defaults.copyWith(enableLogging: true);
       await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Live Log'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Live Log'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Live Log'), findsOneWidget);
       expect(find.byIcon(Icons.copy), findsOneWidget);
       expect(find.byIcon(Icons.save_alt), findsOneWidget);
@@ -1632,15 +1321,9 @@ void main() {
 
       final config = AppConfig.defaults.copyWith(enableLogging: true);
       await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Live Log'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Live Log'), 200, scrollable: find.byType(Scrollable).first);
       // Allow _LiveLogViewer timer/initState refresh to complete
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 300)),
-      );
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
       await tester.pump();
 
       // Inline viewer is present — no dialog
@@ -1648,9 +1331,7 @@ void main() {
       expect(find.byType(SelectableText), findsWidgets);
     });
 
-    testWidgets('live log viewer shows placeholder when log is empty', (
-      tester,
-    ) async {
+    testWidgets('live log viewer shows placeholder when log is empty', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1661,62 +1342,40 @@ void main() {
 
       final config = AppConfig.defaults.copyWith(enableLogging: true);
       await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Live Log'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Live Log'), 200, scrollable: find.byType(Scrollable).first);
       // Allow refresh to complete
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 300)),
-      );
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
       await tester.pump();
 
       // Either placeholder or content is shown — viewer is present
       expect(find.text('Live Log'), findsOneWidget);
     });
 
-    testWidgets('live log viewer copy icon copies content to clipboard', (
-      tester,
-    ) async {
+    testWidgets('live log viewer copy icon copies content to clipboard', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
       String? copiedText;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final args = call.arguments as Map<dynamic, dynamic>;
-            copiedText = args['text'] as String?;
-          }
-          return null;
-        },
-      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedText = args['text'] as String?;
+        }
+        return null;
+      });
       addTearDown(() {
-        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        );
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
       });
 
       AppLogger.instance.log('clipboard test entry', name: 'Test');
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 100)),
-      );
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
 
       final config = AppConfig.defaults.copyWith(enableLogging: true);
       await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.byIcon(Icons.copy),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 300)),
-      );
+      await tester.scrollUntilVisible(find.byIcon(Icons.copy), 200, scrollable: find.byType(Scrollable).first);
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.copy));
@@ -1725,8 +1384,7 @@ void main() {
       expect(copiedText, isNotNull);
       // Toast shows either "Copied to clipboard" or "Log is empty"
       expect(
-        find.textContaining('clipboard').evaluate().isNotEmpty ||
-            find.textContaining('empty').evaluate().isNotEmpty,
+        find.textContaining('clipboard').evaluate().isNotEmpty || find.textContaining('empty').evaluate().isNotEmpty,
         isTrue,
       );
 
@@ -1741,9 +1399,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       AppLogger.instance.log('entry to clear', name: 'Test');
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 100)),
-      );
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
 
       final config = AppConfig.defaults.copyWith(enableLogging: true);
       await tester.pumpWidget(buildApp(initialConfig: config));
@@ -1752,9 +1408,7 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 300)),
-      );
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
       await tester.pump();
 
       await tester.runAsync(() async {
@@ -1770,9 +1424,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('toggling Enable Logging switch calls config update', (
-      tester,
-    ) async {
+    testWidgets('toggling Enable Logging switch calls config update', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1780,11 +1432,7 @@ void main() {
 
       // Start with logging disabled
       await tester.pumpWidget(buildApp(initialConfig: AppConfig.defaults));
-      await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Enable Logging'), 200, scrollable: find.byType(Scrollable).first);
 
       // The toggle pill should have bg4 color (off state)
       final toggleContainer = find.byWidgetPredicate(
@@ -1792,8 +1440,7 @@ void main() {
             w is Container &&
             w.decoration is BoxDecoration &&
             (w.decoration as BoxDecoration).color == AppTheme.bg4 &&
-            (w.decoration as BoxDecoration).borderRadius ==
-                BorderRadius.circular(9),
+            (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
       );
       expect(toggleContainer, findsWidgets);
 
@@ -1810,18 +1457,12 @@ void main() {
 
       // enableLogging = false (default) — live log viewer should not appear
       await tester.pumpWidget(buildApp(initialConfig: AppConfig.defaults));
-      await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Enable Logging'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Enable Logging'), findsOneWidget);
       expect(find.text('Live Log'), findsNothing);
     });
 
-    testWidgets('toggle renders ON when config has enableLogging true', (
-      tester,
-    ) async {
+    testWidgets('toggle renders ON when config has enableLogging true', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -1829,16 +1470,10 @@ void main() {
 
       final config = AppConfig.defaults.copyWith(enableLogging: true);
       await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Enable Logging'), 200, scrollable: find.byType(Scrollable).first);
 
       // Find the toggle pill that is in the same Row as "Enable Logging"
-      final loggingRow = find
-          .ancestor(of: find.text('Enable Logging'), matching: find.byType(Row))
-          .first;
+      final loggingRow = find.ancestor(of: find.text('Enable Logging'), matching: find.byType(Row)).first;
       final toggleContainer = find.descendant(
         of: loggingRow,
         matching: find.byWidgetPredicate(
@@ -1846,34 +1481,26 @@ void main() {
               w is Container &&
               w.decoration is BoxDecoration &&
               (w.decoration as BoxDecoration).color == AppTheme.accent &&
-              (w.decoration as BoxDecoration).borderRadius ==
-                  BorderRadius.circular(9),
+              (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
         ),
       );
       expect(toggleContainer, findsOneWidget);
     });
 
-    testWidgets(
-      'logging section shows icons for copy/export/clear in live viewer',
-      (tester) async {
-        tester.view.physicalSize = const Size(800, 2400);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets('logging section shows icons for copy/export/clear in live viewer', (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-        final config = AppConfig.defaults.copyWith(enableLogging: true);
-        await tester.pumpWidget(buildApp(initialConfig: config));
-        await tester.scrollUntilVisible(
-          find.text('Live Log'),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        expect(find.byIcon(Icons.copy), findsOneWidget);
-        expect(find.byIcon(Icons.save_alt), findsOneWidget);
-        expect(find.byIcon(Icons.delete_outline), findsOneWidget);
-        expect(find.byIcon(Icons.visibility), findsNothing);
-      },
-    );
+      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.scrollUntilVisible(find.text('Live Log'), 200, scrollable: find.byType(Scrollable).first);
+      expect(find.byIcon(Icons.copy), findsOneWidget);
+      expect(find.byIcon(Icons.save_alt), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      expect(find.byIcon(Icons.visibility), findsNothing);
+    });
 
     testWidgets('live log copy with empty log shows toast', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
@@ -1896,14 +1523,8 @@ void main() {
 
       final config = AppConfig.defaults.copyWith(enableLogging: true);
       await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.byIcon(Icons.copy),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 300)),
-      );
+      await tester.scrollUntilVisible(find.byIcon(Icons.copy), 200, scrollable: find.byType(Scrollable).first);
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.copy));
@@ -1911,8 +1532,7 @@ void main() {
 
       // Shows either "Log is empty" or "Copied to clipboard"
       expect(
-        find.textContaining('Log').evaluate().isNotEmpty ||
-            find.textContaining('clipboard').evaluate().isNotEmpty,
+        find.textContaining('Log').evaluate().isNotEmpty || find.textContaining('clipboard').evaluate().isNotEmpty,
         isTrue,
       );
 
@@ -1934,18 +1554,12 @@ void main() {
       await tester.pumpWidget(buildApp());
 
       // Before FutureBuilder resolves, subtitle should be "..."
-      await tester.scrollUntilVisible(
-        find.text('Data Location'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Data Location'), 200, scrollable: find.byType(Scrollable).first);
       // The FutureBuilder may still show "..." or resolved path
       expect(find.text('Data Location'), findsOneWidget);
 
       // Let the FutureBuilder resolve
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 100)),
-      );
+      await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
       await tester.pump();
       await tester.pump();
 
@@ -1972,23 +1586,18 @@ void main() {
   // ---------------------------------------------------------------------------
   group('SettingsScreen — Updates section', () {
     /// Build app with an overridden update provider for testing.
-    Widget buildUpdateApp({
-      AppConfig? initialConfig,
-      UpdateState? initialUpdateState,
-    }) {
+    Widget buildUpdateApp({AppConfig? initialConfig, UpdateState? initialUpdateState}) {
       final config = initialConfig ?? AppConfig.defaults;
       return ProviderScope(
         overrides: [
-          configProvider.overrideWith(
-            () => _PrePopulatedConfigNotifier(config),
-          ),
+          configProvider.overrideWith(() => _PrePopulatedConfigNotifier(config)),
           appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
           if (initialUpdateState != null)
-            updateProvider.overrideWith(
-              () => _PrePopulatedUpdateNotifier(initialUpdateState),
-            ),
+            updateProvider.overrideWith(() => _PrePopulatedUpdateNotifier(initialUpdateState)),
         ],
         child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: const SizedBox(height: 2000, child: SettingsScreen()),
         ),
@@ -2018,19 +1627,14 @@ void main() {
             w is Container &&
             w.decoration is BoxDecoration &&
             (w.decoration as BoxDecoration).color == AppTheme.accent &&
-            (w.decoration as BoxDecoration).borderRadius ==
-                BorderRadius.circular(9),
+            (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
       );
       expect(toggleContainer, findsOneWidget);
     });
 
     testWidgets('renders check button', (tester) async {
       await tester.pumpWidget(buildUpdateApp());
-      await tester.scrollUntilVisible(
-        find.text('Check for Updates'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Check for Updates'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Check for Updates'), findsOneWidget);
     });
 
@@ -2039,11 +1643,7 @@ void main() {
         buildUpdateApp(
           initialUpdateState: const UpdateState(
             status: UpdateStatus.upToDate,
-            info: UpdateInfo(
-              latestVersion: '1.5.0',
-              currentVersion: '1.5.0',
-              releaseUrl: '',
-            ),
+            info: UpdateInfo(latestVersion: '1.5.0', currentVersion: '1.5.0', releaseUrl: ''),
           ),
         ),
       );
@@ -2064,8 +1664,7 @@ void main() {
               latestVersion: '2.0.0',
               currentVersion: '1.5.0',
               releaseUrl: 'https://github.com/releases',
-              assetUrl:
-                  'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
+              assetUrl: 'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
             ),
           ),
         ),
@@ -2082,29 +1681,17 @@ void main() {
     testWidgets('shows error state', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(
-          initialUpdateState: const UpdateState(
-            status: UpdateStatus.error,
-            error: 'Network timeout',
-          ),
+          initialUpdateState: const UpdateState(status: UpdateStatus.error, error: 'Network timeout'),
         ),
       );
-      await tester.scrollUntilVisible(
-        find.text('Update check failed'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Update check failed'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Update check failed'), findsOneWidget);
       expect(find.text('Network timeout'), findsOneWidget);
     });
 
     testWidgets('shows downloading progress', (tester) async {
       await tester.pumpWidget(
-        buildUpdateApp(
-          initialUpdateState: const UpdateState(
-            status: UpdateStatus.downloading,
-            progress: 0.42,
-          ),
-        ),
+        buildUpdateApp(initialUpdateState: const UpdateState(status: UpdateStatus.downloading, progress: 0.42)),
       );
       await tester.scrollUntilVisible(
         find.textContaining('Downloading'),
@@ -2124,18 +1711,12 @@ void main() {
           ),
         ),
       );
-      await tester.scrollUntilVisible(
-        find.text('Download complete'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Download complete'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Download complete'), findsOneWidget);
       expect(find.text('Install Now'), findsOneWidget);
     });
 
-    testWidgets('shows copy release URL on mobile or when no asset', (
-      tester,
-    ) async {
+    testWidgets('shows copy release URL on mobile or when no asset', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(
           initialUpdateState: const UpdateState(
@@ -2149,34 +1730,19 @@ void main() {
           ),
         ),
       );
-      await tester.scrollUntilVisible(
-        find.text('Open in Browser'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Open in Browser'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Open in Browser'), findsOneWidget);
     });
 
     testWidgets('toggle can be turned off', (tester) async {
-      await tester.pumpWidget(
-        buildUpdateApp(
-          initialConfig: AppConfig.defaults.copyWith(
-            checkUpdatesOnStart: false,
-          ),
-        ),
-      );
+      await tester.pumpWidget(buildUpdateApp(initialConfig: AppConfig.defaults.copyWith(checkUpdatesOnStart: false)));
       await tester.scrollUntilVisible(
         find.text('Check for Updates on Startup'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
       // Find the toggle pill in the same Row as "Check for Updates on Startup"
-      final updateRow = find
-          .ancestor(
-            of: find.text('Check for Updates on Startup'),
-            matching: find.byType(Row),
-          )
-          .first;
+      final updateRow = find.ancestor(of: find.text('Check for Updates on Startup'), matching: find.byType(Row)).first;
       final toggleContainer = find.descendant(
         of: updateRow,
         matching: find.byWidgetPredicate(
@@ -2184,8 +1750,7 @@ void main() {
               w is Container &&
               w.decoration is BoxDecoration &&
               (w.decoration as BoxDecoration).color == AppTheme.bg4 &&
-              (w.decoration as BoxDecoration).borderRadius ==
-                  BorderRadius.circular(9),
+              (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(9),
         ),
       );
       expect(toggleContainer, findsOneWidget);
@@ -2197,32 +1762,24 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final mockService = UpdateService(
-        fetch: (_) async => '{"tag_name":"v1.5.0","html_url":"","assets":[]}',
-      );
+      final mockService = UpdateService(fetch: (_) async => '{"tag_name":"v1.5.0","html_url":"","assets":[]}');
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configProvider.overrideWith(
-              () => _PrePopulatedConfigNotifier(AppConfig.defaults),
-            ),
-            appVersionProvider.overrideWith(
-              () => _FixedVersionNotifier('1.5.0'),
-            ),
+            configProvider.overrideWith(() => _PrePopulatedConfigNotifier(AppConfig.defaults)),
+            appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
             updateServiceProvider.overrideWithValue(mockService),
           ],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: const SettingsScreen(),
           ),
         ),
       );
 
-      await tester.scrollUntilVisible(
-        find.text('Check for Updates'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Check for Updates'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Check for Updates'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
@@ -2232,40 +1789,30 @@ void main() {
       Toast.clearAllForTest();
     });
 
-    testWidgets('manual check shows toast when update available', (
-      tester,
-    ) async {
+    testWidgets('manual check shows toast when update available', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final mockService = UpdateService(
-        fetch: (_) async => '{"tag_name":"v9.0.0","html_url":"","assets":[]}',
-      );
+      final mockService = UpdateService(fetch: (_) async => '{"tag_name":"v9.0.0","html_url":"","assets":[]}');
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configProvider.overrideWith(
-              () => _PrePopulatedConfigNotifier(AppConfig.defaults),
-            ),
-            appVersionProvider.overrideWith(
-              () => _FixedVersionNotifier('1.5.0'),
-            ),
+            configProvider.overrideWith(() => _PrePopulatedConfigNotifier(AppConfig.defaults)),
+            appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
             updateServiceProvider.overrideWithValue(mockService),
           ],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: const SettingsScreen(),
           ),
         ),
       );
 
-      await tester.scrollUntilVisible(
-        find.text('Check for Updates'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Check for Updates'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Check for Updates'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
@@ -2281,32 +1828,24 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final mockService = UpdateService(
-        fetch: (_) async => throw Exception('Network error'),
-      );
+      final mockService = UpdateService(fetch: (_) async => throw Exception('Network error'));
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configProvider.overrideWith(
-              () => _PrePopulatedConfigNotifier(AppConfig.defaults),
-            ),
-            appVersionProvider.overrideWith(
-              () => _FixedVersionNotifier('1.5.0'),
-            ),
+            configProvider.overrideWith(() => _PrePopulatedConfigNotifier(AppConfig.defaults)),
+            appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
             updateServiceProvider.overrideWithValue(mockService),
           ],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: const SettingsScreen(),
           ),
         ),
       );
 
-      await tester.scrollUntilVisible(
-        find.text('Check for Updates'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Check for Updates'), 200, scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Check for Updates'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
@@ -2316,9 +1855,7 @@ void main() {
       Toast.clearAllForTest();
     });
 
-    testWidgets('shows Skip This Version button when not skipped', (
-      tester,
-    ) async {
+    testWidgets('shows Skip This Version button when not skipped', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(
           initialUpdateState: const UpdateState(
@@ -2327,17 +1864,12 @@ void main() {
               latestVersion: '2.0.0',
               currentVersion: '1.5.0',
               releaseUrl: 'https://github.com/releases',
-              assetUrl:
-                  'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
+              assetUrl: 'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
             ),
           ),
         ),
       );
-      await tester.scrollUntilVisible(
-        find.text('Skip This Version'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Skip This Version'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Skip This Version'), findsOneWidget);
       expect(find.text('Unskip'), findsNothing);
     });
@@ -2352,17 +1884,12 @@ void main() {
               latestVersion: '2.0.0',
               currentVersion: '1.5.0',
               releaseUrl: 'https://github.com/releases',
-              assetUrl:
-                  'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
+              assetUrl: 'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
             ),
           ),
         ),
       );
-      await tester.scrollUntilVisible(
-        find.text('Unskip'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Unskip'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Unskip'), findsOneWidget);
       expect(find.text('Skip This Version'), findsNothing);
     });
@@ -2381,11 +1908,7 @@ void main() {
           ),
         ),
       );
-      await tester.scrollUntilVisible(
-        find.text('Current: v1.5.0'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Current: v1.5.0'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Current: v1.5.0'), findsOneWidget);
       expect(find.textContaining('skipped'), findsNothing);
     });
@@ -2401,17 +1924,12 @@ void main() {
               latestVersion: '3.0.0',
               currentVersion: '1.5.0',
               releaseUrl: 'https://github.com/releases',
-              assetUrl:
-                  'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v3.0.0/file.AppImage',
+              assetUrl: 'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v3.0.0/file.AppImage',
             ),
           ),
         ),
       );
-      await tester.scrollUntilVisible(
-        find.text('Skip This Version'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.scrollUntilVisible(find.text('Skip This Version'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Skip This Version'), findsOneWidget);
       expect(find.text('Unskip'), findsNothing);
       expect(find.text('Version 3.0.0 available'), findsOneWidget);
@@ -2428,12 +1946,12 @@ void main() {
       final config = initialConfig ?? AppConfig.defaults;
       return ProviderScope(
         overrides: [
-          configProvider.overrideWith(
-            () => _PrePopulatedConfigNotifier(config),
-          ),
+          configProvider.overrideWith(() => _PrePopulatedConfigNotifier(config)),
           appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
         ],
         child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: StatefulBuilder(
             builder: (context, setState) => Scaffold(
@@ -2446,9 +1964,7 @@ void main() {
                       onSelect: (i) => setState(() => selectedIndex = i),
                     ),
                   ),
-                  Expanded(
-                    child: SettingsContent(selectedIndex: selectedIndex),
-                  ),
+                  Expanded(child: SettingsContent(selectedIndex: selectedIndex)),
                 ],
               ),
             ),

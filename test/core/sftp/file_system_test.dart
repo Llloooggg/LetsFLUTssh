@@ -20,22 +20,8 @@ void main() {
 
     test('directories come before files', () {
       final entries = [
-        FileEntry(
-          name: 'file.txt',
-          path: '/file.txt',
-          size: 100,
-          mode: 0644,
-          modTime: DateTime.now(),
-          isDir: false,
-        ),
-        FileEntry(
-          name: 'dir',
-          path: '/dir',
-          size: 0,
-          mode: 0755,
-          modTime: DateTime.now(),
-          isDir: true,
-        ),
+        FileEntry(name: 'file.txt', path: '/file.txt', size: 100, mode: 0644, modTime: DateTime.now(), isDir: false),
+        FileEntry(name: 'dir', path: '/dir', size: 0, mode: 0755, modTime: DateTime.now(), isDir: true),
       ];
       sortEntries(entries);
       expect(entries[0].name, 'dir');
@@ -45,58 +31,19 @@ void main() {
     test('files sorted case-insensitively', () {
       final now = DateTime.now();
       final entries = [
-        FileEntry(
-          name: 'Zebra.txt',
-          path: '/z',
-          size: 0,
-          mode: 0,
-          modTime: now,
-          isDir: false,
-        ),
-        FileEntry(
-          name: 'apple.txt',
-          path: '/a',
-          size: 0,
-          mode: 0,
-          modTime: now,
-          isDir: false,
-        ),
-        FileEntry(
-          name: 'Banana.txt',
-          path: '/b',
-          size: 0,
-          mode: 0,
-          modTime: now,
-          isDir: false,
-        ),
+        FileEntry(name: 'Zebra.txt', path: '/z', size: 0, mode: 0, modTime: now, isDir: false),
+        FileEntry(name: 'apple.txt', path: '/a', size: 0, mode: 0, modTime: now, isDir: false),
+        FileEntry(name: 'Banana.txt', path: '/b', size: 0, mode: 0, modTime: now, isDir: false),
       ];
       sortEntries(entries);
-      expect(entries.map((e) => e.name).toList(), [
-        'apple.txt',
-        'Banana.txt',
-        'Zebra.txt',
-      ]);
+      expect(entries.map((e) => e.name).toList(), ['apple.txt', 'Banana.txt', 'Zebra.txt']);
     });
 
     test('directories sorted case-insensitively', () {
       final now = DateTime.now();
       final entries = [
-        FileEntry(
-          name: 'Zdir',
-          path: '/z',
-          size: 0,
-          mode: 0,
-          modTime: now,
-          isDir: true,
-        ),
-        FileEntry(
-          name: 'adir',
-          path: '/a',
-          size: 0,
-          mode: 0,
-          modTime: now,
-          isDir: true,
-        ),
+        FileEntry(name: 'Zdir', path: '/z', size: 0, mode: 0, modTime: now, isDir: true),
+        FileEntry(name: 'adir', path: '/a', size: 0, mode: 0, modTime: now, isDir: true),
       ];
       sortEntries(entries);
       expect(entries[0].name, 'adir');
@@ -110,16 +57,7 @@ void main() {
     });
 
     test('single entry sorts without error', () {
-      final entries = [
-        FileEntry(
-          name: 'only',
-          path: '/only',
-          size: 0,
-          mode: 0,
-          modTime: DateTime.now(),
-          isDir: false,
-        ),
-      ];
+      final entries = [FileEntry(name: 'only', path: '/only', size: 0, mode: 0, modTime: DateTime.now(), isDir: false)];
       sortEntries(entries);
       expect(entries.length, 1);
     });

@@ -12,26 +12,24 @@ void main() {
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('logger_test_');
 
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async {
-            if (call.method == 'getApplicationSupportDirectory') {
-              return tempDir.path;
-            }
-            return null;
-          },
-        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (call) async {
+        if (call.method == 'getApplicationSupportDirectory') {
+          return tempDir.path;
+        }
+        return null;
+      },
+    );
   });
 
   tearDown(() async {
     await AppLogger.instance.setEnabled(false);
     await AppLogger.instance.dispose();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          null,
-        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      null,
+    );
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
     }
@@ -60,11 +58,7 @@ void main() {
     });
 
     test('log does not crash with error parameter', () {
-      AppLogger.instance.log(
-        'error msg',
-        name: 'Test',
-        error: Exception('boom'),
-      );
+      AppLogger.instance.log('error msg', name: 'Test', error: Exception('boom'));
     });
 
     test('setEnabled(true) without init does not crash', () async {
@@ -117,11 +111,7 @@ void main() {
       await AppLogger.instance.init();
       await AppLogger.instance.setEnabled(true);
 
-      AppLogger.instance.log(
-        'something broke',
-        name: 'Err',
-        error: 'DetailedError',
-      );
+      AppLogger.instance.log('something broke', name: 'Err', error: 'DetailedError');
 
       final content = await AppLogger.instance.readLog();
       expect(content, contains('[Err] something broke'));

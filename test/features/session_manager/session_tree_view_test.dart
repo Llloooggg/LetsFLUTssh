@@ -6,6 +6,7 @@ import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/widgets/cross_marquee_controller.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   late List<Session> sessions;
@@ -47,6 +48,8 @@ void main() {
     void Function(Session)? onSessionDoubleTap,
   }) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
         body: SizedBox(
@@ -119,9 +122,7 @@ void main() {
 
     testWidgets('session double-tap triggers callback', (tester) async {
       Session? doubleTapped;
-      await tester.pumpWidget(
-        buildApp(onSessionDoubleTap: (s) => doubleTapped = s),
-      );
+      await tester.pumpWidget(buildApp(onSessionDoubleTap: (s) => doubleTapped = s));
 
       // GestureDetector wraps InkWell with onDoubleTap — test via double-tap
       final stagingFinder = find.text('staging');
@@ -194,14 +195,11 @@ void main() {
       expect(find.text('DB'), findsNothing);
     });
 
-    testWidgets(
-      'shows expand_more icons for folders (rotated when collapsed)',
-      (tester) async {
-        await tester.pumpWidget(buildApp());
-        // All folders use expand_more (rotated -90° when collapsed)
-        expect(find.byIcon(Icons.expand_more), findsWidgets);
-      },
-    );
+    testWidgets('shows expand_more icons for folders (rotated when collapsed)', (tester) async {
+      await tester.pumpWidget(buildApp());
+      // All folders use expand_more (rotated -90° when collapsed)
+      expect(find.byIcon(Icons.expand_more), findsWidgets);
+    });
 
     testWidgets('shows folder icon for all folders', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -252,9 +250,7 @@ void main() {
       expect(tappedSession?.label, 'staging');
     });
 
-    testWidgets('session tap sets selected state and highlights', (
-      tester,
-    ) async {
+    testWidgets('session tap sets selected state and highlights', (tester) async {
       await tester.pumpWidget(buildApp());
 
       // Tap on staging to select it
@@ -354,13 +350,11 @@ void main() {
       final tree = SessionTree.build([s], emptyFolders: const {});
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(tree: tree),
-            ),
+            body: SizedBox(width: 300, height: 600, child: SessionTreeView(tree: tree)),
           ),
         ),
       );
@@ -381,13 +375,11 @@ void main() {
       final tree = SessionTree.build([s], emptyFolders: const {});
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(tree: tree),
-            ),
+            body: SizedBox(width: 300, height: 600, child: SessionTreeView(tree: tree)),
           ),
         ),
       );
@@ -404,13 +396,11 @@ void main() {
       final tree = SessionTree.build([], emptyFolders: {'EmptyFolder'});
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(tree: tree),
-            ),
+            body: SizedBox(width: 300, height: 600, child: SessionTreeView(tree: tree)),
           ),
         ),
       );
@@ -422,9 +412,7 @@ void main() {
   });
 
   group('SessionTreeView — collapse and re-expand', () {
-    testWidgets('collapse then re-expand folder shows children again', (
-      tester,
-    ) async {
+    testWidgets('collapse then re-expand folder shows children again', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -446,14 +434,14 @@ void main() {
   });
 
   group('SessionTreeView — context menus', () {
-    testWidgets('right-click on session triggers onSessionContextMenu', (
-      tester,
-    ) async {
+    testWidgets('right-click on session triggers onSessionContextMenu', (tester) async {
       Session? contextSession;
       Offset? contextPos;
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -483,14 +471,14 @@ void main() {
       expect(contextPos, isNotNull);
     });
 
-    testWidgets('right-click on folder triggers onFolderContextMenu', (
-      tester,
-    ) async {
+    testWidgets('right-click on folder triggers onFolderContextMenu', (tester) async {
       String? contextFolder;
       Offset? contextPos;
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -520,9 +508,7 @@ void main() {
       expect(contextPos, isNotNull);
     });
 
-    testWidgets('right-click on background triggers onBackgroundContextMenu', (
-      tester,
-    ) async {
+    testWidgets('right-click on background triggers onBackgroundContextMenu', (tester) async {
       Offset? contextPos;
 
       final singleSession = [
@@ -537,6 +523,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -566,14 +554,14 @@ void main() {
   });
 
   group('SessionTreeView — drag and drop', () {
-    testWidgets('drag session to different folder calls onSessionMoved', (
-      tester,
-    ) async {
+    testWidgets('drag session to different folder calls onSessionMoved', (tester) async {
       String? movedSessionId;
       String? targetFolder;
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -611,14 +599,14 @@ void main() {
       expect(targetFolder, 'Production/DB');
     });
 
-    testWidgets('drag session to root calls onSessionMoved with empty folder', (
-      tester,
-    ) async {
+    testWidgets('drag session to root calls onSessionMoved with empty folder', (tester) async {
       String? movedSessionId;
       String? targetFolder;
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -656,9 +644,7 @@ void main() {
       expect(targetFolder, '');
     });
 
-    testWidgets('drag folder to different folder calls onFolderMoved', (
-      tester,
-    ) async {
+    testWidgets('drag folder to different folder calls onFolderMoved', (tester) async {
       String? movedFolder;
       String? targetParent;
 
@@ -680,6 +666,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -721,22 +709,19 @@ void main() {
   // Marquee selection (desktop only)
   // ---------------------------------------------------------------------------
   group('SessionTreeView — marquee selection', () {
-    testWidgets('drag on desktop fires onMarqueeSelect with session ids', (
-      tester,
-    ) async {
+    testWidgets('drag on desktop fires onMarqueeSelect with session ids', (tester) async {
       Set<String>? selectedIds;
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
               width: 300,
               height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onMarqueeSelect: (ids, _) => selectedIds = ids,
-              ),
+              child: SessionTreeView(tree: tree, onMarqueeSelect: (ids, _) => selectedIds = ids),
             ),
           ),
         ),
@@ -762,15 +747,14 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
               width: 300,
               height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onMarqueeSelect: (ids, _) => selectedIds = ids,
-              ),
+              child: SessionTreeView(tree: tree, onMarqueeSelect: (ids, _) => selectedIds = ids),
             ),
           ),
         ),
@@ -797,6 +781,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -824,65 +810,15 @@ void main() {
       expect(crossMarquee.active, isFalse);
     });
 
-    testWidgets(
-      'drag back inside cancels cross-marquee and resumes session marquee',
-      (tester) async {
-        final crossMarquee = CrossMarqueeController();
-        addTearDown(crossMarquee.dispose);
-        Set<String>? selectedIds;
-
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 300,
-                height: 600,
-                child: SessionTreeView(
-                  tree: tree,
-                  crossMarquee: crossMarquee,
-                  onMarqueeSelect: (ids, _) => selectedIds = ids,
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // Start below all rows (empty space) so Draggable doesn't intercept
-        final center = tester.getCenter(find.byType(SessionTreeView));
-        final gesture = await tester.startGesture(Offset(center.dx, 400));
-        await tester.pump();
-
-        // Move outside
-        await gesture.moveBy(const Offset(400, 0));
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(crossMarquee.active, isTrue);
-
-        // Move back inside and up into rows
-        await gesture.moveTo(Offset(center.dx, 200));
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(crossMarquee.active, isFalse);
-
-        // Session marquee should be active now — check via onMarqueeSelect
-        await gesture.moveBy(const Offset(0, -150));
-        await tester.pump(const Duration(milliseconds: 100));
-
-        // selectedIds was called during inside-marquee
-        expect(selectedIds, isNotNull);
-
-        await gesture.up();
-        await tester.pump();
-      },
-    );
-
-    testWidgets('cross-marquee not triggered without controller', (
-      tester,
-    ) async {
+    testWidgets('drag back inside cancels cross-marquee and resumes session marquee', (tester) async {
+      final crossMarquee = CrossMarqueeController();
+      addTearDown(crossMarquee.dispose);
       Set<String>? selectedIds;
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -890,8 +826,54 @@ void main() {
               height: 600,
               child: SessionTreeView(
                 tree: tree,
+                crossMarquee: crossMarquee,
                 onMarqueeSelect: (ids, _) => selectedIds = ids,
               ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Start below all rows (empty space) so Draggable doesn't intercept
+      final center = tester.getCenter(find.byType(SessionTreeView));
+      final gesture = await tester.startGesture(Offset(center.dx, 400));
+      await tester.pump();
+
+      // Move outside
+      await gesture.moveBy(const Offset(400, 0));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(crossMarquee.active, isTrue);
+
+      // Move back inside and up into rows
+      await gesture.moveTo(Offset(center.dx, 200));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(crossMarquee.active, isFalse);
+
+      // Session marquee should be active now — check via onMarqueeSelect
+      await gesture.moveBy(const Offset(0, -150));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // selectedIds was called during inside-marquee
+      expect(selectedIds, isNotNull);
+
+      await gesture.up();
+      await tester.pump();
+    });
+
+    testWidgets('cross-marquee not triggered without controller', (tester) async {
+      Set<String>? selectedIds;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 300,
+              height: 600,
+              child: SessionTreeView(tree: tree, onMarqueeSelect: (ids, _) => selectedIds = ids),
             ),
           ),
         ),
@@ -919,6 +901,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -955,15 +939,14 @@ void main() {
     testWidgets('selected folder gets highlight background', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
               width: 300,
               height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                selectedFolderPaths: const {'Production'},
-              ),
+              child: SessionTreeView(tree: tree, selectedFolderPaths: const {'Production'}),
             ),
           ),
         ),
@@ -976,10 +959,7 @@ void main() {
       expect(productionText, findsOneWidget);
 
       // Verify the Container ancestor has a BoxDecoration with color set
-      final container = find.ancestor(
-        of: productionText,
-        matching: find.byType(Container),
-      );
+      final container = find.ancestor(of: productionText, matching: find.byType(Container));
       expect(container, findsWidgets);
 
       // The closest Container should have a decorated background
@@ -989,13 +969,13 @@ void main() {
       expect(decoration!.color, isNotNull);
     });
 
-    testWidgets('tapping folder during active selection toggles folder', (
-      tester,
-    ) async {
+    testWidgets('tapping folder during active selection toggles folder', (tester) async {
       String? toggledFolder;
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
@@ -1019,22 +999,19 @@ void main() {
       expect(toggledFolder, equals('Production/DB'));
     });
 
-    testWidgets('tapping folder without selection expands/collapses', (
-      tester,
-    ) async {
+    testWidgets('tapping folder without selection expands/collapses', (tester) async {
       String? toggledFolder;
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
           home: Scaffold(
             body: SizedBox(
               width: 300,
               height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onToggleFolderSelected: (path) => toggledFolder = path,
-              ),
+              child: SessionTreeView(tree: tree, onToggleFolderSelected: (path) => toggledFolder = path),
             ),
           ),
         ),
@@ -1055,50 +1032,46 @@ void main() {
 
   group('Multi-drag', () {
     testWidgets('BulkDrag has correct counts', (tester) async {
-      final bulk = BulkDrag(
-        sessionIds: {'1', '2'},
-        folderPaths: {'Production/Web'},
-      );
+      final bulk = BulkDrag(sessionIds: {'1', '2'}, folderPaths: {'Production/Web'});
       expect(bulk.totalCount, 3);
       expect(bulk.sessionIds, {'1', '2'});
       expect(bulk.folderPaths, {'Production/Web'});
     });
 
-    testWidgets(
-      'dragging selected session with bulk selection creates BulkDrag feedback',
-      (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 300,
-                height: 600,
-                child: SessionTreeView(
-                  tree: tree,
-                  selectedIds: const {'1', '2'},
-                  selectedFolderPaths: const {'Production/Web'},
-                ),
+    testWidgets('dragging selected session with bulk selection creates BulkDrag feedback', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 300,
+              height: 600,
+              child: SessionTreeView(
+                tree: tree,
+                selectedIds: const {'1', '2'},
+                selectedFolderPaths: const {'Production/Web'},
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Start dragging nginx1 (which is selected)
-        final nginx1 = find.text('nginx1');
-        expect(nginx1, findsOneWidget);
+      // Start dragging nginx1 (which is selected)
+      final nginx1 = find.text('nginx1');
+      expect(nginx1, findsOneWidget);
 
-        final gesture = await tester.startGesture(tester.getCenter(nginx1));
-        await gesture.moveBy(const Offset(0, 50));
-        await tester.pump();
+      final gesture = await tester.startGesture(tester.getCenter(nginx1));
+      await gesture.moveBy(const Offset(0, 50));
+      await tester.pump();
 
-        // Should show "3 items" feedback
-        expect(find.text('3 items'), findsOneWidget);
+      // Should show "3 items" feedback
+      expect(find.text('3 items'), findsOneWidget);
 
-        await gesture.up();
-        await tester.pumpAndSettle();
-      },
-    );
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
   });
 }

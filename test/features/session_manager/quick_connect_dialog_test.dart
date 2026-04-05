@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/quick_connect_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   SSHConfig? dialogResult;
@@ -10,6 +11,8 @@ void main() {
   Widget buildApp() {
     dialogResult = null;
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
         body: Builder(
@@ -141,9 +144,7 @@ void main() {
       expect(dialogResult!.password, 'secret');
     });
 
-    testWidgets('Connect without required fields does not close', (
-      tester,
-    ) async {
+    testWidgets('Connect without required fields does not close', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -160,10 +161,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.widgetWithText(OutlinedButton, 'Select Key File'),
-        findsOneWidget,
-      );
+      expect(find.widgetWithText(OutlinedButton, 'Select Key File'), findsOneWidget);
     });
 
     testWidgets('passphrase visibility toggle works', (tester) async {
@@ -191,10 +189,7 @@ void main() {
       await tester.tap(find.text('Paste PEM key text'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Key Text (PEM)'),
-        'PEM-DATA',
-      );
+      await tester.enterText(find.widgetWithText(TextFormField, 'Key Text (PEM)'), 'PEM-DATA');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Connect'));

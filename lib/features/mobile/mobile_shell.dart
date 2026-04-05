@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
@@ -138,20 +139,20 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                   StatusIndicator(
                     icon: Icons.dns_outlined,
                     count: savedCount,
-                    tooltip: 'Saved sessions',
+                    tooltip: S.of(context).savedSessions,
                   ),
                   const SizedBox(width: 10),
                   StatusIndicator(
                     icon: Icons.wifi,
                     count: activeCount,
-                    tooltip: 'Active connections',
+                    tooltip: S.of(context).activeConnections,
                     iconColor: connectionIconColor,
                   ),
                   const SizedBox(width: 10),
                   StatusIndicator(
                     icon: Icons.tab_outlined,
                     count: tabCount,
-                    tooltip: 'Open tabs',
+                    tooltip: S.of(context).openTabs,
                   ),
                 ],
               );
@@ -165,7 +166,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             backgroundColor: AppTheme.bg3,
             borderRadius: AppTheme.radiusLg,
             onTap: () => SettingsScreen.show(context),
-            tooltip: 'Settings',
+            tooltip: S.of(context).settings,
           ),
         ],
       ),
@@ -607,10 +608,10 @@ class _MobileTerminalPage extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: _MobileCompanionButton(
-                    label: 'Files',
+                    label: S.of(context).files,
                     icon: Icons.folder_open,
                     color: AppTheme.yellow,
-                    tooltip: 'Open SFTP Browser',
+                    tooltip: S.of(context).openSftpBrowser,
                     onTap: onOpenSftp!,
                   ),
                 ),
@@ -661,7 +662,7 @@ class _MobileSftpPage extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'No active file browsers',
+              S.of(context).noActiveFileBrowsers,
               style: AppFonts.inter(
                 fontSize: AppFonts.lg,
                 color: AppTheme.fgDim,
@@ -669,7 +670,7 @@ class _MobileSftpPage extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Use "SFTP" from Sessions',
+              S.of(context).useSftpFromSessions,
               style: AppFonts.inter(
                 fontSize: AppFonts.sm,
                 color: AppTheme.fgFaint,
@@ -700,10 +701,10 @@ class _MobileSftpPage extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: _MobileCompanionButton(
-                    label: 'Terminal',
+                    label: S.of(context).terminal,
                     icon: Icons.terminal,
                     color: AppTheme.blue,
-                    tooltip: 'Open SSH Terminal',
+                    tooltip: S.of(context).openSshTerminal,
                     onTap: onOpenSsh!,
                   ),
                 ),
@@ -772,12 +773,15 @@ class _MobileCompanionButtonState extends State<_MobileCompanionButton> {
           children: [
             Icon(widget.icon, size: 13, color: widget.color),
             const SizedBox(width: 4),
-            Text(
-              widget.label,
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                fontWeight: FontWeight.w500,
-                color: widget.color,
+            Flexible(
+              child: Text(
+                widget.label,
+                overflow: TextOverflow.ellipsis,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  fontWeight: FontWeight.w500,
+                  color: widget.color,
+                ),
               ),
             ),
           ],

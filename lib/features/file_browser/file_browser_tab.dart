@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../l10n/app_localizations.dart';
 import 'package:path/path.dart' as p;
 
 import '../../providers/config_provider.dart';
@@ -126,7 +128,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     final local = _localCtrl;
     final remote = _remoteCtrl;
     if (local == null || remote == null) {
-      return const Center(child: Text('Controllers not initialized'));
+      return Center(child: Text(S.of(context).controllersNotInitialized));
     }
 
     return LayoutBuilder(
@@ -149,13 +151,13 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   Widget _buildLoading() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Initializing SFTP...'),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(S.of(context).initializingSftp),
         ],
       ),
     );

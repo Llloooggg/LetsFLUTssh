@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/app_dialog.dart';
 
 void main() {
   Widget wrap(Widget child) {
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(body: child),
     );
@@ -51,10 +53,7 @@ void main() {
             builder: (ctx) => ElevatedButton(
               onPressed: () => AppDialog.show(
                 ctx,
-                builder: (_) => const AppDialog(
-                  title: 'Closeable',
-                  content: Text('content'),
-                ),
+                builder: (_) => const AppDialog(title: 'Closeable', content: Text('content')),
               ),
               child: const Text('Open'),
             ),
@@ -126,14 +125,8 @@ void main() {
                   content: const Text('content'),
                   actions: [
                     const AppDialogAction.cancel(),
-                    AppDialogAction.secondary(
-                      label: 'Skip This Version',
-                      onTap: () {},
-                    ),
-                    AppDialogAction.primary(
-                      label: 'Open in Browser',
-                      onTap: () {},
-                    ),
+                    AppDialogAction.secondary(label: 'Skip This Version', onTap: () {}),
+                    AppDialogAction.primary(label: 'Open in Browser', onTap: () {}),
                   ],
                 ),
               ),
@@ -158,25 +151,19 @@ void main() {
 
   group('AppDialogAction', () {
     testWidgets('primary action has accent background', (tester) async {
-      await tester.pumpWidget(
-        wrap(AppDialogAction.primary(label: 'Save', onTap: () {})),
-      );
+      await tester.pumpWidget(wrap(AppDialogAction.primary(label: 'Save', onTap: () {})));
 
       expect(find.text('Save'), findsOneWidget);
     });
 
     testWidgets('secondary action renders label', (tester) async {
-      await tester.pumpWidget(
-        wrap(AppDialogAction.secondary(label: 'Skip', onTap: () {})),
-      );
+      await tester.pumpWidget(wrap(AppDialogAction.secondary(label: 'Skip', onTap: () {})));
 
       expect(find.text('Skip'), findsOneWidget);
     });
 
     testWidgets('destructive action renders label', (tester) async {
-      await tester.pumpWidget(
-        wrap(AppDialogAction.destructive(label: 'Delete', onTap: () {})),
-      );
+      await tester.pumpWidget(wrap(AppDialogAction.destructive(label: 'Delete', onTap: () {})));
 
       expect(find.text('Delete'), findsOneWidget);
     });
@@ -184,13 +171,7 @@ void main() {
     testWidgets('disabled action does not trigger onTap', (tester) async {
       var tapped = false;
       await tester.pumpWidget(
-        wrap(
-          AppDialogAction.primary(
-            label: 'Disabled',
-            onTap: () => tapped = true,
-            enabled: false,
-          ),
-        ),
+        wrap(AppDialogAction.primary(label: 'Disabled', onTap: () => tapped = true, enabled: false)),
       );
 
       await tester.tap(find.text('Disabled'));
@@ -204,10 +185,7 @@ void main() {
       await tester.pumpWidget(
         wrap(
           Builder(
-            builder: (ctx) => ElevatedButton(
-              onPressed: () => AppProgressDialog.show(ctx),
-              child: const Text('Load'),
-            ),
+            builder: (ctx) => ElevatedButton(onPressed: () => AppProgressDialog.show(ctx), child: const Text('Load')),
           ),
         ),
       );

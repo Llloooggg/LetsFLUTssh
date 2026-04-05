@@ -5,6 +5,7 @@ import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/ssh/shell_helper.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
@@ -238,11 +239,15 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
         children: [
           _ToolbarButton(
             icon: Icons.copy,
-            label: 'Copy',
+            label: S.of(context).copy,
             onTap: _copySelection,
           ),
           const SizedBox(width: 16),
-          _ToolbarButton(icon: Icons.paste, label: 'Paste', onTap: _paste),
+          _ToolbarButton(
+            icon: Icons.paste,
+            label: S.of(context).paste,
+            onTap: _paste,
+          ),
         ],
       ),
     );

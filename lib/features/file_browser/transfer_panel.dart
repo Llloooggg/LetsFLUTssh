@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/transfer/transfer_task.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
@@ -114,7 +115,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                       if (_expanded)
                         _headerButton(
                           icon: Icons.delete_outline,
-                          tooltip: 'Clear history',
+                          tooltip: S.of(context).clearHistory,
                           onTap: () => manager.clearHistory(),
                         ),
                     ],
@@ -186,7 +187,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         if (active.isEmpty && history.isEmpty) {
           return Center(
             child: Text(
-              'No transfers yet',
+              S.of(context).noTransfersYet,
               style: AppFonts.inter(
                 fontSize: AppFonts.sm,
                 color: AppTheme.fgFaint,
@@ -220,7 +221,8 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) =>
+          Center(child: Text(S.of(context).errorPrefix(e.toString()))),
     );
   }
 

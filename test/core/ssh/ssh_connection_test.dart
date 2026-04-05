@@ -24,30 +24,12 @@ void main() {
     // Generate a test SSH key at runtime to avoid hardcoded secrets in source.
     final tempDir = await Directory.systemTemp.createTemp('keygen_');
     final keyPath = '${tempDir.path}/test_key';
-    final result = await Process.run('ssh-keygen', [
-      '-t',
-      'ed25519',
-      '-f',
-      keyPath,
-      '-N',
-      '',
-      '-q',
-    ]);
+    final result = await Process.run('ssh-keygen', ['-t', 'ed25519', '-f', keyPath, '-N', '', '-q']);
     if (result.exitCode == 0) {
       _testEd25519PrivateKey = await File(keyPath).readAsString();
     } else {
       // Fallback: generate RSA key (ssh-keygen always available on Linux)
-      await Process.run('ssh-keygen', [
-        '-t',
-        'rsa',
-        '-b',
-        '2048',
-        '-f',
-        keyPath,
-        '-N',
-        '',
-        '-q',
-      ]);
+      await Process.run('ssh-keygen', ['-t', 'rsa', '-b', '2048', '-f', keyPath, '-N', '', '-q']);
       _testEd25519PrivateKey = await File(keyPath).readAsString();
     }
     await tempDir.delete(recursive: true);
@@ -68,17 +50,9 @@ void main() {
     test('config is accessible', () {
       const config = SSHConfig(
         server: ServerAddress(host: 'test.server', port: 2222, user: 'admin'),
-        auth: SshAuth(
-          password: 'secret',
-          keyPath: '/home/user/.ssh/id_rsa',
-          keyData: 'PEM-DATA',
-          passphrase: 'phrase',
-        ),
+        auth: SshAuth(password: 'secret', keyPath: '/home/user/.ssh/id_rsa', keyData: 'PEM-DATA', passphrase: 'phrase'),
       );
-      final conn = SSHConnection(
-        config: config,
-        knownHosts: KnownHostsManager(),
-      );
+      final conn = SSHConnection(config: config, knownHosts: KnownHostsManager());
       expect(conn.config.host, 'test.server');
       expect(conn.config.port, 2222);
       expect(conn.config.user, 'admin');
@@ -106,13 +80,7 @@ void main() {
       conn.disconnect(); // sets _disposed = true
       expect(
         () => conn.connect(),
-        throwsA(
-          isA<ConnectError>().having(
-            (e) => e.message,
-            'message',
-            'Connection disposed',
-          ),
-        ),
+        throwsA(isA<ConnectError>().having((e) => e.message, 'message', 'Connection disposed')),
       );
     });
 
@@ -125,13 +93,7 @@ void main() {
       );
       expect(
         () => conn.openShell(80, 24),
-        throwsA(
-          isA<ConnectError>().having(
-            (e) => e.message,
-            'message',
-            'Not connected',
-          ),
-        ),
+        throwsA(isA<ConnectError>().having((e) => e.message, 'message', 'Not connected')),
       );
     });
 
@@ -200,8 +162,7 @@ void main() {
         server: ServerAddress(host: 'test.host', user: 'testuser'),
         auth: SshAuth(password: 'testpass'),
       ),
-      Future<SSHSocket> Function(String, int, {Duration? timeout})?
-      socketFactory,
+      Future<SSHSocket> Function(String, int, {Duration? timeout})? socketFactory,
       SSHClient Function(
         SSHSocket, {
         required String username,
@@ -216,18 +177,11 @@ void main() {
       return SSHConnection(
         config: config,
         knownHosts: knownHosts ?? mockKnownHosts,
-        socketFactory:
-            socketFactory ?? (host, port, {timeout}) async => mockSocket,
+        socketFactory: socketFactory ?? (host, port, {timeout}) async => mockSocket,
         clientFactory:
             clientFactory ??
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) => mockClient,
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) =>
+                mockClient,
       );
     }
 
@@ -282,14 +236,7 @@ void main() {
           auth: SshAuth(password: 'p'),
         ),
         clientFactory:
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) {
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
               capturedUsername = username;
               return mockClient;
             },
@@ -311,14 +258,7 @@ void main() {
           auth: SshAuth(password: 'secretpass'),
         ),
         clientFactory:
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) {
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
               capturedPasswordCb = onPasswordRequest;
               return mockClient;
             },
@@ -342,14 +282,7 @@ void main() {
           auth: SshAuth(password: ''),
         ),
         clientFactory:
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) {
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
               capturedPasswordCb = onPasswordRequest;
               return mockClient;
             },
@@ -371,14 +304,7 @@ void main() {
           keepAliveSec: 45,
         ),
         clientFactory:
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) {
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
               capturedKeepAlive = keepAliveInterval;
               return mockClient;
             },
@@ -388,37 +314,27 @@ void main() {
       expect(capturedKeepAlive, const Duration(seconds: 45));
     });
 
-    test(
-      'connect passes null keepAliveInterval when keepAliveSec is 0',
-      () async {
-        Duration? capturedKeepAlive = const Duration(seconds: 999); // sentinel
+    test('connect passes null keepAliveInterval when keepAliveSec is 0', () async {
+      Duration? capturedKeepAlive = const Duration(seconds: 999); // sentinel
 
-        when(mockClient.authenticated).thenAnswer((_) async {});
-        when(mockClient.done).thenAnswer((_) => Completer<void>().future);
+      when(mockClient.authenticated).thenAnswer((_) async {});
+      when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
-        final conn = buildConnection(
-          config: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
-            keepAliveSec: 0,
-          ),
-          clientFactory:
-              (
-                socket, {
-                required username,
-                onPasswordRequest,
-                identities,
-                onVerifyHostKey,
-                keepAliveInterval,
-              }) {
-                capturedKeepAlive = keepAliveInterval;
-                return mockClient;
-              },
-        );
+      final conn = buildConnection(
+        config: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+          keepAliveSec: 0,
+        ),
+        clientFactory:
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
+              capturedKeepAlive = keepAliveInterval;
+              return mockClient;
+            },
+      );
 
-        await conn.connect();
-        expect(capturedKeepAlive, isNull);
-      },
-    );
+      await conn.connect();
+      expect(capturedKeepAlive, isNull);
+    });
 
     test('socket factory failure throws ConnectError', () async {
       final conn = buildConnection(
@@ -429,32 +345,18 @@ void main() {
 
       expect(
         () => conn.connect(),
-        throwsA(
-          isA<ConnectError>().having(
-            (e) => e.message,
-            'message',
-            contains('Failed to connect'),
-          ),
-        ),
+        throwsA(isA<ConnectError>().having((e) => e.message, 'message', contains('Failed to connect'))),
       );
     });
 
     test('SSHAuthFailError during auth throws AuthError', () async {
-      when(
-        mockClient.authenticated,
-      ).thenThrow(SSHAuthFailError('all methods failed'));
+      when(mockClient.authenticated).thenThrow(SSHAuthFailError('all methods failed'));
 
       final conn = buildConnection();
 
       expect(
         () => conn.connect(),
-        throwsA(
-          isA<AuthError>().having(
-            (e) => e.message,
-            'message',
-            contains('Authentication failed'),
-          ),
-        ),
+        throwsA(isA<AuthError>().having((e) => e.message, 'message', contains('Authentication failed'))),
       );
     });
 
@@ -465,115 +367,70 @@ void main() {
 
       expect(
         () => conn.connect(),
-        throwsA(
-          isA<AuthError>().having(
-            (e) => e.message,
-            'message',
-            'Authentication aborted',
-          ),
-        ),
+        throwsA(isA<AuthError>().having((e) => e.message, 'message', 'Authentication aborted')),
       );
     });
 
-    test(
-      'SSHAuthAbortError with host key rejected throws HostKeyError',
-      () async {
-        FutureOr<bool> Function(String, Uint8List)? capturedVerify;
+    test('SSHAuthAbortError with host key rejected throws HostKeyError', () async {
+      FutureOr<bool> Function(String, Uint8List)? capturedVerify;
 
-        final conn = buildConnection(
-          clientFactory:
-              (
-                socket, {
-                required username,
-                onPasswordRequest,
-                identities,
-                onVerifyHostKey,
-                keepAliveInterval,
-              }) {
-                capturedVerify = onVerifyHostKey;
-                return mockClient;
-              },
-        );
+      final conn = buildConnection(
+        clientFactory:
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
+              capturedVerify = onVerifyHostKey;
+              return mockClient;
+            },
+      );
 
-        when(
-          mockKnownHosts.verify(any, any, any, any),
-        ).thenAnswer((_) async => false);
+      when(mockKnownHosts.verify(any, any, any, any)).thenAnswer((_) async => false);
 
-        // Simulate: dartssh2 calls onVerifyHostKey, it rejects, then auth aborts
-        when(mockClient.authenticated).thenAnswer((_) async {
-          if (capturedVerify != null) {
-            await capturedVerify!('ssh-rsa', Uint8List.fromList([1, 2, 3]));
-          }
-          throw SSHAuthAbortError('host key rejected');
-        });
+      // Simulate: dartssh2 calls onVerifyHostKey, it rejects, then auth aborts
+      when(mockClient.authenticated).thenAnswer((_) async {
+        if (capturedVerify != null) {
+          await capturedVerify!('ssh-rsa', Uint8List.fromList([1, 2, 3]));
+        }
+        throw SSHAuthAbortError('host key rejected');
+      });
 
-        expect(
-          () => conn.connect(),
-          throwsA(
-            isA<HostKeyError>().having(
-              (e) => e.message,
-              'message',
-              contains('Host key rejected'),
-            ),
-          ),
-        );
-      },
-    );
+      expect(
+        () => conn.connect(),
+        throwsA(isA<HostKeyError>().having((e) => e.message, 'message', contains('Host key rejected'))),
+      );
+    });
 
-    test(
-      'generic error during auth with host key rejected throws HostKeyError',
-      () async {
-        FutureOr<bool> Function(String, Uint8List)? capturedVerify;
+    test('generic error during auth with host key rejected throws HostKeyError', () async {
+      FutureOr<bool> Function(String, Uint8List)? capturedVerify;
 
-        final conn = buildConnection(
-          clientFactory:
-              (
-                socket, {
-                required username,
-                onPasswordRequest,
-                identities,
-                onVerifyHostKey,
-                keepAliveInterval,
-              }) {
-                capturedVerify = onVerifyHostKey;
-                return mockClient;
-              },
-        );
+      final conn = buildConnection(
+        clientFactory:
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
+              capturedVerify = onVerifyHostKey;
+              return mockClient;
+            },
+      );
 
-        when(
-          mockKnownHosts.verify(any, any, any, any),
-        ).thenAnswer((_) async => false);
+      when(mockKnownHosts.verify(any, any, any, any)).thenAnswer((_) async => false);
 
-        when(mockClient.authenticated).thenAnswer((_) async {
-          if (capturedVerify != null) {
-            await capturedVerify!('ssh-ed25519', Uint8List.fromList([4, 5, 6]));
-          }
-          throw Exception('some error');
-        });
+      when(mockClient.authenticated).thenAnswer((_) async {
+        if (capturedVerify != null) {
+          await capturedVerify!('ssh-ed25519', Uint8List.fromList([4, 5, 6]));
+        }
+        throw Exception('some error');
+      });
 
-        expect(() => conn.connect(), throwsA(isA<HostKeyError>()));
-      },
-    );
+      expect(() => conn.connect(), throwsA(isA<HostKeyError>()));
+    });
 
-    test(
-      'generic error during auth without host key rejection throws ConnectError',
-      () async {
-        when(mockClient.authenticated).thenThrow(Exception('unexpected'));
+    test('generic error during auth without host key rejection throws ConnectError', () async {
+      when(mockClient.authenticated).thenThrow(Exception('unexpected'));
 
-        final conn = buildConnection();
+      final conn = buildConnection();
 
-        expect(
-          () => conn.connect(),
-          throwsA(
-            isA<ConnectError>().having(
-              (e) => e.message,
-              'message',
-              contains('Connection failed'),
-            ),
-          ),
-        );
-      },
-    );
+      expect(
+        () => conn.connect(),
+        throwsA(isA<ConnectError>().having((e) => e.message, 'message', contains('Connection failed'))),
+      );
+    });
 
     test('connect cleans up client on auth failure', () async {
       when(mockClient.authenticated).thenThrow(SSHAuthFailError('fail'));
@@ -637,78 +494,44 @@ void main() {
           server: ServerAddress(host: 'myhost', port: 2222, user: 'u'),
         ),
         clientFactory:
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) {
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
               capturedVerify = onVerifyHostKey;
               return mockClient;
             },
       );
 
-      when(
-        mockKnownHosts.verify('myhost', 2222, 'ssh-rsa', any),
-      ).thenAnswer((_) async => true);
+      when(mockKnownHosts.verify('myhost', 2222, 'ssh-rsa', any)).thenAnswer((_) async => true);
 
       await conn.connect();
 
-      final result = await capturedVerify!(
-        'ssh-rsa',
-        Uint8List.fromList([10, 20, 30]),
-      );
+      final result = await capturedVerify!('ssh-rsa', Uint8List.fromList([10, 20, 30]));
 
       expect(result, isTrue);
-      verify(
-        mockKnownHosts.verify(
-          'myhost',
-          2222,
-          'ssh-rsa',
-          Uint8List.fromList([10, 20, 30]),
-        ),
-      ).called(1);
+      verify(mockKnownHosts.verify('myhost', 2222, 'ssh-rsa', Uint8List.fromList([10, 20, 30]))).called(1);
     });
 
-    test(
-      'host key verification returns false when knownHosts rejects',
-      () async {
-        FutureOr<bool> Function(String, Uint8List)? capturedVerify;
+    test('host key verification returns false when knownHosts rejects', () async {
+      FutureOr<bool> Function(String, Uint8List)? capturedVerify;
 
-        when(mockClient.authenticated).thenAnswer((_) async {});
-        when(mockClient.done).thenAnswer((_) => Completer<void>().future);
+      when(mockClient.authenticated).thenAnswer((_) async {});
+      when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
-        final conn = buildConnection(
-          clientFactory:
-              (
-                socket, {
-                required username,
-                onPasswordRequest,
-                identities,
-                onVerifyHostKey,
-                keepAliveInterval,
-              }) {
-                capturedVerify = onVerifyHostKey;
-                return mockClient;
-              },
-        );
+      final conn = buildConnection(
+        clientFactory:
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
+              capturedVerify = onVerifyHostKey;
+              return mockClient;
+            },
+      );
 
-        when(
-          mockKnownHosts.verify(any, any, any, any),
-        ).thenAnswer((_) async => false);
+      when(mockKnownHosts.verify(any, any, any, any)).thenAnswer((_) async => false);
 
-        await conn.connect();
+      await conn.connect();
 
-        final result = await capturedVerify!(
-          'ssh-ed25519',
-          Uint8List.fromList([1]),
-        );
+      final result = await capturedVerify!('ssh-ed25519', Uint8List.fromList([1]));
 
-        expect(result, isFalse);
-      },
-    );
+      expect(result, isFalse);
+    });
   });
 
   group('SSHConnection.connect — identity building', () {
@@ -736,14 +559,7 @@ void main() {
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory:
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) {
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
               capturedIdentities = identities;
               return mockClient;
             },
@@ -753,77 +569,39 @@ void main() {
       expect(capturedIdentities, isNotNull);
     });
 
-    test(
-      'connect with invalid keyData throws ConnectError wrapping AuthError',
-      () async {
-        final conn = SSHConnection(
-          config: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
-            auth: SshAuth(keyData: 'INVALID-NOT-PEM'),
-          ),
-          knownHosts: mockKnownHosts,
-          socketFactory: (h, p, {timeout}) async => mockSocket,
-          clientFactory:
-              (
-                socket, {
-                required username,
-                onPasswordRequest,
-                identities,
-                onVerifyHostKey,
-                keepAliveInterval,
-              }) => mockClient,
-        );
+    test('connect with invalid keyData throws ConnectError wrapping AuthError', () async {
+      final conn = SSHConnection(
+        config: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+          auth: SshAuth(keyData: 'INVALID-NOT-PEM'),
+        ),
+        knownHosts: mockKnownHosts,
+        socketFactory: (h, p, {timeout}) async => mockSocket,
+        clientFactory:
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) =>
+                mockClient,
+      );
 
-        // AuthError from _tryKeyTextAuth is caught by generic catch in connect()
-        // and re-wrapped as ConnectError
-        expect(
-          () => conn.connect(),
-          throwsA(
-            isA<ConnectError>().having(
-              (e) => e.cause,
-              'cause',
-              isA<AuthError>(),
-            ),
-          ),
-        );
-      },
-    );
+      // AuthError from _tryKeyTextAuth is caught by generic catch in connect()
+      // and re-wrapped as ConnectError
+      expect(() => conn.connect(), throwsA(isA<ConnectError>().having((e) => e.cause, 'cause', isA<AuthError>())));
+    });
 
-    test(
-      'connect with nonexistent key file throws ConnectError wrapping AuthError',
-      () async {
-        final conn = SSHConnection(
-          config: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
-            auth: SshAuth(
-              keyPath: '/nonexistent/path/to/key_file_that_does_not_exist',
-            ),
-          ),
-          knownHosts: mockKnownHosts,
-          socketFactory: (h, p, {timeout}) async => mockSocket,
-          clientFactory:
-              (
-                socket, {
-                required username,
-                onPasswordRequest,
-                identities,
-                onVerifyHostKey,
-                keepAliveInterval,
-              }) => mockClient,
-        );
+    test('connect with nonexistent key file throws ConnectError wrapping AuthError', () async {
+      final conn = SSHConnection(
+        config: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+          auth: SshAuth(keyPath: '/nonexistent/path/to/key_file_that_does_not_exist'),
+        ),
+        knownHosts: mockKnownHosts,
+        socketFactory: (h, p, {timeout}) async => mockSocket,
+        clientFactory:
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) =>
+                mockClient,
+      );
 
-        expect(
-          () => conn.connect(),
-          throwsA(
-            isA<ConnectError>().having(
-              (e) => e.cause,
-              'cause',
-              isA<AuthError>(),
-            ),
-          ),
-        );
-      },
-    );
+      expect(() => conn.connect(), throwsA(isA<ConnectError>().having((e) => e.cause, 'cause', isA<AuthError>())));
+    });
 
     test('connect with valid key file parses PEM', () async {
       final tempDir = await Directory.systemTemp.createTemp('ssh_test_');
@@ -844,14 +622,7 @@ void main() {
           knownHosts: mockKnownHosts,
           socketFactory: (h, p, {timeout}) async => mockSocket,
           clientFactory:
-              (
-                socket, {
-                required username,
-                onPasswordRequest,
-                identities,
-                onVerifyHostKey,
-                keepAliveInterval,
-              }) {
+              (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
                 capturedIdentities = identities;
                 return mockClient;
               },
@@ -879,14 +650,7 @@ void main() {
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory:
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) {
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
               capturedIdentities = identities;
               return mockClient;
             },
@@ -902,80 +666,53 @@ void main() {
       final conn = SSHConnection(
         config: SSHConfig(
           server: const ServerAddress(host: 'h', user: 'u'),
-          auth: SshAuth(
-            keyData: _testEd25519PrivateKey,
-            passphrase: 'unused-but-set',
-          ),
+          auth: SshAuth(keyData: _testEd25519PrivateKey, passphrase: 'unused-but-set'),
         ),
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory:
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) => mockClient,
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) =>
+                mockClient,
       );
 
-      expect(
-        () => conn.connect(),
-        throwsA(
-          isA<ConnectError>().having((e) => e.cause, 'cause', isA<AuthError>()),
-        ),
-      );
+      expect(() => conn.connect(), throwsA(isA<ConnectError>().having((e) => e.cause, 'cause', isA<AuthError>())));
     });
 
-    test(
-      'keyPath takes priority when both keyPath and keyData provided',
-      () async {
-        // When keyPath is set, keyFile auth runs first; if it succeeds,
-        // keyData auth still runs. Both should contribute identities.
-        final tempDir = await Directory.systemTemp.createTemp('ssh_test_');
-        final keyFile = File('${tempDir.path}/test_key');
-        await keyFile.writeAsString(_testEd25519PrivateKey);
+    test('keyPath takes priority when both keyPath and keyData provided', () async {
+      // When keyPath is set, keyFile auth runs first; if it succeeds,
+      // keyData auth still runs. Both should contribute identities.
+      final tempDir = await Directory.systemTemp.createTemp('ssh_test_');
+      final keyFile = File('${tempDir.path}/test_key');
+      await keyFile.writeAsString(_testEd25519PrivateKey);
 
-        List<SSHKeyPair>? capturedIdentities;
+      List<SSHKeyPair>? capturedIdentities;
 
-        when(mockClient.authenticated).thenAnswer((_) async {});
-        when(mockClient.done).thenAnswer((_) => Completer<void>().future);
+      when(mockClient.authenticated).thenAnswer((_) async {});
+      when(mockClient.done).thenAnswer((_) => Completer<void>().future);
 
-        try {
-          final conn = SSHConnection(
-            config: SSHConfig(
-              server: const ServerAddress(host: 'h', user: 'u'),
-              auth: SshAuth(
-                keyPath: keyFile.path,
-                keyData: _testEd25519PrivateKey,
-              ),
-            ),
-            knownHosts: mockKnownHosts,
-            socketFactory: (h, p, {timeout}) async => mockSocket,
-            clientFactory:
-                (
-                  socket, {
-                  required username,
-                  onPasswordRequest,
-                  identities,
-                  onVerifyHostKey,
-                  keepAliveInterval,
-                }) {
-                  capturedIdentities = identities;
-                  return mockClient;
-                },
-          );
+      try {
+        final conn = SSHConnection(
+          config: SSHConfig(
+            server: const ServerAddress(host: 'h', user: 'u'),
+            auth: SshAuth(keyPath: keyFile.path, keyData: _testEd25519PrivateKey),
+          ),
+          knownHosts: mockKnownHosts,
+          socketFactory: (h, p, {timeout}) async => mockSocket,
+          clientFactory:
+              (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) {
+                capturedIdentities = identities;
+                return mockClient;
+              },
+        );
 
-          await conn.connect();
-          // Both keyPath and keyData should contribute identities
-          expect(capturedIdentities, isNotNull);
-          expect(capturedIdentities!.length, greaterThanOrEqualTo(2));
-        } finally {
-          await tempDir.delete(recursive: true);
-        }
-      },
-    );
+        await conn.connect();
+        // Both keyPath and keyData should contribute identities
+        expect(capturedIdentities, isNotNull);
+        expect(capturedIdentities!.length, greaterThanOrEqualTo(2));
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
   });
 
   group('SSHConnection.openShell — with mock client', () {
@@ -1003,14 +740,8 @@ void main() {
         knownHosts: mockKnownHosts,
         socketFactory: (h, p, {timeout}) async => mockSocket,
         clientFactory:
-            (
-              socket, {
-              required username,
-              onPasswordRequest,
-              identities,
-              onVerifyHostKey,
-              keepAliveInterval,
-            }) => mockClient,
+            (socket, {required username, onPasswordRequest, identities, onVerifyHostKey, keepAliveInterval}) =>
+                mockClient,
       );
 
       await conn.connect();
@@ -1018,9 +749,7 @@ void main() {
     }
 
     test('openShell returns session on success', () async {
-      when(
-        mockClient.shell(pty: anyNamed('pty')),
-      ).thenAnswer((_) async => mockSession);
+      when(mockClient.shell(pty: anyNamed('pty'))).thenAnswer((_) async => mockSession);
 
       final conn = await connectMock();
       final session = await conn.openShell(80, 24);
@@ -1045,28 +774,18 @@ void main() {
     });
 
     test('openShell wraps errors in ConnectError', () async {
-      when(
-        mockClient.shell(pty: anyNamed('pty')),
-      ).thenThrow(Exception('channel failed'));
+      when(mockClient.shell(pty: anyNamed('pty'))).thenThrow(Exception('channel failed'));
 
       final conn = await connectMock();
 
       expect(
         () => conn.openShell(80, 24),
-        throwsA(
-          isA<ConnectError>().having(
-            (e) => e.message,
-            'message',
-            'Failed to open shell',
-          ),
-        ),
+        throwsA(isA<ConnectError>().having((e) => e.message, 'message', 'Failed to open shell')),
       );
     });
 
     test('resizeTerminal delegates to shell', () async {
-      when(
-        mockClient.shell(pty: anyNamed('pty')),
-      ).thenAnswer((_) async => mockSession);
+      when(mockClient.shell(pty: anyNamed('pty'))).thenAnswer((_) async => mockSession);
 
       final conn = await connectMock();
       await conn.openShell(80, 24);
@@ -1076,9 +795,7 @@ void main() {
     });
 
     test('disconnect after connect cleans up', () async {
-      when(
-        mockClient.shell(pty: anyNamed('pty')),
-      ).thenAnswer((_) async => mockSession);
+      when(mockClient.shell(pty: anyNamed('pty'))).thenAnswer((_) async => mockSession);
 
       final conn = await connectMock();
       await conn.openShell(80, 24);

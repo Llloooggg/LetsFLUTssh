@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../core/sftp/sftp_client.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
@@ -102,13 +103,13 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   @override
   Widget build(BuildContext context) {
     if (_initializing) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Initializing SFTP...'),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(S.of(context).initializingSftp),
           ],
         ),
       );
@@ -134,7 +135,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                 });
                 _initSftp();
               },
-              child: const Text('Retry'),
+              child: Text(S.of(context).retry),
             ),
           ],
         ),
@@ -185,16 +186,16 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                 children: [
                   Expanded(
                     child: SegmentedButton<bool>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: false,
-                          label: Text('Local'),
-                          icon: Icon(Icons.phone_android, size: 16),
+                          label: Text(S.of(context).local),
+                          icon: const Icon(Icons.phone_android, size: 16),
                         ),
                         ButtonSegment(
                           value: true,
-                          label: Text('Remote'),
-                          icon: Icon(Icons.cloud, size: 16),
+                          label: Text(S.of(context).remote),
+                          icon: const Icon(Icons.cloud, size: 16),
                         ),
                       ],
                       selected: {_showRemote},
@@ -213,14 +214,14 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                       size: 20,
                       boxSize: 36,
                       onTap: _pickLocalFolder,
-                      tooltip: 'Pick Folder',
+                      tooltip: S.of(context).pickFolder,
                     ),
                   AppIconButton(
                     icon: Icons.refresh,
                     size: 20,
                     boxSize: 36,
                     onTap: _activeCtrl.refresh,
-                    tooltip: 'Refresh',
+                    tooltip: S.of(context).refresh,
                   ),
                 ],
               ),
@@ -235,14 +236,14 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                       size: 22,
                       boxSize: 36,
                       onTap: _activeCtrl.canGoBack ? _activeCtrl.goBack : null,
-                      tooltip: 'Back',
+                      tooltip: S.of(context).back,
                     ),
                     AppIconButton(
                       icon: Icons.arrow_upward,
                       size: 22,
                       boxSize: 36,
                       onTap: _activeCtrl.navigateUp,
-                      tooltip: 'Up',
+                      tooltip: S.of(context).up,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
@@ -355,7 +356,7 @@ class _MobileFileListState extends State<MobileFileList> {
     if (ctrl.loading) return const Center(child: CircularProgressIndicator());
     if (ctrl.error != null) return _buildError(context);
     if (ctrl.entries.isEmpty) {
-      return const Center(child: Text('Empty directory'));
+      return Center(child: Text(S.of(context).emptyDirectory));
     }
 
     return Column(
@@ -386,7 +387,7 @@ class _MobileFileListState extends State<MobileFileList> {
           const SizedBox(height: 8),
           FilledButton.tonal(
             onPressed: ctrl.refresh,
-            child: const Text('Retry'),
+            child: Text(S.of(context).retry),
           ),
         ],
       ),
@@ -406,11 +407,14 @@ class _MobileFileListState extends State<MobileFileList> {
             size: 20,
             boxSize: 36,
             onTap: _exitSelectionMode,
-            tooltip: 'Cancel selection',
+            tooltip: S.of(context).cancelSelection,
           ),
-          Text(
-            '${ctrl.selected.length} selected',
-            style: TextStyle(fontSize: AppFonts.lg),
+          Flexible(
+            child: Text(
+              S.of(context).nSelectedCount(ctrl.selected.length),
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: AppFonts.lg),
+            ),
           ),
           const Spacer(),
           AppIconButton(
@@ -421,7 +425,7 @@ class _MobileFileListState extends State<MobileFileList> {
               widget.onTransferMultiple(ctrl.selectedEntries);
               _exitSelectionMode();
             },
-            tooltip: 'Transfer',
+            tooltip: S.of(context).transfer,
           ),
           AppIconButton(
             icon: Icons.delete,
@@ -429,7 +433,7 @@ class _MobileFileListState extends State<MobileFileList> {
             boxSize: 36,
             color: AppTheme.disconnected,
             onTap: () => _confirmDelete(context, ctrl.selectedEntries),
-            tooltip: 'Delete',
+            tooltip: S.of(context).delete,
           ),
         ],
       ),
@@ -533,7 +537,7 @@ class _MobileFileListState extends State<MobileFileList> {
           children: [
             ListTile(
               leading: const Icon(Icons.swap_horiz),
-              title: const Text('Transfer'),
+              title: Text(S.of(ctx).transfer),
               onTap: () {
                 Navigator.pop(ctx);
                 widget.onTransfer(entry);
@@ -542,7 +546,7 @@ class _MobileFileListState extends State<MobileFileList> {
             if (entry.isDir)
               ListTile(
                 leading: const Icon(Icons.folder_open),
-                title: const Text('Open'),
+                title: Text(S.of(ctx).open),
                 onTap: () {
                   Navigator.pop(ctx);
                   ctrl.navigateTo(entry.path);
@@ -550,7 +554,7 @@ class _MobileFileListState extends State<MobileFileList> {
               ),
             ListTile(
               leading: const Icon(Icons.edit),
-              title: const Text('Rename'),
+              title: Text(S.of(ctx).rename),
               onTap: () {
                 Navigator.pop(ctx);
                 _showRenameDialog(context, entry);
@@ -558,9 +562,9 @@ class _MobileFileListState extends State<MobileFileList> {
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: AppTheme.disconnected),
-              title: const Text(
-                'Delete',
-                style: TextStyle(color: AppTheme.disconnected),
+              title: Text(
+                S.of(ctx).delete,
+                style: const TextStyle(color: AppTheme.disconnected),
               ),
               onTap: () {
                 Navigator.pop(ctx);
@@ -569,7 +573,7 @@ class _MobileFileListState extends State<MobileFileList> {
             ),
             ListTile(
               leading: const Icon(Icons.create_new_folder),
-              title: const Text('New Folder'),
+              title: Text(S.of(ctx).newFolder),
               onTap: () {
                 Navigator.pop(ctx);
                 _showNewFolderDialog(context);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/clipped_row.dart';
@@ -277,24 +278,24 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
       position: position,
       items: [
         ContextMenuItem(
-          label: 'Close',
+          label: S.of(context).close,
           icon: Icons.close,
           onTap: () => notifier.closeTab(panel.id, tabId),
         ),
         if (panel.tabs.length > 1)
           ContextMenuItem(
-            label: 'Close Others',
+            label: S.of(context).closeOthers,
             icon: Icons.tab_unselected,
             onTap: () => notifier.closeOthers(panel.id, tabId),
           ),
         if (index > 0)
           ContextMenuItem(
-            label: 'Close Tabs to the Left',
+            label: S.of(context).closeTabsToTheLeft,
             onTap: () => notifier.closeToTheLeft(panel.id, index),
           ),
         if (index < panel.tabs.length - 1)
           ContextMenuItem(
-            label: 'Close Tabs to the Right',
+            label: S.of(context).closeTabsToTheRight,
             onTap: () => notifier.closeToTheRight(panel.id, index),
           ),
       ],

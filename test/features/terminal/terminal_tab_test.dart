@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:typed_data';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -15,7 +14,6 @@ import 'package:letsflutssh/features/terminal/terminal_tab.dart';
 import 'package:letsflutssh/features/terminal/tiling_view.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-
 import '../../core/ssh/shell_helper_test.mocks.dart';
 
 /// SessionNotifier pre-populated with sessions for testing.
@@ -29,79 +27,77 @@ class _TestSessionNotifier extends SessionNotifier {
 
 void main() {
   group('TerminalTab — always renders TilingView', () {
-    testWidgets(
-      'renders TilingView even when connection has no sshConnection',
-      (tester) async {
-        final conn = Connection(
-          id: 'test-1',
-          label: 'Test Server',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'example.com', user: 'root'),
-          ),
-          sshConnection: null,
-          state: SSHConnectionState.disconnected,
-        );
+    testWidgets('renders TilingView even when connection has no sshConnection', (tester) async {
+      final conn = Connection(
+        id: 'test-1',
+        label: 'Test Server',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
 
-        await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              theme: AppTheme.dark(),
-              home: Scaffold(
-                body: SizedBox(
-                  width: 800,
-                  height: 600,
-                  child: TerminalTab(tabId: 'tab-1', connection: conn),
-                ),
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TerminalTab(tabId: 'tab-1', connection: conn),
               ),
             ),
           ),
-        );
-        await tester.pump();
+        ),
+      );
+      await tester.pump();
 
-        // TerminalTab always renders TilingView now — TerminalPane handles
-        // connection state internally
-        expect(find.byType(TilingView), findsOneWidget);
-        expect(find.byType(TerminalPane), findsOneWidget);
-        expect(find.text('Not connected'), findsNothing);
-      },
-    );
+      // TerminalTab always renders TilingView now — TerminalPane handles
+      // connection state internally
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.byType(TerminalPane), findsOneWidget);
+      expect(find.text('Not connected'), findsNothing);
+    });
 
-    testWidgets(
-      'renders TilingView when sshConnection exists but is disconnected',
-      (tester) async {
-        final mockSsh = MockSSHConnection();
-        when(mockSsh.isConnected).thenReturn(false);
+    testWidgets('renders TilingView when sshConnection exists but is disconnected', (tester) async {
+      final mockSsh = MockSSHConnection();
+      when(mockSsh.isConnected).thenReturn(false);
 
-        final conn = Connection(
-          id: 'test-2',
-          label: 'Test Server',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'example.com', user: 'root'),
-          ),
-          sshConnection: mockSsh,
-          state: SSHConnectionState.disconnected,
-        );
+      final conn = Connection(
+        id: 'test-2',
+        label: 'Test Server',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
+        sshConnection: mockSsh,
+        state: SSHConnectionState.disconnected,
+      );
 
-        await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              theme: AppTheme.dark(),
-              home: Scaffold(
-                body: SizedBox(
-                  width: 800,
-                  height: 600,
-                  child: TerminalTab(tabId: 'tab-2', connection: conn),
-                ),
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TerminalTab(tabId: 'tab-2', connection: conn),
               ),
             ),
           ),
-        );
-        await tester.pump();
+        ),
+      );
+      await tester.pump();
 
-        expect(find.byType(TilingView), findsOneWidget);
-        expect(find.byType(TerminalPane), findsOneWidget);
-      },
-    );
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.byType(TerminalPane), findsOneWidget);
+    });
 
     testWidgets('renders TilingView when connected', (tester) async {
       final mockSsh = MockSSHConnection();
@@ -129,6 +125,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -165,6 +163,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -188,54 +188,51 @@ void main() {
       expect(find.byType(TilingView), findsOneWidget);
     });
 
-    testWidgets(
-      'error state after failed reconnect shows Reconnect and Close buttons',
-      (tester) async {
-        final conn = Connection(
-          id: 'test-btns',
-          label: 'Test',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
-          ),
-          sshConnection: null,
-          state: SSHConnectionState.disconnected,
-        );
+    testWidgets('error state after failed reconnect shows Reconnect and Close buttons', (tester) async {
+      final conn = Connection(
+        id: 'test-btns',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
 
-        // Use reconnectFactory: first call fails, putting us into error state
-        var firstCall = true;
-        await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              theme: AppTheme.dark(),
-              home: Scaffold(
-                body: SizedBox(
-                  width: 800,
-                  height: 600,
-                  child: TerminalTab(
-                    tabId: 'tab-btns',
-                    connection: conn,
-                    reconnectFactory: (_) async {
-                      if (firstCall) {
-                        firstCall = false;
-                        throw Exception('Connection refused');
-                      }
-                    },
-                  ),
+      // Use reconnectFactory: first call fails, putting us into error state
+      var firstCall = true;
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TerminalTab(
+                  tabId: 'tab-btns',
+                  connection: conn,
+                  reconnectFactory: (_) async {
+                    if (firstCall) {
+                      firstCall = false;
+                      throw Exception('Connection refused');
+                    }
+                  },
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Initially shows TilingView — no error state from TerminalTab
-        expect(find.byType(TilingView), findsOneWidget);
-      },
-    );
+      // Initially shows TilingView — no error state from TerminalTab
+      expect(find.byType(TilingView), findsOneWidget);
+    });
 
-    testWidgets('reconnect failure via reconnectFactory shows error with message', (
-      tester,
-    ) async {
+    testWidgets('reconnect failure via reconnectFactory shows error with message', (tester) async {
       final conn = Connection(
         id: 'rf-fail',
         label: 'Test',
@@ -260,6 +257,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -290,9 +289,7 @@ void main() {
     // 1. Having a reconnectFactory that fails on first call (to get into error state)
     // 2. Then testing the reconnect button behavior from the error state
 
-    testWidgets('reconnect success via reconnectFactory resets to TilingView', (
-      tester,
-    ) async {
+    testWidgets('reconnect success via reconnectFactory resets to TilingView', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
 
@@ -310,6 +307,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -329,18 +328,10 @@ void main() {
                     final doneCompleter = Completer<void>();
 
                     when(mockSsh.isConnected).thenReturn(true);
-                    when(
-                      mockSsh.openShell(any, any),
-                    ).thenAnswer((_) async => mockSession);
-                    when(
-                      mockSession.stdout,
-                    ).thenAnswer((_) => stdoutCtrl.stream);
-                    when(
-                      mockSession.stderr,
-                    ).thenAnswer((_) => stderrCtrl.stream);
-                    when(
-                      mockSession.done,
-                    ).thenAnswer((_) => doneCompleter.future);
+                    when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+                    when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+                    when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+                    when(mockSession.done).thenAnswer((_) => doneCompleter.future);
 
                     c.sshConnection = mockSsh;
                     c.state = SSHConnectionState.connected;
@@ -357,9 +348,7 @@ void main() {
       expect(find.byType(TilingView), findsOneWidget);
     });
 
-    testWidgets('reconnect shows loading spinner during reconnect attempt', (
-      tester,
-    ) async {
+    testWidgets('reconnect shows loading spinner during reconnect attempt', (tester) async {
       final completer = Completer<void>();
       final conn = Connection(
         id: 'rf-load',
@@ -375,6 +364,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -406,9 +397,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('double reconnect: fail then succeed from error state', (
-      tester,
-    ) async {
+    testWidgets('double reconnect: fail then succeed from error state', (tester) async {
       var callCount = 0;
       final conn = Connection(
         id: 'rf-retry',
@@ -423,6 +412,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -452,11 +443,7 @@ void main() {
   });
 
   group('TerminalTab — tiling split and close', () {
-    Connection makeConnected(
-      MockSSHConnection mockSsh,
-      MockSSHSession mockSession,
-      String id,
-    ) {
+    Connection makeConnected(MockSSHConnection mockSsh, MockSSHSession mockSession, String id) {
       final stdoutCtrl = StreamController<Uint8List>.broadcast();
       final stderrCtrl = StreamController<Uint8List>.broadcast();
       final doneCompleter = Completer<void>();
@@ -486,6 +473,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -517,6 +506,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -546,6 +537,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -559,17 +552,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final pane1 = tester.widget<TerminalPane>(
-        find.byType(TerminalPane).first,
-      );
+      final pane1 = tester.widget<TerminalPane>(find.byType(TerminalPane).first);
       pane1.onSplitVertical!();
       await tester.pumpAndSettle();
 
       expect(find.byType(TerminalPane), findsNWidgets(2));
 
-      final panes = tester
-          .widgetList<TerminalPane>(find.byType(TerminalPane))
-          .toList();
+      final panes = tester.widgetList<TerminalPane>(find.byType(TerminalPane)).toList();
       final closable = panes.firstWhere((p) => p.onClose != null);
       closable.onClose!();
       await tester.pumpAndSettle();
@@ -577,9 +566,7 @@ void main() {
       expect(find.byType(TerminalPane), findsOneWidget);
     });
 
-    testWidgets('closing focused pane resets focusedPaneId to remaining leaf', (
-      tester,
-    ) async {
+    testWidgets('closing focused pane resets focusedPaneId to remaining leaf', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = makeConnected(mockSsh, mockSession, 'close-focused');
@@ -587,15 +574,14 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 800,
                 height: 600,
-                child: TerminalTab(
-                  tabId: 'tab-close-focused',
-                  connection: conn,
-                ),
+                child: TerminalTab(tabId: 'tab-close-focused', connection: conn),
               ),
             ),
           ),
@@ -604,18 +590,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // Split to get two panes — the new pane becomes focused.
-      final pane1 = tester.widget<TerminalPane>(
-        find.byType(TerminalPane).first,
-      );
+      final pane1 = tester.widget<TerminalPane>(find.byType(TerminalPane).first);
       pane1.onSplitVertical!();
       await tester.pumpAndSettle();
 
       expect(find.byType(TerminalPane), findsNWidgets(2));
 
       // Find the focused pane and close it.
-      final panes = tester
-          .widgetList<TerminalPane>(find.byType(TerminalPane))
-          .toList();
+      final panes = tester.widgetList<TerminalPane>(find.byType(TerminalPane)).toList();
       final focused = panes.firstWhere((p) => p.isFocused);
       expect(focused.onClose, isNotNull);
       focused.onClose!();
@@ -623,9 +605,7 @@ void main() {
 
       // Should be back to one pane, and it should be focused.
       expect(find.byType(TerminalPane), findsOneWidget);
-      final remaining = tester.widget<TerminalPane>(
-        find.byType(TerminalPane).first,
-      );
+      final remaining = tester.widget<TerminalPane>(find.byType(TerminalPane).first);
       expect(remaining.isFocused, isTrue);
     });
 
@@ -637,6 +617,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -654,9 +636,7 @@ void main() {
       expect(pane.onClose, isNull);
     });
 
-    testWidgets('divider drag triggers onTreeChanged and updates root', (
-      tester,
-    ) async {
+    testWidgets('divider drag triggers onTreeChanged and updates root', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = makeConnected(mockSsh, mockSession, 'tree-change');
@@ -664,6 +644,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -681,9 +663,7 @@ void main() {
       pane.onSplitVertical!();
       await tester.pumpAndSettle();
 
-      final divider = find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
-      );
+      final divider = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
       expect(divider, findsOneWidget);
 
       await tester.drag(divider, const Offset(50, 0));
@@ -700,6 +680,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -713,15 +695,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final pane1 = tester.widget<TerminalPane>(
-        find.byType(TerminalPane).first,
-      );
+      final pane1 = tester.widget<TerminalPane>(find.byType(TerminalPane).first);
       pane1.onSplitVertical!();
       await tester.pumpAndSettle();
 
-      final panes = tester
-          .widgetList<TerminalPane>(find.byType(TerminalPane))
-          .toList();
+      final panes = tester.widgetList<TerminalPane>(find.byType(TerminalPane)).toList();
       expect(panes.length, 2);
 
       final unfocused = panes.firstWhere((p) => !p.isFocused);
@@ -730,16 +708,12 @@ void main() {
       unfocused.onFocused!();
       await tester.pumpAndSettle();
 
-      final panesAfter = tester
-          .widgetList<TerminalPane>(find.byType(TerminalPane))
-          .toList();
+      final panesAfter = tester.widgetList<TerminalPane>(find.byType(TerminalPane)).toList();
       final focusedCount = panesAfter.where((p) => p.isFocused).length;
       expect(focusedCount, 1);
     });
 
-    testWidgets('successful reconnect resets tree and shows TilingView', (
-      tester,
-    ) async {
+    testWidgets('successful reconnect resets tree and shows TilingView', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
 
@@ -757,6 +731,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -777,18 +753,10 @@ void main() {
                     final doneCompleter = Completer<void>();
 
                     when(mockSsh.isConnected).thenReturn(true);
-                    when(
-                      mockSsh.openShell(any, any),
-                    ).thenAnswer((_) async => mockSession);
-                    when(
-                      mockSession.stdout,
-                    ).thenAnswer((_) => stdoutCtrl.stream);
-                    when(
-                      mockSession.stderr,
-                    ).thenAnswer((_) => stderrCtrl.stream);
-                    when(
-                      mockSession.done,
-                    ).thenAnswer((_) => doneCompleter.future);
+                    when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
+                    when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
+                    when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
+                    when(mockSession.done).thenAnswer((_) => doneCompleter.future);
 
                     c.sshConnection = mockSsh;
                     c.state = SSHConnectionState.connected;
@@ -811,61 +779,57 @@ void main() {
     // we can use a GlobalKey<TerminalTabState> to call reconnect() directly
     // and reach the error state / loading state / success reset.
 
-    testWidgets(
-      'reconnect failure shows error state with icon, message, and buttons',
-      (tester) async {
-        final key = GlobalKey<TerminalTabState>();
-        final conn = Connection(
-          id: 'key-err',
-          label: 'Test',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
-          ),
-          sshConnection: null,
-          state: SSHConnectionState.disconnected,
-        );
+    testWidgets('reconnect failure shows error state with icon, message, and buttons', (tester) async {
+      final key = GlobalKey<TerminalTabState>();
+      final conn = Connection(
+        id: 'key-err',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
 
-        await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              theme: AppTheme.dark(),
-              home: Scaffold(
-                body: SizedBox(
-                  width: 800,
-                  height: 600,
-                  child: TerminalTab(
-                    key: key,
-                    tabId: 'tab-key-err',
-                    connection: conn,
-                    reconnectFactory: (_) async {
-                      throw Exception('Auth failed');
-                    },
-                  ),
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TerminalTab(
+                  key: key,
+                  tabId: 'tab-key-err',
+                  connection: conn,
+                  reconnectFactory: (_) async {
+                    throw Exception('Auth failed');
+                  },
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Initially shows TilingView
-        expect(find.byType(TilingView), findsOneWidget);
+      // Initially shows TilingView
+      expect(find.byType(TilingView), findsOneWidget);
 
-        // Trigger reconnect programmatically — it will fail
-        key.currentState!.reconnect();
-        await tester.pumpAndSettle();
+      // Trigger reconnect programmatically — it will fail
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
 
-        // Now error state should be visible
-        expect(find.byType(TilingView), findsNothing);
-        expect(find.byIcon(Icons.error_outline), findsOneWidget);
-        expect(
-          find.text('Reconnect failed: Exception: Auth failed'),
-          findsOneWidget,
-        );
-        expect(find.text('Reconnect'), findsOneWidget);
-        expect(find.text('Close'), findsOneWidget);
-      },
-    );
+      // Now error state should be visible
+      expect(find.byType(TilingView), findsNothing);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.text('Reconnect failed: Exception: Auth failed'), findsOneWidget);
+      expect(find.text('Reconnect'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
+    });
 
     testWidgets('error state icon has correct size and color', (tester) async {
       final key = GlobalKey<TerminalTabState>();
@@ -882,6 +846,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -910,9 +876,7 @@ void main() {
       expect(icon.color, AppTheme.disconnected);
     });
 
-    testWidgets('error state text is styled with disconnected color', (
-      tester,
-    ) async {
+    testWidgets('error state text is styled with disconnected color', (tester) async {
       final key = GlobalKey<TerminalTabState>();
       final conn = Connection(
         id: 'key-text-style',
@@ -927,6 +891,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -950,16 +916,12 @@ void main() {
       key.currentState!.reconnect();
       await tester.pumpAndSettle();
 
-      final errorText = tester.widget<Text>(
-        find.text('Reconnect failed: Exception: timeout'),
-      );
+      final errorText = tester.widget<Text>(find.text('Reconnect failed: Exception: timeout'));
       expect(errorText.style?.color, AppTheme.disconnected);
       expect(errorText.textAlign, TextAlign.center);
     });
 
-    testWidgets('reconnect shows loading spinner during attempt', (
-      tester,
-    ) async {
+    testWidgets('reconnect shows loading spinner during attempt', (tester) async {
       final key = GlobalKey<TerminalTabState>();
       final completer = Completer<void>();
       final conn = Connection(
@@ -975,6 +937,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1007,9 +971,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('reconnect success resets to TilingView with single pane', (
-      tester,
-    ) async {
+    testWidgets('reconnect success resets to TilingView with single pane', (tester) async {
       final key = GlobalKey<TerminalTabState>();
       final conn = Connection(
         id: 'key-success',
@@ -1024,6 +986,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1055,9 +1019,7 @@ void main() {
       expect(find.textContaining('Reconnect failed'), findsNothing);
     });
 
-    testWidgets('Close button in error state calls onDisconnected', (
-      tester,
-    ) async {
+    testWidgets('Close button in error state calls onDisconnected', (tester) async {
       final key = GlobalKey<TerminalTabState>();
       var disconnectedCalled = false;
       final conn = Connection(
@@ -1073,6 +1035,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1107,9 +1071,7 @@ void main() {
       expect(disconnectedCalled, isTrue);
     });
 
-    testWidgets('Reconnect button in error state retries — fail then succeed', (
-      tester,
-    ) async {
+    testWidgets('Reconnect button in error state retries — fail then succeed', (tester) async {
       final key = GlobalKey<TerminalTabState>();
       var callCount = 0;
       final conn = Connection(
@@ -1125,6 +1087,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1152,10 +1116,7 @@ void main() {
       // First reconnect — fails, shows error state
       key.currentState!.reconnect();
       await tester.pumpAndSettle();
-      expect(
-        find.text('Reconnect failed: Exception: Attempt 1 failed'),
-        findsOneWidget,
-      );
+      expect(find.text('Reconnect failed: Exception: Attempt 1 failed'), findsOneWidget);
 
       // Tap Reconnect button in error state — second attempt succeeds
       await tester.tap(find.text('Reconnect'));
@@ -1167,9 +1128,7 @@ void main() {
       expect(callCount, 2);
     });
 
-    testWidgets('reconnect clears previous error before retrying', (
-      tester,
-    ) async {
+    testWidgets('reconnect clears previous error before retrying', (tester) async {
       final key = GlobalKey<TerminalTabState>();
       final completer = Completer<void>();
       var callCount = 0;
@@ -1186,6 +1145,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1214,20 +1175,14 @@ void main() {
       // First call fails — error state
       key.currentState!.reconnect();
       await tester.pumpAndSettle();
-      expect(
-        find.text('Reconnect failed: Exception: first error'),
-        findsOneWidget,
-      );
+      expect(find.text('Reconnect failed: Exception: first error'), findsOneWidget);
 
       // Second reconnect attempt — should clear error and show spinner
       key.currentState!.reconnect();
       await tester.pump();
 
       // Error should be gone, loading spinner visible
-      expect(
-        find.text('Reconnect failed: Exception: first error'),
-        findsNothing,
-      );
+      expect(find.text('Reconnect failed: Exception: first error'), findsNothing);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       // Clean up
@@ -1247,24 +1202,19 @@ void main() {
       state: SSHConnectionState.disconnected,
     );
 
-    Future<GlobalKey<TerminalTabState>> pumpTab(
-      WidgetTester tester,
-      String id,
-    ) async {
+    Future<GlobalKey<TerminalTabState>> pumpTab(WidgetTester tester, String id) async {
       final key = GlobalKey<TerminalTabState>();
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
                 width: 800,
                 height: 600,
-                child: TerminalTab(
-                  key: key,
-                  tabId: 'tab-$id',
-                  connection: makeDisconn(id),
-                ),
+                child: TerminalTab(key: key, tabId: 'tab-$id', connection: makeDisconn(id)),
               ),
             ),
           ),
@@ -1284,24 +1234,19 @@ void main() {
       expect(find.byType(TerminalPane), findsNWidgets(2));
     });
 
-    testWidgets(
-      'splitFocused(vertical) twice creates three panes (no collapse)',
-      (tester) async {
-        final key = await pumpTab(tester, 'sfd-4');
+    testWidgets('splitFocused(vertical) twice creates three panes (no collapse)', (tester) async {
+      final key = await pumpTab(tester, 'sfd-4');
 
-        key.currentState!.splitFocused(SplitDirection.vertical);
-        await tester.pump();
-        expect(find.byType(TerminalPane), findsNWidgets(2));
+      key.currentState!.splitFocused(SplitDirection.vertical);
+      await tester.pump();
+      expect(find.byType(TerminalPane), findsNWidgets(2));
 
-        key.currentState!.splitFocused(SplitDirection.vertical);
-        await tester.pump();
-        expect(find.byType(TerminalPane), findsNWidgets(3));
-      },
-    );
+      key.currentState!.splitFocused(SplitDirection.vertical);
+      await tester.pump();
+      expect(find.byType(TerminalPane), findsNWidgets(3));
+    });
 
-    testWidgets('splitFocused(horizontal) creates a second pane', (
-      tester,
-    ) async {
+    testWidgets('splitFocused(horizontal) creates a second pane', (tester) async {
       final key = await pumpTab(tester, 'sfd-5');
 
       key.currentState!.splitFocused(SplitDirection.horizontal);
@@ -1310,24 +1255,19 @@ void main() {
       expect(find.byType(TerminalPane), findsNWidgets(2));
     });
 
-    testWidgets(
-      'splitFocused(horizontal) twice creates three panes (no collapse)',
-      (tester) async {
-        final key = await pumpTab(tester, 'sfd-6');
+    testWidgets('splitFocused(horizontal) twice creates three panes (no collapse)', (tester) async {
+      final key = await pumpTab(tester, 'sfd-6');
 
-        key.currentState!.splitFocused(SplitDirection.horizontal);
-        await tester.pump();
+      key.currentState!.splitFocused(SplitDirection.horizontal);
+      await tester.pump();
 
-        key.currentState!.splitFocused(SplitDirection.horizontal);
-        await tester.pump();
+      key.currentState!.splitFocused(SplitDirection.horizontal);
+      await tester.pump();
 
-        expect(find.byType(TerminalPane), findsNWidgets(3));
-      },
-    );
+      expect(find.byType(TerminalPane), findsNWidgets(3));
+    });
 
-    testWidgets('splitFocused(horizontal) after vertical split deepens tree', (
-      tester,
-    ) async {
+    testWidgets('splitFocused(horizontal) after vertical split deepens tree', (tester) async {
       final key = await pumpTab(tester, 'sfd-7');
 
       key.currentState!.splitFocused(SplitDirection.vertical);
@@ -1342,9 +1282,7 @@ void main() {
   });
 
   group('TerminalTab — reconnect refreshes config from session store', () {
-    testWidgets('reconnect uses updated SSHConfig when session was edited', (
-      tester,
-    ) async {
+    testWidgets('reconnect uses updated SSHConfig when session was edited', (tester) async {
       // Session with initial password
       final session = Session(
         id: 'sess-1',
@@ -1356,19 +1294,11 @@ void main() {
       // Updated session with key added
       final updatedSession = session.copyWith(
         server: const ServerAddress(host: 'new.host', user: 'admin'),
-        auth: const SessionAuth(
-          authType: AuthType.key,
-          keyData: 'ssh-rsa AAAA...',
-        ),
+        auth: const SessionAuth(authType: AuthType.key, keyData: 'ssh-rsa AAAA...'),
       );
 
       // Connection created from original session
-      final conn = Connection(
-        id: 'conn-1',
-        label: 'Test',
-        sshConfig: session.toSSHConfig(),
-        sessionId: 'sess-1',
-      );
+      final conn = Connection(id: 'conn-1', label: 'Test', sshConfig: session.toSSHConfig(), sessionId: 'sess-1');
 
       // Track the config used during reconnect
       SSHConfig? capturedConfig;
@@ -1378,11 +1308,11 @@ void main() {
         ProviderScope(
           overrides: [
             // Pre-populate session store with the UPDATED session
-            sessionProvider.overrideWith(
-              () => _TestSessionNotifier([updatedSession]),
-            ),
+            sessionProvider.overrideWith(() => _TestSessionNotifier([updatedSession])),
           ],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1417,9 +1347,7 @@ void main() {
       expect(capturedConfig!.host, 'new.host');
     });
 
-    testWidgets('reconnect falls back to cached config when session deleted', (
-      tester,
-    ) async {
+    testWidgets('reconnect falls back to cached config when session deleted', (tester) async {
       // Connection with sessionId pointing to a non-existent session
       final conn = Connection(
         id: 'conn-2',
@@ -1440,6 +1368,8 @@ void main() {
             sessionProvider.overrideWith(() => _TestSessionNotifier([])),
           ],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
               body: SizedBox(
@@ -1469,52 +1399,51 @@ void main() {
       expect(capturedConfig!.user, 'cached-user');
     });
 
-    testWidgets(
-      'reconnect skips config refresh for quick-connect (no sessionId)',
-      (tester) async {
-        // Quick-connect connection — no sessionId
-        final conn = Connection(
-          id: 'conn-3',
-          label: 'Quick',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'quick.host', user: 'quick-user'),
-          ),
-        );
+    testWidgets('reconnect skips config refresh for quick-connect (no sessionId)', (tester) async {
+      // Quick-connect connection — no sessionId
+      final conn = Connection(
+        id: 'conn-3',
+        label: 'Quick',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'quick.host', user: 'quick-user'),
+        ),
+      );
 
-        SSHConfig? capturedConfig;
-        final key = GlobalKey<TerminalTabState>();
+      SSHConfig? capturedConfig;
+      final key = GlobalKey<TerminalTabState>();
 
-        await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              theme: AppTheme.dark(),
-              home: Scaffold(
-                body: SizedBox(
-                  width: 800,
-                  height: 600,
-                  child: TerminalTab(
-                    key: key,
-                    tabId: 'tab-quick',
-                    connection: conn,
-                    reconnectFactory: (c) async {
-                      capturedConfig = c.sshConfig;
-                    },
-                  ),
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TerminalTab(
+                  key: key,
+                  tabId: 'tab-quick',
+                  connection: conn,
+                  reconnectFactory: (c) async {
+                    capturedConfig = c.sshConfig;
+                  },
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        key.currentState!.reconnect();
-        await tester.pumpAndSettle();
+      key.currentState!.reconnect();
+      await tester.pumpAndSettle();
 
-        // Should use original config unchanged
-        expect(capturedConfig, isNotNull);
-        expect(capturedConfig!.host, 'quick.host');
-        expect(capturedConfig!.user, 'quick-user');
-      },
-    );
+      // Should use original config unchanged
+      expect(capturedConfig, isNotNull);
+      expect(capturedConfig!.host, 'quick.host');
+      expect(capturedConfig!.user, 'quick-user');
+    });
   });
 }

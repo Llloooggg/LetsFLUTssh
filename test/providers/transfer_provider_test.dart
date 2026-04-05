@@ -25,11 +25,7 @@ void main() {
     });
 
     test('stores currentInfo', () {
-      const state = ActiveTransferState(
-        running: 1,
-        queued: 0,
-        currentInfo: 'file.txt 50%',
-      );
+      const state = ActiveTransferState(running: 1, queued: 0, currentInfo: 'file.txt 50%');
       expect(state.currentInfo, 'file.txt 50%');
     });
   });
@@ -87,14 +83,8 @@ void main() {
       final manager = container.read(transferManagerProvider);
 
       // Subscribe to streams to force providers to listen
-      final historySubscription = container.listen(
-        transferHistoryProvider,
-        (_, _) {},
-      );
-      final statusSubscription = container.listen(
-        transferStatusProvider,
-        (_, _) {},
-      );
+      final historySubscription = container.listen(transferHistoryProvider, (_, _) {});
+      final statusSubscription = container.listen(transferStatusProvider, (_, _) {});
 
       // Wait for initial values
       await container.read(transferHistoryProvider.future);

@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
 import 'package:letsflutssh/core/session/session.dart';
@@ -31,9 +31,7 @@ class _PrePopulatedWorkspaceNotifier extends WorkspaceNotifier {
 }
 
 /// Helper to build a WorkspaceState with tabs added via a setup callback.
-WorkspaceState _buildWorkspaceState(
-  void Function(_WorkspaceStateBuilder) setup,
-) {
+WorkspaceState _buildWorkspaceState(void Function(_WorkspaceStateBuilder) setup) {
   final builder = _WorkspaceStateBuilder();
   setup(builder);
   final panel = PanelLeaf(
@@ -49,24 +47,12 @@ class _WorkspaceStateBuilder {
   int _counter = 0;
 
   void addTerminalTab(Connection conn, {String? label}) {
-    _tabs.add(
-      TabEntry(
-        id: 'tab-${_counter++}',
-        label: label ?? conn.label,
-        connection: conn,
-        kind: TabKind.terminal,
-      ),
-    );
+    _tabs.add(TabEntry(id: 'tab-${_counter++}', label: label ?? conn.label, connection: conn, kind: TabKind.terminal));
   }
 
   void addSftpTab(Connection conn, {String? label}) {
     _tabs.add(
-      TabEntry(
-        id: 'tab-${_counter++}',
-        label: label ?? '${conn.label} (SFTP)',
-        connection: conn,
-        kind: TabKind.sftp,
-      ),
+      TabEntry(id: 'tab-${_counter++}', label: label ?? '${conn.label} (SFTP)', connection: conn, kind: TabKind.sftp),
     );
   }
 }
@@ -87,15 +73,10 @@ class _PrePopulatedSessionNotifier extends SessionNotifier {
 /// A ConnectionManager that simulates a connection that fails in background.
 class _FailingConnectionManager extends ConnectionManager {
   final Object error;
-  _FailingConnectionManager(this.error)
-    : super(knownHosts: KnownHostsManager());
+  _FailingConnectionManager(this.error) : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(
-    SSHConfig config, {
-    String? label,
-    String? sessionId,
-  }) {
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
     final conn = Connection(
       id: 'conn-fail',
       label: label ?? config.displayName,
@@ -113,11 +94,7 @@ class _SuccessConnectionManager extends ConnectionManager {
   _SuccessConnectionManager() : super(knownHosts: KnownHostsManager());
 
   @override
-  Connection connectAsync(
-    SSHConfig config, {
-    String? label,
-    String? sessionId,
-  }) {
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId}) {
     return Connection(
       id: 'conn-success',
       label: label ?? config.displayName,
@@ -131,28 +108,25 @@ class _SuccessConnectionManager extends ConnectionManager {
 
 void main() {
   group('MobileShell', () {
-    Widget buildTestWidget({
-      List<Session> sessions = const [],
-      WorkspaceState? workspaceState,
-    }) {
+    Widget buildTestWidget({List<Session> sessions = const [], WorkspaceState? workspaceState}) {
       return ProviderScope(
         overrides: [
           sessionStoreProvider.overrideWithValue(SessionStore()),
           sessionProvider.overrideWith(SessionNotifier.new),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            ConnectionManager(knownHosts: KnownHostsManager()),
-          ),
-          if (workspaceState != null)
-            workspaceProvider.overrideWith(WorkspaceNotifier.new),
+          connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
+          if (workspaceState != null) workspaceProvider.overrideWith(WorkspaceNotifier.new),
         ],
-        child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: const MobileShell(),
+        ),
       );
     }
 
-    testWidgets('renders bottom navigation bar with 3 destinations', (
-      tester,
-    ) async {
+    testWidgets('renders bottom navigation bar with 3 destinations', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -214,16 +188,17 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
-              ),
+              () => _PrePopulatedWorkspaceNotifier(_buildWorkspaceState((b) => b.addTerminalTab(conn))),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -253,16 +228,17 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState((b) => b.addSftpTab(conn)),
-              ),
+              () => _PrePopulatedWorkspaceNotifier(_buildWorkspaceState((b) => b.addSftpTab(conn))),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -292,18 +268,19 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
               () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState(
-                  (b) => b.addTerminalTab(conn, label: 'Close Me'),
-                ),
+                _buildWorkspaceState((b) => b.addTerminalTab(conn, label: 'Close Me')),
               ),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -322,9 +299,7 @@ void main() {
       }
     });
 
-    testWidgets('swipe gesture does not navigate between pages', (
-      tester,
-    ) async {
+    testWidgets('swipe gesture does not navigate between pages', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -362,9 +337,7 @@ void main() {
       expect(find.text('No active file browsers'), findsNothing);
     });
 
-    testWidgets('Terminal nav is disabled when no terminal tabs', (
-      tester,
-    ) async {
+    testWidgets('Terminal nav is disabled when no terminal tabs', (tester) async {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -403,18 +376,19 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
               () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState(
-                  (b) => b.addSftpTab(conn, label: 'SFTP Close Me'),
-                ),
+                _buildWorkspaceState((b) => b.addSftpTab(conn, label: 'SFTP Close Me')),
               ),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -462,9 +436,7 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
               () => _PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
@@ -474,7 +446,12 @@ void main() {
               ),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -518,9 +495,7 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
               () => _PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
@@ -530,7 +505,12 @@ void main() {
               ),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -548,9 +528,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('SFTP page falls back to last tab when activeTab is not SFTP', (
-      tester,
-    ) async {
+    testWidgets('SFTP page falls back to last tab when activeTab is not SFTP', (tester) async {
       final termConn = Connection(
         id: 'term-x',
         label: 'Terminal',
@@ -576,9 +554,7 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
               () => _PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
@@ -589,7 +565,12 @@ void main() {
               ),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -601,80 +582,77 @@ void main() {
       expect(find.text('SFTP Tab'), findsOneWidget);
     });
 
-    testWidgets(
-      'Terminal page falls back to last tab when activeTab is not terminal',
-      (tester) async {
-        final termConn = Connection(
-          id: 'term-y',
-          label: 'Term Tab',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
-          ),
-          sshConnection: null,
-          state: SSHConnectionState.disconnected,
-        );
-        final sftpConn = Connection(
-          id: 'sftp-y',
-          label: 'SFTP',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
-          ),
-          sshConnection: null,
-          state: SSHConnectionState.disconnected,
-        );
+    testWidgets('Terminal page falls back to last tab when activeTab is not terminal', (tester) async {
+      final termConn = Connection(
+        id: 'term-y',
+        label: 'Term Tab',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+      final sftpConn = Connection(
+        id: 'sftp-y',
+        label: 'SFTP',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
 
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              sessionStoreProvider.overrideWithValue(SessionStore()),
-              sessionProvider.overrideWith(SessionNotifier.new),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                ConnectionManager(knownHosts: KnownHostsManager()),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  // Add terminal tab first, then SFTP tab (SFTP becomes active)
+                  b.addTerminalTab(termConn, label: 'Term Tab');
+                  b.addSftpTab(sftpConn, label: 'SFTP');
+                }),
               ),
-              workspaceProvider.overrideWith(
-                () => _PrePopulatedWorkspaceNotifier(
-                  _buildWorkspaceState((b) {
-                    // Add terminal tab first, then SFTP tab (SFTP becomes active)
-                    b.addTerminalTab(termConn, label: 'Term Tab');
-                    b.addSftpTab(sftpConn, label: 'SFTP');
-                  }),
-                ),
-              ),
-            ],
-            child: MaterialApp(
-              theme: AppTheme.dark(),
-              home: const MobileShell(),
             ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Navigate to Terminal page — activeTab is SFTP, so terminal page should fall back
-        await tester.tap(find.text('Terminal'));
-        await tester.pumpAndSettle();
+      // Navigate to Terminal page — activeTab is SFTP, so terminal page should fall back
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
 
-        expect(find.text('Term Tab'), findsOneWidget);
-      },
-    );
+      expect(find.text('Term Tab'), findsOneWidget);
+    });
 
     // Helper to build widget with a session and custom ConnectionManager
-    Widget buildWithSession({
-      required Session session,
-      required ConnectionManager manager,
-    }) {
+    Widget buildWithSession({required Session session, required ConnectionManager manager}) {
       final store = SessionStore();
       store.add(session);
       return ProviderScope(
         overrides: [
           sessionStoreProvider.overrideWithValue(store),
-          sessionProvider.overrideWith(
-            () => _PrePopulatedSessionNotifier(store.sessions),
-          ),
+          sessionProvider.overrideWith(() => _PrePopulatedSessionNotifier(store.sessions)),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(manager),
         ],
-        child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: const MobileShell(),
+        ),
       );
     }
 
@@ -689,20 +667,13 @@ void main() {
       }
     }
 
-    testWidgets('connect session adds tab and navigates to terminal', (
-      tester,
-    ) async {
+    testWidgets('connect session adds tab and navigates to terminal', (tester) async {
       final session = Session(
         id: 'sess-1',
         label: 'Test Server',
         server: const ServerAddress(host: 'example.com', user: 'root'),
       );
-      await tester.pumpWidget(
-        buildWithSession(
-          session: session,
-          manager: _SuccessConnectionManager(),
-        ),
-      );
+      await tester.pumpWidget(buildWithSession(session: session, manager: _SuccessConnectionManager()));
       await tester.pumpAndSettle();
 
       expect(find.text('Test Server'), findsOneWidget);
@@ -710,19 +681,14 @@ void main() {
       await doubleTapSession(tester, 'Test Server');
     });
 
-    testWidgets('connect session with failed connection still adds tab', (
-      tester,
-    ) async {
+    testWidgets('connect session with failed connection still adds tab', (tester) async {
       final session = Session(
         id: 'sess-fail',
         label: 'Fail Server',
         server: const ServerAddress(host: 'fail.com', user: 'root'),
       );
       await tester.pumpWidget(
-        buildWithSession(
-          session: session,
-          manager: _FailingConnectionManager(Exception('bad password')),
-        ),
+        buildWithSession(session: session, manager: _FailingConnectionManager(Exception('bad password'))),
       );
       await tester.pumpAndSettle();
 
@@ -730,29 +696,19 @@ void main() {
       await doubleTapSession(tester, 'Fail Server');
     });
 
-    testWidgets('SFTP connect via context menu navigates to Files page', (
-      tester,
-    ) async {
+    testWidgets('SFTP connect via context menu navigates to Files page', (tester) async {
       final session = Session(
         id: 'sess-sftp',
         label: 'SFTP Target',
         server: const ServerAddress(host: 'sftp.example.com', user: 'admin'),
       );
-      await tester.pumpWidget(
-        buildWithSession(
-          session: session,
-          manager: _SuccessConnectionManager(),
-        ),
-      );
+      await tester.pumpWidget(buildWithSession(session: session, manager: _SuccessConnectionManager()));
       await tester.pumpAndSettle();
 
       expect(find.text('SFTP Target'), findsOneWidget);
 
       // Right-click (secondary tap) on the session to open context menu
-      await tester.tap(
-        find.text('SFTP Target'),
-        buttons: kSecondaryMouseButton,
-      );
+      await tester.tap(find.text('SFTP Target'), buttons: kSecondaryMouseButton);
       await tester.pumpAndSettle();
 
       // Tap 'Files' in the context menu (last match — first is nav bar)
@@ -767,21 +723,14 @@ void main() {
 
     // FAB was removed — new sessions are created from SessionPanel's add button.
 
-    testWidgets('incomplete session shows toast and stays on Sessions page', (
-      tester,
-    ) async {
+    testWidgets('incomplete session shows toast and stays on Sessions page', (tester) async {
       final session = Session(
         id: 'sess-incomplete',
         label: 'Incomplete Server',
         server: const ServerAddress(host: 'example.com', user: 'root'),
         incomplete: true,
       );
-      await tester.pumpWidget(
-        buildWithSession(
-          session: session,
-          manager: _SuccessConnectionManager(),
-        ),
-      );
+      await tester.pumpWidget(buildWithSession(session: session, manager: _SuccessConnectionManager()));
       await tester.pumpAndSettle();
 
       // Double-tap the incomplete session
@@ -794,45 +743,32 @@ void main() {
       Toast.clearAllForTest();
     });
 
-    testWidgets(
-      'incomplete session SFTP shows toast and stays on Sessions page',
-      (tester) async {
-        final session = Session(
-          id: 'sess-incomplete-sftp',
-          label: 'Incomplete SFTP',
-          server: const ServerAddress(host: 'example.com', user: 'root'),
-          incomplete: true,
-        );
-        await tester.pumpWidget(
-          buildWithSession(
-            session: session,
-            manager: _SuccessConnectionManager(),
-          ),
-        );
-        await tester.pumpAndSettle();
+    testWidgets('incomplete session SFTP shows toast and stays on Sessions page', (tester) async {
+      final session = Session(
+        id: 'sess-incomplete-sftp',
+        label: 'Incomplete SFTP',
+        server: const ServerAddress(host: 'example.com', user: 'root'),
+        incomplete: true,
+      );
+      await tester.pumpWidget(buildWithSession(session: session, manager: _SuccessConnectionManager()));
+      await tester.pumpAndSettle();
 
-        // Right-click to open context menu
-        await tester.tap(
-          find.text('Incomplete SFTP'),
-          buttons: kSecondaryMouseButton,
-        );
-        await tester.pumpAndSettle();
+      // Right-click to open context menu
+      await tester.tap(find.text('Incomplete SFTP'), buttons: kSecondaryMouseButton);
+      await tester.pumpAndSettle();
 
-        // Tap 'Files' in the context menu (last match — first is nav bar)
-        await tester.tap(find.text('Files').last);
-        await tester.pumpAndSettle();
+      // Tap 'Files' in the context menu (last match — first is nav bar)
+      await tester.tap(find.text('Files').last);
+      await tester.pumpAndSettle();
 
-        // Should stay on Sessions page (index 0), not switch to Files
-        final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
-        expect(stack.index, equals(0));
+      // Should stay on Sessions page (index 0), not switch to Files
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, equals(0));
 
-        Toast.clearAllForTest();
-      },
-    );
+      Toast.clearAllForTest();
+    });
 
-    testWidgets('SFTP button shown on terminal page when connected', (
-      tester,
-    ) async {
+    testWidgets('SFTP button shown on terminal page when connected', (tester) async {
       final conn = Connection(
         id: 'conn-sftp-btn',
         label: 'Connected Server',
@@ -849,16 +785,17 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
-              ),
+              () => _PrePopulatedWorkspaceNotifier(_buildWorkspaceState((b) => b.addTerminalTab(conn))),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -871,9 +808,7 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
 
-    testWidgets('SFTP button hidden on terminal page when disconnected', (
-      tester,
-    ) async {
+    testWidgets('SFTP button hidden on terminal page when disconnected', (tester) async {
       final conn = Connection(
         id: 'conn-sftp-btn-off',
         label: 'Disconnected Server',
@@ -890,16 +825,17 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
-              ),
+              () => _PrePopulatedWorkspaceNotifier(_buildWorkspaceState((b) => b.addTerminalTab(conn))),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -929,16 +865,17 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState((b) => b.addSftpTab(conn)),
-              ),
+              () => _PrePopulatedWorkspaceNotifier(_buildWorkspaceState((b) => b.addSftpTab(conn))),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -951,9 +888,7 @@ void main() {
       expect(find.byTooltip('Open SSH Terminal'), findsOneWidget);
     });
 
-    testWidgets('SSH button hidden on SFTP page when disconnected', (
-      tester,
-    ) async {
+    testWidgets('SSH button hidden on SFTP page when disconnected', (tester) async {
       final conn = Connection(
         id: 'conn-ssh-btn-off',
         label: 'Disconnected Server',
@@ -970,16 +905,17 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState((b) => b.addSftpTab(conn)),
-              ),
+              () => _PrePopulatedWorkspaceNotifier(_buildWorkspaceState((b) => b.addSftpTab(conn))),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -992,9 +928,7 @@ void main() {
       expect(find.byTooltip('Open SSH Terminal'), findsNothing);
     });
 
-    testWidgets('tab bar and companion button share bg1 background', (
-      tester,
-    ) async {
+    testWidgets('tab bar and companion button share bg1 background', (tester) async {
       final conn = Connection(
         id: 'conn-bg',
         label: 'BG Test',
@@ -1011,16 +945,17 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
-                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
-              ),
+              () => _PrePopulatedWorkspaceNotifier(_buildWorkspaceState((b) => b.addTerminalTab(conn))),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -1040,11 +975,7 @@ void main() {
         }
         return false;
       });
-      expect(
-        bg1Containers,
-        isNotEmpty,
-        reason: 'tab bar area should have bg1 background',
-      );
+      expect(bg1Containers, isNotEmpty, reason: 'tab bar area should have bg1 background');
     });
 
     testWidgets('rebuilds with new colors when theme changes', (tester) async {
@@ -1058,13 +989,13 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             // Start with dark theme
             themeModeProvider.overrideWithValue(ThemeMode.dark),
           ],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),
             themeMode: ThemeMode.dark,
@@ -1075,9 +1006,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // App bar should use dark bg1
-      final darkContainers = tester.widgetList<Container>(
-        find.byType(Container),
-      );
+      final darkContainers = tester.widgetList<Container>(find.byType(Container));
       final hasDarkBg1 = darkContainers.any((c) {
         if (c.color == darkBg1) return true;
         final dec = c.decoration;
@@ -1093,12 +1022,12 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             themeModeProvider.overrideWithValue(ThemeMode.light),
           ],
           child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),
             themeMode: ThemeMode.light,
@@ -1110,25 +1039,15 @@ void main() {
 
       // After theme change, MobileShell should rebuild with light colors
       final lightBg1 = AppTheme.bg1;
-      expect(
-        lightBg1,
-        isNot(equals(darkBg1)),
-        reason: 'light bg1 should differ from dark bg1',
-      );
+      expect(lightBg1, isNot(equals(darkBg1)), reason: 'light bg1 should differ from dark bg1');
 
-      final lightContainers = tester.widgetList<Container>(
-        find.byType(Container),
-      );
+      final lightContainers = tester.widgetList<Container>(find.byType(Container));
       final hasLightBg1 = lightContainers.any((c) {
         if (c.color == lightBg1) return true;
         final dec = c.decoration;
         return dec is BoxDecoration && dec.color == lightBg1;
       });
-      expect(
-        hasLightBg1,
-        isTrue,
-        reason: 'app bar should use light bg1 after theme change',
-      );
+      expect(hasLightBg1, isTrue, reason: 'app bar should use light bg1 after theme change');
 
       // Restore dark theme for other tests
       AppTheme.setBrightness(Brightness.dark);
@@ -1151,9 +1070,7 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             workspaceProvider.overrideWith(
               () => _PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
@@ -1163,7 +1080,12 @@ void main() {
               ),
             ),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -1174,79 +1096,70 @@ void main() {
       expect(find.byIcon(Icons.tab_outlined), findsAtLeast(1));
     });
 
-    testWidgets(
-      'header shows StatusIndicator for saved sessions and active connections',
-      (tester) async {
-        debugMobilePlatformOverride = true;
-        addTearDown(() => debugMobilePlatformOverride = null);
+    testWidgets('header shows StatusIndicator for saved sessions and active connections', (tester) async {
+      debugMobilePlatformOverride = true;
+      addTearDown(() => debugMobilePlatformOverride = null);
 
-        final sessions = [
-          Session(
-            id: 's1',
-            label: 'Server1',
-            folder: '',
-            server: const ServerAddress(host: 'h1', user: 'u'),
-            auth: const SessionAuth(authType: AuthType.password),
+      final sessions = [
+        Session(
+          id: 's1',
+          label: 'Server1',
+          folder: '',
+          server: const ServerAddress(host: 'h1', user: 'u'),
+          auth: const SessionAuth(authType: AuthType.password),
+        ),
+        Session(
+          id: 's2',
+          label: 'Server2',
+          folder: '',
+          server: const ServerAddress(host: 'h2', user: 'u'),
+          auth: const SessionAuth(authType: AuthType.password),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(() => _PrePopulatedSessionNotifier(sessions)),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
           ),
-          Session(
-            id: 's2',
-            label: 'Server2',
-            folder: '',
-            server: const ServerAddress(host: 'h2', user: 'u'),
-            auth: const SessionAuth(authType: AuthType.password),
-          ),
-        ];
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              sessionStoreProvider.overrideWithValue(SessionStore()),
-              sessionProvider.overrideWith(
-                () => _PrePopulatedSessionNotifier(sessions),
-              ),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                ConnectionManager(knownHosts: KnownHostsManager()),
-              ),
-            ],
-            child: MaterialApp(
-              theme: AppTheme.dark(),
-              home: const MobileShell(),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
+      // Three StatusIndicator widgets in header: saved sessions + active connections + open tabs
+      expect(find.byType(StatusIndicator), findsNWidgets(3));
 
-        // Three StatusIndicator widgets in header: saved sessions + active connections + open tabs
-        expect(find.byType(StatusIndicator), findsNWidgets(3));
+      // Saved sessions icon (dns_outlined) — only in header (footer hidden on mobile)
+      expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
 
-        // Saved sessions icon (dns_outlined) — only in header (footer hidden on mobile)
-        expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
+      // Active connections icon (wifi)
+      expect(find.byIcon(Icons.wifi), findsOneWidget);
 
-        // Active connections icon (wifi)
-        expect(find.byIcon(Icons.wifi), findsOneWidget);
+      // Saved count should show "2" (two sessions)
+      final savedIndicator = tester.widget<StatusIndicator>(find.byType(StatusIndicator).first);
+      expect(savedIndicator.count, 2);
+      expect(savedIndicator.tooltip, 'Saved sessions');
 
-        // Saved count should show "2" (two sessions)
-        final savedIndicator = tester.widget<StatusIndicator>(
-          find.byType(StatusIndicator).first,
-        );
-        expect(savedIndicator.count, 2);
-        expect(savedIndicator.tooltip, 'Saved sessions');
+      // Active count should be 0 (no connections)
+      final activeIndicator = tester
+          .widgetList<StatusIndicator>(find.byType(StatusIndicator))
+          .firstWhere((s) => s.tooltip == 'Active connections');
+      expect(activeIndicator.count, 0);
 
-        // Active count should be 0 (no connections)
-        final activeIndicator = tester
-            .widgetList<StatusIndicator>(find.byType(StatusIndicator))
-            .firstWhere((s) => s.tooltip == 'Active connections');
-        expect(activeIndicator.count, 0);
+      // Tab count indicator present
+      expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
+    });
 
-        // Tab count indicator present
-        expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
-      },
-    );
-
-    testWidgets('header connection indicator uses green color when connected', (
-      tester,
-    ) async {
+    testWidgets('header connection indicator uses green color when connected', (tester) async {
       debugMobilePlatformOverride = true;
       addTearDown(() => debugMobilePlatformOverride = null);
 
@@ -1266,12 +1179,15 @@ void main() {
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
             connectionsProvider.overrideWith((ref) => Stream.value([conn])),
           ],
-          child: MaterialApp(theme: AppTheme.dark(), home: const MobileShell()),
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -1283,47 +1199,44 @@ void main() {
       expect(activeIndicator.iconColor, AppTheme.green);
     });
 
-    testWidgets(
-      'header connection indicator uses yellow color when connecting',
-      (tester) async {
-        debugMobilePlatformOverride = true;
-        addTearDown(() => debugMobilePlatformOverride = null);
+    testWidgets('header connection indicator uses yellow color when connecting', (tester) async {
+      debugMobilePlatformOverride = true;
+      addTearDown(() => debugMobilePlatformOverride = null);
 
-        final conn = Connection(
-          id: 'conn-yellow',
-          label: 'Connecting Server',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
+      final conn = Connection(
+        id: 'conn-yellow',
+        label: 'Connecting Server',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.connecting,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
+            connectionsProvider.overrideWith((ref) => Stream.value([conn])),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
           ),
-          sshConnection: null,
-          state: SSHConnectionState.connecting,
-        );
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              sessionStoreProvider.overrideWithValue(SessionStore()),
-              sessionProvider.overrideWith(SessionNotifier.new),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                ConnectionManager(knownHosts: KnownHostsManager()),
-              ),
-              connectionsProvider.overrideWith((ref) => Stream.value([conn])),
-            ],
-            child: MaterialApp(
-              theme: AppTheme.dark(),
-              home: const MobileShell(),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        final activeIndicator = tester
-            .widgetList<StatusIndicator>(find.byType(StatusIndicator))
-            .firstWhere((s) => s.tooltip == 'Active connections');
-        expect(activeIndicator.count, 1);
-        expect(activeIndicator.iconColor, AppTheme.yellow);
-      },
-    );
+      final activeIndicator = tester
+          .widgetList<StatusIndicator>(find.byType(StatusIndicator))
+          .firstWhere((s) => s.tooltip == 'Active connections');
+      expect(activeIndicator.count, 1);
+      expect(activeIndicator.iconColor, AppTheme.yellow);
+    });
   });
 }

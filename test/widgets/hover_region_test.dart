@@ -1,12 +1,16 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/hover_region.dart';
 
 void main() {
   Widget buildApp(Widget child) {
-    return MaterialApp(home: Scaffold(body: child));
+    return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
+      home: Scaffold(body: child),
+    );
   }
 
   group('HoverRegion', () {
@@ -74,12 +78,7 @@ void main() {
     testWidgets('onTap fires callback', (tester) async {
       var tapped = false;
       await tester.pumpWidget(
-        buildApp(
-          HoverRegion(
-            onTap: () => tapped = true,
-            builder: (_) => const SizedBox(width: 50, height: 50),
-          ),
-        ),
+        buildApp(HoverRegion(onTap: () => tapped = true, builder: (_) => const SizedBox(width: 50, height: 50))),
       );
 
       await tester.tap(find.byType(HoverRegion));
@@ -90,10 +89,7 @@ void main() {
       var doubleTapped = false;
       await tester.pumpWidget(
         buildApp(
-          HoverRegion(
-            onDoubleTap: () => doubleTapped = true,
-            builder: (_) => const SizedBox(width: 50, height: 50),
-          ),
+          HoverRegion(onDoubleTap: () => doubleTapped = true, builder: (_) => const SizedBox(width: 50, height: 50)),
         ),
       );
 
@@ -108,33 +104,20 @@ void main() {
       TapUpDetails? details;
       await tester.pumpWidget(
         buildApp(
-          HoverRegion(
-            onSecondaryTapUp: (d) => details = d,
-            builder: (_) => const SizedBox(width: 50, height: 50),
-          ),
+          HoverRegion(onSecondaryTapUp: (d) => details = d, builder: (_) => const SizedBox(width: 50, height: 50)),
         ),
       );
 
-      await tester.tapAt(
-        tester.getCenter(find.byType(HoverRegion)),
-        buttons: kSecondaryButton,
-      );
+      await tester.tapAt(tester.getCenter(find.byType(HoverRegion)), buttons: kSecondaryButton);
       await tester.pumpAndSettle();
       expect(details, isNotNull);
     });
 
     testWidgets('cursor defaults to basic', (tester) async {
-      await tester.pumpWidget(
-        buildApp(
-          HoverRegion(builder: (_) => const SizedBox(width: 50, height: 50)),
-        ),
-      );
+      await tester.pumpWidget(buildApp(HoverRegion(builder: (_) => const SizedBox(width: 50, height: 50))));
 
       final mouseRegion = tester.widget<MouseRegion>(
-        find.descendant(
-          of: find.byType(HoverRegion),
-          matching: find.byType(MouseRegion),
-        ),
+        find.descendant(of: find.byType(HoverRegion), matching: find.byType(MouseRegion)),
       );
       expect(mouseRegion.cursor, SystemMouseCursors.basic);
     });
@@ -142,55 +125,28 @@ void main() {
     testWidgets('custom cursor is applied', (tester) async {
       await tester.pumpWidget(
         buildApp(
-          HoverRegion(
-            cursor: SystemMouseCursors.resizeColumn,
-            builder: (_) => const SizedBox(width: 50, height: 50),
-          ),
+          HoverRegion(cursor: SystemMouseCursors.resizeColumn, builder: (_) => const SizedBox(width: 50, height: 50)),
         ),
       );
 
       final mouseRegion = tester.widget<MouseRegion>(
-        find.descendant(
-          of: find.byType(HoverRegion),
-          matching: find.byType(MouseRegion),
-        ),
+        find.descendant(of: find.byType(HoverRegion), matching: find.byType(MouseRegion)),
       );
       expect(mouseRegion.cursor, SystemMouseCursors.resizeColumn);
     });
 
     testWidgets('no GestureDetector when no gestures', (tester) async {
-      await tester.pumpWidget(
-        buildApp(
-          HoverRegion(builder: (_) => const SizedBox(width: 50, height: 50)),
-        ),
-      );
+      await tester.pumpWidget(buildApp(HoverRegion(builder: (_) => const SizedBox(width: 50, height: 50))));
 
-      expect(
-        find.descendant(
-          of: find.byType(HoverRegion),
-          matching: find.byType(GestureDetector),
-        ),
-        findsNothing,
-      );
+      expect(find.descendant(of: find.byType(HoverRegion), matching: find.byType(GestureDetector)), findsNothing);
     });
 
     testWidgets('GestureDetector present when onTap set', (tester) async {
       await tester.pumpWidget(
-        buildApp(
-          HoverRegion(
-            onTap: () {},
-            builder: (_) => const SizedBox(width: 50, height: 50),
-          ),
-        ),
+        buildApp(HoverRegion(onTap: () {}, builder: (_) => const SizedBox(width: 50, height: 50))),
       );
 
-      expect(
-        find.descendant(
-          of: find.byType(HoverRegion),
-          matching: find.byType(GestureDetector),
-        ),
-        findsOneWidget,
-      );
+      expect(find.descendant(of: find.byType(HoverRegion), matching: find.byType(GestureDetector)), findsOneWidget);
     });
   });
 }

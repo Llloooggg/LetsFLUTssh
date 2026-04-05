@@ -36,50 +36,37 @@ void main() {
       await lock.release();
     });
 
-    test(
-      'second process cannot acquire lock',
-      () async {
-        final lock = SingleInstance(lockDir: tmpDir.path);
-        expect(await lock.acquire(), isTrue);
+    test('second process cannot acquire lock', () async {
+      final lock = SingleInstance(lockDir: tmpDir.path);
+      expect(await lock.acquire(), isTrue);
 
-        // Spawn a child process that tries to exclusively lock the same file.
-        // POSIX fcntl locks are per-process, so we must use a real subprocess.
-        final lockPath = '${tmpDir.path}${Platform.pathSeparator}app.lock'
-            .replaceAll(r'\', '/');
-        final scriptPath =
-            '${tmpDir.path}${Platform.pathSeparator}try_lock.dart'.replaceAll(
-              r'\',
-              '/',
-            );
-        File(scriptPath).writeAsStringSync(
-          'import "dart:io";\n'
-          'void main() async {\n'
-          '  final raf = await File("$lockPath").open(mode: FileMode.write);\n'
-          '  try {\n'
-          '    await raf.lock(FileLock.exclusive);\n'
-          '    await raf.unlock();\n'
-          '    await raf.close();\n'
-          '    exit(0);\n'
-          '  } catch (_) {\n'
-          '    await raf.close();\n'
-          '    exit(1);\n'
-          '  }\n'
-          '}\n',
-        );
+      // Spawn a child process that tries to exclusively lock the same file.
+      // POSIX fcntl locks are per-process, so we must use a real subprocess.
+      final lockPath = '${tmpDir.path}${Platform.pathSeparator}app.lock'.replaceAll(r'\', '/');
+      final scriptPath = '${tmpDir.path}${Platform.pathSeparator}try_lock.dart'.replaceAll(r'\', '/');
+      File(scriptPath).writeAsStringSync(
+        'import "dart:io";\n'
+        'void main() async {\n'
+        '  final raf = await File("$lockPath").open(mode: FileMode.write);\n'
+        '  try {\n'
+        '    await raf.lock(FileLock.exclusive);\n'
+        '    await raf.unlock();\n'
+        '    await raf.close();\n'
+        '    exit(0);\n'
+        '  } catch (_) {\n'
+        '    await raf.close();\n'
+        '    exit(1);\n'
+        '  }\n'
+        '}\n',
+      );
 
-        // Use `dart run` (not Platform.resolvedExecutable which may be
-        // the Flutter test harness).
-        final result = await Process.run('dart', ['run', scriptPath]);
-        expect(
-          result.exitCode,
-          1,
-          reason: 'child process should fail to acquire lock',
-        );
+      // Use `dart run` (not Platform.resolvedExecutable which may be
+      // the Flutter test harness).
+      final result = await Process.run('dart', ['run', scriptPath]);
+      expect(result.exitCode, 1, reason: 'child process should fail to acquire lock');
 
-        await lock.release();
-      },
-      timeout: const Timeout(Duration(seconds: 60)),
-    );
+      await lock.release();
+    }, timeout: const Timeout(Duration(seconds: 60)));
 
     test('acquire succeeds after first releases', () async {
       final first = SingleInstance(lockDir: tmpDir.path);

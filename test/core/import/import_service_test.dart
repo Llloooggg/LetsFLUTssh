@@ -36,9 +36,7 @@ void main() {
       final s1 = makeSession('1', 'A');
       final s2 = makeSession('2', 'B');
 
-      await service.applyResult(
-        ImportResult(sessions: [s1, s2], mode: ImportMode.merge),
-      );
+      await service.applyResult(ImportResult(sessions: [s1, s2], mode: ImportMode.merge));
 
       expect(store, hasLength(2));
       expect(store[0].label, 'A');
@@ -57,9 +55,7 @@ void main() {
       );
 
       // Should not throw — merge mode skips errors
-      await errorService.applyResult(
-        ImportResult(sessions: [s1], mode: ImportMode.merge),
-      );
+      await errorService.applyResult(ImportResult(sessions: [s1], mode: ImportMode.merge));
 
       expect(deletedIds, isEmpty);
     });
@@ -71,9 +67,7 @@ void main() {
 
       final newSession = makeSession('new1', 'New1');
 
-      await service.applyResult(
-        ImportResult(sessions: [newSession], mode: ImportMode.replace),
-      );
+      await service.applyResult(ImportResult(sessions: [newSession], mode: ImportMode.replace));
 
       expect(deletedIds, ['old1', 'old2']);
       expect(store, hasLength(3)); // old ones still in list + new one added
@@ -89,12 +83,7 @@ void main() {
       );
 
       expect(
-        () => errorService.applyResult(
-          ImportResult(
-            sessions: [makeSession('1', 'A')],
-            mode: ImportMode.replace,
-          ),
-        ),
+        () => errorService.applyResult(ImportResult(sessions: [makeSession('1', 'A')], mode: ImportMode.replace)),
         throwsException,
       );
     });
@@ -102,30 +91,20 @@ void main() {
     test('applies config when not null', () async {
       const config = AppConfig(terminal: TerminalConfig(fontSize: 18.0));
 
-      await service.applyResult(
-        const ImportResult(
-          sessions: [],
-          config: config,
-          mode: ImportMode.merge,
-        ),
-      );
+      await service.applyResult(const ImportResult(sessions: [], config: config, mode: ImportMode.merge));
 
       expect(appliedConfig, isNotNull);
       expect((appliedConfig as AppConfig).fontSize, 18.0);
     });
 
     test('skips config when null', () async {
-      await service.applyResult(
-        const ImportResult(sessions: [], mode: ImportMode.merge),
-      );
+      await service.applyResult(const ImportResult(sessions: [], mode: ImportMode.merge));
 
       expect(appliedConfig, isNull);
     });
 
     test('handles empty sessions list', () async {
-      await service.applyResult(
-        const ImportResult(sessions: [], mode: ImportMode.merge),
-      );
+      await service.applyResult(const ImportResult(sessions: [], mode: ImportMode.merge));
 
       expect(store, isEmpty);
       expect(deletedIds, isEmpty);
@@ -135,9 +114,7 @@ void main() {
       final existing = makeSession('old', 'Old');
       store.add(existing);
 
-      await service.applyResult(
-        const ImportResult(sessions: [], mode: ImportMode.replace),
-      );
+      await service.applyResult(const ImportResult(sessions: [], mode: ImportMode.replace));
 
       expect(deletedIds, ['old']);
     });

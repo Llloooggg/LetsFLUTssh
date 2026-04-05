@@ -57,14 +57,11 @@ void main() {
   });
 
   group('SSHError — userMessage edge cases', () {
-    test(
-      'userMessage returns just message when cause message equals message',
-      () {
-        // cause.toString() after stripping prefix == message → return message only
-        final error = SSHError('timeout', Exception('timeout'));
-        expect(error.userMessage, 'timeout');
-      },
-    );
+    test('userMessage returns just message when cause message equals message', () {
+      // cause.toString() after stripping prefix == message → return message only
+      final error = SSHError('timeout', Exception('timeout'));
+      expect(error.userMessage, 'timeout');
+    });
 
     test('userMessage with nested SSHError cause', () {
       const inner = AuthError('bad key');

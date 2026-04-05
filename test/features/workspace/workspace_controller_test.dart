@@ -25,9 +25,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         knownHostsProvider.overrideWithValue(KnownHostsManager()),
-        connectionManagerProvider.overrideWithValue(
-          ConnectionManager(knownHosts: KnownHostsManager()),
-        ),
+        connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
       ],
     );
   });
@@ -194,12 +192,7 @@ void main() {
       final ws = state();
       final panel = findPanel(ws.root, ws.focusedPanelId)!;
 
-      notifier().splitPanel(
-        panel.id,
-        Axis.vertical,
-        panel.tabs.last,
-        insertBefore: true,
-      );
+      notifier().splitPanel(panel.id, Axis.vertical, panel.tabs.last, insertBefore: true);
 
       final ws2 = state();
       final branch = ws2.root as WorkspaceBranch;

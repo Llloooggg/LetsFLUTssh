@@ -6,6 +6,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/workspace/panel_tab_bar.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   TabEntry makeTab({
@@ -42,6 +43,8 @@ void main() {
   }) {
     final tabList = tabs ?? [makeTab(id: 'tab-0')];
     return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
       theme: AppTheme.dark(),
       home: Scaffold(
         body: SizedBox(
@@ -119,12 +122,8 @@ void main() {
       );
 
       // Active tab has a 2px accent colored box at the top.
-      final coloredBoxes = tester.widgetList<ColoredBox>(
-        find.byType(ColoredBox),
-      );
-      final accentBoxes = coloredBoxes
-          .where((b) => b.color == AppTheme.accent)
-          .toList();
+      final coloredBoxes = tester.widgetList<ColoredBox>(find.byType(ColoredBox));
+      final accentBoxes = coloredBoxes.where((b) => b.color == AppTheme.accent).toList();
       expect(accentBoxes, isNotEmpty);
     });
 
@@ -136,9 +135,7 @@ void main() {
   });
 
   group('PanelTabBar — callbacks', () {
-    testWidgets('tapping a tab calls onSelect with correct index', (
-      tester,
-    ) async {
+    testWidgets('tapping a tab calls onSelect with correct index', (tester) async {
       int? selectedIndex;
       await tester.pumpWidget(
         buildBar(
@@ -158,9 +155,7 @@ void main() {
     testWidgets('close button calls onClose with tab id', (tester) async {
       String? closedTabId;
       final tabs = [makeTab(id: 'tab-close-me', label: 'ToClose')];
-      await tester.pumpWidget(
-        buildBar(tabs: tabs, activeIndex: 0, onClose: (id) => closedTabId = id),
-      );
+      await tester.pumpWidget(buildBar(tabs: tabs, activeIndex: 0, onClose: (id) => closedTabId = id));
 
       // Active tab shows close button — find the close icon and tap it.
       await tester.tap(find.byIcon(Icons.close));
@@ -197,9 +192,7 @@ void main() {
       );
 
       // The dot is a 5x5 Container with BoxDecoration circle.
-      final dotContainers = tester.widgetList<Container>(
-        find.byType(Container),
-      );
+      final dotContainers = tester.widgetList<Container>(find.byType(Container));
       final dots = dotContainers.where((c) {
         final dec = c.decoration;
         if (dec is BoxDecoration && dec.shape == BoxShape.circle) return true;
@@ -217,9 +210,7 @@ void main() {
         ),
       );
 
-      final dotContainers = tester.widgetList<Container>(
-        find.byType(Container),
-      );
+      final dotContainers = tester.widgetList<Container>(find.byType(Container));
       final dots = dotContainers.where((c) {
         final dec = c.decoration;
         if (dec is BoxDecoration && dec.shape == BoxShape.circle) return true;
@@ -237,9 +228,7 @@ void main() {
         ),
       );
 
-      final dotContainers = tester.widgetList<Container>(
-        find.byType(Container),
-      );
+      final dotContainers = tester.widgetList<Container>(find.byType(Container));
       final dots = dotContainers.where((c) {
         final dec = c.decoration;
         if (dec is BoxDecoration && dec.shape == BoxShape.circle) return true;
@@ -264,16 +253,11 @@ void main() {
 
     testWidgets('many tabs shrink to min 80px width', (tester) async {
       // 10 tabs at 600px → natural = 60 → clamped to 80.
-      final tabs = List.generate(
-        10,
-        (i) => makeTab(id: 'tab-$i', label: 'S$i'),
-      );
+      final tabs = List.generate(10, (i) => makeTab(id: 'tab-$i', label: 'S$i'));
       await tester.pumpWidget(buildBar(tabs: tabs, width: 600));
 
       final tabSizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
-      final minWidthBoxes = tabSizedBoxes
-          .where((s) => s.width == 80.0)
-          .toList();
+      final minWidthBoxes = tabSizedBoxes.where((s) => s.width == 80.0).toList();
       expect(minWidthBoxes.length, 10);
     });
   });
@@ -292,9 +276,7 @@ void main() {
 
       // Inactive tab (Second) should have opacity 0 for close button.
       // Find all Opacity widgets wrapping close buttons.
-      final opacities = tester
-          .widgetList<Opacity>(find.byType(Opacity))
-          .toList();
+      final opacities = tester.widgetList<Opacity>(find.byType(Opacity)).toList();
       final hiddenClose = opacities.where((o) => o.opacity == 0.0).toList();
       expect(hiddenClose, isNotEmpty);
     });

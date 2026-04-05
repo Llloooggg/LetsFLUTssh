@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/widgets/column_resize_handle.dart';
 
 void main() {
@@ -8,24 +8,20 @@ void main() {
     testWidgets('renders 10x24 hit area with 1px divider line', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: Scaffold(body: ColumnResizeHandle(onDrag: (_) {})),
         ),
       );
 
       // Outer SizedBox: 10 wide, 24 tall
       final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
-      final outer = sizedBoxes.firstWhere(
-        (s) => s.width == 10 && s.height == 24,
-      );
+      final outer = sizedBoxes.firstWhere((s) => s.width == 10 && s.height == 24);
       expect(outer, isNotNull);
 
       // Shows resize column cursor
-      final mouseRegions = tester.widgetList<MouseRegion>(
-        find.byType(MouseRegion),
-      );
-      final resizeCursor = mouseRegions.where(
-        (m) => m.cursor == SystemMouseCursors.resizeColumn,
-      );
+      final mouseRegions = tester.widgetList<MouseRegion>(find.byType(MouseRegion));
+      final resizeCursor = mouseRegions.where((m) => m.cursor == SystemMouseCursors.resizeColumn);
       expect(resizeCursor, hasLength(1));
     });
 
@@ -33,10 +29,10 @@ void main() {
       double lastDx = 0;
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: Scaffold(
-            body: Center(
-              child: ColumnResizeHandle(onDrag: (dx) => lastDx = dx),
-            ),
+            body: Center(child: ColumnResizeHandle(onDrag: (dx) => lastDx = dx)),
           ),
         ),
       );
@@ -54,10 +50,10 @@ void main() {
       double lastDx = 0;
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
           home: Scaffold(
-            body: Center(
-              child: ColumnResizeHandle(onDrag: (dx) => lastDx = dx),
-            ),
+            body: Center(child: ColumnResizeHandle(onDrag: (dx) => lastDx = dx)),
           ),
         ),
       );

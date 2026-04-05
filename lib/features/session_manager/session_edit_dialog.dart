@@ -11,6 +11,7 @@ import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
+import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 
 const _kMonoFont = 'JetBrains Mono';
@@ -265,7 +266,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   Widget _buildHeader() {
     return AppDialogHeader(
-      title: _isEditing ? 'Edit Connection' : 'New Connection',
+      title: _isEditing
+          ? S.of(context).editConnection
+          : S.of(context).newConnection,
       onClose: () => Navigator.of(context).pop(),
     );
   }
@@ -277,9 +280,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       decoration: BoxDecoration(border: AppTheme.borderBottom),
       child: Row(
         children: [
-          _buildTab(0, Icons.dns, 'Connection'),
-          _buildTab(1, Icons.shield, 'Auth'),
-          _buildTab(2, Icons.folder, 'Options'),
+          _buildTab(0, Icons.dns, S.of(context).connection),
+          _buildTab(1, Icons.shield, S.of(context).auth),
+          _buildTab(2, Icons.folder, S.of(context).options),
         ],
       ),
     );
@@ -327,15 +330,19 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _styledField('Session Name', _labelCtrl, hint: 'My Server'),
+        _styledField(
+          S.of(context).sessionName,
+          _labelCtrl,
+          hint: S.of(context).hintMyServer,
+        ),
         const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: _styledField(
-                'Host *',
+                S.of(context).hostRequired,
                 _hostCtrl,
-                hint: '192.168.1.1',
+                hint: S.of(context).hintHost,
                 validator: _requiredValidator,
               ),
             ),
@@ -343,14 +350,14 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
             SizedBox(
               width: 80,
               child: _styledField(
-                'Port',
+                S.of(context).port,
                 _portCtrl,
-                hint: '22',
+                hint: S.of(context).hintPort,
                 keyboardType: TextInputType.number,
                 validator: (v) {
                   final port = int.tryParse(v ?? '');
                   if (port == null || port < 1 || port > 65535) {
-                    return '1-65535';
+                    return S.of(context).portRange;
                   }
                   return null;
                 },
@@ -360,9 +367,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         ),
         const SizedBox(height: 12),
         _styledField(
-          'Username *',
+          S.of(context).usernameRequired,
           _userCtrl,
-          hint: 'root',
+          hint: S.of(context).hintUsername,
           validator: _requiredValidator,
         ),
       ],
@@ -588,7 +595,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           size: 16,
         ),
         label: Text(
-          _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
+          _showKeyText
+              ? S.of(context).hidePemText
+              : S.of(context).pastePemKeyText,
           style: TextStyle(fontSize: AppFonts.md),
         ),
       ),
@@ -599,7 +608,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return TextFormField(
       controller: _keyDataCtrl,
       decoration: InputDecoration(
-        hintText: '-----BEGIN OPENSSH PRIVATE KEY-----',
+        hintText: S.of(context).hintPemKey,
         hintStyle: TextStyle(
           fontFamily: _kMonoFont,
           fontSize: AppFonts.xs,
@@ -629,9 +638,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   Widget _buildPassphraseField() {
     return _styledField(
-      'Key Passphrase',
+      S.of(context).keyPassphrase,
       _passphraseCtrl,
-      hint: 'Optional',
+      hint: S.of(context).hintOptional,
       obscure: _obscurePassphrase,
       suffixIcon: GestureDetector(
         onTap: () => setState(() => _obscurePassphrase = !_obscurePassphrase),
@@ -646,7 +655,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           final hasKey =
               _keyPathCtrl.text.trim().isNotEmpty ||
               _keyDataCtrl.text.trim().isNotEmpty;
-          if (!hasKey) return 'Provide a key file or PEM text first';
+          if (!hasKey) return S.of(context).provideKeyFirst;
         }
         return null;
       },
@@ -661,7 +670,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       children: [
         const SizedBox(height: 16),
         Text(
-          'No additional options yet',
+          S.of(context).noAdditionalOptionsYet,
           style: TextStyle(
             fontFamily: 'Inter',
             fontSize: AppFonts.sm,
@@ -679,14 +688,17 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       actions: [
         AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
         if (_isEditing) ...[
-          AppDialogAction.secondary(label: 'Save', onTap: _save),
+          AppDialogAction.secondary(label: S.of(context).save, onTap: _save),
           AppDialogAction.primary(
-            label: 'Save & Connect',
+            label: S.of(context).saveAndConnect,
             onTap: () => _save(connect: true),
           ),
         ] else ...[
-          AppDialogAction.secondary(label: 'Save', onTap: _save),
-          AppDialogAction.primary(label: 'Connect', onTap: _connectOnly),
+          AppDialogAction.secondary(label: S.of(context).save, onTap: _save),
+          AppDialogAction.primary(
+            label: S.of(context).connect,
+            onTap: _connectOnly,
+          ),
         ],
       ],
     );
@@ -694,8 +706,8 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   // ── Styled field helper ──
 
-  static String? _requiredValidator(String? v) =>
-      v == null || v.trim().isEmpty ? 'Required' : null;
+  String? Function(String?) get _requiredValidator =>
+      (v) => v == null || v.trim().isEmpty ? S.of(context).required : null;
 
   Widget _styledField(
     String label,

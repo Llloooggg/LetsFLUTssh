@@ -10,11 +10,7 @@ void main() {
     late TransferManager manager;
 
     setUp(() {
-      manager = TransferManager(
-        parallelism: 2,
-        maxHistory: 10,
-        taskTimeout: Duration.zero,
-      );
+      manager = TransferManager(parallelism: 2, maxHistory: 10, taskTimeout: Duration.zero);
     });
 
     tearDown(() {
@@ -171,53 +167,50 @@ void main() {
       expect(manager.currentTransferInfo, isNull);
     });
 
-    test(
-      'concurrent tasks have separate progress in _activeTransfers',
-      () async {
-        final started1 = Completer<void>();
-        final started2 = Completer<void>();
-        final finish1 = Completer<void>();
-        final finish2 = Completer<void>();
+    test('concurrent tasks have separate progress in _activeTransfers', () async {
+      final started1 = Completer<void>();
+      final started2 = Completer<void>();
+      final finish1 = Completer<void>();
+      final finish2 = Completer<void>();
 
-        manager.enqueue(
-          TransferTask(
-            name: 'file1.txt',
-            direction: TransferDirection.upload,
-            sourcePath: '/local/file1.txt',
-            targetPath: '/remote/file1.txt',
-            run: (update) async {
-              update(30, 'file1');
-              started1.complete();
-              await finish1.future;
-            },
-          ),
-        );
+      manager.enqueue(
+        TransferTask(
+          name: 'file1.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/file1.txt',
+          targetPath: '/remote/file1.txt',
+          run: (update) async {
+            update(30, 'file1');
+            started1.complete();
+            await finish1.future;
+          },
+        ),
+      );
 
-        manager.enqueue(
-          TransferTask(
-            name: 'file2.txt',
-            direction: TransferDirection.upload,
-            sourcePath: '/local/file2.txt',
-            targetPath: '/remote/file2.txt',
-            run: (update) async {
-              update(70, 'file2');
-              started2.complete();
-              await finish2.future;
-            },
-          ),
-        );
+      manager.enqueue(
+        TransferTask(
+          name: 'file2.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/file2.txt',
+          targetPath: '/remote/file2.txt',
+          run: (update) async {
+            update(70, 'file2');
+            started2.complete();
+            await finish2.future;
+          },
+        ),
+      );
 
-        await started1.future;
-        await started2.future;
-        // currentTransferInfo should show one of the active tasks
-        expect(manager.currentTransferInfo, isNotNull);
+      await started1.future;
+      await started2.future;
+      // currentTransferInfo should show one of the active tasks
+      expect(manager.currentTransferInfo, isNotNull);
 
-        finish1.complete();
-        finish2.complete();
-        await Future.delayed(const Duration(milliseconds: 50));
-        expect(manager.currentTransferInfo, isNull);
-      },
-    );
+      finish1.complete();
+      finish2.complete();
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(manager.currentTransferInfo, isNull);
+    });
 
     test('dispose prevents further notifications', () async {
       manager.dispose();
@@ -274,11 +267,7 @@ void main() {
     test('cancel removes queued task and adds to history', () async {
       // Use parallelism=1 and a blocker to keep queue occupied
       final blocker = Completer<void>();
-      manager = TransferManager(
-        parallelism: 1,
-        maxHistory: 10,
-        taskTimeout: Duration.zero,
-      );
+      manager = TransferManager(parallelism: 1, maxHistory: 10, taskTimeout: Duration.zero);
 
       manager.enqueue(
         TransferTask(
@@ -345,11 +334,7 @@ void main() {
 
     test('cancelAll cancels queued and running tasks', () async {
       final blocker = Completer<void>();
-      manager = TransferManager(
-        parallelism: 1,
-        maxHistory: 10,
-        taskTimeout: Duration.zero,
-      );
+      manager = TransferManager(parallelism: 1, maxHistory: 10, taskTimeout: Duration.zero);
 
       manager.enqueue(
         TransferTask(
@@ -378,18 +363,12 @@ void main() {
       manager.cancelAll();
       expect(manager.queueLength, 0);
       // 2 queued tasks should be in history as cancelled
-      expect(
-        manager.history.where((e) => e.status == TransferStatus.cancelled),
-        hasLength(2),
-      );
+      expect(manager.history.where((e) => e.status == TransferStatus.cancelled), hasLength(2));
 
       blocker.complete();
       await Future.delayed(const Duration(milliseconds: 300));
       // Running task should also be cancelled now
-      expect(
-        manager.history.where((e) => e.status == TransferStatus.cancelled),
-        hasLength(3),
-      );
+      expect(manager.history.where((e) => e.status == TransferStatus.cancelled), hasLength(3));
     });
 
     test('cancel preserves partial progress in history', () async {
@@ -414,9 +393,7 @@ void main() {
       );
 
       await started.future;
-      manager.cancel(
-        manager.history.isEmpty ? 'tr-1' : manager.history.first.id,
-      );
+      manager.cancel(manager.history.isEmpty ? 'tr-1' : manager.history.first.id);
 
       await Future.delayed(const Duration(milliseconds: 500));
       final entry = manager.history.first;
@@ -426,11 +403,7 @@ void main() {
     });
 
     test('task timeout produces failed history entry', () async {
-      manager = TransferManager(
-        parallelism: 1,
-        maxHistory: 10,
-        taskTimeout: const Duration(milliseconds: 100),
-      );
+      manager = TransferManager(parallelism: 1, maxHistory: 10, taskTimeout: const Duration(milliseconds: 100));
 
       manager.enqueue(
         TransferTask(
@@ -454,11 +427,7 @@ void main() {
 
     test('activeEntries has queued entry after enqueue', () async {
       final blocker = Completer<void>();
-      manager = TransferManager(
-        parallelism: 1,
-        maxHistory: 10,
-        taskTimeout: Duration.zero,
-      );
+      manager = TransferManager(parallelism: 1, maxHistory: 10, taskTimeout: Duration.zero);
 
       // Block the single slot so the next task stays queued
       manager.enqueue(
@@ -539,11 +508,7 @@ void main() {
 
     test('activeEntries is empty after cancel of queued task', () async {
       final blocker = Completer<void>();
-      manager = TransferManager(
-        parallelism: 1,
-        maxHistory: 10,
-        taskTimeout: Duration.zero,
-      );
+      manager = TransferManager(parallelism: 1, maxHistory: 10, taskTimeout: Duration.zero);
 
       manager.enqueue(
         TransferTask(
@@ -599,11 +564,7 @@ void main() {
 
     test('finally block cleans up after cancel', () async {
       final started = Completer<void>();
-      manager = TransferManager(
-        parallelism: 1,
-        maxHistory: 10,
-        taskTimeout: Duration.zero,
-      );
+      manager = TransferManager(parallelism: 1, maxHistory: 10, taskTimeout: Duration.zero);
 
       // Enqueue a task that will be cancelled, and another in queue
       final id = manager.enqueue(
