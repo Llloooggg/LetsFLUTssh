@@ -1953,8 +1953,9 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
           label: 'Import',
           onTap: () {
             if (widget.pathCtrl.text.isEmpty ||
-                widget.passwordCtrl.text.isEmpty)
+                widget.passwordCtrl.text.isEmpty) {
               return;
+            }
             Navigator.pop(context, (
               path: widget.pathCtrl.text,
               password: widget.passwordCtrl.text,

@@ -61,8 +61,9 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     if (_ctrl != _ModifierState.off && data.length == 1) {
       result = SshKeySequences.ctrlKey(data);
     }
-    if (_ctrl == _ModifierState.once)
+    if (_ctrl == _ModifierState.once) {
       setState(() => _ctrl = _ModifierState.off);
+    }
     if (_alt == _ModifierState.once) setState(() => _alt = _ModifierState.off);
     return result;
   }

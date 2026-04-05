@@ -145,8 +145,9 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               }
             },
             onScaleUpdate: (details) {
-              if (_baseScaleFontSize == null || details.pointerCount < 2)
+              if (_baseScaleFontSize == null || details.pointerCount < 2) {
                 return;
+              }
               setState(() {
                 _fontSize = (_baseScaleFontSize! * details.scale).clamp(
                   8.0,

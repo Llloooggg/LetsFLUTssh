@@ -87,11 +87,12 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
         name: 'MobileFileBrowser',
         error: e,
       );
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = 'Failed to init SFTP: $e';
           _initializing = false;
         });
+      }
     }
   }
 
@@ -353,8 +354,9 @@ class _MobileFileListState extends State<MobileFileList> {
   Widget build(BuildContext context) {
     if (ctrl.loading) return const Center(child: CircularProgressIndicator());
     if (ctrl.error != null) return _buildError(context);
-    if (ctrl.entries.isEmpty)
+    if (ctrl.entries.isEmpty) {
       return const Center(child: Text('Empty directory'));
+    }
 
     return Column(
       children: [
