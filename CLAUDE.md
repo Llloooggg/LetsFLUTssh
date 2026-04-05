@@ -92,6 +92,8 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 - **Cross-platform verification** — Android change → also check iOS; Windows change → also check Linux + macOS. Verify all sibling platforms before committing → [§12 Platform-Specific](docs/ARCHITECTURE.md#12-platform-specific-behavior)
 - **Best practices by default** — always implement using best practices. If the user's request leads to a hacky or suboptimal solution, push back and propose a best-practice alternative. Explain why. Only implement a hacky approach if the user explicitly confirms after hearing the alternative
 - **Think systemically, not literally** — when given an instruction, consider its full scope and side effects. Don't blindly execute a narrow change — think about what else is affected (related code, docs, formatting, consistency). Apply the intent behind the request, not just the letter
+- **UI changes = test updates** — when modifying UI components (renaming labels, changing widget structure, removing suffixes), proactively update all tests that reference old widget names, labels, or finders. Do it in the same change, not as an afterthought
+- **Ask before guessing UI placement** — if a UI change has any ambiguity about exact placement, behavior, or layout rules (tab positions, split behavior, drag zones), ask the user once upfront. Do not guess and iterate through 3-4 cycles
 
 ### Branching & Release Flow
 
@@ -153,6 +155,31 @@ Plain SemVer: `MAJOR.MINOR.PATCH`. Bump: patch (bugfix/refactor), minor (feature
 | Failed build (re-trigger)   | `gh workflow run build-release.yml --ref v{VERSION}`                      |
 
 Manual release: `gh workflow run build-release.yml` — fails if CI hasn't passed on HEAD.
+
+### Skills & Hooks
+
+Custom skills and hooks live in `.claude/skills/` and `.claude/hooks/`. Skills are auto-loaded by Claude when context matches, and can also be invoked manually via `/command`.
+
+**Skills** (`.claude/skills/<name>/SKILL.md`):
+
+| Skill | What it does |
+|-------|-------------|
+| `/analyze` | Run `make analyze` — Dart analyzer |
+| `/test` | Run `make test` — test suite with coverage |
+| `/check` | Run `make check` — analyzer + tests sequentially |
+| `/commit` | Full commit workflow: version bump check, docs check, analyzer, commit per project rules |
+| `/pr` | Create PR dev → main: sync with main, create PR with `--auto` merge |
+| `/coverage` | Check SonarCloud coverage via API: overall, new code, per-file top worst |
+| `/fix-sonar` | Fetch SonarCloud issues and fix them by severity (accepts filter: `CRITICAL`, file path) |
+| `/fix-security` | Fetch GitHub security alerts (Dependabot, CodeQL, Semgrep, secrets) and fix them |
+| `/write-tests` | Fetch uncovered lines from SonarCloud and write missing tests (accepts: `new`, file path) |
+
+**Hooks** (`.claude/hooks/`):
+
+| Hook | Trigger | What it does |
+|------|---------|-------------|
+| `format-dart.sh` | PostToolUse on Edit/Write | Auto-runs `dart format` on .dart files after every edit |
+| `pre-commit-check.sh` | PreToolUse on `git commit *` | Runs `make check` (analyzer + tests), blocks commit on failure |
 
 ### Post-change checklist
 
