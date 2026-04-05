@@ -295,7 +295,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return HoverRegion(
       onTap: () => setState(() => _tabIndex = index),
       builder: (hovered) => Container(
-        height: 32,
+        height: AppTheme.controlHeightLg,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: !active && hovered ? AppTheme.hover : Colors.transparent,
@@ -413,7 +413,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return GestureDetector(
       onTap: () => setState(() => _authType = type),
       child: AppBorderedBox(
-        height: 30,
+        height: AppTheme.controlHeightMd,
         alignment: Alignment.center,
         color: active ? AppTheme.selection : AppTheme.bg3,
         borderColor: active ? AppTheme.accent : AppTheme.borderLight,
@@ -542,7 +542,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         ),
         child: _keyDragging
             ? SizedBox(
-                height: 48,
+                height: AppTheme.itemHeightLg,
                 child: Center(
                   child: Text('Drop key file here',
                       style: TextStyle(color: AppTheme.accent)),
@@ -784,7 +784,7 @@ class _StyledInput extends StatelessWidget {
                 child: suffixIcon,
               )
             : null,
-        suffixIconConstraints: const BoxConstraints(maxHeight: 30),
+        suffixIconConstraints: const BoxConstraints(maxHeight: AppTheme.controlHeightMd),
       ),
     );
   }

@@ -93,7 +93,7 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
         // F-keys row (expandable)
         if (_showFnKeys)
           Container(
-            height: 44,
+            height: AppTheme.barHeightLg,
             color: barColor,
             child: ListView(
               scrollDirection: Axis.horizontal,
@@ -109,7 +109,7 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
           ),
         // Main row
         Container(
-          height: 48,
+          height: AppTheme.itemHeightLg,
           color: barColor,
           padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Row(

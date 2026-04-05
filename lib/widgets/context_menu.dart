@@ -226,7 +226,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
       child: GestureDetector(
         onTap: () => _activate(index),
         child: Container(
-          height: 28,
+          height: AppTheme.controlHeightSm,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           color: isActive ? hoverBg : Colors.transparent,
           child: Row(

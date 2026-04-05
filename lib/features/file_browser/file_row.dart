@@ -109,7 +109,7 @@ class FileRow extends StatelessWidget {
       onDoubleTap: onDoubleTap,
       onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
       builder: (hovered) => Container(
-        height: 26,
+        height: AppTheme.controlHeightXs,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(

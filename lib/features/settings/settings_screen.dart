@@ -310,7 +310,7 @@ class _NavItemState extends State<_NavItem> {
           bg = Colors.transparent;
         }
         return Container(
-          height: 30,
+          height: AppTheme.controlHeightMd,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           color: bg,
           child: Row(
@@ -356,7 +356,7 @@ class _ResetButtonState extends State<_ResetButton> {
       child: HoverRegion(
         onTap: widget.onTap,
         builder: (hovered) => Container(
-          height: 28,
+          height: AppTheme.controlHeightSm,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           color: hovered ? AppTheme.hover : Colors.transparent,
           child: Row(
@@ -1039,7 +1039,7 @@ class _SettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 36),
+      constraints: const BoxConstraints(minHeight: AppTheme.barHeightSm),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
@@ -1146,7 +1146,7 @@ class _SegmentControl extends StatelessWidget {
     }
 
     return AppBorderedBox(
-      height: 26,
+      height: AppTheme.controlHeightXs,
       child: Row(mainAxisSize: MainAxisSize.min, children: children),
     );
   }
@@ -1259,7 +1259,7 @@ class _InputField extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      height: 26,
+      height: AppTheme.controlHeightXs,
       child: TextFormField(
         initialValue: initialValue,
         keyboardType: keyboardType,
@@ -1801,7 +1801,7 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
       child: GestureDetector(
         onTap: () => setState(() => widget.modeHolder.value = mode),
         child: Container(
-          height: 32,
+          height: AppTheme.controlHeightLg,
           decoration: BoxDecoration(
             color: selected ? AppTheme.accent : AppTheme.bg3,
             borderRadius: AppTheme.radiusSm,

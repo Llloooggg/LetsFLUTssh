@@ -1385,7 +1385,22 @@ abstract final class AppTheme {
   static Border get borderBottom;    // Border(bottom: borderSide)
 
   // Bar height scale
-  static const double barHeightSm;  // 34 px — all bars (toolbar, headers, footers, status bars)
+  static const double barHeightSm;  // 34 px — toolbars, headers, footers, status bars
+  static const double barHeightMd;  // 40 px — dialog title bars, mobile breadcrumbs
+  static const double barHeightLg;  // 44 px — mobile app bars, selection toolbars
+
+  // Control height scale
+  static const double controlHeightXs; // 26 px — compact buttons, file rows, settings items
+  static const double controlHeightSm; // 28 px — context menu items, search inputs
+  static const double controlHeightMd; // 30 px — input fields, auth-type selectors
+  static const double controlHeightLg; // 32 px — tab selectors, mode selectors
+  static const double controlHeightXl; // 38 px — dialog action buttons
+
+  // Item height scale
+  static const double itemHeightXs;  // 22 px — compact rows (path editors, transfer details)
+  static const double itemHeightSm;  // 24 px — small items (resize handles, transfer entries)
+  static const double itemHeightLg;  // 48 px — icon containers, mobile list items, drag targets
+  static const double itemHeightXl;  // 56 px — mobile bottom navigation bar
 
   // Border radius scale
   static const radiusSm;  // 4 px — inputs, buttons, small elements
@@ -1422,7 +1437,7 @@ Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/font
 
 **Rule:** Never use hardcoded `BorderRadius.circular(N)` or `BorderRadius.zero` — always use `AppTheme.radiusSm`, `radiusMd`, or `radiusLg`. Exception: pill-shaped elements (e.g. toggle tracks) that need full rounding.
 
-**Rule:** Never hardcode bar/toolbar heights — always use `AppTheme.barHeightSm` (34 px). All toolbars, panel headers, footers, status bars, and column headers use this single constant. Panels sit flush without borders; resizable dividers use `Stack` overlays (6 px invisible hit zone, 1 px visible line where needed).
+**Rule:** Never hardcode height numeric literals for UI elements — always use `AppTheme` height constants. Three scales are available: `barHeight{Sm,Md,Lg}` for toolbars/headers/bars, `controlHeight{Xs..Xl}` for buttons/inputs/selectors, `itemHeight{Xs..Xl}` for rows/containers/list items. Panels sit flush without borders; resizable dividers use `Stack` overlays (6 px invisible hit zone, 1 px visible line where needed).
 
 ---
 

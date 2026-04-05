@@ -89,14 +89,14 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 
   Widget _buildAppBar(BuildContext context, int tabCount) {
     return Container(
-      height: 44,
+      height: AppTheme.barHeightLg,
       color: AppTheme.bg1,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: AppTheme.controlHeightSm,
+            height: AppTheme.controlHeightSm,
             decoration: BoxDecoration(
               color: AppTheme.accent,
               borderRadius: AppTheme.radiusLg,
@@ -208,7 +208,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final termCount = _terminalTabCount(allTabs);
     final sftpCount = _sftpTabCount(allTabs);
     return Container(
-      height: 56,
+      height: AppTheme.itemHeightXl,
       color: AppTheme.bg1,
       child: Row(
         children: [
@@ -416,7 +416,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 32,
+      height: AppTheme.controlHeightLg,
       child: ListView.builder(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
@@ -446,11 +446,11 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
         }
       },
       child: SizedBox(
-        height: 32,
+        height: AppTheme.controlHeightLg,
         child: Stack(
           children: [
             Container(
-              height: 32,
+              height: AppTheme.controlHeightLg,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               color: isActive ? AppTheme.bg2 : Colors.transparent,
               child: Row(
@@ -535,8 +535,8 @@ class _MobileTerminalPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: AppTheme.itemHeightLg,
+              height: AppTheme.itemHeightLg,
               decoration: BoxDecoration(
                 color: AppTheme.bg3,
                 borderRadius: AppTheme.radiusLg,
@@ -612,8 +612,8 @@ class _MobileSftpPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: AppTheme.itemHeightLg,
+              height: AppTheme.itemHeightLg,
               decoration: BoxDecoration(
                 color: AppTheme.bg3,
                 borderRadius: AppTheme.radiusLg,
@@ -707,7 +707,7 @@ class _MobileCompanionButtonState extends State<_MobileCompanionButton> {
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: Container(
-        height: 26,
+        height: AppTheme.controlHeightXs,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: widget.color.withValues(alpha: alpha),

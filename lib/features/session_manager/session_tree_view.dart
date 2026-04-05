@@ -512,28 +512,23 @@ class _SessionTreeViewState extends State<SessionTreeView>
     final theme = Theme.of(context);
     final isSelected = widget.selectedFolderPaths.contains(node.fullPath);
 
-    return GestureDetector(
+    return HoverRegion(
+      onTap: () => _onFolderTap(node.fullPath, expanded),
       onSecondaryTapUp: (d) {
         widget.onFolderContextMenu?.call(node.fullPath, d.globalPosition);
       },
       onLongPressStart: _mobile
           ? (d) => widget.onFolderContextMenu?.call(node.fullPath, d.globalPosition)
           : null,
-      child: HoverRegion(
-        builder: (hovered) => InkWell(
-          onTap: () => _onFolderTap(node.fullPath, expanded),
-          hoverColor: Colors.transparent,
-          child: Container(
-            height: _rowHeight,
-            padding: EdgeInsets.only(
-              left: _mobile ? 8.0 : 12.0,
-              right: 8,
-            ),
-            decoration: _rowDecoration(isDropTarget, hovered, isSelected, theme),
-            child: Row(
-              children: _buildFolderRowChildren(node, depth, expanded, theme),
-            ),
-          ),
+      builder: (hovered) => Container(
+        height: _rowHeight,
+        padding: EdgeInsets.only(
+          left: _mobile ? 8.0 : 12.0,
+          right: 8,
+        ),
+        decoration: _rowDecoration(isDropTarget, hovered, isSelected, theme),
+        child: Row(
+          children: _buildFolderRowChildren(node, depth, expanded, theme),
         ),
       ),
     );
@@ -751,7 +746,8 @@ class _SessionTreeViewState extends State<SessionTreeView>
     final theme = Theme.of(context);
     final canInteract = !_mobile && !widget.selectMode;
 
-    final Widget content = GestureDetector(
+    final Widget content = HoverRegion(
+      onTap: () => _onSessionTap(session),
       onDoubleTap: canInteract ? () => widget.onSessionDoubleTap?.call(session) : null,
       onSecondaryTapUp: canInteract
           ? (details) => widget.onSessionContextMenu?.call(session, details.globalPosition)
@@ -759,18 +755,12 @@ class _SessionTreeViewState extends State<SessionTreeView>
       onLongPressStart: (_mobile && !widget.selectMode)
           ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
           : null,
-      child: HoverRegion(
-        builder: (hovered) => InkWell(
-          onTap: () => _onSessionTap(session),
-          hoverColor: Colors.transparent,
-          child: Container(
-            height: _rowHeight,
-            padding: const EdgeInsets.only(right: 8),
-            color: _sessionRowColor(isSelected || isChecked, hovered, theme),
-            child: Row(
-              children: _buildSessionRowChildren(node, session, depth, isChecked, theme),
-            ),
-          ),
+      builder: (hovered) => Container(
+        height: _rowHeight,
+        padding: const EdgeInsets.only(right: 8),
+        color: _sessionRowColor(isSelected || isChecked, hovered, theme),
+        child: Row(
+          children: _buildSessionRowChildren(node, session, depth, isChecked, theme),
         ),
       ),
     );
