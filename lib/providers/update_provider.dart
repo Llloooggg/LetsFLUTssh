@@ -24,7 +24,7 @@ class UpdateState {
   final UpdateInfo? info;
   final double progress;
   final String? downloadedPath;
-  final String? error;
+  final Object? error;
 
   const UpdateState({
     this.status = UpdateStatus.idle,
@@ -39,7 +39,7 @@ class UpdateState {
     UpdateInfo? info,
     double? progress,
     String? downloadedPath,
-    String? error,
+    Object? error,
   }) {
     return UpdateState(
       status: status ?? this.status,
@@ -131,10 +131,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
         name: 'UpdateProvider',
         error: e,
       );
-      state = state.copyWith(
-        status: UpdateStatus.error,
-        error: 'Download failed: $e',
-      );
+      state = state.copyWith(status: UpdateStatus.error, error: e);
     }
   }
 

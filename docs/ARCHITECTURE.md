@@ -133,7 +133,7 @@ lib/
 | `ssh_config.dart` | `SSHConfig` | Config model (host, port, user, password, keyPath, keyData, passphrase, keepAliveSec, timeoutSec) |
 | `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed |
 | `shell_helper.dart` | `openShellWithRetry()` | Shared SSH shell open logic with retry (for desktop and mobile) |
-| `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy |
+| `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy with structured fields (host, port, user) for localization |
 
 #### SSHConnection — lifecycle
 
@@ -407,7 +407,7 @@ class Connection {
   final String? sessionId;   // links back to saved Session (null for quick-connect)
   SSHConnection? sshConnection;
   SSHConnectionState state;  // disconnected | connecting | connected
-  String? connectionError;
+  Object? connectionError;
 
   Future<void> waitUntilReady();   // waits for connect attempt to finish (success or error)
   void completeReady();            // called by ConnectionManager
@@ -1326,7 +1326,8 @@ static Future<void> paste(Terminal terminal);
 String formatSize(int bytes);         // "1.5 MB"
 String formatTimestamp(DateTime dt);   // "2024-01-15 14:30"
 String formatDuration(Duration d);    // "2m 15s"
-String sanitizeError(Object error);   // strips OS-locale text, handles SSHError chain, 43 errno codes (POSIX + Winsock)
+String sanitizeError(Object error);   // strips OS-locale text, handles SSHError chain, 43 errno codes (POSIX + Winsock) — for logging only
+String localizeError(S l10n, Object error); // maps errno/SSHError to localized strings via S — for UI display
 ```
 
 ---
@@ -1682,7 +1683,7 @@ Connection {
   sessionId: String?      // links back to saved Session (null for quick-connect)
   sshConnection: SSHConnection?
   state: SSHConnectionState  // disconnected | connecting | connected
-  connectionError: String?
+  connectionError: Object?
   _readyCompleter: Completer // resolves after connect attempt
 }
 ```
@@ -1893,11 +1894,14 @@ Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 - Path traversal rejection (`../`)
 - Host/port sanitization
 
-### Error sanitization
+### Error sanitization & localization
 
-- `sanitizeError()` translates OS-locale error text to English using errno codes
-- Handles `SSHError` chain: preserves English `message`, sanitizes `cause` recursively
+- `sanitizeError()` translates OS-locale error text to English using errno codes — **for logging only**
+- `localizeError(S l10n, Object error)` maps errno codes, `SSHError` subtypes, and `TimeoutException` to localized strings via `S` — **for UI display**
+- Handles `SSHError` chain: preserves structured data (`host`, `port`, `user`), sanitizes `cause` recursively
 - 43 errno codes mapped (30 POSIX/Linux + 13 Windows Winsock)
+- `SSHError` subtypes carry structured fields: `AuthError(user, host)`, `ConnectError(host, port)`, `HostKeyError(host, port)`
+- `Connection.connectionError` stores raw `Object?` — localized at display time with `localizeError`
 - Unknown errno → original OS text preserved as-is
 - Applied in: `ConnectionManager`, `TerminalTab.reconnect()`, `TransferManager` (+ path stripping)
 

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_models.dart';
-import '../../utils/format.dart';
 import '../../utils/logger.dart';
 
 /// Sort column options for file table.
@@ -19,7 +18,7 @@ class FilePaneController extends ChangeNotifier {
   List<FileEntry> _entries = [];
   Set<String> _selected = {};
   bool _loading = false;
-  String? _error;
+  Object? _error;
   SortColumn _sortColumn = SortColumn.name;
   bool _sortAscending = true;
 
@@ -43,7 +42,7 @@ class FilePaneController extends ChangeNotifier {
   List<FileEntry> get entries => List.unmodifiable(_entries);
   Set<String> get selected => _selected;
   bool get loading => _loading;
-  String? get error => _error;
+  Object? get error => _error;
   SortColumn get sortColumn => _sortColumn;
   bool get sortAscending => _sortAscending;
   bool get canGoBack => _backStack.isNotEmpty;
@@ -153,7 +152,7 @@ class FilePaneController extends ChangeNotifier {
         name: 'FilePane',
         error: e,
       );
-      _error = sanitizeError(e);
+      _error = e;
       _entries = [];
       _invalidateCaches();
     } finally {

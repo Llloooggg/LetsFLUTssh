@@ -45,15 +45,24 @@ class SSHError implements Exception {
 
 /// Authentication failure (wrong password, bad key, etc.)
 class AuthError extends SSHError {
-  const AuthError(super.message, [super.cause]);
+  final String? user;
+  final String? host;
+
+  const AuthError(super.message, [super.cause, this.user, this.host]);
 }
 
 /// Connection failure (timeout, host unreachable, etc.)
 class ConnectError extends SSHError {
-  const ConnectError(super.message, [super.cause]);
+  final String? host;
+  final int? port;
+
+  const ConnectError(super.message, [super.cause, this.host, this.port]);
 }
 
 /// Host key verification failure (MITM or changed key).
 class HostKeyError extends SSHError {
-  const HostKeyError(super.message, [super.cause]);
+  final String? host;
+  final int? port;
+
+  const HostKeyError(super.message, [super.cause, this.host, this.port]);
 }

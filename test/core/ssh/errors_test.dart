@@ -42,6 +42,18 @@ void main() {
       expect(error.cause, isA<FormatException>());
       expect(error.toString(), contains('caused by:'));
     });
+
+    test('stores user and host', () {
+      const error = AuthError('auth failed', null, 'root', 'example.com');
+      expect(error.user, 'root');
+      expect(error.host, 'example.com');
+    });
+
+    test('user and host default to null', () {
+      const error = AuthError('auth failed');
+      expect(error.user, isNull);
+      expect(error.host, isNull);
+    });
   });
 
   group('ConnectError', () {
@@ -54,14 +66,29 @@ void main() {
       const error = ConnectError('timeout');
       expect(error, isA<SSHError>());
     });
+
+    test('stores host and port', () {
+      const error = ConnectError('failed', null, 'example.com', 22);
+      expect(error.host, 'example.com');
+      expect(error.port, 22);
+    });
+
+    test('host and port default to null', () {
+      const error = ConnectError('failed');
+      expect(error.host, isNull);
+      expect(error.port, isNull);
+    });
   });
 
   group('SSHError — userMessage edge cases', () {
-    test('userMessage returns just message when cause message equals message', () {
-      // cause.toString() after stripping prefix == message → return message only
-      final error = SSHError('timeout', Exception('timeout'));
-      expect(error.userMessage, 'timeout');
-    });
+    test(
+      'userMessage returns just message when cause message equals message',
+      () {
+        // cause.toString() after stripping prefix == message → return message only
+        final error = SSHError('timeout', Exception('timeout'));
+        expect(error.userMessage, 'timeout');
+      },
+    );
 
     test('userMessage with nested SSHError cause', () {
       const inner = AuthError('bad key');
@@ -79,6 +106,18 @@ void main() {
     test('extends SSHError', () {
       const error = HostKeyError('changed');
       expect(error, isA<SSHError>());
+    });
+
+    test('stores host and port', () {
+      const error = HostKeyError('rejected', null, 'example.com', 22);
+      expect(error.host, 'example.com');
+      expect(error.port, 22);
+    });
+
+    test('host and port default to null', () {
+      const error = HostKeyError('rejected');
+      expect(error.host, isNull);
+      expect(error.port, isNull);
     });
   });
 }

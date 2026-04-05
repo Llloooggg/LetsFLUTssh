@@ -830,4 +830,182 @@ class SFr extends S {
 
   @override
   String get failed => 'Échoué';
+
+  @override
+  String get errOperationNotPermitted => 'Opération non autorisée';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'Fichier ou répertoire introuvable';
+
+  @override
+  String get errNoSuchProcess => 'Aucun processus correspondant';
+
+  @override
+  String get errIoError => 'Erreur d\'E/S';
+
+  @override
+  String get errBadFileDescriptor => 'Descripteur de fichier invalide';
+
+  @override
+  String get errResourceTemporarilyUnavailable =>
+      'Ressource temporairement indisponible';
+
+  @override
+  String get errOutOfMemory => 'Mémoire insuffisante';
+
+  @override
+  String get errPermissionDenied => 'Autorisation refusée';
+
+  @override
+  String get errFileExists => 'Le fichier existe déjà';
+
+  @override
+  String get errNotADirectory => 'N\'est pas un répertoire';
+
+  @override
+  String get errIsADirectory => 'Est un répertoire';
+
+  @override
+  String get errInvalidArgument => 'Argument invalide';
+
+  @override
+  String get errTooManyOpenFiles => 'Trop de fichiers ouverts';
+
+  @override
+  String get errNoSpaceLeftOnDevice =>
+      'Plus d\'espace disponible sur l\'appareil';
+
+  @override
+  String get errReadOnlyFileSystem => 'Système de fichiers en lecture seule';
+
+  @override
+  String get errBrokenPipe => 'Tube cassé';
+
+  @override
+  String get errFileNameTooLong => 'Nom de fichier trop long';
+
+  @override
+  String get errDirectoryNotEmpty => 'Le répertoire n\'est pas vide';
+
+  @override
+  String get errAddressAlreadyInUse => 'Adresse déjà utilisée';
+
+  @override
+  String get errCannotAssignAddress =>
+      'Impossible d\'attribuer l\'adresse demandée';
+
+  @override
+  String get errNetworkIsDown => 'Réseau hors service';
+
+  @override
+  String get errNetworkIsUnreachable => 'Réseau injoignable';
+
+  @override
+  String get errConnectionResetByPeer => 'Connexion réinitialisée par le pair';
+
+  @override
+  String get errConnectionTimedOut => 'Délai de connexion dépassé';
+
+  @override
+  String get errConnectionRefused => 'Connexion refusée';
+
+  @override
+  String get errHostIsDown => 'L\'hôte est hors service';
+
+  @override
+  String get errNoRouteToHost => 'Aucune route vers l\'hôte';
+
+  @override
+  String get errConnectionAborted => 'Connexion interrompue';
+
+  @override
+  String get errAlreadyConnected => 'Déjà connecté';
+
+  @override
+  String get errNotConnected => 'Non connecté';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return 'Échec de la connexion à $host:$port';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return 'Échec de l\'authentification pour $user@$host';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return 'Échec de la connexion à $host:$port';
+  }
+
+  @override
+  String get errSshAuthAborted => 'Authentification annulée';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return 'Clé de l\'hôte rejetée pour $host:$port — acceptez la clé de l\'hôte ou vérifiez known_hosts';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'Impossible d\'ouvrir le shell';
+
+  @override
+  String get errSshLoadKeyFileFailed =>
+      'Impossible de charger le fichier de clé SSH';
+
+  @override
+  String get errSshParseKeyFailed =>
+      'Impossible d\'analyser les données de clé PEM';
+
+  @override
+  String get errSshConnectionDisposed => 'Connexion terminée';
+
+  @override
+  String get errSshNotConnected => 'Non connecté';
+
+  @override
+  String get errConnectionFailed => 'Échec de la connexion';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return 'Délai de connexion dépassé après $seconds secondes';
+  }
+
+  @override
+  String get errSessionClosed => 'Session fermée';
+
+  @override
+  String errShellError(String error) {
+    return 'Erreur du shell : $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'Échec de la reconnexion : $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'Échec de l\'initialisation SFTP : $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'Échec du téléchargement : $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'Impossible de déchiffrer les identifiants. Le fichier de clé est peut-être corrompu.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error : $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

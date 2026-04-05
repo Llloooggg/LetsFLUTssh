@@ -146,9 +146,14 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
         name: 'TerminalTab',
         error: e,
       );
-      setState(
-        () => _connectionError = 'Reconnect failed: ${sanitizeError(e)}',
-      );
+      if (mounted) {
+        final l10n = S.of(context);
+        setState(
+          () => _connectionError = l10n.errReconnectFailed(
+            localizeError(l10n, e),
+          ),
+        );
+      }
       return;
     }
 

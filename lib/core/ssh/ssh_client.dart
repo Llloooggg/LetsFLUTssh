@@ -83,7 +83,14 @@ class SSHConnection {
 
   /// Connect to SSH server with auth chain.
   Future<void> connect() async {
-    if (_disposed) throw const ConnectError('Connection disposed');
+    if (_disposed) {
+      throw ConnectError(
+        'Connection disposed',
+        null,
+        config.host,
+        config.effectivePort,
+      );
+    }
 
     final SSHSocket socket;
     try {
@@ -96,6 +103,8 @@ class SSHConnection {
       throw ConnectError(
         'Failed to connect to ${config.host}:${config.effectivePort}',
         e,
+        config.host,
+        config.effectivePort,
       );
     }
 
@@ -118,17 +127,21 @@ class SSHConnection {
       throw AuthError(
         'Authentication failed for ${config.user}@${config.host}',
         e,
+        config.user,
+        config.host,
       );
     } on SSHAuthAbortError catch (e) {
       _cleanup();
       if (_hostKeyRejected) throw _hostKeyError(e);
-      throw AuthError('Authentication aborted', e);
+      throw AuthError('Authentication aborted', e, config.user, config.host);
     } catch (e) {
       _cleanup();
       if (_hostKeyRejected) throw _hostKeyError(e);
       throw ConnectError(
         'Connection failed to ${config.host}:${config.effectivePort}',
         e,
+        config.host,
+        config.effectivePort,
       );
     }
 
@@ -144,7 +157,14 @@ class SSHConnection {
 
   /// Open PTY shell session.
   Future<SSHSession> openShell(int cols, int rows) async {
-    if (_client == null) throw const ConnectError('Not connected');
+    if (_client == null) {
+      throw ConnectError(
+        'Not connected',
+        null,
+        config.host,
+        config.effectivePort,
+      );
+    }
 
     try {
       _shell = await _client!.shell(
@@ -152,7 +172,12 @@ class SSHConnection {
       );
       return _shell!;
     } catch (e) {
-      throw ConnectError('Failed to open shell', e);
+      throw ConnectError(
+        'Failed to open shell',
+        e,
+        config.host,
+        config.effectivePort,
+      );
     }
   }
 
@@ -203,7 +228,12 @@ class SSHConnection {
       identities.addAll(SSHKeyPair.fromPem(keyData, passphrase));
     } catch (e) {
       AppLogger.instance.log('Failed to load key file: $e', name: 'SSH');
-      throw AuthError('Failed to load SSH key file', e);
+      throw AuthError(
+        'Failed to load SSH key file',
+        e,
+        config.user,
+        config.host,
+      );
     }
   }
 
@@ -214,7 +244,12 @@ class SSHConnection {
     try {
       identities.addAll(SSHKeyPair.fromPem(config.keyData, passphrase));
     } catch (e) {
-      throw AuthError('Failed to parse PEM key data', e);
+      throw AuthError(
+        'Failed to parse PEM key data',
+        e,
+        config.user,
+        config.host,
+      );
     }
   }
 
@@ -222,6 +257,8 @@ class SSHConnection {
     'Host key rejected for ${config.host}:${config.effectivePort} — '
     'accept the host key or check known_hosts',
     cause,
+    config.host,
+    config.effectivePort,
   );
 
   // Host key verification callback for dartssh2.

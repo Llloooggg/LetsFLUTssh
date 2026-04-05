@@ -826,4 +826,179 @@ class SRu extends S {
 
   @override
   String get failed => 'Ошибка';
+
+  @override
+  String get errOperationNotPermitted => 'Операция не разрешена';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'Нет такого файла или каталога';
+
+  @override
+  String get errNoSuchProcess => 'Нет такого процесса';
+
+  @override
+  String get errIoError => 'Ошибка ввода-вывода';
+
+  @override
+  String get errBadFileDescriptor => 'Неверный файловый дескриптор';
+
+  @override
+  String get errResourceTemporarilyUnavailable => 'Ресурс временно недоступен';
+
+  @override
+  String get errOutOfMemory => 'Недостаточно памяти';
+
+  @override
+  String get errPermissionDenied => 'Доступ запрещён';
+
+  @override
+  String get errFileExists => 'Файл уже существует';
+
+  @override
+  String get errNotADirectory => 'Не является каталогом';
+
+  @override
+  String get errIsADirectory => 'Является каталогом';
+
+  @override
+  String get errInvalidArgument => 'Недопустимый аргумент';
+
+  @override
+  String get errTooManyOpenFiles => 'Слишком много открытых файлов';
+
+  @override
+  String get errNoSpaceLeftOnDevice =>
+      'На устройстве не осталось свободного места';
+
+  @override
+  String get errReadOnlyFileSystem => 'Файловая система только для чтения';
+
+  @override
+  String get errBrokenPipe => 'Разрыв канала';
+
+  @override
+  String get errFileNameTooLong => 'Имя файла слишком длинное';
+
+  @override
+  String get errDirectoryNotEmpty => 'Каталог не пуст';
+
+  @override
+  String get errAddressAlreadyInUse => 'Адрес уже используется';
+
+  @override
+  String get errCannotAssignAddress => 'Невозможно назначить запрошенный адрес';
+
+  @override
+  String get errNetworkIsDown => 'Сеть недоступна';
+
+  @override
+  String get errNetworkIsUnreachable => 'Сеть недостижима';
+
+  @override
+  String get errConnectionResetByPeer =>
+      'Соединение сброшено удалённой стороной';
+
+  @override
+  String get errConnectionTimedOut => 'Время ожидания соединения истекло';
+
+  @override
+  String get errConnectionRefused => 'Соединение отклонено';
+
+  @override
+  String get errHostIsDown => 'Хост недоступен';
+
+  @override
+  String get errNoRouteToHost => 'Нет маршрута до хоста';
+
+  @override
+  String get errConnectionAborted => 'Соединение прервано';
+
+  @override
+  String get errAlreadyConnected => 'Уже подключено';
+
+  @override
+  String get errNotConnected => 'Не подключено';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return 'Не удалось подключиться к $host:$port';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return 'Ошибка аутентификации для $user@$host';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return 'Ошибка подключения к $host:$port';
+  }
+
+  @override
+  String get errSshAuthAborted => 'Аутентификация прервана';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return 'Ключ хоста отклонён для $host:$port — примите ключ хоста или проверьте known_hosts';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'Не удалось открыть оболочку';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'Не удалось загрузить файл SSH-ключа';
+
+  @override
+  String get errSshParseKeyFailed => 'Не удалось разобрать данные PEM-ключа';
+
+  @override
+  String get errSshConnectionDisposed => 'Соединение завершено';
+
+  @override
+  String get errSshNotConnected => 'Не подключено';
+
+  @override
+  String get errConnectionFailed => 'Ошибка подключения';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return 'Время ожидания подключения истекло через $seconds секунд';
+  }
+
+  @override
+  String get errSessionClosed => 'Сессия закрыта';
+
+  @override
+  String errShellError(String error) {
+    return 'Ошибка оболочки: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'Ошибка повторного подключения: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'Не удалось инициализировать SFTP: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'Ошибка загрузки: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

@@ -1610,6 +1610,306 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Failed'**
   String get failed;
+
+  /// No description provided for @errOperationNotPermitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation not permitted'**
+  String get errOperationNotPermitted;
+
+  /// No description provided for @errNoSuchFileOrDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'No such file or directory'**
+  String get errNoSuchFileOrDirectory;
+
+  /// No description provided for @errNoSuchProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'No such process'**
+  String get errNoSuchProcess;
+
+  /// No description provided for @errIoError.
+  ///
+  /// In en, this message translates to:
+  /// **'I/O error'**
+  String get errIoError;
+
+  /// No description provided for @errBadFileDescriptor.
+  ///
+  /// In en, this message translates to:
+  /// **'Bad file descriptor'**
+  String get errBadFileDescriptor;
+
+  /// No description provided for @errResourceTemporarilyUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Resource temporarily unavailable'**
+  String get errResourceTemporarilyUnavailable;
+
+  /// No description provided for @errOutOfMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of memory'**
+  String get errOutOfMemory;
+
+  /// No description provided for @errPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission denied'**
+  String get errPermissionDenied;
+
+  /// No description provided for @errFileExists.
+  ///
+  /// In en, this message translates to:
+  /// **'File exists'**
+  String get errFileExists;
+
+  /// No description provided for @errNotADirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a directory'**
+  String get errNotADirectory;
+
+  /// No description provided for @errIsADirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Is a directory'**
+  String get errIsADirectory;
+
+  /// No description provided for @errInvalidArgument.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid argument'**
+  String get errInvalidArgument;
+
+  /// No description provided for @errTooManyOpenFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many open files'**
+  String get errTooManyOpenFiles;
+
+  /// No description provided for @errNoSpaceLeftOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'No space left on device'**
+  String get errNoSpaceLeftOnDevice;
+
+  /// No description provided for @errReadOnlyFileSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only file system'**
+  String get errReadOnlyFileSystem;
+
+  /// No description provided for @errBrokenPipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Broken pipe'**
+  String get errBrokenPipe;
+
+  /// No description provided for @errFileNameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'File name too long'**
+  String get errFileNameTooLong;
+
+  /// No description provided for @errDirectoryNotEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Directory not empty'**
+  String get errDirectoryNotEmpty;
+
+  /// No description provided for @errAddressAlreadyInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Address already in use'**
+  String get errAddressAlreadyInUse;
+
+  /// No description provided for @errCannotAssignAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot assign requested address'**
+  String get errCannotAssignAddress;
+
+  /// No description provided for @errNetworkIsDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Network is down'**
+  String get errNetworkIsDown;
+
+  /// No description provided for @errNetworkIsUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Network is unreachable'**
+  String get errNetworkIsUnreachable;
+
+  /// No description provided for @errConnectionResetByPeer.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection reset by peer'**
+  String get errConnectionResetByPeer;
+
+  /// No description provided for @errConnectionTimedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timed out'**
+  String get errConnectionTimedOut;
+
+  /// No description provided for @errConnectionRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection refused'**
+  String get errConnectionRefused;
+
+  /// No description provided for @errHostIsDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Host is down'**
+  String get errHostIsDown;
+
+  /// No description provided for @errNoRouteToHost.
+  ///
+  /// In en, this message translates to:
+  /// **'No route to host'**
+  String get errNoRouteToHost;
+
+  /// No description provided for @errConnectionAborted.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection aborted'**
+  String get errConnectionAborted;
+
+  /// No description provided for @errAlreadyConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Already connected'**
+  String get errAlreadyConnected;
+
+  /// No description provided for @errNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get errNotConnected;
+
+  /// No description provided for @errSshConnectFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to connect to {host}:{port}'**
+  String errSshConnectFailed(String host, int port);
+
+  /// No description provided for @errSshAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed for {user}@{host}'**
+  String errSshAuthFailed(String user, String host);
+
+  /// No description provided for @errSshConnectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed to {host}:{port}'**
+  String errSshConnectionFailed(String host, int port);
+
+  /// No description provided for @errSshAuthAborted.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication aborted'**
+  String get errSshAuthAborted;
+
+  /// No description provided for @errSshHostKeyRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Host key rejected for {host}:{port} — accept the host key or check known_hosts'**
+  String errSshHostKeyRejected(String host, int port);
+
+  /// No description provided for @errSshOpenShellFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open shell'**
+  String get errSshOpenShellFailed;
+
+  /// No description provided for @errSshLoadKeyFileFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load SSH key file'**
+  String get errSshLoadKeyFileFailed;
+
+  /// No description provided for @errSshParseKeyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse PEM key data'**
+  String get errSshParseKeyFailed;
+
+  /// No description provided for @errSshConnectionDisposed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection disposed'**
+  String get errSshConnectionDisposed;
+
+  /// No description provided for @errSshNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get errSshNotConnected;
+
+  /// No description provided for @errConnectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed'**
+  String get errConnectionFailed;
+
+  /// No description provided for @errConnectionTimedOutSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timed out after {seconds} seconds'**
+  String errConnectionTimedOutSeconds(int seconds);
+
+  /// No description provided for @errSessionClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Session closed'**
+  String get errSessionClosed;
+
+  /// No description provided for @errShellError.
+  ///
+  /// In en, this message translates to:
+  /// **'Shell error: {error}'**
+  String errShellError(String error);
+
+  /// No description provided for @errReconnectFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect failed: {error}'**
+  String errReconnectFailed(String error);
+
+  /// No description provided for @errSftpInitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to initialize SFTP: {error}'**
+  String errSftpInitFailed(String error);
+
+  /// No description provided for @errDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed: {error}'**
+  String errDownloadFailed(String error);
+
+  /// No description provided for @errDecryptionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to decrypt credentials. Key file may be corrupted.'**
+  String get errDecryptionFailed;
+
+  /// No description provided for @errWithPath.
+  ///
+  /// In en, this message translates to:
+  /// **'{error}: {path}'**
+  String errWithPath(String error, String path);
+
+  /// No description provided for @errWithCause.
+  ///
+  /// In en, this message translates to:
+  /// **'{error} ({cause})'**
+  String errWithCause(String error, String cause);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
