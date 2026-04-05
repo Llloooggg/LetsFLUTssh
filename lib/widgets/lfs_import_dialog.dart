@@ -19,7 +19,10 @@ class LfsImportDialog extends StatefulWidget {
   const LfsImportDialog({super.key, required this.filePath});
 
   /// Show the dialog and return the result.
-  static Future<LfsImportDialogResult?> show(BuildContext context, {required String filePath}) {
+  static Future<LfsImportDialogResult?> show(
+    BuildContext context, {
+    required String filePath,
+  }) {
     return AppDialog.show<LfsImportDialogResult>(
       context,
       builder: (_) => LfsImportDialog(filePath: filePath),
@@ -68,7 +71,10 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
               filled: true,
               fillColor: AppTheme.bg3,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.borderLight),
@@ -133,7 +139,11 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: selected ? AppTheme.onAccent : AppTheme.fgDim),
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? AppTheme.onAccent : AppTheme.fgDim,
+              ),
               const SizedBox(width: 6),
               Text(
                 label,

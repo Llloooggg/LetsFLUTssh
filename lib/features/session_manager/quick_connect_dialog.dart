@@ -55,10 +55,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    final keyPath = _keyPathCtrl.text.trim().replaceFirst(
-      '~',
-      homeDirectory,
-    );
+    final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
 
     final config = SSHConfig(
       server: ServerAddress(
@@ -141,43 +138,58 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                     Row(
                       children: [
                         Expanded(
-                          child: _field('Host *', _hostCtrl,
-                              hint: '192.168.1.1', validator: _requiredValidator),
+                          child: _field(
+                            'Host *',
+                            _hostCtrl,
+                            hint: '192.168.1.1',
+                            validator: _requiredValidator,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         SizedBox(
                           width: 80,
-                          child: _field('Port', _portCtrl,
-                              hint: '22',
-                              keyboardType: TextInputType.number,
-                              validator: (v) {
-                                final port = int.tryParse(v ?? '');
-                                if (port == null || port < 1 || port > 65535) {
-                                  return '1-65535';
-                                }
-                                return null;
-                              }),
+                          child: _field(
+                            'Port',
+                            _portCtrl,
+                            hint: '22',
+                            keyboardType: TextInputType.number,
+                            validator: (v) {
+                              final port = int.tryParse(v ?? '');
+                              if (port == null || port < 1 || port > 65535) {
+                                return '1-65535';
+                              }
+                              return null;
+                            },
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _field('Username *', _userCtrl,
-                        hint: 'root', validator: _requiredValidator),
+                    _field(
+                      'Username *',
+                      _userCtrl,
+                      hint: 'root',
+                      validator: _requiredValidator,
+                    ),
                     const SizedBox(height: 12),
-                    _field('Password', _passwordCtrl,
-                        hint: '••••••••',
-                        obscure: _obscurePassword,
-                        suffixIcon: GestureDetector(
-                          onTap: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                          child: Icon(
-                            _obscurePassword
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            size: 12,
-                            color: AppTheme.fgFaint,
-                          ),
-                        )),
+                    _field(
+                      'Password',
+                      _passwordCtrl,
+                      hint: '••••••••',
+                      obscure: _obscurePassword,
+                      suffixIcon: GestureDetector(
+                        onTap: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                        child: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          size: 12,
+                          color: AppTheme.fgFaint,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     _buildKeyFileButton(),
                     const SizedBox(height: 8),
@@ -192,24 +204,30 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                         ),
                         maxLines: 5,
                         style: TextStyle(
-                            fontFamily: 'monospace', fontSize: AppFonts.sm),
+                          fontFamily: 'monospace',
+                          fontSize: AppFonts.sm,
+                        ),
                       ),
                       const SizedBox(height: 12),
                     ],
-                    _field('Key Passphrase', _passphraseCtrl,
-                        hint: 'Optional',
-                        obscure: _obscurePassphrase,
-                        suffixIcon: GestureDetector(
-                          onTap: () => setState(
-                              () => _obscurePassphrase = !_obscurePassphrase),
-                          child: Icon(
-                            _obscurePassphrase
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            size: 12,
-                            color: AppTheme.fgFaint,
-                          ),
-                        )),
+                    _field(
+                      'Key Passphrase',
+                      _passphraseCtrl,
+                      hint: 'Optional',
+                      obscure: _obscurePassphrase,
+                      suffixIcon: GestureDetector(
+                        onTap: () => setState(
+                          () => _obscurePassphrase = !_obscurePassphrase,
+                        ),
+                        child: Icon(
+                          _obscurePassphrase
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          size: 12,
+                          color: AppTheme.fgFaint,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -303,9 +321,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
       child: TextButton.icon(
         onPressed: () => setState(() => _showKeyText = !_showKeyText),
         icon: Icon(
-          _showKeyText
-              ? Icons.keyboard_arrow_up
-              : Icons.keyboard_arrow_down,
+          _showKeyText ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
           size: 16,
         ),
         label: Text(
@@ -365,8 +381,10 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
               ),
               filled: true,
               fillColor: AppTheme.bg3,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 0,
+              ),
               border: OutlineInputBorder(
                 borderRadius: AppTheme.radiusSm,
                 borderSide: BorderSide(color: AppTheme.borderLight),
@@ -389,7 +407,9 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       child: suffixIcon,
                     )
                   : null,
-              suffixIconConstraints: const BoxConstraints(maxHeight: AppTheme.controlHeightMd),
+              suffixIconConstraints: const BoxConstraints(
+                maxHeight: AppTheme.controlHeightMd,
+              ),
             ),
           ),
         ),

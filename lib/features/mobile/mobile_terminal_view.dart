@@ -21,10 +21,7 @@ import 'ssh_keyboard_bar.dart';
 class MobileTerminalView extends ConsumerStatefulWidget {
   final Connection connection;
 
-  const MobileTerminalView({
-    super.key,
-    required this.connection,
-  });
+  const MobileTerminalView({super.key, required this.connection});
 
   @override
   ConsumerState<MobileTerminalView> createState() => _MobileTerminalViewState();
@@ -88,13 +85,18 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       // Override terminal.onOutput to apply keyboard bar modifiers
       // (Ctrl/Alt) to system keyboard input before sending to shell.
       _terminal.onOutput = (data) {
-        final transformed = _keyboardKey.currentState?.applyModifiers(data) ?? data;
+        final transformed =
+            _keyboardKey.currentState?.applyModifiers(data) ?? data;
         _shellConn?.shell.write(Uint8List.fromList(transformed.codeUnits));
       };
 
       if (mounted) setState(() => _connected = true);
     } catch (e) {
-      AppLogger.instance.log('Shell open failed: $e', name: 'MobileTerminal', error: e);
+      AppLogger.instance.log(
+        'Shell open failed: $e',
+        name: 'MobileTerminal',
+        error: e,
+      );
       if (mounted) setState(() => _error = sanitizeError(e));
     }
   }
@@ -143,20 +145,26 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               }
             },
             onScaleUpdate: (details) {
-              if (_baseScaleFontSize == null || details.pointerCount < 2) return;
+              if (_baseScaleFontSize == null || details.pointerCount < 2)
+                return;
               setState(() {
-                _fontSize = (_baseScaleFontSize! * details.scale).clamp(8.0, 24.0);
+                _fontSize = (_baseScaleFontSize! * details.scale).clamp(
+                  8.0,
+                  24.0,
+                );
               });
             },
             onScaleEnd: (_) {
               if (_baseScaleFontSize == null) return;
               _baseScaleFontSize = null;
               // Persist pinch-zoomed font size to config
-              ref.read(configProvider.notifier).update(
-                (c) => c.copyWith(
-                  terminal: c.terminal.copyWith(fontSize: _fontSize),
-                ),
-              );
+              ref
+                  .read(configProvider.notifier)
+                  .update(
+                    (c) => c.copyWith(
+                      terminal: c.terminal.copyWith(fontSize: _fontSize),
+                    ),
+                  );
             },
             child: Stack(
               children: [
@@ -233,11 +241,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
             onTap: _copySelection,
           ),
           const SizedBox(width: 16),
-          _ToolbarButton(
-            icon: Icons.paste,
-            label: 'Paste',
-            onTap: _paste,
-          ),
+          _ToolbarButton(icon: Icons.paste, label: 'Paste', onTap: _paste),
         ],
       ),
     );
@@ -248,9 +252,17 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
+          const Icon(
+            Icons.error_outline,
+            size: 48,
+            color: AppTheme.disconnected,
+          ),
           const SizedBox(height: 16),
-          Text(_error!, style: const TextStyle(color: AppTheme.disconnected), textAlign: TextAlign.center),
+          Text(
+            _error!,
+            style: const TextStyle(color: AppTheme.disconnected),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );

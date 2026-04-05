@@ -44,7 +44,8 @@ class SessionAuth extends SshAuth {
           passphrase == other.passphrase;
 
   @override
-  int get hashCode => Object.hash(authType, password, keyPath, keyData, passphrase);
+  int get hashCode =>
+      Object.hash(authType, password, keyPath, keyData, passphrase);
 }
 
 /// SSH session model — stored as JSON, credentials in encrypted storage.
@@ -70,9 +71,9 @@ class Session {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.incomplete = false,
-  })  : id = id ?? const Uuid().v4(),
-        createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : id = id ?? const Uuid().v4(),
+       createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   // --- Convenience accessors (keep call sites short) ---
   String get host => server.host;
@@ -215,9 +216,11 @@ class Session {
         keyData: json['key_data'] as String? ?? '',
         passphrase: json['passphrase'] as String? ?? '',
       ),
-      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
+      createdAt:
+          DateTime.tryParse(json['created_at'] as String? ?? '') ??
           DateTime.now(),
-      updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ??
+      updatedAt:
+          DateTime.tryParse(json['updated_at'] as String? ?? '') ??
           DateTime.now(),
       incomplete: json['incomplete'] as bool? ?? false,
     );

@@ -42,23 +42,28 @@ class ExportImport {
     final archive = Archive();
 
     // Sessions with credentials
-    final sessionsJson = const JsonEncoder.withIndent('  ').convert(
-      sessions.map((s) => s.toJsonWithCredentials()).toList(),
+    final sessionsJson = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(sessions.map((s) => s.toJsonWithCredentials()).toList());
+    archive.addFile(
+      ArchiveFile(
+        _sessionsFile,
+        utf8.encode(sessionsJson).length,
+        utf8.encode(sessionsJson),
+      ),
     );
-    archive.addFile(ArchiveFile(
-      _sessionsFile,
-      utf8.encode(sessionsJson).length,
-      utf8.encode(sessionsJson),
-    ));
 
     // Config
-    final configJson =
-        const JsonEncoder.withIndent('  ').convert(config.toJson());
-    archive.addFile(ArchiveFile(
-      _configFile,
-      utf8.encode(configJson).length,
-      utf8.encode(configJson),
-    ));
+    final configJson = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(config.toJson());
+    archive.addFile(
+      ArchiveFile(
+        _configFile,
+        utf8.encode(configJson).length,
+        utf8.encode(configJson),
+      ),
+    );
 
     // Known hosts (if exists)
     final dir = await getApplicationSupportDirectory();
@@ -85,7 +90,8 @@ class ExportImport {
   }
 
   /// Decrypt an .lfs file and parse the archive + sessions.
-  static Future<({Archive archive, List<Session> sessions})> _decryptAndParseArchive({
+  static Future<({Archive archive, List<Session> sessions})>
+  _decryptAndParseArchive({
     required String filePath,
     required String masterPassword,
   }) async {
@@ -154,8 +160,7 @@ class ExportImport {
       final configFile = archive.findFile(_configFile);
       if (configFile != null) {
         final json = utf8.decode(configFile.content as List<int>);
-        config = AppConfig.fromJson(
-            jsonDecode(json) as Map<String, dynamic>);
+        config = AppConfig.fromJson(jsonDecode(json) as Map<String, dynamic>);
       }
     }
 
@@ -175,11 +180,7 @@ class ExportImport {
       await khFile.writeAsBytes(knownHostsData);
     }
 
-    return ImportResult(
-      sessions: sessions,
-      config: config,
-      mode: mode,
-    );
+    return ImportResult(sessions: sessions, config: config, mode: mode);
   }
 
   // --- Crypto helpers ---
@@ -188,18 +189,17 @@ class ExportImport {
   /// Format: [salt (32)] [iv (12)] [ciphertext + GCM tag]
   static Uint8List _encryptWithPassword(Uint8List data, String password) {
     final random = Random.secure();
-    final salt =
-        Uint8List.fromList(List.generate(_saltLen, (_) => random.nextInt(256)));
-    final iv =
-        Uint8List.fromList(List.generate(_ivLen, (_) => random.nextInt(256)));
+    final salt = Uint8List.fromList(
+      List.generate(_saltLen, (_) => random.nextInt(256)),
+    );
+    final iv = Uint8List.fromList(
+      List.generate(_ivLen, (_) => random.nextInt(256)),
+    );
 
     final key = _deriveKey(password, salt);
 
     final cipher = GCMBlockCipher(AESEngine())
-      ..init(
-        true,
-        AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)),
-      );
+      ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
 
     final output = cipher.process(data);
     return Uint8List.fromList([...salt, ...iv, ...output]);
@@ -214,10 +214,7 @@ class ExportImport {
     final key = _deriveKey(password, salt);
 
     final cipher = GCMBlockCipher(AESEngine())
-      ..init(
-        false,
-        AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)),
-      );
+      ..init(false, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
 
     return cipher.process(ciphertext);
   }
@@ -253,9 +250,5 @@ class ImportResult {
   final AppConfig? config;
   final ImportMode mode;
 
-  const ImportResult({
-    required this.sessions,
-    this.config,
-    required this.mode,
-  });
+  const ImportResult({required this.sessions, this.config, required this.mode});
 }

@@ -17,35 +17,39 @@ void main() {
     store = ConfigStore();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (call) async => tempDir.path,
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async => tempDir.path,
+        );
   });
 
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      null,
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
   group('ConfigNotifier', () {
     test('starts with AppConfig.defaults', () {
-      final container = ProviderContainer(overrides: [
-        configStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [configStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
       final notifier = container.read(configProvider.notifier);
       expect(notifier.state, equals(AppConfig.defaults));
     });
 
     test('load() updates state from store', () async {
-      await store.save(const AppConfig(terminal: TerminalConfig(fontSize: 20.0, theme: 'light')));
-      final container = ProviderContainer(overrides: [
-        configStoreProvider.overrideWithValue(store),
-      ]);
+      await store.save(
+        const AppConfig(
+          terminal: TerminalConfig(fontSize: 20.0, theme: 'light'),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [configStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
       final notifier = container.read(configProvider.notifier);
 
@@ -55,14 +59,16 @@ void main() {
     });
 
     test('update() applies updater and persists', () async {
-      final container = ProviderContainer(overrides: [
-        configStoreProvider.overrideWithValue(store),
-      ]);
+      final container = ProviderContainer(
+        overrides: [configStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
       final notifier = container.read(configProvider.notifier);
       await notifier.load();
 
-      await notifier.update((c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: 24.0)));
+      await notifier.update(
+        (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: 24.0)),
+      );
       expect(notifier.state.fontSize, 24.0);
 
       // Verify persisted
@@ -72,15 +78,21 @@ void main() {
     });
 
     test('update() after load preserves other fields', () async {
-      await store.save(const AppConfig(terminal: TerminalConfig(fontSize: 16.0, scrollback: 8000)));
-      final container = ProviderContainer(overrides: [
-        configStoreProvider.overrideWithValue(store),
-      ]);
+      await store.save(
+        const AppConfig(
+          terminal: TerminalConfig(fontSize: 16.0, scrollback: 8000),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [configStoreProvider.overrideWithValue(store)],
+      );
       addTearDown(container.dispose);
       final notifier = container.read(configProvider.notifier);
       await notifier.load();
 
-      await notifier.update((c) => c.copyWith(terminal: c.terminal.copyWith(theme: 'system')));
+      await notifier.update(
+        (c) => c.copyWith(terminal: c.terminal.copyWith(theme: 'system')),
+      );
       expect(notifier.state.fontSize, 16.0);
       expect(notifier.state.scrollback, 8000);
       expect(notifier.state.theme, 'system');

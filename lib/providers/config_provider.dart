@@ -10,8 +10,9 @@ final configStoreProvider = Provider<ConfigStore>((ref) {
 });
 
 /// App config state — loaded async, then updated in-place.
-final configProvider =
-    NotifierProvider<ConfigNotifier, AppConfig>(ConfigNotifier.new);
+final configProvider = NotifierProvider<ConfigNotifier, AppConfig>(
+  ConfigNotifier.new,
+);
 
 class ConfigNotifier extends Notifier<AppConfig> {
   @override
@@ -25,7 +26,11 @@ class ConfigNotifier extends Notifier<AppConfig> {
       // Sync logger enabled state with config
       AppLogger.instance.setEnabled(state.enableLogging);
     } catch (e) {
-      AppLogger.instance.log('Failed to load config, using defaults', name: 'ConfigProvider', error: e);
+      AppLogger.instance.log(
+        'Failed to load config, using defaults',
+        name: 'ConfigProvider',
+        error: e,
+      );
     }
   }
 
@@ -37,7 +42,11 @@ class ConfigNotifier extends Notifier<AppConfig> {
       // Apply logging toggle immediately
       AppLogger.instance.setEnabled(updated.enableLogging);
     } catch (e) {
-      AppLogger.instance.log('Failed to save config', name: 'ConfigProvider', error: e);
+      AppLogger.instance.log(
+        'Failed to save config',
+        name: 'ConfigProvider',
+        error: e,
+      );
       rethrow;
     }
   }

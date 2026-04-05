@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import 'app_divider.dart';
 
-
 /// A single context menu item — either a normal item or a divider.
 class ContextMenuItem {
   final String? label;
@@ -26,12 +25,12 @@ class ContextMenuItem {
   });
 
   const ContextMenuItem.divider()
-      : label = null,
-        icon = null,
-        color = null,
-        shortcut = null,
-        divider = true,
-        onTap = null;
+    : label = null,
+      icon = null,
+      color = null,
+      shortcut = null,
+      divider = true,
+      onTap = null;
 }
 
 // Active menu state — allows re-entrant right-click to dismiss + reopen.
@@ -83,7 +82,6 @@ Future<void> showAppContextMenu({
   return completer.future;
 }
 
-
 class _ContextMenuOverlay extends StatefulWidget {
   final Offset position;
   final List<ContextMenuItem> items;
@@ -130,7 +128,8 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
     if (_actionableIndices.isEmpty) return;
     setState(() {
       if (_keyIndex == null) {
-        _keyIndex = _actionableIndices[delta > 0 ? 0 : _actionableIndices.length - 1];
+        _keyIndex =
+            _actionableIndices[delta > 0 ? 0 : _actionableIndices.length - 1];
       } else {
         final cur = _actionableIndices.indexOf(_keyIndex!);
         final next = (cur + delta) % _actionableIndices.length;

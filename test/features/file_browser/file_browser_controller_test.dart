@@ -48,9 +48,30 @@ class _MockFS implements FileSystem {
 void main() {
   final now = DateTime(2024, 1, 1);
   final testEntries = [
-    FileEntry(name: 'docs', path: '/home/docs', size: 0, mode: 0755, modTime: now, isDir: true),
-    FileEntry(name: 'readme.md', path: '/home/readme.md', size: 100, mode: 0644, modTime: now, isDir: false),
-    FileEntry(name: 'app.dart', path: '/home/app.dart', size: 250, mode: 0644, modTime: now, isDir: false),
+    FileEntry(
+      name: 'docs',
+      path: '/home/docs',
+      size: 0,
+      mode: 0755,
+      modTime: now,
+      isDir: true,
+    ),
+    FileEntry(
+      name: 'readme.md',
+      path: '/home/readme.md',
+      size: 100,
+      mode: 0644,
+      modTime: now,
+      isDir: false,
+    ),
+    FileEntry(
+      name: 'app.dart',
+      path: '/home/app.dart',
+      size: 250,
+      mode: 0644,
+      modTime: now,
+      isDir: false,
+    ),
   ];
 
   group('FilePaneController', () {
@@ -61,7 +82,16 @@ void main() {
       fs = _MockFS({
         '/home': testEntries,
         '/home/docs': [],
-        '/': [FileEntry(name: 'home', path: '/home', size: 0, mode: 0755, modTime: now, isDir: true)],
+        '/': [
+          FileEntry(
+            name: 'home',
+            path: '/home',
+            size: 0,
+            mode: 0755,
+            modTime: now,
+            isDir: true,
+          ),
+        ],
       });
       ctrl = FilePaneController(fs: fs, label: 'Test');
     });
@@ -298,7 +328,16 @@ void main() {
       final slowFs = _MockFS({
         '/home': testEntries,
         '/home/docs': [],
-        '/': [FileEntry(name: 'home', path: '/home', size: 0, mode: 0755, modTime: now, isDir: true)],
+        '/': [
+          FileEntry(
+            name: 'home',
+            path: '/home',
+            size: 0,
+            mode: 0755,
+            modTime: now,
+            isDir: true,
+          ),
+        ],
       });
       slowFs.dirSizeResults = {};
 
@@ -347,20 +386,23 @@ void main() {
       expect(ctrl.folderSize('/home/docs'), isNull);
     });
 
-    test('navigateTo adds current path to back stack and clears forward', () async {
-      await ctrl.init();
-      expect(ctrl.currentPath, '/home');
-      await ctrl.navigateTo('/home/docs');
-      expect(ctrl.canGoBack, isTrue);
-      expect(ctrl.canGoForward, isFalse);
+    test(
+      'navigateTo adds current path to back stack and clears forward',
+      () async {
+        await ctrl.init();
+        expect(ctrl.currentPath, '/home');
+        await ctrl.navigateTo('/home/docs');
+        expect(ctrl.canGoBack, isTrue);
+        expect(ctrl.canGoForward, isFalse);
 
-      await ctrl.goBack();
-      expect(ctrl.canGoForward, isTrue);
+        await ctrl.goBack();
+        expect(ctrl.canGoForward, isTrue);
 
-      // navigateTo should clear forward stack
-      await ctrl.navigateTo('/home/docs');
-      expect(ctrl.canGoForward, isFalse);
-    });
+        // navigateTo should clear forward stack
+        await ctrl.navigateTo('/home/docs');
+        expect(ctrl.canGoForward, isFalse);
+      },
+    );
 
     test('drainSizeQueue processes remaining items after completion', () async {
       await ctrl.init();

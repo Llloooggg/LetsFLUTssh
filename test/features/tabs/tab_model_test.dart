@@ -8,7 +8,9 @@ void main() {
     return Connection(
       id: 'conn-1',
       label: label,
-      sshConfig: const SSHConfig(server: ServerAddress(host: '10.0.0.1', user: 'root')),
+      sshConfig: const SSHConfig(
+        server: ServerAddress(host: '10.0.0.1', user: 'root'),
+      ),
     );
   }
 

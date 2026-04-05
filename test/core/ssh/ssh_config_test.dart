@@ -439,7 +439,10 @@ void main() {
 
       test('different auth not equal', () {
         const a = SSHConfig(server: server, auth: auth);
-        const b = SSHConfig(server: server, auth: SshAuth(password: 'other'));
+        const b = SSHConfig(
+          server: server,
+          auth: SshAuth(password: 'other'),
+        );
         expect(a, isNot(b));
       });
 

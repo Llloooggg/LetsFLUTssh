@@ -64,10 +64,7 @@ class SessionTree {
       currentPath = currentPath.isEmpty ? part : '$currentPath/$part';
       var groupNode = _findGroup(currentChildren, part);
       if (groupNode == null) {
-        groupNode = SessionTreeNode(
-          name: part,
-          fullPath: currentPath,
-        );
+        groupNode = SessionTreeNode(name: part, fullPath: currentPath);
         currentChildren.add(groupNode);
       }
       currentChildren = groupNode.children;
@@ -77,25 +74,23 @@ class SessionTree {
 
   /// Create a leaf node for [session] and insert it into the tree.
   static void _insertSession(List<SessionTreeNode> root, Session session) {
-    final name = session.label.isNotEmpty
-        ? session.label
-        : session.displayName;
+    final name = session.label.isNotEmpty ? session.label : session.displayName;
 
     if (session.folder.isEmpty) {
       // Top-level session (no folder)
-      root.add(SessionTreeNode(
-        name: name,
-        fullPath: session.label,
-        session: session,
-      ));
+      root.add(
+        SessionTreeNode(name: name, fullPath: session.label, session: session),
+      );
     } else {
       // Add session as leaf under the deepest folder
       final parent = _ensureFolderPath(root, session.folder);
-      parent.add(SessionTreeNode(
-        name: name,
-        fullPath: session.fullPath,
-        session: session,
-      ));
+      parent.add(
+        SessionTreeNode(
+          name: name,
+          fullPath: session.fullPath,
+          session: session,
+        ),
+      );
     }
   }
 

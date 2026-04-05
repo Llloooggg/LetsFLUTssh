@@ -8,9 +8,7 @@ void main() {
     testWidgets('renders 10x24 hit area with 1px divider line', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: ColumnResizeHandle(onDrag: (_) {}),
-          ),
+          home: Scaffold(body: ColumnResizeHandle(onDrag: (_) {})),
         ),
       );
 
@@ -22,7 +20,9 @@ void main() {
       expect(outer, isNotNull);
 
       // Shows resize column cursor
-      final mouseRegions = tester.widgetList<MouseRegion>(find.byType(MouseRegion));
+      final mouseRegions = tester.widgetList<MouseRegion>(
+        find.byType(MouseRegion),
+      );
       final resizeCursor = mouseRegions.where(
         (m) => m.cursor == SystemMouseCursors.resizeColumn,
       );

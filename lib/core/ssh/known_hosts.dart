@@ -20,14 +20,24 @@ class KnownHostsManager {
   /// Callback invoked when an unknown host is encountered.
   /// Return true to accept the key, false to reject.
   /// If null, unknown hosts are auto-accepted (TOFU).
-  Future<bool> Function(String host, int port, String keyType, String fingerprint)?
-      onUnknownHost;
+  Future<bool> Function(
+    String host,
+    int port,
+    String keyType,
+    String fingerprint,
+  )?
+  onUnknownHost;
 
   /// Callback invoked when a known host's key has changed (potential MITM).
   /// Return true to accept the new key, false to reject.
   /// If null, changed keys are always rejected.
-  Future<bool> Function(String host, int port, String keyType, String fingerprint)?
-      onHostKeyChanged;
+  Future<bool> Function(
+    String host,
+    int port,
+    String keyType,
+    String fingerprint,
+  )?
+  onHostKeyChanged;
 
   /// Initialize and load known_hosts from app support directory.
   Future<void> load() async {
@@ -76,7 +86,10 @@ class KnownHostsManager {
 
     if (existing != null) {
       if (existing == keyString) {
-        AppLogger.instance.log('Host key verified: $hostPort', name: 'KnownHosts');
+        AppLogger.instance.log(
+          'Host key verified: $hostPort',
+          name: 'KnownHosts',
+        );
         return true; // Known and matches
       }
       // Key changed — potential MITM
@@ -86,33 +99,56 @@ class KnownHostsManager {
       );
       if (onHostKeyChanged != null) {
         final fingerprint = _fingerprint(keyBytes);
-        final accepted = await onHostKeyChanged!(host, port, keyType, fingerprint);
+        final accepted = await onHostKeyChanged!(
+          host,
+          port,
+          keyType,
+          fingerprint,
+        );
         if (accepted) {
-          AppLogger.instance.log('Changed host key accepted: $hostPort', name: 'KnownHosts');
+          AppLogger.instance.log(
+            'Changed host key accepted: $hostPort',
+            name: 'KnownHosts',
+          );
           await _updateHost(hostPort, keyString);
           return true;
         }
       }
-      AppLogger.instance.log('Changed host key rejected: $hostPort', name: 'KnownHosts');
+      AppLogger.instance.log(
+        'Changed host key rejected: $hostPort',
+        name: 'KnownHosts',
+      );
       return false;
     }
 
     // Unknown host
-    AppLogger.instance.log('Unknown host: $hostPort ($keyType)', name: 'KnownHosts');
+    AppLogger.instance.log(
+      'Unknown host: $hostPort ($keyType)',
+      name: 'KnownHosts',
+    );
     if (onUnknownHost != null) {
       final fingerprint = _fingerprint(keyBytes);
       final accepted = await onUnknownHost!(host, port, keyType, fingerprint);
       if (accepted) {
-        AppLogger.instance.log('Unknown host accepted (TOFU): $hostPort', name: 'KnownHosts');
+        AppLogger.instance.log(
+          'Unknown host accepted (TOFU): $hostPort',
+          name: 'KnownHosts',
+        );
         await _addHost(hostPort, keyString);
         return true;
       }
-      AppLogger.instance.log('Unknown host rejected: $hostPort', name: 'KnownHosts');
+      AppLogger.instance.log(
+        'Unknown host rejected: $hostPort',
+        name: 'KnownHosts',
+      );
       return false;
     }
 
     // No callback — reject unknown host (require explicit user confirmation)
-    AppLogger.instance.log('Unknown host rejected (no callback): $hostPort', name: 'KnownHosts');
+    AppLogger.instance.log(
+      'Unknown host rejected (no callback): $hostPort',
+      name: 'KnownHosts',
+    );
     return false;
   }
 
@@ -120,10 +156,7 @@ class KnownHostsManager {
     _hosts[hostPort] = keyString;
     final file = File(_filePath);
     await file.parent.create(recursive: true);
-    await file.writeAsString(
-      '$hostPort $keyString\n',
-      mode: FileMode.append,
-    );
+    await file.writeAsString('$hostPort $keyString\n', mode: FileMode.append);
     restrictFilePermissions(file.path);
   }
 

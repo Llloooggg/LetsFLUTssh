@@ -68,7 +68,11 @@ class SessionStore {
 
       await _mergeAndMigrateCredentials();
     } catch (e) {
-      AppLogger.instance.log('Failed to load sessions, starting fresh', name: 'SessionStore', error: e);
+      AppLogger.instance.log(
+        'Failed to load sessions, starting fresh',
+        name: 'SessionStore',
+        error: e,
+      );
     }
 
     // Load empty folders
@@ -87,8 +91,12 @@ class SessionStore {
       // Decryption failed — do NOT overwrite encrypted store.
       // Keep sessions without credentials rather than risk data loss.
       _credentialsMerged = false;
-      AppLogger.instance.log('Credential decryption failed, '
-          'skipping merge to prevent data loss', name: 'SessionStore', error: e);
+      AppLogger.instance.log(
+        'Credential decryption failed, '
+        'skipping merge to prevent data loss',
+        name: 'SessionStore',
+        error: e,
+      );
       return;
     }
     _credentialsMerged = true;
@@ -115,8 +123,9 @@ class SessionStore {
       auth: session.auth.copyWith(
         password: cred.password.isNotEmpty ? cred.password : session.password,
         keyData: cred.keyData.isNotEmpty ? cred.keyData : session.keyData,
-        passphrase:
-            cred.passphrase.isNotEmpty ? cred.passphrase : session.passphrase,
+        passphrase: cred.passphrase.isNotEmpty
+            ? cred.passphrase
+            : session.passphrase,
       ),
     );
   }
@@ -140,7 +149,9 @@ class SessionStore {
       allCreds = {};
     }
     for (final s in _sessions) {
-      if (s.password.isNotEmpty || s.keyData.isNotEmpty || s.passphrase.isNotEmpty) {
+      if (s.password.isNotEmpty ||
+          s.keyData.isNotEmpty ||
+          s.passphrase.isNotEmpty) {
         allCreds[s.id] = CredentialData(
           password: s.password,
           keyData: s.keyData,
@@ -156,8 +167,9 @@ class SessionStore {
   /// Save session metadata (no secrets) to JSON file.
   Future<void> _saveSessionFile() async {
     await init();
-    final content = const JsonEncoder.withIndent('  ')
-        .convert(_sessions.map((s) => s.toJson()).toList());
+    final content = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_sessions.map((s) => s.toJson()).toList());
     await writeFileAtomic(_filePath, content);
   }
 
@@ -171,9 +183,12 @@ class SessionStore {
     try {
       await _saveCredentials();
     } catch (e) {
-      AppLogger.instance.log('Credential save failed — '
-          'credentials remain in memory and will retry on next save',
-          name: 'SessionStore', error: e);
+      AppLogger.instance.log(
+        'Credential save failed — '
+        'credentials remain in memory and will retry on next save',
+        name: 'SessionStore',
+        error: e,
+      );
     }
     await _saveSessionFile();
   }
@@ -193,7 +208,9 @@ class SessionStore {
     }
     final allCreds = <String, CredentialData>{};
     for (final s in _sessions) {
-      if (s.password.isNotEmpty || s.keyData.isNotEmpty || s.passphrase.isNotEmpty) {
+      if (s.password.isNotEmpty ||
+          s.keyData.isNotEmpty ||
+          s.passphrase.isNotEmpty) {
         allCreds[s.id] = CredentialData(
           password: s.password,
           keyData: s.keyData,
@@ -215,7 +232,11 @@ class SessionStore {
         ..clear()
         ..addAll(list.cast<String>());
     } catch (e) {
-      AppLogger.instance.log('Failed to load empty folders', name: 'SessionStore', error: e);
+      AppLogger.instance.log(
+        'Failed to load empty folders',
+        name: 'SessionStore',
+        error: e,
+      );
     }
   }
 
@@ -248,7 +269,9 @@ class SessionStore {
       if (s.folder == oldPath) {
         _sessions[i] = s.copyWith(folder: newPath);
       } else if (s.folder.startsWith('$oldPath/')) {
-        _sessions[i] = s.copyWith(folder: newPath + s.folder.substring(oldPath.length));
+        _sessions[i] = s.copyWith(
+          folder: newPath + s.folder.substring(oldPath.length),
+        );
       }
     }
 
@@ -276,7 +299,9 @@ class SessionStore {
 
     // Delete sessions in this folder and subfolders
     final toDelete = _sessions
-        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
+        .where(
+          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+        )
         .map((s) => s.id)
         .toList();
     for (final id in toDelete) {
@@ -303,7 +328,9 @@ class SessionStore {
   }
 
   /// Load credentials for the given session IDs.
-  Future<Map<String, CredentialData>> loadCredentials(Set<String> sessionIds) async {
+  Future<Map<String, CredentialData>> loadCredentials(
+    Set<String> sessionIds,
+  ) async {
     if (sessionIds.isEmpty) return {};
     final all = await _credStore.loadAllSafe();
     return {
@@ -336,7 +363,9 @@ class SessionStore {
   /// Count sessions in a folder and its subfolders.
   int countSessionsInFolder(String folderPath) {
     return _sessions
-        .where((s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'))
+        .where(
+          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+        )
         .length;
   }
 
@@ -423,7 +452,11 @@ class SessionStore {
 
   /// Unique folder paths sorted alphabetically.
   List<String> folders() {
-    final g = _sessions.map((s) => s.folder).where((g) => g.isNotEmpty).toSet().toList();
+    final g = _sessions
+        .map((s) => s.folder)
+        .where((g) => g.isNotEmpty)
+        .toSet()
+        .toList();
     g.sort();
     return g;
   }

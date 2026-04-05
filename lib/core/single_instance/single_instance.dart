@@ -37,8 +37,7 @@ class SingleInstance {
   Future<bool> acquire() async {
     if (!plat.isDesktopPlatform) return true;
 
-    final dirPath =
-        lockDir ?? (await getApplicationSupportDirectory()).path;
+    final dirPath = lockDir ?? (await getApplicationSupportDirectory()).path;
     final lockPath = '$dirPath${Platform.pathSeparator}$_lockFileName';
 
     try {
@@ -48,8 +47,10 @@ class SingleInstance {
       // Write PID for diagnostics (not used for logic).
       await _lockFile!.writeString('$pid\n');
       await _lockFile!.flush();
-      AppLogger.instance
-          .log('Single-instance lock acquired: $lockPath', name: 'App');
+      AppLogger.instance.log(
+        'Single-instance lock acquired: $lockPath',
+        name: 'App',
+      );
       return true;
     } catch (e) {
       AppLogger.instance.log(
@@ -77,8 +78,7 @@ class SingleInstance {
       await File(path).delete();
       AppLogger.instance.log('Single-instance lock released', name: 'App');
     } catch (e) {
-      AppLogger.instance
-          .log('Lock release error: $e', name: 'App', error: e);
+      AppLogger.instance.log('Lock release error: $e', name: 'App', error: e);
     }
     _lockFile = null;
   }

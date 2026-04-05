@@ -22,10 +22,7 @@ class ClippedRow extends Flex {
     super.textBaseline,
     super.spacing,
     super.children,
-  }) : super(
-          direction: Axis.horizontal,
-          clipBehavior: Clip.hardEdge,
-        );
+  }) : super(direction: Axis.horizontal, clipBehavior: Clip.hardEdge);
 
   @override
   RenderFlex createRenderObject(BuildContext context) {

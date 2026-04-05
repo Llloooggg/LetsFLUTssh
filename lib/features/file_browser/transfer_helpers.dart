@@ -25,26 +25,34 @@ class TransferHelpers {
       name: 'Transfer',
     );
 
-    manager.enqueue(TransferTask(
-      name: entry.isDir ? '${entry.name}/' : entry.name,
-      direction: TransferDirection.upload,
-      sourcePath: entry.path,
-      targetPath: remotePath,
-      sizeBytes: entry.size,
-      run: (update) async {
-        update(0, 'Starting upload...');
-        if (entry.isDir) {
-          await sftp.uploadDir(entry.path, remotePath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
-          });
-        } else {
-          await sftp.upload(entry.path, remotePath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
-          });
-        }
-        remoteCtrl?.refresh();
-      },
-    ));
+    manager.enqueue(
+      TransferTask(
+        name: entry.isDir ? '${entry.name}/' : entry.name,
+        direction: TransferDirection.upload,
+        sourcePath: entry.path,
+        targetPath: remotePath,
+        sizeBytes: entry.size,
+        run: (update) async {
+          update(0, 'Starting upload...');
+          if (entry.isDir) {
+            await sftp.uploadDir(entry.path, remotePath, (progress) {
+              update(
+                progress.percent,
+                '${progress.doneBytes}/${progress.totalBytes} files',
+              );
+            });
+          } else {
+            await sftp.upload(entry.path, remotePath, (progress) {
+              update(
+                progress.percent,
+                '${progress.doneBytes}/${progress.totalBytes}',
+              );
+            });
+          }
+          remoteCtrl?.refresh();
+        },
+      ),
+    );
   }
 
   /// Enqueue a download task for [entry] to the local [localDirPath].
@@ -61,25 +69,33 @@ class TransferHelpers {
       name: 'Transfer',
     );
 
-    manager.enqueue(TransferTask(
-      name: entry.isDir ? '${entry.name}/' : entry.name,
-      direction: TransferDirection.download,
-      sourcePath: entry.path,
-      targetPath: localPath,
-      sizeBytes: entry.size,
-      run: (update) async {
-        update(0, 'Starting download...');
-        if (entry.isDir) {
-          await sftp.downloadDir(entry.path, localPath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes} files');
-          });
-        } else {
-          await sftp.download(entry.path, localPath, (progress) {
-            update(progress.percent, '${progress.doneBytes}/${progress.totalBytes}');
-          });
-        }
-        localCtrl?.refresh();
-      },
-    ));
+    manager.enqueue(
+      TransferTask(
+        name: entry.isDir ? '${entry.name}/' : entry.name,
+        direction: TransferDirection.download,
+        sourcePath: entry.path,
+        targetPath: localPath,
+        sizeBytes: entry.size,
+        run: (update) async {
+          update(0, 'Starting download...');
+          if (entry.isDir) {
+            await sftp.downloadDir(entry.path, localPath, (progress) {
+              update(
+                progress.percent,
+                '${progress.doneBytes}/${progress.totalBytes} files',
+              );
+            });
+          } else {
+            await sftp.download(entry.path, localPath, (progress) {
+              update(
+                progress.percent,
+                '${progress.doneBytes}/${progress.totalBytes}',
+              );
+            });
+          }
+          localCtrl?.refresh();
+        },
+      ),
+    );
   }
 }

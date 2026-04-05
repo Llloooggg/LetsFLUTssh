@@ -90,18 +90,35 @@ void main() {
   });
 
   group('brightness-aware color resolvers', () {
-    test('connected/disconnected/connecting resolve differently per brightness', () {
-      expect(AppTheme.connectedColor(Brightness.dark), AppTheme.connected);
-      expect(AppTheme.connectedColor(Brightness.light), AppTheme.connectedLight);
-      expect(AppTheme.disconnectedColor(Brightness.dark), AppTheme.disconnected);
-      expect(AppTheme.disconnectedColor(Brightness.light), AppTheme.disconnectedLight);
-      expect(AppTheme.connectingColor(Brightness.dark), AppTheme.connecting);
-      expect(AppTheme.connectingColor(Brightness.light), AppTheme.connectingLight);
-    });
+    test(
+      'connected/disconnected/connecting resolve differently per brightness',
+      () {
+        expect(AppTheme.connectedColor(Brightness.dark), AppTheme.connected);
+        expect(
+          AppTheme.connectedColor(Brightness.light),
+          AppTheme.connectedLight,
+        );
+        expect(
+          AppTheme.disconnectedColor(Brightness.dark),
+          AppTheme.disconnected,
+        );
+        expect(
+          AppTheme.disconnectedColor(Brightness.light),
+          AppTheme.disconnectedLight,
+        );
+        expect(AppTheme.connectingColor(Brightness.dark), AppTheme.connecting);
+        expect(
+          AppTheme.connectingColor(Brightness.light),
+          AppTheme.connectingLight,
+        );
+      },
+    );
 
     test('folderColor resolves differently per brightness', () {
-      expect(AppTheme.folderColor(Brightness.dark),
-          isNot(AppTheme.folderColor(Brightness.light)));
+      expect(
+        AppTheme.folderColor(Brightness.dark),
+        isNot(AppTheme.folderColor(Brightness.light)),
+      );
     });
   });
 

@@ -54,11 +54,32 @@ abstract final class SshKeySequences {
   }
 
   static const List<String> functionKeyNames = [
-    'F1', 'F2', 'F3', 'F4', 'F5', 'F6',
-    'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+    'F1',
+    'F2',
+    'F3',
+    'F4',
+    'F5',
+    'F6',
+    'F7',
+    'F8',
+    'F9',
+    'F10',
+    'F11',
+    'F12',
   ];
 
   static const List<String> functionKeySequences = [
-    f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12,
+    f1,
+    f2,
+    f3,
+    f4,
+    f5,
+    f6,
+    f7,
+    f8,
+    f9,
+    f10,
+    f11,
+    f12,
   ];
 }

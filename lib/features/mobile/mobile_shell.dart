@@ -113,44 +113,50 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             ),
           ),
           const Spacer(),
-          Builder(builder: (_) {
-            final connections = ref.watch(connectionsProvider).value ?? [];
-            final connectedCount = connections.where((c) => c.isConnected).length;
-            final connectingCount = connections.where((c) => c.isConnecting).length;
-            final activeCount = connectedCount + connectingCount;
-            final savedCount = ref.watch(sessionProvider).length;
-            final Color? connectionIconColor;
-            if (connectedCount > 0) {
-              connectionIconColor = AppTheme.green;
-            } else if (connectingCount > 0) {
-              connectionIconColor = AppTheme.yellow;
-            } else {
-              connectionIconColor = null;
-            }
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                StatusIndicator(
-                  icon: Icons.dns_outlined,
-                  count: savedCount,
-                  tooltip: 'Saved sessions',
-                ),
-                const SizedBox(width: 10),
-                StatusIndicator(
-                  icon: Icons.wifi,
-                  count: activeCount,
-                  tooltip: 'Active connections',
-                  iconColor: connectionIconColor,
-                ),
-                const SizedBox(width: 10),
-                StatusIndicator(
-                  icon: Icons.tab_outlined,
-                  count: tabCount,
-                  tooltip: 'Open tabs',
-                ),
-              ],
-            );
-          }),
+          Builder(
+            builder: (_) {
+              final connections = ref.watch(connectionsProvider).value ?? [];
+              final connectedCount = connections
+                  .where((c) => c.isConnected)
+                  .length;
+              final connectingCount = connections
+                  .where((c) => c.isConnecting)
+                  .length;
+              final activeCount = connectedCount + connectingCount;
+              final savedCount = ref.watch(sessionProvider).length;
+              final Color? connectionIconColor;
+              if (connectedCount > 0) {
+                connectionIconColor = AppTheme.green;
+              } else if (connectingCount > 0) {
+                connectionIconColor = AppTheme.yellow;
+              } else {
+                connectionIconColor = null;
+              }
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  StatusIndicator(
+                    icon: Icons.dns_outlined,
+                    count: savedCount,
+                    tooltip: 'Saved sessions',
+                  ),
+                  const SizedBox(width: 10),
+                  StatusIndicator(
+                    icon: Icons.wifi,
+                    count: activeCount,
+                    tooltip: 'Active connections',
+                    iconColor: connectionIconColor,
+                  ),
+                  const SizedBox(width: 10),
+                  StatusIndicator(
+                    icon: Icons.tab_outlined,
+                    count: tabCount,
+                    tooltip: 'Open tabs',
+                  ),
+                ],
+              );
+            },
+          ),
           const SizedBox(width: 8),
           AppIconButton(
             icon: Icons.settings,
@@ -166,13 +172,18 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     );
   }
 
-  Widget _buildPageContent(List<TabEntry> allTabs, TabEntry? activeTab, BuildContext context) {
+  Widget _buildPageContent(
+    List<TabEntry> allTabs,
+    TabEntry? activeTab,
+    BuildContext context,
+  ) {
     return IndexedStack(
       index: _navIndex,
       children: [
         _MobileSessionsPage(
           onConnect: (session) => _connectSession(context, ref, session),
-          onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+          onSftpConnect: (session) =>
+              _connectSessionSftp(context, ref, session),
           onQuickConnect: (config) {
             SessionConnect.connectConfig(context, ref, config);
             setState(() => _navIndex = 1);
@@ -181,7 +192,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         _MobileTerminalPage(
           allTabs: allTabs,
           activeTab: activeTab,
-          onOpenSftp: _activeTerminalConnection(allTabs, activeTab)?.isConnected == true
+          onOpenSftp:
+              _activeTerminalConnection(allTabs, activeTab)?.isConnected == true
               ? () {
                   final conn = _activeTerminalConnection(allTabs, activeTab)!;
                   ref.read(workspaceProvider.notifier).addSftpTab(conn);
@@ -192,7 +204,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         _MobileSftpPage(
           allTabs: allTabs,
           activeTab: activeTab,
-          onOpenSsh: _activeSftpConnection(allTabs, activeTab)?.isConnected == true
+          onOpenSsh:
+              _activeSftpConnection(allTabs, activeTab)?.isConnected == true
               ? () {
                   final conn = _activeSftpConnection(allTabs, activeTab)!;
                   ref.read(workspaceProvider.notifier).addTerminalTab(conn);
@@ -265,9 +278,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: isDisabled
-            ? null
-            : () => setState(() => _navIndex = index),
+        onTap: isDisabled ? null : () => setState(() => _navIndex = index),
         child: Opacity(
           opacity: opacity,
           child: Column(
@@ -313,17 +324,24 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     }
   }
 
-  Connection? _activeTerminalConnection(List<TabEntry> tabs, TabEntry? activeTab) {
+  Connection? _activeTerminalConnection(
+    List<TabEntry> tabs,
+    TabEntry? activeTab,
+  ) {
     final termTabs = tabs.where((t) => t.kind == TabKind.terminal).toList();
     if (termTabs.isEmpty) return null;
-    final active = activeTab != null && termTabs.contains(activeTab) ? activeTab : termTabs.last;
+    final active = activeTab != null && termTabs.contains(activeTab)
+        ? activeTab
+        : termTabs.last;
     return active.connection;
   }
 
   Connection? _activeSftpConnection(List<TabEntry> tabs, TabEntry? activeTab) {
     final sftpTabs = tabs.where((t) => t.kind == TabKind.sftp).toList();
     if (sftpTabs.isEmpty) return null;
-    final active = activeTab != null && sftpTabs.contains(activeTab) ? activeTab : sftpTabs.last;
+    final active = activeTab != null && sftpTabs.contains(activeTab)
+        ? activeTab
+        : sftpTabs.last;
     return active.connection;
   }
 
@@ -342,7 +360,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final ok = SessionConnect.connectSftp(ctx, ref, session);
     if (ok) setState(() => _navIndex = 2);
   }
-
 }
 
 /// Sessions page — full screen session list with settings access.
@@ -398,9 +415,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     if (widget.filteredTabs.length > _previousTabCount) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
-          _scrollController.jumpTo(
-            _scrollController.position.maxScrollExtent,
-          );
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         }
       });
     }
@@ -483,7 +498,9 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                     GestureDetector(
                       onTap: () {
                         final ws = ref.read(workspaceProvider);
-                        ref.read(workspaceProvider.notifier).closeTab(ws.focusedPanelId, tab.id);
+                        ref
+                            .read(workspaceProvider.notifier)
+                            .closeTab(ws.focusedPanelId, tab.id);
                       },
                       child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
                     ),
@@ -496,7 +513,10 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                 top: 0,
                 left: 0,
                 right: 0,
-                child: SizedBox(height: 2, child: ColoredBox(color: AppTheme.accent)),
+                child: SizedBox(
+                  height: 2,
+                  child: ColoredBox(color: AppTheme.accent),
+                ),
               ),
           ],
         ),
@@ -508,7 +528,10 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     return chip;
   }
 
-  static Color _tabIconColor({required bool isActive, required bool isTerminal}) {
+  static Color _tabIconColor({
+    required bool isActive,
+    required bool isTerminal,
+  }) {
     if (!isActive) return AppTheme.fgFaint;
     return isTerminal ? AppTheme.blue : AppTheme.yellow;
   }
@@ -544,9 +567,21 @@ class _MobileTerminalPage extends ConsumerWidget {
               child: Icon(Icons.terminal, size: 22, color: AppTheme.fgFaint),
             ),
             const SizedBox(height: 12),
-            Text('No active terminals', style: AppFonts.inter(fontSize: AppFonts.lg, color: AppTheme.fgDim)),
+            Text(
+              'No active terminals',
+              style: AppFonts.inter(
+                fontSize: AppFonts.lg,
+                color: AppTheme.fgDim,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Connect from Sessions tab', style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint)),
+            Text(
+              'Connect from Sessions tab',
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgFaint,
+              ),
+            ),
           ],
         ),
       );
@@ -601,7 +636,11 @@ class _MobileSftpPage extends ConsumerWidget {
   final TabEntry? activeTab;
   final VoidCallback? onOpenSsh;
 
-  const _MobileSftpPage({required this.allTabs, this.activeTab, this.onOpenSsh});
+  const _MobileSftpPage({
+    required this.allTabs,
+    this.activeTab,
+    this.onOpenSsh,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -621,9 +660,21 @@ class _MobileSftpPage extends ConsumerWidget {
               child: Icon(Icons.folder, size: 22, color: AppTheme.fgFaint),
             ),
             const SizedBox(height: 12),
-            Text('No active file browsers', style: AppFonts.inter(fontSize: AppFonts.lg, color: AppTheme.fgDim)),
+            Text(
+              'No active file browsers',
+              style: AppFonts.inter(
+                fontSize: AppFonts.lg,
+                color: AppTheme.fgDim,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Use "SFTP" from Sessions', style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint)),
+            Text(
+              'Use "SFTP" from Sessions',
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgFaint,
+              ),
+            ),
           ],
         ),
       );

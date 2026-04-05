@@ -83,18 +83,27 @@ class _HostKeyDialogWidget extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppTheme.connecting.withValues(alpha: 0.1),
                 borderRadius: AppTheme.radiusLg,
-                border: Border.all(color: AppTheme.connecting.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppTheme.connecting.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded, color: AppTheme.connecting, size: 20),
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppTheme.connecting,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'WARNING: The host key for this server has changed. '
                       'This could indicate a man-in-the-middle attack, '
                       'or the server may have been reinstalled.',
-                      style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+                      style: TextStyle(
+                        fontSize: AppFonts.md,
+                        color: AppTheme.fg,
+                      ),
                     ),
                   ),
                 ],
@@ -119,7 +128,10 @@ class _HostKeyDialogWidget extends StatelessWidget {
                 width: 70,
                 child: Text(
                   'Fingerprint',
-                  style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+                  style: TextStyle(
+                    fontSize: AppFonts.sm,
+                    color: AppTheme.fgFaint,
+                  ),
                 ),
               ),
               Expanded(
@@ -152,9 +164,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(
-          onTap: () => Navigator.pop(context, false),
-        ),
+        AppDialogAction.cancel(onTap: () => Navigator.pop(context, false)),
         if (isChanged)
           AppDialogAction.destructive(
             label: 'Accept Anyway',

@@ -12,7 +12,9 @@ import 'package:letsflutssh/features/workspace/workspace_node.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 
 Connection _conn(String id) {
-  const config = SSHConfig(server: ServerAddress(host: 'h', user: 'u'));
+  const config = SSHConfig(
+    server: ServerAddress(host: 'h', user: 'u'),
+  );
   return Connection(id: id, sshConfig: config, label: id);
 }
 

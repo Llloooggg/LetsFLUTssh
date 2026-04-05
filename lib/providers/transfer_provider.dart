@@ -11,7 +11,9 @@ final transferManagerProvider = Provider<TransferManager>((ref) {
 });
 
 /// Reactive transfer history.
-final transferHistoryProvider = StreamProvider<List<HistoryEntry>>((ref) async* {
+final transferHistoryProvider = StreamProvider<List<HistoryEntry>>((
+  ref,
+) async* {
   final manager = ref.watch(transferManagerProvider);
   yield manager.history;
   await for (final _ in manager.onChange) {
@@ -29,7 +31,9 @@ final activeTransfersProvider = StreamProvider<List<ActiveEntry>>((ref) async* {
 });
 
 /// Reactive transfer status (running count, queue length, current info).
-final transferStatusProvider = StreamProvider<ActiveTransferState>((ref) async* {
+final transferStatusProvider = StreamProvider<ActiveTransferState>((
+  ref,
+) async* {
   final manager = ref.watch(transferManagerProvider);
   yield ActiveTransferState(
     running: manager.runningCount,

@@ -63,8 +63,10 @@ void main() {
   group('sanitizeError', () {
     group('plain exceptions (no errno)', () {
       test('returns toString for generic exception', () {
-        expect(sanitizeError(Exception('something broke')),
-            'Exception: something broke');
+        expect(
+          sanitizeError(Exception('something broke')),
+          'Exception: something broke',
+        );
       });
 
       test('returns toString for string error', () {
@@ -147,31 +149,38 @@ void main() {
       });
 
       test('sanitizes SSHError cause with errno', () {
-        const e = ConnectError('Failed to connect to host:22',
-            SocketException(
-              'Connection failed',
-              osError: OSError('Соединение отклонено', 111),
-            ));
-        expect(sanitizeError(e),
-            'Failed to connect to host:22 (Connection refused)');
+        const e = ConnectError(
+          'Failed to connect to host:22',
+          SocketException(
+            'Connection failed',
+            osError: OSError('Соединение отклонено', 111),
+          ),
+        );
+        expect(
+          sanitizeError(e),
+          'Failed to connect to host:22 (Connection refused)',
+        );
       });
 
       test('sanitizes SSHError cause with Windows errno', () {
-        const e = ConnectError('Failed to connect to host:22',
-            SocketException(
-              'Connection failed',
-              osError: OSError('Подключение отклонено', 10061),
-            ));
-        expect(sanitizeError(e),
-            'Failed to connect to host:22 (Connection refused)');
+        const e = ConnectError(
+          'Failed to connect to host:22',
+          SocketException(
+            'Connection failed',
+            osError: OSError('Подключение отклонено', 10061),
+          ),
+        );
+        expect(
+          sanitizeError(e),
+          'Failed to connect to host:22 (Connection refused)',
+        );
       });
 
       test('preserves SSHError message when cause has unknown errno', () {
-        const e = ConnectError('Failed to connect to host:22',
-            SocketException(
-              'Something',
-              osError: OSError('Unknown', 99999),
-            ));
+        const e = ConnectError(
+          'Failed to connect to host:22',
+          SocketException('Something', osError: OSError('Unknown', 99999)),
+        );
         // Cause not sanitized — falls through to toString
         expect(sanitizeError(e), startsWith('Failed to connect to host:22 ('));
       });
@@ -179,24 +188,31 @@ void main() {
       test('handles AuthError with cause', () {
         final cause = Exception('bad key format');
         final e = AuthError('Authentication failed for user@host', cause);
-        expect(sanitizeError(e),
-            'Authentication failed for user@host (Exception: bad key format)');
+        expect(
+          sanitizeError(e),
+          'Authentication failed for user@host (Exception: bad key format)',
+        );
       });
 
       test('handles nested SSHError chain', () {
-        const e = ConnectError('Failed to connect to host:22',
-            ConnectError('TCP connect failed',
-                SocketException(
-                  'OS Error',
-                  osError: OSError('Нет маршрута', 113),
-                )));
-        expect(sanitizeError(e),
-            'Failed to connect to host:22 (TCP connect failed (No route to host))');
+        const e = ConnectError(
+          'Failed to connect to host:22',
+          ConnectError(
+            'TCP connect failed',
+            SocketException('OS Error', osError: OSError('Нет маршрута', 113)),
+          ),
+        );
+        expect(
+          sanitizeError(e),
+          'Failed to connect to host:22 (TCP connect failed (No route to host))',
+        );
       });
 
       test('SSHError with same message as cause collapses', () {
-        const e = ConnectError('Connection failed',
-            ConnectError('Connection failed'));
+        const e = ConnectError(
+          'Connection failed',
+          ConnectError('Connection failed'),
+        );
         expect(sanitizeError(e), 'Connection failed');
       });
     });
@@ -208,8 +224,10 @@ void main() {
           '/home/user/file.txt',
           OSError('Нет такого файла', 2),
         );
-        expect(sanitizeError(e),
-            'No such file or directory: /home/user/file.txt');
+        expect(
+          sanitizeError(e),
+          'No such file or directory: /home/user/file.txt',
+        );
       });
 
       test('handles read-only file system', () {

@@ -60,19 +60,26 @@ class UpdateInfo {
           changelog == other.changelog;
 
   @override
-  int get hashCode =>
-      Object.hash(latestVersion, currentVersion, releaseUrl, assetUrl, assetDigest, changelog);
+  int get hashCode => Object.hash(
+    latestVersion,
+    currentVersion,
+    releaseUrl,
+    assetUrl,
+    assetDigest,
+    changelog,
+  );
 }
 
 /// Callback type for fetching a URL body as a string.
 typedef HttpFetcher = Future<String> Function(Uri url);
 
 /// Callback type for downloading a file with progress reporting.
-typedef FileDownloader = Future<void> Function(
-  Uri url,
-  String savePath,
-  void Function(int received, int total)? onProgress,
-);
+typedef FileDownloader =
+    Future<void> Function(
+      Uri url,
+      String savePath,
+      void Function(int received, int total)? onProgress,
+    );
 
 /// Checks GitHub releases for updates and downloads assets.
 ///
@@ -88,8 +95,8 @@ class UpdateService {
   final FileDownloader _download;
 
   UpdateService({HttpFetcher? fetch, FileDownloader? download})
-      : _fetch = fetch ?? defaultFetch,
-        _download = download ?? defaultDownload;
+    : _fetch = fetch ?? defaultFetch,
+      _download = download ?? defaultDownload;
 
   /// True if [uri] uses HTTPS and a host GitHub uses for release assets
   /// (same-origin policy for [browser_download_url] and redirect targets).
@@ -130,7 +137,8 @@ class UpdateService {
     final latest = releaseList.first as Map<String, dynamic>;
     final tagName = latest['tag_name'] as String? ?? '';
     final version = tagName.startsWith('v') ? tagName.substring(1) : tagName;
-    final releaseUrl = latest['html_url'] as String? ??
+    final releaseUrl =
+        latest['html_url'] as String? ??
         'https://github.com/$repo/releases/latest';
     final assets = latest['assets'] as List<dynamic>? ?? [];
 
@@ -221,7 +229,9 @@ class UpdateService {
       AppLogger.instance.log('Verifying SHA256...', name: 'UpdateService');
       final actual = await computeFileSha256(savePath);
       if (actual != expectedDigest) {
-        try { await File(savePath).delete(); } catch (_) {}
+        try {
+          await File(savePath).delete();
+        } catch (_) {}
         throw StateError(
           'SHA256 mismatch: expected $expectedDigest, got $actual',
         );

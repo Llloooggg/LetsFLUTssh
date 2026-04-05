@@ -56,7 +56,9 @@ void main() {
       // Encrypt
       final encCipher = GCMBlockCipher(AESEngine())
         ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-      final encrypted = encCipher.process(Uint8List.fromList(utf8.encode(plaintext)));
+      final encrypted = encCipher.process(
+        Uint8List.fromList(utf8.encode(plaintext)),
+      );
 
       // Decrypt
       final decCipher = GCMBlockCipher(AESEngine())
@@ -74,10 +76,13 @@ void main() {
 
       final encCipher = GCMBlockCipher(AESEngine())
         ..init(true, AEADParameters(KeyParameter(key1), 128, iv, Uint8List(0)));
-      final encrypted = encCipher.process(Uint8List.fromList(utf8.encode(plaintext)));
+      final encrypted = encCipher.process(
+        Uint8List.fromList(utf8.encode(plaintext)),
+      );
 
-      final decCipher = GCMBlockCipher(AESEngine())
-        ..init(false, AEADParameters(KeyParameter(key2), 128, iv, Uint8List(0)));
+      final decCipher = GCMBlockCipher(
+        AESEngine(),
+      )..init(false, AEADParameters(KeyParameter(key2), 128, iv, Uint8List(0)));
 
       expect(() => decCipher.process(encrypted), throwsA(anything));
     });
@@ -104,11 +109,15 @@ void main() {
 
       final pbkdf2a = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
         ..init(Pbkdf2Parameters(salt, 1000, 32));
-      final keyA = pbkdf2a.process(Uint8List.fromList(utf8.encode('password1')));
+      final keyA = pbkdf2a.process(
+        Uint8List.fromList(utf8.encode('password1')),
+      );
 
       final pbkdf2b = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
         ..init(Pbkdf2Parameters(salt, 1000, 32));
-      final keyB = pbkdf2b.process(Uint8List.fromList(utf8.encode('password2')));
+      final keyB = pbkdf2b.process(
+        Uint8List.fromList(utf8.encode('password2')),
+      );
 
       expect(keyA, isNot(keyB));
     });
@@ -122,17 +131,17 @@ void main() {
       tempDir = await Directory.systemTemp.createTemp('cred_test_');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        (call) async => tempDir.path,
-      );
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => tempDir.path,
+          );
     });
 
     tearDown(() async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        null,
-      );
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          );
       await tempDir.delete(recursive: true);
     });
 
@@ -200,10 +209,7 @@ void main() {
       await keyFile.writeAsBytes(List.generate(32, (i) => i));
 
       final store = CredentialStore();
-      expect(
-        () => store.loadAll(),
-        throwsA(isA<CredentialStoreException>()),
-      );
+      expect(() => store.loadAll(), throwsA(isA<CredentialStoreException>()));
     });
 
     test('loadAllSafe returns empty on corrupted file', () async {
@@ -288,17 +294,17 @@ void main() {
       tempDir = await Directory.systemTemp.createTemp('cred_concurrent_');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        (call) async => tempDir.path,
-      );
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => tempDir.path,
+          );
     });
 
     tearDown(() async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        null,
-      );
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          );
       await tempDir.delete(recursive: true);
     });
 
@@ -343,29 +349,32 @@ void main() {
       tempDir = await Directory.systemTemp.createTemp('cred_edge_');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        (call) async => tempDir.path,
-      );
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => tempDir.path,
+          );
     });
 
     tearDown(() async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'),
-        null,
-      );
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          );
       await tempDir.delete(recursive: true);
     });
 
-    test('loadAll returns empty when key file exists but cred file does not', () async {
-      // Simulate leftover key file from a previous install
-      final keyFile = File('${tempDir.path}/credentials.key');
-      await keyFile.writeAsBytes(List.generate(32, (i) => i));
+    test(
+      'loadAll returns empty when key file exists but cred file does not',
+      () async {
+        // Simulate leftover key file from a previous install
+        final keyFile = File('${tempDir.path}/credentials.key');
+        await keyFile.writeAsBytes(List.generate(32, (i) => i));
 
-      final store = CredentialStore();
-      final all = await store.loadAll();
-      expect(all, isEmpty);
-    });
+        final store = CredentialStore();
+        final all = await store.loadAll();
+        expect(all, isEmpty);
+      },
+    );
 
     test('loadAll throws when cred file exists but key file does not', () async {
       // Simulate orphaned cred file (key was deleted)

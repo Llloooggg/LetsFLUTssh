@@ -53,97 +53,109 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     return Container(
       color: AppTheme.bg1,
       child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Toggle header with overlaid drag handle
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            GestureDetector(
-              onTap: () => setState(() => _expanded = !_expanded),
-              child: Container(
-                height: AppTheme.barHeightSm,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                color: AppTheme.bg0,
-                child: ClippedRow(
-                  children: [
-                    Icon(
-                      _expanded ? Icons.expand_more : Icons.chevron_right,
-                      size: 11,
-                      color: AppTheme.fgDim,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Transfers:',
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.xs,
-                        fontWeight: FontWeight.w500,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Toggle header with overlaid drag handle
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              GestureDetector(
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Container(
+                  height: AppTheme.barHeightSm,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  color: AppTheme.bg0,
+                  child: ClippedRow(
+                    children: [
+                      Icon(
+                        _expanded ? Icons.expand_more : Icons.chevron_right,
+                        size: 11,
                         color: AppTheme.fgDim,
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    if (status != null) ...[
+                      const SizedBox(width: 4),
                       Text(
-                        '${status.running} active',
-                        style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.accent),
+                        'Transfers:',
+                        style: AppFonts.inter(
+                          fontSize: AppFonts.xs,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.fgDim,
+                        ),
                       ),
-                      Text(
-                        ', ${status.queued} queued',
-                        style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+                      const SizedBox(width: 6),
+                      if (status != null) ...[
+                        Text(
+                          '${status.running} active',
+                          style: AppFonts.inter(
+                            fontSize: AppFonts.xs,
+                            color: AppTheme.accent,
+                          ),
+                        ),
+                        Text(
+                          ', ${status.queued} queued',
+                          style: AppFonts.inter(
+                            fontSize: AppFonts.xs,
+                            color: AppTheme.fgDim,
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      historyAsync.when(
+                        data: (history) => Text(
+                          '${history.length} in history',
+                          style: AppFonts.inter(
+                            fontSize: AppFonts.xxs,
+                            color: AppTheme.fgFaint,
+                          ),
+                        ),
+                        loading: SizedBox.shrink,
+                        error: (_, _) => const SizedBox.shrink(),
                       ),
+                      const SizedBox(width: 4),
+                      if (_expanded)
+                        _headerButton(
+                          icon: Icons.delete_outline,
+                          tooltip: 'Clear history',
+                          onTap: () => manager.clearHistory(),
+                        ),
                     ],
-                    const Spacer(),
-                    historyAsync.when(
-                      data: (history) => Text(
-                        '${history.length} in history',
-                        style: AppFonts.inter(fontSize: AppFonts.xxs, color: AppTheme.fgFaint),
-                      ),
-                      loading: SizedBox.shrink,
-                      error: (_, _) => const SizedBox.shrink(),
-                    ),
-                    const SizedBox(width: 4),
-                    if (_expanded)
-                      _headerButton(
-                        icon: Icons.delete_outline,
-                        tooltip: 'Clear history',
-                        onTap: () => manager.clearHistory(),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            if (_expanded)
-              Positioned(
-                top: -3,
-                left: 0,
-                right: 0,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.resizeRow,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onVerticalDragUpdate: (d) {
-                      setState(() {
-                        _panelHeight = (_panelHeight - d.delta.dy).clamp(80.0, 500.0);
-                      });
-                    },
-                    child: const SizedBox(height: 6),
                   ),
                 ),
               ),
-          ],
-        ),
-        // Column headers + transfer list
-        if (_expanded) ...[
-          _buildColumnHeaders(),
-          Flexible(
-            child: SizedBox(
-              height: _panelHeight,
-              child: _buildTransferList(historyAsync, ref),
-            ),
+              if (_expanded)
+                Positioned(
+                  top: -3,
+                  left: 0,
+                  right: 0,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.resizeRow,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onVerticalDragUpdate: (d) {
+                        setState(() {
+                          _panelHeight = (_panelHeight - d.delta.dy).clamp(
+                            80.0,
+                            500.0,
+                          );
+                        });
+                      },
+                      child: const SizedBox(height: 6),
+                    ),
+                  ),
+                ),
+            ],
           ),
+          // Column headers + transfer list
+          if (_expanded) ...[
+            _buildColumnHeaders(),
+            Flexible(
+              child: SizedBox(
+                height: _panelHeight,
+                child: _buildTransferList(historyAsync, ref),
+              ),
+            ),
+          ],
         ],
-      ],
-    ),
+      ),
     );
   }
 
@@ -175,7 +187,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           return Center(
             child: Text(
               'No transfers yet',
-              style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgFaint),
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgFaint,
+              ),
             ),
           );
         }
@@ -219,17 +234,16 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     final sorted = List<HistoryEntry>.from(history);
     sorted.sort((a, b) {
       final cmp = switch (_sortColumn) {
-        TransferSortColumn.name =>
-          a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        TransferSortColumn.local =>
-          _localPath(a).compareTo(_localPath(b)),
-        TransferSortColumn.remote =>
-          _remotePath(a).compareTo(_remotePath(b)),
-        TransferSortColumn.size =>
-          a.sizeBytes.compareTo(b.sizeBytes),
+        TransferSortColumn.name => a.name.toLowerCase().compareTo(
+          b.name.toLowerCase(),
+        ),
+        TransferSortColumn.local => _localPath(a).compareTo(_localPath(b)),
+        TransferSortColumn.remote => _remotePath(a).compareTo(_remotePath(b)),
+        TransferSortColumn.size => a.sizeBytes.compareTo(b.sizeBytes),
         TransferSortColumn.time =>
-          (a.endedAt ?? a.startedAt ?? a.createdAt)
-              .compareTo(b.endedAt ?? b.startedAt ?? b.createdAt),
+          (a.endedAt ?? a.startedAt ?? a.createdAt).compareTo(
+            b.endedAt ?? b.startedAt ?? b.createdAt,
+          ),
       };
       return _sortAscending ? cmp : -cmp;
     });
@@ -260,7 +274,11 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       color: AppTheme.fgFaint,
     );
 
-    Widget headerCell(String label, TransferSortColumn column, {double? width}) {
+    Widget headerCell(
+      String label,
+      TransferSortColumn column, {
+      double? width,
+    }) {
       final isActive = _sortColumn == column;
       String sortSuffix = '';
       if (isActive) {
@@ -295,19 +313,38 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           SizedBox(width: 20, child: Text('', style: style)),
           const SizedBox(width: 4),
           Expanded(child: headerCell('Name', TransferSortColumn.name)),
-          ColumnResizeHandle(onDrag: (dx) => setState(() => _localColWidth = (_localColWidth - dx).clamp(60, 300))),
+          ColumnResizeHandle(
+            onDrag: (dx) => setState(
+              () => _localColWidth = (_localColWidth - dx).clamp(60, 300),
+            ),
+          ),
           headerCell('Local', TransferSortColumn.local, width: _localColWidth),
-          ColumnResizeHandle(onDrag: (dx) => setState(() => _remoteColWidth = (_remoteColWidth - dx).clamp(60, 300))),
-          headerCell('Remote', TransferSortColumn.remote, width: _remoteColWidth),
-          ColumnResizeHandle(onDrag: (dx) => setState(() => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 150))),
+          ColumnResizeHandle(
+            onDrag: (dx) => setState(
+              () => _remoteColWidth = (_remoteColWidth - dx).clamp(60, 300),
+            ),
+          ),
+          headerCell(
+            'Remote',
+            TransferSortColumn.remote,
+            width: _remoteColWidth,
+          ),
+          ColumnResizeHandle(
+            onDrag: (dx) => setState(
+              () => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 150),
+            ),
+          ),
           headerCell('Size', TransferSortColumn.size, width: _sizeColWidth),
-          ColumnResizeHandle(onDrag: (dx) => setState(() => _timeColWidth = (_timeColWidth - dx).clamp(60, 200))),
+          ColumnResizeHandle(
+            onDrag: (dx) => setState(
+              () => _timeColWidth = (_timeColWidth - dx).clamp(60, 200),
+            ),
+          ),
           headerCell('Time', TransferSortColumn.time, width: _timeColWidth),
         ],
       ),
     );
   }
-
 }
 
 /// Column divider line matching the file browser dividers.
@@ -361,9 +398,7 @@ class _HistoryRow extends StatelessWidget {
           SizedBox(
             width: 20,
             child: Tooltip(
-              message: isFailed
-                  ? (entry.error ?? 'Failed')
-                  : 'Completed',
+              message: isFailed ? (entry.error ?? 'Failed') : 'Completed',
               child: Icon(
                 isFailed ? Icons.error_outline : Icons.check_circle_outline,
                 size: 10,
@@ -391,7 +426,10 @@ class _HistoryRow extends StatelessWidget {
               message: isUpload ? entry.sourcePath : entry.targetPath,
               child: Text(
                 _shortenPath(isUpload ? entry.sourcePath : entry.targetPath),
-                style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                style: AppFonts.mono(
+                  fontSize: AppFonts.xs,
+                  color: AppTheme.fgFaint,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -404,7 +442,10 @@ class _HistoryRow extends StatelessWidget {
               message: isUpload ? entry.targetPath : entry.sourcePath,
               child: Text(
                 _shortenPath(isUpload ? entry.targetPath : entry.sourcePath),
-                style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                style: AppFonts.mono(
+                  fontSize: AppFonts.xs,
+                  color: AppTheme.fgFaint,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -415,7 +456,10 @@ class _HistoryRow extends StatelessWidget {
             width: sizeWidth,
             child: Text(
               entry.sizeBytes > 0 ? formatSize(entry.sizeBytes) : '',
-              style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+              style: AppFonts.mono(
+                fontSize: AppFonts.xs,
+                color: AppTheme.fgFaint,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -427,7 +471,10 @@ class _HistoryRow extends StatelessWidget {
               message: _timeTooltip(entry),
               child: Text(
                 _timeDisplay(entry),
-                style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                style: AppFonts.mono(
+                  fontSize: AppFonts.xs,
+                  color: AppTheme.fgFaint,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -527,7 +574,10 @@ class _ActiveRow extends StatelessWidget {
                     Flexible(
                       child: Text(
                         entry.name,
-                        style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fg),
+                        style: AppFonts.mono(
+                          fontSize: AppFonts.xs,
+                          color: AppTheme.fg,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -537,7 +587,10 @@ class _ActiveRow extends StatelessWidget {
                         flex: 0,
                         child: Text(
                           entry.message,
-                          style: AppFonts.mono(fontSize: AppFonts.tiny, color: AppTheme.accent),
+                          style: AppFonts.mono(
+                            fontSize: AppFonts.tiny,
+                            color: AppTheme.accent,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -552,8 +605,13 @@ class _ActiveRow extends StatelessWidget {
                 child: Tooltip(
                   message: isUpload ? entry.sourcePath : entry.targetPath,
                   child: Text(
-                    _HistoryRow._shortenPath(isUpload ? entry.sourcePath : entry.targetPath),
-                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                    _HistoryRow._shortenPath(
+                      isUpload ? entry.sourcePath : entry.targetPath,
+                    ),
+                    style: AppFonts.mono(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgFaint,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -565,8 +623,13 @@ class _ActiveRow extends StatelessWidget {
                 child: Tooltip(
                   message: isUpload ? entry.targetPath : entry.sourcePath,
                   child: Text(
-                    _HistoryRow._shortenPath(isUpload ? entry.targetPath : entry.sourcePath),
-                    style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                    _HistoryRow._shortenPath(
+                      isUpload ? entry.targetPath : entry.sourcePath,
+                    ),
+                    style: AppFonts.mono(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgFaint,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -577,7 +640,10 @@ class _ActiveRow extends StatelessWidget {
                 width: sizeWidth,
                 child: Text(
                   isQueued ? 'Queued' : '${entry.percent.toStringAsFixed(0)}%',
-                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.accent),
+                  style: AppFonts.mono(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.accent,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -587,7 +653,10 @@ class _ActiveRow extends StatelessWidget {
                 width: timeWidth,
                 child: Text(
                   entry.message,
-                  style: AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+                  style: AppFonts.mono(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fgFaint,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

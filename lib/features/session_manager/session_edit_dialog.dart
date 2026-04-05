@@ -38,11 +38,7 @@ class SessionEditDialog extends StatefulWidget {
   final Session? session; // null = create new
   final String? defaultFolder;
 
-  const SessionEditDialog({
-    super.key,
-    this.session,
-    this.defaultFolder,
-  });
+  const SessionEditDialog({super.key, this.session, this.defaultFolder});
 
   /// Show dialog. Returns [SessionDialogResult] or null on cancel.
   static Future<SessionDialogResult?> show(
@@ -53,10 +49,8 @@ class SessionEditDialog extends StatefulWidget {
     return showDialog<SessionDialogResult>(
       context: context,
       animationStyle: AnimationStyle.noAnimation,
-      builder: (_) => SessionEditDialog(
-        session: session,
-        defaultFolder: defaultFolder,
-      ),
+      builder: (_) =>
+          SessionEditDialog(session: session, defaultFolder: defaultFolder),
     );
   }
 
@@ -90,7 +84,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     super.initState();
     final s = widget.session;
     _labelCtrl = TextEditingController(text: s?.label ?? '');
-    _folderCtrl = TextEditingController(text: s?.folder ?? widget.defaultFolder ?? '');
+    _folderCtrl = TextEditingController(
+      text: s?.folder ?? widget.defaultFolder ?? '',
+    );
     _hostCtrl = TextEditingController(text: s?.host ?? '');
     _portCtrl = TextEditingController(text: '${s?.port ?? 22}');
     _userCtrl = TextEditingController(text: s?.user ?? '');
@@ -173,7 +169,8 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   bool _validateAuth() {
     final hasPassword = _passwordCtrl.text.isNotEmpty;
-    final hasKey = _keyPathCtrl.text.trim().isNotEmpty ||
+    final hasKey =
+        _keyPathCtrl.text.trim().isNotEmpty ||
         _keyDataCtrl.text.trim().isNotEmpty;
 
     String? error;
@@ -277,9 +274,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   Widget _buildTabBar() {
     return Container(
-      decoration: BoxDecoration(
-        border: AppTheme.borderBottom,
-      ),
+      decoration: BoxDecoration(border: AppTheme.borderBottom),
       child: Row(
         children: [
           _buildTab(0, Icons.dns, 'Connection'),
@@ -305,7 +300,11 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 12, color: active ? AppTheme.fg : AppTheme.fgFaint),
+            Icon(
+              icon,
+              size: 12,
+              color: active ? AppTheme.fg : AppTheme.fgFaint,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
@@ -333,29 +332,39 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         Row(
           children: [
             Expanded(
-              child: _styledField('Host *', _hostCtrl,
-                  hint: '192.168.1.1',
-                  validator: _requiredValidator),
+              child: _styledField(
+                'Host *',
+                _hostCtrl,
+                hint: '192.168.1.1',
+                validator: _requiredValidator,
+              ),
             ),
             const SizedBox(width: 12),
             SizedBox(
               width: 80,
-              child: _styledField('Port', _portCtrl,
-                  hint: '22',
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    final port = int.tryParse(v ?? '');
-                    if (port == null || port < 1 || port > 65535) {
-                      return '1-65535';
-                    }
-                    return null;
-                  }),
+              child: _styledField(
+                'Port',
+                _portCtrl,
+                hint: '22',
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  final port = int.tryParse(v ?? '');
+                  if (port == null || port < 1 || port > 65535) {
+                    return '1-65535';
+                  }
+                  return null;
+                },
+              ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        _styledField('Username *', _userCtrl,
-            hint: 'root', validator: _requiredValidator),
+        _styledField(
+          'Username *',
+          _userCtrl,
+          hint: 'root',
+          validator: _requiredValidator,
+        ),
       ],
     );
   }
@@ -397,11 +406,21 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         const _FieldLabel('Method'),
         Row(
           children: [
-            Expanded(child: _authButton(AuthType.password, Icons.shield, 'Password')),
+            Expanded(
+              child: _authButton(AuthType.password, Icons.shield, 'Password'),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _authButton(AuthType.key, Icons.vpn_key, 'SSH Key')),
+            Expanded(
+              child: _authButton(AuthType.key, Icons.vpn_key, 'SSH Key'),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _authButton(AuthType.keyWithPassword, Icons.swap_horiz, 'Both')),
+            Expanded(
+              child: _authButton(
+                AuthType.keyWithPassword,
+                Icons.swap_horiz,
+                'Both',
+              ),
+            ),
           ],
         ),
       ],
@@ -420,7 +439,11 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 11, color: active ? AppTheme.accent : AppTheme.fgDim),
+            Icon(
+              icon,
+              size: 11,
+              color: active ? AppTheme.accent : AppTheme.fgDim,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
@@ -544,8 +567,10 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
             ? SizedBox(
                 height: AppTheme.itemHeightLg,
                 child: Center(
-                  child: Text('Drop key file here',
-                      style: TextStyle(color: AppTheme.accent)),
+                  child: Text(
+                    'Drop key file here',
+                    style: TextStyle(color: AppTheme.accent),
+                  ),
                 ),
               )
             : row,
@@ -558,7 +583,10 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       alignment: Alignment.centerLeft,
       child: TextButton.icon(
         onPressed: () => setState(() => _showKeyText = !_showKeyText),
-        icon: Icon(_showKeyText ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 16),
+        icon: Icon(
+          _showKeyText ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+          size: 16,
+        ),
         label: Text(
           _showKeyText ? 'Hide PEM text' : 'Paste PEM key text',
           style: TextStyle(fontSize: AppFonts.md),
@@ -600,25 +628,29 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   }
 
   Widget _buildPassphraseField() {
-    return _styledField('Key Passphrase', _passphraseCtrl,
-        hint: 'Optional',
-        obscure: _obscurePassphrase,
-        suffixIcon: GestureDetector(
-          onTap: () => setState(() => _obscurePassphrase = !_obscurePassphrase),
-          child: Icon(
-            _obscurePassphrase ? Icons.visibility : Icons.visibility_off,
-            size: 12,
-            color: AppTheme.fgFaint,
-          ),
+    return _styledField(
+      'Key Passphrase',
+      _passphraseCtrl,
+      hint: 'Optional',
+      obscure: _obscurePassphrase,
+      suffixIcon: GestureDetector(
+        onTap: () => setState(() => _obscurePassphrase = !_obscurePassphrase),
+        child: Icon(
+          _obscurePassphrase ? Icons.visibility : Icons.visibility_off,
+          size: 12,
+          color: AppTheme.fgFaint,
         ),
-        validator: (v) {
-          if (v != null && v.isNotEmpty) {
-            final hasKey = _keyPathCtrl.text.trim().isNotEmpty ||
-                _keyDataCtrl.text.trim().isNotEmpty;
-            if (!hasKey) return 'Provide a key file or PEM text first';
-          }
-          return null;
-        });
+      ),
+      validator: (v) {
+        if (v != null && v.isNotEmpty) {
+          final hasKey =
+              _keyPathCtrl.text.trim().isNotEmpty ||
+              _keyDataCtrl.text.trim().isNotEmpty;
+          if (!hasKey) return 'Provide a key file or PEM text first';
+        }
+        return null;
+      },
+    );
   }
 
   // ── Options tab ──
@@ -648,7 +680,10 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
         if (_isEditing) ...[
           AppDialogAction.secondary(label: 'Save', onTap: _save),
-          AppDialogAction.primary(label: 'Save & Connect', onTap: () => _save(connect: true)),
+          AppDialogAction.primary(
+            label: 'Save & Connect',
+            onTap: () => _save(connect: true),
+          ),
         ] else ...[
           AppDialogAction.secondary(label: 'Save', onTap: _save),
           AppDialogAction.primary(label: 'Connect', onTap: _connectOnly),
@@ -784,7 +819,9 @@ class _StyledInput extends StatelessWidget {
                 child: suffixIcon,
               )
             : null,
-        suffixIconConstraints: const BoxConstraints(maxHeight: AppTheme.controlHeightMd),
+        suffixIconConstraints: const BoxConstraints(
+          maxHeight: AppTheme.controlHeightMd,
+        ),
       ),
     );
   }

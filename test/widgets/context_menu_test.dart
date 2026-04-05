@@ -14,32 +14,43 @@ void main() {
     );
   }
 
-  List<ContextMenuItem> testItems({VoidCallback? onCopy, VoidCallback? onPaste}) {
+  List<ContextMenuItem> testItems({
+    VoidCallback? onCopy,
+    VoidCallback? onPaste,
+  }) {
     return [
-      ContextMenuItem(label: 'Copy', icon: Icons.copy, shortcut: 'Ctrl+C', onTap: onCopy),
+      ContextMenuItem(
+        label: 'Copy',
+        icon: Icons.copy,
+        shortcut: 'Ctrl+C',
+        onTap: onCopy,
+      ),
       const ContextMenuItem.divider(),
       ContextMenuItem(label: 'Paste', icon: Icons.paste, onTap: onPaste),
     ];
   }
 
-  Future<void> openMenu(WidgetTester tester, {
+  Future<void> openMenu(
+    WidgetTester tester, {
     List<ContextMenuItem>? items,
     VoidCallback? onCopy,
     VoidCallback? onPaste,
   }) async {
     final menuItems = items ?? testItems(onCopy: onCopy, onPaste: onPaste);
-    await tester.pumpWidget(wrap(
-      Builder(
-        builder: (ctx) => ElevatedButton(
-          onPressed: () => showAppContextMenu(
-            context: ctx,
-            position: const Offset(100, 100),
-            items: menuItems,
+    await tester.pumpWidget(
+      wrap(
+        Builder(
+          builder: (ctx) => ElevatedButton(
+            onPressed: () => showAppContextMenu(
+              context: ctx,
+              position: const Offset(100, 100),
+              items: menuItems,
+            ),
+            child: const Text('Open'),
           ),
-          child: const Text('Open'),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
   }
@@ -115,21 +126,23 @@ void main() {
 
     testWidgets('re-entrant call dismisses previous menu', (tester) async {
       late BuildContext savedCtx;
-      await tester.pumpWidget(wrap(
-        Builder(
-          builder: (ctx) {
-            savedCtx = ctx;
-            return ElevatedButton(
-              onPressed: () => showAppContextMenu(
-                context: ctx,
-                position: const Offset(50, 50),
-                items: [const ContextMenuItem(label: 'First')],
-              ),
-              child: const Text('Menu1'),
-            );
-          },
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) {
+              savedCtx = ctx;
+              return ElevatedButton(
+                onPressed: () => showAppContextMenu(
+                  context: ctx,
+                  position: const Offset(50, 50),
+                  items: [const ContextMenuItem(label: 'First')],
+                ),
+                child: const Text('Menu1'),
+              );
+            },
+          ),
         ),
-      ));
+      );
 
       await tester.tap(find.text('Menu1'));
       await tester.pumpAndSettle();
@@ -150,9 +163,10 @@ void main() {
     });
 
     testWidgets('item with custom color uses that color', (tester) async {
-      await openMenu(tester, items: [
-        const ContextMenuItem(label: 'Delete', color: Colors.red),
-      ]);
+      await openMenu(
+        tester,
+        items: [const ContextMenuItem(label: 'Delete', color: Colors.red)],
+      );
 
       final textWidget = tester.widget<Text>(find.text('Delete'));
       expect(textWidget.style?.color, Colors.red);
@@ -266,11 +280,16 @@ void main() {
       expect(find.text('Copy'), findsNothing);
     });
 
-    testWidgets('keyboard navigation with all dividers does nothing', (tester) async {
-      await openMenu(tester, items: [
-        const ContextMenuItem.divider(),
-        const ContextMenuItem.divider(),
-      ]);
+    testWidgets('keyboard navigation with all dividers does nothing', (
+      tester,
+    ) async {
+      await openMenu(
+        tester,
+        items: [
+          const ContextMenuItem.divider(),
+          const ContextMenuItem.divider(),
+        ],
+      );
 
       await sendKey(tester, LogicalKeyboardKey.arrowDown);
       await tester.pump();

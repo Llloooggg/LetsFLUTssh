@@ -18,7 +18,8 @@ import '../file_browser/transfer_helpers.dart';
 import '../file_browser/transfer_panel.dart';
 
 /// Factory for SFTP initialization — injectable for testing.
-typedef MobileSFTPInitFactory = Future<SFTPInitResult> Function(Connection connection);
+typedef MobileSFTPInitFactory =
+    Future<SFTPInitResult> Function(Connection connection);
 
 /// Single-pane mobile SFTP browser with Local/Remote toggle.
 class MobileFileBrowser extends ConsumerStatefulWidget {
@@ -27,7 +28,11 @@ class MobileFileBrowser extends ConsumerStatefulWidget {
   /// Optional factory for testing — bypasses real SSH/SFTP.
   final MobileSFTPInitFactory? sftpInitFactory;
 
-  const MobileFileBrowser({super.key, required this.connection, this.sftpInitFactory});
+  const MobileFileBrowser({
+    super.key,
+    required this.connection,
+    this.sftpInitFactory,
+  });
 
   @override
   ConsumerState<MobileFileBrowser> createState() => _MobileFileBrowserState();
@@ -77,12 +82,21 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
           : await SFTPInitializer.init(conn);
       if (mounted) setState(() => _initializing = false);
     } catch (e) {
-      AppLogger.instance.log('SFTP init failed: $e', name: 'MobileFileBrowser', error: e);
-      if (mounted) setState(() { _error = 'Failed to init SFTP: $e'; _initializing = false; });
+      AppLogger.instance.log(
+        'SFTP init failed: $e',
+        name: 'MobileFileBrowser',
+        error: e,
+      );
+      if (mounted)
+        setState(() {
+          _error = 'Failed to init SFTP: $e';
+          _initializing = false;
+        });
     }
   }
 
-  FilePaneController get _activeCtrl => _showRemote ? _remoteCtrl! : _localCtrl!;
+  FilePaneController get _activeCtrl =>
+      _showRemote ? _remoteCtrl! : _localCtrl!;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +104,11 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
       return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Initializing SFTP...')],
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Initializing SFTP...'),
+          ],
         ),
       );
     }
@@ -99,12 +117,22 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppTheme.disconnected,
+            ),
             const SizedBox(height: 8),
             Text(_error!),
             const SizedBox(height: 16),
             FilledButton.tonal(
-              onPressed: () { setState(() { _initializing = true; _error = null; }); _initSftp(); },
+              onPressed: () {
+                setState(() {
+                  _initializing = true;
+                  _error = null;
+                });
+                _initSftp();
+              },
               child: const Text('Retry'),
             ),
           ],
@@ -115,13 +143,23 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     return Column(
       children: [
         _buildToolbar(context),
-        Expanded(child: MobileFileList(
-          controller: _activeCtrl,
-          onTransfer: _showRemote ? _download : _upload,
-          onTransferMultiple: _showRemote
-              ? (entries) { for (final e in entries) { _download(e); } }
-              : (entries) { for (final e in entries) { _upload(e); } },
-        )),
+        Expanded(
+          child: MobileFileList(
+            controller: _activeCtrl,
+            onTransfer: _showRemote ? _download : _upload,
+            onTransferMultiple: _showRemote
+                ? (entries) {
+                    for (final e in entries) {
+                      _download(e);
+                    }
+                  }
+                : (entries) {
+                    for (final e in entries) {
+                      _upload(e);
+                    }
+                  },
+          ),
+        ),
         const TransferPanel(),
       ],
     );
@@ -147,12 +185,23 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                   Expanded(
                     child: SegmentedButton<bool>(
                       segments: const [
-                        ButtonSegment(value: false, label: Text('Local'), icon: Icon(Icons.phone_android, size: 16)),
-                        ButtonSegment(value: true, label: Text('Remote'), icon: Icon(Icons.cloud, size: 16)),
+                        ButtonSegment(
+                          value: false,
+                          label: Text('Local'),
+                          icon: Icon(Icons.phone_android, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: true,
+                          label: Text('Remote'),
+                          icon: Icon(Icons.cloud, size: 16),
+                        ),
                       ],
                       selected: {_showRemote},
-                      onSelectionChanged: (s) => setState(() => _showRemote = s.first),
-                      style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                      onSelectionChanged: (s) =>
+                          setState(() => _showRemote = s.first),
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -304,7 +353,8 @@ class _MobileFileListState extends State<MobileFileList> {
   Widget build(BuildContext context) {
     if (ctrl.loading) return const Center(child: CircularProgressIndicator());
     if (ctrl.error != null) return _buildError(context);
-    if (ctrl.entries.isEmpty) return const Center(child: Text('Empty directory'));
+    if (ctrl.entries.isEmpty)
+      return const Center(child: Text('Empty directory'));
 
     return Column(
       children: [
@@ -332,7 +382,10 @@ class _MobileFileListState extends State<MobileFileList> {
           const SizedBox(height: 8),
           Text(ctrl.error!),
           const SizedBox(height: 8),
-          FilledButton.tonal(onPressed: ctrl.refresh, child: const Text('Retry')),
+          FilledButton.tonal(
+            onPressed: ctrl.refresh,
+            child: const Text('Retry'),
+          ),
         ],
       ),
     );
@@ -343,9 +396,7 @@ class _MobileFileListState extends State<MobileFileList> {
     return Container(
       height: AppTheme.barHeightLg,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
-      ),
+      decoration: BoxDecoration(color: theme.colorScheme.primaryContainer),
       child: Row(
         children: [
           AppIconButton(
@@ -355,7 +406,10 @@ class _MobileFileListState extends State<MobileFileList> {
             onTap: _exitSelectionMode,
             tooltip: 'Cancel selection',
           ),
-          Text('${ctrl.selected.length} selected', style: TextStyle(fontSize: AppFonts.lg)),
+          Text(
+            '${ctrl.selected.length} selected',
+            style: TextStyle(fontSize: AppFonts.lg),
+          ),
           const Spacer(),
           AppIconButton(
             icon: Icons.swap_horiz,
@@ -390,7 +444,9 @@ class _MobileFileListState extends State<MobileFileList> {
       child: Container(
         height: AppTheme.itemHeightLg,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        color: isSelected ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5) : null,
+        color: isSelected
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+            : null,
         child: Row(
           children: [
             if (_selectionMode)
@@ -402,7 +458,9 @@ class _MobileFileListState extends State<MobileFileList> {
             Icon(
               entry.isDir ? Icons.folder : Icons.insert_drive_file,
               size: 22,
-              color: entry.isDir ? AppTheme.folderIcon : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              color: entry.isDir
+                  ? AppTheme.folderIcon
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -410,11 +468,20 @@ class _MobileFileListState extends State<MobileFileList> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(entry.name, style: TextStyle(fontSize: AppFonts.md), overflow: TextOverflow.ellipsis),
+                  Text(
+                    entry.name,
+                    style: TextStyle(fontSize: AppFonts.md),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   if (!entry.isDir)
                     Text(
                       formatSize(entry.size),
-                      style: TextStyle(fontSize: AppFonts.sm, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                      style: TextStyle(
+                        fontSize: AppFonts.sm,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -422,7 +489,11 @@ class _MobileFileListState extends State<MobileFileList> {
             if (!_selectionMode)
               Text(
                 entry.modeString,
-                style: TextStyle(fontSize: AppFonts.sm, fontFamily: 'monospace', color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                style: TextStyle(
+                  fontSize: AppFonts.sm,
+                  fontFamily: 'monospace',
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
               ),
           ],
         ),
@@ -461,28 +532,46 @@ class _MobileFileListState extends State<MobileFileList> {
             ListTile(
               leading: const Icon(Icons.swap_horiz),
               title: const Text('Transfer'),
-              onTap: () { Navigator.pop(ctx); widget.onTransfer(entry); },
+              onTap: () {
+                Navigator.pop(ctx);
+                widget.onTransfer(entry);
+              },
             ),
             if (entry.isDir)
               ListTile(
                 leading: const Icon(Icons.folder_open),
                 title: const Text('Open'),
-                onTap: () { Navigator.pop(ctx); ctrl.navigateTo(entry.path); },
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ctrl.navigateTo(entry.path);
+                },
               ),
             ListTile(
               leading: const Icon(Icons.edit),
               title: const Text('Rename'),
-              onTap: () { Navigator.pop(ctx); _showRenameDialog(context, entry); },
+              onTap: () {
+                Navigator.pop(ctx);
+                _showRenameDialog(context, entry);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: AppTheme.disconnected),
-              title: const Text('Delete', style: TextStyle(color: AppTheme.disconnected)),
-              onTap: () { Navigator.pop(ctx); _confirmDelete(context, [entry]); },
+              title: const Text(
+                'Delete',
+                style: TextStyle(color: AppTheme.disconnected),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _confirmDelete(context, [entry]);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.create_new_folder),
               title: const Text('New Folder'),
-              onTap: () { Navigator.pop(ctx); _showNewFolderDialog(context); },
+              onTap: () {
+                Navigator.pop(ctx);
+                _showNewFolderDialog(context);
+              },
             ),
           ],
         ),
@@ -496,7 +585,10 @@ class _MobileFileListState extends State<MobileFileList> {
   Future<void> _showRenameDialog(BuildContext context, FileEntry entry) =>
       FilePaneDialogs.showRename(context, ctrl, entry);
 
-  Future<void> _confirmDelete(BuildContext context, List<FileEntry> entries) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    List<FileEntry> entries,
+  ) async {
     await FilePaneDialogs.confirmDelete(context, ctrl, entries);
     _exitSelectionMode();
   }

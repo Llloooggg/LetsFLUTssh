@@ -31,8 +31,7 @@ final connectionManagerProvider = Provider<ConnectionManager>((ref) {
 
 /// Reactive list of active connections.
 /// Rebuilds when connections change.
-final connectionsProvider =
-    StreamProvider<List<Connection>>((ref) async* {
+final connectionsProvider = StreamProvider<List<Connection>>((ref) async* {
   final manager = ref.watch(connectionManagerProvider);
   yield manager.connections;
   await for (final _ in manager.onChange) {

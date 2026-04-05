@@ -7,13 +7,63 @@ import '../../utils/format.dart';
 import '../../widgets/hover_region.dart';
 
 /// File extensions grouped by type for icon/color mapping.
-const _imageExts = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff'};
-const _archiveExts = {'zip', 'tar', 'gz', 'bz2', 'xz', 'rar', '7z', 'tgz', 'zst'};
+const _imageExts = {
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'bmp',
+  'svg',
+  'webp',
+  'ico',
+  'tiff',
+};
+const _archiveExts = {
+  'zip',
+  'tar',
+  'gz',
+  'bz2',
+  'xz',
+  'rar',
+  '7z',
+  'tgz',
+  'zst',
+};
 const _codeExts = {
-  'dart', 'js', 'ts', 'py', 'go', 'rs', 'c', 'cpp', 'h', 'java',
-  'kt', 'rb', 'sh', 'bash', 'zsh', 'yaml', 'yml', 'toml', 'json',
-  'xml', 'html', 'css', 'scss', 'md', 'txt', 'log', 'conf', 'cfg',
-  'ini', 'env', 'sql', 'swift', 'tsx', 'jsx',
+  'dart',
+  'js',
+  'ts',
+  'py',
+  'go',
+  'rs',
+  'c',
+  'cpp',
+  'h',
+  'java',
+  'kt',
+  'rb',
+  'sh',
+  'bash',
+  'zsh',
+  'yaml',
+  'yml',
+  'toml',
+  'json',
+  'xml',
+  'html',
+  'css',
+  'scss',
+  'md',
+  'txt',
+  'log',
+  'conf',
+  'cfg',
+  'ini',
+  'env',
+  'sql',
+  'swift',
+  'tsx',
+  'jsx',
 };
 
 String _ext(String name) =>
@@ -112,19 +162,16 @@ class FileRow extends StatelessWidget {
         height: AppTheme.controlHeightXs,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         clipBehavior: Clip.hardEdge,
-        decoration: BoxDecoration(
-          color: _rowColor(hovered),
-        ),
-        child: Row(
-          children: _buildColumns(theme),
-        ),
+        decoration: BoxDecoration(color: _rowColor(hovered)),
+        child: Row(children: _buildColumns(theme)),
       ),
     );
   }
 
   void _handleTap() {
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
-    final ctrlHeld = keys.contains(LogicalKeyboardKey.controlLeft) ||
+    final ctrlHeld =
+        keys.contains(LogicalKeyboardKey.controlLeft) ||
         keys.contains(LogicalKeyboardKey.controlRight);
     ctrlHeld ? onCtrlTap() : onTap();
   }
@@ -136,7 +183,10 @@ class FileRow extends StatelessWidget {
   }
 
   List<Widget> _buildColumns(ThemeData theme) {
-    final metaStyle = AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint);
+    final metaStyle = AppFonts.mono(
+      fontSize: AppFonts.xs,
+      color: AppTheme.fgFaint,
+    );
     return [
       Icon(
         fileIcon(entry),
@@ -219,11 +269,7 @@ class MenuRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: [
-        Icon(icon, size: 18),
-        const SizedBox(width: 8),
-        Text(text),
-      ],
+      children: [Icon(icon, size: 18), const SizedBox(width: 8), Text(text)],
     );
   }
 }

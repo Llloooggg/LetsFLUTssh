@@ -7,9 +7,7 @@ void main() {
   Widget buildApp() {
     return MaterialApp(
       theme: AppTheme.dark(),
-      home: const Scaffold(
-        body: WelcomeScreen(),
-      ),
+      home: const Scaffold(body: WelcomeScreen()),
     );
   }
 
@@ -18,8 +16,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       expect(find.text('No active session'), findsOneWidget);
       expect(
-        find.text(
-            'Create a new connection or select one from the sidebar'),
+        find.text('Create a new connection or select one from the sidebar'),
         findsOneWidget,
       );
     });

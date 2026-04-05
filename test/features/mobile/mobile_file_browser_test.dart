@@ -82,39 +82,43 @@ class ErrorFileSystem implements FileSystem {
 
 /// Standard test entries used across tests.
 List<FileEntry> testEntries() => [
-      FileEntry(
-        name: 'docs',
-        path: '/home/test/docs',
-        size: 4096,
-        mode: 0x1ED, // 0755
-        modTime: DateTime(2024, 1, 1),
-        isDir: true,
-      ),
-      FileEntry(
-        name: 'readme.txt',
-        path: '/home/test/readme.txt',
-        size: 1024,
-        mode: 0x1A4, // 0644
-        modTime: DateTime(2024, 1, 2),
-        isDir: false,
-      ),
-      FileEntry(
-        name: 'script.sh',
-        path: '/home/test/script.sh',
-        size: 512,
-        mode: 0x1ED,
-        modTime: DateTime(2024, 1, 3),
-        isDir: false,
-      ),
-    ];
+  FileEntry(
+    name: 'docs',
+    path: '/home/test/docs',
+    size: 4096,
+    mode: 0x1ED, // 0755
+    modTime: DateTime(2024, 1, 1),
+    isDir: true,
+  ),
+  FileEntry(
+    name: 'readme.txt',
+    path: '/home/test/readme.txt',
+    size: 1024,
+    mode: 0x1A4, // 0644
+    modTime: DateTime(2024, 1, 2),
+    isDir: false,
+  ),
+  FileEntry(
+    name: 'script.sh',
+    path: '/home/test/script.sh',
+    size: 512,
+    mode: 0x1ED,
+    modTime: DateTime(2024, 1, 3),
+    isDir: false,
+  ),
+];
 
 void main() {
   group('MobileFileBrowser — widget rendering', () {
-    testWidgets('shows loading state while connection is connecting', (tester) async {
+    testWidgets('shows loading state while connection is connecting', (
+      tester,
+    ) async {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
         state: SSHConnectionState.connecting,
       );
 
@@ -122,9 +126,7 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: MobileFileBrowser(connection: connection),
-            ),
+            home: Scaffold(body: MobileFileBrowser(connection: connection)),
           ),
         ),
       );
@@ -138,21 +140,22 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('shows error state when connection is disconnected',
-        (tester) async {
+    testWidgets('shows error state when connection is disconnected', (
+      tester,
+    ) async {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
       );
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: MobileFileBrowser(connection: connection),
-            ),
+            home: Scaffold(body: MobileFileBrowser(connection: connection)),
           ),
         ),
       );
@@ -168,16 +171,16 @@ void main() {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'example.com', user: 'root')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'example.com', user: 'root'),
+        ),
       );
 
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
             theme: AppTheme.dark(),
-            home: Scaffold(
-              body: MobileFileBrowser(connection: connection),
-            ),
+            home: Scaffold(body: MobileFileBrowser(connection: connection)),
           ),
         ),
       );
@@ -227,8 +230,9 @@ void main() {
       );
     }
 
-    testWidgets('shows empty directory when controller has no entries',
-        (tester) async {
+    testWidgets('shows empty directory when controller has no entries', (
+      tester,
+    ) async {
       // Don't init controller — entries are empty, loading is false
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -315,9 +319,9 @@ void main() {
     testWidgets('tapping file calls onTransfer', (tester) async {
       FileEntry? transferred;
       await controller.init();
-      await tester.pumpWidget(buildFileList(
-        onTransfer: (entry) => transferred = entry,
-      ));
+      await tester.pumpWidget(
+        buildFileList(onTransfer: (entry) => transferred = entry),
+      );
       await tester.pump();
 
       await tester.tap(find.text('readme.txt'));
@@ -341,8 +345,9 @@ void main() {
       expect(find.text('1 selected'), findsOneWidget);
     });
 
-    testWidgets('selection mode shows transfer and delete buttons',
-        (tester) async {
+    testWidgets('selection mode shows transfer and delete buttons', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -354,8 +359,9 @@ void main() {
       expect(find.byTooltip('Delete'), findsOneWidget);
     });
 
-    testWidgets('selection bar close button exits selection mode',
-        (tester) async {
+    testWidgets('selection bar close button exits selection mode', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -410,13 +416,14 @@ void main() {
       expect(find.byType(Checkbox), findsNothing);
     });
 
-    testWidgets('transfer button in selection bar calls onTransferMultiple',
-        (tester) async {
+    testWidgets('transfer button in selection bar calls onTransferMultiple', (
+      tester,
+    ) async {
       List<FileEntry>? transferred;
       await controller.init();
-      await tester.pumpWidget(buildFileList(
-        onTransferMultiple: (entries) => transferred = entries,
-      ));
+      await tester.pumpWidget(
+        buildFileList(onTransferMultiple: (entries) => transferred = entries),
+      );
       await tester.pump();
 
       await tester.longPress(find.text('readme.txt'));
@@ -432,8 +439,9 @@ void main() {
       expect(find.byType(Checkbox), findsNothing);
     });
 
-    testWidgets('long press in selection mode shows bottom sheet actions',
-        (tester) async {
+    testWidgets('long press in selection mode shows bottom sheet actions', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -453,8 +461,9 @@ void main() {
       expect(find.text('New Folder'), findsOneWidget);
     });
 
-    testWidgets('bottom sheet shows Open action for directories',
-        (tester) async {
+    testWidgets('bottom sheet shows Open action for directories', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -471,13 +480,14 @@ void main() {
       expect(find.text('Transfer'), findsOneWidget);
     });
 
-    testWidgets('bottom sheet Transfer action calls onTransfer',
-        (tester) async {
+    testWidgets('bottom sheet Transfer action calls onTransfer', (
+      tester,
+    ) async {
       FileEntry? transferred;
       await controller.init();
-      await tester.pumpWidget(buildFileList(
-        onTransfer: (e) => transferred = e,
-      ));
+      await tester.pumpWidget(
+        buildFileList(onTransfer: (e) => transferred = e),
+      );
       await tester.pump();
 
       // Enter selection mode and open bottom sheet
@@ -512,8 +522,9 @@ void main() {
       expect(controller.currentPath, '/home/test/docs');
     });
 
-    testWidgets('bottom sheet Rename action opens rename dialog',
-        (tester) async {
+    testWidgets('bottom sheet Rename action opens rename dialog', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -531,8 +542,9 @@ void main() {
       expect(find.text('Rename'), findsWidgets);
     });
 
-    testWidgets('bottom sheet New Folder action opens new folder dialog',
-        (tester) async {
+    testWidgets('bottom sheet New Folder action opens new folder dialog', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -549,8 +561,9 @@ void main() {
       expect(find.text('FOLDER NAME'), findsOneWidget);
     });
 
-    testWidgets('bottom sheet Delete action opens delete confirmation',
-        (tester) async {
+    testWidgets('bottom sheet Delete action opens delete confirmation', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -572,8 +585,9 @@ void main() {
       expect(find.textContaining('Delete'), findsWidgets);
     });
 
-    testWidgets('delete button in selection bar opens delete confirmation',
-        (tester) async {
+    testWidgets('delete button in selection bar opens delete confirmation', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -590,8 +604,7 @@ void main() {
       expect(find.textContaining('Delete'), findsWidgets);
     });
 
-    testWidgets('checkbox in selection mode toggles selection',
-        (tester) async {
+    testWidgets('checkbox in selection mode toggles selection', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -621,8 +634,9 @@ void main() {
       expect(listView.itemExtent, 48.0);
     });
 
-    testWidgets('error state retry button refreshes controller',
-        (tester) async {
+    testWidgets('error state retry button refreshes controller', (
+      tester,
+    ) async {
       final errorFs = ErrorFileSystem();
       final errorCtrl = FilePaneController(fs: errorFs, label: 'Error');
       await errorCtrl.init();
@@ -650,46 +664,51 @@ void main() {
       expect(find.byType(InkWell), findsNWidgets(3));
     });
 
-    testWidgets('switching controller resets selection mode and listens to new controller', (tester) async {
-      await controller.init();
+    testWidgets(
+      'switching controller resets selection mode and listens to new controller',
+      (tester) async {
+        await controller.init();
 
-      final secondFs = FakeFileSystem(fakeEntries: [
-        FileEntry(
-          name: 'other.txt',
-          path: '/remote/other.txt',
-          size: 256,
-          mode: 0x1A4,
-          modTime: DateTime(2024, 2, 1),
-          isDir: false,
-        ),
-      ]);
-      final secondCtrl = FilePaneController(fs: secondFs, label: 'Remote');
-      await secondCtrl.init();
+        final secondFs = FakeFileSystem(
+          fakeEntries: [
+            FileEntry(
+              name: 'other.txt',
+              path: '/remote/other.txt',
+              size: 256,
+              mode: 0x1A4,
+              modTime: DateTime(2024, 2, 1),
+              isDir: false,
+            ),
+          ],
+        );
+        final secondCtrl = FilePaneController(fs: secondFs, label: 'Remote');
+        await secondCtrl.init();
 
-      // Build with first controller
-      await tester.pumpWidget(buildFileList());
-      await tester.pump();
+        // Build with first controller
+        await tester.pumpWidget(buildFileList());
+        await tester.pump();
 
-      // Enter selection mode on first controller
-      await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
-      expect(find.byType(Checkbox), findsWidgets);
+        // Enter selection mode on first controller
+        await tester.longPress(find.text('readme.txt'));
+        await tester.pump();
+        expect(find.byType(Checkbox), findsWidgets);
 
-      // Switch to second controller — selection mode should reset
-      await tester.pumpWidget(buildFileList(ctrl: secondCtrl));
-      await tester.pump();
+        // Switch to second controller — selection mode should reset
+        await tester.pumpWidget(buildFileList(ctrl: secondCtrl));
+        await tester.pump();
 
-      expect(find.byType(Checkbox), findsNothing);
-      expect(find.text('other.txt'), findsOneWidget);
+        expect(find.byType(Checkbox), findsNothing);
+        expect(find.text('other.txt'), findsOneWidget);
 
-      // Verify new controller's updates trigger rebuilds:
-      // navigate somewhere (refresh) should still work
-      await secondCtrl.refresh();
-      await tester.pump();
-      expect(find.text('other.txt'), findsOneWidget);
+        // Verify new controller's updates trigger rebuilds:
+        // navigate somewhere (refresh) should still work
+        await secondCtrl.refresh();
+        await tester.pump();
+        expect(find.text('other.txt'), findsOneWidget);
 
-      secondCtrl.dispose();
-    });
+        secondCtrl.dispose();
+      },
+    );
   });
 
   // ===========================================================================
@@ -717,7 +736,10 @@ void main() {
         label: 'Local',
       );
       final remoteCtrl = FilePaneController(
-        fs: FakeFileSystem(fakeEntries: testEntries(), fakeInitialDir: '/remote'),
+        fs: FakeFileSystem(
+          fakeEntries: testEntries(),
+          fakeInitialDir: '/remote',
+        ),
         label: 'Remote',
       );
 
@@ -732,9 +754,7 @@ void main() {
 
     Widget buildBrowser(Connection conn) {
       return ProviderScope(
-        overrides: [
-          transferManagerProvider.overrideWithValue(manager),
-        ],
+        overrides: [transferManagerProvider.overrideWithValue(manager)],
         child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
@@ -751,7 +771,9 @@ void main() {
       final conn = Connection(
         id: 'success-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -771,11 +793,15 @@ void main() {
       expect(find.text('readme.txt'), findsOneWidget);
     });
 
-    testWidgets('switching Local/Remote toggle changes active pane', (tester) async {
+    testWidgets('switching Local/Remote toggle changes active pane', (
+      tester,
+    ) async {
       final conn = Connection(
         id: 'toggle-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -803,7 +829,9 @@ void main() {
       final conn = Connection(
         id: 'tp-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -817,21 +845,22 @@ void main() {
       final conn = Connection(
         id: 'fail-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            transferManagerProvider.overrideWithValue(manager),
-          ],
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
           child: MaterialApp(
             theme: AppTheme.dark(),
             home: Scaffold(
               body: MobileFileBrowser(
                 connection: conn,
-                sftpInitFactory: (_) async => throw Exception('SFTP channel failed'),
+                sftpInitFactory: (_) async =>
+                    throw Exception('SFTP channel failed'),
               ),
             ),
           ),
@@ -847,7 +876,9 @@ void main() {
       final conn = Connection(
         id: 'refresh-1',
         label: 'Test',
-        sshConfig: const SSHConfig(server: ServerAddress(host: 'h', user: 'u')),
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
         state: SSHConnectionState.connected,
       );
 
@@ -896,29 +927,32 @@ void main() {
       );
     }
 
-    testWidgets('delete button in selection bar exits selection after confirm dialog', (tester) async {
-      await controller.init();
-      await tester.pumpWidget(buildFileList());
-      await tester.pump();
+    testWidgets(
+      'delete button in selection bar exits selection after confirm dialog',
+      (tester) async {
+        await controller.init();
+        await tester.pumpWidget(buildFileList());
+        await tester.pump();
 
-      // Enter selection mode
-      await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+        // Enter selection mode
+        await tester.longPress(find.text('readme.txt'));
+        await tester.pump();
 
-      expect(find.byType(Checkbox), findsWidgets);
+        expect(find.byType(Checkbox), findsWidgets);
 
-      // Tap delete button in selection bar
-      await tester.tap(find.byTooltip('Delete'));
-      await tester.pumpAndSettle();
-
-      // Dismiss the confirm dialog (Cancel)
-      if (find.text('Cancel').evaluate().isNotEmpty) {
-        await tester.tap(find.text('Cancel'));
+        // Tap delete button in selection bar
+        await tester.tap(find.byTooltip('Delete'));
         await tester.pumpAndSettle();
-      }
 
-      // Selection mode should be exited after _confirmDelete completes
-      expect(find.byType(Checkbox), findsNothing);
-    });
+        // Dismiss the confirm dialog (Cancel)
+        if (find.text('Cancel').evaluate().isNotEmpty) {
+          await tester.tap(find.text('Cancel'));
+          await tester.pumpAndSettle();
+        }
+
+        // Selection mode should be exited after _confirmDelete completes
+        expect(find.byType(Checkbox), findsNothing);
+      },
+    );
   });
 }

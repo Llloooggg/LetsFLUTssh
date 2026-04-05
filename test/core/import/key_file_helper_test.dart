@@ -17,7 +17,8 @@ void main() {
 
     test('returns PEM content for valid private key file', () {
       final keyFile = File('${tmpDir.path}/id_rsa');
-      const pemContent = '-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----';
+      const pemContent =
+          '-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----';
       keyFile.writeAsStringSync(pemContent);
 
       final result = KeyFileHelper.tryReadPemKey(keyFile.path);
@@ -35,7 +36,9 @@ void main() {
     });
 
     test('returns null for nonexistent file', () {
-      final result = KeyFileHelper.tryReadPemKey('${tmpDir.path}/does_not_exist');
+      final result = KeyFileHelper.tryReadPemKey(
+        '${tmpDir.path}/does_not_exist',
+      );
 
       expect(result, isNull);
     });
@@ -53,7 +56,8 @@ void main() {
 
     test('returns content for OpenSSH format key', () {
       final keyFile = File('${tmpDir.path}/id_ed25519');
-      const pemContent = '-----BEGIN OPENSSH PRIVATE KEY-----\nb3Blb...\n-----END OPENSSH PRIVATE KEY-----';
+      const pemContent =
+          '-----BEGIN OPENSSH PRIVATE KEY-----\nb3Blb...\n-----END OPENSSH PRIVATE KEY-----';
       keyFile.writeAsStringSync(pemContent);
 
       final result = KeyFileHelper.tryReadPemKey(keyFile.path);

@@ -45,9 +45,7 @@ class ConfirmDialog extends StatelessWidget {
       title: title,
       content: content,
       actions: [
-        AppDialogAction.cancel(
-          onTap: () => Navigator.of(context).pop(false),
-        ),
+        AppDialogAction.cancel(onTap: () => Navigator.of(context).pop(false)),
         if (destructive)
           AppDialogAction.destructive(
             label: confirmLabel,
