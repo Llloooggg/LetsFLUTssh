@@ -64,7 +64,12 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
     if (!conn.isConnected) {
       if (mounted) {
-        setState(() => _error = conn.connectionError ?? 'Connection failed');
+        final l10n = S.of(context);
+        setState(
+          () => _error = conn.connectionError != null
+              ? localizeError(l10n, conn.connectionError!)
+              : l10n.errConnectionFailed,
+        );
       }
       return;
     }
@@ -77,7 +82,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           if (mounted) {
             setState(() {
               _connected = false;
-              _error = 'Session closed';
+              _error = S.of(context).errSessionClosed;
             });
           }
         },
@@ -98,7 +103,9 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
         name: 'MobileTerminal',
         error: e,
       );
-      if (mounted) setState(() => _error = sanitizeError(e));
+      if (mounted) {
+        setState(() => _error = localizeError(S.of(context), e));
+      }
     }
   }
 

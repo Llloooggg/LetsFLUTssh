@@ -824,4 +824,179 @@ class SVi extends S {
 
   @override
   String get failed => 'Thất bại';
+
+  @override
+  String get errOperationNotPermitted => 'Thao tác không được phép';
+
+  @override
+  String get errNoSuchFileOrDirectory => 'Không tìm thấy tệp hoặc thư mục';
+
+  @override
+  String get errNoSuchProcess => 'Không tìm thấy tiến trình';
+
+  @override
+  String get errIoError => 'Lỗi I/O';
+
+  @override
+  String get errBadFileDescriptor => 'Mô tả tệp không hợp lệ';
+
+  @override
+  String get errResourceTemporarilyUnavailable =>
+      'Tài nguyên tạm thời không khả dụng';
+
+  @override
+  String get errOutOfMemory => 'Hết bộ nhớ';
+
+  @override
+  String get errPermissionDenied => 'Quyền truy cập bị từ chối';
+
+  @override
+  String get errFileExists => 'Tệp đã tồn tại';
+
+  @override
+  String get errNotADirectory => 'Không phải thư mục';
+
+  @override
+  String get errIsADirectory => 'Là một thư mục';
+
+  @override
+  String get errInvalidArgument => 'Đối số không hợp lệ';
+
+  @override
+  String get errTooManyOpenFiles => 'Quá nhiều tệp đang mở';
+
+  @override
+  String get errNoSpaceLeftOnDevice =>
+      'Không còn dung lượng trống trên thiết bị';
+
+  @override
+  String get errReadOnlyFileSystem => 'Hệ thống tệp chỉ đọc';
+
+  @override
+  String get errBrokenPipe => 'Ống dẫn bị hỏng';
+
+  @override
+  String get errFileNameTooLong => 'Tên tệp quá dài';
+
+  @override
+  String get errDirectoryNotEmpty => 'Thư mục không trống';
+
+  @override
+  String get errAddressAlreadyInUse => 'Địa chỉ đã được sử dụng';
+
+  @override
+  String get errCannotAssignAddress => 'Không thể gán địa chỉ yêu cầu';
+
+  @override
+  String get errNetworkIsDown => 'Mạng không hoạt động';
+
+  @override
+  String get errNetworkIsUnreachable => 'Không thể truy cập mạng';
+
+  @override
+  String get errConnectionResetByPeer => 'Kết nối bị đặt lại bởi máy đối tác';
+
+  @override
+  String get errConnectionTimedOut => 'Kết nối đã hết thời gian chờ';
+
+  @override
+  String get errConnectionRefused => 'Kết nối bị từ chối';
+
+  @override
+  String get errHostIsDown => 'Máy chủ không hoạt động';
+
+  @override
+  String get errNoRouteToHost => 'Không tìm thấy đường đến máy chủ';
+
+  @override
+  String get errConnectionAborted => 'Kết nối bị hủy';
+
+  @override
+  String get errAlreadyConnected => 'Đã kết nối';
+
+  @override
+  String get errNotConnected => 'Chưa kết nối';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return 'Không thể kết nối đến $host:$port';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return 'Xác thực thất bại cho $user@$host';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return 'Kết nối đến $host:$port thất bại';
+  }
+
+  @override
+  String get errSshAuthAborted => 'Xác thực đã bị hủy';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return 'Khóa máy chủ bị từ chối cho $host:$port — chấp nhận khóa máy chủ hoặc kiểm tra known_hosts';
+  }
+
+  @override
+  String get errSshOpenShellFailed => 'Không thể mở shell';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'Không thể tải tệp khóa SSH';
+
+  @override
+  String get errSshParseKeyFailed => 'Không thể phân tích dữ liệu khóa PEM';
+
+  @override
+  String get errSshConnectionDisposed => 'Kết nối đã bị hủy';
+
+  @override
+  String get errSshNotConnected => 'Chưa kết nối';
+
+  @override
+  String get errConnectionFailed => 'Kết nối thất bại';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return 'Kết nối đã hết thời gian chờ sau $seconds giây';
+  }
+
+  @override
+  String get errSessionClosed => 'Phiên đã đóng';
+
+  @override
+  String errShellError(String error) {
+    return 'Lỗi shell: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return 'Kết nối lại thất bại: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'Không thể khởi tạo SFTP: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return 'Tải xuống thất bại: $error';
+  }
+
+  @override
+  String get errDecryptionFailed =>
+      'Không thể giải mã thông tin xác thực. Tệp khóa có thể bị hỏng.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

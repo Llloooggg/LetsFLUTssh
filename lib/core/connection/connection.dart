@@ -25,8 +25,9 @@ class Connection {
   SSHConnection? sshConnection;
   SSHConnectionState state;
 
-  /// Error message from last connection attempt, null if no error.
-  String? connectionError;
+  /// Raw error from last connection attempt, null if no error.
+  /// Use [localizeError] from `utils/format.dart` to display to user.
+  Object? connectionError;
 
   /// Completes when the connection leaves the `connecting` state
   /// (either connected or failed). Callers use [ready] instead of polling.
@@ -60,9 +61,8 @@ class Connection {
     if (!isConnecting) return;
     try {
       await ready.timeout(timeout);
-    } on TimeoutException {
-      connectionError =
-          'Connection timed out after ${timeout.inSeconds} seconds';
+    } on TimeoutException catch (e) {
+      connectionError = e;
     }
   }
 

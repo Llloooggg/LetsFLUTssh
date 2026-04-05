@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import '../core/ssh/errors.dart';
+import '../l10n/app_localizations.dart';
 
 /// Format byte size to human-readable string.
 String formatSize(int bytes) {
@@ -33,6 +36,9 @@ String _pad(int n) => n.toString().padLeft(2, '0');
 /// For [SSHError] subtypes the English [SSHError.message] is preserved and
 /// only the wrapped [SSHError.cause] is sanitized (it may contain
 /// OS-locale text from SocketException / FileSystemException).
+///
+/// Used for logging and internal error representation (no BuildContext).
+/// For user-facing localized errors, use [localizeError] instead.
 String sanitizeError(Object error) {
   // SSHError chain: keep English message, sanitize cause recursively.
   if (error is SSHError) {
@@ -51,7 +57,7 @@ String sanitizeError(Object error) {
   final errnoMatch = RegExp(r'errno\s*=\s*(\d+)').firstMatch(msg);
   if (errnoMatch != null) {
     final errno = int.parse(errnoMatch.group(1)!);
-    final english = _errnoMessages[errno];
+    final english = _errnoEnglish[errno];
     if (english != null) {
       // Try to extract the path from the exception
       final pathMatch = RegExp(r"path\s*=\s*'([^']*)'").firstMatch(msg);
@@ -66,14 +72,185 @@ String sanitizeError(Object error) {
   ).firstMatch(msg);
   if (osErrorMatch != null) {
     final errno = int.parse(osErrorMatch.group(1)!);
-    final english = _errnoMessages[errno];
+    final english = _errnoEnglish[errno];
     if (english != null) return english;
   }
 
   return msg;
 }
 
-const _errnoMessages = <int, String>{
+/// Localize error messages using the app's current locale.
+///
+/// Maps errno codes, [SSHError] subtypes, and common error patterns
+/// to translated strings via [S] (app_localizations).
+///
+/// Use this in UI code where [BuildContext] is available.
+/// Falls back to [sanitizeError] for unknown error types.
+String localizeError(S l10n, Object error) {
+  // SSHError subtypes: use structured data for parameterized messages.
+  if (error is HostKeyError) {
+    final localized = l10n.errSshHostKeyRejected(
+      error.host ?? '?',
+      error.port ?? 0,
+    );
+    return _withLocalizedCause(l10n, localized, error.cause);
+  }
+  if (error is AuthError) {
+    final localized = _localizeAuthError(l10n, error);
+    return _withLocalizedCause(l10n, localized, error.cause);
+  }
+  if (error is ConnectError) {
+    final localized = _localizeConnectError(l10n, error);
+    return _withLocalizedCause(l10n, localized, error.cause);
+  }
+  if (error is SSHError) {
+    if (error.cause == null) return error.message;
+    final cause = localizeError(l10n, error.cause!);
+    if (cause.isNotEmpty && cause != error.message) {
+      return l10n.errWithCause(error.message, cause);
+    }
+    return error.message;
+  }
+
+  // TimeoutException from Connection.waitUntilReady
+  if (error is TimeoutException) {
+    final seconds = error.duration?.inSeconds;
+    if (seconds != null) {
+      return l10n.errConnectionTimedOutSeconds(seconds);
+    }
+    return l10n.errConnectionTimedOut;
+  }
+
+  // OS errors: extract errno and map to localized message.
+  return _localizeOsError(l10n, error);
+}
+
+String _localizeAuthError(S l10n, AuthError error) {
+  final msg = error.message;
+  if (msg.startsWith('Authentication failed')) {
+    return l10n.errSshAuthFailed(error.user ?? '?', error.host ?? '?');
+  }
+  if (msg.startsWith('Authentication aborted')) {
+    return l10n.errSshAuthAborted;
+  }
+  if (msg.contains('load SSH key file') || msg.contains('load key file')) {
+    return l10n.errSshLoadKeyFileFailed;
+  }
+  if (msg.contains('parse PEM')) {
+    return l10n.errSshParseKeyFailed;
+  }
+  return msg;
+}
+
+String _localizeConnectError(S l10n, ConnectError error) {
+  final msg = error.message;
+  final host = error.host ?? '?';
+  final port = error.port ?? 0;
+  if (msg.startsWith('Failed to connect to')) {
+    return l10n.errSshConnectFailed(host, port);
+  }
+  if (msg.startsWith('Connection failed to')) {
+    return l10n.errSshConnectionFailed(host, port);
+  }
+  if (msg == 'Connection disposed') {
+    return l10n.errSshConnectionDisposed;
+  }
+  if (msg == 'Not connected') {
+    return l10n.errSshNotConnected;
+  }
+  if (msg.contains('open shell')) {
+    return l10n.errSshOpenShellFailed;
+  }
+  return msg;
+}
+
+String _withLocalizedCause(S l10n, String localized, Object? cause) {
+  if (cause == null) return localized;
+  final causeStr = localizeError(l10n, cause);
+  if (causeStr.isNotEmpty && causeStr != localized) {
+    return l10n.errWithCause(localized, causeStr);
+  }
+  return localized;
+}
+
+/// Map OS error (FileSystemException, SocketException) to localized string.
+String _localizeOsError(S l10n, Object error) {
+  final msg = error.toString();
+
+  // FileSystemException: "OS Error: <localized text>, errno = N"
+  final errnoMatch = RegExp(r'errno\s*=\s*(\d+)').firstMatch(msg);
+  if (errnoMatch != null) {
+    final errno = int.parse(errnoMatch.group(1)!);
+    final localized = _errnoLocalized(l10n, errno);
+    if (localized != null) {
+      final pathMatch = RegExp(r"path\s*=\s*'([^']*)'").firstMatch(msg);
+      final path = pathMatch?.group(1);
+      return path != null ? l10n.errWithPath(localized, path) : localized;
+    }
+  }
+
+  // SocketException / HttpException: strip localized OS error
+  final osErrorMatch = RegExp(
+    r'OS Error:\s*[^,]+,\s*errno\s*=\s*(\d+)',
+  ).firstMatch(msg);
+  if (osErrorMatch != null) {
+    final errno = int.parse(osErrorMatch.group(1)!);
+    final localized = _errnoLocalized(l10n, errno);
+    if (localized != null) return localized;
+  }
+
+  return msg;
+}
+
+/// Map errno code to localized string, or null if unknown.
+String? _errnoLocalized(S l10n, int errno) => switch (errno) {
+  // POSIX / Linux
+  1 => l10n.errOperationNotPermitted,
+  2 => l10n.errNoSuchFileOrDirectory,
+  3 => l10n.errNoSuchProcess,
+  5 => l10n.errIoError,
+  9 => l10n.errBadFileDescriptor,
+  11 => l10n.errResourceTemporarilyUnavailable,
+  12 => l10n.errOutOfMemory,
+  13 => l10n.errPermissionDenied,
+  17 => l10n.errFileExists,
+  20 => l10n.errNotADirectory,
+  21 => l10n.errIsADirectory,
+  22 => l10n.errInvalidArgument,
+  23 => l10n.errTooManyOpenFiles,
+  28 => l10n.errNoSpaceLeftOnDevice,
+  30 => l10n.errReadOnlyFileSystem,
+  32 => l10n.errBrokenPipe,
+  36 => l10n.errFileNameTooLong,
+  39 => l10n.errDirectoryNotEmpty,
+  98 => l10n.errAddressAlreadyInUse,
+  99 => l10n.errCannotAssignAddress,
+  100 => l10n.errNetworkIsDown,
+  101 => l10n.errNetworkIsUnreachable,
+  104 => l10n.errConnectionResetByPeer,
+  110 => l10n.errConnectionTimedOut,
+  111 => l10n.errConnectionRefused,
+  112 => l10n.errHostIsDown,
+  113 => l10n.errNoRouteToHost,
+  // Windows Winsock (WSA*)
+  10013 => l10n.errPermissionDenied,
+  10048 => l10n.errAddressAlreadyInUse,
+  10049 => l10n.errCannotAssignAddress,
+  10050 => l10n.errNetworkIsDown,
+  10051 => l10n.errNetworkIsUnreachable,
+  10053 => l10n.errConnectionAborted,
+  10054 => l10n.errConnectionResetByPeer,
+  10056 => l10n.errAlreadyConnected,
+  10057 => l10n.errNotConnected,
+  10060 => l10n.errConnectionTimedOut,
+  10061 => l10n.errConnectionRefused,
+  10064 => l10n.errHostIsDown,
+  10065 => l10n.errNoRouteToHost,
+  _ => null,
+};
+
+/// English-only errno map — used by [sanitizeError] for logging.
+const _errnoEnglish = <int, String>{
   // POSIX / Linux
   1: 'Operation not permitted',
   2: 'No such file or directory',

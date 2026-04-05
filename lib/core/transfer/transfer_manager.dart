@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import 'transfer_task.dart';
 
@@ -247,7 +246,7 @@ class TransferManager {
           sourcePath: entry.task.sourcePath,
           targetPath: entry.task.targetPath,
           status: TransferStatus.failed,
-          error: _sanitizeError(e),
+          error: e,
           lastPercent: lastPercent,
           lastMessage: lastMessage,
           createdAt: entry.createdAt,
@@ -305,15 +304,6 @@ class TransferManager {
     if (_history.length > maxHistory) {
       _history.removeRange(maxHistory, _history.length);
     }
-  }
-
-  /// Sanitize error for UI display: translate OS-locale errno messages to
-  /// English, then strip absolute file paths to avoid leaking directory
-  /// structure.
-  String _sanitizeError(Object e) {
-    return sanitizeError(
-      e,
-    ).replaceAll(RegExp(r'(?:[/\\][^\s/\\]+)+'), '<path>');
   }
 
   void _notify() {

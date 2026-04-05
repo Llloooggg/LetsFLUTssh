@@ -8,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import 'package:path/path.dart' as p;
 
 import '../../providers/config_provider.dart';
+import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../theme/app_theme.dart';
@@ -90,8 +91,11 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
     if (!conn.isConnected) {
       if (mounted) {
+        final l10n = S.of(context);
         setState(() {
-          _error = conn.connectionError ?? 'Connection failed';
+          _error = conn.connectionError != null
+              ? localizeError(l10n, conn.connectionError!)
+              : l10n.errConnectionFailed;
           _initializing = false;
         });
       }
@@ -112,8 +116,9 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         error: e,
       );
       if (mounted) {
+        final l10n = S.of(context);
         setState(() {
-          _error = 'Failed to initialize SFTP: $e';
+          _error = l10n.errSftpInitFailed(localizeError(l10n, e));
           _initializing = false;
         });
       }

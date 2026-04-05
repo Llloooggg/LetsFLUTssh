@@ -814,4 +814,176 @@ class SKo extends S {
 
   @override
   String get failed => '실패';
+
+  @override
+  String get errOperationNotPermitted => '작업이 허용되지 않습니다';
+
+  @override
+  String get errNoSuchFileOrDirectory => '파일 또는 디렉터리가 없습니다';
+
+  @override
+  String get errNoSuchProcess => '해당 프로세스가 없습니다';
+
+  @override
+  String get errIoError => 'I/O 오류';
+
+  @override
+  String get errBadFileDescriptor => '잘못된 파일 디스크립터';
+
+  @override
+  String get errResourceTemporarilyUnavailable => '리소스를 일시적으로 사용할 수 없습니다';
+
+  @override
+  String get errOutOfMemory => '메모리 부족';
+
+  @override
+  String get errPermissionDenied => '권한이 거부되었습니다';
+
+  @override
+  String get errFileExists => '파일이 이미 존재합니다';
+
+  @override
+  String get errNotADirectory => '디렉터리가 아닙니다';
+
+  @override
+  String get errIsADirectory => '디렉터리입니다';
+
+  @override
+  String get errInvalidArgument => '잘못된 인수';
+
+  @override
+  String get errTooManyOpenFiles => '열린 파일이 너무 많습니다';
+
+  @override
+  String get errNoSpaceLeftOnDevice => '장치에 남은 공간이 없습니다';
+
+  @override
+  String get errReadOnlyFileSystem => '읽기 전용 파일 시스템';
+
+  @override
+  String get errBrokenPipe => '파이프가 끊어졌습니다';
+
+  @override
+  String get errFileNameTooLong => '파일 이름이 너무 깁니다';
+
+  @override
+  String get errDirectoryNotEmpty => '디렉터리가 비어 있지 않습니다';
+
+  @override
+  String get errAddressAlreadyInUse => '주소가 이미 사용 중입니다';
+
+  @override
+  String get errCannotAssignAddress => '요청한 주소를 할당할 수 없습니다';
+
+  @override
+  String get errNetworkIsDown => '네트워크가 다운되었습니다';
+
+  @override
+  String get errNetworkIsUnreachable => '네트워크에 연결할 수 없습니다';
+
+  @override
+  String get errConnectionResetByPeer => '피어에 의해 연결이 재설정되었습니다';
+
+  @override
+  String get errConnectionTimedOut => '연결 시간이 초과되었습니다';
+
+  @override
+  String get errConnectionRefused => '연결이 거부되었습니다';
+
+  @override
+  String get errHostIsDown => '호스트가 다운되었습니다';
+
+  @override
+  String get errNoRouteToHost => '호스트로의 경로가 없습니다';
+
+  @override
+  String get errConnectionAborted => '연결이 중단되었습니다';
+
+  @override
+  String get errAlreadyConnected => '이미 연결되어 있습니다';
+
+  @override
+  String get errNotConnected => '연결되지 않았습니다';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return '$host:$port에 연결하지 못했습니다';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return '$user@$host 인증에 실패했습니다';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return '$host:$port에 연결하지 못했습니다';
+  }
+
+  @override
+  String get errSshAuthAborted => '인증이 중단되었습니다';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return '$host:$port의 호스트 키가 거부되었습니다 — 호스트 키를 수락하거나 known_hosts를 확인하세요';
+  }
+
+  @override
+  String get errSshOpenShellFailed => '셸을 열지 못했습니다';
+
+  @override
+  String get errSshLoadKeyFileFailed => 'SSH 키 파일을 로드하지 못했습니다';
+
+  @override
+  String get errSshParseKeyFailed => 'PEM 키 데이터를 파싱하지 못했습니다';
+
+  @override
+  String get errSshConnectionDisposed => '연결이 폐기되었습니다';
+
+  @override
+  String get errSshNotConnected => '연결되지 않았습니다';
+
+  @override
+  String get errConnectionFailed => '연결에 실패했습니다';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return '$seconds초 후 연결 시간이 초과되었습니다';
+  }
+
+  @override
+  String get errSessionClosed => '세션이 종료되었습니다';
+
+  @override
+  String errShellError(String error) {
+    return '셸 오류: $error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return '재연결 실패: $error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'SFTP 초기화 실패: $error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return '다운로드 실패: $error';
+  }
+
+  @override
+  String get errDecryptionFailed => '자격 증명 복호화에 실패했습니다. 키 파일이 손상되었을 수 있습니다.';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error: $path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error ($cause)';
+  }
 }

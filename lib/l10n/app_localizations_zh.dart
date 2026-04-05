@@ -812,4 +812,176 @@ class SZh extends S {
 
   @override
   String get failed => '失败';
+
+  @override
+  String get errOperationNotPermitted => '操作不允许';
+
+  @override
+  String get errNoSuchFileOrDirectory => '文件或目录不存在';
+
+  @override
+  String get errNoSuchProcess => '进程不存在';
+
+  @override
+  String get errIoError => 'I/O 错误';
+
+  @override
+  String get errBadFileDescriptor => '无效的文件描述符';
+
+  @override
+  String get errResourceTemporarilyUnavailable => '资源暂时不可用';
+
+  @override
+  String get errOutOfMemory => '内存不足';
+
+  @override
+  String get errPermissionDenied => '权限被拒绝';
+
+  @override
+  String get errFileExists => '文件已存在';
+
+  @override
+  String get errNotADirectory => '不是目录';
+
+  @override
+  String get errIsADirectory => '是一个目录';
+
+  @override
+  String get errInvalidArgument => '无效参数';
+
+  @override
+  String get errTooManyOpenFiles => '打开的文件过多';
+
+  @override
+  String get errNoSpaceLeftOnDevice => '设备上没有剩余空间';
+
+  @override
+  String get errReadOnlyFileSystem => '只读文件系统';
+
+  @override
+  String get errBrokenPipe => '管道中断';
+
+  @override
+  String get errFileNameTooLong => '文件名过长';
+
+  @override
+  String get errDirectoryNotEmpty => '目录不为空';
+
+  @override
+  String get errAddressAlreadyInUse => '地址已被占用';
+
+  @override
+  String get errCannotAssignAddress => '无法分配请求的地址';
+
+  @override
+  String get errNetworkIsDown => '网络已断开';
+
+  @override
+  String get errNetworkIsUnreachable => '网络不可达';
+
+  @override
+  String get errConnectionResetByPeer => '连接被对端重置';
+
+  @override
+  String get errConnectionTimedOut => '连接超时';
+
+  @override
+  String get errConnectionRefused => '连接被拒绝';
+
+  @override
+  String get errHostIsDown => '主机已关闭';
+
+  @override
+  String get errNoRouteToHost => '没有到主机的路由';
+
+  @override
+  String get errConnectionAborted => '连接已中止';
+
+  @override
+  String get errAlreadyConnected => '已连接';
+
+  @override
+  String get errNotConnected => '未连接';
+
+  @override
+  String errSshConnectFailed(String host, int port) {
+    return '无法连接到 $host:$port';
+  }
+
+  @override
+  String errSshAuthFailed(String user, String host) {
+    return '$user@$host 认证失败';
+  }
+
+  @override
+  String errSshConnectionFailed(String host, int port) {
+    return '连接 $host:$port 失败';
+  }
+
+  @override
+  String get errSshAuthAborted => '认证已中止';
+
+  @override
+  String errSshHostKeyRejected(String host, int port) {
+    return '$host:$port 的主机密钥被拒绝 — 请接受主机密钥或检查 known_hosts';
+  }
+
+  @override
+  String get errSshOpenShellFailed => '打开 Shell 失败';
+
+  @override
+  String get errSshLoadKeyFileFailed => '加载 SSH 密钥文件失败';
+
+  @override
+  String get errSshParseKeyFailed => '解析 PEM 密钥数据失败';
+
+  @override
+  String get errSshConnectionDisposed => '连接已释放';
+
+  @override
+  String get errSshNotConnected => '未连接';
+
+  @override
+  String get errConnectionFailed => '连接失败';
+
+  @override
+  String errConnectionTimedOutSeconds(int seconds) {
+    return '连接在 $seconds 秒后超时';
+  }
+
+  @override
+  String get errSessionClosed => '会话已关闭';
+
+  @override
+  String errShellError(String error) {
+    return 'Shell 错误：$error';
+  }
+
+  @override
+  String errReconnectFailed(String error) {
+    return '重新连接失败：$error';
+  }
+
+  @override
+  String errSftpInitFailed(String error) {
+    return 'SFTP 初始化失败：$error';
+  }
+
+  @override
+  String errDownloadFailed(String error) {
+    return '下载失败：$error';
+  }
+
+  @override
+  String get errDecryptionFailed => '凭据解密失败。密钥文件可能已损坏。';
+
+  @override
+  String errWithPath(String error, String path) {
+    return '$error：$path';
+  }
+
+  @override
+  String errWithCause(String error, String cause) {
+    return '$error（$cause）';
+  }
 }

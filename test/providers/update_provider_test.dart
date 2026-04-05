@@ -13,7 +13,11 @@ class _StubUpdateService extends UpdateService {
   final String? downloadedPath;
   final Object? downloadError;
 
-  _StubUpdateService({required this.onCheck, this.downloadedPath, this.downloadError});
+  _StubUpdateService({
+    required this.onCheck,
+    this.downloadedPath,
+    this.downloadError,
+  });
 
   @override
   Future<UpdateInfo> checkForUpdate(String currentVersion) async {
@@ -38,24 +42,31 @@ class _StubUpdateService extends UpdateService {
 }
 
 /// Build a container with an injected stub UpdateService and a fixed version.
-ProviderContainer _makeContainer({required UpdateService service, String version = '1.0.0'}) {
-  final container = ProviderContainer(overrides: [updateServiceProvider.overrideWithValue(service)]);
+ProviderContainer _makeContainer({
+  required UpdateService service,
+  String version = '1.0.0',
+}) {
+  final container = ProviderContainer(
+    overrides: [updateServiceProvider.overrideWithValue(service)],
+  );
   container.read(appVersionProvider.notifier).state = version;
   return container;
 }
 
 void _mockPathProvider(String path) {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-    const MethodChannel('plugins.flutter.io/path_provider'),
-    (call) async => path,
-  );
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (call) async => path,
+      );
 }
 
 void _clearPathProviderMock() {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-    const MethodChannel('plugins.flutter.io/path_provider'),
-    null,
-  );
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        null,
+      );
 }
 
 void main() {
@@ -83,16 +94,28 @@ void main() {
     test('transitions idle → checking → upToDate when no update', () async {
       final states = <UpdateStatus>[];
       final service = _StubUpdateService(
-        onCheck: (v) => UpdateInfo(latestVersion: v, currentVersion: v, releaseUrl: 'https://github.com'),
+        onCheck: (v) => UpdateInfo(
+          latestVersion: v,
+          currentVersion: v,
+          releaseUrl: 'https://github.com',
+        ),
       );
       final container = _makeContainer(service: service, version: '1.2.0');
       addTearDown(container.dispose);
 
-      container.listen(updateProvider.select((s) => s.status), (_, next) => states.add(next), fireImmediately: true);
+      container.listen(
+        updateProvider.select((s) => s.status),
+        (_, next) => states.add(next),
+        fireImmediately: true,
+      );
 
       await container.read(updateProvider.notifier).check();
 
-      expect(states, [UpdateStatus.idle, UpdateStatus.checking, UpdateStatus.upToDate]);
+      expect(states, [
+        UpdateStatus.idle,
+        UpdateStatus.checking,
+        UpdateStatus.upToDate,
+      ]);
     });
 
     test('transitions to updateAvailable when newer version exists', () async {
@@ -116,7 +139,9 @@ void main() {
     });
 
     test('transitions to error when check throws', () async {
-      final service = _StubUpdateService(onCheck: (_) => throw const HttpException('API error'));
+      final service = _StubUpdateService(
+        onCheck: (_) => throw const HttpException('API error'),
+      );
       final container = _makeContainer(service: service);
       addTearDown(container.dispose);
 
@@ -132,14 +157,20 @@ void main() {
       final service = _StubUpdateService(
         onCheck: (v) {
           callCount++;
-          return UpdateInfo(latestVersion: v, currentVersion: v, releaseUrl: 'https://github.com');
+          return UpdateInfo(
+            latestVersion: v,
+            currentVersion: v,
+            releaseUrl: 'https://github.com',
+          );
         },
       );
       final container = _makeContainer(service: service);
       addTearDown(container.dispose);
 
       // Force checking state, then call check() — should be suppressed
-      container.read(updateProvider.notifier).state = const UpdateState(status: UpdateStatus.checking);
+      container.read(updateProvider.notifier).state = const UpdateState(
+        status: UpdateStatus.checking,
+      );
       await container.read(updateProvider.notifier).check();
 
       expect(callCount, 0);
@@ -197,7 +228,10 @@ void main() {
 
       await container.read(updateProvider.notifier).check();
 
-      container.listen(updateProvider.select((s) => s.progress), (_, next) => progresses.add(next));
+      container.listen(
+        updateProvider.select((s) => s.progress),
+        (_, next) => progresses.add(next),
+      );
 
       await container.read(updateProvider.notifier).download();
 
@@ -223,7 +257,7 @@ void main() {
 
       final state = container.read(updateProvider);
       expect(state.status, UpdateStatus.error);
-      expect(state.error, contains('Download failed'));
+      expect(state.error.toString(), contains('Network error'));
     });
   });
 
@@ -272,35 +306,41 @@ void main() {
   });
 
   group('UpdateNotifier.download() — stale file cleanup', () {
-    test('removes previously downloaded update file before new download', () async {
-      final dir = await Directory.systemTemp.createTemp('update_stale');
-      addTearDown(() => dir.deleteSync(recursive: true));
-      _mockPathProvider(dir.path);
-      addTearDown(_clearPathProviderMock);
+    test(
+      'removes previously downloaded update file before new download',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('update_stale');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        _mockPathProvider(dir.path);
+        addTearDown(_clearPathProviderMock);
 
-      // Create a stale file with the same platform suffix
-      final staleFile = File('${dir.path}/letsflutssh-1.0.0-linux-x64.AppImage');
-      await staleFile.create();
-      expect(await staleFile.exists(), isTrue);
+        // Create a stale file with the same platform suffix
+        final staleFile = File(
+          '${dir.path}/letsflutssh-1.0.0-linux-x64.AppImage',
+        );
+        await staleFile.create();
+        expect(await staleFile.exists(), isTrue);
 
-      final service = _StubUpdateService(
-        onCheck: (_) => const UpdateInfo(
-          latestVersion: '2.0.0',
-          currentVersion: '1.0.0',
-          releaseUrl: 'https://github.com',
-          assetUrl: 'https://example.com/letsflutssh-2.0.0-linux-x64.AppImage',
-        ),
-        downloadedPath: 'letsflutssh-2.0.0-linux-x64.AppImage',
-      );
-      final container = _makeContainer(service: service);
-      addTearDown(container.dispose);
+        final service = _StubUpdateService(
+          onCheck: (_) => const UpdateInfo(
+            latestVersion: '2.0.0',
+            currentVersion: '1.0.0',
+            releaseUrl: 'https://github.com',
+            assetUrl:
+                'https://example.com/letsflutssh-2.0.0-linux-x64.AppImage',
+          ),
+          downloadedPath: 'letsflutssh-2.0.0-linux-x64.AppImage',
+        );
+        final container = _makeContainer(service: service);
+        addTearDown(container.dispose);
 
-      await container.read(updateProvider.notifier).check();
-      await container.read(updateProvider.notifier).download();
+        await container.read(updateProvider.notifier).check();
+        await container.read(updateProvider.notifier).download();
 
-      // Stale file should be deleted before the new download
-      expect(await staleFile.exists(), isFalse);
-    });
+        // Stale file should be deleted before the new download
+        expect(await staleFile.exists(), isFalse);
+      },
+    );
 
     test('leaves files with different suffix untouched', () async {
       final dir = await Directory.systemTemp.createTemp('update_other');
@@ -309,7 +349,9 @@ void main() {
       addTearDown(_clearPathProviderMock);
 
       // Create a file with a different suffix (e.g. a .dmg while we download .exe)
-      final otherFile = File('${dir.path}/letsflutssh-1.0.0-macos-universal.dmg');
+      final otherFile = File(
+        '${dir.path}/letsflutssh-1.0.0-macos-universal.dmg',
+      );
       await otherFile.create();
 
       final service = _StubUpdateService(
