@@ -254,6 +254,11 @@ class AppConfig {
     'fr',
     'ko',
     'ar',
+    'fa',
+    'tr',
+    'vi',
+    'id',
+    'hi',
   ];
 
   const AppConfig({

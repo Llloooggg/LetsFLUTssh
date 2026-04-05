@@ -265,6 +265,10 @@ abstract final class AppTheme {
   /// 56 px — mobile bottom navigation bar.
   static const double itemHeightXl = 56;
 
+  // ── Popup constraints ──
+  /// 400 px — max height for popup menus (scrolls when content exceeds).
+  static const double popupMaxHeight = 400;
+
   // ── Border radius scale ──
   /// 4 px — inputs, buttons, small elements.
   static const radiusSm = BorderRadius.all(Radius.circular(4));

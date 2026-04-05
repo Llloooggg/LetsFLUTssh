@@ -1438,7 +1438,7 @@ abstract final class AppFonts {
 
 Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/fonts/`.
 
-**CJK & Arabic in language picker:** Native language names (中文, 日本語, 한국어, العربية) rely on system fonts. Each entry has an English secondary label (Chinese, Japanese, Korean, Arabic) as fallback for systems without CJK/Arabic fonts. No bundled CJK/Arabic fonts — keeps the binary small.
+**CJK & non-Latin in language picker:** Native language names (中文, 日本語, 한국어, العربية, فارسی, हिन्दी) rely on system fonts. Each entry has an English secondary label (Chinese, Japanese, Korean, Arabic, Persian, Hindi) as fallback for systems without those fonts. No bundled CJK/Arabic/Devanagari fonts — keeps the binary small.
 
 **Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware: mobile gets +2 px automatically for touch readability.
 
@@ -1466,10 +1466,15 @@ All user-facing strings are externalized via Flutter's built-in `gen_l10n` syste
 | `fr` | French | `app_fr.arb` |
 | `ko` | Korean | `app_ko.arb` |
 | `ar` | Arabic (العربية) | `app_ar.arb` |
+| `fa` | Persian (فارسی) | `app_fa.arb` |
+| `tr` | Turkish | `app_tr.arb` |
+| `vi` | Vietnamese | `app_vi.arb` |
+| `id` | Indonesian | `app_id.arb` |
+| `hi` | Hindi (हिन्दी) | `app_hi.arb` |
 
 ### Language selection
 
-The user selects a language in **Settings → Appearance → Language**. Options: "System Default" (auto-detect from OS) or any of the 10 supported languages. Stored as `AppConfig.locale` (`null` = system default, `'ru'` = Russian, etc.). Wired via `localeProvider` → `MaterialApp.locale`.
+The user selects a language in **Settings → Appearance → Language**. Options: "System Default" (auto-detect from OS) or any of the 15 supported languages. Stored as `AppConfig.locale` (`null` = system default, `'ru'` = Russian, etc.). Wired via `localeProvider` → `MaterialApp.locale`.
 
 iOS requires `CFBundleLocalizations` in `Info.plist` listing all supported locale codes for proper OS locale detection.
 
