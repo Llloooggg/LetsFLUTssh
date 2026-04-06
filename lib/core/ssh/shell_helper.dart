@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' show VoidCallback;
 
@@ -66,17 +67,25 @@ class ShellHelper {
           terminal.viewHeight,
         );
 
-        final stdoutSub = shell.stdout.listen((data) {
-          terminal.write(String.fromCharCodes(data));
-        });
+        const decoder = Utf8Decoder(allowMalformed: true);
 
-        final stderrSub = shell.stderr.listen((data) {
-          terminal.write(String.fromCharCodes(data));
-        });
+        final stdoutSub = shell.stdout
+            .cast<List<int>>()
+            .transform(decoder)
+            .listen((data) {
+              terminal.write(data);
+            });
+
+        final stderrSub = shell.stderr
+            .cast<List<int>>()
+            .transform(decoder)
+            .listen((data) {
+              terminal.write(data);
+            });
 
         try {
           terminal.onOutput = (data) {
-            shell.write(Uint8List.fromList(data.codeUnits));
+            shell.write(Uint8List.fromList(utf8.encode(data)));
           };
 
           terminal.onResize = (width, height, pixelWidth, pixelHeight) {
