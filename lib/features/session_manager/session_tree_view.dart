@@ -8,6 +8,7 @@ import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/marquee_mixin.dart';
+import '../../widgets/threshold_draggable.dart';
 
 /// Drag data: either a session, a folder path, or a bulk selection.
 sealed class SessionDragData {}
@@ -130,6 +131,11 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   final _expandedFolders = <String>{};
   String? _selectedSessionId;
   String? _dropTargetFolder; // highlight on drag hover
+
+  // ── Manual double-tap detection (avoids GestureDetector.onDoubleTap
+  //    which delays onTap by ~300 ms and conflicts with Draggable) ──
+  DateTime _lastTapTime = DateTime(0);
+  String? _lastTapSessionId;
 
   // ── Cross-marquee state (session panel only) ──
   bool _crossMarqueeActive = false;
@@ -697,7 +703,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           )
         : FolderDrag(node.fullPath);
 
-    return Draggable<SessionDragData>(
+    return ThresholdDraggable<SessionDragData>(
       data: dragData,
       onDragStarted: onDragStarted,
       onDragEnd: onDragEnd,
@@ -740,6 +746,22 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
       widget.onToggleSelected?.call(session.id);
       return;
     }
+
+    // Manual double-tap detection for desktop — avoids GestureDetector's
+    // onDoubleTap which delays onTap by ~300 ms and conflicts with Draggable.
+    if (!_mobile) {
+      final now = DateTime.now();
+      if (_lastTapSessionId == session.id &&
+          now.difference(_lastTapTime).inMilliseconds < 400) {
+        _lastTapTime = DateTime(0);
+        _lastTapSessionId = null;
+        widget.onSessionDoubleTap?.call(session);
+        return;
+      }
+      _lastTapTime = now;
+      _lastTapSessionId = session.id;
+    }
+
     setState(() => _selectedSessionId = session.id);
     widget.onSessionSelected?.call(session.id);
     if (_mobile) {
@@ -838,9 +860,6 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
 
     final Widget content = HoverRegion(
       onTap: () => _onSessionTap(session),
-      onDoubleTap: canInteract
-          ? () => widget.onSessionDoubleTap?.call(session)
-          : null,
       onSecondaryTapUp: canInteract
           ? (details) => widget.onSessionContextMenu?.call(
               session,
@@ -878,7 +897,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           )
         : SessionDrag(session);
 
-    return Draggable<SessionDragData>(
+    return ThresholdDraggable<SessionDragData>(
       data: dragData,
       onDragStarted: onDragStarted,
       onDragEnd: onDragEnd,
