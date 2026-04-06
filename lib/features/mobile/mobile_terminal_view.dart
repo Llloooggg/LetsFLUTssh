@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -118,7 +120,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   }
 
   void _onKeyboardInput(String data) {
-    _shellConn?.shell.write(Uint8List.fromList(data.codeUnits));
+    _shellConn?.shell.write(Uint8List.fromList(utf8.encode(data)));
   }
 
   void _copySelection() {
