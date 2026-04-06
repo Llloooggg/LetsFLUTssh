@@ -485,6 +485,21 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     );
   }
 
+  /// Common row container shared by folder and session tiles.
+  Widget _buildTreeRow({
+    required List<Widget> children,
+    Color? color,
+    BoxDecoration? decoration,
+  }) {
+    return Container(
+      height: _rowHeight,
+      padding: const EdgeInsets.only(right: 8),
+      decoration: decoration,
+      color: decoration == null ? color : null,
+      child: Row(children: children),
+    );
+  }
+
   BoxDecoration _rowDecoration(
     bool isDropTarget,
     bool hovered,
@@ -556,7 +571,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
 
   /// Builds indent guide lines + leading icon for a tree row.
   ///
-  /// Layout: [8px pad] [depth × 16px guides] [arrow or spacer] [4px] [icon] [6px]
+  /// Layout: [8px pad] [depth × 16px guides] [arrow? + 4px] [icon] [6px]
   /// Shared by folder and session rows to guarantee identical alignment.
   List<Widget> _buildRowLeading({
     required int depth,
@@ -581,8 +596,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
             ],
           ),
         ),
-      if (expandArrow != null) expandArrow else SizedBox(width: _iconSize),
-      const SizedBox(width: 4),
+      if (expandArrow != null) ...[expandArrow, const SizedBox(width: 4)],
       icon,
       const SizedBox(width: 6),
     ];
@@ -608,13 +622,9 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
               d.globalPosition,
             )
           : null,
-      builder: (hovered) => Container(
-        height: _rowHeight,
-        padding: const EdgeInsets.only(right: 8),
+      builder: (hovered) => _buildTreeRow(
         decoration: _rowDecoration(isDropTarget, hovered, isSelected, theme),
-        child: Row(
-          children: _buildFolderRowChildren(node, depth, expanded, theme),
-        ),
+        children: _buildFolderRowChildren(node, depth, expanded, theme),
       ),
     );
   }
@@ -869,18 +879,14 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
       onLongPressStart: (_mobile && !widget.selectMode)
           ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
           : null,
-      builder: (hovered) => Container(
-        height: _rowHeight,
-        padding: const EdgeInsets.only(right: 8),
+      builder: (hovered) => _buildTreeRow(
         color: _sessionRowColor(isSelected || isChecked, hovered, theme),
-        child: Row(
-          children: _buildSessionRowChildren(
-            node,
-            session,
-            depth,
-            isChecked,
-            theme,
-          ),
+        children: _buildSessionRowChildren(
+          node,
+          session,
+          depth,
+          isChecked,
+          theme,
         ),
       ),
     );

@@ -242,12 +242,7 @@ class AppDialogAction extends StatelessWidget {
     final effectiveFg = enabled ? (foreground ?? defaultFg) : AppTheme.fgFaint;
 
     final height = mobile ? AppTheme.barHeightLg : AppTheme.controlHeightXs;
-    final double hPad;
-    if (mobile) {
-      hPad = hasBg ? 20.0 : 16.0;
-    } else {
-      hPad = hasBg ? 16.0 : 12.0;
-    }
+    final hPad = _horizontalPadding(mobile: mobile, hasBg: hasBg);
     final fontSize = mobile ? AppFonts.md : AppFonts.sm;
     final radius = mobile ? AppTheme.radiusMd : BorderRadius.zero;
 
@@ -276,6 +271,14 @@ class AppDialogAction extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static double _horizontalPadding({
+    required bool mobile,
+    required bool hasBg,
+  }) {
+    if (mobile) return hasBg ? 20.0 : 16.0;
+    return hasBg ? 16.0 : 12.0;
   }
 
   Color? _buttonColor(bool hasBg, bool hovered, Color? effectiveBg) {
