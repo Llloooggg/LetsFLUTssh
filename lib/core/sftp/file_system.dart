@@ -39,11 +39,20 @@ class LocalFS implements FileSystem {
 
   /// Android: try shared storage first, fall back to app-specific dir
   /// if storage permission is not granted.
+  ///
+  /// Uses a deeper probe (listing a subdirectory) because scoped storage
+  /// on Android 11+ lets apps see folder names at the root without actual
+  /// read access to their contents.
   Future<String> _androidInitialDir() async {
     final shared = Directory(homeDirectory); // /storage/emulated/0
     try {
       if (await shared.exists()) {
-        await shared.list().first;
+        // Probe a real subdirectory — the root listing succeeds even
+        // without MANAGE_EXTERNAL_STORAGE on Android 11+.
+        final download = Directory('${shared.path}/Download');
+        if (await download.exists()) {
+          await download.list().first;
+        }
         return shared.path;
       }
     } catch (_) {

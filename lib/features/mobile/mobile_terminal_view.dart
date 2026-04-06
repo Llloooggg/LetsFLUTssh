@@ -48,7 +48,15 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _terminal = Terminal(maxLines: config.scrollback);
     _terminalController = TerminalController();
     _terminalController.addListener(_onSelectionChanged);
-    _connectAndOpenShell();
+    // Delay connection until after the first frame so TerminalView can
+    // set the correct terminal dimensions. Without this, the shell opens
+    // with the default 80x24 and the server sends output for that size;
+    // when TerminalView later resizes, the buffer rearranges and causes
+    // duplicated/garbled first lines on mobile (where the actual viewport
+    // differs significantly from 80x24).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _connectAndOpenShell();
+    });
   }
 
   void _onSelectionChanged() {
@@ -142,87 +150,95 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     }
 
     if (_error != null) return _buildError();
-    if (!_connected) return const Center(child: CircularProgressIndicator());
 
+    // Always render TerminalView so it can lay out and set the correct
+    // terminal dimensions before the shell opens (avoids buffer artifacts).
     return Column(
       children: [
         Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onScaleStart: (details) {
-              if (details.pointerCount >= 2) {
-                _baseScaleFontSize = _fontSize;
-              }
-            },
-            onScaleUpdate: (details) {
-              if (_baseScaleFontSize == null || details.pointerCount < 2) {
-                return;
-              }
-              setState(() {
-                _fontSize = (_baseScaleFontSize! * details.scale).clamp(
-                  8.0,
-                  24.0,
-                );
-              });
-            },
-            onScaleEnd: (_) {
-              if (_baseScaleFontSize == null) return;
-              _baseScaleFontSize = null;
-              // Persist pinch-zoomed font size to config
-              ref
-                  .read(configProvider.notifier)
-                  .update(
-                    (c) => c.copyWith(
-                      terminal: c.terminal.copyWith(fontSize: _fontSize),
+          child: Stack(
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onScaleStart: (details) {
+                  if (details.pointerCount >= 2) {
+                    _baseScaleFontSize = _fontSize;
+                  }
+                },
+                onScaleUpdate: (details) {
+                  if (_baseScaleFontSize == null || details.pointerCount < 2) {
+                    return;
+                  }
+                  setState(() {
+                    _fontSize = (_baseScaleFontSize! * details.scale).clamp(
+                      8.0,
+                      24.0,
+                    );
+                  });
+                },
+                onScaleEnd: (_) {
+                  if (_baseScaleFontSize == null) return;
+                  _baseScaleFontSize = null;
+                  // Persist pinch-zoomed font size to config
+                  ref
+                      .read(configProvider.notifier)
+                      .update(
+                        (c) => c.copyWith(
+                          terminal: c.terminal.copyWith(fontSize: _fontSize),
+                        ),
+                      );
+                },
+                child: Stack(
+                  children: [
+                    TerminalView(
+                      _terminal,
+                      controller: _terminalController,
+                      autofocus: true,
+                      backgroundOpacity: 1.0,
+                      padding: const EdgeInsets.all(4),
+                      theme: TerminalTheme(
+                        cursor: AppTheme.termCursor,
+                        selection: AppTheme.termSelection,
+                        foreground: AppTheme.fg,
+                        background: AppTheme.bg2,
+                        black: AppTheme.termBlack,
+                        red: AppTheme.termRed,
+                        green: AppTheme.termGreen,
+                        yellow: AppTheme.termYellow,
+                        blue: AppTheme.termBlue,
+                        magenta: AppTheme.termMagenta,
+                        cyan: AppTheme.termCyan,
+                        white: AppTheme.termWhite,
+                        brightBlack: AppTheme.termBrightBlack,
+                        brightRed: AppTheme.termBrightRed,
+                        brightGreen: AppTheme.termBrightGreen,
+                        brightYellow: AppTheme.termBrightYellow,
+                        brightBlue: AppTheme.termBrightBlue,
+                        brightMagenta: AppTheme.termBrightMagenta,
+                        brightCyan: AppTheme.termBrightCyan,
+                        brightWhite: AppTheme.termBrightWhite,
+                        searchHitBackground: AppTheme.accent.withValues(
+                          alpha: 0.3,
+                        ),
+                        searchHitBackgroundCurrent: AppTheme.accent,
+                        searchHitForeground: AppTheme.searchHitFg,
+                      ),
+                      textStyle: TerminalStyle(
+                        fontSize: _fontSize,
+                        fontFamily: 'JetBrains Mono',
+                      ),
                     ),
-                  );
-            },
-            child: Stack(
-              children: [
-                TerminalView(
-                  _terminal,
-                  controller: _terminalController,
-                  autofocus: true,
-                  backgroundOpacity: 1.0,
-                  padding: const EdgeInsets.all(4),
-                  theme: TerminalTheme(
-                    cursor: AppTheme.termCursor,
-                    selection: AppTheme.termSelection,
-                    foreground: AppTheme.fg,
-                    background: AppTheme.bg2,
-                    black: AppTheme.termBlack,
-                    red: AppTheme.termRed,
-                    green: AppTheme.termGreen,
-                    yellow: AppTheme.termYellow,
-                    blue: AppTheme.termBlue,
-                    magenta: AppTheme.termMagenta,
-                    cyan: AppTheme.termCyan,
-                    white: AppTheme.termWhite,
-                    brightBlack: AppTheme.termBrightBlack,
-                    brightRed: AppTheme.termBrightRed,
-                    brightGreen: AppTheme.termBrightGreen,
-                    brightYellow: AppTheme.termBrightYellow,
-                    brightBlue: AppTheme.termBrightBlue,
-                    brightMagenta: AppTheme.termBrightMagenta,
-                    brightCyan: AppTheme.termBrightCyan,
-                    brightWhite: AppTheme.termBrightWhite,
-                    searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
-                    searchHitBackgroundCurrent: AppTheme.accent,
-                    searchHitForeground: AppTheme.searchHitFg,
-                  ),
-                  textStyle: TerminalStyle(
-                    fontSize: _fontSize,
-                    fontFamily: 'JetBrains Mono',
-                  ),
+                    Positioned.fill(
+                      child: CursorTextOverlay(
+                        terminal: _terminal,
+                        fontSize: _fontSize,
+                      ),
+                    ),
+                  ],
                 ),
-                Positioned.fill(
-                  child: CursorTextOverlay(
-                    terminal: _terminal,
-                    fontSize: _fontSize,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              if (!_connected) const Center(child: CircularProgressIndicator()),
+            ],
           ),
         ),
         if (_hasSelection) _buildSelectionToolbar(),
