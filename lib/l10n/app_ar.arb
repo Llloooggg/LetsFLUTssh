@@ -211,6 +211,7 @@
   "exportFailed": "فشل التصدير: {error}",
   "pathToLfsFile": "مسار ملف .lfs",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "تصفح",
 
   "shareViaQrCode": "مشاركة عبر رمز QR",
   "shareViaQrSubtitle": "تصدير الجلسات إلى رمز QR لمسحه من جهاز آخر",

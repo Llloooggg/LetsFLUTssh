@@ -211,6 +211,7 @@
   "exportFailed": "导出失败：{error}",
   "pathToLfsFile": ".lfs 文件路径",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "浏览",
 
   "shareViaQrCode": "通过 QR 码分享",
   "shareViaQrSubtitle": "将会话导出为 QR 码，供其他设备扫描",

@@ -636,6 +636,9 @@ class SHi extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'ब्राउज़ करें';
+
+  @override
   String get shareViaQrCode => 'QR कोड से साझा करें';
 
   @override

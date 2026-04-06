@@ -641,6 +641,9 @@ class SDe extends S {
   String get hintLfsPath => '/pfad/zum/export.lfs';
 
   @override
+  String get browse => 'Durchsuchen';
+
+  @override
   String get shareViaQrCode => 'Per QR-Code teilen';
 
   @override

@@ -637,6 +637,9 @@ class SEn extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'Browse';
+
+  @override
   String get shareViaQrCode => 'Share via QR Code';
 
   @override

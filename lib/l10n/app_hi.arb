@@ -190,6 +190,7 @@
   "exportFailed": "निर्यात विफल: {error}",
   "pathToLfsFile": ".lfs फ़ाइल का पथ",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "ब्राउज़ करें",
   "shareViaQrCode": "QR कोड से साझा करें",
   "shareViaQrSubtitle": "दूसरे डिवाइस से स्कैन करने के लिए सत्रों को QR कोड में निर्यात करें",
   "dataLocation": "डेटा स्थान",

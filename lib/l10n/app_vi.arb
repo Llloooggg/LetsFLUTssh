@@ -190,6 +190,7 @@
   "exportFailed": "Xuất thất bại: {error}",
   "pathToLfsFile": "Đường dẫn tệp .lfs",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "Duyệt",
   "shareViaQrCode": "Chia sẻ qua mã QR",
   "shareViaQrSubtitle": "Xuất phiên sang mã QR để quét từ thiết bị khác",
   "dataLocation": "Vị trí dữ liệu",

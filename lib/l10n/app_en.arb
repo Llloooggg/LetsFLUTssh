@@ -338,6 +338,7 @@
   },
   "pathToLfsFile": "Path to .lfs file",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "Browse",
 
   "shareViaQrCode": "Share via QR Code",
   "shareViaQrSubtitle": "Export sessions to QR for scanning by another device",

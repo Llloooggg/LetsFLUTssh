@@ -631,6 +631,9 @@ class SJa extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => '参照';
+
+  @override
   String get shareViaQrCode => 'QRコードで共有';
 
   @override

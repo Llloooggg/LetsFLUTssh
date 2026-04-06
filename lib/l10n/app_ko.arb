@@ -193,6 +193,7 @@
   "exportFailed": "내보내기 실패: {error}",
   "pathToLfsFile": ".lfs 파일 경로",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "찾아보기",
   "shareViaQrCode": "QR 코드로 공유",
   "shareViaQrSubtitle": "다른 기기에서 스캔할 수 있도록 세션을 QR로 내보내기",
   "dataLocation": "데이터 위치",

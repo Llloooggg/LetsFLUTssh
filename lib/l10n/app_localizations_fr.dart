@@ -641,6 +641,9 @@ class SFr extends S {
   String get hintLfsPath => '/chemin/vers/export.lfs';
 
   @override
+  String get browse => 'Parcourir';
+
+  @override
   String get shareViaQrCode => 'Partager via QR code';
 
   @override

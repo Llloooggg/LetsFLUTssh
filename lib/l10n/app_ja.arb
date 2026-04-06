@@ -193,6 +193,7 @@
   "exportFailed": "エクスポート失敗: {error}",
   "pathToLfsFile": ".lfs ファイルのパス",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "参照",
   "shareViaQrCode": "QRコードで共有",
   "shareViaQrSubtitle": "セッションをQRコードにエクスポートして別のデバイスでスキャン",
   "dataLocation": "データの保存場所",

@@ -211,6 +211,7 @@
   "exportFailed": "خروجی گرفتن ناموفق بود: {error}",
   "pathToLfsFile": "مسیر فایل .lfs",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "مرور",
 
   "shareViaQrCode": "اشتراک‌گذاری از طریق کد QR",
   "shareViaQrSubtitle": "خروجی گرفتن از جلسات به QR برای اسکن توسط دستگاه دیگر",

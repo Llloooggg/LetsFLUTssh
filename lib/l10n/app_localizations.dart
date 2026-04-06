@@ -1263,6 +1263,12 @@ abstract class S {
   /// **'/path/to/export.lfs'**
   String get hintLfsPath;
 
+  /// No description provided for @browse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get browse;
+
   /// No description provided for @shareViaQrCode.
   ///
   /// In en, this message translates to:
