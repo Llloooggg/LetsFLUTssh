@@ -1003,4 +1003,15 @@ class SPt extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Permissão de armazenamento necessária para navegar arquivos locais';
+
+  @override
+  String get grantPermission => 'Conceder permissão';
+
+  @override
+  String get storagePermissionLimited =>
+      'Acesso limitado — conceda permissão total de armazenamento para todos os arquivos';
 }

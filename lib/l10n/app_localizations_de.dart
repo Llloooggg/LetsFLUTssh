@@ -1008,4 +1008,15 @@ class SDe extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen';
+
+  @override
+  String get grantPermission => 'Berechtigung erteilen';
+
+  @override
+  String get storagePermissionLimited =>
+      'Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien';
 }

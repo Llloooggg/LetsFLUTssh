@@ -30,8 +30,31 @@ class LocalFS implements FileSystem {
       final docs = await getApplicationDocumentsDirectory();
       return docs.path;
     }
+    if (Platform.isAndroid) {
+      return _androidInitialDir();
+    }
     final home = homeDirectory;
     return home.isNotEmpty ? home : Directory.current.path;
+  }
+
+  /// Android: try shared storage first, fall back to app-specific dir
+  /// if storage permission is not granted.
+  Future<String> _androidInitialDir() async {
+    final shared = Directory(homeDirectory); // /storage/emulated/0
+    try {
+      if (await shared.exists()) {
+        await shared.list().first;
+        return shared.path;
+      }
+    } catch (_) {
+      // Permission denied — fall back to app-specific external storage
+      AppLogger.instance.log(
+        'No shared storage access, falling back to app dir',
+        name: 'LocalFS',
+      );
+    }
+    final appDir = await getExternalStorageDirectory();
+    return appDir?.path ?? Directory.current.path;
   }
 
   @override

@@ -1001,4 +1001,15 @@ class SRu extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Для просмотра локальных файлов необходимо разрешение на доступ к хранилищу';
+
+  @override
+  String get grantPermission => 'Дать разрешение';
+
+  @override
+  String get storagePermissionLimited =>
+      'Ограниченный доступ — предоставьте полный доступ к хранилищу для всех файлов';
 }

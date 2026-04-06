@@ -1003,4 +1003,15 @@ class STr extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Yerel dosyalara göz atmak için depolama izni gerekli';
+
+  @override
+  String get grantPermission => 'İzin ver';
+
+  @override
+  String get storagePermissionLimited =>
+      'Sınırlı erişim — tüm dosyalar için tam depolama izni verin';
 }

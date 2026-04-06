@@ -987,4 +987,14 @@ class SJa extends S {
   String errWithCause(String error, String cause) {
     return '$error（$cause）';
   }
+
+  @override
+  String get storagePermissionRequired => 'ローカルファイルを閲覧するにはストレージ権限が必要です';
+
+  @override
+  String get grantPermission => '権限を付与';
+
+  @override
+  String get storagePermissionLimited =>
+      '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
 }

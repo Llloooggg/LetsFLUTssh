@@ -299,5 +299,8 @@
   "errDownloadFailed": "Download fehlgeschlagen: {error}",
   "errDecryptionFailed": "Zugangsdaten konnten nicht entschlüsselt werden. Die Schlüsseldatei ist möglicherweise beschädigt.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen",
+  "grantPermission": "Berechtigung erteilen",
+  "storagePermissionLimited": "Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien"
 }

@@ -297,5 +297,8 @@
   "errDownloadFailed": "Unduhan gagal: {error}",
   "errDecryptionFailed": "Gagal mendekripsi kredensial. File kunci mungkin rusak.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Izin penyimpanan diperlukan untuk menjelajahi file lokal",
+  "grantPermission": "Berikan izin",
+  "storagePermissionLimited": "Akses terbatas — berikan izin penyimpanan penuh untuk semua file"
 }

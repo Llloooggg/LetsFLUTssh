@@ -324,5 +324,8 @@
   "errDownloadFailed": "دانلود ناموفق بود: {error}",
   "errDecryptionFailed": "رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است",
+  "grantPermission": "اعطای مجوز",
+  "storagePermissionLimited": "دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید"
 }

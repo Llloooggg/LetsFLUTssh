@@ -999,4 +999,15 @@ class SVi extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Cần quyền truy cập bộ nhớ để duyệt tệp cục bộ';
+
+  @override
+  String get grantPermission => 'Cấp quyền';
+
+  @override
+  String get storagePermissionLimited =>
+      'Truy cập hạn chế — cấp quyền truy cập bộ nhớ đầy đủ cho tất cả tệp';
 }
