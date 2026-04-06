@@ -43,18 +43,12 @@ class SFTPInitializer {
   /// On older versions it shows the standard runtime permission dialog.
   static Future<bool> _requestStoragePermission() async {
     try {
-      // Quick check: if we can already list shared storage, skip the request
-      final testDir = Directory('/storage/emulated/0');
-      if (await testDir.exists()) {
-        try {
-          await testDir.list().first;
-          return true;
-        } catch (_) {
-          // Can't list — need permission
-        }
-      }
-
-      // Request via platform channel — native Android side shows the dialog
+      // Always go through the platform channel — the native side checks
+      // Environment.isExternalStorageManager() which is the only reliable
+      // way to verify MANAGE_EXTERNAL_STORAGE on Android 11+.
+      // A Dart-side Directory.list() check is unreliable: scoped storage
+      // lets apps see folder names at the root without full access to
+      // their contents (the bug that made Downloads appear empty).
       const channel = MethodChannel('com.letsflutssh/permissions');
       final granted = await channel.invokeMethod<bool>(
         'requestStoragePermission',
