@@ -29,7 +29,7 @@ class ImportService {
     );
 
     if (result.mode == ImportMode.replace) {
-      final existing = getSessions();
+      final existing = List<Session>.of(getSessions());
       AppLogger.instance.log(
         'Replace mode: deleting ${existing.length} existing sessions',
         name: 'Import',
