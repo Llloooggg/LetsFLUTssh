@@ -9,7 +9,7 @@ import '../../utils/format.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/column_resize_handle.dart';
-import '../../widgets/hover_region.dart';
+import '../../widgets/sortable_header_cell.dart';
 
 /// Sort columns for the transfer table.
 enum TransferSortColumn { name, local, remote, size, time }
@@ -27,11 +27,11 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
   bool _wasRunning = false;
   double _panelHeight = 200;
 
-  // Resizable column widths
+  // Resizable column widths (match file pane defaults where applicable)
   double _localColWidth = 110;
   double _remoteColWidth = 110;
-  double _sizeColWidth = 50;
-  double _timeColWidth = 95;
+  double _sizeColWidth = 55;
+  double _timeColWidth = 105;
 
   // Sorting
   TransferSortColumn _sortColumn = TransferSortColumn.time;
@@ -263,10 +263,20 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     });
   }
 
-  static Color? _headerColor(bool isActive, bool hovered) {
-    if (isActive) return AppTheme.accent;
-    if (hovered) return AppTheme.fgDim;
-    return null;
+  Widget _sortableCell(
+    String label,
+    TransferSortColumn column,
+    TextStyle style, {
+    double? width,
+  }) {
+    return SortableHeaderCell(
+      label: label,
+      isActive: _sortColumn == column,
+      sortAscending: _sortAscending,
+      onTap: () => _setSort(column),
+      style: style,
+      width: width,
+    );
   }
 
   Widget _buildColumnHeaders() {
@@ -275,33 +285,6 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       fontWeight: FontWeight.w500,
       color: AppTheme.fgFaint,
     );
-
-    Widget headerCell(
-      String label,
-      TransferSortColumn column, {
-      double? width,
-    }) {
-      final isActive = _sortColumn == column;
-      String sortSuffix = '';
-      if (isActive) {
-        sortSuffix = _sortAscending ? ' ↑' : ' ↓';
-      }
-      return HoverRegion(
-        cursor: SystemMouseCursors.click,
-        onTap: () => _setSort(column),
-        builder: (hovered) {
-          final color = _headerColor(isActive, hovered);
-          return SizedBox(
-            width: width,
-            child: Text(
-              '$label$sortSuffix',
-              style: color != null ? style.copyWith(color: color) : style,
-              overflow: TextOverflow.ellipsis,
-            ),
-          );
-        },
-      );
-    }
 
     return Container(
       height: AppTheme.barHeightSm,
@@ -315,16 +298,21 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           SizedBox(width: 20, child: Text('', style: style)),
           const SizedBox(width: 4),
           Expanded(
-            child: headerCell(S.of(context).name, TransferSortColumn.name),
+            child: _sortableCell(
+              S.of(context).name,
+              TransferSortColumn.name,
+              style,
+            ),
           ),
           ColumnResizeHandle(
             onDrag: (dx) => setState(
               () => _localColWidth = (_localColWidth - dx).clamp(60, 300),
             ),
           ),
-          headerCell(
+          _sortableCell(
             S.of(context).local,
             TransferSortColumn.local,
+            style,
             width: _localColWidth,
           ),
           ColumnResizeHandle(
@@ -332,9 +320,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               () => _remoteColWidth = (_remoteColWidth - dx).clamp(60, 300),
             ),
           ),
-          headerCell(
+          _sortableCell(
             S.of(context).remote,
             TransferSortColumn.remote,
+            style,
             width: _remoteColWidth,
           ),
           ColumnResizeHandle(
@@ -342,9 +331,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               () => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 150),
             ),
           ),
-          headerCell(
+          _sortableCell(
             S.of(context).size,
             TransferSortColumn.size,
+            style,
             width: _sizeColWidth,
           ),
           ColumnResizeHandle(
@@ -352,28 +342,16 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               () => _timeColWidth = (_timeColWidth - dx).clamp(60, 200),
             ),
           ),
-          headerCell(
+          _sortableCell(
             S.of(context).time,
             TransferSortColumn.time,
+            style,
             width: _timeColWidth,
           ),
         ],
       ),
     );
   }
-}
-
-/// Column divider line matching the file browser dividers.
-Widget _colDivider() {
-  return SizedBox(
-    width: 10,
-    child: Center(
-      child: Container(
-        width: 1,
-        color: AppTheme.fgFaint.withValues(alpha: 0.15),
-      ),
-    ),
-  );
 }
 
 class _HistoryRow extends StatelessWidget {
@@ -439,7 +417,7 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           // Local path
-          _colDivider(),
+          columnDivider(),
           SizedBox(
             width: localWidth,
             child: Tooltip(
@@ -455,7 +433,7 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           // Remote path
-          _colDivider(),
+          columnDivider(),
           SizedBox(
             width: remoteWidth,
             child: Tooltip(
@@ -471,7 +449,7 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           // Size
-          _colDivider(),
+          columnDivider(),
           SizedBox(
             width: sizeWidth,
             child: Text(
@@ -484,7 +462,7 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           // Time
-          _colDivider(),
+          columnDivider(),
           SizedBox(
             width: timeWidth,
             child: Tooltip(
@@ -619,7 +597,7 @@ class _ActiveRow extends StatelessWidget {
                 ),
               ),
               // Local path
-              _colDivider(),
+              columnDivider(),
               SizedBox(
                 width: localWidth,
                 child: Tooltip(
@@ -637,7 +615,7 @@ class _ActiveRow extends StatelessWidget {
                 ),
               ),
               // Remote path
-              _colDivider(),
+              columnDivider(),
               SizedBox(
                 width: remoteWidth,
                 child: Tooltip(
@@ -655,7 +633,7 @@ class _ActiveRow extends StatelessWidget {
                 ),
               ),
               // Progress
-              _colDivider(),
+              columnDivider(),
               SizedBox(
                 width: sizeWidth,
                 child: Text(
@@ -668,7 +646,7 @@ class _ActiveRow extends StatelessWidget {
                 ),
               ),
               // Message
-              _colDivider(),
+              columnDivider(),
               SizedBox(
                 width: timeWidth,
                 child: Text(
