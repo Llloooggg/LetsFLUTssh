@@ -369,6 +369,12 @@ class _HistoryRow extends StatelessWidget {
     required this.timeWidth,
   });
 
+  String _statusTooltip(BuildContext context, bool isFailed, HistoryEntry e) {
+    if (!isFailed) return S.of(context).completed;
+    if (e.error != null) return localizeError(S.of(context), e.error!);
+    return S.of(context).failed;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFailed = entry.status == TransferStatus.failed;
@@ -392,11 +398,7 @@ class _HistoryRow extends StatelessWidget {
           SizedBox(
             width: 20,
             child: Tooltip(
-              message: isFailed
-                  ? (entry.error != null
-                        ? localizeError(S.of(context), entry.error!)
-                        : S.of(context).failed)
-                  : S.of(context).completed,
+              message: _statusTooltip(context, isFailed, entry),
               child: Icon(
                 isFailed ? Icons.error_outline : Icons.check_circle_outline,
                 size: 10,

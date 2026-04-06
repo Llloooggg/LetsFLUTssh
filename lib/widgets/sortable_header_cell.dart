@@ -27,9 +27,14 @@ class SortableHeaderCell extends StatelessWidget {
     this.textAlign,
   });
 
+  static String _sortSuffix(bool active, bool ascending) {
+    if (!active) return '';
+    return ascending ? ' ↑' : ' ↓';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final sortSuffix = isActive ? (sortAscending ? ' ↑' : ' ↓') : '';
+    final sortSuffix = _sortSuffix(isActive, sortAscending);
     return HoverRegion(
       cursor: SystemMouseCursors.click,
       onTap: onTap,

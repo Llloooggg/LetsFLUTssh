@@ -242,7 +242,12 @@ class AppDialogAction extends StatelessWidget {
     final effectiveFg = enabled ? (foreground ?? defaultFg) : AppTheme.fgFaint;
 
     final height = mobile ? AppTheme.barHeightLg : AppTheme.controlHeightXs;
-    final hPad = mobile ? (hasBg ? 20.0 : 16.0) : (hasBg ? 16.0 : 12.0);
+    final double hPad;
+    if (mobile) {
+      hPad = hasBg ? 20.0 : 16.0;
+    } else {
+      hPad = hasBg ? 16.0 : 12.0;
+    }
     final fontSize = mobile ? AppFonts.md : AppFonts.sm;
     final radius = mobile ? AppTheme.radiusMd : BorderRadius.zero;
 
