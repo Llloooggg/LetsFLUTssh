@@ -5,6 +5,7 @@ import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../widgets/hover_region.dart';
+import '../../widgets/sortable_header_cell.dart';
 
 /// File extensions grouped by type for icon/color mapping.
 const _imageExts = {
@@ -109,18 +110,6 @@ Color fileIconColor(FileEntry entry, Brightness brightness) {
 }
 
 /// A single file row in the file browser list.
-/// Column divider line matching the header dividers.
-Widget _colDivider() {
-  return SizedBox(
-    width: 10,
-    child: Center(
-      child: Container(
-        width: 1,
-        color: AppTheme.fgFaint.withValues(alpha: 0.15),
-      ),
-    ),
-  );
-}
 
 class FileRow extends StatelessWidget {
   final FileEntry entry;
@@ -209,7 +198,7 @@ class FileRow extends StatelessWidget {
         ),
       ),
       if (sizeWidth > 0) ...[
-        _colDivider(),
+        columnDivider(),
         SizedBox(
           width: sizeWidth,
           child: Text(
@@ -221,7 +210,7 @@ class FileRow extends StatelessWidget {
         ),
       ],
       if (modifiedWidth > 0) ...[
-        _colDivider(),
+        columnDivider(),
         SizedBox(
           width: modifiedWidth,
           child: Text(
@@ -233,7 +222,7 @@ class FileRow extends StatelessWidget {
         ),
       ],
       if (modeWidth > 0) ...[
-        _colDivider(),
+        columnDivider(),
         SizedBox(
           width: modeWidth,
           child: Text(
@@ -245,7 +234,7 @@ class FileRow extends StatelessWidget {
         ),
       ],
       if (ownerWidth > 0 && entry.owner.isNotEmpty) ...[
-        _colDivider(),
+        columnDivider(),
         SizedBox(
           width: ownerWidth,
           child: Text(

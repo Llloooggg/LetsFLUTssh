@@ -10,6 +10,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/column_resize_handle.dart';
+import '../../widgets/sortable_header_cell.dart';
 import '../../utils/format.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/cross_marquee_controller.dart';
@@ -327,17 +328,15 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final showNav = constraints.maxWidth > 160;
-          return Row(
+          return ClippedRow(
             children: [
-              Flexible(
-                child: Text(
-                  displayLabel.toUpperCase(),
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.xs,
-                    fontWeight: FontWeight.w600,
-                    color: labelColor,
-                  ),
+              Text(
+                displayLabel.toUpperCase(),
+                overflow: TextOverflow.ellipsis,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.xs,
+                  fontWeight: FontWeight.w600,
+                  color: labelColor,
                 ),
               ),
               const SizedBox(width: 8),
@@ -561,7 +560,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         children: [
           const SizedBox(width: 20), // icon space
           Expanded(
-            child: _buildHeaderCell(
+            child: _sortableCell(
               S.of(context).name,
               SortColumn.name,
               headerStyle,
@@ -574,7 +573,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                 _sizeColWidth = (_sizeColWidth - dx).clamp(40, max);
               }),
             ),
-            _buildHeaderCell(
+            _sortableCell(
               S.of(context).size,
               SortColumn.size,
               headerStyle,
@@ -588,7 +587,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                 _modifiedColWidth = (_modifiedColWidth - dx).clamp(50, max);
               }),
             ),
-            _buildHeaderCell(
+            _sortableCell(
               S.of(context).modified,
               SortColumn.modified,
               headerStyle,
@@ -602,7 +601,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                 _modeColWidth = (_modeColWidth - dx).clamp(50, max);
               }),
             ),
-            _buildHeaderCell(
+            _sortableCell(
               S.of(context).mode,
               SortColumn.mode,
               headerStyle,
@@ -616,7 +615,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
                 _ownerColWidth = (_ownerColWidth - dx).clamp(40, max);
               }),
             ),
-            _buildHeaderCell(
+            _sortableCell(
               S.of(context).owner,
               SortColumn.owner,
               headerStyle,
@@ -628,32 +627,21 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     );
   }
 
-  Widget _buildHeaderCell(
+  Widget _sortableCell(
     String label,
     SortColumn column,
-    TextStyle headerStyle, {
+    TextStyle style, {
     double? width,
     TextAlign? textAlign,
   }) {
-    final isActive = ctrl.sortColumn == column;
-    final sortSuffix = isActive ? (ctrl.sortAscending ? ' ↑' : ' ↓') : '';
-    return HoverRegion(
-      cursor: SystemMouseCursors.click,
+    return SortableHeaderCell(
+      label: label,
+      isActive: ctrl.sortColumn == column,
+      sortAscending: ctrl.sortAscending,
       onTap: () => ctrl.setSort(column),
-      builder: (hovered) {
-        final color = _headerColor(isActive, hovered);
-        return SizedBox(
-          width: width,
-          child: Text(
-            '$label$sortSuffix',
-            style: color != null
-                ? headerStyle.copyWith(color: color)
-                : headerStyle,
-            overflow: TextOverflow.ellipsis,
-            textAlign: textAlign,
-          ),
-        );
-      },
+      style: style,
+      width: width,
+      textAlign: textAlign,
     );
   }
 
@@ -666,12 +654,6 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     if (cols.mode) total += 10 + _modeColWidth;
     if (cols.owner) total += 10 + _ownerColWidth;
     return total;
-  }
-
-  static Color? _headerColor(bool isActive, bool hovered) {
-    if (isActive) return AppTheme.accent;
-    if (hovered) return AppTheme.fgDim;
-    return null;
   }
 
   // ── MarqueeMixin implementation ──
