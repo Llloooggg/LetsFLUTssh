@@ -193,6 +193,7 @@
   "exportFailed": "Falha na exportação: {error}",
   "pathToLfsFile": "Caminho do arquivo .lfs",
   "hintLfsPath": "/caminho/para/exportacao.lfs",
+  "browse": "Procurar",
   "shareViaQrCode": "Compartilhar via Código QR",
   "shareViaQrSubtitle": "Exportar sessões para QR para escaneamento por outro dispositivo",
   "dataLocation": "Local dos Dados",

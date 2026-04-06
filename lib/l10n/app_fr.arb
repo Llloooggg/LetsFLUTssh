@@ -211,6 +211,7 @@
   "exportFailed": "Échec de l'export : {error}",
   "pathToLfsFile": "Chemin du fichier .lfs",
   "hintLfsPath": "/chemin/vers/export.lfs",
+  "browse": "Parcourir",
 
   "shareViaQrCode": "Partager via QR code",
   "shareViaQrSubtitle": "Exporter les sessions en QR code pour les scanner depuis un autre appareil",

@@ -190,6 +190,7 @@
   "exportFailed": "Dışa aktarma başarısız: {error}",
   "pathToLfsFile": ".lfs dosya yolu",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "Gözat",
   "shareViaQrCode": "QR Kodu ile Paylaş",
   "shareViaQrSubtitle": "Oturumları başka bir cihazdan taranmak üzere QR koduna aktar",
   "dataLocation": "Veri Konumu",

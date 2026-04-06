@@ -640,6 +640,9 @@ class STr extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'Gözat';
+
+  @override
   String get shareViaQrCode => 'QR Kodu ile Paylaş';
 
   @override

@@ -630,6 +630,9 @@ class SZh extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => '浏览';
+
+  @override
   String get shareViaQrCode => '通过 QR 码分享';
 
   @override

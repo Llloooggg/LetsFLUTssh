@@ -636,6 +636,9 @@ class SFa extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'مرور';
+
+  @override
   String get shareViaQrCode => 'اشتراک‌گذاری از طریق کد QR';
 
   @override

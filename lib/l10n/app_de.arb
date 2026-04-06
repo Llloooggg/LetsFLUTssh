@@ -192,6 +192,7 @@
   "exportFailed": "Export fehlgeschlagen: {error}",
   "pathToLfsFile": "Pfad zur .lfs-Datei",
   "hintLfsPath": "/pfad/zum/export.lfs",
+  "browse": "Durchsuchen",
   "shareViaQrCode": "Per QR-Code teilen",
   "shareViaQrSubtitle": "Sitzungen als QR exportieren, um sie mit einem anderen Gerät zu scannen",
   "dataLocation": "Datenspeicherort",

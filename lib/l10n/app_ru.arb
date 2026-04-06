@@ -192,6 +192,7 @@
   "exportFailed": "Ошибка экспорта: {error}",
   "pathToLfsFile": "Путь к файлу .lfs",
   "hintLfsPath": "/путь/к/файлу.lfs",
+  "browse": "Обзор",
   "shareViaQrCode": "Поделиться через QR-код",
   "shareViaQrSubtitle": "Экспортировать сессии в QR для сканирования другим устройством",
   "dataLocation": "Расположение данных",

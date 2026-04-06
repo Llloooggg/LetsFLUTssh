@@ -640,6 +640,9 @@ class SEs extends S {
   String get hintLfsPath => '/ruta/al/archivo.lfs';
 
   @override
+  String get browse => 'Examinar';
+
+  @override
   String get shareViaQrCode => 'Compartir vía código QR';
 
   @override

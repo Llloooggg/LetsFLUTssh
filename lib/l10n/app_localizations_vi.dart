@@ -637,6 +637,9 @@ class SVi extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'Duyệt';
+
+  @override
   String get shareViaQrCode => 'Chia sẻ qua mã QR';
 
   @override

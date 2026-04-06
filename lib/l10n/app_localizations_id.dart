@@ -640,6 +640,9 @@ class SId extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'Telusuri';
+
+  @override
   String get shareViaQrCode => 'Bagikan via Kode QR';
 
   @override

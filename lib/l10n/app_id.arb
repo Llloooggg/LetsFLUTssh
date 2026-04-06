@@ -190,6 +190,7 @@
   "exportFailed": "Ekspor gagal: {error}",
   "pathToLfsFile": "Jalur file .lfs",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "Telusuri",
   "shareViaQrCode": "Bagikan via Kode QR",
   "shareViaQrSubtitle": "Ekspor sesi ke kode QR untuk dipindai perangkat lain",
   "dataLocation": "Lokasi Data",

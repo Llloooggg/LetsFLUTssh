@@ -636,6 +636,9 @@ class SAr extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'تصفح';
+
+  @override
   String get shareViaQrCode => 'مشاركة عبر رمز QR';
 
   @override

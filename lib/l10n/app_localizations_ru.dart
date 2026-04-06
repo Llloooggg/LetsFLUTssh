@@ -638,6 +638,9 @@ class SRu extends S {
   String get hintLfsPath => '/путь/к/файлу.lfs';
 
   @override
+  String get browse => 'Обзор';
+
+  @override
   String get shareViaQrCode => 'Поделиться через QR-код';
 
   @override

@@ -630,6 +630,9 @@ class SKo extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => '찾아보기';
+
+  @override
   String get shareViaQrCode => 'QR 코드로 공유';
 
   @override

@@ -639,6 +639,9 @@ class SPt extends S {
   String get hintLfsPath => '/caminho/para/exportacao.lfs';
 
   @override
+  String get browse => 'Procurar';
+
+  @override
   String get shareViaQrCode => 'Compartilhar via Código QR';
 
   @override
