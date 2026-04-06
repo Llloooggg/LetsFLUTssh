@@ -89,6 +89,12 @@ class SessionTreeView extends StatefulWidget {
   /// Used by parent to track the focused session for keyboard shortcuts.
   final void Function(String sessionId)? onSessionSelected;
 
+  /// Folder paths that should start collapsed (persisted across restarts).
+  final Set<String> collapsedFolders;
+
+  /// Called when a folder is expanded/collapsed so the parent can persist.
+  final void Function(String folderPath)? onToggleFolderCollapsed;
+
   const SessionTreeView({
     super.key,
     required this.tree,
@@ -112,6 +118,8 @@ class SessionTreeView extends StatefulWidget {
     this.connectedSessionIds = const {},
     this.connectingSessionIds = const {},
     this.onSessionSelected,
+    this.collapsedFolders = const {},
+    this.onToggleFolderCollapsed,
   });
 
   @override
@@ -140,6 +148,26 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   void initState() {
     super.initState();
     _expandAllFolders(widget.tree);
+    _expandedFolders.removeAll(widget.collapsedFolders);
+  }
+
+  @override
+  void didUpdateWidget(covariant SessionTreeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Expand newly added folders (unless they are persisted as collapsed).
+    _expandNewFolders(widget.tree);
+  }
+
+  void _expandNewFolders(List<SessionTreeNode> nodes) {
+    for (final node in nodes) {
+      if (node.isGroup) {
+        if (!_expandedFolders.contains(node.fullPath) &&
+            !widget.collapsedFolders.contains(node.fullPath)) {
+          _expandedFolders.add(node.fullPath);
+        }
+        _expandNewFolders(node.children);
+      }
+    }
   }
 
   @override
@@ -599,6 +627,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
         _expandedFolders.add(fullPath);
       }
     });
+    widget.onToggleFolderCollapsed?.call(fullPath);
   }
 
   List<Widget> _buildFolderRowChildren(
