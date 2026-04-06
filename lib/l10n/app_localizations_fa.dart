@@ -636,6 +636,9 @@ class SFa extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'مرور';
+
+  @override
   String get shareViaQrCode => 'اشتراک‌گذاری از طریق کد QR';
 
   @override
@@ -997,4 +1000,15 @@ class SFa extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است';
+
+  @override
+  String get grantPermission => 'اعطای مجوز';
+
+  @override
+  String get storagePermissionLimited =>
+      'دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید';
 }

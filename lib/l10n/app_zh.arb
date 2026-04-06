@@ -211,6 +211,7 @@
   "exportFailed": "导出失败：{error}",
   "pathToLfsFile": ".lfs 文件路径",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "浏览",
 
   "shareViaQrCode": "通过 QR 码分享",
   "shareViaQrSubtitle": "将会话导出为 QR 码，供其他设备扫描",
@@ -324,5 +325,8 @@
   "errDownloadFailed": "下载失败：{error}",
   "errDecryptionFailed": "凭据解密失败。密钥文件可能已损坏。",
   "errWithPath": "{error}：{path}",
-  "errWithCause": "{error}（{cause}）"
+  "errWithCause": "{error}（{cause}）",
+  "storagePermissionRequired": "需要存储权限才能浏览本地文件",
+  "grantPermission": "授予权限",
+  "storagePermissionLimited": "访问受限 — 请授予完整存储权限以访问所有文件"
 }

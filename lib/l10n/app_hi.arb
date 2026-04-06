@@ -190,6 +190,7 @@
   "exportFailed": "निर्यात विफल: {error}",
   "pathToLfsFile": ".lfs फ़ाइल का पथ",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "ब्राउज़ करें",
   "shareViaQrCode": "QR कोड से साझा करें",
   "shareViaQrSubtitle": "दूसरे डिवाइस से स्कैन करने के लिए सत्रों को QR कोड में निर्यात करें",
   "dataLocation": "डेटा स्थान",
@@ -297,5 +298,8 @@
   "errDownloadFailed": "डाउनलोड विफल: {error}",
   "errDecryptionFailed": "क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है",
+  "grantPermission": "अनुमति दें",
+  "storagePermissionLimited": "सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें"
 }

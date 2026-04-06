@@ -631,6 +631,9 @@ class SJa extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => '参照';
+
+  @override
   String get shareViaQrCode => 'QRコードで共有';
 
   @override
@@ -987,4 +990,14 @@ class SJa extends S {
   String errWithCause(String error, String cause) {
     return '$error（$cause）';
   }
+
+  @override
+  String get storagePermissionRequired => 'ローカルファイルを閲覧するにはストレージ権限が必要です';
+
+  @override
+  String get grantPermission => '権限を付与';
+
+  @override
+  String get storagePermissionLimited =>
+      '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
 }

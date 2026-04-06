@@ -193,6 +193,7 @@
   "exportFailed": "Falha na exportação: {error}",
   "pathToLfsFile": "Caminho do arquivo .lfs",
   "hintLfsPath": "/caminho/para/exportacao.lfs",
+  "browse": "Procurar",
   "shareViaQrCode": "Compartilhar via Código QR",
   "shareViaQrSubtitle": "Exportar sessões para QR para escaneamento por outro dispositivo",
   "dataLocation": "Local dos Dados",
@@ -301,5 +302,8 @@
   "errDownloadFailed": "Download falhou: {error}",
   "errDecryptionFailed": "Falha ao descriptografar as credenciais. O arquivo de chave pode estar corrompido.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Permissão de armazenamento necessária para navegar arquivos locais",
+  "grantPermission": "Conceder permissão",
+  "storagePermissionLimited": "Acesso limitado — conceda permissão total de armazenamento para todos os arquivos"
 }

@@ -193,6 +193,7 @@
   "exportFailed": "エクスポート失敗: {error}",
   "pathToLfsFile": ".lfs ファイルのパス",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "参照",
   "shareViaQrCode": "QRコードで共有",
   "shareViaQrSubtitle": "セッションをQRコードにエクスポートして別のデバイスでスキャン",
   "dataLocation": "データの保存場所",
@@ -301,5 +302,8 @@
   "errDownloadFailed": "ダウンロードに失敗しました: {error}",
   "errDecryptionFailed": "認証情報の復号に失敗しました。鍵ファイルが破損している可能性があります。",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error}（{cause}）"
+  "errWithCause": "{error}（{cause}）",
+  "storagePermissionRequired": "ローカルファイルを閲覧するにはストレージ権限が必要です",
+  "grantPermission": "権限を付与",
+  "storagePermissionLimited": "制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください"
 }

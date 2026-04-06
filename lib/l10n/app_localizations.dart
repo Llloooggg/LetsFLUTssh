@@ -1263,6 +1263,12 @@ abstract class S {
   /// **'/path/to/export.lfs'**
   String get hintLfsPath;
 
+  /// No description provided for @browse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get browse;
+
   /// No description provided for @shareViaQrCode.
   ///
   /// In en, this message translates to:
@@ -1910,6 +1916,24 @@ abstract class S {
   /// In en, this message translates to:
   /// **'{error} ({cause})'**
   String errWithCause(String error, String cause);
+
+  /// No description provided for @storagePermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage permission required to browse local files'**
+  String get storagePermissionRequired;
+
+  /// No description provided for @grantPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Grant Permission'**
+  String get grantPermission;
+
+  /// No description provided for @storagePermissionLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Limited access — grant full storage permission for all files'**
+  String get storagePermissionLimited;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

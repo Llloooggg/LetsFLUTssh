@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/platform.dart';
 import 'app_icon_button.dart';
 import 'hover_region.dart';
 
@@ -128,6 +129,11 @@ class AppDialogHeader extends StatelessWidget {
 // ════════════════════════════════════════════════════════════════════
 
 /// Footer bar for dialogs: action buttons aligned to the right.
+///
+/// Desktop: horizontal [Row] with [Flexible] children — buttons shrink
+/// proportionally instead of wrapping to a second line.
+/// Mobile: vertical [Column] with full-width buttons in reversed order
+/// (primary action on top, cancel at bottom).
 class AppDialogFooter extends StatelessWidget {
   final List<Widget> actions;
 
@@ -135,17 +141,41 @@ class AppDialogFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = isMobilePlatform;
     return Container(
       constraints: const BoxConstraints(minHeight: AppTheme.barHeightMd),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: mobile ? 12 : 7),
       decoration: BoxDecoration(border: AppTheme.borderTop),
-      child: Wrap(
-        alignment: WrapAlignment.end,
-        spacing: 8,
-        runSpacing: 6,
-        children: actions,
+      child: mobile ? _mobileLayout() : _desktopLayout(),
+    );
+  }
+
+  Widget _desktopLayout() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: _intersperse(
+        const SizedBox(width: 8),
+        actions.map((a) => Flexible(child: a)).toList(),
       ),
     );
+  }
+
+  Widget _mobileLayout() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: _intersperse(
+        const SizedBox(height: 8),
+        actions.reversed
+            .map((a) => SizedBox(width: double.infinity, child: a))
+            .toList(),
+      ),
+    );
+  }
+
+  static List<Widget> _intersperse(Widget spacer, List<Widget> items) {
+    return [
+      for (int i = 0; i < items.length; i++) ...[if (i > 0) spacer, items[i]],
+    ];
   }
 }
 
@@ -205,27 +235,38 @@ class AppDialogAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = isMobilePlatform;
     final hasBg = background != null;
     final effectiveBg = enabled ? background : AppTheme.bg4;
     final defaultFg = hasBg ? AppTheme.onAccent : AppTheme.fgDim;
     final effectiveFg = enabled ? (foreground ?? defaultFg) : AppTheme.fgFaint;
 
+    final height = mobile ? AppTheme.barHeightLg : AppTheme.controlHeightXs;
+    final hPad = mobile ? (hasBg ? 20.0 : 16.0) : (hasBg ? 16.0 : 12.0);
+    final fontSize = mobile ? AppFonts.md : AppFonts.sm;
+    final radius = mobile ? AppTheme.radiusMd : BorderRadius.zero;
+
     return HoverRegion(
       cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
       onTap: enabled ? onTap : null,
       builder: (hovered) => Container(
-        height: AppTheme.controlHeightXs,
-        padding: EdgeInsets.symmetric(horizontal: hasBg ? 16 : 12),
+        height: height,
+        padding: EdgeInsets.symmetric(horizontal: hPad),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: _buttonColor(hasBg, hovered, effectiveBg),
+          borderRadius: radius,
         ),
-        child: Text(
-          label,
-          style: AppFonts.inter(
-            fontSize: AppFonts.sm,
-            fontWeight: hasBg ? FontWeight.w500 : null,
-            color: effectiveFg,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: AppFonts.inter(
+              fontSize: fontSize,
+              fontWeight: hasBg ? FontWeight.w500 : null,
+              color: effectiveFg,
+            ),
           ),
         ),
       ),

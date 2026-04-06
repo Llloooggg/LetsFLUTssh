@@ -211,6 +211,7 @@
   "exportFailed": "خروجی گرفتن ناموفق بود: {error}",
   "pathToLfsFile": "مسیر فایل .lfs",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "مرور",
 
   "shareViaQrCode": "اشتراک‌گذاری از طریق کد QR",
   "shareViaQrSubtitle": "خروجی گرفتن از جلسات به QR برای اسکن توسط دستگاه دیگر",
@@ -324,5 +325,8 @@
   "errDownloadFailed": "دانلود ناموفق بود: {error}",
   "errDecryptionFailed": "رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است",
+  "grantPermission": "اعطای مجوز",
+  "storagePermissionLimited": "دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید"
 }

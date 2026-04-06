@@ -190,6 +190,7 @@
   "exportFailed": "Ekspor gagal: {error}",
   "pathToLfsFile": "Jalur file .lfs",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "Telusuri",
   "shareViaQrCode": "Bagikan via Kode QR",
   "shareViaQrSubtitle": "Ekspor sesi ke kode QR untuk dipindai perangkat lain",
   "dataLocation": "Lokasi Data",
@@ -297,5 +298,8 @@
   "errDownloadFailed": "Unduhan gagal: {error}",
   "errDecryptionFailed": "Gagal mendekripsi kredensial. File kunci mungkin rusak.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Izin penyimpanan diperlukan untuk menjelajahi file lokal",
+  "grantPermission": "Berikan izin",
+  "storagePermissionLimited": "Akses terbatas — berikan izin penyimpanan penuh untuk semua file"
 }

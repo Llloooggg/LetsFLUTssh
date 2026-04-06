@@ -211,6 +211,7 @@
   "exportFailed": "فشل التصدير: {error}",
   "pathToLfsFile": "مسار ملف .lfs",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "تصفح",
 
   "shareViaQrCode": "مشاركة عبر رمز QR",
   "shareViaQrSubtitle": "تصدير الجلسات إلى رمز QR لمسحه من جهاز آخر",
@@ -324,5 +325,8 @@
   "errDownloadFailed": "فشل التنزيل: {error}",
   "errDecryptionFailed": "فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "يلزم إذن التخزين لتصفح الملفات المحلية",
+  "grantPermission": "منح الإذن",
+  "storagePermissionLimited": "وصول محدود — امنح إذن التخزين الكامل لجميع الملفات"
 }

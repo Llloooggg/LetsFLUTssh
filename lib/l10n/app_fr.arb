@@ -211,6 +211,7 @@
   "exportFailed": "Échec de l'export : {error}",
   "pathToLfsFile": "Chemin du fichier .lfs",
   "hintLfsPath": "/chemin/vers/export.lfs",
+  "browse": "Parcourir",
 
   "shareViaQrCode": "Partager via QR code",
   "shareViaQrSubtitle": "Exporter les sessions en QR code pour les scanner depuis un autre appareil",
@@ -323,5 +324,8 @@
   "errDownloadFailed": "Échec du téléchargement : {error}",
   "errDecryptionFailed": "Impossible de déchiffrer les identifiants. Le fichier de clé est peut-être corrompu.",
   "errWithPath": "{error} : {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Autorisation de stockage requise pour parcourir les fichiers locaux",
+  "grantPermission": "Accorder l'autorisation",
+  "storagePermissionLimited": "Accès limité — accordez l'autorisation de stockage complète pour tous les fichiers"
 }

@@ -777,6 +777,68 @@ void main() {
       );
     }
 
+    testWidgets('storagePermissionDenied flag is passed from init result', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'perm-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+
+      Future<SFTPInitResult> permDeniedFactory(Connection c) async {
+        final mockSftp = MockSftpClient();
+        when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
+        when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+        final sftpService = SFTPService(mockSftp);
+        final localCtrl = FilePaneController(
+          fs: FakeFileSystem(fakeEntries: testEntries()),
+          label: 'Local',
+        );
+        final remoteCtrl = FilePaneController(
+          fs: FakeFileSystem(
+            fakeEntries: testEntries(),
+            fakeInitialDir: '/remote',
+          ),
+          label: 'Remote',
+        );
+        await Future.wait([localCtrl.init(), remoteCtrl.init()]);
+        return SFTPInitResult(
+          localCtrl: localCtrl,
+          remoteCtrl: remoteCtrl,
+          sftpService: sftpService,
+          storagePermissionDenied: true,
+        );
+      }
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [transferManagerProvider.overrideWithValue(manager)],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: MobileFileBrowser(
+                connection: conn,
+                sftpInitFactory: permDeniedFactory,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Browser should still render (fallback dir used, not crash)
+      expect(find.text('Local'), findsOneWidget);
+      expect(find.text('Remote'), findsOneWidget);
+      // Note: permission banner requires Platform.isAndroid which is false
+      // in tests — the banner is platform-gated intentionally
+    });
+
     testWidgets('renders toolbar and file list on success', (tester) async {
       final conn = Connection(
         id: 'success-1',

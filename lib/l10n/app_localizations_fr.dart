@@ -641,6 +641,9 @@ class SFr extends S {
   String get hintLfsPath => '/chemin/vers/export.lfs';
 
   @override
+  String get browse => 'Parcourir';
+
+  @override
   String get shareViaQrCode => 'Partager via QR code';
 
   @override
@@ -1008,4 +1011,15 @@ class SFr extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Autorisation de stockage requise pour parcourir les fichiers locaux';
+
+  @override
+  String get grantPermission => 'Accorder l\'autorisation';
+
+  @override
+  String get storagePermissionLimited =>
+      'Accès limité — accordez l\'autorisation de stockage complète pour tous les fichiers';
 }

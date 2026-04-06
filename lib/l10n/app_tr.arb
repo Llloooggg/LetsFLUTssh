@@ -190,6 +190,7 @@
   "exportFailed": "Dışa aktarma başarısız: {error}",
   "pathToLfsFile": ".lfs dosya yolu",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "Gözat",
   "shareViaQrCode": "QR Kodu ile Paylaş",
   "shareViaQrSubtitle": "Oturumları başka bir cihazdan taranmak üzere QR koduna aktar",
   "dataLocation": "Veri Konumu",
@@ -297,5 +298,8 @@
   "errDownloadFailed": "İndirme başarısız: {error}",
   "errDecryptionFailed": "Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Yerel dosyalara göz atmak için depolama izni gerekli",
+  "grantPermission": "İzin ver",
+  "storagePermissionLimited": "Sınırlı erişim — tüm dosyalar için tam depolama izni verin"
 }

@@ -636,6 +636,9 @@ class SAr extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'تصفح';
+
+  @override
   String get shareViaQrCode => 'مشاركة عبر رمز QR';
 
   @override
@@ -996,4 +999,15 @@ class SAr extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'يلزم إذن التخزين لتصفح الملفات المحلية';
+
+  @override
+  String get grantPermission => 'منح الإذن';
+
+  @override
+  String get storagePermissionLimited =>
+      'وصول محدود — امنح إذن التخزين الكامل لجميع الملفات';
 }

@@ -193,6 +193,7 @@
   "exportFailed": "Error al exportar: {error}",
   "pathToLfsFile": "Ruta al archivo .lfs",
   "hintLfsPath": "/ruta/al/archivo.lfs",
+  "browse": "Examinar",
   "shareViaQrCode": "Compartir vía código QR",
   "shareViaQrSubtitle": "Exportar sesiones a QR para escanear desde otro dispositivo",
   "dataLocation": "Ubicación de los datos",
@@ -301,5 +302,8 @@
   "errDownloadFailed": "Descarga fallida: {error}",
   "errDecryptionFailed": "Error al descifrar las credenciales. El archivo de clave puede estar dañado.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Se requiere permiso de almacenamiento para explorar archivos locales",
+  "grantPermission": "Conceder permiso",
+  "storagePermissionLimited": "Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos"
 }

@@ -636,6 +636,9 @@ class SHi extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'ब्राउज़ करें';
+
+  @override
   String get shareViaQrCode => 'QR कोड से साझा करें';
 
   @override
@@ -1000,4 +1003,15 @@ class SHi extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है';
+
+  @override
+  String get grantPermission => 'अनुमति दें';
+
+  @override
+  String get storagePermissionLimited =>
+      'सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें';
 }
