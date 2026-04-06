@@ -18,9 +18,11 @@ class SessionStore {
 
   final List<Session> _sessions = [];
   final Set<String> _emptyFolders = {};
+  final Set<String> _collapsedFolders = {};
   final CredentialStore _credStore = CredentialStore();
   late final String _filePath;
   late final String _groupsFilePath;
+  late final String _collapsedFoldersFilePath;
   bool _initialized = false;
 
   /// False only when credential decryption explicitly failed on load.
@@ -30,6 +32,7 @@ class SessionStore {
 
   List<Session> get sessions => List.unmodifiable(_sessions);
   Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);
+  Set<String> get collapsedFolders => Set.unmodifiable(_collapsedFolders);
 
   /// Guards concurrent [load] calls — second caller awaits the first.
   Future<List<Session>>? _loadFuture;
@@ -39,6 +42,7 @@ class SessionStore {
     final dir = await getApplicationSupportDirectory();
     _filePath = p.join(dir.path, _fileName);
     _groupsFilePath = p.join(dir.path, 'empty_groups.json');
+    _collapsedFoldersFilePath = p.join(dir.path, 'collapsed_folders.json');
     _initialized = true;
   }
 
@@ -77,6 +81,7 @@ class SessionStore {
 
     // Load empty folders
     await _loadEmptyFolders();
+    await _loadCollapsedFolders();
 
     return _sessions;
   }
@@ -258,6 +263,45 @@ class SessionStore {
     await _saveEmptyFolders();
   }
 
+  // ── Collapsed folders persistence ──
+
+  Future<void> _loadCollapsedFolders() async {
+    await init();
+    final file = File(_collapsedFoldersFilePath);
+    if (!await file.exists()) return;
+    try {
+      final content = await file.readAsString();
+      final list = jsonDecode(content) as List;
+      _collapsedFolders
+        ..clear()
+        ..addAll(list.cast<String>());
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to load collapsed folders',
+        name: 'SessionStore',
+        error: e,
+      );
+    }
+  }
+
+  Future<void> _saveCollapsedFolders() async {
+    await init();
+    await writeFileAtomic(
+      _collapsedFoldersFilePath,
+      jsonEncode(_collapsedFolders.toList()),
+    );
+  }
+
+  /// Toggle a folder's collapsed state (persisted across restarts).
+  Future<void> toggleFolderCollapsed(String folderPath) async {
+    if (_collapsedFolders.contains(folderPath)) {
+      _collapsedFolders.remove(folderPath);
+    } else {
+      _collapsedFolders.add(folderPath);
+    }
+    await _saveCollapsedFolders();
+  }
+
   /// Rename a folder and all its subfolders.
   /// Updates sessions and empty folders with the old path prefix.
   Future<void> renameFolder(String oldPath, String newPath) async {
@@ -290,7 +334,22 @@ class SessionStore {
     _emptyFolders.removeAll(toRemove);
     _emptyFolders.addAll(toAdd);
 
-    await Future.wait([_save(), _saveEmptyFolders()]);
+    // Update collapsed folders
+    final colToRemove = <String>[];
+    final colToAdd = <String>[];
+    for (final c in _collapsedFolders) {
+      if (c == oldPath) {
+        colToRemove.add(c);
+        colToAdd.add(newPath);
+      } else if (c.startsWith('$oldPath/')) {
+        colToRemove.add(c);
+        colToAdd.add(newPath + c.substring(oldPath.length));
+      }
+    }
+    _collapsedFolders.removeAll(colToRemove);
+    _collapsedFolders.addAll(colToAdd);
+
+    await Future.wait([_save(), _saveEmptyFolders(), _saveCollapsedFolders()]);
   }
 
   /// Delete a folder: remove all sessions and empty folders under this path.
@@ -314,7 +373,12 @@ class SessionStore {
       (g) => g == folderPath || g.startsWith('$folderPath/'),
     );
 
-    await Future.wait([_save(), _saveEmptyFolders()]);
+    // Remove collapsed state for deleted folders
+    _collapsedFolders.removeWhere(
+      (c) => c == folderPath || c.startsWith('$folderPath/'),
+    );
+
+    await Future.wait([_save(), _saveEmptyFolders(), _saveCollapsedFolders()]);
   }
 
   /// Delete all sessions and empty folders.
@@ -324,7 +388,8 @@ class SessionStore {
     }
     _sessions.clear();
     _emptyFolders.clear();
-    await Future.wait([_save(), _saveEmptyFolders()]);
+    _collapsedFolders.clear();
+    await Future.wait([_save(), _saveEmptyFolders(), _saveCollapsedFolders()]);
   }
 
   /// Load credentials for the given session IDs.

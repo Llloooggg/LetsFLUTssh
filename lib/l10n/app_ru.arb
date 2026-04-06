@@ -192,6 +192,7 @@
   "exportFailed": "Ошибка экспорта: {error}",
   "pathToLfsFile": "Путь к файлу .lfs",
   "hintLfsPath": "/путь/к/файлу.lfs",
+  "browse": "Обзор",
   "shareViaQrCode": "Поделиться через QR-код",
   "shareViaQrSubtitle": "Экспортировать сессии в QR для сканирования другим устройством",
   "dataLocation": "Расположение данных",
@@ -299,5 +300,9 @@
   "errDownloadFailed": "Ошибка загрузки: {error}",
   "errDecryptionFailed": "Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+
+  "storagePermissionRequired": "Для просмотра локальных файлов необходимо разрешение на доступ к хранилищу",
+  "grantPermission": "Дать разрешение",
+  "storagePermissionLimited": "Ограниченный доступ — предоставьте полный доступ к хранилищу для всех файлов"
 }

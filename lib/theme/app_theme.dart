@@ -88,8 +88,12 @@ abstract final class AppTheme {
 
   // ── Foregrounds ──
   static const _lightFg = Color(0xFF383A42); // mono-1
-  static const _lightFgDim = Color(0xFF696C77); // mono-2
-  static const _lightFgFaint = Color(0xFFA0A1A7); // mono-3
+  static const _lightFgDim = Color(
+    0xFF525660,
+  ); // mono-2 (darkened for contrast)
+  static const _lightFgFaint = Color(
+    0xFF7C7E86,
+  ); // mono-3 (darkened for contrast)
   static const _lightFgBright = Color(0xFF232424); // text-highlight
 
   // ── Accent & syntax hues ──
@@ -103,7 +107,9 @@ abstract final class AppTheme {
 
   // ── Borders & interactive states ──
   static const _lightBorder = Color(0xFFDBDBDC); // ui-border
-  static const _lightGutter = Color(0xFF9D9D9F); // gutter text
+  static const _lightGutter = Color(
+    0xFF6B6E76,
+  ); // gutter text (darkened for contrast)
 
   // ── Level-1 surface (inputs, cards, popups — lightest bg) ──
   static const _lightLevel1 = Color(0xFFFFFFFF);
@@ -118,7 +124,7 @@ abstract final class AppTheme {
   static const _lightTermSelectionColor = Color(0x604078F2); // lightBlue @ 38 %
 
   // ── Scrollbar ──
-  static const _lightScrollThumb = Color(0x88696C77); // fgDim @ 53 %
+  static const _lightScrollThumb = Color(0x88525660); // fgDim @ 53 %
 
   // ── Terminal ANSI (derived from One Light syntax palette) ──
   static const _lightTermBlack = Color(0xFF383A42);

@@ -640,6 +640,9 @@ class SEs extends S {
   String get hintLfsPath => '/ruta/al/archivo.lfs';
 
   @override
+  String get browse => 'Examinar';
+
+  @override
   String get shareViaQrCode => 'Compartir vía código QR';
 
   @override
@@ -1005,4 +1008,15 @@ class SEs extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Se requiere permiso de almacenamiento para explorar archivos locales';
+
+  @override
+  String get grantPermission => 'Conceder permiso';
+
+  @override
+  String get storagePermissionLimited =>
+      'Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos';
 }

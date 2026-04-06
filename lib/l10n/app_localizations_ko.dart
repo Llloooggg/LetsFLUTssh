@@ -630,6 +630,9 @@ class SKo extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => '찾아보기';
+
+  @override
   String get shareViaQrCode => 'QR 코드로 공유';
 
   @override
@@ -986,4 +989,13 @@ class SKo extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired => '로컬 파일을 탐색하려면 저장소 권한이 필요합니다';
+
+  @override
+  String get grantPermission => '권한 부여';
+
+  @override
+  String get storagePermissionLimited => '제한된 접근 — 모든 파일에 대한 전체 저장소 권한을 부여하세요';
 }

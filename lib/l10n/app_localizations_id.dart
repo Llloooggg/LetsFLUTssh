@@ -640,6 +640,9 @@ class SId extends S {
   String get hintLfsPath => '/path/to/export.lfs';
 
   @override
+  String get browse => 'Telusuri';
+
+  @override
   String get shareViaQrCode => 'Bagikan via Kode QR';
 
   @override
@@ -1003,4 +1006,15 @@ class SId extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Izin penyimpanan diperlukan untuk menjelajahi file lokal';
+
+  @override
+  String get grantPermission => 'Berikan izin';
+
+  @override
+  String get storagePermissionLimited =>
+      'Akses terbatas — berikan izin penyimpanan penuh untuk semua file';
 }

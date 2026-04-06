@@ -32,6 +32,21 @@ import 'export_import.dart';
 
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
 
+/// Returns a sensible initial directory for file-picker dialogs.
+/// Desktop: Downloads folder; mobile: shared external storage root.
+Future<String?> _defaultDirectory() async {
+  if (plat.isDesktopPlatform) {
+    try {
+      final dir = await getDownloadsDirectory();
+      if (dir != null) return dir.path;
+    } catch (_) {
+      // fall through
+    }
+  }
+  final home = plat.homeDirectory;
+  return home.isNotEmpty ? home : null;
+}
+
 /// Section descriptor for navigation and content rendering.
 class _Section {
   final String title;
@@ -701,17 +716,21 @@ class _ExportImportTile extends ConsumerWidget {
     String defaultName,
     String extension,
   ) async {
+    final title = S.of(context).chooseSaveLocation;
+    final initDir = await _defaultDirectory();
     if (plat.isDesktopPlatform) {
       return FilePicker.platform.saveFile(
-        dialogTitle: S.of(context).chooseSaveLocation,
+        dialogTitle: title,
         fileName: defaultName,
+        initialDirectory: initDir,
         type: FileType.custom,
         allowedExtensions: [extension],
       );
     }
     // Mobile: pick directory, append default filename
     final dir = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: S.of(context).chooseSaveLocation,
+      dialogTitle: title,
+      initialDirectory: initDir,
     );
     if (dir == null) return null;
     return p.join(dir, defaultName);
@@ -1760,17 +1779,23 @@ class _LoggingSection extends ConsumerWidget {
           .first;
       final defaultName = 'letsflutssh_log_$timestamp.txt';
 
+      final saveTitle = S.of(context).saveLogAs;
+      final chooseTitle = S.of(context).chooseSaveLocation;
+      final initDir = await _defaultDirectory();
+
       String? outputPath;
       if (plat.isDesktopPlatform) {
         outputPath = await FilePicker.platform.saveFile(
-          dialogTitle: S.of(context).saveLogAs,
+          dialogTitle: saveTitle,
           fileName: defaultName,
+          initialDirectory: initDir,
           type: FileType.custom,
           allowedExtensions: ['txt', 'log'],
         );
       } else {
         final dir = await FilePicker.platform.getDirectoryPath(
-          dialogTitle: S.of(context).chooseSaveLocation,
+          dialogTitle: chooseTitle,
+          initialDirectory: initDir,
         );
         if (dir != null) outputPath = p.join(dir, defaultName);
       }
@@ -2050,6 +2075,21 @@ class _ImportDataDialog extends StatefulWidget {
 }
 
 class _ImportDataDialogState extends State<_ImportDataDialog> {
+  Future<void> _pickFile() async {
+    final title = S.of(context).pathToLfsFile;
+    final initDir = await _defaultDirectory();
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: title,
+      initialDirectory: initDir,
+      type: FileType.custom,
+      allowedExtensions: ['lfs'],
+    );
+    final path = result?.files.single.path;
+    if (path != null) {
+      widget.pathCtrl.text = path;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppDialog(
@@ -2057,10 +2097,29 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _styledTextField(
-            widget.pathCtrl,
-            S.of(context).pathToLfsFile,
-            hint: S.of(context).hintLfsPath,
+          Row(
+            children: [
+              Expanded(
+                child: _styledTextField(
+                  widget.pathCtrl,
+                  S.of(context).pathToLfsFile,
+                  hint: S.of(context).hintLfsPath,
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: AppTheme.controlHeightLg,
+                child: TextButton.icon(
+                  onPressed: _pickFile,
+                  icon: const Icon(Icons.folder_open, size: 18),
+                  label: Text(S.of(context).browse),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.accent,
+                    textStyle: AppFonts.inter(fontSize: AppFonts.sm),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           TextField(

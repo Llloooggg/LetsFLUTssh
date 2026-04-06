@@ -192,6 +192,7 @@
   "exportFailed": "Export fehlgeschlagen: {error}",
   "pathToLfsFile": "Pfad zur .lfs-Datei",
   "hintLfsPath": "/pfad/zum/export.lfs",
+  "browse": "Durchsuchen",
   "shareViaQrCode": "Per QR-Code teilen",
   "shareViaQrSubtitle": "Sitzungen als QR exportieren, um sie mit einem anderen Gerät zu scannen",
   "dataLocation": "Datenspeicherort",
@@ -299,5 +300,8 @@
   "errDownloadFailed": "Download fehlgeschlagen: {error}",
   "errDecryptionFailed": "Zugangsdaten konnten nicht entschlüsselt werden. Die Schlüsseldatei ist möglicherweise beschädigt.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen",
+  "grantPermission": "Berechtigung erteilen",
+  "storagePermissionLimited": "Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien"
 }

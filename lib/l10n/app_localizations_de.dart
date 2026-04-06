@@ -641,6 +641,9 @@ class SDe extends S {
   String get hintLfsPath => '/pfad/zum/export.lfs';
 
   @override
+  String get browse => 'Durchsuchen';
+
+  @override
   String get shareViaQrCode => 'Per QR-Code teilen';
 
   @override
@@ -1008,4 +1011,15 @@ class SDe extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen';
+
+  @override
+  String get grantPermission => 'Berechtigung erteilen';
+
+  @override
+  String get storagePermissionLimited =>
+      'Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien';
 }

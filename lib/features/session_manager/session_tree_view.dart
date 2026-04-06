@@ -8,6 +8,7 @@ import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/marquee_mixin.dart';
+import '../../widgets/threshold_draggable.dart';
 
 /// Drag data: either a session, a folder path, or a bulk selection.
 sealed class SessionDragData {}
@@ -89,6 +90,12 @@ class SessionTreeView extends StatefulWidget {
   /// Used by parent to track the focused session for keyboard shortcuts.
   final void Function(String sessionId)? onSessionSelected;
 
+  /// Folder paths that should start collapsed (persisted across restarts).
+  final Set<String> collapsedFolders;
+
+  /// Called when a folder is expanded/collapsed so the parent can persist.
+  final void Function(String folderPath)? onToggleFolderCollapsed;
+
   const SessionTreeView({
     super.key,
     required this.tree,
@@ -112,6 +119,8 @@ class SessionTreeView extends StatefulWidget {
     this.connectedSessionIds = const {},
     this.connectingSessionIds = const {},
     this.onSessionSelected,
+    this.collapsedFolders = const {},
+    this.onToggleFolderCollapsed,
   });
 
   @override
@@ -122,6 +131,11 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   final _expandedFolders = <String>{};
   String? _selectedSessionId;
   String? _dropTargetFolder; // highlight on drag hover
+
+  // ── Manual double-tap detection (avoids GestureDetector.onDoubleTap
+  //    which delays onTap by ~300 ms and conflicts with Draggable) ──
+  DateTime _lastTapTime = DateTime(0);
+  String? _lastTapSessionId;
 
   // ── Cross-marquee state (session panel only) ──
   bool _crossMarqueeActive = false;
@@ -140,6 +154,26 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   void initState() {
     super.initState();
     _expandAllFolders(widget.tree);
+    _expandedFolders.removeAll(widget.collapsedFolders);
+  }
+
+  @override
+  void didUpdateWidget(covariant SessionTreeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Expand newly added folders (unless they are persisted as collapsed).
+    _expandNewFolders(widget.tree);
+  }
+
+  void _expandNewFolders(List<SessionTreeNode> nodes) {
+    for (final node in nodes) {
+      if (node.isGroup) {
+        if (!_expandedFolders.contains(node.fullPath) &&
+            !widget.collapsedFolders.contains(node.fullPath)) {
+          _expandedFolders.add(node.fullPath);
+        }
+        _expandNewFolders(node.children);
+      }
+    }
   }
 
   @override
@@ -520,22 +554,38 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     return null;
   }
 
-  Widget _buildIndentGuides(int depth, ThemeData theme) {
-    if (depth == 0) return const SizedBox(width: 8);
+  /// Builds indent guide lines + leading icon for a tree row.
+  ///
+  /// Layout: [8px pad] [depth × 16px guides] [arrow or spacer] [4px] [icon] [6px]
+  /// Shared by folder and session rows to guarantee identical alignment.
+  List<Widget> _buildRowLeading({
+    required int depth,
+    required Widget icon,
+    Widget? expandArrow,
+  }) {
     final guideColor = AppTheme.borderLight;
-    return SizedBox(
-      width: 8.0 + depth * 16.0,
-      child: Row(
-        children: [
-          const SizedBox(width: 8),
-          for (var i = 0; i < depth; i++)
-            SizedBox(
-              width: 16,
-              child: Center(child: Container(width: 1, color: guideColor)),
-            ),
-        ],
-      ),
-    );
+    return [
+      if (depth == 0)
+        const SizedBox(width: 8)
+      else
+        SizedBox(
+          width: 8.0 + depth * 16.0,
+          child: Row(
+            children: [
+              const SizedBox(width: 8),
+              for (var i = 0; i < depth; i++)
+                SizedBox(
+                  width: 16,
+                  child: Center(child: Container(width: 1, color: guideColor)),
+                ),
+            ],
+          ),
+        ),
+      if (expandArrow != null) expandArrow else SizedBox(width: _iconSize),
+      const SizedBox(width: 4),
+      icon,
+      const SizedBox(width: 6),
+    ];
   }
 
   Widget _buildFolderContent(
@@ -560,7 +610,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           : null,
       builder: (hovered) => Container(
         height: _rowHeight,
-        padding: EdgeInsets.only(left: _mobile ? 8.0 : 12.0, right: 8),
+        padding: const EdgeInsets.only(right: 8),
         decoration: _rowDecoration(isDropTarget, hovered, isSelected, theme),
         child: Row(
           children: _buildFolderRowChildren(node, depth, expanded, theme),
@@ -583,6 +633,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
         _expandedFolders.add(fullPath);
       }
     });
+    widget.onToggleFolderCollapsed?.call(fullPath);
   }
 
   List<Widget> _buildFolderRowChildren(
@@ -592,18 +643,22 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     ThemeData theme,
   ) {
     return [
-      if (depth > 0) _buildIndentGuides(depth, theme),
-      Transform.rotate(
-        angle: expanded ? 0 : -1.5708, // -90° in radians
-        child: Icon(Icons.expand_more, size: _iconSize, color: AppTheme.fgDim),
+      ..._buildRowLeading(
+        depth: depth,
+        icon: Icon(
+          expanded ? Icons.folder_open : Icons.folder,
+          size: _iconSize,
+          color: AppTheme.yellow,
+        ),
+        expandArrow: Transform.rotate(
+          angle: expanded ? 0 : -1.5708,
+          child: Icon(
+            Icons.expand_more,
+            size: _iconSize,
+            color: AppTheme.fgDim,
+          ),
+        ),
       ),
-      const SizedBox(width: 4),
-      Icon(
-        expanded ? Icons.folder_open : Icons.folder,
-        size: _iconSize,
-        color: AppTheme.yellow,
-      ),
-      const SizedBox(width: 6),
       Expanded(
         child: Text(
           node.name,
@@ -648,7 +703,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           )
         : FolderDrag(node.fullPath);
 
-    return Draggable<SessionDragData>(
+    return ThresholdDraggable<SessionDragData>(
       data: dragData,
       onDragStarted: onDragStarted,
       onDragEnd: onDragEnd,
@@ -691,6 +746,22 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
       widget.onToggleSelected?.call(session.id);
       return;
     }
+
+    // Manual double-tap detection for desktop — avoids GestureDetector's
+    // onDoubleTap which delays onTap by ~300 ms and conflicts with Draggable.
+    if (!_mobile) {
+      final now = DateTime.now();
+      if (_lastTapSessionId == session.id &&
+          now.difference(_lastTapTime).inMilliseconds < 400) {
+        _lastTapTime = DateTime(0);
+        _lastTapSessionId = null;
+        widget.onSessionDoubleTap?.call(session);
+        return;
+      }
+      _lastTapTime = now;
+      _lastTapSessionId = session.id;
+    }
+
     setState(() => _selectedSessionId = session.id);
     widget.onSessionSelected?.call(session.id);
     if (_mobile) {
@@ -732,13 +803,10 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           ),
         )
       else
-        _buildIndentGuides(depth, theme),
-      if (!widget.selectMode) ...[
-        // Spacer matching the expand arrow width in folder rows
-        SizedBox(width: _iconSize + 4),
-        Icon(Icons.terminal, size: _authIconSize, color: iconColor),
-        const SizedBox(width: 6),
-      ],
+        ..._buildRowLeading(
+          depth: depth,
+          icon: Icon(Icons.terminal, size: _authIconSize, color: iconColor),
+        ),
       if (session.incomplete)
         Padding(
           padding: const EdgeInsets.only(right: 4),
@@ -792,9 +860,6 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
 
     final Widget content = HoverRegion(
       onTap: () => _onSessionTap(session),
-      onDoubleTap: canInteract
-          ? () => widget.onSessionDoubleTap?.call(session)
-          : null,
       onSecondaryTapUp: canInteract
           ? (details) => widget.onSessionContextMenu?.call(
               session,
@@ -832,7 +897,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           )
         : SessionDrag(session);
 
-    return Draggable<SessionDragData>(
+    return ThresholdDraggable<SessionDragData>(
       data: dragData,
       onDragStarted: onDragStarted,
       onDragEnd: onDragEnd,

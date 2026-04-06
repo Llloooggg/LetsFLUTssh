@@ -5,6 +5,7 @@ import '../../core/connection/connection.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
+import '../../widgets/threshold_draggable.dart';
 import '../tabs/tab_model.dart';
 
 /// Data carried during a tab drag operation.
@@ -296,7 +297,7 @@ class _PanelTabItemState extends State<_PanelTabItem> {
       builder: (hovered) {
         final showClose = hovered || widget.isActive;
         final content = _buildContent(showClose);
-        return Draggable<TabDragData>(
+        return ThresholdDraggable<TabDragData>(
           data: TabDragData(tab: widget.tab, sourcePanelId: widget.panelId),
           feedback: Material(
             elevation: 4,

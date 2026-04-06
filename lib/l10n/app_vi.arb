@@ -190,6 +190,7 @@
   "exportFailed": "Xuất thất bại: {error}",
   "pathToLfsFile": "Đường dẫn tệp .lfs",
   "hintLfsPath": "/path/to/export.lfs",
+  "browse": "Duyệt",
   "shareViaQrCode": "Chia sẻ qua mã QR",
   "shareViaQrSubtitle": "Xuất phiên sang mã QR để quét từ thiết bị khác",
   "dataLocation": "Vị trí dữ liệu",
@@ -297,5 +298,8 @@
   "errDownloadFailed": "Tải xuống thất bại: {error}",
   "errDecryptionFailed": "Không thể giải mã thông tin xác thực. Tệp khóa có thể bị hỏng.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Cần quyền truy cập bộ nhớ để duyệt tệp cục bộ",
+  "grantPermission": "Cấp quyền",
+  "storagePermissionLimited": "Truy cập hạn chế — cấp quyền truy cập bộ nhớ đầy đủ cho tất cả tệp"
 }
