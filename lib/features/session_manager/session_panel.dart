@@ -387,6 +387,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                       tree: tree,
                       connectedSessionIds: _connectedSessionIds(ref),
                       connectingSessionIds: _connectingSessionIds(ref),
+                      collapsedFolders: ref
+                          .watch(sessionStoreProvider)
+                          .collapsedFolders,
+                      onToggleFolderCollapsed: (path) => ref
+                          .read(sessionStoreProvider)
+                          .toggleFolderCollapsed(path),
                       selectMode: mobile && _selectMode,
                       selectedIds: _selectedIds,
                       onToggleSelected: _toggleSelected,
