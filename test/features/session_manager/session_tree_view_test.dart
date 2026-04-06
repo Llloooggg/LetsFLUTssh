@@ -5,6 +5,7 @@ import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/cross_marquee_controller.dart';
 import 'package:letsflutssh/widgets/threshold_draggable.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
@@ -170,6 +171,29 @@ void main() {
 
       // After tap, staging should still be visible (not crashed)
       expect(find.text('staging'), findsOneWidget);
+    });
+
+    testWidgets('mobile tap does not highlight session row', (tester) async {
+      debugMobilePlatformOverride = true;
+      addTearDown(() => debugMobilePlatformOverride = null);
+
+      Session? opened;
+      await tester.pumpWidget(buildApp(onSessionDoubleTap: (s) => opened = s));
+
+      await tester.tap(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Session should have been opened
+      expect(opened?.label, 'staging');
+
+      // No Container should have a highlight color — the row must not be
+      // visually selected after tap on mobile.
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final primaryHighlight = containers.where((c) {
+        if (c.color == null) return false;
+        return c.color!.a < 1.0 && c.color!.a > 0.0;
+      });
+      expect(primaryHighlight, isEmpty);
     });
 
     testWidgets('shows indent guides for nested folders', (tester) async {

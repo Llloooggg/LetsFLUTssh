@@ -772,11 +772,11 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
       _lastTapSessionId = session.id;
     }
 
-    setState(() => _selectedSessionId = session.id);
-    widget.onSessionSelected?.call(session.id);
     if (_mobile) {
       widget.onSessionDoubleTap?.call(session);
     } else {
+      setState(() => _selectedSessionId = session.id);
+      widget.onSessionSelected?.call(session.id);
       widget.onSessionTap?.call(session);
     }
   }
