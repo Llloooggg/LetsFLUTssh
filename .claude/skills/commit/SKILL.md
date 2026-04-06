@@ -28,11 +28,8 @@ Determine:
 - If both app changes and docs in same commit, prefix describes the app change
 
 ### Step 5: Confirm with user
-Show:
-- Files to be committed
-- Commit message
-- Whether version was bumped (and to what)
-- Ask for confirmation before committing
+- If the user explicitly said "комить" / "commit" (i.e. gave a direct command), skip confirmation — proceed straight to Step 6
+- Otherwise, show: files to be committed, commit message, version bump status — and ask for confirmation
 
 ### Step 6: Commit
 - `git add` only the relevant files (not `git add -A`)
