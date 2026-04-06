@@ -53,7 +53,10 @@ void main() {
             builder: (ctx) => ElevatedButton(
               onPressed: () => AppDialog.show(
                 ctx,
-                builder: (_) => const AppDialog(title: 'Closeable', content: Text('content')),
+                builder: (_) => const AppDialog(
+                  title: 'Closeable',
+                  content: Text('content'),
+                ),
               ),
               child: const Text('Open'),
             ),
@@ -72,7 +75,7 @@ void main() {
   });
 
   group('AppDialogFooter', () {
-    testWidgets('uses Wrap for action layout', (tester) async {
+    testWidgets('uses Row with Flexible children on desktop', (tester) async {
       await tester.pumpWidget(
         wrap(
           Builder(
@@ -98,15 +101,16 @@ void main() {
       await tester.tap(find.text('Show'));
       await tester.pumpAndSettle();
 
-      // Footer uses Wrap so actions can flow to next line on narrow screens
-      expect(find.byType(Wrap), findsOneWidget);
+      // Desktop footer uses Row so buttons stay in one line
+      expect(find.byType(Row), findsWidgets);
+      expect(find.byType(Flexible), findsWidgets);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
       expect(find.text('Open'), findsOneWidget);
     });
 
-    testWidgets('footer wraps actions on narrow screen', (tester) async {
-      // Use a very narrow surface to force wrapping
+    testWidgets('long labels scale down on narrow screen', (tester) async {
+      // Use a very narrow surface to test FittedBox scaling
       tester.view.physicalSize = const Size(320, 600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -125,8 +129,14 @@ void main() {
                   content: const Text('content'),
                   actions: [
                     const AppDialogAction.cancel(),
-                    AppDialogAction.secondary(label: 'Skip This Version', onTap: () {}),
-                    AppDialogAction.primary(label: 'Open in Browser', onTap: () {}),
+                    AppDialogAction.secondary(
+                      label: 'Skip This Version',
+                      onTap: () {},
+                    ),
+                    AppDialogAction.primary(
+                      label: 'Open in Browser',
+                      onTap: () {},
+                    ),
                   ],
                 ),
               ),
@@ -139,7 +149,7 @@ void main() {
       await tester.tap(find.text('Show'));
       await tester.pumpAndSettle();
 
-      // All three actions should still be visible (Wrap prevents overflow)
+      // All three actions visible — Flexible + FittedBox prevents overflow
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Skip This Version'), findsOneWidget);
       expect(find.text('Open in Browser'), findsOneWidget);
@@ -151,19 +161,25 @@ void main() {
 
   group('AppDialogAction', () {
     testWidgets('primary action has accent background', (tester) async {
-      await tester.pumpWidget(wrap(AppDialogAction.primary(label: 'Save', onTap: () {})));
+      await tester.pumpWidget(
+        wrap(AppDialogAction.primary(label: 'Save', onTap: () {})),
+      );
 
       expect(find.text('Save'), findsOneWidget);
     });
 
     testWidgets('secondary action renders label', (tester) async {
-      await tester.pumpWidget(wrap(AppDialogAction.secondary(label: 'Skip', onTap: () {})));
+      await tester.pumpWidget(
+        wrap(AppDialogAction.secondary(label: 'Skip', onTap: () {})),
+      );
 
       expect(find.text('Skip'), findsOneWidget);
     });
 
     testWidgets('destructive action renders label', (tester) async {
-      await tester.pumpWidget(wrap(AppDialogAction.destructive(label: 'Delete', onTap: () {})));
+      await tester.pumpWidget(
+        wrap(AppDialogAction.destructive(label: 'Delete', onTap: () {})),
+      );
 
       expect(find.text('Delete'), findsOneWidget);
     });
@@ -171,7 +187,13 @@ void main() {
     testWidgets('disabled action does not trigger onTap', (tester) async {
       var tapped = false;
       await tester.pumpWidget(
-        wrap(AppDialogAction.primary(label: 'Disabled', onTap: () => tapped = true, enabled: false)),
+        wrap(
+          AppDialogAction.primary(
+            label: 'Disabled',
+            onTap: () => tapped = true,
+            enabled: false,
+          ),
+        ),
       );
 
       await tester.tap(find.text('Disabled'));
@@ -185,7 +207,10 @@ void main() {
       await tester.pumpWidget(
         wrap(
           Builder(
-            builder: (ctx) => ElevatedButton(onPressed: () => AppProgressDialog.show(ctx), child: const Text('Load')),
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => AppProgressDialog.show(ctx),
+              child: const Text('Load'),
+            ),
           ),
         ),
       );
