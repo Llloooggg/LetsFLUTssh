@@ -173,5 +173,44 @@ void main() {
       localCtrl.dispose();
       remoteCtrl.dispose();
     });
+
+    test('storagePermissionDenied defaults to false', () async {
+      final conn = Connection(
+        id: 'perm-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+      );
+
+      final mockSftp = MockSftpClient();
+      when(mockSftp.absolute('.')).thenAnswer((_) async => '/r');
+      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+
+      final result = await SFTPInitializer.init(
+        conn,
+        sftpServiceFactory: (_) async => SFTPService(mockSftp),
+        localFsFactory: () => _MockFS(),
+      );
+
+      expect(result.storagePermissionDenied, isFalse);
+      result.dispose();
+    });
+
+    test('storagePermissionDenied can be set to true', () {
+      final localCtrl = FilePaneController(fs: _MockFS(), label: 'Local');
+      final remoteCtrl = FilePaneController(fs: _MockFS(), label: 'Remote');
+      final mockSftp = MockSftpClient();
+
+      final result = SFTPInitResult(
+        localCtrl: localCtrl,
+        remoteCtrl: remoteCtrl,
+        sftpService: SFTPService(mockSftp),
+        storagePermissionDenied: true,
+      );
+
+      expect(result.storagePermissionDenied, isTrue);
+      result.dispose();
+    });
   });
 }

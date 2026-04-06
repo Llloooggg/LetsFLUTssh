@@ -984,4 +984,13 @@ class SZh extends S {
   String errWithCause(String error, String cause) {
     return '$error（$cause）';
   }
+
+  @override
+  String get storagePermissionRequired => '需要存储权限才能浏览本地文件';
+
+  @override
+  String get grantPermission => '授予权限';
+
+  @override
+  String get storagePermissionLimited => '访问受限 — 请授予完整存储权限以访问所有文件';
 }

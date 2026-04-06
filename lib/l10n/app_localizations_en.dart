@@ -998,4 +998,15 @@ class SEn extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Storage permission required to browse local files';
+
+  @override
+  String get grantPermission => 'Grant Permission';
+
+  @override
+  String get storagePermissionLimited =>
+      'Limited access — grant full storage permission for all files';
 }

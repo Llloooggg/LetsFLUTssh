@@ -540,5 +540,9 @@
       "error": { "type": "String" },
       "cause": { "type": "String" }
     }
-  }
+  },
+
+  "storagePermissionRequired": "Storage permission required to browse local files",
+  "grantPermission": "Grant Permission",
+  "storagePermissionLimited": "Limited access — grant full storage permission for all files"
 }

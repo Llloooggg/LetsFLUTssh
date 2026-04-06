@@ -14,10 +14,14 @@ class SFTPInitResult {
   final FilePaneController remoteCtrl;
   final SFTPService sftpService;
 
+  /// True if Android storage permission was denied during init.
+  final bool storagePermissionDenied;
+
   SFTPInitResult({
     required this.localCtrl,
     required this.remoteCtrl,
     required this.sftpService,
+    this.storagePermissionDenied = false,
   });
 
   void dispose() {
@@ -82,6 +86,7 @@ class SFTPInitializer {
     FileSystem Function()? localFsFactory,
   }) async {
     SFTPService sftpService;
+    var permissionDenied = false;
     if (sftpServiceFactory != null) {
       sftpService = await sftpServiceFactory(connection);
     } else {
@@ -92,7 +97,8 @@ class SFTPInitializer {
 
       // On Android, request storage permission for local file browser
       if (Platform.isAndroid) {
-        await _requestStoragePermission();
+        final granted = await _requestStoragePermission();
+        permissionDenied = !granted;
       }
 
       sftpService = await SFTPService.fromSSHClient(sshClient);
@@ -119,6 +125,7 @@ class SFTPInitializer {
       localCtrl: localCtrl,
       remoteCtrl: remoteCtrl,
       sftpService: sftpService,
+      storagePermissionDenied: permissionDenied,
     );
   }
 }

@@ -301,5 +301,8 @@
   "errDownloadFailed": "Descarga fallida: {error}",
   "errDecryptionFailed": "Error al descifrar las credenciales. El archivo de clave puede estar dañado.",
   "errWithPath": "{error}: {path}",
-  "errWithCause": "{error} ({cause})"
+  "errWithCause": "{error} ({cause})",
+  "storagePermissionRequired": "Se requiere permiso de almacenamiento para explorar archivos locales",
+  "grantPermission": "Conceder permiso",
+  "storagePermissionLimited": "Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos"
 }

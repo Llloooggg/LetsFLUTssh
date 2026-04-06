@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../core/sftp/sftp_client.dart';
@@ -44,6 +45,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   bool _initializing = true;
   String? _error;
   bool _showRemote = true; // Start on remote pane
+  bool _storagePermissionDenied = false;
 
   FilePaneController? get _localCtrl => _sftp?.localCtrl;
   FilePaneController? get _remoteCtrl => _sftp?.remoteCtrl;
@@ -81,10 +83,16 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     }
 
     try {
-      _sftp = widget.sftpInitFactory != null
+      final result = widget.sftpInitFactory != null
           ? await widget.sftpInitFactory!(conn)
           : await SFTPInitializer.init(conn);
-      if (mounted) setState(() => _initializing = false);
+      _sftp = result;
+      if (mounted) {
+        setState(() {
+          _storagePermissionDenied = result.storagePermissionDenied;
+          _initializing = false;
+        });
+      }
     } catch (e) {
       AppLogger.instance.log(
         'SFTP init failed: $e',
@@ -149,6 +157,8 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     return Column(
       children: [
         _buildToolbar(context),
+        if (Platform.isAndroid && !_showRemote && _storagePermissionDenied)
+          _buildPermissionBanner(context),
         Expanded(
           child: MobileFileList(
             controller: _activeCtrl,
@@ -220,6 +230,17 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                       onTap: _pickLocalFolder,
                       tooltip: S.of(context).pickFolder,
                     ),
+                  // Android: grant storage permission button
+                  if (Platform.isAndroid &&
+                      !_showRemote &&
+                      _storagePermissionDenied)
+                    AppIconButton(
+                      icon: Icons.security,
+                      size: 20,
+                      boxSize: 36,
+                      onTap: _requestAndRefreshPermission,
+                      tooltip: S.of(context).grantPermission,
+                    ),
                   AppIconButton(
                     icon: Icons.refresh,
                     size: 20,
@@ -265,6 +286,53 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
         );
       },
     );
+  }
+
+  Widget _buildPermissionBanner(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: theme.colorScheme.errorContainer,
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber, size: 20, color: theme.colorScheme.error),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              S.of(context).storagePermissionLimited,
+              style: TextStyle(
+                fontSize: AppFonts.sm,
+                color: theme.colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: _requestAndRefreshPermission,
+            child: Text(S.of(context).grantPermission),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _requestAndRefreshPermission() async {
+    const channel = MethodChannel('com.letsflutssh/permissions');
+    try {
+      final granted = await channel.invokeMethod<bool>(
+        'requestStoragePermission',
+      );
+      if (granted == true && mounted) {
+        setState(() => _storagePermissionDenied = false);
+        // Re-navigate to shared storage now that we have permission
+        await _localCtrl?.navigateTo('/storage/emulated/0');
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Permission re-request failed: $e',
+        name: 'MobileFileBrowser',
+      );
+    }
   }
 
   Future<void> _pickLocalFolder() async {

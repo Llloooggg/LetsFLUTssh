@@ -1008,4 +1008,15 @@ class SFr extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get storagePermissionRequired =>
+      'Autorisation de stockage requise pour parcourir les fichiers locaux';
+
+  @override
+  String get grantPermission => 'Accorder l\'autorisation';
+
+  @override
+  String get storagePermissionLimited =>
+      'Accès limité — accordez l\'autorisation de stockage complète pour tous les fichiers';
 }
