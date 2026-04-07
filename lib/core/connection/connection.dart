@@ -3,6 +3,7 @@ import 'dart:async';
 import '../ssh/known_hosts.dart';
 import '../ssh/ssh_client.dart';
 import '../ssh/ssh_config.dart';
+import 'connection_step.dart';
 
 /// SSH connection lifecycle state.
 enum SSHConnectionState { disconnected, connecting, connected }
@@ -31,7 +32,14 @@ class Connection {
 
   /// Completes when the connection leaves the `connecting` state
   /// (either connected or failed). Callers use [ready] instead of polling.
-  final Completer<void> _readyCompleter = Completer<void>();
+  Completer<void> _readyCompleter = Completer<void>();
+
+  /// Broadcasts connection progress steps during connect/reconnect.
+  StreamController<ConnectionStep> _progressController =
+      StreamController<ConnectionStep>.broadcast();
+
+  /// Buffered progress steps — replayed to late subscribers.
+  final _progressHistory = <ConnectionStep>[];
 
   Connection({
     required this.id,
@@ -69,5 +77,30 @@ class Connection {
   /// Mark connection attempt as resolved. Called by [ConnectionManager].
   void completeReady() {
     if (!_readyCompleter.isCompleted) _readyCompleter.complete();
+    if (!_progressController.isClosed) _progressController.close();
+  }
+
+  /// Stream of connection progress steps. Closes when [completeReady] is called.
+  Stream<ConnectionStep> get progressStream => _progressController.stream;
+
+  /// Buffered history of all progress steps — for late subscribers.
+  List<ConnectionStep> get progressHistory =>
+      List.unmodifiable(_progressHistory);
+
+  /// Add a progress step to the stream (if still open).
+  void addProgressStep(ConnectionStep step) {
+    _progressHistory.add(step);
+    if (!_progressController.isClosed) _progressController.add(step);
+  }
+
+  /// Reset internal state for a reconnect attempt.
+  ///
+  /// Creates fresh [_readyCompleter] and [_progressController] so callers
+  /// can await [ready] and subscribe to [progressStream] again.
+  void resetForReconnect() {
+    _readyCompleter = Completer<void>();
+    _progressController = StreamController<ConnectionStep>.broadcast();
+    _progressHistory.clear();
+    connectionError = null;
   }
 }

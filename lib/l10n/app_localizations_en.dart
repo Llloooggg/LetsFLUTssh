@@ -1050,4 +1050,23 @@ class SEn extends S {
   @override
   String get storagePermissionLimited =>
       'Limited access — grant full storage permission for all files';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'Connecting to $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'Verifying host key';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'Authenticating as $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'Opening shell';
+
+  @override
+  String get progressOpeningSftp => 'Opening SFTP channel';
 }

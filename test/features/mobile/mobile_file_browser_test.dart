@@ -13,6 +13,7 @@ import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/features/mobile/mobile_file_browser.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/connection_progress.dart';
 import 'package:letsflutssh/utils/format.dart'; // used by MobileFileList tests
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -133,12 +134,12 @@ void main() {
         ),
       );
 
-      // Should show loading while waiting for connection
-      expect(find.text('Initializing SFTP...'), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // Should show progress widget while waiting for connection
+      expect(find.byType(ConnectionProgress), findsOneWidget);
 
-      // Stop the connection-wait polling loop before test teardown
+      // Complete the connection to cancel pending timers before teardown
       connection.state = SSHConnectionState.disconnected;
+      connection.completeReady();
       await tester.pumpAndSettle();
     });
 

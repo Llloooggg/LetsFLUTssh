@@ -2006,6 +2006,36 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Limited access — grant full storage permission for all files'**
   String get storagePermissionLimited;
+
+  /// No description provided for @progressConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to {host}:{port}'**
+  String progressConnecting(String host, int port);
+
+  /// No description provided for @progressVerifyingHostKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying host key'**
+  String get progressVerifyingHostKey;
+
+  /// No description provided for @progressAuthenticating.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticating as {user}'**
+  String progressAuthenticating(String user);
+
+  /// No description provided for @progressOpeningShell.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening shell'**
+  String get progressOpeningShell;
+
+  /// No description provided for @progressOpeningSftp.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening SFTP channel'**
+  String get progressOpeningSftp;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

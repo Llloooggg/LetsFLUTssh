@@ -2106,7 +2106,7 @@ class _FailingSSHConnection extends SSHConnection {
   _FailingSSHConnection({required super.config, required super.knownHosts});
 
   @override
-  Future<void> connect() async {
+  Future<void> connect({ConnectionProgressCallback? onProgress}) async {
     throw Exception('fake connection failure');
   }
 

@@ -68,9 +68,10 @@ Connection _testConnection({String id = 'test'}) {
 
 void main() {
   group('TerminalPane — error state UI', () {
-    testWidgets('error state shows centered error icon and message', (
+    testWidgets('error state sets hasError and still renders TerminalView', (
       tester,
     ) async {
+      final key = GlobalKey<TerminalPaneState>();
       final conn = Connection(
         id: 'err-1',
         label: 'ErrorTest',
@@ -87,21 +88,21 @@ void main() {
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(body: TerminalPane(connection: conn)),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn),
+            ),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline));
-      expect(icon.color, AppTheme.disconnected);
-      expect(icon.size, 48);
+      // Error is written to terminal buffer, no separate error widget
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(key.currentState!.hasError, isTrue);
     });
 
-    testWidgets('error from thrown exception displays exception text', (
-      tester,
-    ) async {
+    testWidgets('error from thrown exception sets hasError', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
       when(
@@ -124,13 +125,21 @@ void main() {
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(body: TerminalPane(connection: conn)),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn),
+            ),
           ),
         ),
       );
       await tester.pumpAndSettle();
+      // ShellHelper.openShell retries 5× with incremental delays — pump enough
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      await tester.pumpAndSettle();
 
-      expect(find.textContaining('Connection refused'), findsOneWidget);
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(key.currentState!.hasError, isTrue);
     });
   });
 
@@ -189,7 +198,7 @@ void main() {
   });
 
   group('TerminalPane — loading state', () {
-    testWidgets('shows spinner while shell is opening', (tester) async {
+    testWidgets('shows TerminalView while shell is opening', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
       when(
@@ -218,12 +227,13 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(TerminalView), findsOneWidget);
     });
   });
 
   group('TerminalPane — session closed notification', () {
-    testWidgets('shell done shows "Session closed" error', (tester) async {
+    testWidgets('shell done sets hasError', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       when(mockSsh.isConnected).thenReturn(true);
@@ -253,7 +263,9 @@ void main() {
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
-            home: Scaffold(body: TerminalPane(connection: conn)),
+            home: Scaffold(
+              body: TerminalPane(key: key, connection: conn),
+            ),
           ),
         ),
       );
@@ -262,8 +274,9 @@ void main() {
       doneCompleter.complete();
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Session closed'), findsOneWidget);
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      // Error written to terminal buffer, hasError flag set
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(key.currentState!.hasError, isTrue);
 
       await stdoutCtrl.close();
       await stderrCtrl.close();
@@ -390,7 +403,8 @@ void main() {
       expect(find.byType(TerminalView), findsOneWidget);
     });
 
-    testWidgets('renders error when shellFactory throws', (tester) async {
+    testWidgets('sets hasError when shellFactory throws', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
       final conn = _testConnection(id: 'sf-2');
 
       await tester.pumpWidget(
@@ -401,6 +415,7 @@ void main() {
             theme: AppTheme.dark(),
             home: Scaffold(
               body: TerminalPane(
+                key: key,
                 connection: conn,
                 shellFactory: _errorShellFactory,
               ),
@@ -410,8 +425,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.textContaining('Shell factory error'), findsOneWidget);
+      // Error is written to terminal buffer, no separate error widget
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(key.currentState!.hasError, isTrue);
     });
 
     testWidgets('no border on pane even with hasMultiplePanes=true (focused)', (
@@ -582,7 +598,8 @@ void main() {
   });
 
   group('TerminalPane — shellFactory onDone callback', () {
-    testWidgets('session closed via onDone shows error state', (tester) async {
+    testWidgets('session closed via onDone sets hasError', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
       VoidCallback? capturedOnDone;
       final conn = _testConnection(id: 'sf-done');
 
@@ -594,6 +611,7 @@ void main() {
             theme: AppTheme.dark(),
             home: Scaffold(
               body: TerminalPane(
+                key: key,
                 connection: conn,
                 shellFactory:
                     ({
@@ -612,12 +630,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(TerminalView), findsOneWidget);
+      expect(key.currentState!.hasError, isFalse);
 
       capturedOnDone?.call();
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Session closed'), findsOneWidget);
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      // Error written to terminal buffer, hasError flag set
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(key.currentState!.hasError, isTrue);
     });
   });
 
@@ -940,7 +960,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      // Error written to terminal buffer, TerminalView always shown
+      expect(find.byType(TerminalView), findsOneWidget);
 
       // Dispose should not throw even though _shellConn is null
       await tester.pumpWidget(
@@ -994,7 +1015,7 @@ void main() {
   });
 
   group('TerminalPane — shellFactory loading state', () {
-    testWidgets('shows spinner when shellFactory is slow then shows terminal', (
+    testWidgets('shows TerminalView while shellFactory is slow', (
       tester,
     ) async {
       final completer = Completer<ShellConnection>();
@@ -1022,20 +1043,21 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // TerminalPane always renders TerminalView (progress in buffer)
+      expect(find.byType(TerminalView), findsOneWidget);
 
       completer.complete(_fakeShellConnection());
       await tester.pumpAndSettle();
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.byType(TerminalView), findsOneWidget);
     });
   });
 
   group('TerminalPane — error state layout', () {
-    testWidgets('error state shows icon and text wrapped in Center', (
+    testWidgets('error state sets hasError and renders TerminalView', (
       tester,
     ) async {
+      final key = GlobalKey<TerminalPaneState>();
       final conn = _testConnection(id: 'sf-error-layout');
 
       await tester.pumpWidget(
@@ -1046,6 +1068,7 @@ void main() {
             theme: AppTheme.dark(),
             home: Scaffold(
               body: TerminalPane(
+                key: key,
                 connection: conn,
                 shellFactory: _errorShellFactory,
               ),
@@ -1055,20 +1078,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.textContaining('Shell factory error'), findsOneWidget);
-
-      // Verify the error icon is inside a Center widget
-      final centerFinder = find.ancestor(
-        of: find.byIcon(Icons.error_outline),
-        matching: find.byType(Center),
-      );
-      expect(centerFinder, findsOneWidget);
+      // Error is written to terminal buffer, no separate error widget
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(key.currentState!.hasError, isTrue);
     });
 
-    testWidgets('error text uses textAlign center and disconnected color', (
-      tester,
-    ) async {
+    testWidgets('error state writes error to terminal buffer', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
       final conn = _testConnection(id: 'sf-error-align');
 
       await tester.pumpWidget(
@@ -1079,6 +1095,7 @@ void main() {
             theme: AppTheme.dark(),
             home: Scaffold(
               body: TerminalPane(
+                key: key,
                 connection: conn,
                 shellFactory: _errorShellFactory,
               ),
@@ -1088,11 +1105,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final text = tester.widget<Text>(
-        find.textContaining('Shell factory error'),
-      );
-      expect(text.textAlign, TextAlign.center);
-      expect(text.style?.color, AppTheme.disconnected);
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(key.currentState!.hasError, isTrue);
     });
   });
 
@@ -1890,57 +1904,14 @@ void main() {
   });
 
   group('TerminalPane — connecting state waits for connection', () {
-    testWidgets(
-      'shows spinner while connection is connecting, then shows terminal',
-      (tester) async {
-        final conn = Connection(
-          id: 'connecting-1',
-          label: 'Test',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
-          ),
-          sshConnection: null,
-          state: SSHConnectionState.connecting,
-        );
-
-        await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              localizationsDelegates: S.localizationsDelegates,
-              supportedLocales: S.supportedLocales,
-              theme: AppTheme.dark(),
-              home: Scaffold(
-                body: TerminalPane(
-                  connection: conn,
-                  shellFactory: _successShellFactory,
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pump();
-
-        // Should show spinner while connecting
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-        // Transition to connected — ready completer fires
-        conn.state = SSHConnectionState.connected;
-        conn.completeReady();
-        await tester.pumpAndSettle();
-
-        // Now terminal should be visible
-        expect(find.byType(TerminalView), findsOneWidget);
-      },
-    );
-
-    testWidgets('shows error when connection transitions to disconnected', (
+    testWidgets('shows TerminalView while connecting, then stays after ready', (
       tester,
     ) async {
       final conn = Connection(
-        id: 'connecting-2',
+        id: 'connecting-1',
         label: 'Test',
         sshConfig: const SSHConfig(
-          server: ServerAddress(host: 'fail', user: 'u'),
+          server: ServerAddress(host: 'h', user: 'u'),
         ),
         sshConnection: null,
         state: SSHConnectionState.connecting,
@@ -1963,15 +1934,59 @@ void main() {
       );
       await tester.pump();
 
+      // TerminalView is always rendered (progress written to buffer)
+      expect(find.byType(TerminalView), findsOneWidget);
+
+      // Transition to connected — ready completer fires
+      conn.state = SSHConnectionState.connected;
+      conn.completeReady();
+      await tester.pumpAndSettle();
+
+      // Terminal still visible
+      expect(find.byType(TerminalView), findsOneWidget);
+    });
+
+    testWidgets('sets hasError when connection transitions to disconnected', (
+      tester,
+    ) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = Connection(
+        id: 'connecting-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'fail', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.connecting,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                shellFactory: _successShellFactory,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
       // Transition to disconnected with error
       conn.connectionError = 'Auth failed';
       conn.state = SSHConnectionState.disconnected;
       conn.completeReady();
       await tester.pumpAndSettle();
 
-      // Should show error
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.textContaining('Auth failed'), findsOneWidget);
+      // Error written to terminal buffer, hasError flag set
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(key.currentState!.hasError, isTrue);
     });
   });
 

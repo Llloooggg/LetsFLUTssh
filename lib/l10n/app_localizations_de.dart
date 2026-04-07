@@ -1061,4 +1061,23 @@ class SDe extends S {
   @override
   String get storagePermissionLimited =>
       'Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'Verbindung zu $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'Hostschlüssel wird überprüft';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'Authentifizierung als $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'Shell wird geöffnet';
+
+  @override
+  String get progressOpeningSftp => 'SFTP-Kanal wird geöffnet';
 }

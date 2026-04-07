@@ -1057,4 +1057,23 @@ class SEs extends S {
   @override
   String get storagePermissionLimited =>
       'Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'Conectando a $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'Verificando clave del host';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'Autenticando como $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'Abriendo shell';
+
+  @override
+  String get progressOpeningSftp => 'Abriendo canal SFTP';
 }

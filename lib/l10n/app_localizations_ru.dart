@@ -1053,4 +1053,23 @@ class SRu extends S {
   @override
   String get storagePermissionLimited =>
       'Ограниченный доступ — предоставьте полный доступ к хранилищу для всех файлов';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'Подключение к $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'Проверка ключа хоста';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'Аутентификация как $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'Открытие терминала';
+
+  @override
+  String get progressOpeningSftp => 'Открытие SFTP-канала';
 }

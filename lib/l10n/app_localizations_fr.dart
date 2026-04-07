@@ -1061,4 +1061,23 @@ class SFr extends S {
   @override
   String get storagePermissionLimited =>
       'Accès limité — accordez l\'autorisation de stockage complète pour tous les fichiers';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'Connexion à $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'Vérification de la clé hôte';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'Authentification en tant que $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'Ouverture du shell';
+
+  @override
+  String get progressOpeningSftp => 'Ouverture du canal SFTP';
 }

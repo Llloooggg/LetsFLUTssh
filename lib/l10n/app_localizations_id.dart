@@ -1055,4 +1055,23 @@ class SId extends S {
   @override
   String get storagePermissionLimited =>
       'Akses terbatas — berikan izin penyimpanan penuh untuk semua file';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'Menghubungkan ke $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'Memverifikasi kunci host';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'Mengautentikasi sebagai $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'Membuka shell';
+
+  @override
+  String get progressOpeningSftp => 'Membuka saluran SFTP';
 }
