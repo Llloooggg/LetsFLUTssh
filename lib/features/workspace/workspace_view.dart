@@ -291,11 +291,13 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
         if (index > 0)
           ContextMenuItem(
             label: S.of(context).closeTabsToTheLeft,
+            icon: Icons.first_page,
             onTap: () => notifier.closeToTheLeft(panel.id, index),
           ),
         if (index < panel.tabs.length - 1)
           ContextMenuItem(
             label: S.of(context).closeTabsToTheRight,
+            icon: Icons.last_page,
             onTap: () => notifier.closeToTheRight(panel.id, index),
           ),
         if (panel.tabs.length > 1) ...[

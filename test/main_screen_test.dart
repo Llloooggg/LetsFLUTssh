@@ -1249,7 +1249,7 @@ void main() {
           tabs: [
             TabEntry(
               id: 's1',
-              label: 'Files',
+              label: 'SFTP-1',
               connection: conn,
               kind: TabKind.sftp,
             ),
@@ -1258,7 +1258,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Files'), findsNothing);
+      // Companion button shows "Files" only for terminal tabs — not for SFTP.
+      expect(find.byIcon(Icons.folder_open), findsNothing);
     });
   });
 
