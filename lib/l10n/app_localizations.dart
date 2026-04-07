@@ -1593,6 +1593,12 @@ abstract class S {
   /// **'Show QR'**
   String get showQr;
 
+  /// No description provided for @sort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get sort;
+
   /// No description provided for @resizePanelDivider.
   ///
   /// In en, this message translates to:

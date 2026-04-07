@@ -419,6 +419,7 @@
   "qrTooLarge": "Too large — deselect some sessions or use .lfs file export.",
   "exportAll": "Export All",
   "showQr": "Show QR",
+  "sort": "Sort",
   "resizePanelDivider": "Resize panel divider",
   "youreRunningLatest": "You're running the latest version",
   "liveLog": "Live Log",

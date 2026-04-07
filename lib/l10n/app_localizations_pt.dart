@@ -818,6 +818,9 @@ class SPt extends S {
   String get showQr => 'Mostrar QR';
 
   @override
+  String get sort => 'Ordenar';
+
+  @override
   String get resizePanelDivider => 'Redimensionar divisor de painel';
 
   @override

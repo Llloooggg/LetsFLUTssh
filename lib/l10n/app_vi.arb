@@ -245,6 +245,7 @@
   "qrTooLarge": "Quá lớn — bỏ chọn một số phiên hoặc sử dụng xuất tệp .lfs.",
   "exportAll": "Xuất tất cả",
   "showQr": "Hiện QR",
+  "sort": "Sắp xếp",
   "resizePanelDivider": "Thay đổi kích thước thanh phân chia",
   "youreRunningLatest": "Bạn đang sử dụng phiên bản mới nhất",
   "liveLog": "Nhật ký trực tiếp",

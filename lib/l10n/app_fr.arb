@@ -271,6 +271,7 @@
   "qrTooLarge": "Trop volumineux — désélectionnez des sessions ou utilisez l'export en fichier .lfs.",
   "exportAll": "Tout exporter",
   "showQr": "Afficher le QR",
+  "sort": "Trier",
   "resizePanelDivider": "Redimensionner le séparateur de panneaux",
   "youreRunningLatest": "Vous utilisez la dernière version",
   "liveLog": "Log en direct",

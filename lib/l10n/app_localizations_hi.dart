@@ -816,6 +816,9 @@ class SHi extends S {
   String get showQr => 'QR दिखाएं';
 
   @override
+  String get sort => 'क्रमबद्ध करें';
+
+  @override
   String get resizePanelDivider => 'पैनल डिवाइडर का आकार बदलें';
 
   @override

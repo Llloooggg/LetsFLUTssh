@@ -819,6 +819,9 @@ class SId extends S {
   String get showQr => 'Tampilkan QR';
 
   @override
+  String get sort => 'Urutkan';
+
+  @override
   String get resizePanelDivider => 'Ubah ukuran pembagi panel';
 
   @override

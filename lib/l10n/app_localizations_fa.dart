@@ -815,6 +815,9 @@ class SFa extends S {
   String get showQr => 'نمایش QR';
 
   @override
+  String get sort => 'مرتب‌سازی';
+
+  @override
   String get resizePanelDivider => 'تغییر اندازه جداکننده پنل';
 
   @override

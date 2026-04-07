@@ -815,6 +815,9 @@ class SVi extends S {
   String get showQr => 'Hiện QR';
 
   @override
+  String get sort => 'Sắp xếp';
+
+  @override
   String get resizePanelDivider => 'Thay đổi kích thước thanh phân chia';
 
   @override

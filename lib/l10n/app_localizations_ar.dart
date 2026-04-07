@@ -813,6 +813,9 @@ class SAr extends S {
   String get showQr => 'عرض QR';
 
   @override
+  String get sort => 'ترتيب';
+
+  @override
   String get resizePanelDivider => 'تغيير حجم فاصل اللوحات';
 
   @override

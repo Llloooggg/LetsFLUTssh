@@ -248,6 +248,7 @@
   "qrTooLarge": "너무 큽니다 — 일부 세션을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.",
   "exportAll": "모두 내보내기",
   "showQr": "QR 표시",
+  "sort": "정렬",
   "resizePanelDivider": "패널 구분선 크기 조정",
   "youreRunningLatest": "최신 버전을 사용 중입니다",
   "liveLog": "실시간 로그",

@@ -803,6 +803,9 @@ class SZh extends S {
   String get showQr => '显示 QR';
 
   @override
+  String get sort => '排序';
+
+  @override
   String get resizePanelDivider => '调整面板分隔线';
 
   @override

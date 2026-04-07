@@ -822,6 +822,9 @@ class SFr extends S {
   String get showQr => 'Afficher le QR';
 
   @override
+  String get sort => 'Trier';
+
+  @override
   String get resizePanelDivider => 'Redimensionner le séparateur de panneaux';
 
   @override

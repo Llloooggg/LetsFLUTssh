@@ -247,6 +247,7 @@
   "qrTooLarge": "Zu groß — reduzieren Sie die Auswahl oder nutzen Sie den .lfs-Dateiexport.",
   "exportAll": "Alle exportieren",
   "showQr": "QR anzeigen",
+  "sort": "Sortieren",
   "resizePanelDivider": "Panelteiler verschieben",
   "youreRunningLatest": "Sie verwenden die neueste Version",
   "liveLog": "Live-Log",

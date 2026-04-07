@@ -57,12 +57,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     _initSftp();
   }
 
-  @override
-  void dispose() {
-    _sftp?.dispose();
-    super.dispose();
-  }
-
   Future<void> _initSftp() async {
     final conn = widget.connection;
 
@@ -181,6 +175,18 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     );
   }
 
+  bool _editingPath = false;
+  final _pathController = TextEditingController();
+  final _pathFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _sftp?.dispose();
+    _pathController.dispose();
+    _pathFocusNode.dispose();
+    super.dispose();
+  }
+
   Widget _buildToolbar(BuildContext context) {
     final theme = Theme.of(context);
     return AnimatedBuilder(
@@ -251,7 +257,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                 ],
               ),
               const SizedBox(height: 4),
-              // Path breadcrumb
+              // Path breadcrumb / editor
               SizedBox(
                 height: AppTheme.barHeightMd,
                 child: Row(
@@ -264,6 +270,15 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                       tooltip: S.of(context).back,
                     ),
                     AppIconButton(
+                      icon: Icons.arrow_forward,
+                      size: 22,
+                      boxSize: 36,
+                      onTap: _activeCtrl.canGoForward
+                          ? _activeCtrl.goForward
+                          : null,
+                      tooltip: S.of(context).forward,
+                    ),
+                    AppIconButton(
                       icon: Icons.arrow_upward,
                       size: 22,
                       boxSize: 36,
@@ -272,11 +287,9 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                     ),
                     const SizedBox(width: 4),
                     Expanded(
-                      child: Text(
-                        _activeCtrl.currentPath,
-                        style: TextStyle(fontSize: AppFonts.lg),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: _editingPath
+                          ? _buildPathEditor()
+                          : _buildBreadcrumb(),
                     ),
                   ],
                 ),
@@ -287,6 +300,126 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
       },
     );
   }
+
+  Widget _buildBreadcrumb() {
+    final currentPath = _activeCtrl.currentPath;
+    final isWindows = _isWindowsPath(currentPath);
+    final separator = isWindows ? RegExp(r'[/\\]') : RegExp(r'/');
+    final parts = currentPath.split(separator)..removeWhere((p) => p.isEmpty);
+    final rootPath = isWindows && parts.isNotEmpty ? '${parts[0]}\\' : '/';
+    final rootLabel = isWindows && parts.isNotEmpty ? parts[0] : null;
+    final navParts = isWindows ? parts.skip(1).toList() : parts;
+
+    return GestureDetector(
+      onTap: () {
+        _pathController.text = currentPath;
+        setState(() => _editingPath = true);
+        // Focus after frame so the TextField is built
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _pathFocusNode.requestFocus();
+        });
+      },
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        reverse: true,
+        child: Row(
+          children: [
+            // Root segment
+            _buildBreadcrumbChip(
+              label: rootLabel ?? '/',
+              icon: rootLabel == null ? Icons.home : null,
+              onTap: () => _activeCtrl.navigateTo(rootPath),
+            ),
+            // Path segments
+            for (var i = 0; i < navParts.length; i++) ...[
+              Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+              _buildBreadcrumbChip(
+                label: navParts[i],
+                isLast: i == navParts.length - 1,
+                onTap: () {
+                  if (isWindows) {
+                    _activeCtrl.navigateTo(
+                      [parts[0], ...navParts.sublist(0, i + 1)].join('\\'),
+                    );
+                  } else {
+                    _activeCtrl.navigateTo(
+                      '/${navParts.sublist(0, i + 1).join('/')}',
+                    );
+                  }
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBreadcrumbChip({
+    required String label,
+    IconData? icon,
+    bool isLast = false,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isLast
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+              : theme.colorScheme.surfaceContainerHigh,
+          borderRadius: AppTheme.radiusSm,
+        ),
+        child: icon != null
+            ? Icon(icon, size: 16, color: theme.colorScheme.onSurface)
+            : Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppFonts.md,
+                  fontWeight: isLast ? FontWeight.w600 : FontWeight.normal,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildPathEditor() {
+    return TextField(
+      controller: _pathController,
+      focusNode: _pathFocusNode,
+      style: TextStyle(fontSize: AppFonts.md),
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        hintText: _activeCtrl.currentPath,
+        border: const OutlineInputBorder(borderRadius: AppTheme.radiusSm),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.close, size: 18),
+          onPressed: () => setState(() => _editingPath = false),
+        ),
+      ),
+      onSubmitted: (val) {
+        setState(() => _editingPath = false);
+        if (val.trim().isNotEmpty) {
+          _activeCtrl.navigateTo(val.trim());
+        }
+      },
+    );
+  }
+
+  static bool _isWindowsPath(String path) =>
+      path.length >= 2 &&
+      path[1] == ':' &&
+      RegExp(r'^[A-Za-z]$').hasMatch(path[0]);
 
   Widget _buildPermissionBanner(BuildContext context) {
     final theme = Theme.of(context);
@@ -434,16 +567,118 @@ class _MobileFileListState extends State<MobileFileList> {
     return Column(
       children: [
         if (_selectionMode && ctrl.selected.isNotEmpty)
-          _buildSelectionBar(context),
+          _buildSelectionBar(context)
+        else
+          _buildSortBar(context),
         Expanded(
           child: ListView.builder(
             itemCount: ctrl.entries.length,
-            itemExtent: 48,
+            itemExtent: 56,
             itemBuilder: (context, index) =>
                 _buildFileRow(context, ctrl.entries[index]),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSortBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = S.of(context);
+    final column = ctrl.sortColumn;
+    final asc = ctrl.sortAscending;
+
+    String columnLabel(SortColumn col) => switch (col) {
+      SortColumn.name => l10n.name,
+      SortColumn.size => l10n.size,
+      SortColumn.modified => l10n.modified,
+      SortColumn.mode => l10n.mode,
+      SortColumn.owner => l10n.owner,
+    };
+
+    final arrow = asc ? ' ↑' : ' ↓';
+
+    return Container(
+      height: AppTheme.barHeightSm,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.sort, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => _showSortMenu(context),
+            child: Text(
+              '${columnLabel(column)}$arrow',
+              style: TextStyle(
+                fontSize: AppFonts.sm,
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '${ctrl.entries.length}',
+            style: TextStyle(
+              fontSize: AppFonts.sm,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSortMenu(BuildContext context) {
+    final l10n = S.of(context);
+    final columns = [
+      (SortColumn.name, l10n.name, Icons.sort_by_alpha),
+      (SortColumn.size, l10n.size, Icons.storage),
+      (SortColumn.modified, l10n.modified, Icons.schedule),
+      (SortColumn.mode, l10n.mode, Icons.lock_outline),
+      (SortColumn.owner, l10n.owner, Icons.person_outline),
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                l10n.sort,
+                style: TextStyle(
+                  fontSize: AppFonts.lg,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            for (final (col, label, icon) in columns)
+              ListTile(
+                leading: Icon(icon),
+                title: Text(label),
+                trailing: ctrl.sortColumn == col
+                    ? Icon(
+                        ctrl.sortAscending
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward,
+                        size: 18,
+                      )
+                    : null,
+                selected: ctrl.sortColumn == col,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ctrl.setSort(col);
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -515,12 +750,24 @@ class _MobileFileListState extends State<MobileFileList> {
   Widget _buildFileRow(BuildContext context, FileEntry entry) {
     final theme = Theme.of(context);
     final isSelected = ctrl.selected.contains(entry.path);
+    final subtitleColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
+    final subtitleStyle = TextStyle(
+      fontSize: AppFonts.sm,
+      color: subtitleColor,
+    );
+
+    // Subtitle: "size · date · rwx..." for files, "date · rwx..." for dirs
+    final parts = <String>[
+      if (!entry.isDir) formatSize(entry.size),
+      formatTimestamp(entry.modTime),
+      entry.modeString,
+    ];
 
     return InkWell(
       onTap: () => _onEntryTap(entry),
       onLongPress: () => _onEntryLongPress(context, entry),
       child: Container(
-        height: AppTheme.itemHeightLg,
+        height: AppTheme.itemHeightXl,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         color: isSelected
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
@@ -551,28 +798,15 @@ class _MobileFileListState extends State<MobileFileList> {
                     style: TextStyle(fontSize: AppFonts.md),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (!entry.isDir)
-                    Text(
-                      formatSize(entry.size),
-                      style: TextStyle(
-                        fontSize: AppFonts.sm,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.5,
-                        ),
-                      ),
-                    ),
+                  const SizedBox(height: 2),
+                  Text(
+                    parts.join(' · '),
+                    style: subtitleStyle,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
-            if (!_selectionMode)
-              Text(
-                entry.modeString,
-                style: TextStyle(
-                  fontSize: AppFonts.sm,
-                  fontFamily: 'monospace',
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ),
           ],
         ),
       ),

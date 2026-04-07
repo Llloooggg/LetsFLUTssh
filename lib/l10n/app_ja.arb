@@ -248,6 +248,7 @@
   "qrTooLarge": "データが大きすぎます — 選択を減らすか、.lfsファイルエクスポートを使用してください。",
   "exportAll": "すべてエクスポート",
   "showQr": "QRを表示",
+  "sort": "並べ替え",
   "resizePanelDivider": "パネル分割線のサイズ変更",
   "youreRunningLatest": "最新バージョンを使用中です",
   "liveLog": "ライブログ",

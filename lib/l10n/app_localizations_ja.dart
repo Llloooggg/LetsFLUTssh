@@ -806,6 +806,9 @@ class SJa extends S {
   String get showQr => 'QRを表示';
 
   @override
+  String get sort => '並べ替え';
+
+  @override
   String get resizePanelDivider => 'パネル分割線のサイズ変更';
 
   @override

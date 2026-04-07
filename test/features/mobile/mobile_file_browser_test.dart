@@ -298,10 +298,10 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // readme.txt is 1024 bytes
-      expect(find.text(formatSize(1024)), findsOneWidget);
+      // readme.txt is 1024 bytes — size is part of subtitle
+      expect(find.textContaining(formatSize(1024)), findsOneWidget);
       // script.sh is 512 bytes
-      expect(find.text(formatSize(512)), findsOneWidget);
+      expect(find.textContaining(formatSize(512)), findsOneWidget);
     });
 
     testWidgets('shows mode strings for entries', (tester) async {
@@ -309,8 +309,8 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // Directories have drwxr-xr-x (0755)
-      expect(find.text('drwxr-xr-x'), findsOneWidget);
+      // Directories have drwxr-xr-x (0755) — mode is part of subtitle
+      expect(find.textContaining('drwxr-xr-x'), findsOneWidget);
     });
 
     testWidgets('tapping directory navigates into it', (tester) async {
@@ -647,13 +647,13 @@ void main() {
       expect(find.text('2 selected'), findsOneWidget);
     });
 
-    testWidgets('file list has correct item extent (48px)', (tester) async {
+    testWidgets('file list has correct item extent (56px)', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
       final listView = tester.widget<ListView>(find.byType(ListView));
-      expect(listView.itemExtent, 48.0);
+      expect(listView.itemExtent, 56.0);
     });
 
     testWidgets('error state retry button refreshes controller', (
@@ -675,6 +675,71 @@ void main() {
       // Still in error state (error FS always throws)
       expect(find.textContaining('Permission denied'), findsOneWidget);
       errorCtrl.dispose();
+    });
+
+    testWidgets('sort bar shows current sort column and item count', (
+      tester,
+    ) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // Default sort is Name ascending
+      expect(find.textContaining('Name'), findsOneWidget);
+      expect(find.textContaining('↑'), findsOneWidget);
+      // Item count
+      expect(find.text('3'), findsOneWidget);
+    });
+
+    testWidgets('sort menu opens and changes sort column', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // Tap sort label to open sort menu
+      await tester.tap(find.textContaining('Name'));
+      await tester.pumpAndSettle();
+
+      // Sort bottom sheet should show all columns
+      expect(find.text('Sort'), findsOneWidget);
+      expect(find.text('Size'), findsOneWidget);
+      expect(find.text('Modified'), findsOneWidget);
+
+      // Tap Size to sort by size
+      await tester.tap(find.text('Size'));
+      await tester.pumpAndSettle();
+
+      // Sort bar should now show Size
+      expect(find.textContaining('Size'), findsOneWidget);
+    });
+
+    testWidgets('sort bar hidden in selection mode', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // Sort bar visible
+      expect(find.byIcon(Icons.sort), findsOneWidget);
+
+      // Enter selection mode
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
+
+      // Sort bar replaced by selection bar
+      expect(find.byIcon(Icons.sort), findsNothing);
+      expect(find.text('1 selected'), findsOneWidget);
+    });
+
+    testWidgets('file row subtitle shows date and permissions', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // readme.txt subtitle: "1.0 KB · 2024-01-02 00:00 · -rw-r--r--"
+      expect(find.textContaining('2024-01-02'), findsWidgets);
+      expect(find.textContaining('-rw-r--r--'), findsWidgets);
     });
 
     testWidgets('InkWell rows are present for each entry', (tester) async {
@@ -875,6 +940,7 @@ void main() {
       expect(find.byTooltip('Refresh'), findsOneWidget);
       // Navigation buttons
       expect(find.byTooltip('Back'), findsOneWidget);
+      expect(find.byTooltip('Forward'), findsOneWidget);
       expect(find.byTooltip('Up'), findsOneWidget);
       // File list entries (starts on remote)
       expect(find.text('docs'), findsOneWidget);
@@ -896,21 +962,21 @@ void main() {
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
 
-      // Starts on Remote — path should show /remote
-      expect(find.text('/remote'), findsOneWidget);
+      // Starts on Remote — breadcrumb should show 'remote' segment
+      expect(find.text('remote'), findsOneWidget);
 
       // Switch to Local
       await tester.tap(find.text('Local'));
       await tester.pumpAndSettle();
 
-      // Path should show local initial dir
-      expect(find.text('/home/test'), findsOneWidget);
+      // Breadcrumb should show 'test' as last segment
+      expect(find.text('test'), findsOneWidget);
 
       // Switch back to Remote
       await tester.tap(find.text('Remote'));
       await tester.pumpAndSettle();
 
-      expect(find.text('/remote'), findsOneWidget);
+      expect(find.text('remote'), findsOneWidget);
     });
 
     testWidgets('TransferPanel is shown below file list', (tester) async {
@@ -980,6 +1046,64 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('docs'), findsOneWidget);
+    });
+
+    testWidgets('breadcrumb shows root and path segments', (tester) async {
+      final conn = Connection(
+        id: 'bc-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(buildBrowser(conn));
+      await tester.pumpAndSettle();
+
+      // Root icon (home) should be visible
+      expect(find.byIcon(Icons.home), findsOneWidget);
+      // Path segment 'remote' should be visible as a breadcrumb chip
+      expect(find.text('remote'), findsOneWidget);
+      // Chevron separators
+      expect(find.byIcon(Icons.chevron_right), findsWidgets);
+    });
+
+    testWidgets('tapping breadcrumb root navigates to /', (tester) async {
+      final conn = Connection(
+        id: 'bc-root-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(buildBrowser(conn));
+      await tester.pumpAndSettle();
+
+      // Tap the root icon (home button)
+      await tester.tap(find.byIcon(Icons.home));
+      await tester.pumpAndSettle();
+
+      // After navigating to root, 'remote' segment should be gone
+      expect(find.text('remote'), findsNothing);
+    });
+
+    testWidgets('forward button present in toolbar', (tester) async {
+      final conn = Connection(
+        id: 'fwd-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(buildBrowser(conn));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Forward'), findsOneWidget);
     });
   });
 

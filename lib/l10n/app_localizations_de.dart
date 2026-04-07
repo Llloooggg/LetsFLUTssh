@@ -821,6 +821,9 @@ class SDe extends S {
   String get showQr => 'QR anzeigen';
 
   @override
+  String get sort => 'Sortieren';
+
+  @override
   String get resizePanelDivider => 'Panelteiler verschieben';
 
   @override
