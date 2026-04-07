@@ -245,6 +245,7 @@
   "qrTooLarge": "Terlalu besar — batalkan beberapa sesi atau gunakan ekspor file .lfs.",
   "exportAll": "Ekspor Semua",
   "showQr": "Tampilkan QR",
+  "sort": "Urutkan",
   "resizePanelDivider": "Ubah ukuran pembagi panel",
   "youreRunningLatest": "Anda menggunakan versi terbaru",
   "liveLog": "Log Langsung",

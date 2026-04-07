@@ -815,6 +815,9 @@ class SEn extends S {
   String get showQr => 'Show QR';
 
   @override
+  String get sort => 'Sort';
+
+  @override
   String get resizePanelDivider => 'Resize panel divider';
 
   @override

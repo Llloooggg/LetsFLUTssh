@@ -271,6 +271,7 @@
   "qrTooLarge": "数据过大——请取消部分选择或使用 .lfs 文件导出。",
   "exportAll": "全部导出",
   "showQr": "显示 QR",
+  "sort": "排序",
   "resizePanelDivider": "调整面板分隔线",
   "youreRunningLatest": "您正在使用最新版本",
   "liveLog": "实时日志",

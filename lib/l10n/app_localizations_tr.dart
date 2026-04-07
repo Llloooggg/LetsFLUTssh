@@ -820,6 +820,9 @@ class STr extends S {
   String get showQr => 'QR Göster';
 
   @override
+  String get sort => 'Sırala';
+
+  @override
   String get resizePanelDivider => 'Panel ayırıcısını yeniden boyutlandır';
 
   @override

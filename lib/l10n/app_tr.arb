@@ -245,6 +245,7 @@
   "qrTooLarge": "Çok büyük — bazı oturumların seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.",
   "exportAll": "Tümünü Dışa Aktar",
   "showQr": "QR Göster",
+  "sort": "Sırala",
   "resizePanelDivider": "Panel ayırıcısını yeniden boyutlandır",
   "youreRunningLatest": "En son sürümü kullanıyorsunuz",
   "liveLog": "Canlı Günlük",

@@ -817,6 +817,9 @@ class SRu extends S {
   String get showQr => 'Показать QR';
 
   @override
+  String get sort => 'Сортировка';
+
+  @override
   String get resizePanelDivider => 'Изменить размер разделителя панелей';
 
   @override

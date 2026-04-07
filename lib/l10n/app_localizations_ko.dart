@@ -805,6 +805,9 @@ class SKo extends S {
   String get showQr => 'QR 표시';
 
   @override
+  String get sort => '정렬';
+
+  @override
   String get resizePanelDivider => '패널 구분선 크기 조정';
 
   @override
