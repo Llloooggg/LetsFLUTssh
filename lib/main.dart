@@ -505,8 +505,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     } else {
       sidebar = SessionPanel(
         onConnect: (session) => _connectSession(context, ref, session),
-        onQuickConnect: (config) =>
-            SessionConnect.connectConfig(context, ref, config),
         onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
         crossMarquee: _crossMarquee,
       );
@@ -570,8 +568,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final result = await SessionEditDialog.show(context);
     if (result == null || !context.mounted) return;
     switch (result) {
-      case ConnectOnlyResult(:final config):
-        SessionConnect.connectConfig(context, ref, config);
       case SaveResult(:final session, :final connect):
         await ref.read(sessionProvider.notifier).add(session);
         if (connect && context.mounted) {
