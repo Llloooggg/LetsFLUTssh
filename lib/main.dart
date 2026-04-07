@@ -201,11 +201,14 @@ class MainScreen extends ConsumerStatefulWidget {
 class _MainScreenState extends ConsumerState<MainScreen> {
   final _deepLinkHandler = DeepLinkHandler();
   final _crossMarquee = CrossMarqueeController();
+  final _reverseCrossMarquee = CrossMarqueeController();
   bool _updateDialogShown = false;
   bool _sidebarOpen = true;
   ShellMode _mode = ShellMode.sessions;
   int _settingsIndex = 0;
   final _workspaceKey = GlobalKey<WorkspaceViewState>();
+  final _sessionPanelKey = GlobalKey<SessionPanelState>();
+  final _sidebarActivated = ValueNotifier<int>(0);
 
   @override
   void initState() {
@@ -218,6 +221,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   void dispose() {
     _deepLinkHandler.dispose();
     _crossMarquee.dispose();
+    _reverseCrossMarquee.dispose();
+    _sidebarActivated.dispose();
     super.dispose();
   }
 
@@ -489,6 +494,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final sessionBody = WorkspaceView(
       key: _workspaceKey,
       crossMarquee: _crossMarquee,
+      reverseCrossMarquee: _reverseCrossMarquee,
+      sidebarActivated: _sidebarActivated,
+      onActivated: () => _sessionPanelKey.currentState?.clearDesktopSelection(),
     );
     if (inSettings) {
       sidebar = SettingsSidebar(
@@ -504,9 +512,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     } else {
       sidebar = SessionPanel(
+        key: _sessionPanelKey,
         onConnect: (session) => _connectSession(context, ref, session),
         onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
         crossMarquee: _crossMarquee,
+        reverseCrossMarquee: _reverseCrossMarquee,
+        onActivated: () => _sidebarActivated.value++,
       );
       body = sessionBody;
     }

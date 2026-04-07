@@ -47,11 +47,20 @@ class FileBrowserTab extends ConsumerStatefulWidget {
   /// Cross-widget marquee controller — forwarded to the local file pane.
   final CrossMarqueeController? crossMarquee;
 
+  /// Reverse cross-marquee: file pane → session panel.
+  final CrossMarqueeController? reverseCrossMarquee;
+
+  /// Notifier incremented when the sidebar is activated — clear file
+  /// selection so only one panel appears selected at a time.
+  final ValueNotifier<int>? sidebarActivated;
+
   const FileBrowserTab({
     super.key,
     required this.connection,
     this.sftpInitFactory,
     this.crossMarquee,
+    this.reverseCrossMarquee,
+    this.sidebarActivated,
   });
 
   @override
@@ -76,12 +85,19 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   void initState() {
     super.initState();
     _initSftp();
+    widget.sidebarActivated?.addListener(_onSidebarActivated);
   }
 
   @override
   void dispose() {
+    widget.sidebarActivated?.removeListener(_onSidebarActivated);
     _sftp?.dispose();
     super.dispose();
+  }
+
+  void _onSidebarActivated() {
+    _localCtrl?.clearSelection();
+    _remoteCtrl?.clearSelection();
   }
 
   Future<void> _initSftp() async {
@@ -212,6 +228,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                       paneId: 'local',
                       showFolderSizes: showFolderSizes,
                       crossMarquee: widget.crossMarquee,
+                      reverseCrossMarquee: widget.reverseCrossMarquee,
                       actions: (
                         transfer: _upload,
                         drop: _download,
@@ -293,12 +310,14 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     required _PaneActions actions,
     required FilePaneController otherController,
     CrossMarqueeController? crossMarquee,
+    CrossMarqueeController? reverseCrossMarquee,
   }) {
     return FilePane(
       controller: controller,
       paneId: paneId,
       showFolderSizes: showFolderSizes,
       crossMarquee: crossMarquee,
+      reverseCrossMarquee: reverseCrossMarquee,
       onTransfer: actions.transfer,
       onTransferMultiple: (entries) => entries.forEach(actions.transfer),
       onCopy: () => setState(() {
