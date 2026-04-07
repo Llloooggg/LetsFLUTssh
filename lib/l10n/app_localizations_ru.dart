@@ -520,6 +520,9 @@ class SRu extends S {
   String get copyDownShortcut => 'Копировать вниз (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Закрыть все';
+
+  @override
   String get closeOthers => 'Закрыть остальные';
 
   @override
@@ -527,6 +530,12 @@ class SRu extends S {
 
   @override
   String get closeTabsToTheRight => 'Закрыть вкладки справа';
+
+  @override
+  String get sortByName => 'По имени';
+
+  @override
+  String get sortByStatus => 'По статусу';
 
   @override
   String get noActiveSession => 'Нет активной сессии';

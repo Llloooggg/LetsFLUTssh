@@ -522,6 +522,9 @@ class STr extends S {
   String get copyDownShortcut => 'Aşağı Kopyala (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Tümünü Kapat';
+
+  @override
   String get closeOthers => 'Diğerlerini Kapat';
 
   @override
@@ -529,6 +532,12 @@ class STr extends S {
 
   @override
   String get closeTabsToTheRight => 'Sağdaki Sekmeleri Kapat';
+
+  @override
+  String get sortByName => 'Ada Göre Sırala';
+
+  @override
+  String get sortByStatus => 'Duruma Göre Sırala';
 
   @override
   String get noActiveSession => 'Aktif oturum yok';

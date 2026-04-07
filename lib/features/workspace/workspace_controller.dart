@@ -166,6 +166,28 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     _disconnectOrphaned(closed);
   }
 
+  /// Close every tab in [panelId]. The panel collapses afterward.
+  void closeAll(String panelId) {
+    final panel = findPanel(state.root, panelId);
+    if (panel == null || panel.tabs.isEmpty) return;
+    final closed = [...panel.tabs];
+    // Remove all tabs — panel becomes empty → collapse it.
+    final newRoot = removeWorkspaceNode(state.root, panelId);
+    if (newRoot == null) {
+      final fresh = PanelLeaf();
+      state = WorkspaceState(root: fresh, focusedPanelId: fresh.id);
+    } else {
+      final panels = collectPanelIds(newRoot);
+      state = state.copyWith(
+        root: newRoot,
+        focusedPanelId: panels.contains(state.focusedPanelId)
+            ? state.focusedPanelId
+            : panels.first,
+      );
+    }
+    _disconnectOrphaned(closed);
+  }
+
   /// Close all tabs to the left of [index].
   void closeToTheLeft(String panelId, int index) {
     final panel = findPanel(state.root, panelId);

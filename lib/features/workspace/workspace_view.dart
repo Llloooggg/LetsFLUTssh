@@ -298,6 +298,15 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
             label: S.of(context).closeTabsToTheRight,
             onTap: () => notifier.closeToTheRight(panel.id, index),
           ),
+        if (panel.tabs.length > 1) ...[
+          const ContextMenuItem.divider(),
+          ContextMenuItem(
+            label: S.of(context).closeAll,
+            icon: Icons.close_fullscreen,
+            color: AppTheme.red,
+            onTap: () => notifier.closeAll(panel.id),
+          ),
+        ],
       ],
     );
   }

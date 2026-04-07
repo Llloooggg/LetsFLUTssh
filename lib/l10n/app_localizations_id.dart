@@ -522,6 +522,9 @@ class SId extends S {
   String get copyDownShortcut => 'Salin ke Bawah (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Tutup Semua';
+
+  @override
   String get closeOthers => 'Tutup Lainnya';
 
   @override
@@ -529,6 +532,12 @@ class SId extends S {
 
   @override
   String get closeTabsToTheRight => 'Tutup Tab di Kanan';
+
+  @override
+  String get sortByName => 'Urutkan berdasarkan Nama';
+
+  @override
+  String get sortByStatus => 'Urutkan berdasarkan Status';
 
   @override
   String get noActiveSession => 'Tidak ada sesi aktif';

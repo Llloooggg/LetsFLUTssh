@@ -522,6 +522,9 @@ class SEs extends S {
   String get copyDownShortcut => 'Copiar abajo (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Cerrar todas';
+
+  @override
   String get closeOthers => 'Cerrar otras';
 
   @override
@@ -529,6 +532,12 @@ class SEs extends S {
 
   @override
   String get closeTabsToTheRight => 'Cerrar pestañas a la derecha';
+
+  @override
+  String get sortByName => 'Ordenar por nombre';
+
+  @override
+  String get sortByStatus => 'Ordenar por estado';
 
   @override
   String get noActiveSession => 'Sin sesión activa';

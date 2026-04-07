@@ -516,6 +516,9 @@ class SJa extends S {
   String get copyDownShortcut => '下にコピー (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'すべて閉じる';
+
+  @override
   String get closeOthers => '他を閉じる';
 
   @override
@@ -523,6 +526,12 @@ class SJa extends S {
 
   @override
   String get closeTabsToTheRight => '右のタブを閉じる';
+
+  @override
+  String get sortByName => '名前で並べ替え';
+
+  @override
+  String get sortByStatus => 'ステータスで並べ替え';
 
   @override
   String get noActiveSession => 'アクティブなセッションがありません';
