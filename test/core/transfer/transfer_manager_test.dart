@@ -219,6 +219,23 @@ void main() {
       },
     );
 
+    test('dispose clears history and cancels active transfers', () async {
+      manager.enqueue(_dummyTask('file1'));
+      manager.enqueue(_dummyTask('file2'));
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      expect(manager.history, hasLength(2));
+      manager.dispose();
+      expect(manager.history, isEmpty);
+
+      // Re-create for tearDown
+      manager = TransferManager(
+        parallelism: 2,
+        maxHistory: 10,
+        taskTimeout: Duration.zero,
+      );
+    });
+
     test('dispose prevents further notifications', () async {
       manager.dispose();
       // Should not throw when enqueueing after dispose
