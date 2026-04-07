@@ -13,7 +13,8 @@ class _FakeFS implements FileSystem {
   final List<FileEntry> fakeEntries;
   final String fakeInitialDir;
 
-  _FakeFS({this.fakeEntries = const [], String initialDir = '/home/test'}) : fakeInitialDir = initialDir;
+  _FakeFS({this.fakeEntries = const [], String initialDir = '/home/test'})
+    : fakeInitialDir = initialDir;
 
   @override
   Future<String> initialDir() async => fakeInitialDir;
@@ -74,7 +75,11 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: ctrl, onTransfer: (e) => transferred = e, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (e) => transferred = e,
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
@@ -105,7 +110,11 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
@@ -135,16 +144,22 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
       );
       await tester.pump();
 
-      // Enter selection mode
+      // Long press opens bottom sheet; tap "Select" to enter selection mode
       await tester.longPress(find.text('notes.txt'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
       expect(find.text('1 selected'), findsOneWidget);
       expect(find.byType(Checkbox), findsWidgets);
 
@@ -160,7 +175,9 @@ void main() {
   });
 
   group('MobileFileList — bottom sheet actions', () {
-    testWidgets('bottom sheet Transfer action calls onTransfer', (tester) async {
+    testWidgets('bottom sheet Transfer action calls onTransfer', (
+      tester,
+    ) async {
       final fs = _FakeFS(fakeEntries: _entries());
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       await ctrl.init();
@@ -174,18 +191,18 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: ctrl, onTransfer: (e) => transferred = e, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (e) => transferred = e,
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
       );
       await tester.pump();
 
-      // Enter selection mode
-      await tester.longPress(find.text('notes.txt'));
-      await tester.pump();
-
-      // Long press again (in selection mode) on another item to open bottom sheet
+      // Long press to open bottom sheet
       await tester.longPress(find.text('backup.tar'));
       await tester.pumpAndSettle();
 
@@ -211,15 +228,15 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
       );
-      await tester.pump();
-
-      // Enter selection mode on a file
-      await tester.longPress(find.text('notes.txt'));
       await tester.pump();
 
       // Long press directory to open bottom sheet
@@ -235,7 +252,9 @@ void main() {
       ctrl.dispose();
     });
 
-    testWidgets('bottom sheet Rename action opens rename dialog', (tester) async {
+    testWidgets('bottom sheet Rename action opens rename dialog', (
+      tester,
+    ) async {
       final fs = _FakeFS(fakeEntries: _entries());
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       await ctrl.init();
@@ -247,18 +266,18 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
       );
       await tester.pump();
 
-      // Enter selection mode
-      await tester.longPress(find.text('notes.txt'));
-      await tester.pump();
-
-      // Long press again to open bottom sheet
+      // Long press to open bottom sheet
       await tester.longPress(find.text('backup.tar'));
       await tester.pumpAndSettle();
 
@@ -291,18 +310,18 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
       );
       await tester.pump();
 
-      // Enter selection mode
-      await tester.longPress(find.text('notes.txt'));
-      await tester.pump();
-
-      // Long press again to open bottom sheet
+      // Long press to open bottom sheet
       await tester.longPress(find.text('backup.tar'));
       await tester.pumpAndSettle();
 
@@ -325,7 +344,9 @@ void main() {
   });
 
   group('MobileFileList — error state', () {
-    testWidgets('controller with error shows error message and retry', (tester) async {
+    testWidgets('controller with error shows error message and retry', (
+      tester,
+    ) async {
       final fs = _FakeFS(fakeEntries: []);
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       // Navigate to a path that will throw
@@ -340,7 +361,11 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: badCtrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: badCtrl,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
@@ -356,7 +381,9 @@ void main() {
   });
 
   group('MobileFileList — file row details', () {
-    testWidgets('file rows show size, dir rows show folder icon', (tester) async {
+    testWidgets('file rows show size, dir rows show folder icon', (
+      tester,
+    ) async {
       final fs = _FakeFS(fakeEntries: _entries());
       final ctrl = FilePaneController(fs: fs, label: 'Remote');
       await ctrl.init();
@@ -368,7 +395,11 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
@@ -395,16 +426,22 @@ void main() {
             supportedLocales: S.supportedLocales,
             theme: AppTheme.dark(),
             home: Scaffold(
-              body: MobileFileList(controller: ctrl, onTransfer: (_) {}, onTransferMultiple: (_) {}),
+              body: MobileFileList(
+                controller: ctrl,
+                onTransfer: (_) {},
+                onTransferMultiple: (_) {},
+              ),
             ),
           ),
         ),
       );
       await tester.pump();
 
-      // Enter selection mode
+      // Long press opens bottom sheet; tap "Select" to enter selection mode
       await tester.longPress(find.text('notes.txt'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
 
       // Verify checkbox is visible (selection mode active)
       expect(find.byType(Checkbox), findsWidgets);
@@ -419,7 +456,8 @@ class _ErrorFS implements FileSystem {
   @override
   Future<String> initialDir() async => '/error';
   @override
-  Future<List<FileEntry>> list(String path) async => throw Exception('FS error');
+  Future<List<FileEntry>> list(String path) async =>
+      throw Exception('FS error');
   @override
   Future<void> mkdir(String path) async {}
   @override

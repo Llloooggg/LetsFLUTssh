@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/connection/connection.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/platform.dart' as plat;
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/threshold_draggable.dart';
@@ -197,6 +198,10 @@ class _PanelTabItem extends StatefulWidget {
 }
 
 class _PanelTabItemState extends State<_PanelTabItem> {
+  static final bool _mobile = plat.isMobilePlatform;
+  static final double _closeBoxSize = _mobile ? 32 : 20;
+  static final double _closeIconSize = _mobile ? 16 : 12;
+
   Color _dotColor() {
     switch (widget.tab.connection.state) {
       case SSHConnectionState.connected:
@@ -257,15 +262,15 @@ class _PanelTabItemState extends State<_PanelTabItem> {
                 ),
                 const SizedBox(width: 2),
                 SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: _closeBoxSize,
+                  height: _closeBoxSize,
                   child: Opacity(
                     opacity: showClose ? 1.0 : 0.0,
                     child: AppIconButton(
                       icon: Icons.close,
                       onTap: showClose ? widget.onClose : null,
-                      size: 12,
-                      boxSize: 20,
+                      size: _closeIconSize,
+                      boxSize: _closeBoxSize,
                       hoverColor: AppTheme.red.withValues(alpha: 0.2),
                       borderRadius: AppTheme.radiusMd,
                     ),

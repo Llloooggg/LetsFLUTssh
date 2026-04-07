@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
+import '../../core/shortcut_registry.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../theme/app_theme.dart';
@@ -232,30 +233,38 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return Dialog(
       backgroundColor: AppTheme.bg1,
       insetPadding: const EdgeInsets.all(24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHeader(),
-              _buildTabBar(),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: IndexedStack(
-                    index: _tabIndex,
-                    children: [
-                      _buildConnectionTab(),
-                      _buildAuthTab(),
-                      _buildOptionsTab(),
-                    ],
+      child: CallbackShortcuts(
+        bindings: AppShortcutRegistry.instance.buildCallbackMap({
+          AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
+        }),
+        child: Focus(
+          autofocus: true,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildHeader(),
+                  _buildTabBar(),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: IndexedStack(
+                        index: _tabIndex,
+                        children: [
+                          _buildConnectionTab(),
+                          _buildAuthTab(),
+                          _buildOptionsTab(),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  _buildFooter(),
+                ],
               ),
-              _buildFooter(),
-            ],
+            ),
           ),
         ),
       ),

@@ -37,10 +37,10 @@ class ConfigNotifier extends Notifier<AppConfig> {
   Future<void> update(AppConfig Function(AppConfig) updater) async {
     try {
       final updated = updater(state);
-      await _store.save(updated);
       state = updated;
       // Apply logging toggle immediately
       AppLogger.instance.setEnabled(updated.enableLogging);
+      await _store.save(updated);
     } catch (e) {
       AppLogger.instance.log(
         'Failed to save config',
