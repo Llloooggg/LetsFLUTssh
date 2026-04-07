@@ -84,6 +84,14 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   @visibleForTesting
   TerminalController get terminalController => _terminalController;
 
+  /// Exposed for testing — zoom in / out / reset.
+  @visibleForTesting
+  void zoomIn() => _zoomIn();
+  @visibleForTesting
+  void zoomOut() => _zoomOut();
+  @visibleForTesting
+  void zoomReset() => _zoomReset();
+
   @override
   void initState() {
     super.initState();
@@ -230,15 +238,16 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
               },
             ),
             Expanded(
-              // Listener intercepts right-click before xterm's gesture
-              // detector, so the context menu works even when the terminal
-              // is in mouse mode (e.g. htop, vim).
+              // Listener intercepts right-click and Ctrl+scroll before
+              // xterm's gesture detector, so context menu and zoom work
+              // even when the terminal is in mouse mode (e.g. htop, vim).
               child: Listener(
                 onPointerDown: (event) {
                   if (event.buttons == kSecondaryButton) {
                     _showContextMenu(context, event.position);
                   }
                 },
+                onPointerSignal: _onPointerSignal,
                 child: Stack(
                   children: [
                     TerminalView(
@@ -368,6 +377,21 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       widget.onSplitVertical?.call();
       return KeyEventResult.handled;
     }
+    // Ctrl+= / Ctrl+- / Ctrl+0 → zoom in / out / reset
+    if (ctrl && !shift) {
+      if (event.logicalKey == LogicalKeyboardKey.equal) {
+        _zoomIn();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.minus) {
+        _zoomOut();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.digit0) {
+        _zoomReset();
+        return KeyEventResult.handled;
+      }
+    }
     return KeyEventResult.ignored;
   }
 
@@ -375,6 +399,36 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       TerminalClipboard.copy(_terminal, _terminalController);
 
   Future<void> _pasteClipboard() => TerminalClipboard.paste(_terminal);
+
+  void _zoomIn() => _adjustFontSize(1);
+
+  void _zoomOut() => _adjustFontSize(-1);
+
+  void _zoomReset() {
+    ref
+        .read(configProvider.notifier)
+        .update(
+          (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: 14.0)),
+        );
+  }
+
+  void _adjustFontSize(double delta) {
+    final current = ref.read(configProvider).fontSize;
+    final updated = (current + delta).clamp(8.0, 24.0);
+    if (updated == current) return;
+    ref
+        .read(configProvider.notifier)
+        .update(
+          (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: updated)),
+        );
+  }
+
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent &&
+        HardwareKeyboard.instance.isControlPressed) {
+      _adjustFontSize(event.scrollDelta.dy < 0 ? 1 : -1);
+    }
+  }
 
   Widget _buildErrorState() {
     return ErrorState(message: _error!);
