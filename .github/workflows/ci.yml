@@ -86,6 +86,8 @@ jobs:
             [ -z "$MSG" ] && continue
             # Skip merge commits (e.g. "Merge branch 'x' into y")
             echo "$MSG" | grep -qE '^Merge ' && continue
+            # Skip Dependabot auto-generated commits (e.g. "Bump pkg from 1.0 to 2.0")
+            echo "$MSG" | grep -qE '^Bump ' && continue
             if ! echo "$MSG" | grep -qE "$PATTERN"; then
               ERRORS="$ERRORS  ✗ $MSG\n"
             fi
