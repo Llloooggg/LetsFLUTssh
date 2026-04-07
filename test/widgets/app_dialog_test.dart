@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/theme/app_theme.dart';
@@ -219,6 +220,66 @@ void main() {
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+  });
+
+  group('AppDialog — Escape key', () {
+    testWidgets('Escape dismisses a dismissible dialog', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => AppDialog.show(
+                ctx,
+                builder: (_) => const AppDialog(
+                  title: 'Esc Test',
+                  content: Text('content'),
+                ),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(find.text('Esc Test'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text('Esc Test'), findsNothing);
+    });
+
+    testWidgets('Escape does not dismiss a non-dismissible dialog', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => AppDialog.show(
+                ctx,
+                barrierDismissible: false,
+                builder: (_) => const AppDialog(
+                  title: 'No Esc',
+                  dismissible: false,
+                  content: Text('locked'),
+                ),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(find.text('No Esc'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text('No Esc'), findsOneWidget);
     });
   });
 }

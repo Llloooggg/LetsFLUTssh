@@ -341,9 +341,9 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     );
   }
 
-  /// Handle Ctrl+Shift+C (copy) and Ctrl+Shift+V (paste) before xterm's
-  /// built-in shortcut manager — xterm only maps Ctrl+V for paste (no Shift),
-  /// and its ShortcutManager uses a protected API that can be fragile.
+  /// Intercept keyboard shortcuts before xterm's built-in handler consumes
+  /// them — xterm sends most key combos to the terminal as raw data, so
+  /// ancestor CallbackShortcuts never see them.
   KeyEventResult _handleTerminalKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final ctrl = HardwareKeyboard.instance.isControlPressed;
@@ -357,6 +357,16 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         _pasteClipboard();
         return KeyEventResult.handled;
       }
+      // Ctrl+Shift+\ → split pane down
+      if (event.logicalKey == LogicalKeyboardKey.backslash) {
+        widget.onSplitHorizontal?.call();
+        return KeyEventResult.handled;
+      }
+    }
+    // Ctrl+\ → split pane right
+    if (ctrl && !shift && event.logicalKey == LogicalKeyboardKey.backslash) {
+      widget.onSplitVertical?.call();
+      return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
   }
