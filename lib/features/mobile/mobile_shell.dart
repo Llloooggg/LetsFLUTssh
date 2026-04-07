@@ -498,13 +498,22 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                   if (isActive) ...[
                     const SizedBox(width: 4),
                     GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: () {
                         final ws = ref.read(workspaceProvider);
                         ref
                             .read(workspaceProvider.notifier)
                             .closeTab(ws.focusedPanelId, tab.id);
                       },
-                      child: Icon(Icons.close, size: 12, color: AppTheme.fgDim),
+                      child: SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: AppTheme.fgDim,
+                        ),
+                      ),
                     ),
                   ],
                 ],
