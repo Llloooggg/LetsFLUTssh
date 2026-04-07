@@ -312,9 +312,15 @@ void main() {
       expect(find.text('staging'), findsOneWidget);
     });
 
-    testWidgets('shows session hosts', (tester) async {
+    testWidgets('session hosts shown in details panel on click', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp());
-      expect(find.text('10.0.0.1'), findsOneWidget);
+      await tester.pumpAndSettle();
+      // Tap staging to show details panel
+      await tester.tap(find.text('staging'));
+      await tester.pumpAndSettle();
+      // Host should appear in the details panel
       expect(find.text('192.168.1.1'), findsOneWidget);
     });
 
@@ -322,7 +328,6 @@ void main() {
       await tester.pumpWidget(buildApp());
       expect(find.text('DB'), findsOneWidget);
       expect(find.text('db1'), findsOneWidget);
-      expect(find.text('10.0.1.1'), findsOneWidget);
     });
 
     testWidgets('renders folder icons', (tester) async {
@@ -1614,10 +1619,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final hostText = find.text('10.0.0.10');
-      expect(hostText, findsWidgets);
+      // Session with empty label shows displayName in tree row
+      final sessionText = find.textContaining('admin@10.0.0.10');
+      expect(sessionText, findsWidgets);
 
-      final center = tester.getCenter(hostText.first);
+      final center = tester.getCenter(sessionText.first);
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
@@ -2522,6 +2528,23 @@ void main() {
       expect(state.selectedIds, contains('1'));
     });
 
+    testWidgets('delete icon is rightmost in action bar', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
+      await tester.pump();
+
+      final deleteRight = tester.getTopRight(find.byIcon(Icons.delete));
+      final closeRight = tester.getTopRight(find.byIcon(Icons.close));
+      final moveRight = tester.getTopRight(find.byIcon(Icons.drive_file_move));
+      final selectAllRight = tester.getTopRight(find.byIcon(Icons.select_all));
+
+      // Delete should be to the right of all other action buttons
+      expect(deleteRight.dx, greaterThan(closeRight.dx));
+      expect(deleteRight.dx, greaterThan(moveRight.dx));
+      expect(deleteRight.dx, greaterThan(selectAllRight.dx));
+    });
+
     testWidgets('enterSelectModeWithFolder pre-checks folder', (tester) async {
       await tester.pumpWidget(buildApp());
 
@@ -2587,6 +2610,95 @@ void main() {
     });
   });
 
+  group('SessionPanel — desktop Ctrl+click selection', () {
+    tearDown(() => debugMobilePlatformOverride = null);
+
+    testWidgets('Ctrl+click toggles session into selection', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(state.selectedIds, isEmpty);
+
+      // Ctrl+click on a session to add it to selection
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.tap(find.text('web1'));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(state.selectedIds, contains('1'));
+    });
+
+    testWidgets('Ctrl+click toggles session out of selection', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+
+      // Pre-select two sessions via marquee
+      state.setMarqueeSelection({'1', '2'});
+      await tester.pump();
+      expect(state.selectedIds, equals({'1', '2'}));
+
+      // Ctrl+click on session '1' to remove it
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.tap(find.text('web1'));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(state.selectedIds, equals({'2'}));
+    });
+
+    testWidgets('click without Ctrl clears existing selection', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+
+      // Pre-select via marquee
+      state.setMarqueeSelection({'1', '2'});
+      await tester.pump();
+      expect(state.selectedIds, equals({'1', '2'}));
+
+      // Click without Ctrl clears selection
+      await tester.tap(find.text('staging'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pump();
+
+      expect(state.selectedIds, isEmpty);
+    });
+
+    testWidgets('Ctrl+click on folder toggles folder selection', (
+      tester,
+    ) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      expect(state.selectedFolderPaths, isEmpty);
+
+      // Ctrl+click on a folder
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.tap(find.text('Production'));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(state.selectedFolderPaths, contains('Production'));
+
+      // Ctrl+click again to deselect
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.tap(find.text('Production'));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(state.selectedFolderPaths, isEmpty);
+    });
+  });
+
   group('SessionPanel — keyboard shortcuts', () {
     tearDown(() => debugMobilePlatformOverride = null);
 
@@ -2640,6 +2752,32 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Session'), findsOneWidget);
+    });
+
+    testWidgets('Delete key triggers mass delete when items are selected', (
+      tester,
+    ) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+
+      // Select two sessions via marquee
+      state.setMarqueeSelection({'1', '2'});
+      await tester.pump();
+
+      // Focus the panel so key events are handled
+      state.focusNode.requestFocus();
+      await tester.pump();
+
+      // Press Delete key
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      // Should show bulk delete dialog, not single session delete
+      expect(find.text('Delete Selected'), findsOneWidget);
+      expect(find.textContaining('2 session(s)'), findsOneWidget);
     });
 
     testWidgets('F2 opens edit dialog for focused session', (tester) async {

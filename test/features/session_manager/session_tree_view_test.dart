@@ -83,10 +83,10 @@ void main() {
       expect(find.text('staging'), findsOneWidget);
     });
 
-    testWidgets('shows host for sessions', (tester) async {
+    testWidgets('does not show host inline for sessions', (tester) async {
       await tester.pumpWidget(buildApp());
-      expect(find.text('10.0.0.1'), findsOneWidget);
-      expect(find.text('10.0.0.2'), findsOneWidget);
+      expect(find.text('10.0.0.1'), findsNothing);
+      expect(find.text('10.0.0.2'), findsNothing);
     });
 
     testWidgets('shows No sessions for empty tree', (tester) async {
@@ -336,7 +336,6 @@ void main() {
       await tester.pumpWidget(buildApp(overrideTree: rootTree));
 
       expect(find.text('root-server'), findsOneWidget);
-      expect(find.text('h'), findsOneWidget);
     });
 
     testWidgets('ThresholdDraggable is present for sessions on desktop', (
@@ -1046,10 +1045,11 @@ void main() {
       expect(decoration!.color, isNotNull);
     });
 
-    testWidgets('tapping folder during active selection toggles folder', (
+    testWidgets('tapping folder during active selection clears selection', (
       tester,
     ) async {
-      String? toggledFolder;
+      Set<String>? clearedIds;
+      Set<String>? clearedFolders;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -1063,7 +1063,10 @@ void main() {
               child: SessionTreeView(
                 tree: tree,
                 selectedIds: const {'1'}, // active selection
-                onToggleFolderSelected: (path) => toggledFolder = path,
+                onMarqueeSelect: (ids, folders) {
+                  clearedIds = ids;
+                  clearedFolders = folders;
+                },
               ),
             ),
           ),
@@ -1075,7 +1078,9 @@ void main() {
       await tester.tap(find.text('DB'));
       await tester.pump();
 
-      expect(toggledFolder, equals('Production/DB'));
+      // Plain click clears the selection
+      expect(clearedIds, isEmpty);
+      expect(clearedFolders, isEmpty);
     });
 
     testWidgets('tapping folder without selection expands/collapses', (
