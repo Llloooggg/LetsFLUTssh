@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../../core/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
@@ -179,10 +179,9 @@ class _QrExportDialogState extends State<QrExportDialog> {
       backgroundColor: AppTheme.bg1,
       insetPadding: const EdgeInsets.all(24),
       child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.escape): () =>
-              Navigator.of(context).pop(),
-        },
+        bindings: AppShortcutRegistry.instance.buildCallbackMap({
+          AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
+        }),
         child: Focus(
           autofocus: true,
           child: ConstrainedBox(

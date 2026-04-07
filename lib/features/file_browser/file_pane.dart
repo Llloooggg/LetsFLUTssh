@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
+import '../../core/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
@@ -204,47 +205,33 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final reg = AppShortcutRegistry.instance;
 
-    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed.intersection({
-      LogicalKeyboardKey.controlLeft,
-      LogicalKeyboardKey.controlRight,
-    }).isNotEmpty;
-
-    return isCtrl
-        ? _handleCtrlKey(event.logicalKey)
-        : _handlePlainKey(event.logicalKey);
-  }
-
-  KeyEventResult _handleCtrlKey(LogicalKeyboardKey key) {
-    if (key == LogicalKeyboardKey.keyA) {
+    if (reg.matches(AppShortcut.fileSelectAll, event)) {
       ctrl.selectAll();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.keyC) {
+    if (reg.matches(AppShortcut.fileCopy, event)) {
       if (ctrl.selected.isNotEmpty) widget.onCopy?.call();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.keyV) {
+    if (reg.matches(AppShortcut.filePaste, event)) {
       widget.onPaste?.call();
       return KeyEventResult.handled;
     }
-    return KeyEventResult.ignored;
-  }
-
-  KeyEventResult _handlePlainKey(LogicalKeyboardKey key) {
-    if (key == LogicalKeyboardKey.delete) {
+    if (reg.matches(AppShortcut.fileDelete, event)) {
       if (ctrl.selected.isEmpty) return KeyEventResult.ignored;
       _confirmDelete(context, ctrl.selectedEntries);
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.f2) {
+    if (reg.matches(AppShortcut.fileRename, event)) {
       if (ctrl.selected.length == 1) {
         _showRenameDialog(context, ctrl.selectedEntries.first);
         return KeyEventResult.handled;
       }
       return KeyEventResult.ignored;
     }
-    if (key == LogicalKeyboardKey.f5) {
+    if (reg.matches(AppShortcut.fileRefresh, event)) {
       ctrl.refresh();
       return KeyEventResult.handled;
     }
