@@ -395,7 +395,9 @@ class SessionNode extends TreeNode {
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `connection.dart` | `Connection` | Connection model (id, label, sshConnection, state, error, ready completer) |
+| `connection.dart` | `Connection` | Connection model (id, label, sshConnection, state, error, ready completer, progress stream) |
+| `connection_step.dart` | `ConnectionStep` | Progress step model — phase (`socketConnect` / `hostKeyVerify` / `authenticate` / `openChannel`) × status (`inProgress` / `success` / `failed`) |
+| `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to an xterm `Terminal` (shared by desktop and mobile terminal views) |
 | `connection_manager.dart` | `ConnectionManager` | Active connection management, creation, disconnection, stream |
 | `foreground_service.dart` | `ForegroundServiceManager` | Android: foreground service for SSH keep-alive on screen lock |
 
@@ -411,8 +413,13 @@ class Connection {
   SSHConnectionState state;  // disconnected | connecting | connected
   Object? connectionError;
 
+  Stream<ConnectionStep> progressStream;  // broadcasts steps during connect
+  List<ConnectionStep> progressHistory;   // buffered for late subscribers
+
   Future<void> waitUntilReady();   // waits for connect attempt to finish (success or error)
-  void completeReady();            // called by ConnectionManager
+  void completeReady();            // called by ConnectionManager — also closes progressStream
+  void addProgressStep(step);      // buffers + broadcasts a progress step
+  void resetForReconnect();        // fresh completer, stream, clears history/error
 }
 ```
 
@@ -765,13 +772,18 @@ BranchNode(horizontal, 0.5)
 
 ```
 TerminalPane(connection, paneId)
+  ├── ProgressWriter subscribes to connection.progressStream
+  │   └── writes ANSI-styled steps to terminal: [*] → [✓] / [✗]
   ├── await connection.waitUntilReady()
-  ├── shell = connection.sshConnection.openShell(cols, rows)
-  ├── xterm Terminal() ← pipe ← shell.stdout
-  │                    → pipe → shell.stdin
-  ├── resize → connection.resizeTerminal(cols, rows)
+  ├── on success: clear terminal → ShellHelper.openShell()
+  │   ├── xterm Terminal() ← pipe ← shell.stdout
+  │   │                    → pipe → shell.stdin
+  │   └── resize → connection.resizeTerminal(cols, rows)
+  ├── on error: progress log stays visible with error text
   └── hardwareKeyboardOnly: true (on desktop)
 ```
+
+**Connection progress:** Instead of a spinner, TerminalPane writes structured progress steps directly into the xterm buffer using ANSI color codes (yellow `[*]` for in-progress, green `[✓]` for success, red `[✗]` for failure). On successful connection the terminal clears and the shell appears; on failure the log stays visible. Cursor is hidden during progress display via `\x1B[?25l` and restored on clear/error.
 
 **Why `hardwareKeyboardOnly: true` on desktop:** xterm TextInputClient is broken on Windows — causes input duplication.
 
@@ -1243,6 +1255,16 @@ ErrorState({
 })
 ```
 
+### ConnectionProgress
+
+```dart
+ConnectionProgress({
+  required Connection connection,
+  String? channelLabel,   // e.g. "Opening SFTP channel"
+})
+```
+Terminal-styled progress display for non-terminal tabs (SFTP file browser). Dark background (`AppTheme.bg2`), monospace font, text markers `[*]`/`[✓]`/`[✗]` — visually identical to the terminal progress output. Subscribes to `connection.progressStream` with history replay. Exposes `ConnectionProgressState.addStep()` for channel-specific steps (e.g. SFTP channel open) not covered by the SSH connection progress.
+
 ### LfsImportDialog
 
 ```dart
@@ -1584,19 +1606,26 @@ connectionManager.connectAsync(config)
          └── Returns Connection → UI
                                       │
 _doConnect():                         │
-  1. SSHConnection.connect()          │
+  1. SSHConnection.connect(onProgress) │
+     ├── onProgress(socketConnect.inProgress)
      ├── TCP socket                   ▼
-     ├── SSH handshake       UI: tabProvider.addTerminalTab(connection)
-     ├── Auth chain                   │
-     └── Host key verify              ▼
-  2. Success:                TerminalTab → await connection.waitUntilReady()
-     ├── state = connected            │
-     └── completeReady()              ▼
-  3. Failure:                TerminalPane → openShell() → xterm pipe
-     ├── connectionError = msg
-     ├── state = disconnected
+     ├── onProgress(socketConnect.success)
+     ├── onProgress(hostKeyVerify.inProgress)
+     ├── Host key verify     UI: tabProvider.addTerminalTab(connection)
+     ├── onProgress(hostKeyVerify.success)         │
+     ├── onProgress(authenticate.inProgress)       ▼
+     ├── Auth chain          TerminalPane subscribes to progressStream
+     └── onProgress(authenticate.success)          │
+  2. Success:                          ▼
+     ├── state = connected   TerminalPane: clear terminal → openShell()
+     └── completeReady()                            → xterm pipe
+  3. Failure:
+     ├── connectionError     TerminalPane: progress log stays visible
+     ├── state = disconnected         with error text in terminal buffer
      └── completeReady()
 ```
+
+**Progress pipeline:** `SSHConnection.connect()` accepts an `onProgress` callback that emits `ConnectionStep` events at each phase boundary. `ConnectionManager._doConnect()` forwards these to `Connection.addProgressStep()`, which buffers them in `progressHistory` and broadcasts via `progressStream`. The UI subscribes to the stream (replaying history for late subscribers) and renders steps in real time.
 
 **Reconnect flow:** When a terminal tab reconnects (user clicks "Reconnect" after disconnect), `TerminalTab._refreshConfig()` re-reads the `Session` from `sessionProvider` using `Connection.sessionId` and updates `Connection.sshConfig` before creating a new `SSHConnection`. This ensures reconnect picks up any session edits (e.g. added keys, changed password). Quick-connect tabs (`sessionId == null`) use the original config.
 
@@ -1605,6 +1634,7 @@ _doConnect():                         │
 ```
 FileBrowserTab.initState()
          │
+         ├── Shows ConnectionProgress widget (subscribes to progressStream)
          ├── await connection.waitUntilReady()
          │
          ▼
