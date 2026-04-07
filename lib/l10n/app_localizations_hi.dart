@@ -519,6 +519,9 @@ class SHi extends S {
   String get copyDownShortcut => 'नीचे कॉपी करें (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'सभी बंद करें';
+
+  @override
   String get closeOthers => 'अन्य बंद करें';
 
   @override
@@ -526,6 +529,12 @@ class SHi extends S {
 
   @override
   String get closeTabsToTheRight => 'दाईं ओर के टैब बंद करें';
+
+  @override
+  String get sortByName => 'नाम से क्रमबद्ध करें';
+
+  @override
+  String get sortByStatus => 'स्थिति से क्रमबद्ध करें';
 
   @override
   String get noActiveSession => 'कोई सक्रिय सत्र नहीं';

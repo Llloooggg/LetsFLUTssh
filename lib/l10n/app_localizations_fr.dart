@@ -524,6 +524,9 @@ class SFr extends S {
   String get copyDownShortcut => 'Copier en bas (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Tout fermer';
+
+  @override
   String get closeOthers => 'Fermer les autres';
 
   @override
@@ -531,6 +534,12 @@ class SFr extends S {
 
   @override
   String get closeTabsToTheRight => 'Fermer les onglets à droite';
+
+  @override
+  String get sortByName => 'Trier par nom';
+
+  @override
+  String get sortByStatus => 'Trier par statut';
 
   @override
   String get noActiveSession => 'Aucune session active';

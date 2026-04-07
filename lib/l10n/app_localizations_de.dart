@@ -524,6 +524,9 @@ class SDe extends S {
   String get copyDownShortcut => 'Nach unten kopieren (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Alle schließen';
+
+  @override
   String get closeOthers => 'Andere schließen';
 
   @override
@@ -531,6 +534,12 @@ class SDe extends S {
 
   @override
   String get closeTabsToTheRight => 'Tabs rechts schließen';
+
+  @override
+  String get sortByName => 'Nach Name sortieren';
+
+  @override
+  String get sortByStatus => 'Nach Status sortieren';
 
   @override
   String get noActiveSession => 'Keine aktive Sitzung';

@@ -518,6 +518,9 @@ class SFa extends S {
   String get copyDownShortcut => 'کپی به پایین (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'بستن همه';
+
+  @override
   String get closeOthers => 'بستن بقیه';
 
   @override
@@ -525,6 +528,12 @@ class SFa extends S {
 
   @override
   String get closeTabsToTheRight => 'بستن تب‌های سمت راست';
+
+  @override
+  String get sortByName => 'مرتب‌سازی بر اساس نام';
+
+  @override
+  String get sortByStatus => 'مرتب‌سازی بر اساس وضعیت';
 
   @override
   String get noActiveSession => 'جلسه فعالی وجود ندارد';

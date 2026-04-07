@@ -515,6 +515,9 @@ class SZh extends S {
   String get copyDownShortcut => '向下复制 (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => '关闭全部';
+
+  @override
   String get closeOthers => '关闭其他';
 
   @override
@@ -522,6 +525,12 @@ class SZh extends S {
 
   @override
   String get closeTabsToTheRight => '关闭右侧标签页';
+
+  @override
+  String get sortByName => '按名称排序';
+
+  @override
+  String get sortByStatus => '按状态排序';
 
   @override
   String get noActiveSession => '没有活动会话';

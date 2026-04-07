@@ -515,6 +515,9 @@ class SKo extends S {
   String get copyDownShortcut => '아래에 복사 (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => '모두 닫기';
+
+  @override
   String get closeOthers => '다른 탭 닫기';
 
   @override
@@ -522,6 +525,12 @@ class SKo extends S {
 
   @override
   String get closeTabsToTheRight => '오른쪽 탭 닫기';
+
+  @override
+  String get sortByName => '이름순 정렬';
+
+  @override
+  String get sortByStatus => '상태순 정렬';
 
   @override
   String get noActiveSession => '활성 세션 없음';

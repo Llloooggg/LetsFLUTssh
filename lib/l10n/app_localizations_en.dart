@@ -519,6 +519,9 @@ class SEn extends S {
   String get copyDownShortcut => 'Copy Down (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Close All';
+
+  @override
   String get closeOthers => 'Close Others';
 
   @override
@@ -526,6 +529,12 @@ class SEn extends S {
 
   @override
   String get closeTabsToTheRight => 'Close Tabs to the Right';
+
+  @override
+  String get sortByName => 'Sort by Name';
+
+  @override
+  String get sortByStatus => 'Sort by Status';
 
   @override
   String get noActiveSession => 'No active session';

@@ -521,6 +521,9 @@ class SPt extends S {
   String get copyDownShortcut => 'Copiar Abaixo (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Fechar Todas';
+
+  @override
   String get closeOthers => 'Fechar Outras';
 
   @override
@@ -528,6 +531,12 @@ class SPt extends S {
 
   @override
   String get closeTabsToTheRight => 'Fechar Abas à Direita';
+
+  @override
+  String get sortByName => 'Ordenar por Nome';
+
+  @override
+  String get sortByStatus => 'Ordenar por Status';
 
   @override
   String get noActiveSession => 'Nenhuma sessão ativa';

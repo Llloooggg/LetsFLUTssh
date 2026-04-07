@@ -168,9 +168,12 @@
   "copyRightShortcut": "نسخ لليمين (Ctrl+\\)",
   "copyDownShortcut": "نسخ للأسفل (Ctrl+Shift+\\)",
 
+  "closeAll": "إغلاق الكل",
   "closeOthers": "إغلاق الأخرى",
   "closeTabsToTheLeft": "إغلاق علامات التبويب على اليسار",
   "closeTabsToTheRight": "إغلاق علامات التبويب على اليمين",
+  "sortByName": "ترتيب حسب الاسم",
+  "sortByStatus": "ترتيب حسب الحالة",
 
   "noActiveSession": "لا توجد جلسة نشطة",
   "createConnectionHint": "أنشئ اتصالاً جديداً أو اختر واحداً من الشريط الجانبي",

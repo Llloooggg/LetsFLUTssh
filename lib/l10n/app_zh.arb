@@ -168,9 +168,12 @@
   "copyRightShortcut": "向右复制 (Ctrl+\\)",
   "copyDownShortcut": "向下复制 (Ctrl+Shift+\\)",
 
+  "closeAll": "关闭全部",
   "closeOthers": "关闭其他",
   "closeTabsToTheLeft": "关闭左侧标签页",
   "closeTabsToTheRight": "关闭右侧标签页",
+  "sortByName": "按名称排序",
+  "sortByStatus": "按状态排序",
 
   "noActiveSession": "没有活动会话",
   "createConnectionHint": "创建新连接或从侧边栏选择一个",
