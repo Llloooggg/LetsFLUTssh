@@ -1041,6 +1041,12 @@ abstract class S {
   /// **'Copy Down (Ctrl+Shift+\\)'**
   String get copyDownShortcut;
 
+  /// No description provided for @closeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Close All'**
+  String get closeAll;
+
   /// No description provided for @closeOthers.
   ///
   /// In en, this message translates to:
@@ -1058,6 +1064,18 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Close Tabs to the Right'**
   String get closeTabsToTheRight;
+
+  /// No description provided for @sortByName.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by Name'**
+  String get sortByName;
+
+  /// No description provided for @sortByStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by Status'**
+  String get sortByStatus;
 
   /// No description provided for @noActiveSession.
   ///
@@ -1593,6 +1611,12 @@ abstract class S {
   /// **'Show QR'**
   String get showQr;
 
+  /// No description provided for @sort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get sort;
+
   /// No description provided for @resizePanelDivider.
   ///
   /// In en, this message translates to:
@@ -1928,6 +1952,42 @@ abstract class S {
   /// In en, this message translates to:
   /// **'{error} ({cause})'**
   String errWithCause(String error, String cause);
+
+  /// No description provided for @login.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get login;
+
+  /// No description provided for @protocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Protocol'**
+  String get protocol;
+
+  /// No description provided for @typeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get typeLabel;
+
+  /// No description provided for @folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder'**
+  String get folder;
+
+  /// No description provided for @nSubitems.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} item(s)'**
+  String nSubitems(int count);
+
+  /// No description provided for @subitems.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get subitems;
 
   /// No description provided for @storagePermissionRequired.
   ///

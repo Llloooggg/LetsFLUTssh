@@ -168,9 +168,12 @@
   "copyRightShortcut": "نسخ لليمين (Ctrl+\\)",
   "copyDownShortcut": "نسخ للأسفل (Ctrl+Shift+\\)",
 
+  "closeAll": "إغلاق الكل",
   "closeOthers": "إغلاق الأخرى",
   "closeTabsToTheLeft": "إغلاق علامات التبويب على اليسار",
   "closeTabsToTheRight": "إغلاق علامات التبويب على اليمين",
+  "sortByName": "ترتيب حسب الاسم",
+  "sortByStatus": "ترتيب حسب الحالة",
 
   "noActiveSession": "لا توجد جلسة نشطة",
   "createConnectionHint": "أنشئ اتصالاً جديداً أو اختر واحداً من الشريط الجانبي",
@@ -271,6 +274,7 @@
   "qrTooLarge": "كبير جداً — ألغِ تحديد بعض الجلسات أو استخدم تصدير ملف .lfs.",
   "exportAll": "تصدير الكل",
   "showQr": "عرض QR",
+  "sort": "ترتيب",
   "resizePanelDivider": "تغيير حجم فاصل اللوحات",
   "youreRunningLatest": "أنت تستخدم أحدث إصدار",
   "liveLog": "سجل مباشر",
@@ -328,6 +332,18 @@
   "errDecryptionFailed": "فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "تسجيل الدخول",
+  "protocol": "البروتوكول",
+  "typeLabel": "النوع",
+  "folder": "المجلد",
+  "nSubitems": "{count} عنصر",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "العناصر",
+
   "storagePermissionRequired": "يلزم إذن التخزين لتصفح الملفات المحلية",
   "grantPermission": "منح الإذن",
   "storagePermissionLimited": "وصول محدود — امنح إذن التخزين الكامل لجميع الملفات"

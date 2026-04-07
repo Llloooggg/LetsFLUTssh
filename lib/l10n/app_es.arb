@@ -154,9 +154,12 @@
   "closeEsc": "Cerrar (Esc)",
   "copyRightShortcut": "Copiar a la derecha (Ctrl+\\)",
   "copyDownShortcut": "Copiar abajo (Ctrl+Shift+\\)",
+  "closeAll": "Cerrar todas",
   "closeOthers": "Cerrar otras",
   "closeTabsToTheLeft": "Cerrar pestañas a la izquierda",
   "closeTabsToTheRight": "Cerrar pestañas a la derecha",
+  "sortByName": "Ordenar por nombre",
+  "sortByStatus": "Ordenar por estado",
   "noActiveSession": "Sin sesión activa",
   "createConnectionHint": "Cree una nueva conexión o seleccione una de la barra lateral",
   "hideSidebar": "Ocultar barra lateral (Ctrl+B)",
@@ -248,6 +251,7 @@
   "qrTooLarge": "Demasiado grande — deseleccione algunas sesiones o use la exportación en archivo .lfs.",
   "exportAll": "Exportar todo",
   "showQr": "Mostrar QR",
+  "sort": "Ordenar",
   "resizePanelDivider": "Redimensionar divisor de panel",
   "youreRunningLatest": "Está usando la versión más reciente",
   "liveLog": "Log en vivo",
@@ -305,6 +309,18 @@
   "errDecryptionFailed": "Error al descifrar las credenciales. El archivo de clave puede estar dañado.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Usuario",
+  "protocol": "Protocolo",
+  "typeLabel": "Tipo",
+  "folder": "Carpeta",
+  "nSubitems": "{count} elemento(s)",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Elementos",
+
   "storagePermissionRequired": "Se requiere permiso de almacenamiento para explorar archivos locales",
   "grantPermission": "Conceder permiso",
   "storagePermissionLimited": "Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos"

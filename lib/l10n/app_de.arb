@@ -153,9 +153,12 @@
   "closeEsc": "Schließen (Esc)",
   "copyRightShortcut": "Nach rechts kopieren (Ctrl+\\)",
   "copyDownShortcut": "Nach unten kopieren (Ctrl+Shift+\\)",
+  "closeAll": "Alle schließen",
   "closeOthers": "Andere schließen",
   "closeTabsToTheLeft": "Tabs links schließen",
   "closeTabsToTheRight": "Tabs rechts schließen",
+  "sortByName": "Nach Name sortieren",
+  "sortByStatus": "Nach Status sortieren",
   "noActiveSession": "Keine aktive Sitzung",
   "createConnectionHint": "Erstellen Sie eine neue Verbindung oder wählen Sie eine aus der Seitenleiste",
   "hideSidebar": "Seitenleiste ausblenden (Ctrl+B)",
@@ -247,6 +250,7 @@
   "qrTooLarge": "Zu groß — reduzieren Sie die Auswahl oder nutzen Sie den .lfs-Dateiexport.",
   "exportAll": "Alle exportieren",
   "showQr": "QR anzeigen",
+  "sort": "Sortieren",
   "resizePanelDivider": "Panelteiler verschieben",
   "youreRunningLatest": "Sie verwenden die neueste Version",
   "liveLog": "Live-Log",
@@ -303,6 +307,18 @@
   "errDecryptionFailed": "Zugangsdaten konnten nicht entschlüsselt werden. Die Schlüsseldatei ist möglicherweise beschädigt.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Anmeldung",
+  "protocol": "Protokoll",
+  "typeLabel": "Typ",
+  "folder": "Ordner",
+  "nSubitems": "{count} Element(e)",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Elemente",
+
   "storagePermissionRequired": "Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen",
   "grantPermission": "Berechtigung erteilen",
   "storagePermissionLimited": "Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien"

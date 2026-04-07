@@ -206,6 +206,8 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
         side: BorderSide(color: theme.dividerColor),
       ),
       child: ExpansionTile(
+        shape: const Border(),
+        collapsedShape: const Border(),
         leading: Icon(widget.icon, size: 20),
         title: Text(
           widget.title,

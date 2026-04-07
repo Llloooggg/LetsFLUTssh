@@ -519,6 +519,9 @@ class SHi extends S {
   String get copyDownShortcut => 'नीचे कॉपी करें (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'सभी बंद करें';
+
+  @override
   String get closeOthers => 'अन्य बंद करें';
 
   @override
@@ -526,6 +529,12 @@ class SHi extends S {
 
   @override
   String get closeTabsToTheRight => 'दाईं ओर के टैब बंद करें';
+
+  @override
+  String get sortByName => 'नाम से क्रमबद्ध करें';
+
+  @override
+  String get sortByStatus => 'स्थिति से क्रमबद्ध करें';
 
   @override
   String get noActiveSession => 'कोई सक्रिय सत्र नहीं';
@@ -816,6 +825,9 @@ class SHi extends S {
   String get showQr => 'QR दिखाएं';
 
   @override
+  String get sort => 'क्रमबद्ध करें';
+
+  @override
   String get resizePanelDivider => 'पैनल डिवाइडर का आकार बदलें';
 
   @override
@@ -1009,6 +1021,26 @@ class SHi extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'लॉगिन';
+
+  @override
+  String get protocol => 'प्रोटोकॉल';
+
+  @override
+  String get typeLabel => 'प्रकार';
+
+  @override
+  String get folder => 'फ़ोल्डर';
+
+  @override
+  String nSubitems(int count) {
+    return '$count आइटम';
+  }
+
+  @override
+  String get subitems => 'आइटम';
 
   @override
   String get storagePermissionRequired =>

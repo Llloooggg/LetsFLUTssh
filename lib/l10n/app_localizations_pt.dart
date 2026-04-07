@@ -521,6 +521,9 @@ class SPt extends S {
   String get copyDownShortcut => 'Copiar Abaixo (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Fechar Todas';
+
+  @override
   String get closeOthers => 'Fechar Outras';
 
   @override
@@ -528,6 +531,12 @@ class SPt extends S {
 
   @override
   String get closeTabsToTheRight => 'Fechar Abas à Direita';
+
+  @override
+  String get sortByName => 'Ordenar por Nome';
+
+  @override
+  String get sortByStatus => 'Ordenar por Status';
 
   @override
   String get noActiveSession => 'Nenhuma sessão ativa';
@@ -818,6 +827,9 @@ class SPt extends S {
   String get showQr => 'Mostrar QR';
 
   @override
+  String get sort => 'Ordenar';
+
+  @override
   String get resizePanelDivider => 'Redimensionar divisor de painel';
 
   @override
@@ -1012,6 +1024,26 @@ class SPt extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'Login';
+
+  @override
+  String get protocol => 'Protocolo';
+
+  @override
+  String get typeLabel => 'Tipo';
+
+  @override
+  String get folder => 'Pasta';
+
+  @override
+  String nSubitems(int count) {
+    return '$count item(ns)';
+  }
+
+  @override
+  String get subitems => 'Itens';
 
   @override
   String get storagePermissionRequired =>

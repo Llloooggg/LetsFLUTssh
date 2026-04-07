@@ -22,7 +22,24 @@ import 'workspace_node.dart';
 class WorkspaceView extends ConsumerStatefulWidget {
   final CrossMarqueeController? crossMarquee;
 
-  const WorkspaceView({super.key, this.crossMarquee});
+  /// Called when any workspace panel receives a pointer down.
+  /// Used to clear sidebar selection.
+  final VoidCallback? onActivated;
+
+  /// Reverse cross-marquee: file pane → session panel.
+  final CrossMarqueeController? reverseCrossMarquee;
+
+  /// Notifier incremented when the sidebar is activated — file browser
+  /// tabs listen and clear their selection.
+  final ValueNotifier<int>? sidebarActivated;
+
+  const WorkspaceView({
+    super.key,
+    this.crossMarquee,
+    this.reverseCrossMarquee,
+    this.onActivated,
+    this.sidebarActivated,
+  });
 
   @override
   ConsumerState<WorkspaceView> createState() => WorkspaceViewState();
@@ -130,65 +147,72 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     final notifier = ref.read(workspaceProvider.notifier);
 
     final content = ClipRect(
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => notifier.setFocusedPanel(panel.id),
-        child: Column(
-          children: [
-            // Tab bar.
-            Container(
-              height: AppTheme.barHeightSm,
-              color: AppTheme.bg1,
-              child: PanelTabBar(
-                panelId: panel.id,
-                tabs: panel.tabs,
-                activeIndex: panel.activeTabIndex,
-                isFocusedPanel: isFocused,
-                onSelect: (idx) => notifier.selectTab(panel.id, idx),
-                onClose: (tabId) => notifier.closeTab(panel.id, tabId),
-                onReorder: (oldIdx, newIdx) =>
-                    notifier.reorderTabs(panel.id, oldIdx, newIdx),
-                onAcceptCrossPanel: (data, idx) {
-                  notifier.moveTab(
-                    data.sourcePanelId,
-                    data.tab.id,
-                    panel.id,
-                    index: idx,
-                  );
-                },
-                onContextMenu: (tabId, index, offset) =>
-                    _showTabContextMenu(context, panel, tabId, index, offset),
+      child: Listener(
+        onPointerDown: widget.onActivated != null
+            ? (_) => widget.onActivated!()
+            : null,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => notifier.setFocusedPanel(panel.id),
+          child: Column(
+            children: [
+              // Tab bar.
+              Container(
+                height: AppTheme.barHeightSm,
+                color: AppTheme.bg1,
+                child: PanelTabBar(
+                  panelId: panel.id,
+                  tabs: panel.tabs,
+                  activeIndex: panel.activeTabIndex,
+                  isFocusedPanel: isFocused,
+                  onSelect: (idx) => notifier.selectTab(panel.id, idx),
+                  onClose: (tabId) => notifier.closeTab(panel.id, tabId),
+                  onReorder: (oldIdx, newIdx) =>
+                      notifier.reorderTabs(panel.id, oldIdx, newIdx),
+                  onAcceptCrossPanel: (data, idx) {
+                    notifier.moveTab(
+                      data.sourcePanelId,
+                      data.tab.id,
+                      panel.id,
+                      index: idx,
+                    );
+                  },
+                  onContextMenu: (tabId, index, offset) =>
+                      _showTabContextMenu(context, panel, tabId, index, offset),
+                ),
               ),
-            ),
-            // Connection bar.
-            if (panel.activeTab != null)
-              _PanelConnectionBar(
-                activeTab: panel.activeTab!,
-                panelId: panel.id,
+              // Connection bar.
+              if (panel.activeTab != null)
+                _PanelConnectionBar(
+                  activeTab: panel.activeTab!,
+                  panelId: panel.id,
+                ),
+              // Tab content.
+              Expanded(
+                child: panel.tabs.isEmpty
+                    ? const SizedBox.shrink()
+                    : IndexedStack(
+                        index: panel.activeTabIndex,
+                        children: panel.tabs.map((tab) {
+                          return switch (tab.kind) {
+                            TabKind.terminal => TerminalTab(
+                              key: _keyForTab(tab.id),
+                              tabId: tab.id,
+                              connection: tab.connection,
+                            ),
+                            TabKind.sftp => FileBrowserTab(
+                              key: ValueKey(tab.id),
+                              connection: tab.connection,
+                              crossMarquee: widget.crossMarquee,
+                              reverseCrossMarquee: widget.reverseCrossMarquee,
+                              sidebarActivated: widget.sidebarActivated,
+                            ),
+                          };
+                        }).toList(),
+                      ),
               ),
-            // Tab content.
-            Expanded(
-              child: panel.tabs.isEmpty
-                  ? const SizedBox.shrink()
-                  : IndexedStack(
-                      index: panel.activeTabIndex,
-                      children: panel.tabs.map((tab) {
-                        return switch (tab.kind) {
-                          TabKind.terminal => TerminalTab(
-                            key: _keyForTab(tab.id),
-                            tabId: tab.id,
-                            connection: tab.connection,
-                          ),
-                          TabKind.sftp => FileBrowserTab(
-                            key: ValueKey(tab.id),
-                            connection: tab.connection,
-                            crossMarquee: widget.crossMarquee,
-                          ),
-                        };
-                      }).toList(),
-                    ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -291,13 +315,24 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
         if (index > 0)
           ContextMenuItem(
             label: S.of(context).closeTabsToTheLeft,
+            icon: Icons.first_page,
             onTap: () => notifier.closeToTheLeft(panel.id, index),
           ),
         if (index < panel.tabs.length - 1)
           ContextMenuItem(
             label: S.of(context).closeTabsToTheRight,
+            icon: Icons.last_page,
             onTap: () => notifier.closeToTheRight(panel.id, index),
           ),
+        if (panel.tabs.length > 1) ...[
+          const ContextMenuItem.divider(),
+          ContextMenuItem(
+            label: S.of(context).closeAll,
+            icon: Icons.close_fullscreen,
+            color: AppTheme.red,
+            onTap: () => notifier.closeAll(panel.id),
+          ),
+        ],
       ],
     );
   }

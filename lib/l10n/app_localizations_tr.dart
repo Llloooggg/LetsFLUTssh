@@ -522,6 +522,9 @@ class STr extends S {
   String get copyDownShortcut => 'Aşağı Kopyala (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Tümünü Kapat';
+
+  @override
   String get closeOthers => 'Diğerlerini Kapat';
 
   @override
@@ -529,6 +532,12 @@ class STr extends S {
 
   @override
   String get closeTabsToTheRight => 'Sağdaki Sekmeleri Kapat';
+
+  @override
+  String get sortByName => 'Ada Göre Sırala';
+
+  @override
+  String get sortByStatus => 'Duruma Göre Sırala';
 
   @override
   String get noActiveSession => 'Aktif oturum yok';
@@ -820,6 +829,9 @@ class STr extends S {
   String get showQr => 'QR Göster';
 
   @override
+  String get sort => 'Sırala';
+
+  @override
   String get resizePanelDivider => 'Panel ayırıcısını yeniden boyutlandır';
 
   @override
@@ -1012,6 +1024,26 @@ class STr extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'Kullanıcı adı';
+
+  @override
+  String get protocol => 'Protokol';
+
+  @override
+  String get typeLabel => 'Tür';
+
+  @override
+  String get folder => 'Klasör';
+
+  @override
+  String nSubitems(int count) {
+    return '$count öğe';
+  }
+
+  @override
+  String get subitems => 'Öğeler';
 
   @override
   String get storagePermissionRequired =>

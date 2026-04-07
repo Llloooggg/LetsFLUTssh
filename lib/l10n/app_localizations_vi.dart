@@ -519,6 +519,9 @@ class SVi extends S {
   String get copyDownShortcut => 'Sao chép xuống dưới (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Đóng tất cả';
+
+  @override
   String get closeOthers => 'Đóng các tab khác';
 
   @override
@@ -526,6 +529,12 @@ class SVi extends S {
 
   @override
   String get closeTabsToTheRight => 'Đóng các tab bên phải';
+
+  @override
+  String get sortByName => 'Sắp xếp theo tên';
+
+  @override
+  String get sortByStatus => 'Sắp xếp theo trạng thái';
 
   @override
   String get noActiveSession => 'Không có phiên đang hoạt động';
@@ -815,6 +824,9 @@ class SVi extends S {
   String get showQr => 'Hiện QR';
 
   @override
+  String get sort => 'Sắp xếp';
+
+  @override
   String get resizePanelDivider => 'Thay đổi kích thước thanh phân chia';
 
   @override
@@ -1008,6 +1020,26 @@ class SVi extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'Đăng nhập';
+
+  @override
+  String get protocol => 'Giao thức';
+
+  @override
+  String get typeLabel => 'Loại';
+
+  @override
+  String get folder => 'Thư mục';
+
+  @override
+  String nSubitems(int count) {
+    return '$count mục';
+  }
+
+  @override
+  String get subitems => 'Mục';
 
   @override
   String get storagePermissionRequired =>

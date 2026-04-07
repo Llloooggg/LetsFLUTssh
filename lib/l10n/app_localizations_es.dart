@@ -522,6 +522,9 @@ class SEs extends S {
   String get copyDownShortcut => 'Copiar abajo (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Cerrar todas';
+
+  @override
   String get closeOthers => 'Cerrar otras';
 
   @override
@@ -529,6 +532,12 @@ class SEs extends S {
 
   @override
   String get closeTabsToTheRight => 'Cerrar pestañas a la derecha';
+
+  @override
+  String get sortByName => 'Ordenar por nombre';
+
+  @override
+  String get sortByStatus => 'Ordenar por estado';
 
   @override
   String get noActiveSession => 'Sin sesión activa';
@@ -820,6 +829,9 @@ class SEs extends S {
   String get showQr => 'Mostrar QR';
 
   @override
+  String get sort => 'Ordenar';
+
+  @override
   String get resizePanelDivider => 'Redimensionar divisor de panel';
 
   @override
@@ -1014,6 +1026,26 @@ class SEs extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'Usuario';
+
+  @override
+  String get protocol => 'Protocolo';
+
+  @override
+  String get typeLabel => 'Tipo';
+
+  @override
+  String get folder => 'Carpeta';
+
+  @override
+  String nSubitems(int count) {
+    return '$count elemento(s)';
+  }
+
+  @override
+  String get subitems => 'Elementos';
 
   @override
   String get storagePermissionRequired =>

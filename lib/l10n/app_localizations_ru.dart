@@ -520,6 +520,9 @@ class SRu extends S {
   String get copyDownShortcut => 'Копировать вниз (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Закрыть все';
+
+  @override
   String get closeOthers => 'Закрыть остальные';
 
   @override
@@ -527,6 +530,12 @@ class SRu extends S {
 
   @override
   String get closeTabsToTheRight => 'Закрыть вкладки справа';
+
+  @override
+  String get sortByName => 'По имени';
+
+  @override
+  String get sortByStatus => 'По статусу';
 
   @override
   String get noActiveSession => 'Нет активной сессии';
@@ -817,6 +826,9 @@ class SRu extends S {
   String get showQr => 'Показать QR';
 
   @override
+  String get sort => 'Сортировка';
+
+  @override
   String get resizePanelDivider => 'Изменить размер разделителя панелей';
 
   @override
@@ -1010,6 +1022,26 @@ class SRu extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'Логин';
+
+  @override
+  String get protocol => 'Протокол';
+
+  @override
+  String get typeLabel => 'Тип';
+
+  @override
+  String get folder => 'Папка';
+
+  @override
+  String nSubitems(int count) {
+    return '$count элемент(ов)';
+  }
+
+  @override
+  String get subitems => 'Элементы';
 
   @override
   String get storagePermissionRequired =>

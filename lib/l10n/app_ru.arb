@@ -153,9 +153,12 @@
   "closeEsc": "Закрыть (Esc)",
   "copyRightShortcut": "Копировать вправо (Ctrl+\\)",
   "copyDownShortcut": "Копировать вниз (Ctrl+Shift+\\)",
+  "closeAll": "Закрыть все",
   "closeOthers": "Закрыть остальные",
   "closeTabsToTheLeft": "Закрыть вкладки слева",
   "closeTabsToTheRight": "Закрыть вкладки справа",
+  "sortByName": "По имени",
+  "sortByStatus": "По статусу",
   "noActiveSession": "Нет активной сессии",
   "createConnectionHint": "Создайте новое подключение или выберите из боковой панели",
   "hideSidebar": "Скрыть боковую панель (Ctrl+B)",
@@ -247,6 +250,7 @@
   "qrTooLarge": "Слишком большой объём — снимите часть выделения или используйте экспорт в файл .lfs.",
   "exportAll": "Экспортировать все",
   "showQr": "Показать QR",
+  "sort": "Сортировка",
   "resizePanelDivider": "Изменить размер разделителя панелей",
   "youreRunningLatest": "У вас установлена последняя версия",
   "liveLog": "Лог в реальном времени",
@@ -303,6 +307,18 @@
   "errDecryptionFailed": "Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+
+  "login": "Логин",
+  "protocol": "Протокол",
+  "typeLabel": "Тип",
+  "folder": "Папка",
+  "nSubitems": "{count} элемент(ов)",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Элементы",
 
   "storagePermissionRequired": "Для просмотра локальных файлов необходимо разрешение на доступ к хранилищу",
   "grantPermission": "Дать разрешение",

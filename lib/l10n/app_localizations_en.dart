@@ -519,6 +519,9 @@ class SEn extends S {
   String get copyDownShortcut => 'Copy Down (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Close All';
+
+  @override
   String get closeOthers => 'Close Others';
 
   @override
@@ -526,6 +529,12 @@ class SEn extends S {
 
   @override
   String get closeTabsToTheRight => 'Close Tabs to the Right';
+
+  @override
+  String get sortByName => 'Sort by Name';
+
+  @override
+  String get sortByStatus => 'Sort by Status';
 
   @override
   String get noActiveSession => 'No active session';
@@ -815,6 +824,9 @@ class SEn extends S {
   String get showQr => 'Show QR';
 
   @override
+  String get sort => 'Sort';
+
+  @override
   String get resizePanelDivider => 'Resize panel divider';
 
   @override
@@ -1007,6 +1019,26 @@ class SEn extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'Login';
+
+  @override
+  String get protocol => 'Protocol';
+
+  @override
+  String get typeLabel => 'Type';
+
+  @override
+  String get folder => 'Folder';
+
+  @override
+  String nSubitems(int count) {
+    return '$count item(s)';
+  }
+
+  @override
+  String get subitems => 'Items';
 
   @override
   String get storagePermissionRequired =>

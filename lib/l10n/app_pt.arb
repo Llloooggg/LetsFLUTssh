@@ -154,9 +154,12 @@
   "closeEsc": "Fechar (Esc)",
   "copyRightShortcut": "Copiar à Direita (Ctrl+\\)",
   "copyDownShortcut": "Copiar Abaixo (Ctrl+Shift+\\)",
+  "closeAll": "Fechar Todas",
   "closeOthers": "Fechar Outras",
   "closeTabsToTheLeft": "Fechar Abas à Esquerda",
   "closeTabsToTheRight": "Fechar Abas à Direita",
+  "sortByName": "Ordenar por Nome",
+  "sortByStatus": "Ordenar por Status",
   "noActiveSession": "Nenhuma sessão ativa",
   "createConnectionHint": "Crie uma nova conexão ou selecione uma na barra lateral",
   "hideSidebar": "Ocultar Barra Lateral (Ctrl+B)",
@@ -248,6 +251,7 @@
   "qrTooLarge": "Muito grande — desmarque algumas sessões ou use a exportação em arquivo .lfs.",
   "exportAll": "Exportar Tudo",
   "showQr": "Mostrar QR",
+  "sort": "Ordenar",
   "resizePanelDivider": "Redimensionar divisor de painel",
   "youreRunningLatest": "Você está usando a versão mais recente",
   "liveLog": "Log ao vivo",
@@ -305,6 +309,18 @@
   "errDecryptionFailed": "Falha ao descriptografar as credenciais. O arquivo de chave pode estar corrompido.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Login",
+  "protocol": "Protocolo",
+  "typeLabel": "Tipo",
+  "folder": "Pasta",
+  "nSubitems": "{count} item(ns)",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Itens",
+
   "storagePermissionRequired": "Permissão de armazenamento necessária para navegar arquivos locais",
   "grantPermission": "Conceder permissão",
   "storagePermissionLimited": "Acesso limitado — conceda permissão total de armazenamento para todos os arquivos"
