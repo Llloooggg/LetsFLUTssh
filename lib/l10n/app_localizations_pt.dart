@@ -214,6 +214,9 @@ class SPt extends S {
   String get selectAll => 'Selecionar Tudo';
 
   @override
+  String get deselectAll => 'Desmarcar Tudo';
+
+  @override
   String get moveTo => 'Mover para...';
 
   @override

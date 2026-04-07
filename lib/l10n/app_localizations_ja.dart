@@ -213,6 +213,9 @@ class SJa extends S {
   String get selectAll => 'すべて選択';
 
   @override
+  String get deselectAll => 'すべて解除';
+
+  @override
   String get moveTo => '移動先...';
 
   @override

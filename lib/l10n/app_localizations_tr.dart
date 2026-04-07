@@ -215,6 +215,9 @@ class STr extends S {
   String get selectAll => 'Tümünü Seç';
 
   @override
+  String get deselectAll => 'Tümünü Kaldır';
+
+  @override
   String get moveTo => 'Taşı...';
 
   @override

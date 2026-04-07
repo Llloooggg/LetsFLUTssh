@@ -214,6 +214,9 @@ class SVi extends S {
   String get selectAll => 'Chọn tất cả';
 
   @override
+  String get deselectAll => 'Bỏ chọn tất cả';
+
+  @override
   String get moveTo => 'Di chuyển đến...';
 
   @override

@@ -66,6 +66,7 @@
   "noSessionsToExport": "没有可导出的会话",
   "nSelectedCount": "已选择 {count} 项",
   "selectAll": "全选",
+  "deselectAll": "取消全选",
   "moveTo": "移动到...",
   "moveToFolder": "移动到文件夹",
   "rootFolder": "/（根目录）",

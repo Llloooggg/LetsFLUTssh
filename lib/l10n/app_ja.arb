@@ -63,6 +63,7 @@
   "noSessionsToExport": "エクスポートするセッションがありません",
   "nSelectedCount": "{count} 件選択中",
   "selectAll": "すべて選択",
+  "deselectAll": "すべて解除",
   "moveTo": "移動先...",
   "moveToFolder": "フォルダーに移動",
   "rootFolder": "/ (ルート)",

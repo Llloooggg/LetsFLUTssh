@@ -214,6 +214,9 @@ class SAr extends S {
   String get selectAll => 'تحديد الكل';
 
   @override
+  String get deselectAll => 'إلغاء تحديد الكل';
+
+  @override
   String get moveTo => 'نقل إلى...';
 
   @override

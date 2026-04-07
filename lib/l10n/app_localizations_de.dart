@@ -215,6 +215,9 @@ class SDe extends S {
   String get selectAll => 'Alle auswählen';
 
   @override
+  String get deselectAll => 'Alle abwählen';
+
+  @override
   String get moveTo => 'Verschieben nach...';
 
   @override

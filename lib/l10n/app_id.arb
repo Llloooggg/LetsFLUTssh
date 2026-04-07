@@ -62,6 +62,7 @@
   "noSessionsToExport": "Tidak ada sesi untuk diekspor",
   "nSelectedCount": "{count} dipilih",
   "selectAll": "Pilih Semua",
+  "deselectAll": "Batal Pilih Semua",
   "moveTo": "Pindahkan ke...",
   "moveToFolder": "Pindahkan ke Folder",
   "rootFolder": "/ (root)",

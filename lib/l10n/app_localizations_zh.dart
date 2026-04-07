@@ -213,6 +213,9 @@ class SZh extends S {
   String get selectAll => '全选';
 
   @override
+  String get deselectAll => '取消全选';
+
+  @override
   String get moveTo => '移动到...';
 
   @override

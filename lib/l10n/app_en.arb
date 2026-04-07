@@ -112,6 +112,7 @@
     }
   },
   "selectAll": "Select All",
+  "deselectAll": "Deselect All",
   "moveTo": "Move to...",
   "moveToFolder": "Move to Folder",
   "rootFolder": "/ (root)",

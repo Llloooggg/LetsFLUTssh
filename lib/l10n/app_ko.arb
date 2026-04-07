@@ -63,6 +63,7 @@
   "noSessionsToExport": "내보낼 세션이 없습니다",
   "nSelectedCount": "{count}개 선택됨",
   "selectAll": "전체 선택",
+  "deselectAll": "전체 해제",
   "moveTo": "이동...",
   "moveToFolder": "폴더로 이동",
   "rootFolder": "/ (루트)",
