@@ -1483,13 +1483,14 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // Session should appear in sidebar
-      expect(find.text('TestServer'), findsOneWidget);
+      // Session should appear in sidebar (also shown in details panel)
+      expect(find.text('TestServer'), findsWidgets);
 
-      // Double-click the session to trigger _connectSession → SessionConnect.connectTerminal
-      await tester.tap(find.text('TestServer'));
+      // Double-click the session row to trigger _connectSession
+      final sessionRow = find.text('TestServer').first;
+      await tester.tap(sessionRow);
       await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.text('TestServer'));
+      await tester.tap(sessionRow);
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
