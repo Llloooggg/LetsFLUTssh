@@ -40,7 +40,7 @@ dependencies:
 
 
   # Foreground service (keeps SSH alive on Android screen lock)
-  flutter_foreground_task: ^9.2.1
+  flutter_foreground_task: ^9.2.2
 
   # Deep links / file open intents
   app_links: ^7.0.0
