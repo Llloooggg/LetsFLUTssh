@@ -353,6 +353,12 @@ class SPt extends S {
   String get clearKeyFile => 'Limpar arquivo de chave';
 
   @override
+  String get authOrDivider => 'OU';
+
+  @override
+  String get providePasswordOrKey => 'Forneça uma senha ou chave SSH';
+
+  @override
   String get quickConnect => 'Conexão Rápida';
 
   @override

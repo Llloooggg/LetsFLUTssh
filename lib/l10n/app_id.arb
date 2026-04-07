@@ -104,6 +104,8 @@
   "keyTextPem": "Teks Kunci (PEM)",
   "selectKeyFile": "Pilih File Kunci",
   "clearKeyFile": "Hapus file kunci",
+  "authOrDivider": "ATAU",
+  "providePasswordOrKey": "Sediakan kata sandi atau kunci SSH",
   "quickConnect": "Hubungkan Cepat",
   "scanQrCode": "Pindai Kode QR",
   "qrGenerationFailed": "Pembuatan QR gagal",

@@ -110,6 +110,8 @@
   "keyTextPem": "متن کلید (PEM)",
   "selectKeyFile": "انتخاب فایل کلید",
   "clearKeyFile": "پاک کردن فایل کلید",
+  "authOrDivider": "یا",
+  "providePasswordOrKey": "یک رمز عبور یا کلید SSH وارد کنید",
 
   "quickConnect": "اتصال سریع",
 

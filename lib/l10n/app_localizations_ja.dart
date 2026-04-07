@@ -351,6 +351,12 @@ class SJa extends S {
   String get clearKeyFile => '鍵ファイルをクリア';
 
   @override
+  String get authOrDivider => 'または';
+
+  @override
+  String get providePasswordOrKey => 'パスワードまたはSSH鍵を入力してください';
+
+  @override
   String get quickConnect => 'クイック接続';
 
   @override

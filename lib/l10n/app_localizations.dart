@@ -747,6 +747,18 @@ abstract class S {
   /// **'Clear key file'**
   String get clearKeyFile;
 
+  /// No description provided for @authOrDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'OR'**
+  String get authOrDivider;
+
+  /// No description provided for @providePasswordOrKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Provide a password or SSH key'**
+  String get providePasswordOrKey;
+
   /// No description provided for @quickConnect.
   ///
   /// In en, this message translates to:

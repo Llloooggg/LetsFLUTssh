@@ -351,6 +351,12 @@ class SFa extends S {
   String get clearKeyFile => 'پاک کردن فایل کلید';
 
   @override
+  String get authOrDivider => 'یا';
+
+  @override
+  String get providePasswordOrKey => 'یک رمز عبور یا کلید SSH وارد کنید';
+
+  @override
   String get quickConnect => 'اتصال سریع';
 
   @override

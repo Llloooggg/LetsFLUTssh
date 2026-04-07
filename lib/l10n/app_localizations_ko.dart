@@ -351,6 +351,12 @@ class SKo extends S {
   String get clearKeyFile => '키 파일 지우기';
 
   @override
+  String get authOrDivider => '또는';
+
+  @override
+  String get providePasswordOrKey => '비밀번호 또는 SSH 키를 제공하세요';
+
+  @override
   String get quickConnect => '빠른 연결';
 
   @override

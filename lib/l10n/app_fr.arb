@@ -110,6 +110,8 @@
   "keyTextPem": "Texte de la clé (PEM)",
   "selectKeyFile": "Sélectionner un fichier de clé",
   "clearKeyFile": "Effacer le fichier de clé",
+  "authOrDivider": "OU",
+  "providePasswordOrKey": "Fournissez un mot de passe ou une clé SSH",
 
   "quickConnect": "Connexion rapide",
 

@@ -104,6 +104,8 @@
   "keyTextPem": "Văn bản khóa (PEM)",
   "selectKeyFile": "Chọn tệp khóa",
   "clearKeyFile": "Xóa tệp khóa",
+  "authOrDivider": "HOẶC",
+  "providePasswordOrKey": "Cung cấp mật khẩu hoặc khóa SSH",
   "quickConnect": "Kết nối nhanh",
   "scanQrCode": "Quét mã QR",
   "qrGenerationFailed": "Tạo mã QR thất bại",

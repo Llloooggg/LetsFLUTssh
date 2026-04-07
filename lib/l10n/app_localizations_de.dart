@@ -354,6 +354,13 @@ class SDe extends S {
   String get clearKeyFile => 'Schlüsseldatei entfernen';
 
   @override
+  String get authOrDivider => 'ODER';
+
+  @override
+  String get providePasswordOrKey =>
+      'Geben Sie ein Passwort oder einen SSH-Schlüssel an';
+
+  @override
   String get quickConnect => 'Schnellverbindung';
 
   @override

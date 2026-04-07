@@ -186,6 +186,8 @@
   "keyTextPem": "Key Text (PEM)",
   "selectKeyFile": "Select Key File",
   "clearKeyFile": "Clear key file",
+  "authOrDivider": "OR",
+  "providePasswordOrKey": "Provide a password or SSH key",
 
   "quickConnect": "Quick Connect",
 
