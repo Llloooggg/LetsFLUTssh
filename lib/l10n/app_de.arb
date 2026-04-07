@@ -104,6 +104,8 @@
   "keyTextPem": "Schlüsseltext (PEM)",
   "selectKeyFile": "Schlüsseldatei auswählen",
   "clearKeyFile": "Schlüsseldatei entfernen",
+  "authOrDivider": "ODER",
+  "providePasswordOrKey": "Geben Sie ein Passwort oder einen SSH-Schlüssel an",
   "quickConnect": "Schnellverbindung",
   "scanQrCode": "QR-Code scannen",
   "qrGenerationFailed": "QR-Erzeugung fehlgeschlagen",

@@ -110,6 +110,8 @@
   "keyTextPem": "نص المفتاح (PEM)",
   "selectKeyFile": "اختيار ملف المفتاح",
   "clearKeyFile": "مسح ملف المفتاح",
+  "authOrDivider": "أو",
+  "providePasswordOrKey": "قدم كلمة مرور أو مفتاح SSH",
 
   "quickConnect": "اتصال سريع",
 

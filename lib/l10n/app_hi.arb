@@ -104,6 +104,8 @@
   "keyTextPem": "कुंजी टेक्स्ट (PEM)",
   "selectKeyFile": "कुंजी फ़ाइल चुनें",
   "clearKeyFile": "कुंजी फ़ाइल हटाएं",
+  "authOrDivider": "या",
+  "providePasswordOrKey": "पासवर्ड या SSH कुंजी प्रदान करें",
   "quickConnect": "त्वरित कनेक्ट",
   "scanQrCode": "QR कोड स्कैन करें",
   "qrGenerationFailed": "QR बनाना विफल",

@@ -104,6 +104,8 @@
   "keyTextPem": "Текст ключа (PEM)",
   "selectKeyFile": "Выбрать файл ключа",
   "clearKeyFile": "Очистить файл ключа",
+  "authOrDivider": "ИЛИ",
+  "providePasswordOrKey": "Укажите пароль или SSH-ключ",
   "quickConnect": "Быстрое подключение",
   "scanQrCode": "Сканировать QR-код",
   "qrGenerationFailed": "Не удалось создать QR-код",

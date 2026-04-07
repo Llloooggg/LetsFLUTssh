@@ -352,6 +352,12 @@ class SRu extends S {
   String get clearKeyFile => 'Очистить файл ключа';
 
   @override
+  String get authOrDivider => 'ИЛИ';
+
+  @override
+  String get providePasswordOrKey => 'Укажите пароль или SSH-ключ';
+
+  @override
   String get quickConnect => 'Быстрое подключение';
 
   @override

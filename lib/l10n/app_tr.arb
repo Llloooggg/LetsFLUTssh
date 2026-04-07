@@ -104,6 +104,8 @@
   "keyTextPem": "Anahtar Metni (PEM)",
   "selectKeyFile": "Anahtar Dosyası Seç",
   "clearKeyFile": "Anahtar dosyasını temizle",
+  "authOrDivider": "VEYA",
+  "providePasswordOrKey": "Bir parola veya SSH anahtarı sağlayın",
   "quickConnect": "Hızlı Bağlantı",
   "scanQrCode": "QR Kodu Tara",
   "qrGenerationFailed": "QR oluşturma başarısız",

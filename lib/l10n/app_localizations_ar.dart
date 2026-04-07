@@ -352,6 +352,12 @@ class SAr extends S {
   String get clearKeyFile => 'مسح ملف المفتاح';
 
   @override
+  String get authOrDivider => 'أو';
+
+  @override
+  String get providePasswordOrKey => 'قدم كلمة مرور أو مفتاح SSH';
+
+  @override
   String get quickConnect => 'اتصال سريع';
 
   @override

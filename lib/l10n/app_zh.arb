@@ -110,6 +110,8 @@
   "keyTextPem": "密钥文本 (PEM)",
   "selectKeyFile": "选择密钥文件",
   "clearKeyFile": "清除密钥文件",
+  "authOrDivider": "或",
+  "providePasswordOrKey": "请提供密码或 SSH 密钥",
 
   "quickConnect": "快速连接",
 
