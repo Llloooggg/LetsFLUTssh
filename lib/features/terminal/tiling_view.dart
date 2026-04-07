@@ -13,12 +13,6 @@ class TilingView extends StatefulWidget {
   final Map<String, Connection> paneConnections;
   final String? focusedPaneId;
   final ValueChanged<String> onPaneFocused;
-  final void Function(
-    String paneId,
-    SplitDirection direction,
-    bool insertBefore,
-  )
-  onSplit;
   final ValueChanged<String> onClosePane;
   final ValueChanged<SplitNode> onTreeChanged;
 
@@ -29,7 +23,6 @@ class TilingView extends StatefulWidget {
     required this.paneConnections,
     required this.focusedPaneId,
     required this.onPaneFocused,
-    required this.onSplit,
     required this.onClosePane,
     required this.onTreeChanged,
   });
@@ -62,10 +55,6 @@ class _TilingViewState extends State<TilingView> {
       isFocused: widget.focusedPaneId == node.id,
       hasMultiplePanes: hasMultiplePanes,
       onFocused: () => widget.onPaneFocused(node.id),
-      onSplitVertical: () =>
-          widget.onSplit(node.id, SplitDirection.vertical, false),
-      onSplitHorizontal: () =>
-          widget.onSplit(node.id, SplitDirection.horizontal, false),
       onClose: hasMultiplePanes ? () => widget.onClosePane(node.id) : null,
     );
   }

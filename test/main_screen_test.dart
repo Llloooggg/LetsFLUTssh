@@ -2054,7 +2054,7 @@ void main() {
       expect(find.text('SESSIONS'), findsNothing);
     });
 
-    testWidgets('copy buttons shown for terminal tab', (tester) async {
+    testWidgets('duplicate tab button shown for terminal tab', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
@@ -2070,11 +2070,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Copy Right (Ctrl+\\)'), findsOneWidget);
+      expect(find.byTooltip('Duplicate Tab (Ctrl+\\)'), findsOneWidget);
       expect(find.byTooltip('Copy Down (Ctrl+Shift+\\)'), findsOneWidget);
     });
 
-    testWidgets('copy buttons shown for SFTP tab', (tester) async {
+    testWidgets('duplicate tab button shown for SFTP tab', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
@@ -2090,7 +2090,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Copy Right (Ctrl+\\)'), findsOneWidget);
+      expect(find.byTooltip('Duplicate Tab (Ctrl+\\)'), findsOneWidget);
       expect(find.byTooltip('Copy Down (Ctrl+Shift+\\)'), findsOneWidget);
     });
   });

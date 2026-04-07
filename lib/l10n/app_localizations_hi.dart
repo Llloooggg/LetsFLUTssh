@@ -495,13 +495,16 @@ class SHi extends S {
   String get noTransfersYet => 'अभी कोई ट्रांसफ़र नहीं';
 
   @override
-  String get copyRight => 'दाएं कॉपी करें';
+  String get duplicateTab => 'टैब डुप्लिकेट करें';
+
+  @override
+  String get duplicateTabShortcut => 'टैब डुप्लिकेट करें (Ctrl+\\)';
 
   @override
   String get copyDown => 'नीचे कॉपी करें';
 
   @override
-  String get closePane => 'पैन बंद करें';
+  String get copyDownShortcut => 'नीचे कॉपी करें (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'पिछला';
@@ -511,12 +514,6 @@ class SHi extends S {
 
   @override
   String get closeEsc => 'बंद करें (Esc)';
-
-  @override
-  String get copyRightShortcut => 'दाएं कॉपी करें (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'नीचे कॉपी करें (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'सभी बंद करें';

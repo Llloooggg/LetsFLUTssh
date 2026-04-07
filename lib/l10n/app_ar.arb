@@ -159,14 +159,13 @@
   "clearHistory": "مسح السجل",
   "noTransfersYet": "لا توجد عمليات نقل بعد",
 
-  "copyRight": "نسخ لليمين",
+  "duplicateTab": "تكرار التبويب",
+  "duplicateTabShortcut": "تكرار التبويب (Ctrl+\\)",
   "copyDown": "نسخ للأسفل",
-  "closePane": "إغلاق اللوحة",
+  "copyDownShortcut": "نسخ للأسفل (Ctrl+Shift+\\)",
   "previous": "السابق",
   "next": "التالي",
   "closeEsc": "إغلاق (Esc)",
-  "copyRightShortcut": "نسخ لليمين (Ctrl+\\)",
-  "copyDownShortcut": "نسخ للأسفل (Ctrl+Shift+\\)",
 
   "closeAll": "إغلاق الكل",
   "closeOthers": "إغلاق الأخرى",

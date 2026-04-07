@@ -492,13 +492,16 @@ class SJa extends S {
   String get noTransfersYet => '転送履歴はまだありません';
 
   @override
-  String get copyRight => '右にコピー';
+  String get duplicateTab => 'タブを複製';
+
+  @override
+  String get duplicateTabShortcut => 'タブを複製 (Ctrl+\\)';
 
   @override
   String get copyDown => '下にコピー';
 
   @override
-  String get closePane => 'ペインを閉じる';
+  String get copyDownShortcut => '下にコピー (Ctrl+Shift+\\)';
 
   @override
   String get previous => '前へ';
@@ -508,12 +511,6 @@ class SJa extends S {
 
   @override
   String get closeEsc => '閉じる (Esc)';
-
-  @override
-  String get copyRightShortcut => '右にコピー (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => '下にコピー (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'すべて閉じる';

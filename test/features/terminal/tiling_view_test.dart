@@ -46,7 +46,11 @@ void main() {
     testWidgets('renders single leaf pane (TerminalPane)', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'c1');
+      final conn = _buildConnectedConnection(
+        mockSsh: mockSsh,
+        mockSession: mockSession,
+        id: 'c1',
+      );
 
       final leaf = LeafNode(id: 'leaf-1');
 
@@ -66,7 +70,7 @@ void main() {
                   paneConnections: {'leaf-1': conn},
                   focusedPaneId: 'leaf-1',
                   onPaneFocused: (_) {},
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (_) {},
                   onTreeChanged: (_) {},
                 ),
@@ -84,7 +88,9 @@ void main() {
       expect(find.byType(TilingView), findsOneWidget);
     });
 
-    testWidgets('renders SizedBox.shrink when connection not found', (tester) async {
+    testWidgets('renders SizedBox.shrink when connection not found', (
+      tester,
+    ) async {
       final leaf = LeafNode(id: 'orphan');
 
       await tester.pumpWidget(
@@ -103,7 +109,7 @@ void main() {
                   paneConnections: {}, // no connection for 'orphan'
                   focusedPaneId: 'orphan',
                   onPaneFocused: (_) {},
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (_) {},
                   onTreeChanged: (_) {},
                 ),
@@ -122,15 +128,28 @@ void main() {
     testWidgets('renders two panes in a vertical split (Row)', (tester) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'c1');
+      final conn1 = _buildConnectedConnection(
+        mockSsh: mockSsh1,
+        mockSession: mockSession1,
+        id: 'c1',
+      );
 
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'c2');
+      final conn2 = _buildConnectedConnection(
+        mockSsh: mockSsh2,
+        mockSession: mockSession2,
+        id: 'c2',
+      );
 
       final leaf1 = LeafNode(id: 'l1');
       final leaf2 = LeafNode(id: 'l2');
-      final branch = BranchNode(direction: SplitDirection.vertical, ratio: 0.5, first: leaf1, second: leaf2);
+      final branch = BranchNode(
+        direction: SplitDirection.vertical,
+        ratio: 0.5,
+        first: leaf1,
+        second: leaf2,
+      );
 
       await tester.pumpWidget(
         ProviderScope(
@@ -148,7 +167,7 @@ void main() {
                   paneConnections: {'l1': conn1, 'l2': conn2},
                   focusedPaneId: 'l1',
                   onPaneFocused: (_) {},
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (_) {},
                   onTreeChanged: (_) {},
                 ),
@@ -164,18 +183,33 @@ void main() {
       // The LayoutBuilder creates the Row internally
     });
 
-    testWidgets('renders two panes in a horizontal split (Column)', (tester) async {
+    testWidgets('renders two panes in a horizontal split (Column)', (
+      tester,
+    ) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'c1');
+      final conn1 = _buildConnectedConnection(
+        mockSsh: mockSsh1,
+        mockSession: mockSession1,
+        id: 'c1',
+      );
 
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'c2');
+      final conn2 = _buildConnectedConnection(
+        mockSsh: mockSsh2,
+        mockSession: mockSession2,
+        id: 'c2',
+      );
 
       final leaf1 = LeafNode(id: 'h1');
       final leaf2 = LeafNode(id: 'h2');
-      final branch = BranchNode(direction: SplitDirection.horizontal, ratio: 0.5, first: leaf1, second: leaf2);
+      final branch = BranchNode(
+        direction: SplitDirection.horizontal,
+        ratio: 0.5,
+        first: leaf1,
+        second: leaf2,
+      );
 
       await tester.pumpWidget(
         ProviderScope(
@@ -193,7 +227,7 @@ void main() {
                   paneConnections: {'h1': conn1, 'h2': conn2},
                   focusedPaneId: 'h1',
                   onPaneFocused: (_) {},
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (_) {},
                   onTreeChanged: (_) {},
                 ),
@@ -212,14 +246,27 @@ void main() {
     testWidgets('dragging divider changes ratio', (tester) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'c1');
+      final conn1 = _buildConnectedConnection(
+        mockSsh: mockSsh1,
+        mockSession: mockSession1,
+        id: 'c1',
+      );
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'c2');
+      final conn2 = _buildConnectedConnection(
+        mockSsh: mockSsh2,
+        mockSession: mockSession2,
+        id: 'c2',
+      );
 
       final leaf1 = LeafNode(id: 'd1');
       final leaf2 = LeafNode(id: 'd2');
-      final branch = BranchNode(direction: SplitDirection.vertical, ratio: 0.5, first: leaf1, second: leaf2);
+      final branch = BranchNode(
+        direction: SplitDirection.vertical,
+        ratio: 0.5,
+        first: leaf1,
+        second: leaf2,
+      );
 
       SplitNode? changedRoot;
 
@@ -239,7 +286,7 @@ void main() {
                   paneConnections: {'d1': conn1, 'd2': conn2},
                   focusedPaneId: 'd1',
                   onPaneFocused: (_) {},
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (_) {},
                   onTreeChanged: (r) => changedRoot = r,
                 ),
@@ -251,7 +298,9 @@ void main() {
       await tester.pump();
 
       // Find the divider (Container with divider color, between two panes)
-      final divider = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn);
+      final divider = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
+      );
       if (divider.evaluate().isNotEmpty) {
         await tester.drag(divider.first, const Offset(50, 0));
         await tester.pump();
@@ -266,14 +315,27 @@ void main() {
     testWidgets('dragging horizontal divider changes ratio', (tester) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'c1');
+      final conn1 = _buildConnectedConnection(
+        mockSsh: mockSsh1,
+        mockSession: mockSession1,
+        id: 'c1',
+      );
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'c2');
+      final conn2 = _buildConnectedConnection(
+        mockSsh: mockSsh2,
+        mockSession: mockSession2,
+        id: 'c2',
+      );
 
       final leaf1 = LeafNode(id: 'hd1');
       final leaf2 = LeafNode(id: 'hd2');
-      final branch = BranchNode(direction: SplitDirection.horizontal, ratio: 0.5, first: leaf1, second: leaf2);
+      final branch = BranchNode(
+        direction: SplitDirection.horizontal,
+        ratio: 0.5,
+        first: leaf1,
+        second: leaf2,
+      );
 
       SplitNode? changedRoot;
 
@@ -293,7 +355,7 @@ void main() {
                   paneConnections: {'hd1': conn1, 'hd2': conn2},
                   focusedPaneId: 'hd1',
                   onPaneFocused: (_) {},
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (_) {},
                   onTreeChanged: (r) => changedRoot = r,
                 ),
@@ -305,7 +367,9 @@ void main() {
       await tester.pump();
 
       // Find the horizontal divider (resizeRow cursor)
-      final divider = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow);
+      final divider = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
+      );
       if (divider.evaluate().isNotEmpty) {
         await tester.drag(divider.first, const Offset(0, 30));
         await tester.pump();
@@ -316,7 +380,9 @@ void main() {
   });
 
   group('TilingView — no connection', () {
-    testWidgets('renders SizedBox.shrink when paneConnections is empty', (tester) async {
+    testWidgets('renders SizedBox.shrink when paneConnections is empty', (
+      tester,
+    ) async {
       final leaf = LeafNode(id: 'no-conn');
       String? focusedId;
 
@@ -336,7 +402,7 @@ void main() {
                   paneConnections: const {},
                   focusedPaneId: null,
                   onPaneFocused: (id) => focusedId = id,
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (_) {},
                   onTreeChanged: (_) {},
                 ),
@@ -357,10 +423,16 @@ void main() {
   // Leaf callbacks (from tiling_view_callbacks_test.dart)
   // ---------------------------------------------------------------------------
   group('TilingView — leaf callbacks', () {
-    testWidgets('onFocused callback fires with correct pane id', (tester) async {
+    testWidgets('onFocused callback fires with correct pane id', (
+      tester,
+    ) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'focus-cb');
+      final conn = _buildConnectedConnection(
+        mockSsh: mockSsh,
+        mockSession: mockSession,
+        id: 'focus-cb',
+      );
 
       final leaf = LeafNode(id: 'leaf-focus');
       String? focusedId;
@@ -381,7 +453,7 @@ void main() {
                   paneConnections: {'leaf-focus': conn},
                   focusedPaneId: null,
                   onPaneFocused: (id) => focusedId = id,
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (_) {},
                   onTreeChanged: (_) {},
                 ),
@@ -397,103 +469,14 @@ void main() {
       expect(focusedId, 'leaf-focus');
     });
 
-    testWidgets('onSplitVertical callback fires with correct direction', (tester) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'split-v-cb');
-
-      final leaf = LeafNode(id: 'leaf-sv');
-      String? splitPaneId;
-      SplitDirection? splitDir;
-      bool? splitInsertBefore;
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 800,
-                height: 600,
-                child: TilingView(
-                  tabId: 'tab-sv-cb',
-                  root: leaf,
-                  paneConnections: {'leaf-sv': conn},
-                  focusedPaneId: 'leaf-sv',
-                  onPaneFocused: (_) {},
-                  onSplit: (id, dir, before) {
-                    splitPaneId = id;
-                    splitDir = dir;
-                    splitInsertBefore = before;
-                  },
-                  onClosePane: (_) {},
-                  onTreeChanged: (_) {},
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final pane = tester.widget<TerminalPane>(find.byType(TerminalPane).first);
-      pane.onSplitVertical!();
-      expect(splitPaneId, 'leaf-sv');
-      expect(splitDir, SplitDirection.vertical);
-      expect(splitInsertBefore, false);
-    });
-
-    testWidgets('onSplitHorizontal callback fires with correct direction', (tester) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'split-h-cb');
-
-      final leaf = LeafNode(id: 'leaf-sh');
-      String? splitPaneId;
-      SplitDirection? splitDir;
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 800,
-                height: 600,
-                child: TilingView(
-                  tabId: 'tab-sh-cb',
-                  root: leaf,
-                  paneConnections: {'leaf-sh': conn},
-                  focusedPaneId: 'leaf-sh',
-                  onPaneFocused: (_) {},
-                  onSplit: (id, dir, _) {
-                    splitPaneId = id;
-                    splitDir = dir;
-                  },
-                  onClosePane: (_) {},
-                  onTreeChanged: (_) {},
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final pane = tester.widget<TerminalPane>(find.byType(TerminalPane).first);
-      pane.onSplitHorizontal!();
-      expect(splitPaneId, 'leaf-sh');
-      expect(splitDir, SplitDirection.horizontal);
-    });
-
     testWidgets('onClose is null for single pane', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
-      final conn = _buildConnectedConnection(mockSsh: mockSsh, mockSession: mockSession, id: 'single');
+      final conn = _buildConnectedConnection(
+        mockSsh: mockSsh,
+        mockSession: mockSession,
+        id: 'single',
+      );
 
       final leaf = LeafNode(id: 'only-leaf');
 
@@ -513,7 +496,7 @@ void main() {
                   paneConnections: {'only-leaf': conn},
                   focusedPaneId: 'only-leaf',
                   onPaneFocused: (_) {},
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (_) {},
                   onTreeChanged: (_) {},
                 ),
@@ -528,18 +511,32 @@ void main() {
       expect(pane.onClose, isNull);
     });
 
-    testWidgets('onClose fires with correct pane id for multi-pane', (tester) async {
+    testWidgets('onClose fires with correct pane id for multi-pane', (
+      tester,
+    ) async {
       final mockSsh1 = MockSSHConnection();
       final mockSession1 = MockSSHSession();
-      final conn1 = _buildConnectedConnection(mockSsh: mockSsh1, mockSession: mockSession1, id: 'mp1');
+      final conn1 = _buildConnectedConnection(
+        mockSsh: mockSsh1,
+        mockSession: mockSession1,
+        id: 'mp1',
+      );
 
       final mockSsh2 = MockSSHConnection();
       final mockSession2 = MockSSHSession();
-      final conn2 = _buildConnectedConnection(mockSsh: mockSsh2, mockSession: mockSession2, id: 'mp2');
+      final conn2 = _buildConnectedConnection(
+        mockSsh: mockSsh2,
+        mockSession: mockSession2,
+        id: 'mp2',
+      );
 
       final leaf1 = LeafNode(id: 'mp-l1');
       final leaf2 = LeafNode(id: 'mp-l2');
-      final branch = BranchNode(direction: SplitDirection.vertical, first: leaf1, second: leaf2);
+      final branch = BranchNode(
+        direction: SplitDirection.vertical,
+        first: leaf1,
+        second: leaf2,
+      );
 
       String? closedPaneId;
 
@@ -559,7 +556,7 @@ void main() {
                   paneConnections: {'mp-l1': conn1, 'mp-l2': conn2},
                   focusedPaneId: 'mp-l1',
                   onPaneFocused: (_) {},
-                  onSplit: (_, _, _) {},
+
                   onClosePane: (id) => closedPaneId = id,
                   onTreeChanged: (_) {},
                 ),
@@ -570,7 +567,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final panes = tester.widgetList<TerminalPane>(find.byType(TerminalPane)).toList();
+      final panes = tester
+          .widgetList<TerminalPane>(find.byType(TerminalPane))
+          .toList();
       for (final p in panes) {
         expect(p.onClose, isNotNull);
       }

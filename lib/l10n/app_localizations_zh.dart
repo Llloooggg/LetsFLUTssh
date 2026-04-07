@@ -491,13 +491,16 @@ class SZh extends S {
   String get noTransfersYet => '暂无传输记录';
 
   @override
-  String get copyRight => '向右复制';
+  String get duplicateTab => '复制标签页';
+
+  @override
+  String get duplicateTabShortcut => '复制标签页 (Ctrl+\\)';
 
   @override
   String get copyDown => '向下复制';
 
   @override
-  String get closePane => '关闭窗格';
+  String get copyDownShortcut => '向下复制 (Ctrl+Shift+\\)';
 
   @override
   String get previous => '上一个';
@@ -507,12 +510,6 @@ class SZh extends S {
 
   @override
   String get closeEsc => '关闭 (Esc)';
-
-  @override
-  String get copyRightShortcut => '向右复制 (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => '向下复制 (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => '关闭全部';

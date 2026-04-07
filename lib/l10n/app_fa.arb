@@ -159,14 +159,13 @@
   "clearHistory": "پاک کردن تاریخچه",
   "noTransfersYet": "هنوز انتقالی انجام نشده",
 
-  "copyRight": "کپی به راست",
+  "duplicateTab": "کپی تب",
+  "duplicateTabShortcut": "کپی تب (Ctrl+\\)",
   "copyDown": "کپی به پایین",
-  "closePane": "بستن پنل",
+  "copyDownShortcut": "کپی به پایین (Ctrl+Shift+\\)",
   "previous": "قبلی",
   "next": "بعدی",
   "closeEsc": "بستن (Esc)",
-  "copyRightShortcut": "کپی به راست (Ctrl+\\)",
-  "copyDownShortcut": "کپی به پایین (Ctrl+Shift+\\)",
 
   "closeAll": "بستن همه",
   "closeOthers": "بستن بقیه",
