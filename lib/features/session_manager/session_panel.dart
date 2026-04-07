@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
+import '../../core/session/session_tree.dart';
 import '../../core/shortcut_registry.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
@@ -350,8 +351,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   Widget build(BuildContext context) {
     final tree = ref.watch(filteredSessionTreeProvider);
     final searchQuery = ref.watch(sessionSearchProvider);
-    final isEmpty = tree.isEmpty;
-
     final mobile = isMobilePlatform;
 
     final scheme = Theme.of(context).colorScheme;
@@ -367,166 +366,159 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           color: scheme.surfaceContainerLow,
           child: Column(
             children: [
-              if (_selectMode && mobile)
-                MobileSelectionBar(
-                  selectedCount: _selectedIds.length,
-                  totalCount: ref.read(filteredSessionsProvider).length,
-                  onCancel: _exitSelectMode,
-                  onSelectAll: _selectAll,
-                  onDeselectAll: () => setState(() {
-                    _selectedIds.clear();
-                    _selectedFolderPaths.clear();
-                  }),
-                  onDelete:
-                      _selectedIds.isNotEmpty || _selectedFolderPaths.isNotEmpty
-                      ? () => _deleteSelected(context)
-                      : null,
-                  actions: [
-                    AppIconButton(
-                      icon: Icons.drive_file_move,
-                      size: 20,
-                      boxSize: 36,
-                      onTap:
-                          _selectedIds.isNotEmpty ||
-                              _selectedFolderPaths.isNotEmpty
-                          ? () => _moveSelected(context)
-                          : null,
-                      tooltip: S.of(context).moveTo,
-                    ),
-                  ],
-                )
-              else ...[
-                // Header with title + add/select buttons
-                _PanelHeader(
-                  onAddSession: () => _addSession(context, ref),
-                  onAddFolder: () => _createFolder(context, ref, ''),
-                ),
-                // Search bar
-                _SearchBar(
-                  value: searchQuery,
-                  onChanged: (v) =>
-                      ref.read(sessionSearchProvider.notifier).set(v),
-                ),
-                // Desktop marquee selection is shown inline via row highlights.
-                // Bulk actions available via right-click context menu.
-              ],
-              // Tree view
+              ..._buildHeader(context, ref, searchQuery, mobile),
               Expanded(
-                child: isEmpty
+                child: tree.isEmpty
                     ? _EmptyState(onAdd: () => _addSession(context, ref))
-                    : SessionTreeView(
-                        tree: tree,
-                        connectedSessionIds: _connectedSessionIds(ref),
-                        connectingSessionIds: _connectingSessionIds(ref),
-                        collapsedFolders: ref
-                            .watch(sessionStoreProvider)
-                            .collapsedFolders,
-                        onToggleFolderCollapsed: (path) => ref
-                            .read(sessionStoreProvider)
-                            .toggleFolderCollapsed(path),
-                        selectMode: mobile && _selectMode,
-                        selectedIds: _selectedIds,
-                        onToggleSelected: _toggleSelected,
-                        selectedFolderPaths: _selectedFolderPaths,
-                        onToggleFolderSelected: _toggleFolderSelected,
-                        crossMarquee: widget.crossMarquee,
-                        reverseCrossMarquee: widget.reverseCrossMarquee,
-                        focusedSessionId: _focusedSessionId,
-                        onSessionDoubleTap: widget.onConnect,
-                        onSessionSelected: (id) {
-                          setState(() {
-                            _focusedSessionId = id;
-                            _focusedFolderPath = null;
-                          });
-                          if (!mobile) _focusNode.requestFocus();
-                        },
-                        onFolderSelected: (path, count) {
-                          setState(() {
-                            _focusedFolderPath = path;
-                            _focusedFolderItemCount = count;
-                            _focusedSessionId = null;
-                          });
-                        },
-                        onEmptySpaceTap: () {
-                          setState(() {
-                            _focusedSessionId = null;
-                            _focusedFolderPath = null;
-                          });
-                        },
-                        onSessionContextMenu: (session, position) {
-                          _showContextMenu(context, ref, session, position);
-                        },
-                        onFolderContextMenu: (folderPath, position) {
-                          _showFolderContextMenu(
-                            context,
-                            ref,
-                            folderPath,
-                            position,
-                          );
-                        },
-                        onBackgroundContextMenu: (position) {
-                          _showFolderContextMenu(context, ref, '', position);
-                        },
-                        onSessionMoved: (sessionId, targetFolder) {
-                          ref
-                              .read(sessionProvider.notifier)
-                              .moveSession(sessionId, targetFolder);
-                        },
-                        onFolderMoved: (folderPath, targetParent) {
-                          ref
-                              .read(sessionProvider.notifier)
-                              .moveFolder(folderPath, targetParent);
-                        },
-                        onBulkMoved:
-                            (sessionIds, folderPaths, targetFolder) async {
-                              final notifier = ref.read(
-                                sessionProvider.notifier,
-                              );
-                              if (sessionIds.isNotEmpty) {
-                                await notifier.moveMultiple(
-                                  sessionIds,
-                                  targetFolder,
-                                );
-                              }
-                              for (final gp in folderPaths) {
-                                await notifier.moveFolder(gp, targetFolder);
-                              }
-                              clearDesktopSelection();
-                            },
-                        onMarqueeStart: () =>
-                            setState(() => marqueeInProgress = true),
-                        onMarqueeEnd: () =>
-                            setState(() => marqueeInProgress = false),
-                        onMarqueeSelect: (ids, folderPaths) {
-                          setState(() {
-                            _selectedIds
-                              ..clear()
-                              ..addAll(ids);
-                            _selectedFolderPaths
-                              ..clear()
-                              ..addAll(folderPaths);
-                          });
-                        },
-                      ),
+                    : _buildTreeView(context, ref, tree, mobile),
               ),
-              // Details panel — only on desktop
               if (!mobile)
                 _SessionDetailsPanel(
-                  session: _focusedSessionId != null
-                      ? ref
-                            .read(sessionProvider)
-                            .where((s) => s.id == _focusedSessionId)
-                            .firstOrNull
-                      : null,
+                  session: _focusedSession(ref),
                   folderPath: _focusedFolderPath,
                   folderItemCount: _focusedFolderItemCount,
                 ),
-              // Footer — only on desktop (mobile shows counts in MobileShell header)
               if (!mobile) const _SidebarFooter(),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Session? _focusedSession(WidgetRef ref) {
+    if (_focusedSessionId == null) return null;
+    return ref
+        .read(sessionProvider)
+        .where((s) => s.id == _focusedSessionId)
+        .firstOrNull;
+  }
+
+  List<Widget> _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
+    String searchQuery,
+    bool mobile,
+  ) {
+    if (_selectMode && mobile) {
+      return [_buildMobileSelectionBar(context, ref)];
+    }
+    return [
+      _PanelHeader(
+        onAddSession: () => _addSession(context, ref),
+        onAddFolder: () => _createFolder(context, ref, ''),
+      ),
+      _SearchBar(
+        value: searchQuery,
+        onChanged: (v) => ref.read(sessionSearchProvider.notifier).set(v),
+      ),
+    ];
+  }
+
+  Widget _buildMobileSelectionBar(BuildContext context, WidgetRef ref) {
+    final hasSelection =
+        _selectedIds.isNotEmpty || _selectedFolderPaths.isNotEmpty;
+    return MobileSelectionBar(
+      selectedCount: _selectedIds.length,
+      totalCount: ref.read(filteredSessionsProvider).length,
+      onCancel: _exitSelectMode,
+      onSelectAll: _selectAll,
+      onDeselectAll: () => setState(() {
+        _selectedIds.clear();
+        _selectedFolderPaths.clear();
+      }),
+      onDelete: hasSelection ? () => _deleteSelected(context) : null,
+      actions: [
+        AppIconButton(
+          icon: Icons.drive_file_move,
+          size: 20,
+          boxSize: 36,
+          onTap: hasSelection ? () => _moveSelected(context) : null,
+          tooltip: S.of(context).moveTo,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTreeView(
+    BuildContext context,
+    WidgetRef ref,
+    List<SessionTreeNode> tree,
+    bool mobile,
+  ) {
+    return SessionTreeView(
+      tree: tree,
+      connectedSessionIds: _connectedSessionIds(ref),
+      connectingSessionIds: _connectingSessionIds(ref),
+      collapsedFolders: ref.watch(sessionStoreProvider).collapsedFolders,
+      onToggleFolderCollapsed: (path) =>
+          ref.read(sessionStoreProvider).toggleFolderCollapsed(path),
+      selectMode: mobile && _selectMode,
+      selectedIds: _selectedIds,
+      onToggleSelected: _toggleSelected,
+      selectedFolderPaths: _selectedFolderPaths,
+      onToggleFolderSelected: _toggleFolderSelected,
+      crossMarquee: widget.crossMarquee,
+      reverseCrossMarquee: widget.reverseCrossMarquee,
+      focusedSessionId: _focusedSessionId,
+      onSessionDoubleTap: widget.onConnect,
+      onSessionSelected: (id) {
+        setState(() {
+          _focusedSessionId = id;
+          _focusedFolderPath = null;
+        });
+        if (!mobile) _focusNode.requestFocus();
+      },
+      onFolderSelected: (path, count) {
+        setState(() {
+          _focusedFolderPath = path;
+          _focusedFolderItemCount = count;
+          _focusedSessionId = null;
+        });
+      },
+      onEmptySpaceTap: () {
+        setState(() {
+          _focusedSessionId = null;
+          _focusedFolderPath = null;
+        });
+      },
+      onSessionContextMenu: (session, position) {
+        _showContextMenu(context, ref, session, position);
+      },
+      onFolderContextMenu: (folderPath, position) {
+        _showFolderContextMenu(context, ref, folderPath, position);
+      },
+      onBackgroundContextMenu: (position) {
+        _showFolderContextMenu(context, ref, '', position);
+      },
+      onSessionMoved: (sessionId, targetFolder) {
+        ref.read(sessionProvider.notifier).moveSession(sessionId, targetFolder);
+      },
+      onFolderMoved: (folderPath, targetParent) {
+        ref.read(sessionProvider.notifier).moveFolder(folderPath, targetParent);
+      },
+      onBulkMoved: (sessionIds, folderPaths, targetFolder) async {
+        final notifier = ref.read(sessionProvider.notifier);
+        if (sessionIds.isNotEmpty) {
+          await notifier.moveMultiple(sessionIds, targetFolder);
+        }
+        for (final gp in folderPaths) {
+          await notifier.moveFolder(gp, targetFolder);
+        }
+        clearDesktopSelection();
+      },
+      onMarqueeStart: () => setState(() => marqueeInProgress = true),
+      onMarqueeEnd: () => setState(() => marqueeInProgress = false),
+      onMarqueeSelect: (ids, folderPaths) {
+        setState(() {
+          _selectedIds
+            ..clear()
+            ..addAll(ids);
+          _selectedFolderPaths
+            ..clear()
+            ..addAll(folderPaths);
+        });
+      },
     );
   }
 
