@@ -76,7 +76,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
   }
 
   Future<void> _pickKeyFile() async {
-    final result = await FilePicker.platform.pickFiles();
+    final result = await FilePicker.pickFiles();
     if (result == null || result.files.single.path == null) return;
     final path = result.files.single.path!;
     final pemContent = KeyFileHelper.tryReadPemKey(path);
