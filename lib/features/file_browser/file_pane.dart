@@ -50,6 +50,10 @@ class FilePane extends StatefulWidget {
   /// starts in the session panel and crosses into this file pane.
   final CrossMarqueeController? crossMarquee;
 
+  /// Reverse cross-marquee: sends events when a marquee drag exits the
+  /// left boundary of this file pane towards the session panel.
+  final CrossMarqueeController? reverseCrossMarquee;
+
   /// Whether to calculate and display folder sizes.
   final bool showFolderSizes;
 
@@ -65,6 +69,7 @@ class FilePane extends StatefulWidget {
     this.onOsDropReceived,
     this.onPaneActivated,
     this.crossMarquee,
+    this.reverseCrossMarquee,
     this.showFolderSizes = false,
   });
 
@@ -701,6 +706,55 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     _preMarqueeSelection = null;
   }
 
+  // ── Reverse cross-marquee (file pane → session panel) ──
+
+  bool _reverseCrossActive = false;
+
+  void _handlePointerMove(PointerMoveEvent e) {
+    if (marqueeDragActive || marqueeAnchor == null) return;
+
+    // Detect exit through the left boundary → forward to session panel.
+    if (widget.reverseCrossMarquee != null) {
+      final box = _fileListKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null) {
+        final local = e.localPosition;
+        if (local.dx < 0) {
+          // Pointer left the file pane to the left.
+          if (marqueeActive) {
+            setState(() {
+              marqueeStart = null;
+              marqueeCurrent = null;
+              marqueeActive = false;
+            });
+            onMarqueeDeactivated();
+          }
+          if (!_reverseCrossActive) {
+            _reverseCrossActive = true;
+            widget.reverseCrossMarquee!.start(e.position);
+          } else {
+            widget.reverseCrossMarquee!.move(e.position);
+          }
+          return;
+        }
+        if (_reverseCrossActive) {
+          _reverseCrossActive = false;
+          widget.reverseCrossMarquee!.end();
+          marqueeAnchor = e.localPosition;
+        }
+      }
+    }
+
+    handleMarqueePointerMove(e);
+  }
+
+  void _handlePointerUp(PointerUpEvent e) {
+    if (_reverseCrossActive) {
+      _reverseCrossActive = false;
+      widget.reverseCrossMarquee?.end();
+    }
+    handleMarqueePointerUp(e);
+  }
+
   // ── File list ──
 
   Widget _buildFileList(
@@ -791,8 +845,12 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   ) {
     return Listener(
       onPointerDown: handleMarqueePointerDown,
-      onPointerMove: handleMarqueePointerMove,
-      onPointerUp: handleMarqueePointerUp,
+      onPointerMove: widget.reverseCrossMarquee != null
+          ? _handlePointerMove
+          : handleMarqueePointerMove,
+      onPointerUp: widget.reverseCrossMarquee != null
+          ? _handlePointerUp
+          : handleMarqueePointerUp,
       child: GestureDetector(
         onSecondaryTapUp: (d) =>
             _showBackgroundContextMenu(context, d.globalPosition),

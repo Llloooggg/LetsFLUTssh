@@ -518,6 +518,9 @@ class SFa extends S {
   String get copyDownShortcut => 'کپی به پایین (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'بستن همه';
+
+  @override
   String get closeOthers => 'بستن بقیه';
 
   @override
@@ -525,6 +528,12 @@ class SFa extends S {
 
   @override
   String get closeTabsToTheRight => 'بستن تب‌های سمت راست';
+
+  @override
+  String get sortByName => 'مرتب‌سازی بر اساس نام';
+
+  @override
+  String get sortByStatus => 'مرتب‌سازی بر اساس وضعیت';
 
   @override
   String get noActiveSession => 'جلسه فعالی وجود ندارد';
@@ -815,6 +824,9 @@ class SFa extends S {
   String get showQr => 'نمایش QR';
 
   @override
+  String get sort => 'مرتب‌سازی';
+
+  @override
   String get resizePanelDivider => 'تغییر اندازه جداکننده پنل';
 
   @override
@@ -1006,6 +1018,26 @@ class SFa extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'نام کاربری';
+
+  @override
+  String get protocol => 'پروتکل';
+
+  @override
+  String get typeLabel => 'نوع';
+
+  @override
+  String get folder => 'پوشه';
+
+  @override
+  String nSubitems(int count) {
+    return '$count مورد';
+  }
+
+  @override
+  String get subitems => 'موارد';
 
   @override
   String get storagePermissionRequired =>

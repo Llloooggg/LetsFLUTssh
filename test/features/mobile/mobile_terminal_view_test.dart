@@ -899,5 +899,89 @@ void main() {
       await stdoutCtrl.close();
       await stderrCtrl.close();
     });
+
+    testWidgets('scale gestures disabled during select mode', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: MobileTerminalView(connection: conn)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Before select mode: scale gestures are configured
+      var gds = tester.widgetList<GestureDetector>(
+        find.byType(GestureDetector),
+      );
+      expect(gds.where((g) => g.onScaleStart != null), isNotEmpty);
+
+      // Enable select mode
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      // After select mode: scale gestures are disabled
+      gds = tester.widgetList<GestureDetector>(find.byType(GestureDetector));
+      expect(gds.where((g) => g.onScaleStart != null), isEmpty);
+
+      // Disable select mode
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      // Scale gestures re-enabled
+      gds = tester.widgetList<GestureDetector>(find.byType(GestureDetector));
+      expect(gds.where((g) => g.onScaleStart != null), isNotEmpty);
+    });
+
+    testWidgets('selection toolbar is positioned as overlay in Stack', (
+      tester,
+    ) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: MobileTerminalView(connection: conn)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Enable select mode
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      // Simulate selection via controller using BufferLine anchors
+      final terminalView = tester.widget<TerminalView>(
+        find.byType(TerminalView),
+      );
+      final controller = terminalView.controller!;
+      final terminal = terminalView.terminal;
+      final line = terminal.buffer.lines[0];
+      final base = line.createAnchor(0);
+      final extent = line.createAnchor(3);
+      controller.setSelection(base, extent);
+      await tester.pump();
+
+      // Toolbar should appear as overlay (inside Positioned, not Column)
+      expect(find.text('Copy'), findsOneWidget);
+      final positioned = tester.widgetList<Positioned>(
+        find.ancestor(of: find.text('Copy'), matching: find.byType(Positioned)),
+      );
+      expect(positioned, isNotEmpty);
+      expect(positioned.first.bottom, 0);
+    });
   });
 }

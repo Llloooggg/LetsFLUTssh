@@ -154,9 +154,12 @@
   "closeEsc": "閉じる (Esc)",
   "copyRightShortcut": "右にコピー (Ctrl+\\)",
   "copyDownShortcut": "下にコピー (Ctrl+Shift+\\)",
+  "closeAll": "すべて閉じる",
   "closeOthers": "他を閉じる",
   "closeTabsToTheLeft": "左のタブを閉じる",
   "closeTabsToTheRight": "右のタブを閉じる",
+  "sortByName": "名前で並べ替え",
+  "sortByStatus": "ステータスで並べ替え",
   "noActiveSession": "アクティブなセッションがありません",
   "createConnectionHint": "新しい接続を作成するか、サイドバーから選択してください",
   "hideSidebar": "サイドバーを隠す (Ctrl+B)",
@@ -248,6 +251,7 @@
   "qrTooLarge": "データが大きすぎます — 選択を減らすか、.lfsファイルエクスポートを使用してください。",
   "exportAll": "すべてエクスポート",
   "showQr": "QRを表示",
+  "sort": "並べ替え",
   "resizePanelDivider": "パネル分割線のサイズ変更",
   "youreRunningLatest": "最新バージョンを使用中です",
   "liveLog": "ライブログ",
@@ -305,6 +309,18 @@
   "errDecryptionFailed": "認証情報の復号に失敗しました。鍵ファイルが破損している可能性があります。",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error}（{cause}）",
+  "login": "ログイン",
+  "protocol": "プロトコル",
+  "typeLabel": "タイプ",
+  "folder": "フォルダー",
+  "nSubitems": "{count} 個のアイテム",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "アイテム",
+
   "storagePermissionRequired": "ローカルファイルを閲覧するにはストレージ権限が必要です",
   "grantPermission": "権限を付与",
   "storagePermissionLimited": "制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください"

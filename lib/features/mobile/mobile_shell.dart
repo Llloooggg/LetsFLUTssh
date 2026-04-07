@@ -12,6 +12,7 @@ import '../session_manager/session_connect.dart';
 import '../session_manager/session_panel.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/context_menu.dart';
 import '../../widgets/status_indicator.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_model.dart';
@@ -375,6 +376,9 @@ class _MobileSessionsPage extends ConsumerWidget {
   }
 }
 
+/// Sort order for mobile tab chips.
+enum _TabSort { none, name, status }
+
 /// Horizontal chip-based tab selector shared by terminal and SFTP pages.
 class _MobileTabChipBar extends ConsumerStatefulWidget {
   final List<TabEntry> filteredTabs;
@@ -392,6 +396,7 @@ class _MobileTabChipBar extends ConsumerStatefulWidget {
 class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
   final _scrollController = ScrollController();
   int _previousTabCount = 0;
+  _TabSort _sort = _TabSort.none;
 
   @override
   void initState() {
@@ -419,18 +424,125 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     super.dispose();
   }
 
+  List<TabEntry> get _sortedTabs {
+    final tabs = [...widget.filteredTabs];
+    switch (_sort) {
+      case _TabSort.none:
+        return tabs;
+      case _TabSort.name:
+        tabs.sort((a, b) => a.label.compareTo(b.label));
+        return tabs;
+      case _TabSort.status:
+        tabs.sort((a, b) {
+          final aConn = a.connection.isConnected ? 0 : 1;
+          final bConn = b.connection.isConnected ? 0 : 1;
+          final cmp = aConn.compareTo(bConn);
+          return cmp != 0 ? cmp : a.label.compareTo(b.label);
+        });
+        return tabs;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final sorted = _sortedTabs;
     return SizedBox(
       height: AppTheme.controlHeightLg,
-      child: ListView.builder(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        itemCount: widget.filteredTabs.length,
-        itemBuilder: (context, index) =>
-            _buildTabChip(widget.filteredTabs[index]),
+      child: Row(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.zero,
+              itemCount: sorted.length,
+              itemBuilder: (context, index) => _buildTabChip(sorted[index]),
+            ),
+          ),
+          if (widget.filteredTabs.length > 1) _buildSortButton(context),
+        ],
       ),
+    );
+  }
+
+  Widget _buildSortButton(BuildContext context) {
+    final s = S.of(context);
+    return PopupMenuButton<_TabSort>(
+      icon: Icon(
+        Icons.sort,
+        size: 16,
+        color: _sort == _TabSort.none ? AppTheme.fgDim : AppTheme.accent,
+      ),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      tooltip: '',
+      onSelected: (v) => setState(() => _sort = _sort == v ? _TabSort.none : v),
+      itemBuilder: (_) => [
+        _sortItem(_TabSort.name, s.sortByName, Icons.sort_by_alpha),
+        _sortItem(_TabSort.status, s.sortByStatus, Icons.wifi),
+      ],
+    );
+  }
+
+  PopupMenuEntry<_TabSort> _sortItem(
+    _TabSort value,
+    String label,
+    IconData icon,
+  ) {
+    return PopupMenuItem<_TabSort>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppTheme.fgDim),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(fontSize: AppFonts.sm)),
+          if (_sort == value) ...[
+            const Spacer(),
+            Icon(Icons.check, size: 14, color: AppTheme.accent),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showTabContextMenu(
+    BuildContext context,
+    TabEntry tab,
+    Offset position,
+  ) {
+    final ws = ref.read(workspaceProvider);
+    final panelId = ws.focusedPanelId;
+    final panel = findPanel(ws.root, panelId);
+    if (panel == null) return;
+    final index = panel.tabs.indexWhere((t) => t.id == tab.id);
+    if (index < 0) return;
+    final notifier = ref.read(workspaceProvider.notifier);
+    final s = S.of(context);
+    showAppContextMenu(
+      context: context,
+      position: position,
+      items: [
+        ContextMenuItem(
+          label: s.close,
+          icon: Icons.close,
+          onTap: () => notifier.closeTab(panelId, tab.id),
+        ),
+        if (panel.tabs.length > 1)
+          ContextMenuItem(
+            label: s.closeOthers,
+            icon: Icons.tab_unselected,
+            onTap: () => notifier.closeOthers(panelId, tab.id),
+          ),
+        if (panel.tabs.length > 1) ...[
+          const ContextMenuItem.divider(),
+          ContextMenuItem(
+            label: s.closeAll,
+            icon: Icons.close_fullscreen,
+            color: AppTheme.red,
+            onTap: () => notifier.closeAll(panelId),
+          ),
+        ],
+      ],
     );
   }
 
@@ -451,6 +563,8 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
           }
         }
       },
+      onLongPressStart: (details) =>
+          _showTabContextMenu(context, tab, details.globalPosition),
       child: SizedBox(
         height: AppTheme.controlHeightLg,
         child: Stack(

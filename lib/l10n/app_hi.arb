@@ -153,9 +153,12 @@
   "closeEsc": "बंद करें (Esc)",
   "copyRightShortcut": "दाएं कॉपी करें (Ctrl+\\)",
   "copyDownShortcut": "नीचे कॉपी करें (Ctrl+Shift+\\)",
+  "closeAll": "सभी बंद करें",
   "closeOthers": "अन्य बंद करें",
   "closeTabsToTheLeft": "बाईं ओर के टैब बंद करें",
   "closeTabsToTheRight": "दाईं ओर के टैब बंद करें",
+  "sortByName": "नाम से क्रमबद्ध करें",
+  "sortByStatus": "स्थिति से क्रमबद्ध करें",
   "noActiveSession": "कोई सक्रिय सत्र नहीं",
   "createConnectionHint": "नया कनेक्शन बनाएं या साइडबार से एक चुनें",
   "hideSidebar": "साइडबार छिपाएं (Ctrl+B)",
@@ -245,6 +248,7 @@
   "qrTooLarge": "बहुत बड़ा — कुछ सत्र अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।",
   "exportAll": "सभी निर्यात करें",
   "showQr": "QR दिखाएं",
+  "sort": "क्रमबद्ध करें",
   "resizePanelDivider": "पैनल डिवाइडर का आकार बदलें",
   "youreRunningLatest": "आप नवीनतम संस्करण चला रहे हैं",
   "liveLog": "लाइव लॉग",
@@ -301,6 +305,18 @@
   "errDecryptionFailed": "क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "लॉगिन",
+  "protocol": "प्रोटोकॉल",
+  "typeLabel": "प्रकार",
+  "folder": "फ़ोल्डर",
+  "nSubitems": "{count} आइटम",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "आइटम",
+
   "storagePermissionRequired": "स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है",
   "grantPermission": "अनुमति दें",
   "storagePermissionLimited": "सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें"

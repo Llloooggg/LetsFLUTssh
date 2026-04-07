@@ -515,6 +515,9 @@ class SKo extends S {
   String get copyDownShortcut => '아래에 복사 (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => '모두 닫기';
+
+  @override
   String get closeOthers => '다른 탭 닫기';
 
   @override
@@ -522,6 +525,12 @@ class SKo extends S {
 
   @override
   String get closeTabsToTheRight => '오른쪽 탭 닫기';
+
+  @override
+  String get sortByName => '이름순 정렬';
+
+  @override
+  String get sortByStatus => '상태순 정렬';
 
   @override
   String get noActiveSession => '활성 세션 없음';
@@ -805,6 +814,9 @@ class SKo extends S {
   String get showQr => 'QR 표시';
 
   @override
+  String get sort => '정렬';
+
+  @override
   String get resizePanelDivider => '패널 구분선 크기 조정';
 
   @override
@@ -995,6 +1007,26 @@ class SKo extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => '로그인';
+
+  @override
+  String get protocol => '프로토콜';
+
+  @override
+  String get typeLabel => '유형';
+
+  @override
+  String get folder => '폴더';
+
+  @override
+  String nSubitems(int count) {
+    return '$count개 항목';
+  }
+
+  @override
+  String get subitems => '항목';
 
   @override
   String get storagePermissionRequired => '로컬 파일을 탐색하려면 저장소 권한이 필요합니다';

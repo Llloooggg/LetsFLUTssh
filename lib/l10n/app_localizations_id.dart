@@ -522,6 +522,9 @@ class SId extends S {
   String get copyDownShortcut => 'Salin ke Bawah (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Tutup Semua';
+
+  @override
   String get closeOthers => 'Tutup Lainnya';
 
   @override
@@ -529,6 +532,12 @@ class SId extends S {
 
   @override
   String get closeTabsToTheRight => 'Tutup Tab di Kanan';
+
+  @override
+  String get sortByName => 'Urutkan berdasarkan Nama';
+
+  @override
+  String get sortByStatus => 'Urutkan berdasarkan Status';
 
   @override
   String get noActiveSession => 'Tidak ada sesi aktif';
@@ -819,6 +828,9 @@ class SId extends S {
   String get showQr => 'Tampilkan QR';
 
   @override
+  String get sort => 'Urutkan';
+
+  @override
   String get resizePanelDivider => 'Ubah ukuran pembagi panel';
 
   @override
@@ -1012,6 +1024,26 @@ class SId extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'Login';
+
+  @override
+  String get protocol => 'Protokol';
+
+  @override
+  String get typeLabel => 'Tipe';
+
+  @override
+  String get folder => 'Folder';
+
+  @override
+  String nSubitems(int count) {
+    return '$count item';
+  }
+
+  @override
+  String get subitems => 'Item';
 
   @override
   String get storagePermissionRequired =>

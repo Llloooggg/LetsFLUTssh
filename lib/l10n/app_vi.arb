@@ -153,9 +153,12 @@
   "closeEsc": "Đóng (Esc)",
   "copyRightShortcut": "Sao chép sang phải (Ctrl+\\)",
   "copyDownShortcut": "Sao chép xuống dưới (Ctrl+Shift+\\)",
+  "closeAll": "Đóng tất cả",
   "closeOthers": "Đóng các tab khác",
   "closeTabsToTheLeft": "Đóng các tab bên trái",
   "closeTabsToTheRight": "Đóng các tab bên phải",
+  "sortByName": "Sắp xếp theo tên",
+  "sortByStatus": "Sắp xếp theo trạng thái",
   "noActiveSession": "Không có phiên đang hoạt động",
   "createConnectionHint": "Tạo kết nối mới hoặc chọn một kết nối từ thanh bên",
   "hideSidebar": "Ẩn thanh bên (Ctrl+B)",
@@ -245,6 +248,7 @@
   "qrTooLarge": "Quá lớn — bỏ chọn một số phiên hoặc sử dụng xuất tệp .lfs.",
   "exportAll": "Xuất tất cả",
   "showQr": "Hiện QR",
+  "sort": "Sắp xếp",
   "resizePanelDivider": "Thay đổi kích thước thanh phân chia",
   "youreRunningLatest": "Bạn đang sử dụng phiên bản mới nhất",
   "liveLog": "Nhật ký trực tiếp",
@@ -301,6 +305,18 @@
   "errDecryptionFailed": "Không thể giải mã thông tin xác thực. Tệp khóa có thể bị hỏng.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Đăng nhập",
+  "protocol": "Giao thức",
+  "typeLabel": "Loại",
+  "folder": "Thư mục",
+  "nSubitems": "{count} mục",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Mục",
+
   "storagePermissionRequired": "Cần quyền truy cập bộ nhớ để duyệt tệp cục bộ",
   "grantPermission": "Cấp quyền",
   "storagePermissionLimited": "Truy cập hạn chế — cấp quyền truy cập bộ nhớ đầy đủ cho tất cả tệp"

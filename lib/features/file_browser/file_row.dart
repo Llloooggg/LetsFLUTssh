@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/sftp/sftp_models.dart';
@@ -144,7 +143,8 @@ class FileRow extends StatelessWidget {
     final theme = Theme.of(context);
 
     return HoverRegion(
-      onTap: _handleTap,
+      onTap: onTap,
+      onCtrlTap: onCtrlTap,
       onDoubleTap: onDoubleTap,
       onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
       builder: (hovered) => Container(
@@ -155,14 +155,6 @@ class FileRow extends StatelessWidget {
         child: Row(children: _buildColumns(theme)),
       ),
     );
-  }
-
-  void _handleTap() {
-    final keys = HardwareKeyboard.instance.logicalKeysPressed;
-    final ctrlHeld =
-        keys.contains(LogicalKeyboardKey.controlLeft) ||
-        keys.contains(LogicalKeyboardKey.controlRight);
-    ctrlHeld ? onCtrlTap() : onTap();
   }
 
   Color? _rowColor(bool hovered) {

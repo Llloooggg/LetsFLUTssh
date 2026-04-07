@@ -524,6 +524,9 @@ class SFr extends S {
   String get copyDownShortcut => 'Copier en bas (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Tout fermer';
+
+  @override
   String get closeOthers => 'Fermer les autres';
 
   @override
@@ -531,6 +534,12 @@ class SFr extends S {
 
   @override
   String get closeTabsToTheRight => 'Fermer les onglets à droite';
+
+  @override
+  String get sortByName => 'Trier par nom';
+
+  @override
+  String get sortByStatus => 'Trier par statut';
 
   @override
   String get noActiveSession => 'Aucune session active';
@@ -822,6 +831,9 @@ class SFr extends S {
   String get showQr => 'Afficher le QR';
 
   @override
+  String get sort => 'Trier';
+
+  @override
   String get resizePanelDivider => 'Redimensionner le séparateur de panneaux';
 
   @override
@@ -1018,6 +1030,26 @@ class SFr extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'Identifiant';
+
+  @override
+  String get protocol => 'Protocole';
+
+  @override
+  String get typeLabel => 'Type';
+
+  @override
+  String get folder => 'Dossier';
+
+  @override
+  String nSubitems(int count) {
+    return '$count élément(s)';
+  }
+
+  @override
+  String get subitems => 'Éléments';
 
   @override
   String get storagePermissionRequired =>

@@ -153,9 +153,12 @@
   "closeEsc": "Tutup (Esc)",
   "copyRightShortcut": "Salin ke Kanan (Ctrl+\\)",
   "copyDownShortcut": "Salin ke Bawah (Ctrl+Shift+\\)",
+  "closeAll": "Tutup Semua",
   "closeOthers": "Tutup Lainnya",
   "closeTabsToTheLeft": "Tutup Tab di Kiri",
   "closeTabsToTheRight": "Tutup Tab di Kanan",
+  "sortByName": "Urutkan berdasarkan Nama",
+  "sortByStatus": "Urutkan berdasarkan Status",
   "noActiveSession": "Tidak ada sesi aktif",
   "createConnectionHint": "Buat koneksi baru atau pilih dari sidebar",
   "hideSidebar": "Sembunyikan Sidebar (Ctrl+B)",
@@ -245,6 +248,7 @@
   "qrTooLarge": "Terlalu besar — batalkan beberapa sesi atau gunakan ekspor file .lfs.",
   "exportAll": "Ekspor Semua",
   "showQr": "Tampilkan QR",
+  "sort": "Urutkan",
   "resizePanelDivider": "Ubah ukuran pembagi panel",
   "youreRunningLatest": "Anda menggunakan versi terbaru",
   "liveLog": "Log Langsung",
@@ -301,6 +305,18 @@
   "errDecryptionFailed": "Gagal mendekripsi kredensial. File kunci mungkin rusak.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Login",
+  "protocol": "Protokol",
+  "typeLabel": "Tipe",
+  "folder": "Folder",
+  "nSubitems": "{count} item",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Item",
+
   "storagePermissionRequired": "Izin penyimpanan diperlukan untuk menjelajahi file lokal",
   "grantPermission": "Berikan izin",
   "storagePermissionLimited": "Akses terbatas — berikan izin penyimpanan penuh untuk semua file"

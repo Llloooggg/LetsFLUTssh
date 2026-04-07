@@ -153,9 +153,12 @@
   "closeEsc": "Kapat (Esc)",
   "copyRightShortcut": "Sağa Kopyala (Ctrl+\\)",
   "copyDownShortcut": "Aşağı Kopyala (Ctrl+Shift+\\)",
+  "closeAll": "Tümünü Kapat",
   "closeOthers": "Diğerlerini Kapat",
   "closeTabsToTheLeft": "Soldaki Sekmeleri Kapat",
   "closeTabsToTheRight": "Sağdaki Sekmeleri Kapat",
+  "sortByName": "Ada Göre Sırala",
+  "sortByStatus": "Duruma Göre Sırala",
   "noActiveSession": "Aktif oturum yok",
   "createConnectionHint": "Yeni bir bağlantı oluşturun veya kenar çubuğundan birini seçin",
   "hideSidebar": "Kenar Çubuğunu Gizle (Ctrl+B)",
@@ -245,6 +248,7 @@
   "qrTooLarge": "Çok büyük — bazı oturumların seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.",
   "exportAll": "Tümünü Dışa Aktar",
   "showQr": "QR Göster",
+  "sort": "Sırala",
   "resizePanelDivider": "Panel ayırıcısını yeniden boyutlandır",
   "youreRunningLatest": "En son sürümü kullanıyorsunuz",
   "liveLog": "Canlı Günlük",
@@ -301,6 +305,18 @@
   "errDecryptionFailed": "Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Kullanıcı adı",
+  "protocol": "Protokol",
+  "typeLabel": "Tür",
+  "folder": "Klasör",
+  "nSubitems": "{count} öğe",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Öğeler",
+
   "storagePermissionRequired": "Yerel dosyalara göz atmak için depolama izni gerekli",
   "grantPermission": "İzin ver",
   "storagePermissionLimited": "Sınırlı erişim — tüm dosyalar için tam depolama izni verin"

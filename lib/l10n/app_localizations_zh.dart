@@ -515,6 +515,9 @@ class SZh extends S {
   String get copyDownShortcut => '向下复制 (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => '关闭全部';
+
+  @override
   String get closeOthers => '关闭其他';
 
   @override
@@ -522,6 +525,12 @@ class SZh extends S {
 
   @override
   String get closeTabsToTheRight => '关闭右侧标签页';
+
+  @override
+  String get sortByName => '按名称排序';
+
+  @override
+  String get sortByStatus => '按状态排序';
 
   @override
   String get noActiveSession => '没有活动会话';
@@ -803,6 +812,9 @@ class SZh extends S {
   String get showQr => '显示 QR';
 
   @override
+  String get sort => '排序';
+
+  @override
   String get resizePanelDivider => '调整面板分隔线';
 
   @override
@@ -993,6 +1005,26 @@ class SZh extends S {
   String errWithCause(String error, String cause) {
     return '$error（$cause）';
   }
+
+  @override
+  String get login => '用户名';
+
+  @override
+  String get protocol => '协议';
+
+  @override
+  String get typeLabel => '类型';
+
+  @override
+  String get folder => '文件夹';
+
+  @override
+  String nSubitems(int count) {
+    return '$count 个项目';
+  }
+
+  @override
+  String get subitems => '项目';
 
   @override
   String get storagePermissionRequired => '需要存储权限才能浏览本地文件';

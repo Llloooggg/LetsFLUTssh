@@ -524,6 +524,9 @@ class SDe extends S {
   String get copyDownShortcut => 'Nach unten kopieren (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'Alle schließen';
+
+  @override
   String get closeOthers => 'Andere schließen';
 
   @override
@@ -531,6 +534,12 @@ class SDe extends S {
 
   @override
   String get closeTabsToTheRight => 'Tabs rechts schließen';
+
+  @override
+  String get sortByName => 'Nach Name sortieren';
+
+  @override
+  String get sortByStatus => 'Nach Status sortieren';
 
   @override
   String get noActiveSession => 'Keine aktive Sitzung';
@@ -821,6 +830,9 @@ class SDe extends S {
   String get showQr => 'QR anzeigen';
 
   @override
+  String get sort => 'Sortieren';
+
+  @override
   String get resizePanelDivider => 'Panelteiler verschieben';
 
   @override
@@ -1018,6 +1030,26 @@ class SDe extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'Anmeldung';
+
+  @override
+  String get protocol => 'Protokoll';
+
+  @override
+  String get typeLabel => 'Typ';
+
+  @override
+  String get folder => 'Ordner';
+
+  @override
+  String nSubitems(int count) {
+    return '$count Element(e)';
+  }
+
+  @override
+  String get subitems => 'Elemente';
 
   @override
   String get storagePermissionRequired =>

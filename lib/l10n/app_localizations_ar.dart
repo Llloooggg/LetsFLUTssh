@@ -519,6 +519,9 @@ class SAr extends S {
   String get copyDownShortcut => 'نسخ للأسفل (Ctrl+Shift+\\)';
 
   @override
+  String get closeAll => 'إغلاق الكل';
+
+  @override
   String get closeOthers => 'إغلاق الأخرى';
 
   @override
@@ -526,6 +529,12 @@ class SAr extends S {
 
   @override
   String get closeTabsToTheRight => 'إغلاق علامات التبويب على اليمين';
+
+  @override
+  String get sortByName => 'ترتيب حسب الاسم';
+
+  @override
+  String get sortByStatus => 'ترتيب حسب الحالة';
 
   @override
   String get noActiveSession => 'لا توجد جلسة نشطة';
@@ -813,6 +822,9 @@ class SAr extends S {
   String get showQr => 'عرض QR';
 
   @override
+  String get sort => 'ترتيب';
+
+  @override
   String get resizePanelDivider => 'تغيير حجم فاصل اللوحات';
 
   @override
@@ -1005,6 +1017,26 @@ class SAr extends S {
   String errWithCause(String error, String cause) {
     return '$error ($cause)';
   }
+
+  @override
+  String get login => 'تسجيل الدخول';
+
+  @override
+  String get protocol => 'البروتوكول';
+
+  @override
+  String get typeLabel => 'النوع';
+
+  @override
+  String get folder => 'المجلد';
+
+  @override
+  String nSubitems(int count) {
+    return '$count عنصر';
+  }
+
+  @override
+  String get subitems => 'العناصر';
 
   @override
   String get storagePermissionRequired =>
