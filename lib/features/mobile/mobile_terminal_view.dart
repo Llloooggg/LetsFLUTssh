@@ -167,101 +167,8 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
         Expanded(
           child: Stack(
             children: [
-              Listener(
-                onPointerDown: (_) => _pointerCount++,
-                onPointerUp: (_) => _onPointerUp(),
-                onPointerCancel: (_) => _onPointerUp(),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  // Disable scale gestures during select mode so xterm's
-                  // drag-select gesture recognizer wins the arena.
-                  onScaleStart: _selectMode
-                      ? null
-                      : (details) {
-                          if (details.pointerCount >= 2) {
-                            _baseScaleFontSize = _fontSize;
-                          }
-                        },
-                  onScaleUpdate: _selectMode
-                      ? null
-                      : (details) {
-                          if (_baseScaleFontSize == null) return;
-                          setState(() {
-                            _fontSize = (_baseScaleFontSize! * details.scale)
-                                .clamp(8.0, 24.0);
-                          });
-                        },
-                  onScaleEnd: _selectMode
-                      ? null
-                      : (_) {
-                          if (_baseScaleFontSize == null) return;
-                          _baseScaleFontSize = null;
-                          // Persist pinch-zoomed font size to config
-                          ref
-                              .read(configProvider.notifier)
-                              .update(
-                                (c) => c.copyWith(
-                                  terminal: c.terminal.copyWith(
-                                    fontSize: _fontSize,
-                                  ),
-                                ),
-                              );
-                        },
-                  child: Stack(
-                    children: [
-                      IgnorePointer(
-                        ignoring: _pointerCount >= 2,
-                        child: TerminalView(
-                          _terminal,
-                          controller: _terminalController,
-                          autofocus: true,
-                          backgroundOpacity: 1.0,
-                          padding: const EdgeInsets.all(4),
-                          theme: TerminalTheme(
-                            cursor: AppTheme.termCursor,
-                            selection: AppTheme.termSelection,
-                            foreground: AppTheme.fg,
-                            background: AppTheme.bg2,
-                            black: AppTheme.termBlack,
-                            red: AppTheme.termRed,
-                            green: AppTheme.termGreen,
-                            yellow: AppTheme.termYellow,
-                            blue: AppTheme.termBlue,
-                            magenta: AppTheme.termMagenta,
-                            cyan: AppTheme.termCyan,
-                            white: AppTheme.termWhite,
-                            brightBlack: AppTheme.termBrightBlack,
-                            brightRed: AppTheme.termBrightRed,
-                            brightGreen: AppTheme.termBrightGreen,
-                            brightYellow: AppTheme.termBrightYellow,
-                            brightBlue: AppTheme.termBrightBlue,
-                            brightMagenta: AppTheme.termBrightMagenta,
-                            brightCyan: AppTheme.termBrightCyan,
-                            brightWhite: AppTheme.termBrightWhite,
-                            searchHitBackground: AppTheme.accent.withValues(
-                              alpha: 0.3,
-                            ),
-                            searchHitBackgroundCurrent: AppTheme.accent,
-                            searchHitForeground: AppTheme.searchHitFg,
-                          ),
-                          textStyle: TerminalStyle(
-                            fontSize: _fontSize,
-                            fontFamily: 'JetBrains Mono',
-                          ),
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: CursorTextOverlay(
-                          terminal: _terminal,
-                          fontSize: _fontSize,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _buildPinchZoomArea(),
               if (!_connected) const Center(child: CircularProgressIndicator()),
-              // Overlay toolbar to avoid layout shift during selection.
               if (_hasSelection)
                 Positioned(
                   left: 0,
@@ -281,6 +188,95 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
             _terminalController.setSuspendPointerInput(active);
             if (!active) _terminalController.clearSelection();
           },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPinchZoomArea() {
+    return Listener(
+      onPointerDown: (_) => _pointerCount++,
+      onPointerUp: (_) => _onPointerUp(),
+      onPointerCancel: (_) => _onPointerUp(),
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        // Disable scale gestures during select mode so xterm's
+        // drag-select gesture recognizer wins the arena.
+        onScaleStart: _selectMode ? null : _onPinchStart,
+        onScaleUpdate: _selectMode ? null : _onPinchUpdate,
+        onScaleEnd: _selectMode ? null : _onPinchEnd,
+        child: _buildTerminalStack(),
+      ),
+    );
+  }
+
+  void _onPinchStart(ScaleStartDetails details) {
+    if (details.pointerCount >= 2) {
+      _baseScaleFontSize = _fontSize;
+    }
+  }
+
+  void _onPinchUpdate(ScaleUpdateDetails details) {
+    if (_baseScaleFontSize == null) return;
+    setState(() {
+      _fontSize = (_baseScaleFontSize! * details.scale).clamp(8.0, 24.0);
+    });
+  }
+
+  void _onPinchEnd(ScaleEndDetails _) {
+    if (_baseScaleFontSize == null) return;
+    _baseScaleFontSize = null;
+    ref
+        .read(configProvider.notifier)
+        .update(
+          (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: _fontSize)),
+        );
+  }
+
+  Widget _buildTerminalStack() {
+    return Stack(
+      children: [
+        IgnorePointer(
+          ignoring: _pointerCount >= 2,
+          child: TerminalView(
+            _terminal,
+            controller: _terminalController,
+            autofocus: true,
+            backgroundOpacity: 1.0,
+            padding: const EdgeInsets.all(4),
+            theme: TerminalTheme(
+              cursor: AppTheme.termCursor,
+              selection: AppTheme.termSelection,
+              foreground: AppTheme.fg,
+              background: AppTheme.bg2,
+              black: AppTheme.termBlack,
+              red: AppTheme.termRed,
+              green: AppTheme.termGreen,
+              yellow: AppTheme.termYellow,
+              blue: AppTheme.termBlue,
+              magenta: AppTheme.termMagenta,
+              cyan: AppTheme.termCyan,
+              white: AppTheme.termWhite,
+              brightBlack: AppTheme.termBrightBlack,
+              brightRed: AppTheme.termBrightRed,
+              brightGreen: AppTheme.termBrightGreen,
+              brightYellow: AppTheme.termBrightYellow,
+              brightBlue: AppTheme.termBrightBlue,
+              brightMagenta: AppTheme.termBrightMagenta,
+              brightCyan: AppTheme.termBrightCyan,
+              brightWhite: AppTheme.termBrightWhite,
+              searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+              searchHitBackgroundCurrent: AppTheme.accent,
+              searchHitForeground: AppTheme.searchHitFg,
+            ),
+            textStyle: TerminalStyle(
+              fontSize: _fontSize,
+              fontFamily: 'JetBrains Mono',
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: CursorTextOverlay(terminal: _terminal, fontSize: _fontSize),
         ),
       ],
     );

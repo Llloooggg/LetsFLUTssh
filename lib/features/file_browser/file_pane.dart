@@ -713,38 +713,45 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   void _handlePointerMove(PointerMoveEvent e) {
     if (marqueeDragActive || marqueeAnchor == null) return;
 
-    // Detect exit through the left boundary → forward to session panel.
-    if (widget.reverseCrossMarquee != null) {
-      final box = _fileListKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null) {
-        final local = e.localPosition;
-        if (local.dx < 0) {
-          // Pointer left the file pane to the left.
-          if (marqueeActive) {
-            setState(() {
-              marqueeStart = null;
-              marqueeCurrent = null;
-              marqueeActive = false;
-            });
-            onMarqueeDeactivated();
-          }
-          if (!_reverseCrossActive) {
-            _reverseCrossActive = true;
-            widget.reverseCrossMarquee!.start(e.position);
-          } else {
-            widget.reverseCrossMarquee!.move(e.position);
-          }
-          return;
-        }
-        if (_reverseCrossActive) {
-          _reverseCrossActive = false;
-          widget.reverseCrossMarquee!.end();
-          marqueeAnchor = e.localPosition;
-        }
-      }
-    }
+    if (_handleReverseCrossMarquee(e)) return;
 
     handleMarqueePointerMove(e);
+  }
+
+  /// Returns `true` when the event was consumed by reverse cross-marquee.
+  bool _handleReverseCrossMarquee(PointerMoveEvent e) {
+    if (widget.reverseCrossMarquee == null) return false;
+
+    final box = _fileListKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return false;
+
+    final local = e.localPosition;
+    if (local.dx < 0) {
+      _deactivateMarqueeIfActive();
+      if (!_reverseCrossActive) {
+        _reverseCrossActive = true;
+        widget.reverseCrossMarquee!.start(e.position);
+      } else {
+        widget.reverseCrossMarquee!.move(e.position);
+      }
+      return true;
+    }
+    if (_reverseCrossActive) {
+      _reverseCrossActive = false;
+      widget.reverseCrossMarquee!.end();
+      marqueeAnchor = e.localPosition;
+    }
+    return false;
+  }
+
+  void _deactivateMarqueeIfActive() {
+    if (!marqueeActive) return;
+    setState(() {
+      marqueeStart = null;
+      marqueeCurrent = null;
+      marqueeActive = false;
+    });
+    onMarqueeDeactivated();
   }
 
   void _handlePointerUp(PointerUpEvent e) {

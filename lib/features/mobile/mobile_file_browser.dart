@@ -369,6 +369,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
+    final weight = isLast ? FontWeight.w600 : FontWeight.normal;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -385,7 +386,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                 label,
                 style: TextStyle(
                   fontSize: AppFonts.md,
-                  fontWeight: isLast ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: weight,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
@@ -686,14 +687,7 @@ class _MobileFileListState extends State<MobileFileList> {
               ListTile(
                 leading: Icon(icon),
                 title: Text(label),
-                trailing: ctrl.sortColumn == col
-                    ? Icon(
-                        ctrl.sortAscending
-                            ? Icons.arrow_upward
-                            : Icons.arrow_downward,
-                        size: 18,
-                      )
-                    : null,
+                trailing: _sortIndicator(ctrl, col),
                 selected: ctrl.sortColumn == col,
                 onTap: () {
                   Navigator.pop(ctx);
@@ -704,6 +698,12 @@ class _MobileFileListState extends State<MobileFileList> {
         ),
       ),
     );
+  }
+
+  Widget? _sortIndicator(FilePaneController ctrl, SortColumn col) {
+    if (ctrl.sortColumn != col) return null;
+    final icon = ctrl.sortAscending ? Icons.arrow_upward : Icons.arrow_downward;
+    return Icon(icon, size: 18);
   }
 
   Widget _buildError(BuildContext context) {

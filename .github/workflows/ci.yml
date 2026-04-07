@@ -77,7 +77,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ERRORS=""
-          PATTERN='^(feat|fix|refactor|test|docs|chore|ci): \S.+'
+          PATTERN='^(feat|fix|refactor|test|docs|chore|ci)(\([a-z]+\))?: \S.+'
 
           # Get all commits in the PR
           COMMITS=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '.commits[].messageHeadline')
