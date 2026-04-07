@@ -8,6 +8,7 @@ import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/transfer_panel.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/utils/platform.dart' as plat;
 
 Widget _buildTestWidget({
   required TransferManager manager,
@@ -43,7 +44,9 @@ Widget _buildTestWidgetWithHistoryError({
   return ProviderScope(
     overrides: [
       transferManagerProvider.overrideWithValue(manager),
-      transferHistoryProvider.overrideWith((ref) => Stream<List<HistoryEntry>>.error(Exception('load failed'))),
+      transferHistoryProvider.overrideWith(
+        (ref) => Stream<List<HistoryEntry>>.error(Exception('load failed')),
+      ),
       transferStatusProvider.overrideWith((ref) => Stream.value(status)),
     ],
     child: MaterialApp(
@@ -69,7 +72,9 @@ Widget _buildTestWidgetWithHistoryLoading({
   return ProviderScope(
     overrides: [
       transferManagerProvider.overrideWithValue(manager),
-      transferHistoryProvider.overrideWith((ref) => StreamController<List<HistoryEntry>>().stream),
+      transferHistoryProvider.overrideWith(
+        (ref) => StreamController<List<HistoryEntry>>().stream,
+      ),
       transferStatusProvider.overrideWith((ref) => Stream.value(status)),
     ],
     child: MaterialApp(
@@ -100,7 +105,9 @@ void main() {
   });
 
   group('TransferPanel', () {
-    testWidgets('renders collapsed header with "Transfers:" label', (tester) async {
+    testWidgets('renders collapsed header with "Transfers:" label', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
@@ -123,7 +130,9 @@ void main() {
       expect(find.textContaining('Time'), findsOneWidget);
     });
 
-    testWidgets('shows "No transfers yet" when expanded with empty history', (tester) async {
+    testWidgets('shows "No transfers yet" when expanded with empty history', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
@@ -173,7 +182,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('1 in history'), findsOneWidget);
@@ -194,7 +205,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -216,7 +229,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -238,7 +253,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -261,7 +278,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -284,7 +303,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -302,7 +323,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the resize handle by the resizeRow cursor
-      final resizeHandle = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow);
+      final resizeHandle = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
+      );
       expect(resizeHandle, findsOneWidget);
 
       // Drag the resize handle up
@@ -313,7 +336,9 @@ void main() {
       expect(find.text('Name'), findsOneWidget);
     });
 
-    testWidgets('resize handle vertical drag clamps to min/max', (tester) async {
+    testWidgets('resize handle vertical drag clamps to min/max', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
@@ -321,7 +346,9 @@ void main() {
       await tester.tap(find.text('Transfers:'));
       await tester.pumpAndSettle();
 
-      final resizeHandle = find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow);
+      final resizeHandle = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
+      );
       expect(resizeHandle, findsOneWidget);
 
       // Drag up by a large amount (should clamp to max 500)
@@ -351,7 +378,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -374,7 +403,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -383,7 +414,9 @@ void main() {
       expect(find.textContaining('...'), findsWidgets);
     });
 
-    testWidgets('panel is collapsed initially when no active transfers', (tester) async {
+    testWidgets('panel is collapsed initially when no active transfers', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
@@ -391,7 +424,9 @@ void main() {
       expect(find.text('Transfers:'), findsOneWidget);
     });
 
-    testWidgets('clear history button calls manager.clearHistory', (tester) async {
+    testWidgets('clear history button calls manager.clearHistory', (
+      tester,
+    ) async {
       final history = [
         HistoryEntry(
           id: '1',
@@ -404,7 +439,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       // Expand panel
@@ -420,29 +457,38 @@ void main() {
     });
 
     testWidgets('auto-expands when active transfers start', (tester) async {
-      const status = ActiveTransferState(running: 1, queued: 0, currentInfo: 'Uploading file.txt...');
+      const status = ActiveTransferState(
+        running: 1,
+        queued: 0,
+        currentInfo: 'Uploading file.txt...',
+      );
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, status: status));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, status: status),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Name'), findsOneWidget);
       expect(find.text('No transfers yet'), findsOneWidget);
     });
 
-    testWidgets('shows chevron_right icon when collapsed, expand_more when expanded', (tester) async {
-      await tester.pumpWidget(_buildTestWidget(manager: manager));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'shows chevron_right icon when collapsed, expand_more when expanded',
+      (tester) async {
+        await tester.pumpWidget(_buildTestWidget(manager: manager));
+        await tester.pumpAndSettle();
 
-      // Initially collapsed: shows chevron_right
-      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+        // Initially collapsed: shows chevron_right
+        expect(find.byIcon(Icons.chevron_right), findsOneWidget);
 
-      // Expand
-      await tester.tap(find.text('Transfers:'));
-      await tester.pumpAndSettle();
+        // Expand
+        await tester.tap(find.text('Transfers:'));
+        await tester.pumpAndSettle();
 
-      // When expanded: shows expand_more
-      expect(find.byIcon(Icons.expand_more), findsOneWidget);
-    });
+        // When expanded: shows expand_more
+        expect(find.byIcon(Icons.expand_more), findsOneWidget);
+      },
+    );
 
     testWidgets('history with multiple entries shows all', (tester) async {
       final history = [
@@ -467,7 +513,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('2 in history'), findsOneWidget);
@@ -481,7 +529,9 @@ void main() {
       expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
     });
 
-    testWidgets('shows duration for completed transfer with timing', (tester) async {
+    testWidgets('shows duration for completed transfer with timing', (
+      tester,
+    ) async {
       final startTime = DateTime(2024, 1, 1, 10, 0, 0);
       final endTime = DateTime(2024, 1, 1, 10, 0, 10);
       final history = [
@@ -498,7 +548,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -564,7 +616,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -588,7 +642,9 @@ void main() {
       expect(find.textContaining('↓'), findsOneWidget);
     });
 
-    testWidgets('shows timestamp in Time column for history entry', (tester) async {
+    testWidgets('shows timestamp in Time column for history entry', (
+      tester,
+    ) async {
       final history = [
         HistoryEntry(
           id: '1',
@@ -603,7 +659,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -627,7 +685,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, history: history));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -639,15 +699,21 @@ void main() {
       expect(find.text('file.txt'), findsOneWidget);
     });
 
-    testWidgets('does not show clear history button when collapsed', (tester) async {
+    testWidgets('does not show clear history button when collapsed', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildTestWidget(manager: manager));
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.delete_outline), findsNothing);
     });
 
-    testWidgets('shows error text when history stream errors (expanded)', (tester) async {
-      await tester.pumpWidget(_buildTestWidgetWithHistoryError(manager: manager));
+    testWidgets('shows error text when history stream errors (expanded)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildTestWidgetWithHistoryError(manager: manager),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Transfers:'));
@@ -656,29 +722,44 @@ void main() {
       expect(find.textContaining('Error:'), findsOneWidget);
     });
 
-    testWidgets('shows SizedBox.shrink in header when history stream errors', (tester) async {
-      await tester.pumpWidget(_buildTestWidgetWithHistoryError(manager: manager));
+    testWidgets('shows SizedBox.shrink in header when history stream errors', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildTestWidgetWithHistoryError(manager: manager),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('in history'), findsNothing);
     });
 
-    testWidgets('shows loading spinner when history stream is pending (expanded)', (tester) async {
-      await tester.pumpWidget(_buildTestWidgetWithHistoryLoading(manager: manager));
-      await tester.pump();
-      await tester.pump();
+    testWidgets(
+      'shows loading spinner when history stream is pending (expanded)',
+      (tester) async {
+        await tester.pumpWidget(
+          _buildTestWidgetWithHistoryLoading(manager: manager),
+        );
+        await tester.pump();
+        await tester.pump();
 
-      await tester.tap(find.text('Transfers:'));
-      await tester.pump();
-      await tester.pump();
+        await tester.tap(find.text('Transfers:'));
+        await tester.pump();
+        await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    });
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      },
+    );
 
     testWidgets('shows active transfer status in header', (tester) async {
-      const status = ActiveTransferState(running: 2, queued: 3, currentInfo: 'Uploading test.txt...');
+      const status = ActiveTransferState(
+        running: 2,
+        queued: 3,
+        currentInfo: 'Uploading test.txt...',
+      );
 
-      await tester.pumpWidget(_buildTestWidget(manager: manager, status: status));
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, status: status),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('2 active'), findsOneWidget);
@@ -694,6 +775,143 @@ void main() {
 
       // Footer shows "· N in hist", header shows "N in history"
       expect(find.textContaining('in hist'), findsWidgets);
+    });
+  });
+
+  group('TransferPanel mobile', () {
+    late TransferManager manager;
+
+    setUp(() {
+      manager = TransferManager();
+      plat.debugMobilePlatformOverride = true;
+    });
+
+    tearDown(() {
+      plat.debugMobilePlatformOverride = null;
+      manager.dispose();
+    });
+
+    testWidgets('uses horizontal scroll for column headers on mobile', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      // On mobile, headers are inside a horizontal SingleChildScrollView
+      final scrollViews = find.byWidgetPredicate(
+        (w) =>
+            w is SingleChildScrollView && w.scrollDirection == Axis.horizontal,
+      );
+      expect(scrollViews, findsWidgets);
+    });
+
+    testWidgets('does not show column resize handles on mobile', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      final resizeHandles = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
+      );
+      expect(resizeHandles, findsNothing);
+    });
+
+    testWidgets('shows history entries in scrollable body on mobile', (
+      tester,
+    ) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'mobile_file.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/mobile_file.txt',
+          targetPath: '/remote/mobile_file.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('mobile_file.txt'), findsOneWidget);
+    });
+
+    testWidgets('shows column headers with sorting on mobile', (tester) async {
+      final history = [
+        HistoryEntry(
+          id: '1',
+          name: 'a.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/a.txt',
+          targetPath: '/remote/a.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime(2024, 1, 1),
+        ),
+        HistoryEntry(
+          id: '2',
+          name: 'b.txt',
+          direction: TransferDirection.download,
+          sourcePath: '/remote/b.txt',
+          targetPath: '/local/b.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime(2024, 1, 2),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Name'), findsOneWidget);
+
+      // Tap Name to sort
+      await tester.tap(find.text('Name'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('↑'), findsOneWidget);
+    });
+
+    testWidgets('shows error state in scrollable body on mobile', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildTestWidgetWithHistoryError(manager: manager),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Error:'), findsOneWidget);
+    });
+
+    testWidgets('shows empty state in scrollable body on mobile', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_buildTestWidget(manager: manager));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No transfers yet'), findsOneWidget);
     });
   });
 }

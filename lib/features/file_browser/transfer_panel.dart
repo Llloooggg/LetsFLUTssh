@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../../utils/platform.dart' as plat;
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/column_resize_handle.dart';
@@ -28,14 +29,57 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
   double _panelHeight = 200;
 
   // Resizable column widths (match file pane defaults where applicable)
+  final double _nameColWidth = 150;
   double _localColWidth = 110;
   double _remoteColWidth = 110;
   double _sizeColWidth = 55;
   double _timeColWidth = 105;
 
+  // Linked horizontal scroll controllers for header + body sync
+  final _headerScrollCtrl = ScrollController();
+  final _bodyScrollCtrl = ScrollController();
+
   // Sorting
   TransferSortColumn _sortColumn = TransferSortColumn.time;
   bool _sortAscending = false;
+
+  static bool get _mobile => plat.isMobilePlatform;
+
+  @override
+  void initState() {
+    super.initState();
+    _headerScrollCtrl.addListener(_syncHeaderToBody);
+    _bodyScrollCtrl.addListener(_syncBodyToHeader);
+  }
+
+  bool _syncing = false;
+
+  void _syncHeaderToBody() {
+    if (_syncing) return;
+    _syncing = true;
+    if (_bodyScrollCtrl.hasClients) {
+      _bodyScrollCtrl.jumpTo(_headerScrollCtrl.offset);
+    }
+    _syncing = false;
+  }
+
+  void _syncBodyToHeader() {
+    if (_syncing) return;
+    _syncing = true;
+    if (_headerScrollCtrl.hasClients) {
+      _headerScrollCtrl.jumpTo(_bodyScrollCtrl.offset);
+    }
+    _syncing = false;
+  }
+
+  @override
+  void dispose() {
+    _headerScrollCtrl.removeListener(_syncHeaderToBody);
+    _bodyScrollCtrl.removeListener(_syncBodyToHeader);
+    _headerScrollCtrl.dispose();
+    _bodyScrollCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,11 +191,13 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           ),
           // Column headers + transfer list
           if (_expanded) ...[
-            _buildColumnHeaders(),
+            _mobile ? _buildScrollableHeader() : _buildColumnHeaders(),
             Flexible(
               child: SizedBox(
                 height: _panelHeight,
-                child: _buildTransferList(historyAsync, ref),
+                child: _mobile
+                    ? _buildScrollableBody(historyAsync, ref)
+                    : _buildTransferList(historyAsync, ref),
               ),
             ),
           ],
@@ -279,6 +325,152 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     );
   }
 
+  // Total width for the scrollable row (mobile).
+  // 12 padding + 16 (#) + 4 + 20 (status) + 4 + name + 4×columnDivider(10)
+  // + local + remote + size + time + 12 padding
+  double get _scrollableRowWidth =>
+      12 +
+      16 +
+      4 +
+      20 +
+      4 +
+      _nameColWidth +
+      10 +
+      _localColWidth +
+      10 +
+      _remoteColWidth +
+      10 +
+      _sizeColWidth +
+      10 +
+      _timeColWidth +
+      12;
+
+  Widget _buildScrollableHeader() {
+    final style = AppFonts.inter(
+      fontSize: AppFonts.xxs,
+      fontWeight: FontWeight.w500,
+      color: AppTheme.fgFaint,
+    );
+
+    return Container(
+      height: AppTheme.barHeightSm,
+      decoration: BoxDecoration(color: AppTheme.bg3),
+      clipBehavior: Clip.hardEdge,
+      child: SingleChildScrollView(
+        controller: _headerScrollCtrl,
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: _scrollableRowWidth,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                SizedBox(width: 16, child: Text('#', style: style)),
+                const SizedBox(width: 4),
+                SizedBox(width: 20, child: Text('', style: style)),
+                const SizedBox(width: 4),
+                _sortableCell(
+                  S.of(context).name,
+                  TransferSortColumn.name,
+                  style,
+                  width: _nameColWidth,
+                ),
+                columnDivider(),
+                _sortableCell(
+                  S.of(context).local,
+                  TransferSortColumn.local,
+                  style,
+                  width: _localColWidth,
+                ),
+                columnDivider(),
+                _sortableCell(
+                  S.of(context).remote,
+                  TransferSortColumn.remote,
+                  style,
+                  width: _remoteColWidth,
+                ),
+                columnDivider(),
+                _sortableCell(
+                  S.of(context).size,
+                  TransferSortColumn.size,
+                  style,
+                  width: _sizeColWidth,
+                ),
+                columnDivider(),
+                _sortableCell(
+                  S.of(context).time,
+                  TransferSortColumn.time,
+                  style,
+                  width: _timeColWidth,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScrollableBody(
+    AsyncValue<List<HistoryEntry>> historyAsync,
+    WidgetRef ref,
+  ) {
+    final activeAsync = ref.watch(activeTransfersProvider);
+    final active = activeAsync.value ?? [];
+
+    return historyAsync.when(
+      data: (history) {
+        if (active.isEmpty && history.isEmpty) {
+          return Center(
+            child: Text(
+              S.of(context).noTransfersYet,
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgFaint,
+              ),
+            ),
+          );
+        }
+        final sorted = _sortHistory(history);
+        final totalCount = active.length + sorted.length;
+        return SingleChildScrollView(
+          controller: _bodyScrollCtrl,
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: _scrollableRowWidth,
+            child: ListView.builder(
+              itemCount: totalCount,
+              itemExtent: 24,
+              itemBuilder: (context, index) {
+                if (index < active.length) {
+                  return _ActiveRow(
+                    entry: active[index],
+                    nameWidth: _nameColWidth,
+                    localWidth: _localColWidth,
+                    remoteWidth: _remoteColWidth,
+                    sizeWidth: _sizeColWidth,
+                    timeWidth: _timeColWidth,
+                  );
+                }
+                return _HistoryRow(
+                  entry: sorted[index - active.length],
+                  nameWidth: _nameColWidth,
+                  localWidth: _localColWidth,
+                  remoteWidth: _remoteColWidth,
+                  sizeWidth: _sizeColWidth,
+                  timeWidth: _timeColWidth,
+                );
+              },
+            ),
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) =>
+          Center(child: Text(S.of(context).errorPrefix(e.toString()))),
+    );
+  }
+
   Widget _buildColumnHeaders() {
     final style = AppFonts.inter(
       fontSize: AppFonts.xxs,
@@ -356,6 +548,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
 
 class _HistoryRow extends StatelessWidget {
   final HistoryEntry entry;
+  final double? nameWidth;
   final double localWidth;
   final double remoteWidth;
   final double sizeWidth;
@@ -363,11 +556,19 @@ class _HistoryRow extends StatelessWidget {
 
   const _HistoryRow({
     required this.entry,
+    this.nameWidth,
     required this.localWidth,
     required this.remoteWidth,
     required this.sizeWidth,
     required this.timeWidth,
   });
+
+  Widget _nameCell(Widget child) {
+    if (nameWidth != null) {
+      return SizedBox(width: nameWidth, child: child);
+    }
+    return Expanded(child: child);
+  }
 
   String _statusTooltip(BuildContext context, bool isFailed, HistoryEntry e) {
     if (!isFailed) return S.of(context).completed;
@@ -408,8 +609,8 @@ class _HistoryRow extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           // Name
-          Expanded(
-            child: Text(
+          _nameCell(
+            Text(
               entry.name,
               style: AppFonts.mono(
                 fontSize: AppFonts.xs,
@@ -521,6 +722,7 @@ class _HistoryRow extends StatelessWidget {
 /// Row for an active or queued transfer.
 class _ActiveRow extends StatelessWidget {
   final ActiveEntry entry;
+  final double? nameWidth;
   final double localWidth;
   final double remoteWidth;
   final double sizeWidth;
@@ -528,11 +730,19 @@ class _ActiveRow extends StatelessWidget {
 
   const _ActiveRow({
     required this.entry,
+    this.nameWidth,
     required this.localWidth,
     required this.remoteWidth,
     required this.sizeWidth,
     required this.timeWidth,
   });
+
+  Widget _nameCell(Widget child) {
+    if (nameWidth != null) {
+      return SizedBox(width: nameWidth, child: child);
+    }
+    return Expanded(child: child);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -568,8 +778,8 @@ class _ActiveRow extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               // Name + speed
-              Expanded(
-                child: Row(
+              _nameCell(
+                Row(
                   children: [
                     Flexible(
                       child: Text(
