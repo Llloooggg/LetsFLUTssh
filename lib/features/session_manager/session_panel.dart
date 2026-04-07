@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
+import '../../core/shortcut_registry.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
@@ -294,49 +295,37 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     _editSession(context, ref, session);
   }
 
-  KeyEventResult _handleCtrlKey(LogicalKeyboardKey key) {
-    if (key == LogicalKeyboardKey.keyZ) {
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final reg = AppShortcutRegistry.instance;
+
+    if (reg.matches(AppShortcut.sessionUndo, event)) {
       ref.read(sessionProvider.notifier).undo();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.keyY) {
+    if (reg.matches(AppShortcut.sessionRedo, event)) {
       ref.read(sessionProvider.notifier).redo();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.keyC) {
+    if (reg.matches(AppShortcut.sessionCopy, event)) {
       copyFocusedSession();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.keyV) {
+    if (reg.matches(AppShortcut.sessionPaste, event)) {
       pasteCopiedSession();
       return KeyEventResult.handled;
     }
-    return KeyEventResult.ignored;
-  }
-
-  KeyEventResult _handlePlainKey(LogicalKeyboardKey key) {
-    if (key == LogicalKeyboardKey.delete) {
+    if (reg.matches(AppShortcut.sessionDelete, event)) {
       if (_focusedSessionId == null) return KeyEventResult.ignored;
       deleteFocusedSession();
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.f2) {
+    if (reg.matches(AppShortcut.sessionEdit, event)) {
       if (_focusedSessionId == null) return KeyEventResult.ignored;
       editFocusedSession();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
-  }
-
-  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final isCtrl = HardwareKeyboard.instance.logicalKeysPressed.intersection({
-      LogicalKeyboardKey.controlLeft,
-      LogicalKeyboardKey.controlRight,
-    }).isNotEmpty;
-
-    if (isCtrl) return _handleCtrlKey(event.logicalKey);
-    return _handlePlainKey(event.logicalKey);
   }
 
   @override

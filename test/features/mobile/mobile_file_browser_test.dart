@@ -339,13 +339,34 @@ void main() {
       expect(transferred!.name, 'readme.txt');
     });
 
-    testWidgets('long press enters selection mode', (tester) async {
+    testWidgets('long press shows context menu with Select option', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
       await tester.longPress(find.text('readme.txt'));
+      await tester.pumpAndSettle();
+
+      // Bottom sheet with actions including Select
+      expect(find.text('Transfer'), findsOneWidget);
+      expect(find.text('Rename'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+      expect(find.text('New Folder'), findsOneWidget);
+      expect(find.text('Select'), findsOneWidget);
+    });
+
+    testWidgets('Select in context menu enters selection mode', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
       await tester.pump();
+
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
 
       // Selection mode — checkboxes appear
       expect(find.byType(Checkbox), findsWidgets);
@@ -360,8 +381,11 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
+      // Enter selection mode via context menu
       await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
 
       expect(find.byTooltip('Transfer'), findsOneWidget);
       expect(find.byTooltip('Delete'), findsOneWidget);
@@ -374,8 +398,11 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
+      // Enter selection mode via context menu
       await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
       expect(find.text('1 selected'), findsOneWidget);
 
       // Tap close button on selection bar
@@ -392,9 +419,11 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // Enter selection mode by long pressing
+      // Enter selection mode via context menu
       await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
       expect(find.text('1 selected'), findsOneWidget);
 
       // Tap another entry to add to selection
@@ -413,8 +442,11 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
+      // Enter selection mode via context menu
       await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
       expect(find.text('1 selected'), findsOneWidget);
 
       // Tap the selected entry to deselect — should exit selection mode
@@ -434,8 +466,11 @@ void main() {
       );
       await tester.pump();
 
+      // Enter selection mode via context menu
       await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Transfer'));
       await tester.pump();
@@ -447,18 +482,12 @@ void main() {
       expect(find.byType(Checkbox), findsNothing);
     });
 
-    testWidgets('long press in selection mode shows bottom sheet actions', (
-      tester,
-    ) async {
+    testWidgets('long press shows bottom sheet actions', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // Enter selection mode
-      await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
-
-      // Long press again (already in selection mode) shows bottom sheet
+      // Long press directly shows bottom sheet
       await tester.longPress(find.text('script.sh'));
       await tester.pumpAndSettle();
 
@@ -467,6 +496,7 @@ void main() {
       expect(find.text('Rename'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
       expect(find.text('New Folder'), findsOneWidget);
+      expect(find.text('Select'), findsOneWidget);
     });
 
     testWidgets('bottom sheet shows Open action for directories', (
@@ -476,11 +506,7 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // Enter selection mode
-      await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
-
-      // Long press on a directory (already in selection mode)
+      // Long press on a directory shows bottom sheet with Open
       await tester.longPress(find.text('docs'));
       await tester.pumpAndSettle();
 
@@ -498,9 +524,7 @@ void main() {
       );
       await tester.pump();
 
-      // Enter selection mode and open bottom sheet
-      await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      // Long press directly opens bottom sheet
       await tester.longPress(find.text('script.sh'));
       await tester.pumpAndSettle();
 
@@ -514,10 +538,6 @@ void main() {
     testWidgets('bottom sheet Open action navigates into dir', (tester) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
-      await tester.pump();
-
-      // Enter selection mode
-      await tester.longPress(find.text('readme.txt'));
       await tester.pump();
 
       // Long press on docs dir to open bottom sheet
@@ -537,9 +557,7 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // Enter selection mode and open bottom sheet
-      await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      // Long press directly opens bottom sheet
       await tester.longPress(find.text('script.sh'));
       await tester.pumpAndSettle();
 
@@ -557,9 +575,7 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // Enter selection mode and open bottom sheet
-      await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      // Long press directly opens bottom sheet
       await tester.longPress(find.text('script.sh'));
       await tester.pumpAndSettle();
 
@@ -576,17 +592,11 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // Enter selection mode and open bottom sheet
-      await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      // Long press directly opens bottom sheet
       await tester.longPress(find.text('script.sh'));
       await tester.pumpAndSettle();
 
-      // Find the Delete text in the bottom sheet (not the toolbar one)
-      final deleteItems = find.text('Delete');
-      expect(deleteItems, findsWidgets);
-      // Tap the last one (bottom sheet)
-      await tester.tap(deleteItems.last);
+      await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
       // Delete confirmation dialog should appear
@@ -600,9 +610,11 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // Enter selection mode
+      // Enter selection mode via context menu
       await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
 
       // Tap Delete button in selection bar
       await tester.tap(find.byTooltip('Delete'));
@@ -617,9 +629,11 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // Enter selection mode
+      // Enter selection mode via context menu
       await tester.longPress(find.text('readme.txt'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
 
       // Should have checkboxes
       final checkboxes = find.byType(Checkbox);
@@ -696,9 +710,11 @@ void main() {
         await tester.pumpWidget(buildFileList());
         await tester.pump();
 
-        // Enter selection mode on first controller
+        // Enter selection mode via context menu
         await tester.longPress(find.text('readme.txt'));
-        await tester.pump();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Select'));
+        await tester.pumpAndSettle();
         expect(find.byType(Checkbox), findsWidgets);
 
         // Switch to second controller — selection mode should reset
@@ -1010,9 +1026,11 @@ void main() {
         await tester.pumpWidget(buildFileList());
         await tester.pump();
 
-        // Enter selection mode
+        // Enter selection mode via context menu
         await tester.longPress(find.text('readme.txt'));
-        await tester.pump();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Select'));
+        await tester.pumpAndSettle();
 
         expect(find.byType(Checkbox), findsWidgets);
 

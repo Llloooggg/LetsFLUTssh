@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'l10n/app_localizations.dart';
 import 'core/config/config_store.dart';
+import 'core/shortcut_registry.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
@@ -392,11 +393,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     return CallbackShortcuts(
       bindings: _buildKeyBindings(context, ws),
-      child: DropTarget(
-        onDragDone: (details) => _handleLfsDrop(context, details),
-        child: LayoutBuilder(
-          builder: (context, constraints) =>
-              _buildDesktopLayout(context, constraints, ws),
+      child: Focus(
+        autofocus: true,
+        child: DropTarget(
+          onDragDone: (details) => _handleLfsDrop(context, details),
+          child: LayoutBuilder(
+            builder: (context, constraints) =>
+                _buildDesktopLayout(context, constraints, ws),
+          ),
         ),
       ),
     );
@@ -409,49 +413,37 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final notifier = ref.read(workspaceProvider.notifier);
     final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
     final activeTab = focusedPanel?.activeTab;
+    final reg = AppShortcutRegistry.instance;
 
-    return {
-      const SingleActivator(LogicalKeyboardKey.keyN, control: true): () {
-        _newSession(context, ref);
-      },
-      const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
+    return reg.buildCallbackMap({
+      AppShortcut.newSession: () => _newSession(context, ref),
+      AppShortcut.closeTab: () {
         if (activeTab != null) {
           notifier.closeTab(ws.focusedPanelId, activeTab.id);
         }
       },
-      const SingleActivator(LogicalKeyboardKey.tab, control: true): () {
-        _switchTab(ws, 1);
-      },
-      const SingleActivator(
-        LogicalKeyboardKey.tab,
-        control: true,
-        shift: true,
-      ): () {
-        _switchTab(ws, -1);
-      },
-      const SingleActivator(LogicalKeyboardKey.keyB, control: true): () {
+      AppShortcut.nextTab: () => _switchTab(ws, 1),
+      AppShortcut.prevTab: () => _switchTab(ws, -1),
+      AppShortcut.toggleSidebar: () {
         setState(() => _sidebarOpen = !_sidebarOpen);
       },
-      // Copy pane right / down shortcuts
-      const SingleActivator(LogicalKeyboardKey.backslash, control: true): () {
+      AppShortcut.splitRight: () {
         if (activeTab != null) {
           notifier.copyToNewPanel(ws.focusedPanelId, Axis.horizontal);
         }
       },
-      const SingleActivator(
-        LogicalKeyboardKey.backslash,
-        control: true,
-        shift: true,
-      ): () {
+      AppShortcut.splitDown: () {
         if (activeTab != null) {
           notifier.copyToNewPanel(ws.focusedPanelId, Axis.vertical);
         }
       },
-      // Settings
-      const SingleActivator(LogicalKeyboardKey.comma, control: true): () {
-        _toggleSettings();
+      AppShortcut.openSettings: () => _toggleSettings(),
+      AppShortcut.closeSettings: () {
+        if (_mode == ShellMode.settings) {
+          _toggleSettings();
+        }
       },
-    };
+    });
   }
 
   void _switchTab(WorkspaceState ws, int delta) {

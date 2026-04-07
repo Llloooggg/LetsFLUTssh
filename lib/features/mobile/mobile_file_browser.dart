@@ -481,14 +481,14 @@ class _MobileFileListState extends State<MobileFileList> {
             onTap: _exitSelectionMode,
             tooltip: S.of(context).cancelSelection,
           ),
-          Flexible(
+          const SizedBox(width: 4),
+          Expanded(
             child: Text(
               S.of(context).nSelectedCount(ctrl.selected.length),
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: AppFonts.lg),
             ),
           ),
-          const Spacer(),
           AppIconButton(
             icon: Icons.swap_horiz,
             size: 20,
@@ -591,16 +591,10 @@ class _MobileFileListState extends State<MobileFileList> {
   }
 
   void _onEntryLongPress(BuildContext context, FileEntry entry) {
-    if (!_selectionMode) {
-      setState(() => _selectionMode = true);
-      ctrl.selectSingle(entry.path);
-    } else {
-      _showEntryActions(context, entry);
-    }
+    _showEntryActions(context, entry);
   }
 
   void _showEntryActions(BuildContext context, FileEntry entry) {
-    ctrl.selectSingle(entry.path);
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -649,6 +643,16 @@ class _MobileFileListState extends State<MobileFileList> {
               onTap: () {
                 Navigator.pop(ctx);
                 _showNewFolderDialog(context);
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.checklist),
+              title: Text(S.of(ctx).select),
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _selectionMode = true);
+                ctrl.selectSingle(entry.path);
               },
             ),
           ],

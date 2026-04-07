@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
+import '../../core/shortcut_registry.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
@@ -83,6 +84,14 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   /// Exposed for testing — access the TerminalController.
   @visibleForTesting
   TerminalController get terminalController => _terminalController;
+
+  /// Exposed for testing — zoom in / out / reset.
+  @visibleForTesting
+  void zoomIn() => _zoomIn();
+  @visibleForTesting
+  void zoomOut() => _zoomOut();
+  @visibleForTesting
+  void zoomReset() => _zoomReset();
 
   @override
   void initState() {
@@ -208,14 +217,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     return GestureDetector(
       onTap: widget.onFocused,
       child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(
-            LogicalKeyboardKey.keyF,
-            control: true,
-            shift: true,
-          ): toggleSearch,
-          const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
-        },
+        bindings: AppShortcutRegistry.instance.buildCallbackMap({
+          AppShortcut.terminalSearch: toggleSearch,
+          AppShortcut.terminalCloseSearch: _closeSearch,
+        }),
         child: Column(
           children: [
             ValueListenableBuilder<bool>(
@@ -230,15 +235,16 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
               },
             ),
             Expanded(
-              // Listener intercepts right-click before xterm's gesture
-              // detector, so the context menu works even when the terminal
-              // is in mouse mode (e.g. htop, vim).
+              // Listener intercepts right-click and Ctrl+scroll before
+              // xterm's gesture detector, so context menu and zoom work
+              // even when the terminal is in mouse mode (e.g. htop, vim).
               child: Listener(
                 onPointerDown: (event) {
                   if (event.buttons == kSecondaryButton) {
                     _showContextMenu(context, event.position);
                   }
                 },
+                onPointerSignal: _onPointerSignal,
                 child: Stack(
                   children: [
                     TerminalView(
@@ -341,20 +347,26 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     );
   }
 
-  /// Handle Ctrl+Shift+C (copy) and Ctrl+Shift+V (paste) before xterm's
-  /// built-in shortcut manager — xterm only maps Ctrl+V for paste (no Shift),
-  /// and its ShortcutManager uses a protected API that can be fragile.
+  /// Intercept keyboard shortcuts before xterm's built-in handler consumes
+  /// them — xterm sends most key combos to the terminal as raw data, so
+  /// ancestor CallbackShortcuts never see them.
   KeyEventResult _handleTerminalKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final ctrl = HardwareKeyboard.instance.isControlPressed;
-    final shift = HardwareKeyboard.instance.isShiftPressed;
-    if (ctrl && shift) {
-      if (event.logicalKey == LogicalKeyboardKey.keyC) {
-        _copySelection();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.keyV) {
-        _pasteClipboard();
+    final reg = AppShortcutRegistry.instance;
+
+    final shortcuts = <AppShortcut, VoidCallback>{
+      AppShortcut.terminalCopy: _copySelection,
+      AppShortcut.terminalPaste: _pasteClipboard,
+      AppShortcut.splitDown: () => widget.onSplitHorizontal?.call(),
+      AppShortcut.splitRight: () => widget.onSplitVertical?.call(),
+      AppShortcut.zoomIn: _zoomIn,
+      AppShortcut.zoomOut: _zoomOut,
+      AppShortcut.zoomReset: _zoomReset,
+    };
+
+    for (final entry in shortcuts.entries) {
+      if (reg.matches(entry.key, event)) {
+        entry.value();
         return KeyEventResult.handled;
       }
     }
@@ -365,6 +377,36 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       TerminalClipboard.copy(_terminal, _terminalController);
 
   Future<void> _pasteClipboard() => TerminalClipboard.paste(_terminal);
+
+  void _zoomIn() => _adjustFontSize(1);
+
+  void _zoomOut() => _adjustFontSize(-1);
+
+  void _zoomReset() {
+    ref
+        .read(configProvider.notifier)
+        .update(
+          (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: 14.0)),
+        );
+  }
+
+  void _adjustFontSize(double delta) {
+    final current = ref.read(configProvider).fontSize;
+    final updated = (current + delta).clamp(8.0, 24.0);
+    if (updated == current) return;
+    ref
+        .read(configProvider.notifier)
+        .update(
+          (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: updated)),
+        );
+  }
+
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent &&
+        HardwareKeyboard.instance.isControlPressed) {
+      _adjustFontSize(event.scrollDelta.dy < 0 ? 1 : -1);
+    }
+  }
 
   Widget _buildErrorState() {
     return ErrorState(message: _error!);

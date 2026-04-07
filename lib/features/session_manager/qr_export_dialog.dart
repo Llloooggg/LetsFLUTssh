@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
@@ -177,137 +178,148 @@ class _QrExportDialogState extends State<QrExportDialog> {
     return Dialog(
       backgroundColor: AppTheme.bg1,
       insetPadding: const EdgeInsets.all(24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppDialogHeader(
-              title: S.of(context).exportSessionsViaQr,
-              onClose: () => Navigator.of(context).pop(),
-            ),
-            Flexible(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Disclaimer
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accent.withValues(alpha: 0.1),
-                        borderRadius: AppTheme.radiusLg,
-                        border: Border.all(
-                          color: AppTheme.accent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 16,
-                            color: AppTheme.accent,
+      child: CallbackShortcuts(
+        bindings: AppShortcutRegistry.instance.buildCallbackMap({
+          AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
+        }),
+        child: Focus(
+          autofocus: true,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppDialogHeader(
+                  title: S.of(context).exportSessionsViaQr,
+                  onClose: () => Navigator.of(context).pop(),
+                ),
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Disclaimer
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accent.withValues(alpha: 0.1),
+                            borderRadius: AppTheme.radiusLg,
+                            border: Border.all(
+                              color: AppTheme.accent.withValues(alpha: 0.3),
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              S.of(context).qrNoCredentialsWarning,
-                              style: TextStyle(
-                                fontSize: AppFonts.md,
-                                color: AppTheme.fg,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 16,
+                                color: AppTheme.accent,
                               ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  S.of(context).qrNoCredentialsWarning,
+                                  style: TextStyle(
+                                    fontSize: AppFonts.md,
+                                    color: AppTheme.fg,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Select All
+                        HoverRegion(
+                          onTap: () => _toggleAll(!_allSelected),
+                          builder: (hovered) => Container(
+                            color: hovered ? AppTheme.hover : null,
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: _tristateValue,
+                                  tristate: true,
+                                  onChanged: (v) => _toggleAll(v == true),
+                                ),
+                                Text(
+                                  'Select All (${_selectedIds.length}/${widget.sessions.length})',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: AppFonts.md,
+                                    color: AppTheme.fg,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const AppDivider(),
+
+                        // Session tree with checkboxes
+                        Flexible(
+                          child: ListView(
+                            shrinkWrap: true,
+                            children: _buildTreeItems(tree, 0),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Size indicator
+                        Text(
+                          'Payload: ${(_payloadSize / 1024).toStringAsFixed(1)} KB / '
+                          '${(qrMaxPayloadBytes / 1024).toStringAsFixed(1)} KB max',
+                          style: TextStyle(
+                            fontSize: AppFonts.sm,
+                            color: sizeColor,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        ClipRRect(
+                          borderRadius: AppTheme.radiusSm,
+                          child: LinearProgressIndicator(
+                            value: sizePercent,
+                            backgroundColor: AppTheme.bg3,
+                            color: sizeColor,
+                          ),
+                        ),
+
+                        if (!_fitsInQr && _hasSelection) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            S.of(context).qrTooLarge,
+                            style: TextStyle(
+                              fontSize: AppFonts.sm,
+                              color: AppTheme.red,
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-
-                    // Select All
-                    HoverRegion(
-                      onTap: () => _toggleAll(!_allSelected),
-                      builder: (hovered) => Container(
-                        color: hovered ? AppTheme.hover : null,
-                        child: Row(
-                          children: [
-                            Checkbox(
-                              value: _tristateValue,
-                              tristate: true,
-                              onChanged: (v) => _toggleAll(v == true),
-                            ),
-                            Text(
-                              'Select All (${_selectedIds.length}/${widget.sessions.length})',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: AppFonts.md,
-                                color: AppTheme.fg,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  ),
+                ),
+                AppDialogFooter(
+                  actions: [
+                    AppDialogAction.cancel(
+                      onTap: () => Navigator.of(context).pop(),
                     ),
-                    const AppDivider(),
-
-                    // Session tree with checkboxes
-                    Flexible(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: _buildTreeItems(tree, 0),
-                      ),
+                    AppDialogAction.secondary(
+                      label: S.of(context).exportAll,
+                      onTap: _exportAll,
                     ),
-
-                    const SizedBox(height: 12),
-
-                    // Size indicator
-                    Text(
-                      'Payload: ${(_payloadSize / 1024).toStringAsFixed(1)} KB / '
-                      '${(qrMaxPayloadBytes / 1024).toStringAsFixed(1)} KB max',
-                      style: TextStyle(fontSize: AppFonts.sm, color: sizeColor),
+                    AppDialogAction.primary(
+                      label: S.of(context).showQr,
+                      enabled: _hasSelection && _fitsInQr,
+                      onTap: _showQr,
                     ),
-                    const SizedBox(height: 4),
-                    ClipRRect(
-                      borderRadius: AppTheme.radiusSm,
-                      child: LinearProgressIndicator(
-                        value: sizePercent,
-                        backgroundColor: AppTheme.bg3,
-                        color: sizeColor,
-                      ),
-                    ),
-
-                    if (!_fitsInQr && _hasSelection) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        S.of(context).qrTooLarge,
-                        style: TextStyle(
-                          fontSize: AppFonts.sm,
-                          color: AppTheme.red,
-                        ),
-                      ),
-                    ],
                   ],
-                ),
-              ),
-            ),
-            AppDialogFooter(
-              actions: [
-                AppDialogAction.cancel(
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-                AppDialogAction.secondary(
-                  label: S.of(context).exportAll,
-                  onTap: _exportAll,
-                ),
-                AppDialogAction.primary(
-                  label: S.of(context).showQr,
-                  enabled: _hasSelection && _fitsInQr,
-                  onTap: _showQr,
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

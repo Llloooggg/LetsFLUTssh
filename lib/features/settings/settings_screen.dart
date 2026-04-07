@@ -1499,20 +1499,20 @@ class _LanguageTile extends StatelessWidget {
   static const _localeLabels = <String, (String, String)>{
     _systemDefault: ('', ''),
     'en': ('English', ''),
-    'zh': ('中文', 'Chinese'),
-    'es': ('Español', 'Spanish'),
     'ar': ('العربية', 'Arabic'),
+    'zh': ('中文', 'Chinese'),
     'fr': ('Français', 'French'),
-    'pt': ('Português', 'Portuguese'),
-    'ru': ('Русский', 'Russian'),
     'de': ('Deutsch', 'German'),
+    'hi': ('हिन्दी', 'Hindi'),
+    'id': ('Bahasa Indonesia', 'Indonesian'),
     'ja': ('日本語', 'Japanese'),
     'ko': ('한국어', 'Korean'),
     'fa': ('فارسی', 'Persian'),
+    'pt': ('Português', 'Portuguese'),
+    'ru': ('Русский', 'Russian'),
+    'es': ('Español', 'Spanish'),
     'tr': ('Türkçe', 'Turkish'),
     'vi': ('Tiếng Việt', 'Vietnamese'),
-    'id': ('Bahasa Indonesia', 'Indonesian'),
-    'hi': ('हिन्दी', 'Hindi'),
   };
 
   @override
