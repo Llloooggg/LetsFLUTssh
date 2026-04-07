@@ -40,6 +40,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   double _fontSize = 14.0;
   double? _baseScaleFontSize;
   bool _hasSelection = false;
+  bool _selectMode = false;
   int _pointerCount = 0;
 
   @override
@@ -172,32 +173,40 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
                 onPointerCancel: (_) => _onPointerUp(),
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
-                  onScaleStart: (details) {
-                    if (details.pointerCount >= 2) {
-                      _baseScaleFontSize = _fontSize;
-                    }
-                  },
-                  onScaleUpdate: (details) {
-                    if (_baseScaleFontSize == null) return;
-                    setState(() {
-                      _fontSize = (_baseScaleFontSize! * details.scale).clamp(
-                        8.0,
-                        24.0,
-                      );
-                    });
-                  },
-                  onScaleEnd: (_) {
-                    if (_baseScaleFontSize == null) return;
-                    _baseScaleFontSize = null;
-                    // Persist pinch-zoomed font size to config
-                    ref
-                        .read(configProvider.notifier)
-                        .update(
-                          (c) => c.copyWith(
-                            terminal: c.terminal.copyWith(fontSize: _fontSize),
-                          ),
-                        );
-                  },
+                  // Disable scale gestures during select mode so xterm's
+                  // drag-select gesture recognizer wins the arena.
+                  onScaleStart: _selectMode
+                      ? null
+                      : (details) {
+                          if (details.pointerCount >= 2) {
+                            _baseScaleFontSize = _fontSize;
+                          }
+                        },
+                  onScaleUpdate: _selectMode
+                      ? null
+                      : (details) {
+                          if (_baseScaleFontSize == null) return;
+                          setState(() {
+                            _fontSize = (_baseScaleFontSize! * details.scale)
+                                .clamp(8.0, 24.0);
+                          });
+                        },
+                  onScaleEnd: _selectMode
+                      ? null
+                      : (_) {
+                          if (_baseScaleFontSize == null) return;
+                          _baseScaleFontSize = null;
+                          // Persist pinch-zoomed font size to config
+                          ref
+                              .read(configProvider.notifier)
+                              .update(
+                                (c) => c.copyWith(
+                                  terminal: c.terminal.copyWith(
+                                    fontSize: _fontSize,
+                                  ),
+                                ),
+                              );
+                        },
                   child: Stack(
                     children: [
                       IgnorePointer(
@@ -252,15 +261,23 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
                 ),
               ),
               if (!_connected) const Center(child: CircularProgressIndicator()),
+              // Overlay toolbar to avoid layout shift during selection.
+              if (_hasSelection)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildSelectionToolbar(),
+                ),
             ],
           ),
         ),
-        if (_hasSelection) _buildSelectionToolbar(),
         SshKeyboardBar(
           key: _keyboardKey,
           onInput: _onKeyboardInput,
           onPaste: _paste,
           onSelectModeChanged: (active) {
+            setState(() => _selectMode = active);
             _terminalController.setSuspendPointerInput(active);
             if (!active) _terminalController.clearSelection();
           },
