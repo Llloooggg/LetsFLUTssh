@@ -145,6 +145,9 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   // ── Cross-marquee state (session panel only) ──
   bool _crossMarqueeActive = false;
 
+  bool get _hasAnySelection =>
+      widget.selectedIds.isNotEmpty || widget.selectedFolderPaths.isNotEmpty;
+
   bool get _hasBulkSelection =>
       widget.selectedIds.length + widget.selectedFolderPaths.length > 1;
 
@@ -636,12 +639,18 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
 
   void _onFolderTap(SessionTreeNode node, bool expanded) {
     final fullPath = node.fullPath;
-    // If there's an active selection, toggle folder selection instead
-    if (widget.selectedIds.isNotEmpty ||
-        widget.selectedFolderPaths.isNotEmpty) {
+
+    // Desktop: Ctrl+click toggles individual folder in/out of selection.
+    if (!_mobile && isCtrlHeld) {
       widget.onToggleFolderSelected?.call(fullPath);
       return;
     }
+
+    // Desktop: clicking without Ctrl clears any existing selection.
+    if (!_mobile && _hasAnySelection) {
+      widget.onMarqueeSelect?.call({}, {});
+    }
+
     if (!_mobile) {
       widget.onFolderSelected?.call(fullPath, node.sessionCount);
     }
@@ -766,6 +775,17 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
       return;
     }
 
+    // Desktop: Ctrl+click toggles individual item in/out of selection.
+    if (!_mobile && isCtrlHeld) {
+      widget.onToggleSelected?.call(session.id);
+      return;
+    }
+
+    // Desktop: clicking without Ctrl clears any existing selection.
+    if (!_mobile && _hasAnySelection) {
+      widget.onMarqueeSelect?.call({}, {});
+    }
+
     // Manual double-tap detection for desktop — avoids GestureDetector's
     // onDoubleTap which delays onTap by ~300 ms and conflicts with Draggable.
     if (!_mobile) {
@@ -839,32 +859,14 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           ),
         ),
       Expanded(
-        child: Row(
-          children: [
-            Flexible(
-              child: Text(
-                node.name,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: _fontSize,
-                  color: isActive ? AppTheme.fg : AppTheme.fgDim,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                session.host,
-                style: TextStyle(
-                  fontFamily: 'JetBrains Mono',
-                  fontSize: AppFonts.xxs,
-                  color: AppTheme.fgFaint,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+        child: Text(
+          node.name,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: _fontSize,
+            color: isActive ? AppTheme.fg : AppTheme.fgDim,
+          ),
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     ];
