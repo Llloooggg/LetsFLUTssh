@@ -1019,6 +1019,26 @@ class SAr extends S {
   }
 
   @override
+  String get login => 'تسجيل الدخول';
+
+  @override
+  String get protocol => 'البروتوكول';
+
+  @override
+  String get typeLabel => 'النوع';
+
+  @override
+  String get folder => 'المجلد';
+
+  @override
+  String nSubitems(int count) {
+    return '$count عنصر';
+  }
+
+  @override
+  String get subitems => 'العناصر';
+
+  @override
   String get storagePermissionRequired =>
       'يلزم إذن التخزين لتصفح الملفات المحلية';
 

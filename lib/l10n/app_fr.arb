@@ -331,6 +331,18 @@
   "errDecryptionFailed": "Impossible de déchiffrer les identifiants. Le fichier de clé est peut-être corrompu.",
   "errWithPath": "{error} : {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Identifiant",
+  "protocol": "Protocole",
+  "typeLabel": "Type",
+  "folder": "Dossier",
+  "nSubitems": "{count} élément(s)",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Éléments",
+
   "storagePermissionRequired": "Autorisation de stockage requise pour parcourir les fichiers locaux",
   "grantPermission": "Accorder l'autorisation",
   "storagePermissionLimited": "Accès limité — accordez l'autorisation de stockage complète pour tous les fichiers"

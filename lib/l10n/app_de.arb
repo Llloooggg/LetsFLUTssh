@@ -307,6 +307,18 @@
   "errDecryptionFailed": "Zugangsdaten konnten nicht entschlüsselt werden. Die Schlüsseldatei ist möglicherweise beschädigt.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Anmeldung",
+  "protocol": "Protokoll",
+  "typeLabel": "Typ",
+  "folder": "Ordner",
+  "nSubitems": "{count} Element(e)",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Elemente",
+
   "storagePermissionRequired": "Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen",
   "grantPermission": "Berechtigung erteilen",
   "storagePermissionLimited": "Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien"

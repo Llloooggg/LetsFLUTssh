@@ -309,6 +309,18 @@
   "errDecryptionFailed": "Falha ao descriptografar as credenciais. O arquivo de chave pode estar corrompido.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Login",
+  "protocol": "Protocolo",
+  "typeLabel": "Tipo",
+  "folder": "Pasta",
+  "nSubitems": "{count} item(ns)",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Itens",
+
   "storagePermissionRequired": "Permissão de armazenamento necessária para navegar arquivos locais",
   "grantPermission": "Conceder permissão",
   "storagePermissionLimited": "Acesso limitado — conceda permissão total de armazenamento para todos os arquivos"

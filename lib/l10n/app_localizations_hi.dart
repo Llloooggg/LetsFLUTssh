@@ -1023,6 +1023,26 @@ class SHi extends S {
   }
 
   @override
+  String get login => 'लॉगिन';
+
+  @override
+  String get protocol => 'प्रोटोकॉल';
+
+  @override
+  String get typeLabel => 'प्रकार';
+
+  @override
+  String get folder => 'फ़ोल्डर';
+
+  @override
+  String nSubitems(int count) {
+    return '$count आइटम';
+  }
+
+  @override
+  String get subitems => 'आइटम';
+
+  @override
   String get storagePermissionRequired =>
       'स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है';
 

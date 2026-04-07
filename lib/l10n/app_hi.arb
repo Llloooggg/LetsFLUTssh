@@ -305,6 +305,18 @@
   "errDecryptionFailed": "क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "लॉगिन",
+  "protocol": "प्रोटोकॉल",
+  "typeLabel": "प्रकार",
+  "folder": "फ़ोल्डर",
+  "nSubitems": "{count} आइटम",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "आइटम",
+
   "storagePermissionRequired": "स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है",
   "grantPermission": "अनुमति दें",
   "storagePermissionLimited": "सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें"

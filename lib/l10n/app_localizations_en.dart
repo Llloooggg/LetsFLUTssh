@@ -1021,6 +1021,26 @@ class SEn extends S {
   }
 
   @override
+  String get login => 'Login';
+
+  @override
+  String get protocol => 'Protocol';
+
+  @override
+  String get typeLabel => 'Type';
+
+  @override
+  String get folder => 'Folder';
+
+  @override
+  String nSubitems(int count) {
+    return '$count item(s)';
+  }
+
+  @override
+  String get subitems => 'Items';
+
+  @override
   String get storagePermissionRequired =>
       'Storage permission required to browse local files';
 

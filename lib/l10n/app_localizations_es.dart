@@ -1028,6 +1028,26 @@ class SEs extends S {
   }
 
   @override
+  String get login => 'Usuario';
+
+  @override
+  String get protocol => 'Protocolo';
+
+  @override
+  String get typeLabel => 'Tipo';
+
+  @override
+  String get folder => 'Carpeta';
+
+  @override
+  String nSubitems(int count) {
+    return '$count elemento(s)';
+  }
+
+  @override
+  String get subitems => 'Elementos';
+
+  @override
   String get storagePermissionRequired =>
       'Se requiere permiso de almacenamiento para explorar archivos locales';
 

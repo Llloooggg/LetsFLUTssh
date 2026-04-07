@@ -1024,6 +1024,26 @@ class SRu extends S {
   }
 
   @override
+  String get login => 'Логин';
+
+  @override
+  String get protocol => 'Протокол';
+
+  @override
+  String get typeLabel => 'Тип';
+
+  @override
+  String get folder => 'Папка';
+
+  @override
+  String nSubitems(int count) {
+    return '$count элемент(ов)';
+  }
+
+  @override
+  String get subitems => 'Элементы';
+
+  @override
   String get storagePermissionRequired =>
       'Для просмотра локальных файлов необходимо разрешение на доступ к хранилищу';
 

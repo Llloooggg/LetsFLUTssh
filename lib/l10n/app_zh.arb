@@ -332,6 +332,18 @@
   "errDecryptionFailed": "凭据解密失败。密钥文件可能已损坏。",
   "errWithPath": "{error}：{path}",
   "errWithCause": "{error}（{cause}）",
+  "login": "用户名",
+  "protocol": "协议",
+  "typeLabel": "类型",
+  "folder": "文件夹",
+  "nSubitems": "{count} 个项目",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "项目",
+
   "storagePermissionRequired": "需要存储权限才能浏览本地文件",
   "grantPermission": "授予权限",
   "storagePermissionLimited": "访问受限 — 请授予完整存储权限以访问所有文件"

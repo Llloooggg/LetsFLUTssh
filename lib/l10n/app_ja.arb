@@ -309,6 +309,18 @@
   "errDecryptionFailed": "認証情報の復号に失敗しました。鍵ファイルが破損している可能性があります。",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error}（{cause}）",
+  "login": "ログイン",
+  "protocol": "プロトコル",
+  "typeLabel": "タイプ",
+  "folder": "フォルダー",
+  "nSubitems": "{count} 個のアイテム",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "アイテム",
+
   "storagePermissionRequired": "ローカルファイルを閲覧するにはストレージ権限が必要です",
   "grantPermission": "権限を付与",
   "storagePermissionLimited": "制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください"

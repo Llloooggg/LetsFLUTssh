@@ -1009,6 +1009,26 @@ class SKo extends S {
   }
 
   @override
+  String get login => '로그인';
+
+  @override
+  String get protocol => '프로토콜';
+
+  @override
+  String get typeLabel => '유형';
+
+  @override
+  String get folder => '폴더';
+
+  @override
+  String nSubitems(int count) {
+    return '$count개 항목';
+  }
+
+  @override
+  String get subitems => '항목';
+
+  @override
   String get storagePermissionRequired => '로컬 파일을 탐색하려면 저장소 권한이 필요합니다';
 
   @override

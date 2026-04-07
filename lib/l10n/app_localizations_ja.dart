@@ -1010,6 +1010,26 @@ class SJa extends S {
   }
 
   @override
+  String get login => 'ログイン';
+
+  @override
+  String get protocol => 'プロトコル';
+
+  @override
+  String get typeLabel => 'タイプ';
+
+  @override
+  String get folder => 'フォルダー';
+
+  @override
+  String nSubitems(int count) {
+    return '$count 個のアイテム';
+  }
+
+  @override
+  String get subitems => 'アイテム';
+
+  @override
   String get storagePermissionRequired => 'ローカルファイルを閲覧するにはストレージ権限が必要です';
 
   @override

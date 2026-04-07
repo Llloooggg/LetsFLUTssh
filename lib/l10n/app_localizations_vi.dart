@@ -1022,6 +1022,26 @@ class SVi extends S {
   }
 
   @override
+  String get login => 'Đăng nhập';
+
+  @override
+  String get protocol => 'Giao thức';
+
+  @override
+  String get typeLabel => 'Loại';
+
+  @override
+  String get folder => 'Thư mục';
+
+  @override
+  String nSubitems(int count) {
+    return '$count mục';
+  }
+
+  @override
+  String get subitems => 'Mục';
+
+  @override
   String get storagePermissionRequired =>
       'Cần quyền truy cập bộ nhớ để duyệt tệp cục bộ';
 

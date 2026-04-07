@@ -786,9 +786,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the staging session and double-tap
-      await tester.tap(find.text('staging'));
+      await tester.tap(find.text('staging').first);
       await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.text('staging'));
+      await tester.tap(find.text('staging').first);
       await tester.pumpAndSettle();
 
       expect(connected, isNotNull);
@@ -975,8 +975,8 @@ void main() {
       await tester.tap(find.text('staging'));
       await tester.pumpAndSettle();
 
-      // The row should be selected (verify no error occurs)
-      expect(find.text('staging'), findsOneWidget);
+      // The row should be selected; details panel also shows the name
+      expect(find.text('staging'), findsAtLeast(1));
     });
   });
 

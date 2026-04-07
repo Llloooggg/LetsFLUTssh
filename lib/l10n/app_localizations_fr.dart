@@ -1032,6 +1032,26 @@ class SFr extends S {
   }
 
   @override
+  String get login => 'Identifiant';
+
+  @override
+  String get protocol => 'Protocole';
+
+  @override
+  String get typeLabel => 'Type';
+
+  @override
+  String get folder => 'Dossier';
+
+  @override
+  String nSubitems(int count) {
+    return '$count élément(s)';
+  }
+
+  @override
+  String get subitems => 'Éléments';
+
+  @override
   String get storagePermissionRequired =>
       'Autorisation de stockage requise pour parcourir les fichiers locaux';
 

@@ -1953,6 +1953,42 @@ abstract class S {
   /// **'{error} ({cause})'**
   String errWithCause(String error, String cause);
 
+  /// No description provided for @login.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get login;
+
+  /// No description provided for @protocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Protocol'**
+  String get protocol;
+
+  /// No description provided for @typeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get typeLabel;
+
+  /// No description provided for @folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder'**
+  String get folder;
+
+  /// No description provided for @nSubitems.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} item(s)'**
+  String nSubitems(int count);
+
+  /// No description provided for @subitems.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get subitems;
+
   /// No description provided for @storagePermissionRequired.
   ///
   /// In en, this message translates to:
