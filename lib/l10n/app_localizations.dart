@@ -495,6 +495,12 @@ abstract class S {
   /// **'Select All'**
   String get selectAll;
 
+  /// No description provided for @deselectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect All'**
+  String get deselectAll;
+
   /// No description provided for @moveTo.
   ///
   /// In en, this message translates to:

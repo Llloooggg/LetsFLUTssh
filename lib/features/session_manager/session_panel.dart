@@ -16,6 +16,7 @@ import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/cross_marquee_controller.dart';
+import '../../widgets/mobile_selection_bar.dart';
 import '../../widgets/status_indicator.dart';
 import '../workspace/workspace_controller.dart';
 import '../workspace/workspace_node.dart';
@@ -367,12 +368,32 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           child: Column(
             children: [
               if (_selectMode && mobile)
-                _SelectActionBar(
+                MobileSelectionBar(
                   selectedCount: _selectedIds.length,
-                  onSelectAll: _selectAll,
-                  onDelete: () => _deleteSelected(context),
-                  onMove: () => _moveSelected(context),
+                  totalCount: ref.read(filteredSessionsProvider).length,
                   onCancel: _exitSelectMode,
+                  onSelectAll: _selectAll,
+                  onDeselectAll: () => setState(() {
+                    _selectedIds.clear();
+                    _selectedFolderPaths.clear();
+                  }),
+                  onDelete:
+                      _selectedIds.isNotEmpty || _selectedFolderPaths.isNotEmpty
+                      ? () => _deleteSelected(context)
+                      : null,
+                  actions: [
+                    AppIconButton(
+                      icon: Icons.drive_file_move,
+                      size: 20,
+                      boxSize: 36,
+                      onTap:
+                          _selectedIds.isNotEmpty ||
+                              _selectedFolderPaths.isNotEmpty
+                          ? () => _moveSelected(context)
+                          : null,
+                      tooltip: S.of(context).moveTo,
+                    ),
+                  ],
                 )
               else ...[
                 // Header with title + add/select buttons
@@ -1197,77 +1218,6 @@ class _PanelHeader extends StatelessWidget {
             tooltip: S.of(context).newConnection,
             size: 16,
             boxSize: 24,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SelectActionBar extends StatelessWidget {
-  final int selectedCount;
-  final VoidCallback onSelectAll;
-  final VoidCallback onDelete;
-  final VoidCallback onMove;
-  final VoidCallback onCancel;
-
-  const _SelectActionBar({
-    required this.selectedCount,
-    required this.onSelectAll,
-    required this.onDelete,
-    required this.onMove,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      height: AppTheme.barHeightSm,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.1),
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              S.of(context).nSelectedCount(selectedCount),
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: AppFonts.md,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ),
-          AppIconButton(
-            icon: Icons.close,
-            onTap: onCancel,
-            tooltip: S.of(context).cancel,
-            size: 18,
-          ),
-          AppIconButton(
-            icon: Icons.select_all,
-            onTap: onSelectAll,
-            tooltip: S.of(context).selectAll,
-            size: 18,
-          ),
-          AppIconButton(
-            icon: Icons.drive_file_move,
-            onTap: selectedCount > 0 ? onMove : null,
-            tooltip: S.of(context).moveTo,
-            size: 18,
-          ),
-          const Spacer(),
-          AppIconButton(
-            icon: Icons.delete,
-            onTap: selectedCount > 0 ? onDelete : null,
-            tooltip: S.of(context).delete,
-            size: 18,
-            color: selectedCount > 0 ? AppTheme.disconnected : null,
           ),
         ],
       ),

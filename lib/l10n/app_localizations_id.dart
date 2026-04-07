@@ -214,6 +214,9 @@ class SId extends S {
   String get selectAll => 'Pilih Semua';
 
   @override
+  String get deselectAll => 'Batal Pilih Semua';
+
+  @override
   String get moveTo => 'Pindahkan ke...';
 
   @override

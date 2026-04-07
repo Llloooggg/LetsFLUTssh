@@ -66,6 +66,7 @@
   "noSessionsToExport": "هیچ جلسه‌ای برای خروجی وجود ندارد",
   "nSelectedCount": "{count} انتخاب شده",
   "selectAll": "انتخاب همه",
+  "deselectAll": "لغو انتخاب همه",
   "moveTo": "انتقال به...",
   "moveToFolder": "انتقال به پوشه",
   "rootFolder": "/ (ریشه)",

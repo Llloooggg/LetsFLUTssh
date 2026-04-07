@@ -13,6 +13,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/mobile_selection_bar.dart';
 import '../file_browser/file_browser_controller.dart';
 import '../file_browser/file_pane_dialogs.dart';
 import '../file_browser/sftp_initializer.dart';
@@ -566,8 +567,31 @@ class _MobileFileListState extends State<MobileFileList> {
 
     return Column(
       children: [
-        if (_selectionMode && ctrl.selected.isNotEmpty)
-          _buildSelectionBar(context)
+        if (_selectionMode)
+          MobileSelectionBar(
+            selectedCount: ctrl.selected.length,
+            totalCount: ctrl.entries.length,
+            onCancel: _exitSelectionMode,
+            onSelectAll: ctrl.selectAll,
+            onDeselectAll: ctrl.clearSelection,
+            onDelete: ctrl.selected.isNotEmpty
+                ? () => _confirmDelete(context, ctrl.selectedEntries)
+                : null,
+            actions: [
+              AppIconButton(
+                icon: Icons.swap_horiz,
+                size: 20,
+                boxSize: 36,
+                onTap: ctrl.selected.isNotEmpty
+                    ? () {
+                        widget.onTransferMultiple(ctrl.selectedEntries);
+                        _exitSelectionMode();
+                      }
+                    : null,
+                tooltip: S.of(context).transfer,
+              ),
+            ],
+          )
         else
           _buildSortBar(context),
         Expanded(
@@ -701,52 +725,6 @@ class _MobileFileListState extends State<MobileFileList> {
     );
   }
 
-  Widget _buildSelectionBar(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      height: AppTheme.barHeightLg,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(color: theme.colorScheme.primaryContainer),
-      child: Row(
-        children: [
-          AppIconButton(
-            icon: Icons.close,
-            size: 20,
-            boxSize: 36,
-            onTap: _exitSelectionMode,
-            tooltip: S.of(context).cancelSelection,
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              S.of(context).nSelectedCount(ctrl.selected.length),
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: AppFonts.lg),
-            ),
-          ),
-          AppIconButton(
-            icon: Icons.swap_horiz,
-            size: 20,
-            boxSize: 36,
-            onTap: () {
-              widget.onTransferMultiple(ctrl.selectedEntries);
-              _exitSelectionMode();
-            },
-            tooltip: S.of(context).transfer,
-          ),
-          AppIconButton(
-            icon: Icons.delete,
-            size: 20,
-            boxSize: 36,
-            color: AppTheme.disconnected,
-            onTap: () => _confirmDelete(context, ctrl.selectedEntries),
-            tooltip: S.of(context).delete,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildFileRow(BuildContext context, FileEntry entry) {
     final theme = Theme.of(context);
     final isSelected = ctrl.selected.contains(entry.path);
@@ -816,7 +794,6 @@ class _MobileFileListState extends State<MobileFileList> {
   void _onEntryTap(FileEntry entry) {
     if (_selectionMode) {
       ctrl.toggleSelect(entry.path);
-      if (ctrl.selected.isEmpty) _exitSelectionMode();
     } else if (entry.isDir) {
       ctrl.navigateTo(entry.path);
     } else {

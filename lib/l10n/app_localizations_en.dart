@@ -214,6 +214,9 @@ class SEn extends S {
   String get selectAll => 'Select All';
 
   @override
+  String get deselectAll => 'Deselect All';
+
+  @override
   String get moveTo => 'Move to...';
 
   @override

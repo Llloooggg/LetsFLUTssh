@@ -213,6 +213,9 @@ class SKo extends S {
   String get selectAll => '전체 선택';
 
   @override
+  String get deselectAll => '전체 해제';
+
+  @override
   String get moveTo => '이동...';
 
   @override

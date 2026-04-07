@@ -62,6 +62,7 @@
   "noSessionsToExport": "Không có phiên để xuất",
   "nSelectedCount": "Đã chọn {count}",
   "selectAll": "Chọn tất cả",
+  "deselectAll": "Bỏ chọn tất cả",
   "moveTo": "Di chuyển đến...",
   "moveToFolder": "Di chuyển đến thư mục",
   "rootFolder": "/ (gốc)",

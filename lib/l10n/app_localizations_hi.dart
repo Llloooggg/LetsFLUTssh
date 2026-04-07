@@ -214,6 +214,9 @@ class SHi extends S {
   String get selectAll => 'सभी चुनें';
 
   @override
+  String get deselectAll => 'सभी हटाएं';
+
+  @override
   String get moveTo => 'यहां ले जाएं...';
 
   @override

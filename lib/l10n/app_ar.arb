@@ -66,6 +66,7 @@
   "noSessionsToExport": "لا توجد جلسات للتصدير",
   "nSelectedCount": "{count} محدد",
   "selectAll": "تحديد الكل",
+  "deselectAll": "إلغاء تحديد الكل",
   "moveTo": "نقل إلى...",
   "moveToFolder": "نقل إلى مجلد",
   "rootFolder": "/ (الجذر)",

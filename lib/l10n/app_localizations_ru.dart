@@ -214,6 +214,9 @@ class SRu extends S {
   String get selectAll => 'Выбрать все';
 
   @override
+  String get deselectAll => 'Снять все';
+
+  @override
   String get moveTo => 'Переместить в...';
 
   @override

@@ -215,6 +215,9 @@ class SFr extends S {
   String get selectAll => 'Tout sélectionner';
 
   @override
+  String get deselectAll => 'Tout désélectionner';
+
+  @override
   String get moveTo => 'Déplacer vers...';
 
   @override

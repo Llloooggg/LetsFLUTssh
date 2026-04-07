@@ -213,6 +213,9 @@ class SFa extends S {
   String get selectAll => 'انتخاب همه';
 
   @override
+  String get deselectAll => 'لغو انتخاب همه';
+
+  @override
   String get moveTo => 'انتقال به...';
 
   @override

@@ -63,6 +63,7 @@
   "noSessionsToExport": "Nenhuma sessão para exportar",
   "nSelectedCount": "{count} selecionado(s)",
   "selectAll": "Selecionar Tudo",
+  "deselectAll": "Desmarcar Tudo",
   "moveTo": "Mover para...",
   "moveToFolder": "Mover para Pasta",
   "rootFolder": "/ (raiz)",

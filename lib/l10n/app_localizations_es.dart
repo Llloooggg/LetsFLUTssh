@@ -214,6 +214,9 @@ class SEs extends S {
   String get selectAll => 'Seleccionar todo';
 
   @override
+  String get deselectAll => 'Deseleccionar todo';
+
+  @override
   String get moveTo => 'Mover a...';
 
   @override
