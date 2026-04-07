@@ -165,7 +165,12 @@ void main() {
         buildBar(tabs: tabs, activeIndex: 0, onClose: (id) => closedTabId = id),
       );
 
-      // Active tab shows close button — find the close icon and tap it.
+      // Hover over the tab to reveal the close button.
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      await gesture.moveTo(tester.getCenter(find.text('ToClose')));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byIcon(Icons.close));
       expect(closedTabId, 'tab-close-me');
     });
@@ -295,8 +300,14 @@ void main() {
         ),
       );
 
-      // Active tab (First) shows close button, inactive (Second) does not.
-      // Only one close icon should be present (for the active tab).
+      // Without hovering, no close buttons are shown on any tab.
+      expect(find.byIcon(Icons.close), findsNothing);
+
+      // Hover over active tab — close button appears only for it.
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      await gesture.moveTo(tester.getCenter(find.text('First')));
+      await tester.pumpAndSettle();
       expect(find.byIcon(Icons.close), findsOneWidget);
     });
   });

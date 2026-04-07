@@ -751,7 +751,12 @@ void main() {
 
       expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
-      // Close via tab bar context — find the close button on the tab
+      // Hover over the tab to reveal the close button, then tap it
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      await gesture.moveTo(tester.getCenter(find.text('ToClose')));
+      await tester.pumpAndSettle();
+
       final closeButtons = find.byIcon(Icons.close);
       if (closeButtons.evaluate().isNotEmpty) {
         await tester.tap(closeButtons.first);
