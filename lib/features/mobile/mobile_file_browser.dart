@@ -470,7 +470,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   }
 
   Future<void> _pickLocalFolder() async {
-    final path = await FilePicker.platform.getDirectoryPath();
+    final path = await FilePicker.getDirectoryPath();
     if (path != null && _localCtrl != null) {
       await _localCtrl!.navigateTo(path);
     }
