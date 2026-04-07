@@ -12,9 +12,11 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/connection_progress.dart';
 import '../../widgets/error_state.dart';
 
 import '../../core/connection/connection.dart';
+import '../../core/connection/connection_step.dart';
 import '../../core/sftp/sftp_client.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/transfer_task.dart';
@@ -72,6 +74,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   bool _initializing = true;
   String? _error;
   double _splitRatio = 0.5;
+  final _progressKey = GlobalKey<ConnectionProgressState>();
 
   // SFTP clipboard for Ctrl+C / Ctrl+V across panes.
   List<FileEntry>? _clipboardEntries;
@@ -101,7 +104,6 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   Future<void> _initSftp() async {
-    // Wait for connection if still connecting
     final conn = widget.connection;
     await conn.waitUntilReady();
 
@@ -118,6 +120,14 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       return;
     }
 
+    // SFTP channel open step
+    _progressKey.currentState?.addStep(
+      const ConnectionStep(
+        phase: ConnectionPhase.openChannel,
+        status: StepStatus.inProgress,
+      ),
+    );
+
     try {
       _sftp = widget.sftpInitFactory != null
           ? await widget.sftpInitFactory!(conn)
@@ -130,6 +140,13 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         'SFTP init failed: $e',
         name: 'FileBrowser',
         error: e,
+      );
+      _progressKey.currentState?.addStep(
+        ConnectionStep(
+          phase: ConnectionPhase.openChannel,
+          status: StepStatus.failed,
+          detail: e.toString(),
+        ),
       );
       if (mounted) {
         final l10n = S.of(context);
@@ -172,15 +189,10 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   Widget _buildLoading() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(S.of(context).initializingSftp),
-        ],
-      ),
+    return ConnectionProgress(
+      key: _progressKey,
+      connection: widget.connection,
+      channelLabel: S.of(context).progressOpeningSftp,
     );
   }
 

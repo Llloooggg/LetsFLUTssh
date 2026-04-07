@@ -29,19 +29,24 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: invalid_use_of_internal_member
 
 class _FakeSSHConfig_0 extends _i1.SmartFake implements _i2.SSHConfig {
-  _FakeSSHConfig_0(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+  _FakeSSHConfig_0(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
-class _FakeKnownHostsManager_1 extends _i1.SmartFake implements _i3.KnownHostsManager {
-  _FakeKnownHostsManager_1(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+class _FakeKnownHostsManager_1 extends _i1.SmartFake
+    implements _i3.KnownHostsManager {
+  _FakeKnownHostsManager_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 class _FakeSSHSession_2 extends _i1.SmartFake implements _i4.SSHSession {
-  _FakeSSHSession_2(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+  _FakeSSHSession_2(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 class _FakeStreamSink_3<S> extends _i1.SmartFake implements _i5.StreamSink<S> {
-  _FakeStreamSink_3(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+  _FakeStreamSink_3(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 /// A class which mocks [SSHConnection].
@@ -53,7 +58,10 @@ class MockSSHConnection extends _i1.Mock implements _i6.SSHConnection {
       (super.noSuchMethod(
             Invocation.getter(#config),
             returnValue: _FakeSSHConfig_0(this, Invocation.getter(#config)),
-            returnValueForMissingStub: _FakeSSHConfig_0(this, Invocation.getter(#config)),
+            returnValueForMissingStub: _FakeSSHConfig_0(
+              this,
+              Invocation.getter(#config),
+            ),
           )
           as _i2.SSHConfig);
 
@@ -61,24 +69,36 @@ class MockSSHConnection extends _i1.Mock implements _i6.SSHConnection {
   _i3.KnownHostsManager get knownHosts =>
       (super.noSuchMethod(
             Invocation.getter(#knownHosts),
-            returnValue: _FakeKnownHostsManager_1(this, Invocation.getter(#knownHosts)),
-            returnValueForMissingStub: _FakeKnownHostsManager_1(this, Invocation.getter(#knownHosts)),
+            returnValue: _FakeKnownHostsManager_1(
+              this,
+              Invocation.getter(#knownHosts),
+            ),
+            returnValueForMissingStub: _FakeKnownHostsManager_1(
+              this,
+              Invocation.getter(#knownHosts),
+            ),
           )
           as _i3.KnownHostsManager);
 
   @override
   bool get isConnected =>
-      (super.noSuchMethod(Invocation.getter(#isConnected), returnValue: false, returnValueForMissingStub: false)
+      (super.noSuchMethod(
+            Invocation.getter(#isConnected),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
           as bool);
 
   @override
-  set onDisconnect(_i7.VoidCallback? value) =>
-      super.noSuchMethod(Invocation.setter(#onDisconnect, value), returnValueForMissingStub: null);
+  set onDisconnect(_i7.VoidCallback? value) => super.noSuchMethod(
+    Invocation.setter(#onDisconnect, value),
+    returnValueForMissingStub: null,
+  );
 
   @override
-  _i5.Future<void> connect() =>
+  _i5.Future<void> connect({_i6.ConnectionProgressCallback? onProgress}) =>
       (super.noSuchMethod(
-            Invocation.method(#connect, []),
+            Invocation.method(#connect, [], {#onProgress: onProgress}),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
@@ -89,20 +109,31 @@ class MockSSHConnection extends _i1.Mock implements _i6.SSHConnection {
       (super.noSuchMethod(
             Invocation.method(#openShell, [cols, rows]),
             returnValue: _i5.Future<_i4.SSHSession>.value(
-              _FakeSSHSession_2(this, Invocation.method(#openShell, [cols, rows])),
+              _FakeSSHSession_2(
+                this,
+                Invocation.method(#openShell, [cols, rows]),
+              ),
             ),
             returnValueForMissingStub: _i5.Future<_i4.SSHSession>.value(
-              _FakeSSHSession_2(this, Invocation.method(#openShell, [cols, rows])),
+              _FakeSSHSession_2(
+                this,
+                Invocation.method(#openShell, [cols, rows]),
+              ),
             ),
           )
           as _i5.Future<_i4.SSHSession>);
 
   @override
-  void resizeTerminal(int? cols, int? rows) =>
-      super.noSuchMethod(Invocation.method(#resizeTerminal, [cols, rows]), returnValueForMissingStub: null);
+  void resizeTerminal(int? cols, int? rows) => super.noSuchMethod(
+    Invocation.method(#resizeTerminal, [cols, rows]),
+    returnValueForMissingStub: null,
+  );
 
   @override
-  void disconnect() => super.noSuchMethod(Invocation.method(#disconnect, []), returnValueForMissingStub: null);
+  void disconnect() => super.noSuchMethod(
+    Invocation.method(#disconnect, []),
+    returnValueForMissingStub: null,
+  );
 }
 
 /// A class which mocks [SSHSession].
@@ -113,8 +144,14 @@ class MockSSHSession extends _i1.Mock implements _i4.SSHSession {
   _i5.StreamSink<_i8.Uint8List> get stdin =>
       (super.noSuchMethod(
             Invocation.getter(#stdin),
-            returnValue: _FakeStreamSink_3<_i8.Uint8List>(this, Invocation.getter(#stdin)),
-            returnValueForMissingStub: _FakeStreamSink_3<_i8.Uint8List>(this, Invocation.getter(#stdin)),
+            returnValue: _FakeStreamSink_3<_i8.Uint8List>(
+              this,
+              Invocation.getter(#stdin),
+            ),
+            returnValueForMissingStub: _FakeStreamSink_3<_i8.Uint8List>(
+              this,
+              Invocation.getter(#stdin),
+            ),
           )
           as _i5.StreamSink<_i8.Uint8List>);
 
@@ -146,19 +183,36 @@ class MockSSHSession extends _i1.Mock implements _i4.SSHSession {
           as _i5.Future<void>);
 
   @override
-  void write(_i8.Uint8List? data) =>
-      super.noSuchMethod(Invocation.method(#write, [data]), returnValueForMissingStub: null);
-
-  @override
-  void resizeTerminal(int? width, int? height, [int? pixelWidth = 0, int? pixelHeight = 0]) => super.noSuchMethod(
-    Invocation.method(#resizeTerminal, [width, height, pixelWidth, pixelHeight]),
+  void write(_i8.Uint8List? data) => super.noSuchMethod(
+    Invocation.method(#write, [data]),
     returnValueForMissingStub: null,
   );
 
   @override
-  void close() => super.noSuchMethod(Invocation.method(#close, []), returnValueForMissingStub: null);
+  void resizeTerminal(
+    int? width,
+    int? height, [
+    int? pixelWidth = 0,
+    int? pixelHeight = 0,
+  ]) => super.noSuchMethod(
+    Invocation.method(#resizeTerminal, [
+      width,
+      height,
+      pixelWidth,
+      pixelHeight,
+    ]),
+    returnValueForMissingStub: null,
+  );
 
   @override
-  void kill(_i4.SSHSignal? signal) =>
-      super.noSuchMethod(Invocation.method(#kill, [signal]), returnValueForMissingStub: null);
+  void close() => super.noSuchMethod(
+    Invocation.method(#close, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void kill(_i4.SSHSignal? signal) => super.noSuchMethod(
+    Invocation.method(#kill, [signal]),
+    returnValueForMissingStub: null,
+  );
 }

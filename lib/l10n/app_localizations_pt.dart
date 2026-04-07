@@ -1055,4 +1055,23 @@ class SPt extends S {
   @override
   String get storagePermissionLimited =>
       'Acesso limitado — conceda permissão total de armazenamento para todos os arquivos';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'Conectando a $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'Verificando chave do host';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'Autenticando como $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'Abrindo shell';
+
+  @override
+  String get progressOpeningSftp => 'Abrindo canal SFTP';
 }

@@ -186,6 +186,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
                 _PanelConnectionBar(
                   activeTab: panel.activeTab!,
                   panelId: panel.id,
+                  onRetry: _retryCallback(panel),
                 ),
               // Tab content.
               Expanded(
@@ -289,6 +290,15 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     }
   }
 
+  VoidCallback? _retryCallback(PanelLeaf panel) {
+    final tab = panel.activeTab;
+    if (tab == null) return null;
+    if (tab.kind != TabKind.terminal) return null;
+    final state = _terminalKeys[tab.id]?.currentState;
+    if (state == null) return null;
+    return () => state.reconnect();
+  }
+
   void _showTabContextMenu(
     BuildContext context,
     PanelLeaf panel,
@@ -345,8 +355,13 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
 class _PanelConnectionBar extends ConsumerWidget {
   final TabEntry activeTab;
   final String panelId;
+  final VoidCallback? onRetry;
 
-  const _PanelConnectionBar({required this.activeTab, required this.panelId});
+  const _PanelConnectionBar({
+    required this.activeTab,
+    required this.panelId,
+    this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -406,6 +421,8 @@ class _PanelConnectionBar extends ConsumerWidget {
           ),
           if (conn.isConnected)
             _companionButton(context, isTerminal, ref, scheme),
+          if (!conn.isConnected && onRetry != null)
+            _retryButton(context, scheme),
         ],
       ),
     );
@@ -454,6 +471,49 @@ class _PanelConnectionBar extends ConsumerWidget {
               const SizedBox(width: 4),
               Text(
                 label,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: AppFonts.xs,
+                  fontWeight: FontWeight.w500,
+                  color: btnColor,
+                  height: 1.0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _retryButton(BuildContext context, ColorScheme scheme) {
+    final btnColor = AppTheme.red;
+    return Tooltip(
+      message: S.of(context).reconnect,
+      child: HoverRegion(
+        onTap: onRetry!,
+        builder: (hovered) => Container(
+          height: 18,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: btnColor.withValues(
+              alpha: hovered ? 0x25 / 255.0 : 0x18 / 255.0,
+            ),
+            border: Border.all(
+              color: btnColor.withValues(
+                alpha: hovered ? 0x60 / 255.0 : 0x40 / 255.0,
+              ),
+            ),
+            borderRadius: AppTheme.radiusSm,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(Icons.refresh, size: 11, color: btnColor),
+              const SizedBox(width: 4),
+              Text(
+                S.of(context).reconnect,
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: AppFonts.xs,

@@ -84,7 +84,7 @@ class ConnectionManager {
     };
 
     try {
-      await sshConn.connect();
+      await sshConn.connect(onProgress: (step) => conn.addProgressStep(step));
       conn.sshConnection = sshConn;
       conn.state = SSHConnectionState.connected;
       AppLogger.instance.log('Connected: ${conn.label}', name: 'Connection');

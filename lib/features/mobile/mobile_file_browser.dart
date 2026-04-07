@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
+import '../../core/connection/connection_step.dart';
 import '../../core/sftp/sftp_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../widgets/connection_progress.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
@@ -47,6 +49,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   String? _error;
   bool _showRemote = true; // Start on remote pane
   bool _storagePermissionDenied = false;
+  final _progressKey = GlobalKey<ConnectionProgressState>();
 
   FilePaneController? get _localCtrl => _sftp?.localCtrl;
   FilePaneController? get _remoteCtrl => _sftp?.remoteCtrl;
@@ -60,8 +63,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
 
   Future<void> _initSftp() async {
     final conn = widget.connection;
-
-    // Wait for connection if still connecting (connectAsync returns immediately)
     await conn.waitUntilReady();
 
     if (!conn.isConnected) {
@@ -76,6 +77,13 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
       }
       return;
     }
+
+    _progressKey.currentState?.addStep(
+      const ConnectionStep(
+        phase: ConnectionPhase.openChannel,
+        status: StepStatus.inProgress,
+      ),
+    );
 
     try {
       final result = widget.sftpInitFactory != null
@@ -94,6 +102,13 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
         name: 'MobileFileBrowser',
         error: e,
       );
+      _progressKey.currentState?.addStep(
+        ConnectionStep(
+          phase: ConnectionPhase.openChannel,
+          status: StepStatus.failed,
+          detail: e.toString(),
+        ),
+      );
       if (mounted) {
         final l10n = S.of(context);
         setState(() {
@@ -110,15 +125,10 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   @override
   Widget build(BuildContext context) {
     if (_initializing) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(S.of(context).initializingSftp),
-          ],
-        ),
+      return ConnectionProgress(
+        key: _progressKey,
+        connection: widget.connection,
+        channelLabel: S.of(context).progressOpeningSftp,
       );
     }
     if (_error != null) {

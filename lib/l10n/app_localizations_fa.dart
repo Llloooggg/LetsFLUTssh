@@ -1049,4 +1049,23 @@ class SFa extends S {
   @override
   String get storagePermissionLimited =>
       'دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'اتصال به $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'تأیید کلید میزبان';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'احراز هویت به‌عنوان $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'باز کردن شل';
+
+  @override
+  String get progressOpeningSftp => 'باز کردن کانال SFTP';
 }

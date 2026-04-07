@@ -319,5 +319,10 @@
 
   "storagePermissionRequired": "Yerel dosyalara göz atmak için depolama izni gerekli",
   "grantPermission": "İzin ver",
-  "storagePermissionLimited": "Sınırlı erişim — tüm dosyalar için tam depolama izni verin"
+  "storagePermissionLimited": "Sınırlı erişim — tüm dosyalar için tam depolama izni verin",
+  "progressConnecting": "{host}:{port} adresine bağlanılıyor",
+  "progressVerifyingHostKey": "Ana bilgisayar anahtarı doğrulanıyor",
+  "progressAuthenticating": "{user} olarak kimlik doğrulanıyor",
+  "progressOpeningShell": "Kabuk açılıyor",
+  "progressOpeningSftp": "SFTP kanalı açılıyor"
 }

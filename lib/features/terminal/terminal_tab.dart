@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
-import '../../l10n/app_localizations.dart';
 import '../../core/ssh/ssh_client.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/session_provider.dart';
-import '../../utils/format.dart';
 import '../../utils/logger.dart';
-import '../../widgets/error_state.dart';
 import 'split_node.dart';
 import 'tiling_view.dart';
 
@@ -44,7 +41,6 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
   late String _focusedPaneId;
   final Map<String, Connection> _paneConnections = {};
   bool _connectionReady = true;
-  String? _connectionError;
 
   @override
   void initState() {
@@ -94,15 +90,16 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
     return freshConfig;
   }
 
-  @visibleForTesting
+  /// Reconnect SSH and reset to a single terminal pane.
   Future<void> reconnect() async {
-    setState(() {
-      _connectionError = null;
-      _connectionReady = false;
-    });
+    setState(() => _connectionReady = false);
 
     // Re-read session from store to pick up any config changes (e.g. added key).
     _refreshConfig();
+
+    // Reset connection for fresh progress stream
+    widget.connection.resetForReconnect();
+    widget.connection.state = SSHConnectionState.connecting;
 
     try {
       if (widget.reconnectFactory != null) {
@@ -114,29 +111,26 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
             config: widget.connection.sshConfig,
             knownHosts: widget.connection.knownHosts,
           );
-          await newConn.connect();
+          await newConn.connect(
+            onProgress: (step) => widget.connection.addProgressStep(step),
+          );
           widget.connection.sshConnection = newConn;
           widget.connection.state = SSHConnectionState.connected;
         }
       }
+      widget.connection.completeReady();
     } catch (e) {
+      widget.connection.state = SSHConnectionState.disconnected;
+      widget.connection.connectionError = e;
+      widget.connection.completeReady();
       AppLogger.instance.log(
         'Reconnect failed: $e',
         name: 'TerminalTab',
         error: e,
       );
-      if (mounted) {
-        final l10n = S.of(context);
-        setState(
-          () => _connectionError = l10n.errReconnectFailed(
-            localizeError(l10n, e),
-          ),
-        );
-      }
-      return;
     }
 
-    // Reset to single pane with original connection
+    // Reset to single pane — TerminalPane handles displaying progress/errors
     final leaf = LeafNode();
     _paneConnections.clear();
     _paneConnections[leaf.id] = widget.connection;
@@ -149,9 +143,6 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_connectionError != null) {
-      return _buildErrorState();
-    }
     if (!_connectionReady) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -164,16 +155,6 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
       onPaneFocused: (id) => setState(() => _focusedPaneId = id),
       onClosePane: _closePane,
       onTreeChanged: _onTreeChanged,
-    );
-  }
-
-  Widget _buildErrorState() {
-    return ErrorState(
-      message: _connectionError!,
-      onRetry: reconnect,
-      retryLabel: S.of(context).reconnect,
-      onSecondary: widget.onDisconnected ?? () {},
-      secondaryLabel: S.of(context).close,
     );
   }
 }

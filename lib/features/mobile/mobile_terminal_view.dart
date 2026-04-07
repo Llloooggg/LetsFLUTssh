@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
+import '../../core/connection/connection_step.dart';
+import '../../core/connection/progress_writer.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/config_provider.dart';
@@ -35,8 +38,10 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   late final TerminalController _terminalController;
   final _keyboardKey = GlobalKey<SshKeyboardBarState>();
   ShellConnection? _shellConn;
-  bool _connected = false;
-  String? _error;
+
+  /// Whether the terminal pane is in an error state (for potential retry).
+  bool hasError = false;
+  StreamSubscription<ConnectionStep>? _progressSub;
   double _fontSize = 14.0;
   double? _baseScaleFontSize;
   bool _hasSelection = false;
@@ -70,32 +75,39 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   Future<void> _connectAndOpenShell() async {
     final conn = widget.connection;
+    final l10n = S.of(context);
+    final writer = ProgressWriter(
+      terminal: _terminal,
+      l10n: l10n,
+      config: conn.sshConfig,
+    );
 
-    // Wait for connection if still connecting (connectAsync returns immediately)
+    _progressSub = writer.subscribe(conn);
     await conn.waitUntilReady();
+    _progressSub?.cancel();
+    _progressSub = null;
 
     if (!conn.isConnected) {
       if (mounted) {
-        final l10n = S.of(context);
-        setState(
-          () => _error = conn.connectionError != null
-              ? localizeError(l10n, conn.connectionError!)
-              : l10n.errConnectionFailed,
-        );
+        final error = conn.connectionError != null
+            ? localizeError(l10n, conn.connectionError!)
+            : l10n.errConnectionFailed;
+        _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
+        setState(() => hasError = true);
       }
       return;
     }
 
     try {
+      // Clear progress log before opening shell — openShell wires stdout
+      // to terminal.write(), so any server output must not be erased.
+      writer.clear();
       _shellConn = await ShellHelper.openShell(
         connection: conn,
         terminal: _terminal,
         onDone: () {
           if (mounted) {
-            setState(() {
-              _connected = false;
-              _error = S.of(context).errSessionClosed;
-            });
+            setState(() => hasError = true);
           }
         },
       );
@@ -108,7 +120,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
         _shellConn?.shell.write(Uint8List.fromList(transformed.codeUnits));
       };
 
-      if (mounted) setState(() => _connected = true);
+      if (mounted) setState(() {});
     } catch (e) {
       AppLogger.instance.log(
         'Shell open failed: $e',
@@ -116,13 +128,16 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
         error: e,
       );
       if (mounted) {
-        setState(() => _error = localizeError(S.of(context), e));
+        final localized = localizeError(l10n, e);
+        _terminal.write('\x1B[?25h\x1B[31m$localized\x1B[0m\r\n');
+        setState(() => hasError = true);
       }
     }
   }
 
   @override
   void dispose() {
+    _progressSub?.cancel();
     _terminalController.removeListener(_onSelectionChanged);
     _shellConn?.close();
     _terminalController.dispose();
@@ -158,17 +173,14 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       _fontSize = configFontSize;
     }
 
-    if (_error != null) return _buildError();
-
-    // Always render TerminalView so it can lay out and set the correct
-    // terminal dimensions before the shell opens (avoids buffer artifacts).
+    // Always render TerminalView — progress log and errors are written
+    // directly into the terminal buffer via ANSI codes.
     return Column(
       children: [
         Expanded(
           child: Stack(
             children: [
               _buildPinchZoomArea(),
-              if (!_connected) const Center(child: CircularProgressIndicator()),
               if (_hasSelection)
                 Positioned(
                   left: 0,
@@ -299,27 +311,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
             icon: Icons.paste,
             label: S.of(context).paste,
             onTap: _paste,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildError() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.error_outline,
-            size: 48,
-            color: AppTheme.disconnected,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _error!,
-            style: const TextStyle(color: AppTheme.disconnected),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

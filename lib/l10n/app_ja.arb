@@ -323,5 +323,10 @@
 
   "storagePermissionRequired": "ローカルファイルを閲覧するにはストレージ権限が必要です",
   "grantPermission": "権限を付与",
-  "storagePermissionLimited": "制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください"
+  "storagePermissionLimited": "制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください",
+  "progressConnecting": "{host}:{port} に接続中",
+  "progressVerifyingHostKey": "ホスト鍵を検証中",
+  "progressAuthenticating": "{user} として認証中",
+  "progressOpeningShell": "シェルを起動中",
+  "progressOpeningSftp": "SFTPチャネルを起動中"
 }

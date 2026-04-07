@@ -1055,4 +1055,23 @@ class STr extends S {
   @override
   String get storagePermissionLimited =>
       'Sınırlı erişim — tüm dosyalar için tam depolama izni verin';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return '$host:$port adresine bağlanılıyor';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'Ana bilgisayar anahtarı doğrulanıyor';
+
+  @override
+  String progressAuthenticating(String user) {
+    return '$user olarak kimlik doğrulanıyor';
+  }
+
+  @override
+  String get progressOpeningShell => 'Kabuk açılıyor';
+
+  @override
+  String get progressOpeningSftp => 'SFTP kanalı açılıyor';
 }

@@ -319,5 +319,10 @@
 
   "storagePermissionRequired": "स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है",
   "grantPermission": "अनुमति दें",
-  "storagePermissionLimited": "सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें"
+  "storagePermissionLimited": "सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें",
+  "progressConnecting": "{host}:{port} से कनेक्ट हो रहा है",
+  "progressVerifyingHostKey": "होस्ट कुंजी सत्यापित हो रही है",
+  "progressAuthenticating": "{user} के रूप में प्रमाणीकरण",
+  "progressOpeningShell": "शेल खोला जा रहा है",
+  "progressOpeningSftp": "SFTP चैनल खोला जा रहा है"
 }
