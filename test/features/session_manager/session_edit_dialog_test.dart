@@ -96,13 +96,15 @@ void main() {
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
-    testWidgets('action buttons present for new session', (tester) async {
+    testWidgets('dialog has Save, Save & Connect and Cancel buttons', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Connect'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
+      expect(find.text('Save & Connect'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
     });
 
@@ -111,7 +113,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('Required'), findsWidgets);
@@ -149,7 +151,7 @@ void main() {
   });
 
   group('SessionEditDialog — submit actions', () {
-    testWidgets('Connect returns ConnectOnlyResult with SSHConfig', (
+    testWidgets('Save & Connect returns SaveResult with connect=true', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
@@ -158,33 +160,18 @@ void main() {
 
       await fillRequiredFields(tester);
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.host, 'example.com');
-      expect(result.config.user, 'testuser');
-      expect(result.config.port, 22);
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.host, 'example.com');
+      expect(result.session.user, 'testuser');
+      expect(result.session.port, 22);
+      expect(result.connect, isTrue);
     });
 
-    testWidgets('Connect returns ConnectOnlyResult', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-
-      await fillRequiredFields(tester);
-
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.host, 'example.com');
-      expect(result.config.user, 'testuser');
-    });
-
-    testWidgets('Connect with label filled', (tester) async {
+    testWidgets('Save & Connect with label filled', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -192,28 +179,32 @@ void main() {
       await tester.enterText(fieldByHint('My Server'), 'My Server');
       await fillRequiredFields(tester, host: '10.0.0.1', user: 'root');
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.host, '10.0.0.1');
-      expect(result.config.user, 'root');
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.host, '10.0.0.1');
+      expect(result.session.user, 'root');
+      expect(result.connect, isTrue);
     });
 
-    testWidgets('Connect without valid fields does not close', (tester) async {
+    testWidgets('Save & Connect without valid fields does not close', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
       // Don't fill required fields
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       expect(dialogResult, isNull);
       expect(find.text('New Connection'), findsOneWidget);
     });
 
-    testWidgets('Connect with custom port', (tester) async {
+    testWidgets('Save & Connect with custom port', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -222,15 +213,16 @@ void main() {
       await tester.enterText(fieldByHint('22'), '2222');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.port, 2222);
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.port, 2222);
+      expect(result.connect, isTrue);
     });
 
-    testWidgets('Connect with password auth', (tester) async {
+    testWidgets('Save & Connect with password auth', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -240,11 +232,13 @@ void main() {
       await tester.enterText(fieldByHint('••••••••'), 'secret123');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.password, 'secret123');
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.password, 'secret123');
+      expect(result.connect, isTrue);
     });
   });
 
@@ -361,7 +355,7 @@ void main() {
       expect(find.text('Paste PEM key text'), findsOneWidget);
     });
 
-    testWidgets('Connect with Key auth includes passphrase in config', (
+    testWidgets('Save & Connect with Key auth includes passphrase in result', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
@@ -404,18 +398,19 @@ void main() {
       await tester.enterText(fieldByHint('Optional'), 'mypassphrase');
       await tester.pumpAndSettle();
 
-      // Scroll back to Connect button
+      // Scroll back to Save & Connect button
       await tester.scrollUntilVisible(
-        find.text('Connect'),
+        find.text('Save & Connect'),
         -100,
         scrollable: find.byType(Scrollable).last,
       );
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.passphrase, 'mypassphrase');
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.passphrase, 'mypassphrase');
+      expect(result.connect, isTrue);
     });
   });
 
@@ -432,7 +427,9 @@ void main() {
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
-    testWidgets('Connect with both password and key filled', (tester) async {
+    testWidgets('Save & Connect with both password and key filled', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -480,16 +477,17 @@ void main() {
 
       // Scroll back to action buttons
       await tester.scrollUntilVisible(
-        find.text('Connect'),
+        find.text('Save & Connect'),
         -100,
         scrollable: scrollable,
       );
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.password, 'secret');
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.password, 'secret');
+      expect(result.connect, isTrue);
     });
   });
 
@@ -525,7 +523,7 @@ void main() {
       await tester.enterText(fieldByHint('22'), '99999');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('1-65535'), findsOneWidget);
@@ -749,7 +747,7 @@ void main() {
       expect(result.connect, isFalse);
     });
 
-    testWidgets('edit mode has Save, Save & Connect and Cancel buttons', (
+    testWidgets('dialog has Save, Save & Connect and Cancel buttons', (
       tester,
     ) async {
       final session = Session(
@@ -765,7 +763,6 @@ void main() {
       expect(find.text('Save'), findsOneWidget);
       expect(find.text('Save & Connect'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
-      expect(find.text('Connect'), findsNothing);
     });
   });
 
@@ -806,7 +803,9 @@ void main() {
   });
 
   group('SessionEditDialog — additional validation', () {
-    testWidgets('Connect with empty host fails validation', (tester) async {
+    testWidgets('Save & Connect with empty host fails validation', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -814,14 +813,16 @@ void main() {
       await tester.enterText(fieldByHint('root'), 'user');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('Required'), findsOneWidget);
       expect(dialogResult, isNull);
     });
 
-    testWidgets('Connect with empty username fails validation', (tester) async {
+    testWidgets('Save & Connect with empty username fails validation', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -829,7 +830,7 @@ void main() {
       await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('Required'), findsOneWidget);
@@ -845,7 +846,7 @@ void main() {
       await tester.enterText(fieldByHint('22'), 'abc');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('1-65535'), findsOneWidget);
@@ -860,7 +861,7 @@ void main() {
       await tester.enterText(fieldByHint('22'), '0');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('1-65535'), findsOneWidget);
@@ -875,7 +876,7 @@ void main() {
       await tester.enterText(fieldByHint('22'), '');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       expect(find.text('1-65535'), findsOneWidget);
@@ -892,11 +893,11 @@ void main() {
       await tester.enterText(fieldByHint('22'), '1');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      expect((dialogResult as ConnectOnlyResult).config.port, 1);
+      expect(dialogResult, isA<SaveResult>());
+      expect((dialogResult as SaveResult).session.port, 1);
     });
 
     testWidgets('port 65535 is valid', (tester) async {
@@ -908,11 +909,11 @@ void main() {
       await tester.enterText(fieldByHint('22'), '65535');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      expect((dialogResult as ConnectOnlyResult).config.port, 65535);
+      expect(dialogResult, isA<SaveResult>());
+      expect((dialogResult as SaveResult).session.port, 65535);
     });
   });
 
@@ -926,10 +927,11 @@ void main() {
 
       await fillRequiredFields(tester);
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
+      expect(dialogResult, isA<SaveResult>());
+      expect((dialogResult as SaveResult).connect, isTrue);
     });
   });
 
@@ -948,8 +950,8 @@ void main() {
         await tester.enterText(fieldByHint('••••••••'), 'secret');
         await tester.pumpAndSettle();
 
-        // Stay on Auth tab and press Connect
-        await tester.tap(find.text('Connect'));
+        // Stay on Auth tab and press Save & Connect
+        await tester.tap(find.text('Save & Connect'));
         await tester.pumpAndSettle();
 
         // Should switch to Connection tab and show the error
@@ -974,8 +976,8 @@ void main() {
         await tester.enterText(fieldByHint('••••••••'), 'secret');
         await tester.pumpAndSettle();
 
-        // Stay on Auth tab and press Connect
-        await tester.tap(find.text('Connect'));
+        // Stay on Auth tab and press Save & Connect
+        await tester.tap(find.text('Save & Connect'));
         await tester.pumpAndSettle();
 
         expect(find.text('Required'), findsOneWidget);
@@ -1028,7 +1030,7 @@ void main() {
       await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
       await tester.enterText(fieldByHint('root'), 'user');
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       // Should switch to Auth tab and show error
@@ -1036,7 +1038,7 @@ void main() {
       expect(dialogResult, isNull);
     });
 
-    testWidgets('password only connects', (tester) async {
+    testWidgets('password only saves and connects', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1047,12 +1049,13 @@ void main() {
       await switchToAuth(tester);
       await tester.enterText(fieldByHint('••••••••'), 'secret');
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.password, 'secret');
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.password, 'secret');
+      expect(result.connect, isTrue);
     });
   });
 
@@ -1086,8 +1089,8 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — ConnectOnly with password and custom port', () {
-    testWidgets('ConnectOnly preserves password and custom port', (
+  group('SessionEditDialog — Save & Connect with password and custom port', () {
+    testWidgets('Save & Connect preserves password and custom port', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
@@ -1110,24 +1113,27 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Connect'),
+        find.text('Save & Connect'),
         -100,
         scrollable: scrollable,
       );
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.host, 'h.com');
-      expect(result.config.user, 'u');
-      expect(result.config.port, 2222);
-      expect(result.config.password, 'secret');
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.host, 'h.com');
+      expect(result.session.user, 'u');
+      expect(result.session.port, 2222);
+      expect(result.session.password, 'secret');
+      expect(result.connect, isTrue);
     });
   });
 
-  group('SessionEditDialog — Connect with both password and key', () {
-    testWidgets('Connect with both auth includes all fields', (tester) async {
+  group('SessionEditDialog — Save & Connect with both password and key', () {
+    testWidgets('Save & Connect with both auth includes all fields', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -1172,21 +1178,22 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Connect'),
+        find.text('Save & Connect'),
         -100,
         scrollable: scrollable,
       );
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.password, 'pass123');
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.password, 'pass123');
+      expect(result.connect, isTrue);
     });
   });
 
   group('SessionEditDialog — new session with folder', () {
-    testWidgets('Connect for new session returns ConnectOnlyResult', (
+    testWidgets('Save & Connect for new session returns SaveResult', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp(defaultFolder: 'Production'));
@@ -1196,13 +1203,14 @@ void main() {
       await tester.enterText(fieldByHint('My Server'), 'my-server');
       await fillRequiredFields(tester, host: 'new.host', user: 'newuser');
 
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.host, 'new.host');
-      expect(result.config.user, 'newuser');
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.host, 'new.host');
+      expect(result.session.user, 'newuser');
+      expect(result.connect, isTrue);
     });
   });
 
@@ -1239,8 +1247,8 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — PEM key data in connect result', () {
-    testWidgets('entering PEM key data is included in connect result', (
+  group('SessionEditDialog — PEM key data in save & connect result', () {
+    testWidgets('entering PEM key data is included in save & connect result', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
@@ -1282,16 +1290,17 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Connect'),
+        find.text('Save & Connect'),
         -200,
         scrollable: scrollable,
       );
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.keyData, contains('PRIVATE KEY'));
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.keyData, contains('PRIVATE KEY'));
+      expect(result.connect, isTrue);
     });
   });
 
@@ -1371,74 +1380,67 @@ void main() {
   });
 
   group('SessionEditDialog — password and PEM key data', () {
-    testWidgets('Connect with both password and keyData preserves keyData', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Save & Connect with both password and keyData preserves keyData',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      await fillRequiredFields(tester);
+        await fillRequiredFields(tester);
 
-      await switchToAuth(tester);
+        await switchToAuth(tester);
 
-      final scrollable = find.byType(Scrollable).last;
+        final scrollable = find.byType(Scrollable).last;
 
-      // Fill password
-      await tester.scrollUntilVisible(
-        fieldByHint('••••••••'),
-        100,
-        scrollable: scrollable,
-      );
-      await tester.enterText(fieldByHint('••••••••'), 'pass');
-      await tester.pumpAndSettle();
+        // Fill password
+        await tester.scrollUntilVisible(
+          fieldByHint('••••••••'),
+          100,
+          scrollable: scrollable,
+        );
+        await tester.enterText(fieldByHint('••••••••'), 'pass');
+        await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Paste PEM key text'),
-        100,
-        scrollable: scrollable,
-      );
-      await tester.tap(find.text('Paste PEM key text'));
-      await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.text('Paste PEM key text'),
+          100,
+          scrollable: scrollable,
+        );
+        await tester.tap(find.text('Paste PEM key text'));
+        await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('-----BEGIN OPENSSH PRIVATE KEY-----'),
-        100,
-        scrollable: scrollable,
-      );
-      await tester.enterText(
-        find.widgetWithText(
-          TextFormField,
-          '-----BEGIN OPENSSH PRIVATE KEY-----',
-        ),
-        '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----',
-      );
-      await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.text('-----BEGIN OPENSSH PRIVATE KEY-----'),
+          100,
+          scrollable: scrollable,
+        );
+        await tester.enterText(
+          find.widgetWithText(
+            TextFormField,
+            '-----BEGIN OPENSSH PRIVATE KEY-----',
+          ),
+          '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----',
+        );
+        await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Connect'),
-        -100,
-        scrollable: scrollable,
-      );
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.text('Save & Connect'),
+          -100,
+          scrollable: scrollable,
+        );
+        await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.keyData, contains('PRIVATE KEY'));
-    });
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.keyData, contains('PRIVATE KEY'));
+        expect(result.connect, isTrue);
+      },
+    );
   });
 
   group('SessionDialogResult sealed classes', () {
-    test('ConnectOnlyResult holds SSHConfig', () {
-      final config = ConnectOnlyResult(
-        const SSHConfig(
-          server: ServerAddress(host: 'h', port: 22, user: 'u'),
-        ),
-      );
-      expect(config.config.host, 'h');
-    });
-
     test('SaveResult holds Session with connect flag', () {
       final session = Session(
         label: 'test',
@@ -1655,13 +1657,13 @@ void main() {
       await tester.enterText(fieldByHint('Optional'), 'mypassphrase');
       await tester.pumpAndSettle();
 
-      // Scroll back to Connect button and tap
+      // Scroll back to Save & Connect button and tap
       await tester.scrollUntilVisible(
-        find.text('Connect'),
+        find.text('Save & Connect'),
         -100,
         scrollable: scrollable,
       );
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
       // Should show validation error — dialog stays open
@@ -1796,7 +1798,7 @@ void main() {
       expect(find.text(pemText), findsOneWidget);
     });
 
-    testWidgets('PEM key data included in Connect result on mobile', (
+    testWidgets('PEM key data included in Save & Connect result on mobile', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
@@ -1830,18 +1832,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Scroll back and tap Connect
+      // Scroll back and tap Save & Connect
       await tester.scrollUntilVisible(
-        find.text('Connect'),
+        find.text('Save & Connect'),
         -100,
         scrollable: find.byType(Scrollable).last,
       );
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<ConnectOnlyResult>());
-      final result = dialogResult as ConnectOnlyResult;
-      expect(result.config.keyData, contains('PRIVATE KEY'));
+      expect(dialogResult, isA<SaveResult>());
+      final result = dialogResult as SaveResult;
+      expect(result.session.keyData, contains('PRIVATE KEY'));
+      expect(result.connect, isTrue);
     });
   });
 

@@ -19,12 +19,6 @@ const _kMonoFont = 'JetBrains Mono';
 /// Result of the session edit dialog.
 sealed class SessionDialogResult {}
 
-/// User chose "Connect" (without saving).
-class ConnectOnlyResult extends SessionDialogResult {
-  final SSHConfig config;
-  ConnectOnlyResult(this.config);
-}
-
 /// User chose "Save" or "Save & Connect".
 class SaveResult extends SessionDialogResult {
   final Session session;
@@ -33,8 +27,7 @@ class SaveResult extends SessionDialogResult {
 }
 
 /// Dialog for creating or editing a session.
-/// In create mode, shows 3 buttons: Cancel | Save | Connect
-/// In edit mode, shows 3 buttons: Cancel | Save | Save & Connect
+/// Shows 3 buttons: Cancel | Save | Save & Connect
 class SessionEditDialog extends StatefulWidget {
   final Session? session; // null = create new
   final String? defaultFolder;
@@ -160,23 +153,6 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     );
   }
 
-  SSHConfig _buildConfig() {
-    final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
-    return SSHConfig(
-      server: ServerAddress(
-        host: _hostCtrl.text.trim(),
-        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-        user: _userCtrl.text.trim(),
-      ),
-      auth: SshAuth(
-        password: _passwordCtrl.text,
-        keyPath: keyPath,
-        keyData: _keyDataCtrl.text.trim(),
-        passphrase: _passphraseCtrl.text,
-      ),
-    );
-  }
-
   bool _validateAuth() {
     final hasPassword = _passwordCtrl.text.isNotEmpty;
     final hasKey =
@@ -205,25 +181,13 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return 1;
   }
 
-  void _connectOnly() {
-    final formOk = _formKey.currentState!.validate();
-    final authOk = _validateAuth();
-    if (!formOk) {
-      setState(() => _tabIndex = _tabWithFirstError());
-      return;
-    }
-    if (!authOk) return;
-    Navigator.of(context).pop(ConnectOnlyResult(_buildConfig()));
-  }
-
   void _save({bool connect = false}) {
     final formOk = _formKey.currentState!.validate();
-    final authOk = _validateAuth();
     if (!formOk) {
       setState(() => _tabIndex = _tabWithFirstError());
       return;
     }
-    if (!authOk) return;
+    if (!_validateAuth()) return;
     Navigator.of(context).pop(SaveResult(_buildSession(), connect: connect));
   }
 
@@ -662,19 +626,11 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return AppDialogFooter(
       actions: [
         AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
-        if (_isEditing) ...[
-          AppDialogAction.secondary(label: S.of(context).save, onTap: _save),
-          AppDialogAction.primary(
-            label: S.of(context).saveAndConnect,
-            onTap: () => _save(connect: true),
-          ),
-        ] else ...[
-          AppDialogAction.secondary(label: S.of(context).save, onTap: _save),
-          AppDialogAction.primary(
-            label: S.of(context).connect,
-            onTap: _connectOnly,
-          ),
-        ],
+        AppDialogAction.secondary(label: S.of(context).save, onTap: _save),
+        AppDialogAction.primary(
+          label: S.of(context).saveAndConnect,
+          onTap: () => _save(connect: true),
+        ),
       ],
     );
   }

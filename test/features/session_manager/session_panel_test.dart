@@ -240,7 +240,6 @@ void main() {
     List<Session>? sessions,
     Set<String>? emptyFolders,
     void Function(Session)? onConnect,
-    void Function(SSHConfig)? onQuickConnect,
     void Function(Session)? onSftpConnect,
   }) {
     final sessionList = sessions ?? testSessions;
@@ -272,7 +271,6 @@ void main() {
             height: 600,
             child: SessionPanel(
               onConnect: onConnect ?? (_) {},
-              onQuickConnect: onQuickConnect ?? (_) {},
               onSftpConnect: onSftpConnect,
             ),
           ),
@@ -1292,15 +1290,12 @@ void main() {
       }
     });
 
-    testWidgets('Add Session with Connect-only calls onQuickConnect', (
+    testWidgets('Add Session with Save & Connect calls onConnect', (
       tester,
     ) async {
-      SSHConfig? quickConnected;
+      Session? connected;
       await tester.pumpWidget(
-        buildApp(
-          sessions: [],
-          onQuickConnect: (config) => quickConnected = config,
-        ),
+        buildApp(sessions: [], onConnect: (session) => connected = session),
       );
       await tester.pumpAndSettle();
 
@@ -1328,11 +1323,11 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Connect'));
+        await tester.tap(find.text('Save & Connect'));
         await tester.pumpAndSettle();
 
-        expect(quickConnected, isNotNull);
-        expect(quickConnected!.host, 'test.com');
+        expect(connected, isNotNull);
+        expect(connected!.host, 'test.com');
       }
     });
 
@@ -1373,13 +1368,13 @@ void main() {
     });
   });
 
-  group('SessionPanel — _handleDialogResult ConnectOnly', () {
-    testWidgets('Connect-only from new session calls onQuickConnect', (
+  group('SessionPanel — _handleDialogResult SaveResult with connect', () {
+    testWidgets('Save & Connect from new session calls onConnect', (
       tester,
     ) async {
-      SSHConfig? quickConnected;
+      Session? connected;
       await tester.pumpWidget(
-        buildApp(onQuickConnect: (config) => quickConnected = config),
+        buildApp(onConnect: (session) => connected = session),
       );
       await tester.pumpAndSettle();
 
@@ -1398,7 +1393,7 @@ void main() {
       await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
-      // Fill fields and tap Connect (not Save & Connect)
+      // Fill fields and tap Save & Connect
       await tester.enterText(
         find.widgetWithText(TextFormField, '192.168.1.1'),
         'example.com',
@@ -1418,18 +1413,20 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Find the OutlinedButton "Connect" (not the segment button text)
-      await tester.tap(find.text('Connect'));
+      await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(quickConnected, isNotNull);
-      expect(quickConnected!.host, 'example.com');
+      expect(connected, isNotNull);
+      expect(connected!.host, 'example.com');
     });
 
-    testWidgets('Save & Connect from new session dialog closes it', (
+    testWidgets('Save from new session dialog closes it without connect', (
       tester,
     ) async {
-      await tester.pumpWidget(buildApp());
+      Session? connected;
+      await tester.pumpWidget(
+        buildApp(onConnect: (session) => connected = session),
+      );
       await tester.pumpAndSettle();
 
       // Open New Session dialog via group context menu
@@ -1469,8 +1466,9 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      // Dialog should close
+      // Dialog should close and onConnect should NOT be called
       expect(find.text('HOST *'), findsNothing);
+      expect(connected, isNull);
     });
   });
 
