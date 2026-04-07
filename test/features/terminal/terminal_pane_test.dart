@@ -11,6 +11,7 @@ import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/shell_helper.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/terminal/terminal_pane.dart';
+import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/widgets/app_icon_button.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import '../../core/ssh/shell_helper_test.mocks.dart';
@@ -2482,6 +2483,191 @@ void main() {
 
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftRight);
       expect(state.terminalController.suspendedPointerInputs, isFalse);
+    });
+  });
+
+  group('TerminalPane — zoom', () {
+    testWidgets('zoomIn increases font size by 1', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'zoom-in');
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final element = tester.element(find.byType(TerminalPane));
+      final container = ProviderScope.containerOf(element);
+      final before = container.read(configProvider).fontSize;
+
+      key.currentState!.zoomIn();
+      await tester.pump();
+
+      expect(container.read(configProvider).fontSize, before + 1);
+    });
+
+    testWidgets('zoomOut decreases font size by 1', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'zoom-out');
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final element = tester.element(find.byType(TerminalPane));
+      final container = ProviderScope.containerOf(element);
+      final before = container.read(configProvider).fontSize;
+
+      key.currentState!.zoomOut();
+      await tester.pump();
+
+      expect(container.read(configProvider).fontSize, before - 1);
+    });
+
+    testWidgets('zoomReset sets font size to 14.0', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'zoom-reset');
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final element = tester.element(find.byType(TerminalPane));
+      final container = ProviderScope.containerOf(element);
+      final config = container.read(configProvider);
+      container.read(configProvider.notifier).state = config.copyWith(
+        terminal: config.terminal.copyWith(fontSize: 20.0),
+      );
+      await tester.pump();
+
+      expect(container.read(configProvider).fontSize, 20.0);
+
+      key.currentState!.zoomReset();
+      await tester.pump();
+
+      expect(container.read(configProvider).fontSize, 14.0);
+    });
+
+    testWidgets('Listener with onPointerSignal is present', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'zoom-scroll');
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final listeners = tester.widgetList<Listener>(find.byType(Listener));
+      final withSignal = listeners
+          .where((l) => l.onPointerSignal != null)
+          .toList();
+      expect(withSignal, isNotEmpty);
+    });
+
+    testWidgets('font size clamps at bounds 8 and 24', (tester) async {
+      final key = GlobalKey<TerminalPaneState>();
+      final conn = _testConnection(id: 'zoom-clamp');
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: TerminalPane(
+                key: key,
+                connection: conn,
+                isFocused: true,
+                shellFactory: _successShellFactory,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final element = tester.element(find.byType(TerminalPane));
+      final container = ProviderScope.containerOf(element);
+
+      // Set to max and try to go higher
+      final config = container.read(configProvider);
+      container.read(configProvider.notifier).state = config.copyWith(
+        terminal: config.terminal.copyWith(fontSize: 24.0),
+      );
+      await tester.pump();
+
+      key.currentState!.zoomIn();
+      await tester.pump();
+      expect(container.read(configProvider).fontSize, 24.0);
+
+      // Set to min and try to go lower
+      container.read(configProvider.notifier).state = config.copyWith(
+        terminal: config.terminal.copyWith(fontSize: 8.0),
+      );
+      await tester.pump();
+
+      key.currentState!.zoomOut();
+      await tester.pump();
+      expect(container.read(configProvider).fontSize, 8.0);
     });
   });
 }

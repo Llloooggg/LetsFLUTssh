@@ -40,6 +40,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   double _fontSize = 14.0;
   double? _baseScaleFontSize;
   bool _hasSelection = false;
+  int _pointerCount = 0;
 
   @override
   void initState() {
@@ -140,6 +141,13 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     TerminalClipboard.paste(_terminal);
   }
 
+  void _onPointerUp() {
+    _pointerCount = (_pointerCount - 1).clamp(0, 99);
+    if (_pointerCount < 2 && _baseScaleFontSize != null) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // React to font size changes from settings slider
@@ -158,83 +166,89 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
         Expanded(
           child: Stack(
             children: [
-              GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onScaleStart: (details) {
-                  if (details.pointerCount >= 2) {
-                    _baseScaleFontSize = _fontSize;
-                  }
-                },
-                onScaleUpdate: (details) {
-                  if (_baseScaleFontSize == null || details.pointerCount < 2) {
-                    return;
-                  }
-                  setState(() {
-                    _fontSize = (_baseScaleFontSize! * details.scale).clamp(
-                      8.0,
-                      24.0,
-                    );
-                  });
-                },
-                onScaleEnd: (_) {
-                  if (_baseScaleFontSize == null) return;
-                  _baseScaleFontSize = null;
-                  // Persist pinch-zoomed font size to config
-                  ref
-                      .read(configProvider.notifier)
-                      .update(
-                        (c) => c.copyWith(
-                          terminal: c.terminal.copyWith(fontSize: _fontSize),
-                        ),
+              Listener(
+                onPointerDown: (_) => _pointerCount++,
+                onPointerUp: (_) => _onPointerUp(),
+                onPointerCancel: (_) => _onPointerUp(),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onScaleStart: (details) {
+                    if (details.pointerCount >= 2) {
+                      _baseScaleFontSize = _fontSize;
+                    }
+                  },
+                  onScaleUpdate: (details) {
+                    if (_baseScaleFontSize == null) return;
+                    setState(() {
+                      _fontSize = (_baseScaleFontSize! * details.scale).clamp(
+                        8.0,
+                        24.0,
                       );
-                },
-                child: Stack(
-                  children: [
-                    TerminalView(
-                      _terminal,
-                      controller: _terminalController,
-                      autofocus: true,
-                      backgroundOpacity: 1.0,
-                      padding: const EdgeInsets.all(4),
-                      theme: TerminalTheme(
-                        cursor: AppTheme.termCursor,
-                        selection: AppTheme.termSelection,
-                        foreground: AppTheme.fg,
-                        background: AppTheme.bg2,
-                        black: AppTheme.termBlack,
-                        red: AppTheme.termRed,
-                        green: AppTheme.termGreen,
-                        yellow: AppTheme.termYellow,
-                        blue: AppTheme.termBlue,
-                        magenta: AppTheme.termMagenta,
-                        cyan: AppTheme.termCyan,
-                        white: AppTheme.termWhite,
-                        brightBlack: AppTheme.termBrightBlack,
-                        brightRed: AppTheme.termBrightRed,
-                        brightGreen: AppTheme.termBrightGreen,
-                        brightYellow: AppTheme.termBrightYellow,
-                        brightBlue: AppTheme.termBrightBlue,
-                        brightMagenta: AppTheme.termBrightMagenta,
-                        brightCyan: AppTheme.termBrightCyan,
-                        brightWhite: AppTheme.termBrightWhite,
-                        searchHitBackground: AppTheme.accent.withValues(
-                          alpha: 0.3,
+                    });
+                  },
+                  onScaleEnd: (_) {
+                    if (_baseScaleFontSize == null) return;
+                    _baseScaleFontSize = null;
+                    // Persist pinch-zoomed font size to config
+                    ref
+                        .read(configProvider.notifier)
+                        .update(
+                          (c) => c.copyWith(
+                            terminal: c.terminal.copyWith(fontSize: _fontSize),
+                          ),
+                        );
+                  },
+                  child: Stack(
+                    children: [
+                      IgnorePointer(
+                        ignoring: _pointerCount >= 2,
+                        child: TerminalView(
+                          _terminal,
+                          controller: _terminalController,
+                          autofocus: true,
+                          backgroundOpacity: 1.0,
+                          padding: const EdgeInsets.all(4),
+                          theme: TerminalTheme(
+                            cursor: AppTheme.termCursor,
+                            selection: AppTheme.termSelection,
+                            foreground: AppTheme.fg,
+                            background: AppTheme.bg2,
+                            black: AppTheme.termBlack,
+                            red: AppTheme.termRed,
+                            green: AppTheme.termGreen,
+                            yellow: AppTheme.termYellow,
+                            blue: AppTheme.termBlue,
+                            magenta: AppTheme.termMagenta,
+                            cyan: AppTheme.termCyan,
+                            white: AppTheme.termWhite,
+                            brightBlack: AppTheme.termBrightBlack,
+                            brightRed: AppTheme.termBrightRed,
+                            brightGreen: AppTheme.termBrightGreen,
+                            brightYellow: AppTheme.termBrightYellow,
+                            brightBlue: AppTheme.termBrightBlue,
+                            brightMagenta: AppTheme.termBrightMagenta,
+                            brightCyan: AppTheme.termBrightCyan,
+                            brightWhite: AppTheme.termBrightWhite,
+                            searchHitBackground: AppTheme.accent.withValues(
+                              alpha: 0.3,
+                            ),
+                            searchHitBackgroundCurrent: AppTheme.accent,
+                            searchHitForeground: AppTheme.searchHitFg,
+                          ),
+                          textStyle: TerminalStyle(
+                            fontSize: _fontSize,
+                            fontFamily: 'JetBrains Mono',
+                          ),
                         ),
-                        searchHitBackgroundCurrent: AppTheme.accent,
-                        searchHitForeground: AppTheme.searchHitFg,
                       ),
-                      textStyle: TerminalStyle(
-                        fontSize: _fontSize,
-                        fontFamily: 'JetBrains Mono',
+                      Positioned.fill(
+                        child: CursorTextOverlay(
+                          terminal: _terminal,
+                          fontSize: _fontSize,
+                        ),
                       ),
-                    ),
-                    Positioned.fill(
-                      child: CursorTextOverlay(
-                        terminal: _terminal,
-                        fontSize: _fontSize,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               if (!_connected) const Center(child: CircularProgressIndicator()),
