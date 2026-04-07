@@ -351,6 +351,12 @@ class SZh extends S {
   String get clearKeyFile => '清除密钥文件';
 
   @override
+  String get authOrDivider => '或';
+
+  @override
+  String get providePasswordOrKey => '请提供密码或 SSH 密钥';
+
+  @override
   String get quickConnect => '快速连接';
 
   @override

@@ -353,6 +353,12 @@ class SEs extends S {
   String get clearKeyFile => 'Borrar archivo de clave';
 
   @override
+  String get authOrDivider => 'O';
+
+  @override
+  String get providePasswordOrKey => 'Proporcione una contraseña o clave SSH';
+
+  @override
   String get quickConnect => 'Conexión rápida';
 
   @override

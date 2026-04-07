@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/session.dart';
 import '../../core/shortcut_registry.dart';
-import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
@@ -26,14 +25,12 @@ import 'session_tree_view.dart';
 /// Session sidebar — tree view + search + actions.
 class SessionPanel extends ConsumerStatefulWidget {
   final void Function(Session session) onConnect;
-  final void Function(SSHConfig config) onQuickConnect;
   final void Function(Session session)? onSftpConnect;
   final CrossMarqueeController? crossMarquee;
 
   const SessionPanel({
     super.key,
     required this.onConnect,
-    required this.onQuickConnect,
     this.onSftpConnect,
     this.crossMarquee,
   });
@@ -460,8 +457,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     SessionDialogResult result,
   ) async {
     switch (result) {
-      case ConnectOnlyResult(:final config):
-        widget.onQuickConnect(config);
       case SaveResult(:final session, :final connect):
         await ref.read(sessionProvider.notifier).add(session);
         if (connect) widget.onConnect(session);

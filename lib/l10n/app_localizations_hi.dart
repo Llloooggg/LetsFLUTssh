@@ -353,6 +353,12 @@ class SHi extends S {
   String get clearKeyFile => 'कुंजी फ़ाइल हटाएं';
 
   @override
+  String get authOrDivider => 'या';
+
+  @override
+  String get providePasswordOrKey => 'पासवर्ड या SSH कुंजी प्रदान करें';
+
+  @override
   String get quickConnect => 'त्वरित कनेक्ट';
 
   @override

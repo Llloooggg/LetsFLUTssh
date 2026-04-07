@@ -105,6 +105,8 @@
   "keyTextPem": "鍵テキスト (PEM)",
   "selectKeyFile": "鍵ファイルを選択",
   "clearKeyFile": "鍵ファイルをクリア",
+  "authOrDivider": "または",
+  "providePasswordOrKey": "パスワードまたはSSH鍵を入力してください",
   "quickConnect": "クイック接続",
   "scanQrCode": "QRコードをスキャン",
   "qrGenerationFailed": "QRコード生成に失敗しました",
