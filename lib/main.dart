@@ -392,11 +392,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     return CallbackShortcuts(
       bindings: _buildKeyBindings(context, ws),
-      child: DropTarget(
-        onDragDone: (details) => _handleLfsDrop(context, details),
-        child: LayoutBuilder(
-          builder: (context, constraints) =>
-              _buildDesktopLayout(context, constraints, ws),
+      child: Focus(
+        autofocus: true,
+        child: DropTarget(
+          onDragDone: (details) => _handleLfsDrop(context, details),
+          child: LayoutBuilder(
+            builder: (context, constraints) =>
+                _buildDesktopLayout(context, constraints, ws),
+          ),
         ),
       ),
     );
@@ -450,6 +453,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       // Settings
       const SingleActivator(LogicalKeyboardKey.comma, control: true): () {
         _toggleSettings();
+      },
+      // Escape exits settings view
+      const SingleActivator(LogicalKeyboardKey.escape): () {
+        if (_mode == ShellMode.settings) {
+          _toggleSettings();
+        }
       },
     };
   }
