@@ -159,14 +159,13 @@
   "clearHistory": "Effacer l'historique",
   "noTransfersYet": "Aucun transfert pour l'instant",
 
-  "copyRight": "Copier à droite",
+  "duplicateTab": "Dupliquer l'onglet",
+  "duplicateTabShortcut": "Dupliquer l'onglet (Ctrl+\\)",
   "copyDown": "Copier en bas",
-  "closePane": "Fermer le panneau",
+  "copyDownShortcut": "Copier en bas (Ctrl+Shift+\\)",
   "previous": "Précédent",
   "next": "Suivant",
   "closeEsc": "Fermer (Esc)",
-  "copyRightShortcut": "Copier à droite (Ctrl+\\)",
-  "copyDownShortcut": "Copier en bas (Ctrl+Shift+\\)",
 
   "closeAll": "Tout fermer",
   "closeOthers": "Fermer les autres",

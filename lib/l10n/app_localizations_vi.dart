@@ -495,13 +495,16 @@ class SVi extends S {
   String get noTransfersYet => 'Chưa có lần truyền tệp nào';
 
   @override
-  String get copyRight => 'Sao chép sang phải';
+  String get duplicateTab => 'Nhân bản tab';
+
+  @override
+  String get duplicateTabShortcut => 'Nhân bản tab (Ctrl+\\)';
 
   @override
   String get copyDown => 'Sao chép xuống dưới';
 
   @override
-  String get closePane => 'Đóng khung';
+  String get copyDownShortcut => 'Sao chép xuống dưới (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'Trước';
@@ -511,12 +514,6 @@ class SVi extends S {
 
   @override
   String get closeEsc => 'Đóng (Esc)';
-
-  @override
-  String get copyRightShortcut => 'Sao chép sang phải (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'Sao chép xuống dưới (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'Đóng tất cả';

@@ -305,11 +305,30 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     }
   }
 
+  /// Duplicate the active tab of [panelId] as a new tab next to it.
+  ///
+  /// The original tab stays in place, and a duplicate (new ID, same
+  /// connection) appears immediately after it in the same panel's tab bar.
+  void duplicateTab(String panelId) {
+    final panel = findPanel(state.root, panelId);
+    final tab = panel?.activeTab;
+    if (panel == null || tab == null) return;
+
+    final newTab = tab.duplicate();
+    final insertIdx = panel.activeTabIndex + 1;
+    final newTabs = [...panel.tabs]..insert(insertIdx, newTab);
+
+    state = state.copyWith(
+      root: updatePanel(state.root, panelId, (_) {
+        return panel.copyWith(tabs: newTabs, activeTabIndex: insertIdx);
+      }),
+    );
+  }
+
   /// Duplicate the active tab of [panelId] into a new adjacent panel.
   ///
-  /// Unlike [splitPanel] which **moves** a tab, this **copies** it — the
-  /// original tab stays in place, and a duplicate (new ID, same connection)
-  /// appears in the new panel.
+  /// The original tab stays in place, and a duplicate (new ID, same connection)
+  /// appears in a new panel split in the given [direction].
   void copyToNewPanel(String panelId, Axis direction) {
     final panel = findPanel(state.root, panelId);
     final tab = panel?.activeTab;

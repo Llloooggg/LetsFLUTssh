@@ -491,13 +491,16 @@ class SKo extends S {
   String get noTransfersYet => '전송 내역이 없습니다';
 
   @override
-  String get copyRight => '오른쪽에 복사';
+  String get duplicateTab => '탭 복제';
+
+  @override
+  String get duplicateTabShortcut => '탭 복제 (Ctrl+\\)';
 
   @override
   String get copyDown => '아래에 복사';
 
   @override
-  String get closePane => '창 닫기';
+  String get copyDownShortcut => '아래에 복사 (Ctrl+Shift+\\)';
 
   @override
   String get previous => '이전';
@@ -507,12 +510,6 @@ class SKo extends S {
 
   @override
   String get closeEsc => '닫기 (Esc)';
-
-  @override
-  String get copyRightShortcut => '오른쪽에 복사 (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => '아래에 복사 (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => '모두 닫기';

@@ -171,8 +171,6 @@ void main() {
                 body: TerminalPane(
                   connection: conn,
                   isFocused: true,
-                  onSplitVertical: () {},
-                  onSplitHorizontal: () {},
                   onClose: () {},
                 ),
               ),
@@ -188,62 +186,6 @@ void main() {
         await stderrCtrl.close();
       },
     );
-  });
-
-  group('TerminalPane — split callbacks wired', () {
-    testWidgets('split callbacks are available on the widget', (tester) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      when(mockSsh.isConnected).thenReturn(true);
-
-      final stdoutCtrl = StreamController<Uint8List>.broadcast();
-      final stderrCtrl = StreamController<Uint8List>.broadcast();
-      final doneCompleter = Completer<void>();
-
-      when(mockSsh.openShell(any, any)).thenAnswer((_) async => mockSession);
-      when(mockSession.stdout).thenAnswer((_) => stdoutCtrl.stream);
-      when(mockSession.stderr).thenAnswer((_) => stderrCtrl.stream);
-      when(mockSession.done).thenAnswer((_) => doneCompleter.future);
-
-      var splitV = false;
-      var splitH = false;
-      final conn = Connection(
-        id: 'split-1',
-        label: 'Test',
-        sshConfig: const SSHConfig(
-          server: ServerAddress(host: 'h', user: 'u'),
-        ),
-        sshConnection: mockSsh,
-        state: SSHConnectionState.connected,
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: TerminalPane(
-                connection: conn,
-                isFocused: true,
-                onSplitVertical: () => splitV = true,
-                onSplitHorizontal: () => splitH = true,
-                onClose: () {},
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(splitV, isFalse);
-      expect(splitH, isFalse);
-      expect(find.byType(CallbackShortcuts), findsWidgets);
-
-      await stdoutCtrl.close();
-      await stderrCtrl.close();
-    });
   });
 
   group('TerminalPane — loading state', () {
@@ -574,7 +516,7 @@ void main() {
   });
 
   group('TerminalPane — context menu via shellFactory', () {
-    testWidgets('right-click shows Paste and split menu items', (tester) async {
+    testWidgets('right-click shows Paste menu item', (tester) async {
       final conn = _testConnection(id: 'sf-ctx');
 
       await tester.pumpWidget(
@@ -587,8 +529,6 @@ void main() {
               body: TerminalPane(
                 connection: conn,
                 isFocused: true,
-                onSplitVertical: () {},
-                onSplitHorizontal: () {},
                 onClose: () {},
                 shellFactory: _successShellFactory,
               ),
@@ -605,250 +545,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Paste'), findsOneWidget);
-      expect(find.text('Copy Right'), findsOneWidget);
-      expect(find.text('Copy Down'), findsOneWidget);
-      expect(find.text('Close Pane'), findsOneWidget);
-    });
-
-    testWidgets('split-v menu item calls onSplitVertical', (tester) async {
-      var splitVCalled = false;
-      final conn = _testConnection(id: 'sf-split-v');
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: TerminalPane(
-                connection: conn,
-                isFocused: true,
-                onSplitVertical: () => splitVCalled = true,
-                onSplitHorizontal: () {},
-                shellFactory: _successShellFactory,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final termView = find.byType(TerminalView);
-      final center = tester.getCenter(termView);
-      await tester.tapAt(center, buttons: kSecondaryButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Copy Right'));
-      await tester.pumpAndSettle();
-
-      expect(splitVCalled, isTrue);
-    });
-
-    testWidgets('split-h menu item calls onSplitHorizontal', (tester) async {
-      var splitHCalled = false;
-      final conn = _testConnection(id: 'sf-split-h');
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: TerminalPane(
-                connection: conn,
-                isFocused: true,
-                onSplitVertical: () {},
-                onSplitHorizontal: () => splitHCalled = true,
-                shellFactory: _successShellFactory,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final termView = find.byType(TerminalView);
-      final center = tester.getCenter(termView);
-      await tester.tapAt(center, buttons: kSecondaryButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Copy Down'));
-      await tester.pumpAndSettle();
-
-      expect(splitHCalled, isTrue);
-    });
-
-    testWidgets('Ctrl+Backslash calls onSplitVertical', (tester) async {
-      var splitVCalled = false;
-      final conn = _testConnection(id: 'kb-split-v');
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: TerminalPane(
-                connection: conn,
-                isFocused: true,
-                onSplitVertical: () => splitVCalled = true,
-                onSplitHorizontal: () {},
-                shellFactory: _successShellFactory,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.backslash);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.backslash);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pumpAndSettle();
-
-      expect(splitVCalled, isTrue);
-    });
-
-    testWidgets('Ctrl+Shift+Backslash calls onSplitHorizontal', (tester) async {
-      var splitHCalled = false;
-      final conn = _testConnection(id: 'kb-split-h');
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: TerminalPane(
-                connection: conn,
-                isFocused: true,
-                onSplitVertical: () {},
-                onSplitHorizontal: () => splitHCalled = true,
-                shellFactory: _successShellFactory,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.backslash);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.backslash);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pumpAndSettle();
-
-      expect(splitHCalled, isTrue);
-    });
-
-    testWidgets('close menu item calls onClose', (tester) async {
-      var closeCalled = false;
-      final conn = _testConnection(id: 'sf-close');
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: TerminalPane(
-                connection: conn,
-                isFocused: true,
-                onSplitVertical: () {},
-                onSplitHorizontal: () {},
-                onClose: () => closeCalled = true,
-                shellFactory: _successShellFactory,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final termView = find.byType(TerminalView);
-      final center = tester.getCenter(termView);
-      await tester.tapAt(center, buttons: kSecondaryButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Close Pane'));
-      await tester.pumpAndSettle();
-
-      expect(closeCalled, isTrue);
-    });
-
-    testWidgets('no Close Pane when onClose is null', (tester) async {
-      final conn = _testConnection(id: 'sf-no-close');
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: TerminalPane(
-                connection: conn,
-                isFocused: true,
-                onSplitVertical: () {},
-                onSplitHorizontal: () {},
-                onClose: null,
-                shellFactory: _successShellFactory,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final termView = find.byType(TerminalView);
-      final center = tester.getCenter(termView);
-      await tester.tapAt(center, buttons: kSecondaryButton);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Paste'), findsOneWidget);
-      expect(find.text('Copy Right'), findsOneWidget);
-      expect(find.text('Close Pane'), findsNothing);
-    });
-
-    testWidgets('no split items when onSplitVertical is null', (tester) async {
-      final conn = _testConnection(id: 'sf-no-split');
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: TerminalPane(
-                connection: conn,
-                isFocused: true,
-                onSplitVertical: null,
-                onSplitHorizontal: null,
-                shellFactory: _successShellFactory,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final termView = find.byType(TerminalView);
-      final center = tester.getCenter(termView);
-      await tester.tapAt(center, buttons: kSecondaryButton);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Paste'), findsOneWidget);
-      expect(find.text('Copy Right'), findsNothing);
-      expect(find.text('Copy Down'), findsNothing);
     });
   });
 
@@ -1084,8 +780,6 @@ void main() {
               body: TerminalPane(
                 connection: conn,
                 isFocused: true,
-                onSplitVertical: () {},
-                onSplitHorizontal: () {},
                 shellFactory: _successShellFactory,
               ),
             ),
@@ -1276,8 +970,6 @@ void main() {
               body: TerminalPane(
                 connection: conn,
                 isFocused: true,
-                onSplitVertical: () {},
-                onSplitHorizontal: () {},
                 shellFactory: _successShellFactory,
               ),
             ),

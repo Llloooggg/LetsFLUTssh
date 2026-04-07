@@ -495,13 +495,16 @@ class SAr extends S {
   String get noTransfersYet => 'لا توجد عمليات نقل بعد';
 
   @override
-  String get copyRight => 'نسخ لليمين';
+  String get duplicateTab => 'تكرار التبويب';
+
+  @override
+  String get duplicateTabShortcut => 'تكرار التبويب (Ctrl+\\)';
 
   @override
   String get copyDown => 'نسخ للأسفل';
 
   @override
-  String get closePane => 'إغلاق اللوحة';
+  String get copyDownShortcut => 'نسخ للأسفل (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'السابق';
@@ -511,12 +514,6 @@ class SAr extends S {
 
   @override
   String get closeEsc => 'إغلاق (Esc)';
-
-  @override
-  String get copyRightShortcut => 'نسخ لليمين (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'نسخ للأسفل (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'إغلاق الكل';
