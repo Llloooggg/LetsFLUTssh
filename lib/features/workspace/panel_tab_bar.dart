@@ -260,22 +260,21 @@ class _PanelTabItemState extends State<_PanelTabItem> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 2),
-                SizedBox(
-                  width: _closeBoxSize,
-                  height: _closeBoxSize,
-                  child: Opacity(
-                    opacity: showClose ? 1.0 : 0.0,
+                if (showClose) ...[
+                  const SizedBox(width: 2),
+                  SizedBox(
+                    width: _closeBoxSize,
+                    height: _closeBoxSize,
                     child: AppIconButton(
                       icon: Icons.close,
-                      onTap: showClose ? widget.onClose : null,
+                      onTap: widget.onClose,
                       size: _closeIconSize,
                       boxSize: _closeBoxSize,
                       hoverColor: AppTheme.red.withValues(alpha: 0.2),
                       borderRadius: AppTheme.radiusMd,
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -302,15 +301,22 @@ class _PanelTabItemState extends State<_PanelTabItem> {
       builder: (hovered) {
         final showClose = hovered || widget.isActive;
         final content = _buildContent(showClose);
-        return ThresholdDraggable<TabDragData>(
-          data: TabDragData(tab: widget.tab, sourcePanelId: widget.panelId),
-          feedback: Material(
-            elevation: 4,
-            color: Colors.transparent,
-            child: Opacity(opacity: 0.85, child: _TabDragChip(tab: widget.tab)),
+        return Tooltip(
+          message: widget.tab.label,
+          waitDuration: const Duration(milliseconds: 400),
+          child: ThresholdDraggable<TabDragData>(
+            data: TabDragData(tab: widget.tab, sourcePanelId: widget.panelId),
+            feedback: Material(
+              elevation: 4,
+              color: Colors.transparent,
+              child: Opacity(
+                opacity: 0.85,
+                child: _TabDragChip(tab: widget.tab),
+              ),
+            ),
+            childWhenDragging: Opacity(opacity: 0.4, child: content),
+            child: content,
           ),
-          childWhenDragging: Opacity(opacity: 0.4, child: content),
-          child: content,
         );
       },
     );
