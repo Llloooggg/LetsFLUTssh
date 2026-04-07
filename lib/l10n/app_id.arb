@@ -305,6 +305,18 @@
   "errDecryptionFailed": "Gagal mendekripsi kredensial. File kunci mungkin rusak.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Login",
+  "protocol": "Protokol",
+  "typeLabel": "Tipe",
+  "folder": "Folder",
+  "nSubitems": "{count} item",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Item",
+
   "storagePermissionRequired": "Izin penyimpanan diperlukan untuk menjelajahi file lokal",
   "grantPermission": "Berikan izin",
   "storagePermissionLimited": "Akses terbatas — berikan izin penyimpanan penuh untuk semua file"

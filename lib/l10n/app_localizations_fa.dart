@@ -1020,6 +1020,26 @@ class SFa extends S {
   }
 
   @override
+  String get login => 'نام کاربری';
+
+  @override
+  String get protocol => 'پروتکل';
+
+  @override
+  String get typeLabel => 'نوع';
+
+  @override
+  String get folder => 'پوشه';
+
+  @override
+  String nSubitems(int count) {
+    return '$count مورد';
+  }
+
+  @override
+  String get subitems => 'موارد';
+
+  @override
   String get storagePermissionRequired =>
       'برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است';
 

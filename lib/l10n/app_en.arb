@@ -549,6 +549,18 @@
     }
   },
 
+  "login": "Login",
+  "protocol": "Protocol",
+  "typeLabel": "Type",
+  "folder": "Folder",
+  "nSubitems": "{count} item(s)",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Items",
+
   "storagePermissionRequired": "Storage permission required to browse local files",
   "grantPermission": "Grant Permission",
   "storagePermissionLimited": "Limited access — grant full storage permission for all files"

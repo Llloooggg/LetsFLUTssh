@@ -1032,6 +1032,26 @@ class SDe extends S {
   }
 
   @override
+  String get login => 'Anmeldung';
+
+  @override
+  String get protocol => 'Protokoll';
+
+  @override
+  String get typeLabel => 'Typ';
+
+  @override
+  String get folder => 'Ordner';
+
+  @override
+  String nSubitems(int count) {
+    return '$count Element(e)';
+  }
+
+  @override
+  String get subitems => 'Elemente';
+
+  @override
   String get storagePermissionRequired =>
       'Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen';
 

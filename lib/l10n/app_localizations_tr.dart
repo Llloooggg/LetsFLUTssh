@@ -1026,6 +1026,26 @@ class STr extends S {
   }
 
   @override
+  String get login => 'Kullanıcı adı';
+
+  @override
+  String get protocol => 'Protokol';
+
+  @override
+  String get typeLabel => 'Tür';
+
+  @override
+  String get folder => 'Klasör';
+
+  @override
+  String nSubitems(int count) {
+    return '$count öğe';
+  }
+
+  @override
+  String get subitems => 'Öğeler';
+
+  @override
   String get storagePermissionRequired =>
       'Yerel dosyalara göz atmak için depolama izni gerekli';
 

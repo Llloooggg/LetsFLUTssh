@@ -309,6 +309,18 @@
   "errDecryptionFailed": "Error al descifrar las credenciales. El archivo de clave puede estar dañado.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Usuario",
+  "protocol": "Protocolo",
+  "typeLabel": "Tipo",
+  "folder": "Carpeta",
+  "nSubitems": "{count} elemento(s)",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Elementos",
+
   "storagePermissionRequired": "Se requiere permiso de almacenamiento para explorar archivos locales",
   "grantPermission": "Conceder permiso",
   "storagePermissionLimited": "Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos"

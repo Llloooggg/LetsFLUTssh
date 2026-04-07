@@ -305,6 +305,18 @@
   "errDecryptionFailed": "Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "Kullanıcı adı",
+  "protocol": "Protokol",
+  "typeLabel": "Tür",
+  "folder": "Klasör",
+  "nSubitems": "{count} öğe",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "Öğeler",
+
   "storagePermissionRequired": "Yerel dosyalara göz atmak için depolama izni gerekli",
   "grantPermission": "İzin ver",
   "storagePermissionLimited": "Sınırlı erişim — tüm dosyalar için tam depolama izni verin"

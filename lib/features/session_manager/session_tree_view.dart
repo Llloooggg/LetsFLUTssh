@@ -90,6 +90,10 @@ class SessionTreeView extends StatefulWidget {
   /// Used by parent to track the focused session for keyboard shortcuts.
   final void Function(String sessionId)? onSessionSelected;
 
+  /// Called when a folder row is clicked (single-click on desktop).
+  /// Used by parent to show folder details in the info panel.
+  final void Function(String folderPath, int sessionCount)? onFolderSelected;
+
   /// Folder paths that should start collapsed (persisted across restarts).
   final Set<String> collapsedFolders;
 
@@ -119,6 +123,7 @@ class SessionTreeView extends StatefulWidget {
     this.connectedSessionIds = const {},
     this.connectingSessionIds = const {},
     this.onSessionSelected,
+    this.onFolderSelected,
     this.collapsedFolders = const {},
     this.onToggleFolderCollapsed,
   });
@@ -612,7 +617,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     final isSelected = widget.selectedFolderPaths.contains(node.fullPath);
 
     return HoverRegion(
-      onTap: () => _onFolderTap(node.fullPath, expanded),
+      onTap: () => _onFolderTap(node, expanded),
       onSecondaryTapUp: (d) {
         widget.onFolderContextMenu?.call(node.fullPath, d.globalPosition);
       },
@@ -629,12 +634,16 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     );
   }
 
-  void _onFolderTap(String fullPath, bool expanded) {
+  void _onFolderTap(SessionTreeNode node, bool expanded) {
+    final fullPath = node.fullPath;
     // If there's an active selection, toggle folder selection instead
     if (widget.selectedIds.isNotEmpty ||
         widget.selectedFolderPaths.isNotEmpty) {
       widget.onToggleFolderSelected?.call(fullPath);
       return;
+    }
+    if (!_mobile) {
+      widget.onFolderSelected?.call(fullPath, node.sessionCount);
     }
     setState(() {
       if (expanded) {

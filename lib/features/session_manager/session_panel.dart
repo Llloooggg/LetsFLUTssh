@@ -50,6 +50,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
   // Focused session for keyboard shortcuts (single-click selection).
   String? _focusedSessionId;
+  // Focused folder for the details panel (single-click on desktop).
+  String? _focusedFolderPath;
+  int _focusedFolderItemCount = 0;
   // Session clipboard — Ctrl+C stores the session ID, Ctrl+V duplicates it.
   String? _copiedSessionId;
 
@@ -387,8 +390,18 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                       crossMarquee: widget.crossMarquee,
                       onSessionDoubleTap: widget.onConnect,
                       onSessionSelected: (id) {
-                        _focusedSessionId = id;
+                        setState(() {
+                          _focusedSessionId = id;
+                          _focusedFolderPath = null;
+                        });
                         if (!mobile) _focusNode.requestFocus();
+                      },
+                      onFolderSelected: (path, count) {
+                        setState(() {
+                          _focusedFolderPath = path;
+                          _focusedFolderItemCount = count;
+                          _focusedSessionId = null;
+                        });
                       },
                       onSessionContextMenu: (session, position) {
                         _showContextMenu(context, ref, session, position);
@@ -444,6 +457,18 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                       },
                     ),
             ),
+            // Details panel — only on desktop
+            if (!mobile)
+              _SessionDetailsPanel(
+                session: _focusedSessionId != null
+                    ? ref
+                          .read(sessionProvider)
+                          .where((s) => s.id == _focusedSessionId)
+                          .firstOrNull
+                    : null,
+                folderPath: _focusedFolderPath,
+                folderItemCount: _focusedFolderItemCount,
+              ),
             // Footer — only on desktop (mobile shows counts in MobileShell header)
             if (!mobile) const _SidebarFooter(),
           ],
@@ -1306,6 +1331,116 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Properties panel shown below the session tree on desktop.
+/// Displays details of the selected session or folder.
+class _SessionDetailsPanel extends StatelessWidget {
+  final Session? session;
+  final String? folderPath;
+  final int folderItemCount;
+
+  const _SessionDetailsPanel({
+    this.session,
+    this.folderPath,
+    this.folderItemCount = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    final theme = Theme.of(context);
+
+    final List<(String, String)> rows;
+    if (session != null) {
+      final s = session!;
+      rows = [
+        (l10n.name, s.label.isNotEmpty ? s.label : s.displayName),
+        (l10n.host, s.host),
+        (l10n.login, s.user),
+        (l10n.protocol, 'SSH'),
+        (l10n.port, s.port.toString()),
+      ];
+    } else if (folderPath != null && folderPath!.isNotEmpty) {
+      final folderName = folderPath!.split('/').last;
+      rows = [
+        (l10n.name, folderName),
+        (l10n.typeLabel, l10n.folder),
+        (l10n.subitems, l10n.nSubitems(folderItemCount)),
+      ];
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      constraints: const BoxConstraints(maxHeight: 160),
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        shrinkWrap: true,
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final (label, value) = rows[index];
+          return _DetailRow(label: label, value: value);
+        },
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dimColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
+
+    return GestureDetector(
+      onSecondaryTapUp: (details) =>
+          _showCopyMenu(context, details.globalPosition),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 70,
+              child: Text(
+                label,
+                style: TextStyle(fontSize: AppFonts.sm, color: dimColor),
+              ),
+            ),
+            Expanded(
+              child: SelectableText(
+                value,
+                style: TextStyle(fontSize: AppFonts.sm),
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCopyMenu(BuildContext context, Offset position) {
+    showAppContextMenu(
+      context: context,
+      position: position,
+      items: [
+        ContextMenuItem(
+          label: S.of(context).copy,
+          icon: Icons.copy,
+          onTap: () => Clipboard.setData(ClipboardData(text: value)),
+        ),
+      ],
     );
   }
 }

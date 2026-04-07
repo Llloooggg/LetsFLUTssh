@@ -1026,6 +1026,26 @@ class SPt extends S {
   }
 
   @override
+  String get login => 'Login';
+
+  @override
+  String get protocol => 'Protocolo';
+
+  @override
+  String get typeLabel => 'Tipo';
+
+  @override
+  String get folder => 'Pasta';
+
+  @override
+  String nSubitems(int count) {
+    return '$count item(ns)';
+  }
+
+  @override
+  String get subitems => 'Itens';
+
+  @override
   String get storagePermissionRequired =>
       'Permissão de armazenamento necessária para navegar arquivos locais';
 

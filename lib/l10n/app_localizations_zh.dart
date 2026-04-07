@@ -1007,6 +1007,26 @@ class SZh extends S {
   }
 
   @override
+  String get login => '用户名';
+
+  @override
+  String get protocol => '协议';
+
+  @override
+  String get typeLabel => '类型';
+
+  @override
+  String get folder => '文件夹';
+
+  @override
+  String nSubitems(int count) {
+    return '$count 个项目';
+  }
+
+  @override
+  String get subitems => '项目';
+
+  @override
   String get storagePermissionRequired => '需要存储权限才能浏览本地文件';
 
   @override

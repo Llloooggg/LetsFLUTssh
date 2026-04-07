@@ -332,6 +332,18 @@
   "errDecryptionFailed": "فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "تسجيل الدخول",
+  "protocol": "البروتوكول",
+  "typeLabel": "النوع",
+  "folder": "المجلد",
+  "nSubitems": "{count} عنصر",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "العناصر",
+
   "storagePermissionRequired": "يلزم إذن التخزين لتصفح الملفات المحلية",
   "grantPermission": "منح الإذن",
   "storagePermissionLimited": "وصول محدود — امنح إذن التخزين الكامل لجميع الملفات"

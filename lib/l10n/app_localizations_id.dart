@@ -1026,6 +1026,26 @@ class SId extends S {
   }
 
   @override
+  String get login => 'Login';
+
+  @override
+  String get protocol => 'Protokol';
+
+  @override
+  String get typeLabel => 'Tipe';
+
+  @override
+  String get folder => 'Folder';
+
+  @override
+  String nSubitems(int count) {
+    return '$count item';
+  }
+
+  @override
+  String get subitems => 'Item';
+
+  @override
   String get storagePermissionRequired =>
       'Izin penyimpanan diperlukan untuk menjelajahi file lokal';
 

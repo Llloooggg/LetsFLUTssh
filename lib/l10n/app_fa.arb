@@ -332,6 +332,18 @@
   "errDecryptionFailed": "رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
+  "login": "نام کاربری",
+  "protocol": "پروتکل",
+  "typeLabel": "نوع",
+  "folder": "پوشه",
+  "nSubitems": "{count} مورد",
+  "@nSubitems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "subitems": "موارد",
+
   "storagePermissionRequired": "برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است",
   "grantPermission": "اعطای مجوز",
   "storagePermissionLimited": "دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید"
