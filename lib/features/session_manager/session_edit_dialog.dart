@@ -1,10 +1,10 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
+import '../../core/shortcut_registry.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../theme/app_theme.dart';
@@ -234,10 +234,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       backgroundColor: AppTheme.bg1,
       insetPadding: const EdgeInsets.all(24),
       child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.escape): () =>
-              Navigator.of(context).pop(),
-        },
+        bindings: AppShortcutRegistry.instance.buildCallbackMap({
+          AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
+        }),
         child: Focus(
           autofocus: true,
           child: ConstrainedBox(

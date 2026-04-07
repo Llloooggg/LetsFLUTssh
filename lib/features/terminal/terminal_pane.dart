@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
+import '../../core/shortcut_registry.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
@@ -216,14 +217,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     return GestureDetector(
       onTap: widget.onFocused,
       child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(
-            LogicalKeyboardKey.keyF,
-            control: true,
-            shift: true,
-          ): toggleSearch,
-          const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
-        },
+        bindings: AppShortcutRegistry.instance.buildCallbackMap({
+          AppShortcut.terminalSearch: toggleSearch,
+          AppShortcut.terminalCloseSearch: _closeSearch,
+        }),
         child: Column(
           children: [
             ValueListenableBuilder<bool>(
@@ -355,40 +352,21 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   /// ancestor CallbackShortcuts never see them.
   KeyEventResult _handleTerminalKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final ctrl = HardwareKeyboard.instance.isControlPressed;
-    final shift = HardwareKeyboard.instance.isShiftPressed;
-    if (ctrl && shift) {
-      if (event.logicalKey == LogicalKeyboardKey.keyC) {
-        _copySelection();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.keyV) {
-        _pasteClipboard();
-        return KeyEventResult.handled;
-      }
-      // Ctrl+Shift+\ → split pane down
-      if (event.logicalKey == LogicalKeyboardKey.backslash) {
-        widget.onSplitHorizontal?.call();
-        return KeyEventResult.handled;
-      }
-    }
-    // Ctrl+\ → split pane right
-    if (ctrl && !shift && event.logicalKey == LogicalKeyboardKey.backslash) {
-      widget.onSplitVertical?.call();
-      return KeyEventResult.handled;
-    }
-    // Ctrl+= / Ctrl+- / Ctrl+0 → zoom in / out / reset
-    if (ctrl && !shift) {
-      if (event.logicalKey == LogicalKeyboardKey.equal) {
-        _zoomIn();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.minus) {
-        _zoomOut();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.digit0) {
-        _zoomReset();
+    final reg = AppShortcutRegistry.instance;
+
+    final shortcuts = <AppShortcut, VoidCallback>{
+      AppShortcut.terminalCopy: _copySelection,
+      AppShortcut.terminalPaste: _pasteClipboard,
+      AppShortcut.splitDown: () => widget.onSplitHorizontal?.call(),
+      AppShortcut.splitRight: () => widget.onSplitVertical?.call(),
+      AppShortcut.zoomIn: _zoomIn,
+      AppShortcut.zoomOut: _zoomOut,
+      AppShortcut.zoomReset: _zoomReset,
+    };
+
+    for (final entry in shortcuts.entries) {
+      if (reg.matches(entry.key, event)) {
+        entry.value();
         return KeyEventResult.handled;
       }
     }

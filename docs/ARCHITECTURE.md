@@ -15,6 +15,7 @@
   - [3.8 Deep Links (`core/deeplink/`)](#38-deep-links-coredeeplink)
   - [3.9 Import (`core/import/`)](#39-import-coreimport)
   - [3.10 Update (`core/update/`)](#310-update-coreupdate)
+  - [3.11 Keyboard Shortcuts (`core/shortcut_registry.dart`)](#311-keyboard-shortcuts-coreshortcut_registrydart)
 - [4. State Management — Riverpod](#4-state-management--riverpod)
   - [4.1 Provider Dependency Graph](#41-provider-dependency-graph)
   - [4.2 Provider Catalog](#42-provider-catalog)
@@ -100,7 +101,8 @@ lib/
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
 │   ├── single_instance/              # Single-instance lock (desktop)
-│   └── update/                       # Update checking
+│   ├── update/                       # Update checking
+│   └── shortcut_registry.dart        # Centralized keyboard shortcut definitions
 ├── features/                         # UI modules
 │   ├── terminal/                     # Terminal with tiling
 │   ├── file_browser/                 # Dual-pane SFTP browser
@@ -596,6 +598,40 @@ class UpdateService {
   // Stale skip auto-clears when a newer version supersedes the skipped one.
 }
 ```
+
+### 3.11 Keyboard Shortcuts (`core/shortcut_registry.dart`)
+
+Central registry for all app keyboard shortcuts. Every shortcut is an `AppShortcut` enum value with a default `SingleActivator` binding.
+
+```dart
+enum AppShortcut {
+  newSession(SingleActivator(LogicalKeyboardKey.keyN, control: true)),
+  terminalCopy(SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true)),
+  // ... 29 shortcuts total (global, terminal, file browser, session panel, dialog)
+  ;
+  const AppShortcut(this.defaultBinding);
+  final SingleActivator defaultBinding;
+}
+
+class AppShortcutRegistry {
+  static final instance = AppShortcutRegistry._();
+
+  SingleActivator binding(AppShortcut shortcut);
+
+  // For CallbackShortcuts widgets:
+  Map<ShortcutActivator, VoidCallback> buildCallbackMap(Map<AppShortcut, VoidCallback> actions);
+
+  // For onKeyEvent handlers (e.g. inside xterm where CallbackShortcuts can't intercept):
+  bool matches(AppShortcut shortcut, KeyEvent event);
+}
+```
+
+**Usage patterns:**
+- `CallbackShortcuts` widgets → `AppShortcutRegistry.instance.buildCallbackMap({...})`
+- `onKeyEvent` handlers (xterm, file browser, session panel) → `reg.matches(AppShortcut.x, event)`
+- Dialogs → `buildCallbackMap({AppShortcut.dismissDialog: ...})`
+
+**Note:** `matches()` only checks ctrl/shift modifiers (not alt/meta) to tolerate phantom modifier flags on some platforms (e.g. WSLg).
 
 ---
 
@@ -2065,6 +2101,8 @@ Manual build
 | Separate `features/mobile/` | Different interaction patterns, not a responsive adaptation |
 | Global `navigatorKey` for host key dialog | SSH callback arrives without BuildContext |
 | `AnimationStyle.noAnimation` | Animations disabled (Flutter 3.41+), design decision |
+| `AppShortcutRegistry` singleton | Centralized shortcut definitions; all key combos in one place, ready for future user-override settings page |
+| `matches()` checks only ctrl/shift | Original handlers didn't check alt/meta; WSLg can report phantom meta, causing false negatives |
 
 ### 16.2 API Gotchas
 
