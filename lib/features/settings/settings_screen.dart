@@ -721,7 +721,7 @@ class _ExportImportTile extends ConsumerWidget {
     final title = S.of(context).chooseSaveLocation;
     final initDir = await _defaultDirectory();
     if (plat.isDesktopPlatform) {
-      return FilePicker.platform.saveFile(
+      return FilePicker.saveFile(
         dialogTitle: title,
         fileName: defaultName,
         initialDirectory: initDir,
@@ -730,7 +730,7 @@ class _ExportImportTile extends ConsumerWidget {
       );
     }
     // Mobile: pick directory, append default filename
-    final dir = await FilePicker.platform.getDirectoryPath(
+    final dir = await FilePicker.getDirectoryPath(
       dialogTitle: title,
       initialDirectory: initDir,
     );
@@ -1787,7 +1787,7 @@ class _LoggingSection extends ConsumerWidget {
 
       String? outputPath;
       if (plat.isDesktopPlatform) {
-        outputPath = await FilePicker.platform.saveFile(
+        outputPath = await FilePicker.saveFile(
           dialogTitle: saveTitle,
           fileName: defaultName,
           initialDirectory: initDir,
@@ -1795,7 +1795,7 @@ class _LoggingSection extends ConsumerWidget {
           allowedExtensions: ['txt', 'log'],
         );
       } else {
-        final dir = await FilePicker.platform.getDirectoryPath(
+        final dir = await FilePicker.getDirectoryPath(
           dialogTitle: chooseTitle,
           initialDirectory: initDir,
         );
@@ -2080,7 +2080,7 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
   Future<void> _pickFile() async {
     final title = S.of(context).pathToLfsFile;
     final initDir = await _defaultDirectory();
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       dialogTitle: title,
       initialDirectory: initDir,
       type: FileType.custom,

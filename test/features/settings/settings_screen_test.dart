@@ -1,6 +1,8 @@
 import 'dart:io';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:file_picker/file_picker.dart';
+import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,9 +20,10 @@ import 'package:letsflutssh/utils/logger.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/toast.dart';
 
-/// Mock FilePicker that returns a temp directory for getDirectoryPath
+/// Mock FilePickerPlatform that returns a temp directory for getDirectoryPath
 /// and a temp file path for saveFile, without launching native dialogs.
-class _MockFilePicker extends FilePicker {
+class _MockFilePickerPlatform extends FilePickerPlatform
+    with MockPlatformInterfaceMixin {
   String? directoryPath;
   String? savePath;
 
@@ -48,14 +51,14 @@ class _MockFilePicker extends FilePicker {
     String? initialDirectory,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
-    dynamic Function(FilePickerStatus)? onFileLoading,
-    bool allowCompression = true,
-    int compressionQuality = 30,
+    Function(FilePickerStatus)? onFileLoading,
+    int compressionQuality = 0,
     bool allowMultiple = false,
     bool withData = false,
     bool withReadStream = false,
     bool lockParentWindow = false,
     bool readSequential = false,
+    bool cancelUploadOnWindowBlur = true,
   }) async => null;
 }
 
@@ -75,7 +78,7 @@ class _PrePopulatedConfigNotifier extends ConfigNotifier {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory tempDir;
-  late _MockFilePicker mockFilePicker;
+  late _MockFilePickerPlatform mockFilePicker;
 
   setUp(() async {
     // Force mobile layout so existing tests (written for flat ListView) keep working.
@@ -85,8 +88,8 @@ void main() {
     debugCollapsibleSectionsExpanded = true;
     tempDir = await Directory.systemTemp.createTemp('settings_test_');
     // Mock FilePicker to prevent native dialog launches in tests.
-    mockFilePicker = _MockFilePicker()..directoryPath = tempDir.path;
-    FilePicker.platform = mockFilePicker;
+    mockFilePicker = _MockFilePickerPlatform()..directoryPath = tempDir.path;
+    FilePickerPlatform.instance = mockFilePicker;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/path_provider'),
