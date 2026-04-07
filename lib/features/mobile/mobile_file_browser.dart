@@ -262,6 +262,12 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                 height: AppTheme.barHeightMd,
                 child: Row(
                   children: [
+                    Expanded(
+                      child: _editingPath
+                          ? _buildPathEditor()
+                          : _buildBreadcrumb(),
+                    ),
+                    const SizedBox(width: 4),
                     AppIconButton(
                       icon: Icons.arrow_back,
                       size: 22,
@@ -284,12 +290,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                       boxSize: 36,
                       onTap: _activeCtrl.navigateUp,
                       tooltip: S.of(context).up,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: _editingPath
-                          ? _buildPathEditor()
-                          : _buildBreadcrumb(),
                     ),
                   ],
                 ),
