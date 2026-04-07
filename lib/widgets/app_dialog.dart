@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
@@ -62,23 +63,35 @@ class AppDialog extends StatelessWidget {
       body = Flexible(child: SingleChildScrollView(child: body));
     }
 
+    Widget child = ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppDialogHeader(
+            title: title,
+            onClose: dismissible ? () => Navigator.of(context).pop() : null,
+          ),
+          body,
+          if (actions.isNotEmpty) AppDialogFooter(actions: actions),
+        ],
+      ),
+    );
+
+    if (dismissible) {
+      child = CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () =>
+              Navigator.of(context).pop(),
+        },
+        child: Focus(autofocus: true, child: child),
+      );
+    }
+
     return Dialog(
       backgroundColor: AppTheme.bg1,
       insetPadding: const EdgeInsets.all(24),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppDialogHeader(
-              title: title,
-              onClose: dismissible ? () => Navigator.of(context).pop() : null,
-            ),
-            body,
-            if (actions.isNotEmpty) AppDialogFooter(actions: actions),
-          ],
-        ),
-      ),
+      child: child,
     );
   }
 }
