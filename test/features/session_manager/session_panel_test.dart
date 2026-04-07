@@ -2364,7 +2364,7 @@ void main() {
       final actionBarBox = tester.getSize(
         find.ancestor(of: selectedText, matching: find.byType(Container)).first,
       );
-      expect(actionBarBox.height, AppTheme.barHeightSm);
+      expect(actionBarBox.height, AppTheme.barHeightLg);
     });
 
     testWidgets('Cancel exits select mode', (tester) async {
@@ -2425,6 +2425,26 @@ void main() {
       await tester.pump();
 
       expect(find.text('3 selected'), findsOneWidget);
+      // After selecting all, icon switches to deselect
+      expect(find.byIcon(Icons.deselect), findsOneWidget);
+    });
+
+    testWidgets('Deselect All clears selection', (tester) async {
+      await tester.pumpWidget(buildApp());
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.enterSelectModeWithSession('1');
+      await tester.pump();
+
+      // Select all first
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+      expect(find.text('3 selected'), findsOneWidget);
+
+      // Deselect all
+      await tester.tap(find.byIcon(Icons.deselect));
+      await tester.pump();
+      expect(find.text('0 selected'), findsOneWidget);
+      expect(find.byIcon(Icons.select_all), findsOneWidget);
     });
 
     testWidgets('Delete shows confirm dialog', (tester) async {

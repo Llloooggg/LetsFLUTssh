@@ -215,6 +215,9 @@ class SDe extends S {
   String get selectAll => 'Alle auswählen';
 
   @override
+  String get deselectAll => 'Alle abwählen';
+
+  @override
   String get moveTo => 'Verschieben nach...';
 
   @override
@@ -500,13 +503,16 @@ class SDe extends S {
   String get noTransfersYet => 'Noch keine Übertragungen';
 
   @override
-  String get copyRight => 'Nach rechts kopieren';
+  String get duplicateTab => 'Tab duplizieren';
+
+  @override
+  String get duplicateTabShortcut => 'Tab duplizieren (Ctrl+\\)';
 
   @override
   String get copyDown => 'Nach unten kopieren';
 
   @override
-  String get closePane => 'Bereich schließen';
+  String get copyDownShortcut => 'Nach unten kopieren (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'Vorheriges';
@@ -516,12 +522,6 @@ class SDe extends S {
 
   @override
   String get closeEsc => 'Schließen (Esc)';
-
-  @override
-  String get copyRightShortcut => 'Nach rechts kopieren (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'Nach unten kopieren (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'Alle schließen';

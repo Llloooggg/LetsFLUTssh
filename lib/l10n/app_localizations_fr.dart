@@ -215,6 +215,9 @@ class SFr extends S {
   String get selectAll => 'Tout sélectionner';
 
   @override
+  String get deselectAll => 'Tout désélectionner';
+
+  @override
   String get moveTo => 'Déplacer vers...';
 
   @override
@@ -500,13 +503,16 @@ class SFr extends S {
   String get noTransfersYet => 'Aucun transfert pour l\'instant';
 
   @override
-  String get copyRight => 'Copier à droite';
+  String get duplicateTab => 'Dupliquer l\'onglet';
+
+  @override
+  String get duplicateTabShortcut => 'Dupliquer l\'onglet (Ctrl+\\)';
 
   @override
   String get copyDown => 'Copier en bas';
 
   @override
-  String get closePane => 'Fermer le panneau';
+  String get copyDownShortcut => 'Copier en bas (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'Précédent';
@@ -516,12 +522,6 @@ class SFr extends S {
 
   @override
   String get closeEsc => 'Fermer (Esc)';
-
-  @override
-  String get copyRightShortcut => 'Copier à droite (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'Copier en bas (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'Tout fermer';

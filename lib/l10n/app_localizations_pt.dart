@@ -214,6 +214,9 @@ class SPt extends S {
   String get selectAll => 'Selecionar Tudo';
 
   @override
+  String get deselectAll => 'Desmarcar Tudo';
+
+  @override
   String get moveTo => 'Mover para...';
 
   @override
@@ -497,13 +500,16 @@ class SPt extends S {
   String get noTransfersYet => 'Nenhuma transferência ainda';
 
   @override
-  String get copyRight => 'Copiar à Direita';
+  String get duplicateTab => 'Duplicar Aba';
+
+  @override
+  String get duplicateTabShortcut => 'Duplicar Aba (Ctrl+\\)';
 
   @override
   String get copyDown => 'Copiar Abaixo';
 
   @override
-  String get closePane => 'Fechar Painel';
+  String get copyDownShortcut => 'Copiar Abaixo (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'Anterior';
@@ -513,12 +519,6 @@ class SPt extends S {
 
   @override
   String get closeEsc => 'Fechar (Esc)';
-
-  @override
-  String get copyRightShortcut => 'Copiar à Direita (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'Copiar Abaixo (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'Fechar Todas';

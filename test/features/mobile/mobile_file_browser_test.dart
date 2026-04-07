@@ -437,7 +437,9 @@ void main() {
       expect(find.text('1 selected'), findsOneWidget);
     });
 
-    testWidgets('deselecting all exits selection mode', (tester) async {
+    testWidgets('deselecting all keeps selection mode with 0 count', (
+      tester,
+    ) async {
       await controller.init();
       await tester.pumpWidget(buildFileList());
       await tester.pump();
@@ -449,11 +451,59 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('1 selected'), findsOneWidget);
 
-      // Tap the selected entry to deselect — should exit selection mode
+      // Tap the selected entry to deselect — bar stays for select all button
       await tester.tap(find.text('readme.txt'));
       await tester.pump();
 
-      expect(find.byType(Checkbox), findsNothing);
+      expect(find.text('0 selected'), findsOneWidget);
+      expect(find.byType(Checkbox), findsWidgets);
+    });
+
+    testWidgets('select all button selects all files', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // Enter selection mode via context menu
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 selected'), findsOneWidget);
+
+      // Tap select all
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      // All entries selected — icon switches to deselect
+      expect(
+        find.text('${controller.entries.length} selected'),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.deselect), findsOneWidget);
+    });
+
+    testWidgets('deselect all button clears selection', (tester) async {
+      await controller.init();
+      await tester.pumpWidget(buildFileList());
+      await tester.pump();
+
+      // Enter selection mode and select all
+      await tester.longPress(find.text('readme.txt'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+      expect(find.byIcon(Icons.deselect), findsOneWidget);
+
+      // Tap deselect all
+      await tester.tap(find.byIcon(Icons.deselect));
+      await tester.pump();
+
+      // All deselected — icon back to select all
+      expect(find.text('0 selected'), findsOneWidget);
+      expect(find.byIcon(Icons.select_all), findsOneWidget);
     });
 
     testWidgets('transfer button in selection bar calls onTransferMultiple', (

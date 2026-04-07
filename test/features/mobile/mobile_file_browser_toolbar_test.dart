@@ -163,12 +163,13 @@ void main() {
       expect(find.text('1 selected'), findsOneWidget);
       expect(find.byType(Checkbox), findsWidgets);
 
-      // Tap same item to deselect -> should exit selection mode
+      // Tap same item to deselect — selection mode stays with 0 count
       await tester.tap(find.text('notes.txt'));
       await tester.pump();
 
-      // Selection mode should be gone
-      expect(find.byType(Checkbox), findsNothing);
+      // Selection bar stays visible with select all button
+      expect(find.text('0 selected'), findsOneWidget);
+      expect(find.byType(Checkbox), findsWidgets);
 
       ctrl.dispose();
     });

@@ -214,6 +214,9 @@ class SRu extends S {
   String get selectAll => 'Выбрать все';
 
   @override
+  String get deselectAll => 'Снять все';
+
+  @override
   String get moveTo => 'Переместить в...';
 
   @override
@@ -496,13 +499,16 @@ class SRu extends S {
   String get noTransfersYet => 'Передач пока нет';
 
   @override
-  String get copyRight => 'Копировать вправо';
+  String get duplicateTab => 'Дублировать вкладку';
+
+  @override
+  String get duplicateTabShortcut => 'Дублировать вкладку (Ctrl+\\)';
 
   @override
   String get copyDown => 'Копировать вниз';
 
   @override
-  String get closePane => 'Закрыть панель';
+  String get copyDownShortcut => 'Копировать вниз (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'Предыдущий';
@@ -512,12 +518,6 @@ class SRu extends S {
 
   @override
   String get closeEsc => 'Закрыть (Esc)';
-
-  @override
-  String get copyRightShortcut => 'Копировать вправо (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'Копировать вниз (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'Закрыть все';

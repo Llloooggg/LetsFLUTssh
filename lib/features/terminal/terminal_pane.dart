@@ -40,8 +40,6 @@ class TerminalPane extends ConsumerStatefulWidget {
   /// Focus border is only shown when this is true.
   final bool hasMultiplePanes;
   final VoidCallback? onFocused;
-  final VoidCallback? onSplitVertical;
-  final VoidCallback? onSplitHorizontal;
   final VoidCallback? onClose;
 
   /// Optional factory for testing — bypasses real SSH shell.
@@ -53,8 +51,6 @@ class TerminalPane extends ConsumerStatefulWidget {
     this.isFocused = false,
     this.hasMultiplePanes = false,
     this.onFocused,
-    this.onSplitVertical,
-    this.onSplitHorizontal,
     this.onClose,
     this.shellFactory,
   });
@@ -305,7 +301,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   void _showContextMenu(BuildContext context, Offset position) {
     final hasSelection = _terminalController.selection != null;
-    final hasSplit = widget.onSplitVertical != null;
 
     showAppContextMenu(
       context: context,
@@ -324,25 +319,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
           shortcut: 'Ctrl+V',
           onTap: _pasteClipboard,
         ),
-        if (hasSplit) ...[
-          const ContextMenuItem.divider(),
-          ContextMenuItem(
-            label: S.of(context).copyRight,
-            icon: Icons.vertical_split,
-            onTap: () => widget.onSplitVertical?.call(),
-          ),
-          ContextMenuItem(
-            label: S.of(context).copyDown,
-            icon: Icons.horizontal_split,
-            onTap: () => widget.onSplitHorizontal?.call(),
-          ),
-          if (widget.onClose != null)
-            ContextMenuItem(
-              label: S.of(context).closePane,
-              icon: Icons.close,
-              onTap: () => widget.onClose?.call(),
-            ),
-        ],
       ],
     );
   }
@@ -357,8 +333,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final shortcuts = <AppShortcut, VoidCallback>{
       AppShortcut.terminalCopy: _copySelection,
       AppShortcut.terminalPaste: _pasteClipboard,
-      AppShortcut.splitDown: () => widget.onSplitHorizontal?.call(),
-      AppShortcut.splitRight: () => widget.onSplitVertical?.call(),
       AppShortcut.zoomIn: _zoomIn,
       AppShortcut.zoomOut: _zoomOut,
       AppShortcut.zoomReset: _zoomReset,
