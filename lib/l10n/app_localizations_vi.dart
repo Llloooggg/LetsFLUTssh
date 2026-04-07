@@ -352,6 +352,12 @@ class SVi extends S {
   String get clearKeyFile => 'Xóa tệp khóa';
 
   @override
+  String get authOrDivider => 'HOẶC';
+
+  @override
+  String get providePasswordOrKey => 'Cung cấp mật khẩu hoặc khóa SSH';
+
+  @override
   String get quickConnect => 'Kết nối nhanh';
 
   @override

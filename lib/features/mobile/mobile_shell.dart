@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
 import '../../l10n/app_localizations.dart';
-import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -185,10 +184,6 @@ class _MobileShellState extends ConsumerState<MobileShell> {
           onConnect: (session) => _connectSession(context, ref, session),
           onSftpConnect: (session) =>
               _connectSessionSftp(context, ref, session),
-          onQuickConnect: (config) {
-            SessionConnect.connectConfig(context, ref, config);
-            setState(() => _navIndex = 1);
-          },
         ),
         _MobileTerminalPage(
           allTabs: allTabs,
@@ -368,21 +363,15 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 class _MobileSessionsPage extends ConsumerWidget {
   final void Function(Session) onConnect;
   final void Function(Session) onSftpConnect;
-  final void Function(SSHConfig config) onQuickConnect;
   const _MobileSessionsPage({
     required this.onConnect,
     required this.onSftpConnect,
-    required this.onQuickConnect,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Header moved to MobileShell — visible on all tabs
-    return SessionPanel(
-      onConnect: onConnect,
-      onSftpConnect: onSftpConnect,
-      onQuickConnect: onQuickConnect,
-    );
+    return SessionPanel(onConnect: onConnect, onSftpConnect: onSftpConnect);
   }
 }
 

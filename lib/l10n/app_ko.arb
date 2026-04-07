@@ -105,6 +105,8 @@
   "keyTextPem": "키 텍스트 (PEM)",
   "selectKeyFile": "키 파일 선택",
   "clearKeyFile": "키 파일 지우기",
+  "authOrDivider": "또는",
+  "providePasswordOrKey": "비밀번호 또는 SSH 키를 제공하세요",
   "quickConnect": "빠른 연결",
   "scanQrCode": "QR 코드 스캔",
   "qrGenerationFailed": "QR 생성 실패",

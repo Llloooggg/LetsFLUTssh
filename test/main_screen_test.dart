@@ -463,7 +463,7 @@ void main() {
       await tester.tap(find.text('Auth'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Password'), findsWidgets);
+      expect(find.text('PASSWORD'), findsOneWidget);
     });
   });
 
@@ -951,8 +951,8 @@ void main() {
       await tester.enterText(userField, 'testuser');
       await tester.pump();
 
-      // Save & Connect and Connect buttons should be present
-      expect(find.text('Connect'), findsOneWidget);
+      // Save & Connect button should be present
+      expect(find.text('Save & Connect'), findsOneWidget);
 
       // Cancel
       await tester.tap(find.text('Cancel'));
@@ -1576,9 +1576,9 @@ void main() {
     );
   });
 
-  group('MainScreen — _newSession ConnectOnlyResult path', () {
+  group('MainScreen — _newSession SaveResult with connect path', () {
     testWidgets(
-      'filling host+user and clicking Connect triggers ConnectOnlyResult',
+      'filling host+user and clicking Save & Connect triggers SaveResult',
       (tester) async {
         await tester.pumpWidget(
           ProviderScope(
@@ -1618,13 +1618,13 @@ void main() {
         await tester.enterText(userField, 'testuser');
         await tester.pump();
 
-        // Click "Connect" (not "Save & Connect") → ConnectOnlyResult
-        await tester.tap(find.text('Connect'));
+        // Click "Save & Connect" → SaveResult with connect: true
+        await tester.tap(find.text('Save & Connect'));
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         await tester.pump();
 
-        // Lines 302-303 (ConnectOnlyResult case) covered
+        // SaveResult with connect: true case covered
         expect(find.byType(MainScreen), findsOneWidget);
 
         // Pump past the 3-second toast auto-dismiss timer and its animation

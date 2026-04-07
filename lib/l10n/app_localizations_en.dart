@@ -352,6 +352,12 @@ class SEn extends S {
   String get clearKeyFile => 'Clear key file';
 
   @override
+  String get authOrDivider => 'OR';
+
+  @override
+  String get providePasswordOrKey => 'Provide a password or SSH key';
+
+  @override
   String get quickConnect => 'Quick Connect';
 
   @override

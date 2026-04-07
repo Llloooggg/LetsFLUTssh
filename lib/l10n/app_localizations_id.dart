@@ -353,6 +353,12 @@ class SId extends S {
   String get clearKeyFile => 'Hapus file kunci';
 
   @override
+  String get authOrDivider => 'ATAU';
+
+  @override
+  String get providePasswordOrKey => 'Sediakan kata sandi atau kunci SSH';
+
+  @override
   String get quickConnect => 'Hubungkan Cepat';
 
   @override

@@ -354,6 +354,12 @@ class STr extends S {
   String get clearKeyFile => 'Anahtar dosyasını temizle';
 
   @override
+  String get authOrDivider => 'VEYA';
+
+  @override
+  String get providePasswordOrKey => 'Bir parola veya SSH anahtarı sağlayın';
+
+  @override
   String get quickConnect => 'Hızlı Bağlantı';
 
   @override

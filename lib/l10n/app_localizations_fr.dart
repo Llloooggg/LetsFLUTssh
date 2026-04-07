@@ -355,6 +355,13 @@ class SFr extends S {
   String get clearKeyFile => 'Effacer le fichier de clé';
 
   @override
+  String get authOrDivider => 'OU';
+
+  @override
+  String get providePasswordOrKey =>
+      'Fournissez un mot de passe ou une clé SSH';
+
+  @override
   String get quickConnect => 'Connexion rapide';
 
   @override
