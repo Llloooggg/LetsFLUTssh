@@ -48,6 +48,8 @@ void main() {
     List<SessionTreeNode>? overrideTree,
     void Function(Session)? onSessionTap,
     void Function(Session)? onSessionDoubleTap,
+    Set<String> selectedIds = const {},
+    Set<String> selectedFolderPaths = const {},
   }) {
     return MaterialApp(
       localizationsDelegates: S.localizationsDelegates,
@@ -61,6 +63,8 @@ void main() {
             tree: overrideTree ?? tree,
             onSessionTap: onSessionTap,
             onSessionDoubleTap: onSessionDoubleTap,
+            selectedIds: selectedIds,
+            selectedFolderPaths: selectedFolderPaths,
           ),
         ),
       ),
@@ -338,14 +342,25 @@ void main() {
       expect(find.text('root-server'), findsOneWidget);
     });
 
-    testWidgets('ThresholdDraggable is present for sessions on desktop', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildApp());
+    testWidgets(
+      'ThresholdDraggable is present for selected sessions on desktop',
+      (tester) async {
+        await tester.pumpWidget(buildApp(selectedIds: const {'1'}));
 
-      // On desktop, sessions should be wrapped in ThresholdDraggable
-      expect(find.byType(ThresholdDraggable<SessionDragData>), findsWidgets);
-    });
+        // Only selected sessions are wrapped in ThresholdDraggable
+        expect(find.byType(ThresholdDraggable<SessionDragData>), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'ThresholdDraggable absent for unselected sessions on desktop',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+
+        // No selection → no Draggable → marquee can start from any row
+        expect(find.byType(ThresholdDraggable<SessionDragData>), findsNothing);
+      },
+    );
 
     testWidgets('DragTarget for root drop zone is present', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -622,6 +637,7 @@ void main() {
               height: 600,
               child: SessionTreeView(
                 tree: tree,
+                selectedIds: const {'1'}, // must be selected to drag
                 onSessionMoved: (sessionId, target) {
                   movedSessionId = sessionId;
                   targetFolder = target;
@@ -668,6 +684,7 @@ void main() {
               height: 600,
               child: SessionTreeView(
                 tree: tree,
+                selectedIds: const {'1'}, // must be selected to drag
                 onSessionMoved: (sessionId, target) {
                   movedSessionId = sessionId;
                   targetFolder = target;
@@ -730,6 +747,9 @@ void main() {
               height: 600,
               child: SessionTreeView(
                 tree: twoFolderTree,
+                selectedFolderPaths: const {
+                  'GroupA',
+                }, // must be selected to drag
                 onFolderMoved: (folder, target) {
                   movedFolder = folder;
                   targetParent = target;

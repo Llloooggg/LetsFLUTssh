@@ -80,6 +80,10 @@ class SessionTreeView extends StatefulWidget {
   /// bounds during a marquee drag, events are forwarded to the file pane.
   final CrossMarqueeController? crossMarquee;
 
+  /// Reverse cross-marquee: receives events when a marquee drag starts
+  /// in the file pane and crosses into the session panel.
+  final CrossMarqueeController? reverseCrossMarquee;
+
   /// IDs of sessions that currently have an active (connected) connection.
   final Set<String> connectedSessionIds;
 
@@ -90,9 +94,17 @@ class SessionTreeView extends StatefulWidget {
   /// Used by parent to track the focused session for keyboard shortcuts.
   final void Function(String sessionId)? onSessionSelected;
 
+  /// Currently focused session (single-click highlight on desktop).
+  /// Managed by parent — tree view uses it for row highlighting only.
+  final String? focusedSessionId;
+
   /// Called when a folder row is clicked (single-click on desktop).
   /// Used by parent to show folder details in the info panel.
   final void Function(String folderPath, int sessionCount)? onFolderSelected;
+
+  /// Called when empty space is clicked (no session or folder).
+  /// Used by parent to clear focused session/folder.
+  final VoidCallback? onEmptySpaceTap;
 
   /// Folder paths that should start collapsed (persisted across restarts).
   final Set<String> collapsedFolders;
@@ -120,10 +132,13 @@ class SessionTreeView extends StatefulWidget {
     this.onMarqueeStart,
     this.onMarqueeEnd,
     this.crossMarquee,
+    this.reverseCrossMarquee,
     this.connectedSessionIds = const {},
     this.connectingSessionIds = const {},
     this.onSessionSelected,
+    this.focusedSessionId,
     this.onFolderSelected,
+    this.onEmptySpaceTap,
     this.collapsedFolders = const {},
     this.onToggleFolderCollapsed,
   });
@@ -134,7 +149,6 @@ class SessionTreeView extends StatefulWidget {
 
 class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   final _expandedFolders = <String>{};
-  String? _selectedSessionId;
   String? _dropTargetFolder; // highlight on drag hover
 
   // ── Manual double-tap detection (avoids GestureDetector.onDoubleTap
@@ -163,6 +177,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     super.initState();
     _expandAllFolders(widget.tree);
     _expandedFolders.removeAll(widget.collapsedFolders);
+    widget.reverseCrossMarquee?.addListener(_onReverseCrossMarquee);
   }
 
   @override
@@ -170,6 +185,10 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     super.didUpdateWidget(oldWidget);
     // Expand newly added folders (unless they are persisted as collapsed).
     _expandNewFolders(widget.tree);
+    if (oldWidget.reverseCrossMarquee != widget.reverseCrossMarquee) {
+      oldWidget.reverseCrossMarquee?.removeListener(_onReverseCrossMarquee);
+      widget.reverseCrossMarquee?.addListener(_onReverseCrossMarquee);
+    }
   }
 
   void _expandNewFolders(List<SessionTreeNode> nodes) {
@@ -186,8 +205,53 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
 
   @override
   void dispose() {
+    widget.reverseCrossMarquee?.removeListener(_onReverseCrossMarquee);
     disposeMarquee();
     super.dispose();
+  }
+
+  // ── Reverse cross-marquee (file pane → session panel) ──
+
+  void _onReverseCrossMarquee() {
+    final cm = widget.reverseCrossMarquee!;
+    if (!cm.active) {
+      if (marqueeActive) {
+        setState(() {
+          marqueeAnchor = null;
+          marqueeStart = null;
+          marqueeCurrent = null;
+          marqueeActive = false;
+        });
+        widget.onMarqueeEnd?.call();
+      }
+      return;
+    }
+
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return;
+    final local = box.globalToLocal(cm.globalPosition!);
+
+    if (cm.phase == CrossMarqueePhase.start) {
+      marqueeActive = true;
+      marqueeAnchor = local;
+      widget.onMarqueeStart?.call();
+      if (!isCtrlHeld) {
+        widget.onMarqueeSelect?.call({}, {});
+      }
+    }
+
+    setState(() {
+      marqueeStart = marqueeAnchor;
+      marqueeCurrent = local;
+    });
+    _reverseMarqueeUpdateSelection();
+  }
+
+  void _reverseMarqueeUpdateSelection() {
+    if (marqueeStart == null || marqueeCurrent == null) return;
+    final a = _clampedIndex(marqueeStart!.dy);
+    final b = _clampedIndex(marqueeCurrent!.dy);
+    applyMarqueeSelection(a < b ? a : b, a > b ? a : b, ctrlHeld: isCtrlHeld);
   }
 
   // ── MarqueeMixin implementation ──
@@ -262,6 +326,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
         !widget.selectMode) {
       widget.onMarqueeSelect?.call({}, {});
     }
+    widget.onEmptySpaceTap?.call();
   }
 
   // ── Tree helpers ──
@@ -621,6 +686,9 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
 
     return HoverRegion(
       onTap: () => _onFolderTap(node, expanded),
+      onCtrlTap: !_mobile
+          ? () => widget.onToggleFolderSelected?.call(node.fullPath)
+          : null,
       onSecondaryTapUp: (d) {
         widget.onFolderContextMenu?.call(node.fullPath, d.globalPosition);
       },
@@ -640,13 +708,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   void _onFolderTap(SessionTreeNode node, bool expanded) {
     final fullPath = node.fullPath;
 
-    // Desktop: Ctrl+click toggles individual folder in/out of selection.
-    if (!_mobile && isCtrlHeld) {
-      widget.onToggleFolderSelected?.call(fullPath);
-      return;
-    }
-
-    // Desktop: clicking without Ctrl clears any existing selection.
+    // Plain click clears any existing selection (Ctrl+click handled by HoverRegion).
     if (!_mobile && _hasAnySelection) {
       widget.onMarqueeSelect?.call({}, {});
     }
@@ -720,10 +782,40 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     }
 
     final theme = Theme.of(context);
-
-    // Desktop: Draggable + DragTarget — if part of a bulk selection, drag all
     final isFolderSelected = widget.selectedFolderPaths.contains(node.fullPath);
-    final isBulk = isFolderSelected && _hasBulkSelection;
+
+    // DragTarget is always present so items can be dropped onto folders.
+    final Widget target = DragTarget<SessionDragData>(
+      onWillAcceptWithDetails: (details) =>
+          _canAcceptDrop(details.data, node.fullPath),
+      onAcceptWithDetails: (details) {
+        setState(() => _dropTargetFolder = null);
+        _handleDrop(details.data, node.fullPath);
+      },
+      onMove: (_) {
+        if (_dropTargetFolder != node.fullPath) {
+          setState(() => _dropTargetFolder = node.fullPath);
+        }
+      },
+      onLeave: (_) {
+        if (_dropTargetFolder == node.fullPath) {
+          setState(() => _dropTargetFolder = null);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        return _buildFolderContent(
+          node,
+          depth,
+          _dropTargetFolder == node.fullPath,
+        );
+      },
+    );
+
+    // Only wrap in Draggable when selected — unselected folders
+    // must stay unwrapped so marquee can start from them.
+    if (!isFolderSelected) return target;
+
+    final isBulk = _hasBulkSelection;
     final SessionDragData dragData = isBulk
         ? BulkDrag(
             sessionIds: widget.selectedIds,
@@ -741,31 +833,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
         opacity: 0.4,
         child: _buildFolderContent(node, depth, false),
       ),
-      child: DragTarget<SessionDragData>(
-        onWillAcceptWithDetails: (details) =>
-            _canAcceptDrop(details.data, node.fullPath),
-        onAcceptWithDetails: (details) {
-          setState(() => _dropTargetFolder = null);
-          _handleDrop(details.data, node.fullPath);
-        },
-        onMove: (_) {
-          if (_dropTargetFolder != node.fullPath) {
-            setState(() => _dropTargetFolder = node.fullPath);
-          }
-        },
-        onLeave: (_) {
-          if (_dropTargetFolder == node.fullPath) {
-            setState(() => _dropTargetFolder = null);
-          }
-        },
-        builder: (context, candidateData, rejectedData) {
-          return _buildFolderContent(
-            node,
-            depth,
-            _dropTargetFolder == node.fullPath,
-          );
-        },
-      ),
+      child: target,
     );
   }
 
@@ -775,13 +843,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
       return;
     }
 
-    // Desktop: Ctrl+click toggles individual item in/out of selection.
-    if (!_mobile && isCtrlHeld) {
-      widget.onToggleSelected?.call(session.id);
-      return;
-    }
-
-    // Desktop: clicking without Ctrl clears any existing selection.
+    // Plain click clears any existing selection (Ctrl+click handled by HoverRegion).
     if (!_mobile && _hasAnySelection) {
       widget.onMarqueeSelect?.call({}, {});
     }
@@ -804,7 +866,6 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     if (_mobile) {
       widget.onSessionDoubleTap?.call(session);
     } else {
-      setState(() => _selectedSessionId = session.id);
       widget.onSessionSelected?.call(session.id);
       widget.onSessionTap?.call(session);
     }
@@ -874,13 +935,16 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
 
   Widget _buildSessionTile(SessionTreeNode node, int depth) {
     final session = node.session!;
-    final isSelected = session.id == _selectedSessionId;
+    final isSelected = session.id == widget.focusedSessionId;
     final isChecked = widget.selectedIds.contains(session.id);
     final theme = Theme.of(context);
     final canInteract = !_mobile && !widget.selectMode;
 
     final Widget content = HoverRegion(
       onTap: () => _onSessionTap(session),
+      onCtrlTap: canInteract
+          ? () => widget.onToggleSelected?.call(session.id)
+          : null,
       onSecondaryTapUp: canInteract
           ? (details) => widget.onSessionContextMenu?.call(
               session,
@@ -905,8 +969,11 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     // Select mode or mobile: no drag&drop
     if (_mobile || widget.selectMode) return content;
 
-    // Desktop: Draggable — if part of a bulk selection, drag all selected items
-    final isBulk = isChecked && _hasBulkSelection;
+    // Desktop: only wrap in Draggable when the row is selected (checked) —
+    // unselected rows must stay unwrapped so marquee can start from them.
+    if (!isChecked) return content;
+
+    final isBulk = _hasBulkSelection;
     final SessionDragData dragData = isBulk
         ? BulkDrag(
             sessionIds: widget.selectedIds,

@@ -44,6 +44,8 @@ void main() {
     void Function(Session)? onSessionDoubleTap,
     void Function(String, String)? onSessionMoved,
     void Function(String, String)? onFolderMoved,
+    Set<String> selectedIds = const {},
+    Set<String> selectedFolderPaths = const {},
   }) {
     return MaterialApp(
       localizationsDelegates: S.localizationsDelegates,
@@ -62,6 +64,8 @@ void main() {
             onBackgroundContextMenu: onBackgroundContextMenu,
             onSessionMoved: onSessionMoved,
             onFolderMoved: onFolderMoved,
+            selectedIds: selectedIds,
+            selectedFolderPaths: selectedFolderPaths,
           ),
         ),
       ),
@@ -495,6 +499,7 @@ void main() {
       await tester.pumpWidget(
         buildTreeView(
           tree: tree,
+          selectedFolderPaths: const {'OpacityGrp'},
           onSessionMoved: (_, _) {},
           onFolderMoved: (_, _) {},
         ),
