@@ -434,7 +434,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       },
       AppShortcut.splitRight: () {
         if (activeTab != null) {
-          notifier.copyToNewPanel(ws.focusedPanelId, Axis.horizontal);
+          notifier.duplicateTab(ws.focusedPanelId);
         }
       },
       AppShortcut.splitDown: () {
@@ -548,15 +548,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
       showMenuButton: isNarrow,
       isTerminalTab: hasTab,
-      onSplitVertical: hasTab
+      onDuplicateTab: hasTab
           ? () {
               final ws = ref.read(workspaceProvider);
               ref
                   .read(workspaceProvider.notifier)
-                  .copyToNewPanel(ws.focusedPanelId, Axis.horizontal);
+                  .duplicateTab(ws.focusedPanelId);
             }
           : null,
-      onSplitHorizontal: hasTab
+      onCopyDown: hasTab
           ? () {
               final ws = ref.read(workspaceProvider);
               ref
@@ -676,8 +676,8 @@ class _Toolbar extends StatelessWidget {
   final VoidCallback onToggleSidebar;
   final bool showMenuButton;
   final bool isTerminalTab;
-  final VoidCallback? onSplitVertical;
-  final VoidCallback? onSplitHorizontal;
+  final VoidCallback? onDuplicateTab;
+  final VoidCallback? onCopyDown;
   final VoidCallback onSettings;
   final bool inSettings;
 
@@ -686,8 +686,8 @@ class _Toolbar extends StatelessWidget {
     required this.onToggleSidebar,
     this.showMenuButton = false,
     this.isTerminalTab = false,
-    this.onSplitVertical,
-    this.onSplitHorizontal,
+    this.onDuplicateTab,
+    this.onCopyDown,
     required this.onSettings,
     this.inSettings = false,
   });
@@ -715,13 +715,13 @@ class _Toolbar extends StatelessWidget {
         const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
-            icon: Icons.vertical_split,
-            onTap: onSplitVertical,
-            tooltip: S.of(context).copyRightShortcut,
+            icon: Icons.content_copy,
+            onTap: onDuplicateTab,
+            tooltip: S.of(context).duplicateTabShortcut,
           ),
           AppIconButton(
             icon: Icons.horizontal_split,
-            onTap: onSplitHorizontal,
+            onTap: onCopyDown,
             tooltip: S.of(context).copyDownShortcut,
           ),
           _Divider(),

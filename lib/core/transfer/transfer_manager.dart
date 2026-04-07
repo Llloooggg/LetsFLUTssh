@@ -314,6 +314,8 @@ class TransferManager {
 
   void dispose() {
     _disposed = true;
+    cancelAll();
+    _history.clear();
     for (final timer in _timeoutTimers.values) {
       timer.cancel();
     }

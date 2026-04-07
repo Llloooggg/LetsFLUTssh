@@ -112,6 +112,7 @@
     }
   },
   "selectAll": "Select All",
+  "deselectAll": "Deselect All",
   "moveTo": "Move to...",
   "moveToFolder": "Move to Folder",
   "rootFolder": "/ (root)",
@@ -276,14 +277,13 @@
   "clearHistory": "Clear history",
   "noTransfersYet": "No transfers yet",
 
-  "copyRight": "Copy Right",
+  "duplicateTab": "Duplicate Tab",
+  "duplicateTabShortcut": "Duplicate Tab (Ctrl+\\)",
   "copyDown": "Copy Down",
-  "closePane": "Close Pane",
+  "copyDownShortcut": "Copy Down (Ctrl+Shift+\\)",
   "previous": "Previous",
   "next": "Next",
   "closeEsc": "Close (Esc)",
-  "copyRightShortcut": "Copy Right (Ctrl+\\)",
-  "copyDownShortcut": "Copy Down (Ctrl+Shift+\\)",
 
   "closeAll": "Close All",
   "closeOthers": "Close Others",

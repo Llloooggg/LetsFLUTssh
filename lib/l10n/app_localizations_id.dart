@@ -214,6 +214,9 @@ class SId extends S {
   String get selectAll => 'Pilih Semua';
 
   @override
+  String get deselectAll => 'Batal Pilih Semua';
+
+  @override
   String get moveTo => 'Pindahkan ke...';
 
   @override
@@ -498,13 +501,16 @@ class SId extends S {
   String get noTransfersYet => 'Belum ada transfer';
 
   @override
-  String get copyRight => 'Salin ke Kanan';
+  String get duplicateTab => 'Duplikat Tab';
+
+  @override
+  String get duplicateTabShortcut => 'Duplikat Tab (Ctrl+\\)';
 
   @override
   String get copyDown => 'Salin ke Bawah';
 
   @override
-  String get closePane => 'Tutup Panel';
+  String get copyDownShortcut => 'Salin ke Bawah (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'Sebelumnya';
@@ -514,12 +520,6 @@ class SId extends S {
 
   @override
   String get closeEsc => 'Tutup (Esc)';
-
-  @override
-  String get copyRightShortcut => 'Salin ke Kanan (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'Salin ke Bawah (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'Tutup Semua';

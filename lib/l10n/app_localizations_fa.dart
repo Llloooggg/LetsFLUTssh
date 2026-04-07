@@ -213,6 +213,9 @@ class SFa extends S {
   String get selectAll => 'انتخاب همه';
 
   @override
+  String get deselectAll => 'لغو انتخاب همه';
+
+  @override
   String get moveTo => 'انتقال به...';
 
   @override
@@ -494,13 +497,16 @@ class SFa extends S {
   String get noTransfersYet => 'هنوز انتقالی انجام نشده';
 
   @override
-  String get copyRight => 'کپی به راست';
+  String get duplicateTab => 'کپی تب';
+
+  @override
+  String get duplicateTabShortcut => 'کپی تب (Ctrl+\\)';
 
   @override
   String get copyDown => 'کپی به پایین';
 
   @override
-  String get closePane => 'بستن پنل';
+  String get copyDownShortcut => 'کپی به پایین (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'قبلی';
@@ -510,12 +516,6 @@ class SFa extends S {
 
   @override
   String get closeEsc => 'بستن (Esc)';
-
-  @override
-  String get copyRightShortcut => 'کپی به راست (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'کپی به پایین (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'بستن همه';

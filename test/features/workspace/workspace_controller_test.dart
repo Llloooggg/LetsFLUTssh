@@ -25,7 +25,9 @@ void main() {
     container = ProviderContainer(
       overrides: [
         knownHostsProvider.overrideWithValue(KnownHostsManager()),
-        connectionManagerProvider.overrideWithValue(ConnectionManager(knownHosts: KnownHostsManager())),
+        connectionManagerProvider.overrideWithValue(
+          ConnectionManager(knownHosts: KnownHostsManager()),
+        ),
       ],
     );
   });
@@ -192,7 +194,12 @@ void main() {
       final ws = state();
       final panel = findPanel(ws.root, ws.focusedPanelId)!;
 
-      notifier().splitPanel(panel.id, Axis.vertical, panel.tabs.last, insertBefore: true);
+      notifier().splitPanel(
+        panel.id,
+        Axis.vertical,
+        panel.tabs.last,
+        insertBefore: true,
+      );
 
       final ws2 = state();
       final branch = ws2.root as WorkspaceBranch;
@@ -200,6 +207,68 @@ void main() {
       // New panel (with tab B) should be first.
       final firstPanel = branch.first as PanelLeaf;
       expect(firstPanel.tabs.first.label, 'B');
+    });
+  });
+
+  group('duplicateTab', () {
+    test('duplicates active tab next to it in same panel', () {
+      final conn = _conn('c1');
+      notifier().addTerminalTab(conn, label: 'A');
+
+      final ws = state();
+      final panelId = ws.focusedPanelId;
+
+      notifier().duplicateTab(panelId);
+
+      final ws2 = state();
+      // Still a single panel — no splitting.
+      expect(ws2.root, isA<PanelLeaf>());
+      final panel = ws2.root as PanelLeaf;
+      expect(panel.tabs.length, 2);
+      // Original stays at index 0.
+      expect(panel.tabs[0].label, 'A');
+      // Copy has same label/connection but different id.
+      expect(panel.tabs[1].label, 'A');
+      expect(panel.tabs[1].connection, same(conn));
+      expect(panel.tabs[1].id, isNot(panel.tabs[0].id));
+    });
+
+    test('activates the new tab', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final panelId = state().focusedPanelId;
+
+      notifier().duplicateTab(panelId);
+
+      final panel = findPanel(state().root, panelId)!;
+      expect(panel.activeTabIndex, 1);
+    });
+
+    test('inserts after active tab when multiple tabs exist', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      notifier().addTerminalTab(_conn('c2'), label: 'B');
+      notifier().addTerminalTab(_conn('c3'), label: 'C');
+
+      final panelId = state().focusedPanelId;
+      // Active is C (index 2). Select B (index 1).
+      notifier().selectTab(panelId, 1);
+
+      notifier().duplicateTab(panelId);
+
+      final panel = findPanel(state().root, panelId)!;
+      expect(panel.tabs.length, 4);
+      expect(panel.tabs[0].label, 'A');
+      expect(panel.tabs[1].label, 'B');
+      expect(panel.tabs[2].label, 'B'); // duplicate inserted after B
+      expect(panel.tabs[3].label, 'C');
+      expect(panel.activeTabIndex, 2);
+    });
+
+    test('no-op when panel has no tabs', () {
+      final panelId = state().focusedPanelId;
+      notifier().duplicateTab(panelId);
+      // Still empty.
+      final panel = findPanel(state().root, panelId)!;
+      expect(panel.tabs, isEmpty);
     });
   });
 
@@ -220,10 +289,8 @@ void main() {
 
       final original = branch.first as PanelLeaf;
       final copy = branch.second as PanelLeaf;
-      // Original tab stays.
       expect(original.tabs.length, 1);
       expect(original.tabs.first.label, 'A');
-      // Copy has same label/connection but different id.
       expect(copy.tabs.length, 1);
       expect(copy.tabs.first.label, 'A');
       expect(copy.tabs.first.connection, same(conn));
@@ -245,7 +312,6 @@ void main() {
     test('no-op when panel has no tabs', () {
       final panelId = state().focusedPanelId;
       notifier().copyToNewPanel(panelId, Axis.horizontal);
-      // Still a single panel — nothing happened.
       expect(state().root, isA<PanelLeaf>());
     });
   });

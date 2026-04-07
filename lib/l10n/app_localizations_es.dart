@@ -214,6 +214,9 @@ class SEs extends S {
   String get selectAll => 'Seleccionar todo';
 
   @override
+  String get deselectAll => 'Deseleccionar todo';
+
+  @override
   String get moveTo => 'Mover a...';
 
   @override
@@ -498,13 +501,16 @@ class SEs extends S {
   String get noTransfersYet => 'Aún no hay transferencias';
 
   @override
-  String get copyRight => 'Copiar a la derecha';
+  String get duplicateTab => 'Duplicar pestaña';
+
+  @override
+  String get duplicateTabShortcut => 'Duplicar pestaña (Ctrl+\\)';
 
   @override
   String get copyDown => 'Copiar abajo';
 
   @override
-  String get closePane => 'Cerrar panel';
+  String get copyDownShortcut => 'Copiar abajo (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'Anterior';
@@ -514,12 +520,6 @@ class SEs extends S {
 
   @override
   String get closeEsc => 'Cerrar (Esc)';
-
-  @override
-  String get copyRightShortcut => 'Copiar a la derecha (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'Copiar abajo (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'Cerrar todas';

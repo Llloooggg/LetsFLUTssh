@@ -56,27 +56,6 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
     // Always ready — TerminalPane handles waiting for connection internally
   }
 
-  /// Split a pane via context menu (new pane gets same connection as source).
-  void _splitPane(String paneId, SplitDirection direction, bool insertBefore) {
-    final newLeaf = LeafNode();
-    final originalLeaf = LeafNode(id: paneId);
-    final branch = BranchNode(
-      direction: direction,
-      first: insertBefore ? newLeaf : originalLeaf,
-      second: insertBefore ? originalLeaf : newLeaf,
-    );
-    _paneConnections[newLeaf.id] = _paneConnections[paneId]!;
-    setState(() {
-      _root = replaceNode(_root, paneId, branch);
-      _focusedPaneId = newLeaf.id;
-    });
-  }
-
-  /// Split the focused pane in the given direction.
-  void splitFocused(SplitDirection direction) {
-    _splitPane(_focusedPaneId, direction, false);
-  }
-
   void _closePane(String paneId) {
     final newRoot = removeNode(_root, paneId);
     if (newRoot == null) return;
@@ -183,7 +162,6 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
       paneConnections: _paneConnections,
       focusedPaneId: _focusedPaneId,
       onPaneFocused: (id) => setState(() => _focusedPaneId = id),
-      onSplit: _splitPane,
       onClosePane: _closePane,
       onTreeChanged: _onTreeChanged,
     );

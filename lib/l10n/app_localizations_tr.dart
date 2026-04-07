@@ -215,6 +215,9 @@ class STr extends S {
   String get selectAll => 'Tümünü Seç';
 
   @override
+  String get deselectAll => 'Tümünü Kaldır';
+
+  @override
   String get moveTo => 'Taşı...';
 
   @override
@@ -498,13 +501,16 @@ class STr extends S {
   String get noTransfersYet => 'Henüz transfer yok';
 
   @override
-  String get copyRight => 'Sağa Kopyala';
+  String get duplicateTab => 'Sekmeyi Çoğalt';
+
+  @override
+  String get duplicateTabShortcut => 'Sekmeyi Çoğalt (Ctrl+\\)';
 
   @override
   String get copyDown => 'Aşağı Kopyala';
 
   @override
-  String get closePane => 'Paneli Kapat';
+  String get copyDownShortcut => 'Aşağı Kopyala (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'Önceki';
@@ -514,12 +520,6 @@ class STr extends S {
 
   @override
   String get closeEsc => 'Kapat (Esc)';
-
-  @override
-  String get copyRightShortcut => 'Sağa Kopyala (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'Aşağı Kopyala (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'Tümünü Kapat';

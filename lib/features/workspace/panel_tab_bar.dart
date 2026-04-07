@@ -299,7 +299,7 @@ class _PanelTabItemState extends State<_PanelTabItem> {
       onTap: widget.onSelect,
       onSecondaryTapUp: (d) => widget.onContextMenu(d.globalPosition),
       builder: (hovered) {
-        final showClose = hovered || widget.isActive;
+        final showClose = hovered;
         final content = _buildContent(showClose);
         return Tooltip(
           message: widget.tab.label,

@@ -751,7 +751,12 @@ void main() {
 
       expect(find.byIcon(Icons.tab_outlined), findsOneWidget);
 
-      // Close via tab bar context — find the close button on the tab
+      // Hover over the tab to reveal the close button, then tap it
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      await gesture.moveTo(tester.getCenter(find.text('ToClose')));
+      await tester.pumpAndSettle();
+
       final closeButtons = find.byIcon(Icons.close);
       if (closeButtons.evaluate().isNotEmpty) {
         await tester.tap(closeButtons.first);
@@ -2054,7 +2059,7 @@ void main() {
       expect(find.text('SESSIONS'), findsNothing);
     });
 
-    testWidgets('copy buttons shown for terminal tab', (tester) async {
+    testWidgets('duplicate tab button shown for terminal tab', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
@@ -2070,11 +2075,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Copy Right (Ctrl+\\)'), findsOneWidget);
+      expect(find.byTooltip('Duplicate Tab (Ctrl+\\)'), findsOneWidget);
       expect(find.byTooltip('Copy Down (Ctrl+Shift+\\)'), findsOneWidget);
     });
 
-    testWidgets('copy buttons shown for SFTP tab', (tester) async {
+    testWidgets('duplicate tab button shown for SFTP tab', (tester) async {
       final conn = makeConn(state: SSHConnectionState.connected);
       await tester.pumpWidget(
         buildAppWithTabs(
@@ -2090,7 +2095,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Copy Right (Ctrl+\\)'), findsOneWidget);
+      expect(find.byTooltip('Duplicate Tab (Ctrl+\\)'), findsOneWidget);
       expect(find.byTooltip('Copy Down (Ctrl+Shift+\\)'), findsOneWidget);
     });
   });

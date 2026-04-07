@@ -495,6 +495,12 @@ abstract class S {
   /// **'Select All'**
   String get selectAll;
 
+  /// No description provided for @deselectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect All'**
+  String get deselectAll;
+
   /// No description provided for @moveTo.
   ///
   /// In en, this message translates to:
@@ -993,11 +999,17 @@ abstract class S {
   /// **'No transfers yet'**
   String get noTransfersYet;
 
-  /// No description provided for @copyRight.
+  /// No description provided for @duplicateTab.
   ///
   /// In en, this message translates to:
-  /// **'Copy Right'**
-  String get copyRight;
+  /// **'Duplicate Tab'**
+  String get duplicateTab;
+
+  /// No description provided for @duplicateTabShortcut.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Tab (Ctrl+\\)'**
+  String get duplicateTabShortcut;
 
   /// No description provided for @copyDown.
   ///
@@ -1005,11 +1017,11 @@ abstract class S {
   /// **'Copy Down'**
   String get copyDown;
 
-  /// No description provided for @closePane.
+  /// No description provided for @copyDownShortcut.
   ///
   /// In en, this message translates to:
-  /// **'Close Pane'**
-  String get closePane;
+  /// **'Copy Down (Ctrl+Shift+\\)'**
+  String get copyDownShortcut;
 
   /// No description provided for @previous.
   ///
@@ -1028,18 +1040,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Close (Esc)'**
   String get closeEsc;
-
-  /// No description provided for @copyRightShortcut.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy Right (Ctrl+\\)'**
-  String get copyRightShortcut;
-
-  /// No description provided for @copyDownShortcut.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy Down (Ctrl+Shift+\\)'**
-  String get copyDownShortcut;
 
   /// No description provided for @closeAll.
   ///

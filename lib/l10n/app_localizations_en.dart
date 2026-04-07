@@ -214,6 +214,9 @@ class SEn extends S {
   String get selectAll => 'Select All';
 
   @override
+  String get deselectAll => 'Deselect All';
+
+  @override
   String get moveTo => 'Move to...';
 
   @override
@@ -495,13 +498,16 @@ class SEn extends S {
   String get noTransfersYet => 'No transfers yet';
 
   @override
-  String get copyRight => 'Copy Right';
+  String get duplicateTab => 'Duplicate Tab';
+
+  @override
+  String get duplicateTabShortcut => 'Duplicate Tab (Ctrl+\\)';
 
   @override
   String get copyDown => 'Copy Down';
 
   @override
-  String get closePane => 'Close Pane';
+  String get copyDownShortcut => 'Copy Down (Ctrl+Shift+\\)';
 
   @override
   String get previous => 'Previous';
@@ -511,12 +517,6 @@ class SEn extends S {
 
   @override
   String get closeEsc => 'Close (Esc)';
-
-  @override
-  String get copyRightShortcut => 'Copy Right (Ctrl+\\)';
-
-  @override
-  String get copyDownShortcut => 'Copy Down (Ctrl+Shift+\\)';
 
   @override
   String get closeAll => 'Close All';
