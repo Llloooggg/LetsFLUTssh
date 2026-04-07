@@ -25,12 +25,12 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 ## Features
 
-- **SSH** — xterm/VT100 terminal (256-color, RGB, mouse), tiling with recursive splits, search, multi-tab, keep-alive & auto-reconnect
+- **SSH** — xterm/VT100 terminal (256-color, RGB, mouse), tiling with recursive splits, search, multi-tab, keep-alive & reconnect
 - **SFTP** — dual-pane file browser, drag & drop, transfer queue with parallel workers
 - **Sessions** — tree with nested folders, search, drag & drop, QR code sharing, host key verification
 - **Security** — AES-256-GCM credentials, encrypted `.lfs` export/import (PBKDF2-SHA256 600k), chmod 600 on Unix
 - **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), pinch-to-zoom, swipe navigation, deep links
-- **Auth** — password, key file, PEM text, SSH agent
+- **Auth** — password, key file, PEM text
 - **Themes** — OneDark / One Light, system auto-detection
 
 ### Platforms
