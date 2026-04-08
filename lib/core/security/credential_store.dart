@@ -20,7 +20,17 @@ class CredentialStore {
   static const _credFileName = 'credentials.enc';
   static const _keyFileName = 'credentials.key';
 
+  /// AES-256 key length in bytes.
+  static const keyLength = 32;
+
+  /// Minimum encrypted payload: 12-byte IV + at least 1 byte ciphertext.
+  static const _minEncryptedLength = 13;
+
   String? _basePath;
+
+  /// In-memory credential cache. Populated on first [loadAll], invalidated
+  /// on [saveAll]. Avoids re-reading + re-decrypting on every [get]/[set].
+  Map<String, CredentialData>? _cache;
 
   /// Guards concurrent key generation to prevent race conditions.
   Completer<Uint8List>? _keyGenCompleter;
@@ -36,7 +46,12 @@ class CredentialStore {
   ///
   /// Throws [CredentialStoreException] if decryption fails (corrupted key/data).
   /// Returns empty map only when no credential files exist yet.
+  ///
+  /// Results are cached in memory — subsequent calls return the cached copy
+  /// until [saveAll] updates it.
   Future<Map<String, CredentialData>> loadAll() async {
+    if (_cache != null) return Map.of(_cache!);
+
     final basePath = await _getBasePath();
     final credFile = File('$basePath/$_credFileName');
     final keyFile = File('$basePath/$_keyFileName');
@@ -47,18 +62,26 @@ class CredentialStore {
 
     try {
       final keyBytes = await keyFile.readAsBytes();
+      if (keyBytes.length != keyLength) {
+        throw CredentialStoreException(
+          'Invalid key length: ${keyBytes.length} bytes (expected $keyLength)',
+        );
+      }
       final encData = await credFile.readAsBytes();
       final json = _decrypt(encData, keyBytes);
       final map = jsonDecode(json) as Map<String, dynamic>;
-      return map.map(
+      final result = map.map(
         (k, v) =>
             MapEntry(k, CredentialData.fromJson(v as Map<String, dynamic>)),
       );
+      _cache = result;
+      return Map.of(result);
     } catch (e) {
       AppLogger.instance.log(
         'Failed to load credentials: $e',
         name: 'CredentialStore',
       );
+      if (e is CredentialStoreException) rethrow;
       throw CredentialStoreException(
         'Failed to decrypt credentials. Key file may be corrupted.',
         cause: e,
@@ -83,7 +106,7 @@ class CredentialStore {
     }
   }
 
-  /// Save all credentials.
+  /// Save all credentials and update the in-memory cache.
   Future<void> saveAll(Map<String, CredentialData> credentials) async {
     final basePath = await _getBasePath();
     final credFile = File('$basePath/$_credFileName');
@@ -95,12 +118,21 @@ class CredentialStore {
     final json = jsonEncode(credentials.map((k, v) => MapEntry(k, v.toJson())));
     final encData = _encrypt(json, keyBytes);
     await writeBytesAtomic(credFile.path, encData);
+    _cache = Map.of(credentials);
   }
 
   /// Load existing key or generate a new one with concurrency guard.
+  ///
+  /// Validates that an existing key is exactly [keyLength] bytes.
   Future<Uint8List> _loadOrGenerateKey(File keyFile) async {
     if (await keyFile.exists()) {
-      return await keyFile.readAsBytes();
+      final bytes = await keyFile.readAsBytes();
+      if (bytes.length != keyLength) {
+        throw CredentialStoreException(
+          'Invalid key length: ${bytes.length} bytes (expected $keyLength)',
+        );
+      }
+      return bytes;
     }
 
     // Guard against concurrent key generation using Completer
@@ -139,8 +171,11 @@ class CredentialStore {
   }
 
   /// Set credentials for a session.
+  ///
+  /// Uses [loadAllSafe] so that a corrupted credential file does not block
+  /// saving new credentials.
   Future<void> set(String sessionId, CredentialData data) async {
-    final all = await loadAll();
+    final all = await loadAllSafe();
     all[sessionId] = data;
     await saveAll(all);
   }
@@ -178,6 +213,11 @@ class CredentialStore {
   }
 
   String _decrypt(Uint8List data, Uint8List key) {
+    if (data.length < _minEncryptedLength) {
+      throw CredentialStoreException(
+        'Encrypted data too short (${data.length} bytes) — file is corrupted',
+      );
+    }
     final iv = data.sublist(0, 12);
     final ciphertext = data.sublist(12);
 
