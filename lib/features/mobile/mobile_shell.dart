@@ -609,12 +609,15 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                             .closeTab(ws.focusedPanelId, tab.id);
                       },
                       child: SizedBox(
-                        width: 32,
+                        width: 24,
                         height: 32,
-                        child: Icon(
-                          Icons.close,
-                          size: 16,
-                          color: AppTheme.fgDim,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Icon(
+                            Icons.close,
+                            size: 16,
+                            color: AppTheme.fgDim,
+                          ),
                         ),
                       ),
                     ),
