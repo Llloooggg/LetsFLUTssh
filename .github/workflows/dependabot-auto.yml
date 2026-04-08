@@ -26,52 +26,5 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  version-bump:
-    # Only pub (Dart) dependency updates — github-actions updates don't affect the shipped app
-    if: >-
-      github.event.pull_request.merged == true &&
-      github.actor == 'dependabot[bot]' &&
-      startsWith(github.event.pull_request.head.ref, 'dependabot/pub/')
-    runs-on: ubuntu-latest
-    concurrency:
-      group: dependabot-release
-      cancel-in-progress: false
-    permissions:
-      contents: write
-      pull-requests: read
-    steps:
-      - uses: dependabot/fetch-metadata@ffa630c65fa7e0ecfa0625b5ceda64399aea1b36 # v2
-        id: metadata
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
-          fetch-depth: 0
-
-      - name: Bump patch version and push
-        env:
-          DEP_NAMES: ${{ steps.metadata.outputs.dependency-names }}
-          DEP_FROM: ${{ steps.metadata.outputs.previous-version }}
-          DEP_TO: ${{ steps.metadata.outputs.new-version }}
-        run: |
-          # Extract current version
-          FULL=$(grep '^version:' pubspec.yaml | sed 's/version: *//')
-          VER="${FULL%%+*}"
-          BUILD="${FULL##*+}"
-
-          MAJOR="${VER%%.*}"
-          REST="${VER#*.}"
-          MINOR="${REST%%.*}"
-          PATCH="${REST#*.}"
-
-          NEW_PATCH=$((PATCH + 1))
-          NEW_BUILD=$((BUILD + 1))
-          NEW_VER="${MAJOR}.${MINOR}.${NEW_PATCH}"
-
-          sed -i "s/^version: .*/version: ${NEW_VER}+${NEW_BUILD}/" pubspec.yaml
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pubspec.yaml
-          git commit -m "chore(deps): bump ${DEP_NAMES} ${DEP_FROM} → ${DEP_TO} (${VER} → ${NEW_VER})"
-          git push
+  # Version bump removed — ci-auto-tag.yml now handles version bumping
+  # for all commits on main, including Dependabot merges.
