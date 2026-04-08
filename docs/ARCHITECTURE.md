@@ -255,11 +255,12 @@ abstract class FileSystem {
   Future<void> mkdir(String path);
   Future<void> delete(String path, {bool recursive = false});
   Future<void> rename(String oldPath, String newPath);
+  Future<int> dirSize(String path);  // recursive size in bytes
   String get separator;
 }
 
 class LocalFS implements FileSystem { ... }   // dart:io
-class RemoteFS implements FileSystem { ... }  // SFTPService wrapper
+class RemoteFS implements FileSystem { ... }  // SFTPService wrapper, dirSize capped at 64 levels
 ```
 
 **Why an interface:** Allows FilePaneController to work identically with local and remote panes. Simplifies testing — mocks can be substituted.
@@ -354,7 +355,8 @@ class Session {
   final bool incomplete;      // true when imported via QR without credentials
 
   SSHConfig toSSHConfig();    // conversion for connection
-  Session copyWith({...});
+  Session copyWith({...});    // preserves id, updates updatedAt
+  Session duplicate();        // new id, "(copy)" suffix, preserves authType
   Map<String, dynamic> toJson();
   factory Session.fromJson(Map<String, dynamic> json);
 }
@@ -563,6 +565,10 @@ class AppConfig {
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
   final String? locale;             // null = OS auto-detect, or any of 15 supported locale codes
+
+  // copyWith uses sentinel pattern for nullable fields:
+  // copyWith(skippedVersion: null) clears, omitting preserves
+  // copyWith(locale: null) clears, omitting preserves
 }
 ```
 
@@ -645,6 +651,10 @@ class UpdateService {
   // Compares current version with latest release
   // User can skip a version (skippedVersion in config).
   // Stale skip auto-clears when a newer version supersedes the skipped one.
+  //
+  // Download: follows redirects (max 10), validates trusted hosts.
+  // openFile(): platform launcher, validates Windows paths against shell metacharacters.
+  // Progress: throttled to 1% increments in UpdateNotifier to reduce state churn.
 }
 ```
 
