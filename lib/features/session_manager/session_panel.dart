@@ -262,21 +262,19 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
-  /// Build set of session IDs that have an active connection.
-  Set<String> _connectedSessionIds(WidgetRef ref) {
+  /// Build connected and connecting session ID sets from a single provider watch.
+  ({Set<String> connected, Set<String> connecting}) _connectionSessionIds(
+    WidgetRef ref,
+  ) {
     final connections = ref.watch(connectionsProvider).value ?? [];
-    return connections
-        .where((c) => c.isConnected && c.sessionId != null)
-        .map((c) => c.sessionId!)
-        .toSet();
-  }
-
-  Set<String> _connectingSessionIds(WidgetRef ref) {
-    final connections = ref.watch(connectionsProvider).value ?? [];
-    return connections
-        .where((c) => c.isConnecting && c.sessionId != null)
-        .map((c) => c.sessionId!)
-        .toSet();
+    final connected = <String>{};
+    final connecting = <String>{};
+    for (final c in connections) {
+      if (c.sessionId == null) continue;
+      if (c.isConnected) connected.add(c.sessionId!);
+      if (c.isConnecting) connecting.add(c.sessionId!);
+    }
+    return (connected: connected, connecting: connecting);
   }
 
   /// Copy the focused session to the clipboard.
@@ -453,10 +451,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     List<SessionTreeNode> tree,
     bool mobile,
   ) {
+    final connState = _connectionSessionIds(ref);
     return SessionTreeView(
       tree: tree,
-      connectedSessionIds: _connectedSessionIds(ref),
-      connectingSessionIds: _connectingSessionIds(ref),
+      connectedSessionIds: connState.connected,
+      connectingSessionIds: connState.connecting,
       collapsedFolders: ref.watch(sessionStoreProvider).collapsedFolders,
       onToggleFolderCollapsed: (path) =>
           ref.read(sessionStoreProvider).toggleFolderCollapsed(path),

@@ -200,8 +200,11 @@ class SFTPService {
     void Function(TransferProgress)? onProgress,
   ) async {
     final dir = Directory(localDir);
-    final allFiles = await dir.list(recursive: true).toList();
-    final totalFiles = allFiles.whereType<File>().length;
+    // Count files via streaming to avoid loading entire directory tree into memory.
+    var totalFiles = 0;
+    await for (final entity in dir.list(recursive: true)) {
+      if (entity is File) totalFiles++;
+    }
     final counter = _Counter();
 
     await _uploadDirRecursive(
