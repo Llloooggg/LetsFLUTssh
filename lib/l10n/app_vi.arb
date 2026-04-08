@@ -312,11 +312,12 @@
   "nSubitems": "{count} mục",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "Mục",
-
   "storagePermissionRequired": "Cần quyền truy cập bộ nhớ để duyệt tệp cục bộ",
   "grantPermission": "Cấp quyền",
   "storagePermissionLimited": "Truy cập hạn chế — cấp quyền truy cập bộ nhớ đầy đủ cho tất cả tệp",
@@ -324,5 +325,34 @@
   "progressVerifyingHostKey": "Đang xác minh khóa máy chủ",
   "progressAuthenticating": "Đang xác thực với tên {user}",
   "progressOpeningShell": "Đang mở shell",
-  "progressOpeningSftp": "Đang mở kênh SFTP"
+  "progressOpeningSftp": "Đang mở kênh SFTP",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }

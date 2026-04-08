@@ -685,7 +685,7 @@ class _MobileTerminalPage extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'No active terminals',
+              S.of(context).noActiveTerminals,
               style: AppFonts.inter(
                 fontSize: AppFonts.lg,
                 color: AppTheme.fgDim,
@@ -693,7 +693,7 @@ class _MobileTerminalPage extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Connect from Sessions tab',
+              S.of(context).connectFromSessionsTab,
               style: AppFonts.inter(
                 fontSize: AppFonts.sm,
                 color: AppTheme.fgFaint,

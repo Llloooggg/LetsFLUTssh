@@ -1,6 +1,5 @@
 {
   "@@locale": "ja",
-
   "appTitle": "LetsFLUTssh",
   "ok": "OK",
   "cancel": "キャンセル",
@@ -166,12 +165,10 @@
   "showSidebar": "サイドバーを表示 (Ctrl+B)",
   "language": "言語",
   "languageSystemDefault": "自動",
-
   "theme": "テーマ",
   "themeDark": "ダーク",
   "themeLight": "ライト",
   "themeSystem": "システム",
-
   "appearance": "外観",
   "connectionSection": "接続",
   "transfers": "転送",
@@ -258,7 +255,6 @@
   "time": "時間",
   "failed": "失敗",
   "transferNItems": "{count} 項目を転送",
-
   "errOperationNotPermitted": "操作が許可されていません",
   "errNoSuchFileOrDirectory": "ファイルまたはディレクトリが存在しません",
   "errNoSuchProcess": "プロセスが存在しません",
@@ -316,11 +312,12 @@
   "nSubitems": "{count} 個のアイテム",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "アイテム",
-
   "storagePermissionRequired": "ローカルファイルを閲覧するにはストレージ権限が必要です",
   "grantPermission": "権限を付与",
   "storagePermissionLimited": "制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください",
@@ -328,5 +325,34 @@
   "progressVerifyingHostKey": "ホスト鍵を検証中",
   "progressAuthenticating": "{user} として認証中",
   "progressOpeningShell": "シェルを起動中",
-  "progressOpeningSftp": "SFTPチャネルを起動中"
+  "progressOpeningSftp": "SFTPチャネルを起動中",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import 'app_dialog.dart';
 
 /// Reusable confirmation dialog with destructive action styling.
@@ -8,14 +9,14 @@ import 'app_dialog.dart';
 class ConfirmDialog extends StatelessWidget {
   final String title;
   final Widget content;
-  final String confirmLabel;
+  final String? confirmLabel;
   final bool destructive;
 
   const ConfirmDialog({
     super.key,
     required this.title,
     required this.content,
-    this.confirmLabel = 'Delete',
+    this.confirmLabel,
     this.destructive = true,
   });
 
@@ -24,7 +25,7 @@ class ConfirmDialog extends StatelessWidget {
     BuildContext context, {
     required String title,
     required Widget content,
-    String confirmLabel = 'Delete',
+    String? confirmLabel,
     bool destructive = true,
   }) async {
     final result = await AppDialog.show<bool>(
@@ -41,6 +42,7 @@ class ConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = confirmLabel ?? S.of(context).delete;
     return AppDialog(
       title: title,
       content: content,
@@ -48,12 +50,12 @@ class ConfirmDialog extends StatelessWidget {
         AppDialogAction.cancel(onTap: () => Navigator.of(context).pop(false)),
         if (destructive)
           AppDialogAction.destructive(
-            label: confirmLabel,
+            label: label,
             onTap: () => Navigator.of(context).pop(true),
           )
         else
           AppDialogAction.primary(
-            label: confirmLabel,
+            label: label,
             onTap: () => Navigator.of(context).pop(true),
           ),
       ],

@@ -625,7 +625,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
             ),
             const SizedBox(width: 4),
             Text(
-              isBulk ? '$totalCount items' : label,
+              isBulk ? S.of(context).dragItemCount(totalCount) : label,
               style: TextStyle(fontSize: AppFonts.sm),
             ),
           ],

@@ -410,7 +410,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   Widget _buildPasswordField() {
     return _styledField(
-      'Password',
+      S.of(context).password,
       _passwordCtrl,
       hint: '••••••••',
       obscure: _obscurePassword,
@@ -459,7 +459,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       onPressed: _pickKeyFile,
       icon: Icon(hasKey ? Icons.vpn_key : Icons.folder_open, size: 18),
       label: Text(
-        fileName ?? 'Select Key File',
+        fileName ?? S.of(context).selectKeyFile,
         overflow: TextOverflow.ellipsis,
       ),
       style: OutlinedButton.styleFrom(
@@ -514,7 +514,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
                 height: AppTheme.itemHeightLg,
                 child: Center(
                   child: Text(
-                    'Drop key file here',
+                    S.of(context).dropKeyFileHere,
                     style: TextStyle(color: AppTheme.accent),
                   ),
                 ),

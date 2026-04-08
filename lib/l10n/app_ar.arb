@@ -1,6 +1,5 @@
 {
   "@@locale": "ar",
-
   "appTitle": "LetsFLUTssh",
   "ok": "موافق",
   "cancel": "إلغاء",
@@ -28,7 +27,6 @@
   "merge": "دمج",
   "replace": "استبدال",
   "reconnect": "إعادة الاتصال",
-
   "updateAvailable": "تحديث متاح",
   "updateVersionAvailable": "الإصدار {version} متاح (الحالي: v{current}).",
   "releaseNotes": "ملاحظات الإصدار:",
@@ -49,12 +47,10 @@
   "couldNotOpenInstaller": "تعذر فتح المثبّت",
   "versionAvailable": "الإصدار {version} متاح",
   "currentVersion": "الحالي: v{version}",
-
   "sshKeyReceived": "تم استلام مفتاح SSH: {filename}",
   "importedSessionsViaQr": "تم استيراد {count} جلسة عبر QR",
   "importedSessions": "تم استيراد {count} جلسة",
   "importFailed": "فشل الاستيراد: {error}",
-
   "sessions": "الجلسات",
   "sessionsHeader": "الجلسات",
   "savedSessions": "الجلسات المحفوظة",
@@ -70,7 +66,6 @@
   "moveTo": "نقل إلى...",
   "moveToFolder": "نقل إلى مجلد",
   "rootFolder": "/ (الجذر)",
-
   "newFolder": "مجلد جديد",
   "newConnection": "اتصال جديد",
   "editConnection": "تعديل الاتصال",
@@ -85,7 +80,6 @@
   "deleteFolderConfirm": "حذف المجلد \"{name}\"؟",
   "willDeleteSessionsInside": "سيتم أيضاً حذف {count} جلسة بداخله.",
   "deleteSessionConfirm": "حذف \"{name}\"؟",
-
   "connection": "الاتصال",
   "auth": "المصادقة",
   "options": "الخيارات",
@@ -113,16 +107,13 @@
   "clearKeyFile": "مسح ملف المفتاح",
   "authOrDivider": "أو",
   "providePasswordOrKey": "قدم كلمة مرور أو مفتاح SSH",
-
   "quickConnect": "اتصال سريع",
-
   "scanQrCode": "مسح رمز QR",
   "qrGenerationFailed": "فشل إنشاء رمز QR",
   "scanWithCameraApp": "امسح باستخدام أي تطبيق كاميرا على جهاز\nمثبّت عليه LetsFLUTssh.",
   "noPasswordsInQr": "لا توجد كلمات مرور أو مفاتيح في رمز QR هذا",
   "copyLink": "نسخ الرابط",
   "linkCopied": "تم نسخ الرابط إلى الحافظة",
-
   "hostKeyChanged": "تغيّر مفتاح المضيف!",
   "unknownHost": "مضيف غير معروف",
   "hostKeyChangedWarning": "تحذير: تغيّر مفتاح المضيف لهذا الخادم. قد يشير ذلك إلى هجوم رجل في المنتصف، أو ربما تمت إعادة تثبيت الخادم.",
@@ -134,15 +125,12 @@
   "copyFingerprint": "نسخ البصمة",
   "acceptAnyway": "قبول على أي حال",
   "accept": "قبول",
-
   "importData": "استيراد البيانات",
   "masterPassword": "كلمة المرور الرئيسية",
   "confirmPassword": "تأكيد كلمة المرور",
   "importModeMergeDescription": "إضافة جلسات جديدة والاحتفاظ بالحالية",
   "importModeReplaceDescription": "استبدال جميع الجلسات بالمستوردة",
-
   "errorPrefix": "خطأ: {error}",
-
   "folderName": "اسم المجلد",
   "newName": "الاسم الجديد",
   "deleteItems": "حذف {names}؟",
@@ -152,14 +140,12 @@
   "failedToCreateFolder": "فشل إنشاء المجلد: {error}",
   "failedToRename": "فشلت إعادة التسمية: {error}",
   "failedToDeleteItem": "فشل حذف {name}: {error}",
-
   "editPath": "تعديل المسار",
   "root": "الجذر",
   "controllersNotInitialized": "لم تتم تهيئة المتحكمات",
   "initializingSftp": "جارٍ تهيئة SFTP...",
   "clearHistory": "مسح السجل",
   "noTransfersYet": "لا توجد عمليات نقل بعد",
-
   "duplicateTab": "تكرار التبويب",
   "duplicateTabShortcut": "تكرار التبويب (Ctrl+\\)",
   "copyDown": "نسخ للأسفل",
@@ -167,28 +153,22 @@
   "previous": "السابق",
   "next": "التالي",
   "closeEsc": "إغلاق (Esc)",
-
   "closeAll": "إغلاق الكل",
   "closeOthers": "إغلاق الأخرى",
   "closeTabsToTheLeft": "إغلاق علامات التبويب على اليسار",
   "closeTabsToTheRight": "إغلاق علامات التبويب على اليمين",
   "sortByName": "ترتيب حسب الاسم",
   "sortByStatus": "ترتيب حسب الحالة",
-
   "noActiveSession": "لا توجد جلسة نشطة",
   "createConnectionHint": "أنشئ اتصالاً جديداً أو اختر واحداً من الشريط الجانبي",
-
   "hideSidebar": "إخفاء الشريط الجانبي (Ctrl+B)",
   "showSidebar": "إظهار الشريط الجانبي (Ctrl+B)",
-
   "language": "اللغة",
   "languageSystemDefault": "تلقائي",
-
   "theme": "المظهر",
   "themeDark": "داكن",
   "themeLight": "فاتح",
   "themeSystem": "النظام",
-
   "appearance": "المظهر",
   "connectionSection": "الاتصال",
   "transfers": "عمليات النقل",
@@ -206,7 +186,6 @@
   "parallelWorkers": "العمال المتوازيون",
   "maxHistory": "الحد الأقصى للسجل",
   "calculateFolderSizes": "حساب أحجام المجلدات",
-
   "exportData": "تصدير البيانات",
   "exportDataSubtitle": "حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر",
   "importDataSubtitle": "تحميل البيانات من ملف .lfs",
@@ -217,16 +196,13 @@
   "pathToLfsFile": "مسار ملف .lfs",
   "hintLfsPath": "/path/to/export.lfs",
   "browse": "تصفح",
-
   "shareViaQrCode": "مشاركة عبر رمز QR",
   "shareViaQrSubtitle": "تصدير الجلسات إلى رمز QR لمسحه من جهاز آخر",
   "dataLocation": "موقع البيانات",
   "pathCopied": "تم نسخ المسار إلى الحافظة",
   "urlCopied": "تم نسخ الرابط إلى الحافظة",
-
   "aboutSubtitle": "v{version} — عميل SSH/SFTP",
   "sourceCode": "الشيفرة المصدرية",
-
   "enableLogging": "تفعيل السجلات",
   "logIsEmpty": "السجل فارغ",
   "logExportedTo": "تم تصدير السجل إلى: {path}",
@@ -236,7 +212,6 @@
   "copyLog": "نسخ السجل",
   "exportLog": "تصدير السجل",
   "clearLogs": "مسح السجلات",
-
   "local": "محلي",
   "remote": "بعيد",
   "pickFolder": "اختيار مجلد",
@@ -248,7 +223,6 @@
   "openSshTerminal": "فتح طرفية SSH",
   "noActiveFileBrowsers": "لا توجد متصفحات ملفات نشطة",
   "useSftpFromSessions": "استخدم \"SFTP\" من الجلسات",
-
   "anotherInstanceRunning": "نسخة أخرى من LetsFLUTssh قيد التشغيل بالفعل.",
   "importFailedShort": "فشل الاستيراد: {error}",
   "saveLogAs": "حفظ السجل باسم",
@@ -281,7 +255,6 @@
   "time": "الوقت",
   "failed": "فشل",
   "transferNItems": "نقل {count} عنصر",
-
   "errOperationNotPermitted": "العملية غير مسموح بها",
   "errNoSuchFileOrDirectory": "لا يوجد ملف أو مجلد بهذا الاسم",
   "errNoSuchProcess": "لا توجد عملية بهذا المعرّف",
@@ -339,11 +312,12 @@
   "nSubitems": "{count} عنصر",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "العناصر",
-
   "storagePermissionRequired": "يلزم إذن التخزين لتصفح الملفات المحلية",
   "grantPermission": "منح الإذن",
   "storagePermissionLimited": "وصول محدود — امنح إذن التخزين الكامل لجميع الملفات",
@@ -351,5 +325,34 @@
   "progressVerifyingHostKey": "التحقق من مفتاح المضيف",
   "progressAuthenticating": "المصادقة كـ {user}",
   "progressOpeningShell": "فتح الطرفية",
-  "progressOpeningSftp": "فتح قناة SFTP"
+  "progressOpeningSftp": "فتح قناة SFTP",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }

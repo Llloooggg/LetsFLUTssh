@@ -1,6 +1,5 @@
 {
   "@@locale": "fa",
-
   "appTitle": "LetsFLUTssh",
   "ok": "تأیید",
   "cancel": "لغو",
@@ -28,7 +27,6 @@
   "merge": "ادغام",
   "replace": "جایگزینی",
   "reconnect": "اتصال مجدد",
-
   "updateAvailable": "به‌روزرسانی موجود است",
   "updateVersionAvailable": "نسخه {version} موجود است (فعلی: v{current}).",
   "releaseNotes": "یادداشت‌های انتشار:",
@@ -49,12 +47,10 @@
   "couldNotOpenInstaller": "نصب‌کننده باز نشد",
   "versionAvailable": "نسخه {version} موجود است",
   "currentVersion": "فعلی: v{version}",
-
   "sshKeyReceived": "کلید SSH دریافت شد: {filename}",
   "importedSessionsViaQr": "{count} جلسه از طریق QR وارد شد",
   "importedSessions": "{count} جلسه وارد شد",
   "importFailed": "وارد کردن ناموفق بود: {error}",
-
   "sessions": "جلسات",
   "sessionsHeader": "جلسات",
   "savedSessions": "جلسات ذخیره‌شده",
@@ -70,7 +66,6 @@
   "moveTo": "انتقال به...",
   "moveToFolder": "انتقال به پوشه",
   "rootFolder": "/ (ریشه)",
-
   "newFolder": "پوشه جدید",
   "newConnection": "اتصال جدید",
   "editConnection": "ویرایش اتصال",
@@ -85,7 +80,6 @@
   "deleteFolderConfirm": "پوشه \"{name}\" حذف شود؟",
   "willDeleteSessionsInside": "این عملیات همچنین {count} جلسه داخل آن را حذف می‌کند.",
   "deleteSessionConfirm": "\"{name}\" حذف شود؟",
-
   "connection": "اتصال",
   "auth": "احراز هویت",
   "options": "گزینه‌ها",
@@ -113,16 +107,13 @@
   "clearKeyFile": "پاک کردن فایل کلید",
   "authOrDivider": "یا",
   "providePasswordOrKey": "یک رمز عبور یا کلید SSH وارد کنید",
-
   "quickConnect": "اتصال سریع",
-
   "scanQrCode": "اسکن کد QR",
   "qrGenerationFailed": "تولید QR ناموفق بود",
   "scanWithCameraApp": "با هر برنامه دوربینی روی دستگاهی که LetsFLUTssh نصب است اسکن کنید.",
   "noPasswordsInQr": "رمز عبور یا کلیدی در این کد QR وجود ندارد",
   "copyLink": "کپی لینک",
   "linkCopied": "لینک در کلیپ‌بورد کپی شد",
-
   "hostKeyChanged": "کلید میزبان تغییر کرده است!",
   "unknownHost": "میزبان ناشناخته",
   "hostKeyChangedWarning": "هشدار: کلید میزبان این سرور تغییر کرده است. این ممکن است نشانه حمله مرد میانی باشد، یا سرور مجدداً نصب شده باشد.",
@@ -134,15 +125,12 @@
   "copyFingerprint": "کپی اثر انگشت",
   "acceptAnyway": "پذیرفتن در هر صورت",
   "accept": "پذیرفتن",
-
   "importData": "وارد کردن داده",
   "masterPassword": "رمز عبور اصلی",
   "confirmPassword": "تأیید رمز عبور",
   "importModeMergeDescription": "افزودن جلسات جدید، حفظ موجودها",
   "importModeReplaceDescription": "جایگزینی همه جلسات با موارد وارد شده",
-
   "errorPrefix": "خطا: {error}",
-
   "folderName": "نام پوشه",
   "newName": "نام جدید",
   "deleteItems": "حذف {names}؟",
@@ -152,14 +140,12 @@
   "failedToCreateFolder": "ایجاد پوشه ناموفق بود: {error}",
   "failedToRename": "تغییر نام ناموفق بود: {error}",
   "failedToDeleteItem": "حذف {name} ناموفق بود: {error}",
-
   "editPath": "ویرایش مسیر",
   "root": "ریشه",
   "controllersNotInitialized": "کنترل‌کننده‌ها مقداردهی نشده‌اند",
   "initializingSftp": "در حال راه‌اندازی SFTP...",
   "clearHistory": "پاک کردن تاریخچه",
   "noTransfersYet": "هنوز انتقالی انجام نشده",
-
   "duplicateTab": "کپی تب",
   "duplicateTabShortcut": "کپی تب (Ctrl+\\)",
   "copyDown": "کپی به پایین",
@@ -167,28 +153,22 @@
   "previous": "قبلی",
   "next": "بعدی",
   "closeEsc": "بستن (Esc)",
-
   "closeAll": "بستن همه",
   "closeOthers": "بستن بقیه",
   "closeTabsToTheLeft": "بستن تب‌های سمت چپ",
   "closeTabsToTheRight": "بستن تب‌های سمت راست",
   "sortByName": "مرتب‌سازی بر اساس نام",
   "sortByStatus": "مرتب‌سازی بر اساس وضعیت",
-
   "noActiveSession": "جلسه فعالی وجود ندارد",
   "createConnectionHint": "یک اتصال جدید ایجاد کنید یا از نوار کناری انتخاب کنید",
-
   "hideSidebar": "پنهان کردن نوار کناری (Ctrl+B)",
   "showSidebar": "نمایش نوار کناری (Ctrl+B)",
-
   "language": "زبان",
   "languageSystemDefault": "خودکار",
-
   "theme": "پوسته",
   "themeDark": "تیره",
   "themeLight": "روشن",
   "themeSystem": "سیستم",
-
   "appearance": "ظاهر",
   "connectionSection": "اتصال",
   "transfers": "انتقال‌ها",
@@ -206,7 +186,6 @@
   "parallelWorkers": "کارگران موازی",
   "maxHistory": "حداکثر تاریخچه",
   "calculateFolderSizes": "محاسبه اندازه پوشه‌ها",
-
   "exportData": "خروجی گرفتن از داده",
   "exportDataSubtitle": "ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs",
   "importDataSubtitle": "بارگذاری داده از فایل .lfs",
@@ -217,16 +196,13 @@
   "pathToLfsFile": "مسیر فایل .lfs",
   "hintLfsPath": "/path/to/export.lfs",
   "browse": "مرور",
-
   "shareViaQrCode": "اشتراک‌گذاری از طریق کد QR",
   "shareViaQrSubtitle": "خروجی گرفتن از جلسات به QR برای اسکن توسط دستگاه دیگر",
   "dataLocation": "محل داده",
   "pathCopied": "مسیر در کلیپ‌بورد کپی شد",
   "urlCopied": "آدرس در کلیپ‌بورد کپی شد",
-
   "aboutSubtitle": "v{version} — کلاینت SSH/SFTP",
   "sourceCode": "کد منبع",
-
   "enableLogging": "فعال‌سازی ثبت رویداد",
   "logIsEmpty": "گزارش خالی است",
   "logExportedTo": "گزارش خروجی گرفته شد به: {path}",
@@ -236,7 +212,6 @@
   "copyLog": "کپی گزارش",
   "exportLog": "خروجی گزارش",
   "clearLogs": "پاک کردن گزارش‌ها",
-
   "local": "محلی",
   "remote": "راه دور",
   "pickFolder": "انتخاب پوشه",
@@ -248,12 +223,10 @@
   "openSshTerminal": "باز کردن ترمینال SSH",
   "noActiveFileBrowsers": "هیچ مرورگر فایل فعالی وجود ندارد",
   "useSftpFromSessions": "از «SFTP» در جلسات استفاده کنید",
-
   "anotherInstanceRunning": "نسخه دیگری از LetsFLUTssh در حال اجرا است.",
   "importFailedShort": "وارد کردن ناموفق بود: {error}",
   "saveLogAs": "ذخیره گزارش به عنوان",
   "chooseSaveLocation": "انتخاب محل ذخیره",
-
   "forward": "جلو",
   "name": "نام",
   "size": "اندازه",
@@ -339,11 +312,12 @@
   "nSubitems": "{count} مورد",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "موارد",
-
   "storagePermissionRequired": "برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است",
   "grantPermission": "اعطای مجوز",
   "storagePermissionLimited": "دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید",
@@ -351,5 +325,34 @@
   "progressVerifyingHostKey": "تأیید کلید میزبان",
   "progressAuthenticating": "احراز هویت به‌عنوان {user}",
   "progressOpeningShell": "باز کردن شل",
-  "progressOpeningSftp": "باز کردن کانال SFTP"
+  "progressOpeningSftp": "باز کردن کانال SFTP",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }
