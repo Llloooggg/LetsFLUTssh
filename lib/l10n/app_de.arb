@@ -149,7 +149,6 @@
   "duplicateTab": "Tab duplizieren",
   "duplicateTabShortcut": "Tab duplizieren (Ctrl+\\)",
   "copyDown": "Nach unten kopieren",
-  "copyDownShortcut": "Nach unten kopieren (Ctrl+Shift+\\)",
   "previous": "Vorheriges",
   "next": "Nächstes",
   "closeEsc": "Schließen (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "Maximieren",
+  "restore": "Wiederherstellen",
+  "duplicateDownShortcut": "Nach unten duplizieren (Ctrl+Shift+\\)"
 }

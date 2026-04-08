@@ -149,7 +149,6 @@
   "duplicateTab": "Sekmeyi Çoğalt",
   "duplicateTabShortcut": "Sekmeyi Çoğalt (Ctrl+\\)",
   "copyDown": "Aşağı Kopyala",
-  "copyDownShortcut": "Aşağı Kopyala (Ctrl+Shift+\\)",
   "previous": "Önceki",
   "next": "Sonraki",
   "closeEsc": "Kapat (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "Büyüt",
+  "restore": "Geri Yükle",
+  "duplicateDownShortcut": "Aşağı Çoğalt (Ctrl+Shift+\\)"
 }

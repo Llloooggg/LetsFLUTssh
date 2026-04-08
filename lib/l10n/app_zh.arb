@@ -149,7 +149,6 @@
   "duplicateTab": "复制标签页",
   "duplicateTabShortcut": "复制标签页 (Ctrl+\\)",
   "copyDown": "向下复制",
-  "copyDownShortcut": "向下复制 (Ctrl+Shift+\\)",
   "previous": "上一个",
   "next": "下一个",
   "closeEsc": "关闭 (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "最大化",
+  "restore": "恢复",
+  "duplicateDownShortcut": "向下复制 (Ctrl+Shift+\\)"
 }

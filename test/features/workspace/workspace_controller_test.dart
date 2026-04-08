@@ -1287,5 +1287,118 @@ void main() {
       expect(copy.root, same(ws.root));
       expect(copy.focusedPanelId, ws.focusedPanelId);
     });
+
+    test('copyWith preserves maximizedPanelId when not provided', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      notifier().copyToNewPanel(state().focusedPanelId, Axis.horizontal);
+      notifier().toggleMaximizePanel(state().focusedPanelId);
+      final ws = state();
+      final copy = ws.copyWith(focusedPanelId: 'other');
+      expect(copy.maximizedPanelId, ws.maximizedPanelId);
+    });
+
+    test('copyWith clears maximizedPanelId when explicitly set to null', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      notifier().copyToNewPanel(state().focusedPanelId, Axis.horizontal);
+      notifier().toggleMaximizePanel(state().focusedPanelId);
+      expect(state().isMaximized, isTrue);
+      final ws = state();
+      final copy = ws.copyWith(maximizedPanelId: () => null);
+      expect(copy.maximizedPanelId, isNull);
+    });
+
+    test('isMaximized reflects maximizedPanelId', () {
+      expect(state().isMaximized, isFalse);
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      notifier().copyToNewPanel(state().focusedPanelId, Axis.horizontal);
+      notifier().toggleMaximizePanel(state().focusedPanelId);
+      expect(state().isMaximized, isTrue);
+    });
+  });
+
+  group('toggleMaximizePanel', () {
+    test('maximizes the focused panel when multiple panels exist', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final panelId = state().focusedPanelId;
+      notifier().copyToNewPanel(panelId, Axis.horizontal);
+      // Now we have two panels; focus is on the new one.
+      notifier().toggleMaximizePanel(panelId);
+      expect(state().maximizedPanelId, panelId);
+    });
+
+    test('restores when toggling the same panel again', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final panelId = state().focusedPanelId;
+      notifier().copyToNewPanel(panelId, Axis.horizontal);
+      notifier().toggleMaximizePanel(panelId);
+      expect(state().isMaximized, isTrue);
+      notifier().toggleMaximizePanel(panelId);
+      expect(state().isMaximized, isFalse);
+    });
+
+    test('switches to different panel when already maximized', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final firstPanel = state().focusedPanelId;
+      notifier().copyToNewPanel(firstPanel, Axis.horizontal);
+      final secondPanel = state().focusedPanelId;
+      notifier().toggleMaximizePanel(firstPanel);
+      expect(state().maximizedPanelId, firstPanel);
+      notifier().toggleMaximizePanel(secondPanel);
+      expect(state().maximizedPanelId, secondPanel);
+    });
+
+    test('does nothing when only one panel exists', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final panelId = state().focusedPanelId;
+      notifier().toggleMaximizePanel(panelId);
+      expect(state().isMaximized, isFalse);
+    });
+
+    test('clears when maximized panel is closed via closeTab', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final firstPanel = state().focusedPanelId;
+      notifier().copyToNewPanel(firstPanel, Axis.horizontal);
+      final secondPanel = state().focusedPanelId;
+      final tabId = findPanel(state().root, secondPanel)!.tabs.first.id;
+      notifier().toggleMaximizePanel(secondPanel);
+      expect(state().isMaximized, isTrue);
+      notifier().closeTab(secondPanel, tabId);
+      expect(state().isMaximized, isFalse);
+    });
+
+    test('clears when maximized panel is closed via closeAll', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final firstPanel = state().focusedPanelId;
+      notifier().copyToNewPanel(firstPanel, Axis.horizontal);
+      final secondPanel = state().focusedPanelId;
+      notifier().toggleMaximizePanel(secondPanel);
+      expect(state().isMaximized, isTrue);
+      notifier().closeAll(secondPanel);
+      expect(state().isMaximized, isFalse);
+    });
+
+    test('clears when tree collapses to single panel', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final firstPanel = state().focusedPanelId;
+      notifier().copyToNewPanel(firstPanel, Axis.horizontal);
+      final secondPanel = state().focusedPanelId;
+      notifier().toggleMaximizePanel(firstPanel);
+      expect(state().isMaximized, isTrue);
+      // Close the other panel — tree collapses to single panel.
+      final tabId = findPanel(state().root, secondPanel)!.tabs.first.id;
+      notifier().closeTab(secondPanel, tabId);
+      expect(state().isMaximized, isFalse);
+      expect(state().root, isA<PanelLeaf>());
+    });
+
+    test('sets focus to maximized panel', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      final firstPanel = state().focusedPanelId;
+      notifier().copyToNewPanel(firstPanel, Axis.horizontal);
+      // Focus is now on second panel.
+      expect(state().focusedPanelId, isNot(firstPanel));
+      notifier().toggleMaximizePanel(firstPanel);
+      expect(state().focusedPanelId, firstPanel);
+    });
   });
 }

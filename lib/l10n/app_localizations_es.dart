@@ -510,9 +510,6 @@ class SEs extends S {
   String get copyDown => 'Copiar abajo';
 
   @override
-  String get copyDownShortcut => 'Copiar abajo (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'Anterior';
 
   @override
@@ -1195,4 +1192,13 @@ class SEs extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'Maximizar';
+
+  @override
+  String get restore => 'Restaurar';
+
+  @override
+  String get duplicateDownShortcut => 'Duplicar abajo (Ctrl+Shift+\\)';
 }

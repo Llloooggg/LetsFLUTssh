@@ -512,9 +512,6 @@ class SDe extends S {
   String get copyDown => 'Nach unten kopieren';
 
   @override
-  String get copyDownShortcut => 'Nach unten kopieren (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'Vorheriges';
 
   @override
@@ -1199,4 +1196,13 @@ class SDe extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'Maximieren';
+
+  @override
+  String get restore => 'Wiederherstellen';
+
+  @override
+  String get duplicateDownShortcut => 'Nach unten duplizieren (Ctrl+Shift+\\)';
 }

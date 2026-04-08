@@ -149,7 +149,6 @@
   "duplicateTab": "Nhân bản tab",
   "duplicateTabShortcut": "Nhân bản tab (Ctrl+\\)",
   "copyDown": "Sao chép xuống dưới",
-  "copyDownShortcut": "Sao chép xuống dưới (Ctrl+Shift+\\)",
   "previous": "Trước",
   "next": "Tiếp",
   "closeEsc": "Đóng (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "Phóng to",
+  "restore": "Khôi phục",
+  "duplicateDownShortcut": "Nhân bản xuống (Ctrl+Shift+\\)"
 }
