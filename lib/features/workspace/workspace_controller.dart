@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/connection/connection.dart';
 import '../../providers/connection_provider.dart';
+import '../../utils/logger.dart';
 import '../tabs/tab_model.dart';
 import 'workspace_node.dart';
 
@@ -75,10 +76,18 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
       final newRoot = removeWorkspaceNode(state.root, panelId);
       if (newRoot == null) {
         // Was the last panel — reset to empty.
+        AppLogger.instance.log(
+          'Last panel removed, resetting workspace',
+          name: 'Workspace',
+        );
         final fresh = PanelLeaf();
         state = WorkspaceState(root: fresh, focusedPanelId: fresh.id);
       } else {
         // Focus moves to the first remaining panel.
+        AppLogger.instance.log(
+          'Panel $panelId removed, promoting sibling',
+          name: 'Workspace',
+        );
         final panels = collectPanelIds(newRoot);
         state = state.copyWith(
           root: newRoot,
@@ -260,6 +269,12 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
       direction: direction,
       first: insertBefore ? newPanel : updatedSource,
       second: insertBefore ? updatedSource : newPanel,
+    );
+
+    AppLogger.instance.log(
+      'Split panel $panelId ${direction.name}, '
+      'new panel ${newPanel.id}',
+      name: 'Workspace',
     );
 
     state = state.copyWith(
@@ -490,6 +505,11 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     final manager = ref.read(connectionManagerProvider);
     for (final tab in closedTabs) {
       if (!remainingConnIds.contains(tab.connection.id)) {
+        AppLogger.instance.log(
+          'Disconnecting orphaned connection ${tab.connection.id} '
+          '(tab "${tab.label}" closed, no remaining references)',
+          name: 'Workspace',
+        );
         manager.disconnect(tab.connection.id);
       }
     }
