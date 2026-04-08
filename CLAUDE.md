@@ -26,7 +26,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 ### Commits
 
 - **Claude does not commit or push unless the user explicitly asks.** "commit" = commit only, "commit and push" = commit + push
-- **Version bumps are automatic.** CI (`ci-auto-tag.yml`) parses conventional commit messages on `main` and bumps `pubspec.yaml` automatically (patch for fix/chore/deps, minor for feat, major for BREAKING CHANGE). **Do NOT bump version manually** — just use correct conventional commit prefixes
+- **Version bumps are automatic.** The `/pr` skill runs `scripts/bump-version.sh` before creating PR — it parses conventional commits since the last tag and bumps `pubspec.yaml` (patch for fix/chore/deps, minor for feat, major for BREAKING CHANGE). **Do NOT bump version manually** — just use correct conventional commit prefixes. Dependabot PRs are bumped by CI (`dependabot-auto.yml`)
 - Format per [CONTRIBUTING.md](docs/CONTRIBUTING.md#commit-messages). Messages drive auto-changelog — keep them user-readable
 - **One fix / one commit** — each logical change is a separate commit. Do not bundle unrelated fixes
 - **HARD STOP between fixes** — implement fix → write tests → update docs → **stop and ask user to commit**. Do NOT start the next fix until the current one is committed. **Exception:** when the user explicitly asks to fix everything at once ("fix all and push"), execute end-to-end without pausing between fixes
