@@ -148,7 +148,7 @@ ci: add commit message linting for PRs
 
 ## Version Bumps
 
-Version bumps are **fully automated** by CI (`ci-auto-tag.yml`). When commits land on `main`, the workflow parses conventional commit prefixes and bumps `pubspec.yaml` accordingly:
+Version bumps are **fully automated**. The bump script (`scripts/bump-version.sh`) parses conventional commit prefixes since the last tag and bumps `pubspec.yaml`. It runs on `dev` before creating a PR to `main`; for Dependabot PRs, CI runs it automatically.
 
 | Commit prefix                           | Bump      |
 |-----------------------------------------|-----------|
@@ -164,7 +164,7 @@ Version bumps are **fully automated** by CI (`ci-auto-tag.yml`). When commits la
 1. Fork the repo and create a feature branch (`git checkout -b feat/my-feature`)
 2. Target the **`dev`** branch — never `main` directly
 3. Follow commit message format (`type: description`) — CI enforces this on PRs
-4. Use correct conventional commit prefixes — version bumps are automated on merge to `main`
+4. Use correct conventional commit prefixes — version bumps are automated before PR merge
 5. `make analyze` and `make test` must pass
 6. All new code must have tests (80% coverage minimum, 100% target)
 7. One logical change per PR
@@ -186,7 +186,7 @@ Every push and PR is checked by multiple pipelines. For the full workflow graph 
 | `scorecard.yml` | OpenSSF supply chain assessment | No (main only) |
 | `build-release.yml` | Build all platforms + GitHub Release (on tag) | — |
 
-**Dependabot auto-releases:** when Dependabot merges a Dart dependency update (`pub` ecosystem), CI runs on `main`. After CI passes, `ci-auto-tag.yml` detects the Dependabot commit, bumps the patch version, creates a tag, and triggers the full build + release pipeline. If CI fails — no bump, no tag, no release. GitHub Actions updates are auto-merged but do not trigger a version bump (they don't affect the shipped app).
+**Dependabot auto-releases:** when Dependabot opens a Dart dependency update PR (`pub` ecosystem), `dependabot-auto.yml` runs `scripts/bump-version.sh` in the PR branch to bump the patch version, then auto-merges. CI runs on `main` after merge; if it passes, `ci-auto-tag.yml` creates a tag and triggers the full build + release pipeline. If CI fails — no tag, no release. GitHub Actions updates are auto-merged but do not trigger a version bump (they don't affect the shipped app).
 
 ## Security
 

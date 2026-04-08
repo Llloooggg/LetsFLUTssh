@@ -17,7 +17,7 @@ Determine:
 1. **Type**: feat / fix / refactor / test / docs / chore / ci
 2. **Docs updated?** — Check per the documentation maintenance table in CLAUDE.md. If code changed but docs didn't, WARN the user
 
-Note: Version bumps are automated by CI on merge to `main`. Do NOT bump version manually.
+Note: Version bumps are automated by `scripts/bump-version.sh` (runs during `/pr`). Do NOT bump version manually.
 
 ### Step 3: Pre-commit checks
 - Do NOT run `make analyze` or `make test` manually — the pre-commit hook runs `make check` automatically and blocks the commit if anything fails

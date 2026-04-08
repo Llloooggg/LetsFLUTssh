@@ -1,14 +1,10 @@
 name: CI / Auto-Tag
 
-# Triggers after CI completes on main. Parses conventional commits since
-# the last tag, calculates the semver bump, updates pubspec.yaml, commits,
-# and creates an annotated tag.
+# Triggers after CI completes on main. Reads the version from
+# pubspec.yaml and creates an annotated tag if it doesn't exist yet.
 #
-# Bump rules:
-#   BREAKING CHANGE / feat!:  → major
-#   feat:                     → minor
-#   fix: / chore: / refactor: / Dependabot "Bump ..." → patch
-#   docs: / test: / ci:       → no bump (tag already exists → skip)
+# Version bumps happen on dev before the PR (scripts/bump-version.sh).
+# This workflow only creates tags — it never modifies code.
 
 on:
   workflow_dispatch:
@@ -30,115 +26,17 @@ jobs:
       group: auto-tag-release
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
-          fetch-depth: 0
-
-      - name: Calculate version bump from commits
-        id: bump
-        run: |
-          # Find the latest version tag
-          LAST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
-          if [ -z "$LAST_TAG" ]; then
-            RANGE="HEAD"
-          else
-            RANGE="${LAST_TAG}..HEAD"
-          fi
-
-          echo "Last tag: ${LAST_TAG:-<none>}"
-          echo "Commit range: $RANGE"
-
-          BUMP="none"  # none | patch | minor | major
-
-          while IFS= read -r MSG; do
-            [ -z "$MSG" ] && continue
-
-            # Skip merge commits
-            echo "$MSG" | grep -qE '^Merge ' && continue
-
-            # Skip version-bump commits from this workflow
-            echo "$MSG" | grep -qE '^chore: bump version ' && continue
-
-            # BREAKING CHANGE → major
-            if echo "$MSG" | grep -qiE 'BREAKING CHANGE|^[a-z]+(\([a-z0-9_-]+\))?!:'; then
-              BUMP="major"
-              continue
-            fi
-
-            # Skip non-bumping types
-            echo "$MSG" | grep -qE '^(docs|test|ci)(\([a-z0-9_-]+\))?: ' && continue
-
-            # feat → minor
-            if echo "$MSG" | grep -qE '^feat(\([a-z0-9_-]+\))?: '; then
-              [ "$BUMP" != "major" ] && BUMP="minor"
-              continue
-            fi
-
-            # fix / chore / refactor / perf / build → patch
-            if echo "$MSG" | grep -qE '^(fix|chore|refactor|perf|build)(\([a-z0-9_-]+\))?: '; then
-              [ "$BUMP" = "none" ] && BUMP="patch"
-              continue
-            fi
-
-            # Dependabot raw format: "Bump X from Y to Z"
-            if echo "$MSG" | grep -qE '^Bump .+ from .+ to '; then
-              [ "$BUMP" = "none" ] && BUMP="patch"
-              continue
-            fi
-
-          done <<< "$(git log "$RANGE" --format='%s' --no-merges)"
-
-          echo "Calculated bump: $BUMP"
-          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
-
-      - name: Apply version bump
-        if: steps.bump.outputs.bump != 'none'
-        env:
-          BUMP: ${{ steps.bump.outputs.bump }}
-        run: |
-          # Read current version
-          FULL=$(grep '^version:' pubspec.yaml | sed 's/version: *//')
-          VER="${FULL%%+*}"
-          BUILD="${FULL##*+}"
-
-          MAJOR="${VER%%.*}"
-          REST="${VER#*.}"
-          MINOR="${REST%%.*}"
-          PATCH="${REST#*.}"
-
-          # Calculate new version
-          case "$BUMP" in
-            major) NEW_MAJOR=$((MAJOR+1)); NEW_MINOR=0; NEW_PATCH=0 ;;
-            minor) NEW_MAJOR=$MAJOR; NEW_MINOR=$((MINOR+1)); NEW_PATCH=0 ;;
-            patch) NEW_MAJOR=$MAJOR; NEW_MINOR=$MINOR; NEW_PATCH=$((PATCH+1)) ;;
-          esac
-          NEW_BUILD=$((BUILD+1))
-          NEW_VER="${NEW_MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
-
-          echo "Version: ${VER} → ${NEW_VER} (build ${BUILD} → ${NEW_BUILD})"
-
-          # Update pubspec.yaml
-          sed -i "s/^version: .*/version: ${NEW_VER}+${NEW_BUILD}/" pubspec.yaml
-
-          # Commit and push
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pubspec.yaml
-          git commit -m "chore: bump version ${VER} → ${NEW_VER}"
-          git push
-
-          echo "new_ver=$NEW_VER" >> "$GITHUB_OUTPUT"
-
       - name: Create tag if version is new
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
+          SHA="$COMMIT_SHA"
           REPO="${{ github.repository }}"
-          SHA=$(git rev-parse HEAD)
 
-          # Read version from the current HEAD (may have been bumped above)
-          VER=$(grep '^version:' pubspec.yaml | sed 's/version: *//;s/+.*//')
+          # Read version from pubspec.yaml at the CI commit
+          VER=$(gh api "repos/${REPO}/contents/pubspec.yaml?ref=${SHA}" \
+            --jq '.content' | base64 -d | grep '^version:' | sed 's/version: *//;s/+.*//')
           TAG="v${VER}"
 
           if [ -z "$VER" ]; then

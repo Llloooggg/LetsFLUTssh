@@ -2,15 +2,46 @@ name: Dependabot
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
 
 permissions: read-all
 
 jobs:
-  automerge:
+  version-bump:
+    # Only pub (Dart) dependency updates — github-actions updates don't affect the shipped app
     if: >-
       github.actor == 'dependabot[bot]' &&
-      github.event.action != 'closed'
+      startsWith(github.event.pull_request.head.ref, 'dependabot/pub/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: dependabot/fetch-metadata@ffa630c65fa7e0ecfa0625b5ceda64399aea1b36 # v2
+        id: metadata
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.RELEASE_TOKEN }}
+          fetch-depth: 0
+
+      - name: Bump patch version
+        run: |
+          # Check if already bumped (re-run safety)
+          HEAD_MSG=$(git log -1 --format='%s')
+          if echo "$HEAD_MSG" | grep -qE '^chore: bump version '; then
+            echo "Already bumped — skipping"
+            exit 0
+          fi
+
+          scripts/bump-version.sh
+          git push
+
+  automerge:
+    needs: [version-bump]
+    # Run even if version-bump was skipped (github-actions updates)
+    if: always() && github.actor == 'dependabot[bot]' && !failure()
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,6 +56,3 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Version bump removed — ci-auto-tag.yml now handles version bumping
-  # for all commits on main, including Dependabot merges.
