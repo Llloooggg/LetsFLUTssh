@@ -2146,8 +2146,9 @@ push to dev/main or PR
   │           │     quality + coverage scan
   │           │
   │           └─► ci-auto-tag.yml     (workflow_run[CI], main only)
-  │                 reads version from pubspec.yaml
-  │                 tag exists → skip / new version → create tag
+  │                 parse commits → calculate semver bump
+  │                 bump needed → update pubspec.yaml → commit → push
+  │                 create tag if new version
   │                       │
   │                       └─► build-release.yml    "Build & Release"  (tags: v*)
   │                             build all platforms
@@ -2160,8 +2161,8 @@ push to dev/main or PR
 
 Dependabot PR merged (into main)
   │
-  └─► dependabot-auto.yml → auto-merge + patch bump → commit
-        └─► ci.yml → ci-auto-tag.yml → build-release.yml → Release
+  └─► dependabot-auto.yml → auto-merge (no version bump — handled by ci-auto-tag)
+        └─► ci.yml → ci-auto-tag.yml (patch bump) → build-release.yml → Release
 
 Manual build
   │
@@ -2174,10 +2175,10 @@ Manual build
 | Workflow | Trigger | Branches | Purpose | Blocks release? |
 |----------|---------|----------|---------|-----------------|
 | `ci.yml` | push/PR (all paths) | main, dev | analyze + test + coverage | Yes (required) |
-| `ci-auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
+| `ci-auto-tag.yml` | workflow_run[CI] success | main only | Parses commits, bumps version, creates tag | — |
 | `build-release.yml` | push tag v* / manual | — | Build all platforms + release | — |
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
-| `dependabot-auto.yml` | PR (dependabot) | main | Auto-merge patch/minor + version bump | — |
+| `dependabot-auto.yml` | PR (dependabot) | main | Auto-merge patch/minor (version bump via ci-auto-tag) | — |
 | `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
 | `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
