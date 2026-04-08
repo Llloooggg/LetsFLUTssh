@@ -123,10 +123,19 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     super.dispose();
   }
+
+  void _onFocusChanged() => setState(() {});
 
   void _exitSelectMode() {
     setState(() {
@@ -136,14 +145,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     });
   }
 
-  /// Clears all selection and focus. Called internally and
-  /// externally (e.g. when the workspace body is activated).
+  /// Clears multi-selection (marquee / Ctrl+click). Keeps the
+  /// focused session/folder so the details panel stays visible.
   void clearDesktopSelection() {
     setState(() {
       _selectedIds.clear();
       _selectedFolderPaths.clear();
-      _focusedSessionId = null;
-      _focusedFolderPath = null;
     });
   }
 
@@ -461,6 +468,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       crossMarquee: widget.crossMarquee,
       reverseCrossMarquee: widget.reverseCrossMarquee,
       focusedSessionId: _focusedSessionId,
+      focusedFolderPath: _focusedFolderPath,
+      panelHasFocus: _focusNode.hasFocus,
       onSessionDoubleTap: widget.onConnect,
       onSessionSelected: (id) {
         setState(() {
@@ -477,10 +486,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         });
       },
       onEmptySpaceTap: () {
-        setState(() {
-          _focusedSessionId = null;
-          _focusedFolderPath = null;
-        });
+        // Keep focused session/folder so the details panel stays visible.
       },
       onSessionContextMenu: (session, position) {
         _showContextMenu(context, ref, session, position);
