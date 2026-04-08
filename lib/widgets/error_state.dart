@@ -30,15 +30,11 @@ class ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 48,
-            color: AppTheme.disconnected,
-          ),
+          Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(color: AppTheme.disconnected),
+            style: TextStyle(color: AppTheme.disconnected),
             textAlign: TextAlign.center,
           ),
           if (onRetry != null || onSecondary != null) ...[

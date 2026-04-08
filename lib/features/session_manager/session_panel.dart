@@ -673,10 +673,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               ),
               const AppDivider(),
               ListTile(
-                leading: const Icon(Icons.delete, color: AppTheme.disconnected),
+                leading: Icon(Icons.delete, color: AppTheme.disconnected),
                 title: Text(
                   S.of(ctx).delete,
-                  style: const TextStyle(color: AppTheme.disconnected),
+                  style: TextStyle(color: AppTheme.disconnected),
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -864,13 +864,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(
-                    Icons.delete,
-                    color: AppTheme.disconnected,
-                  ),
+                  leading: Icon(Icons.delete, color: AppTheme.disconnected),
                   title: Text(
                     S.of(ctx).deleteFolder,
-                    style: const TextStyle(color: AppTheme.disconnected),
+                    style: TextStyle(color: AppTheme.disconnected),
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -1441,9 +1438,9 @@ class _SidebarFooter extends ConsumerWidget {
     final theme = Theme.of(context);
     final Color? connectionIconColor;
     if (connectedCount > 0) {
-      connectionIconColor = AppTheme.connectedColor(theme.brightness);
+      connectionIconColor = AppTheme.connected;
     } else if (connectingCount > 0) {
-      connectionIconColor = AppTheme.connectingColor(theme.brightness);
+      connectionIconColor = AppTheme.connecting;
     } else {
       connectionIconColor = null;
     }

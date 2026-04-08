@@ -88,9 +88,9 @@ IconData fileIcon(FileEntry entry) {
 }
 
 /// Returns a file-type icon color matching the mockup.
-Color fileIconColor(FileEntry entry, Brightness brightness) {
+Color fileIconColor(FileEntry entry) {
   if (entry.isDir) {
-    return AppTheme.folderColor(brightness);
+    return AppTheme.folderIcon;
   }
   if (entry.name.startsWith('.')) {
     return AppTheme.fgFaint;
@@ -169,11 +169,7 @@ class FileRow extends StatelessWidget {
       color: AppTheme.fgFaint,
     );
     return [
-      Icon(
-        fileIcon(entry),
-        size: 14,
-        color: fileIconColor(entry, theme.brightness),
-      ),
+      Icon(fileIcon(entry), size: 14, color: fileIconColor(entry)),
       const SizedBox(width: 6),
       Expanded(
         child: Tooltip(

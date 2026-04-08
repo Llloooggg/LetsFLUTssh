@@ -1528,13 +1528,12 @@ abstract final class AppTheme {
   static Color get termCursor;     // block cursor color (#528BFF / #526FFF)
   static Color get termSelection;  // mouse selection    (#677696 @ 38% / #4078F2 @ 38%)
 
-  // Connection status
-  static Color connected;          // green
-  static Color connecting;         // yellow
-  static Color disconnected;       // red
-
-  // Special
-  static Color folderIcon;         // yellow
+  // Semantic colors (brightness-aware getters)
+  static Color get connected;      // green  (#98C379 / #50A14F)
+  static Color get connecting;     // yellow (#E5C07B / #C18401)
+  static Color get disconnected;   // red    (#E06C75 / #E45649)
+  static Color get info;           // cyan   (#56B6C2 / #0184BC)
+  static Color get folderIcon;     // yellow (#E5C07B / #C18401)
   static Color get searchHighlight;// terminal search bg (#FFFF2B / #FFD700)
   static Color get searchHitFg;    // search hit text
 
@@ -1566,7 +1565,7 @@ abstract final class AppTheme {
   static const radiusMd;  // 6 px — cards, containers, default rounding
   static const radiusLg;  // 8 px — toasts, mobile elements, larger containers
 
-  // Theme factory
+  // Theme factory — both delegate to shared _buildTheme()
   static ThemeData dark();
   static ThemeData light();
 }

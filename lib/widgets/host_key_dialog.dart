@@ -92,7 +92,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.warning_amber_rounded,
                     color: AppTheme.connecting,
                     size: 20,
