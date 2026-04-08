@@ -98,6 +98,15 @@ class SessionTreeView extends StatefulWidget {
   /// Managed by parent — tree view uses it for row highlighting only.
   final String? focusedSessionId;
 
+  /// Currently focused folder (single-click highlight on desktop).
+  /// Managed by parent — tree view uses it for row highlighting only.
+  final String? focusedFolderPath;
+
+  /// Whether the parent panel currently has keyboard focus.
+  /// When true, the focused row uses a prominent highlight.
+  /// When false, it shows a subtle "pinned" indicator instead.
+  final bool panelHasFocus;
+
   /// Called when a folder row is clicked (single-click on desktop).
   /// Used by parent to show folder details in the info panel.
   final void Function(String folderPath, int sessionCount)? onFolderSelected;
@@ -137,6 +146,8 @@ class SessionTreeView extends StatefulWidget {
     this.connectingSessionIds = const {},
     this.onSessionSelected,
     this.focusedSessionId,
+    this.focusedFolderPath,
+    this.panelHasFocus = true,
     this.onFolderSelected,
     this.onEmptySpaceTap,
     this.collapsedFolders = const {},
@@ -577,13 +588,22 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     bool isDropTarget,
     bool hovered,
     bool isSelected,
+    bool isFocused,
     ThemeData theme,
   ) {
     final Color? bg;
+    Border? border;
     if (isDropTarget) {
       bg = theme.colorScheme.primary.withValues(alpha: 0.15);
+      border = Border.all(color: theme.colorScheme.primary, width: 1);
     } else if (isSelected) {
       bg = theme.colorScheme.primary.withValues(alpha: 0.15);
+    } else if (isFocused) {
+      if (widget.panelHasFocus) {
+        bg = theme.colorScheme.primary.withValues(alpha: 0.15);
+      } else {
+        bg = theme.colorScheme.onSurface.withValues(alpha: 0.08);
+      }
     } else if (hovered) {
       bg = AppTheme.hover;
     } else {
@@ -591,9 +611,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     }
     return BoxDecoration(
       color: bg,
-      border: isDropTarget
-          ? Border.all(color: theme.colorScheme.primary, width: 1)
-          : null,
+      border: border,
       borderRadius: AppTheme.radiusSm,
     );
   }
@@ -634,11 +652,29 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     );
   }
 
-  Color? _sessionRowColor(bool highlighted, bool hovered, ThemeData theme) {
+  BoxDecoration? _sessionRowDecoration(
+    bool highlighted,
+    bool hovered,
+    ThemeData theme,
+  ) {
     if (highlighted && !widget.selectMode) {
-      return theme.colorScheme.primary.withValues(alpha: 0.15);
+      if (widget.panelHasFocus) {
+        return BoxDecoration(
+          color: theme.colorScheme.primary.withValues(alpha: 0.15),
+          borderRadius: AppTheme.radiusSm,
+        );
+      }
+      return BoxDecoration(
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+        borderRadius: AppTheme.radiusSm,
+      );
     }
-    if (hovered) return AppTheme.hover;
+    if (hovered) {
+      return BoxDecoration(
+        color: AppTheme.hover,
+        borderRadius: AppTheme.radiusSm,
+      );
+    }
     return null;
   }
 
@@ -683,6 +719,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     final expanded = _expandedFolders.contains(node.fullPath);
     final theme = Theme.of(context);
     final isSelected = widget.selectedFolderPaths.contains(node.fullPath);
+    final isFocused = node.fullPath == widget.focusedFolderPath;
 
     return HoverRegion(
       onTap: () => _onFolderTap(node, expanded),
@@ -699,7 +736,13 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
             )
           : null,
       builder: (hovered) => _buildTreeRow(
-        decoration: _rowDecoration(isDropTarget, hovered, isSelected, theme),
+        decoration: _rowDecoration(
+          isDropTarget,
+          hovered,
+          isSelected,
+          isFocused,
+          theme,
+        ),
         children: _buildFolderRowChildren(node, depth, expanded, theme),
       ),
     );
@@ -955,7 +998,11 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
           : null,
       builder: (hovered) => _buildTreeRow(
-        color: _sessionRowColor(isSelected || isChecked, hovered, theme),
+        decoration: _sessionRowDecoration(
+          isSelected || isChecked,
+          hovered,
+          theme,
+        ),
         children: _buildSessionRowChildren(
           node,
           session,
