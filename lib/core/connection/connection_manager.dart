@@ -21,6 +21,9 @@ typedef ActiveCountCallback = void Function(int activeCount);
 class ConnectionManager {
   final _connections = <String, Connection>{};
   final _uuid = const Uuid();
+
+  /// Per-connection generation counter — prevents stale reconnect results.
+  final _connectGeneration = <String, int>{};
   final KnownHostsManager knownHosts;
   final SSHConnectionFactory _connectionFactory;
 
@@ -70,7 +73,8 @@ class ConnectionManager {
     );
 
     // Start connection in background
-    _doConnect(conn, config);
+    _connectGeneration[id] = 1;
+    _doConnect(conn, config, 1);
     return conn;
   }
 
@@ -78,7 +82,14 @@ class ConnectionManager {
   static const connectionTimeout = Duration(seconds: 30);
 
   /// Background connection logic.
-  Future<void> _doConnect(Connection conn, SSHConfig config) async {
+  ///
+  /// [generation] is a per-connection counter that prevents stale results
+  /// from a previous reconnect attempt overwriting a newer one.
+  Future<void> _doConnect(
+    Connection conn,
+    SSHConfig config,
+    int generation,
+  ) async {
     final sshConn = _connectionFactory(config, knownHosts);
     sshConn.onDisconnect = () {
       conn.state = SSHConnectionState.disconnected;
@@ -90,10 +101,21 @@ class ConnectionManager {
       await sshConn
           .connect(onProgress: (step) => conn.addProgressStep(step))
           .timeout(connectionTimeout);
+
+      // Check if a newer reconnect has started while we were connecting.
+      if (_connectGeneration[conn.id] != generation) {
+        sshConn.disconnect();
+        return;
+      }
+
       conn.sshConnection = sshConn;
       conn.state = SSHConnectionState.connected;
       AppLogger.instance.log('Connected: ${conn.label}', name: 'Connection');
     } on TimeoutException {
+      if (_connectGeneration[conn.id] != generation) {
+        sshConn.disconnect();
+        return;
+      }
       AppLogger.instance.log(
         'Connection timed out after ${connectionTimeout.inSeconds}s',
         name: 'Connection',
@@ -105,6 +127,10 @@ class ConnectionManager {
         connectionTimeout,
       );
     } catch (e) {
+      if (_connectGeneration[conn.id] != generation) {
+        sshConn.disconnect();
+        return;
+      }
       AppLogger.instance.log(
         'Connection failed: $e',
         name: 'Connection',
@@ -114,7 +140,10 @@ class ConnectionManager {
       conn.state = SSHConnectionState.disconnected;
       conn.connectionError = e;
     } finally {
-      conn.completeReady();
+      // Only complete ready if this is still the current generation.
+      if (_connectGeneration[conn.id] == generation) {
+        conn.completeReady();
+      }
       _notify();
     }
   }
@@ -146,7 +175,9 @@ class ConnectionManager {
       name: 'Connection',
     );
 
-    _doConnect(conn, conn.sshConfig);
+    final gen = (_connectGeneration[id] ?? 0) + 1;
+    _connectGeneration[id] = gen;
+    _doConnect(conn, conn.sshConfig, gen);
   }
 
   /// Disconnect a specific connection.
@@ -158,15 +189,21 @@ class ConnectionManager {
     conn.state = SSHConnectionState.disconnected;
     conn.sshConnection = null;
     _connections.remove(id);
+    _connectGeneration.remove(id);
     _notify();
   }
 
   /// Disconnect all connections.
+  ///
+  /// Completes pending [Connection.ready] futures so callers are not left
+  /// hanging, then clears the connection map.
   void disconnectAll() {
     for (final conn in _connections.values) {
       conn.sshConnection?.disconnect();
+      conn.completeReady();
     }
     _connections.clear();
+    _connectGeneration.clear();
     _notify();
   }
 

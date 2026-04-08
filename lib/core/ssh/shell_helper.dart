@@ -14,17 +14,21 @@ class ShellConnection {
   final SSHSession shell;
   final StreamSubscription stdoutSub;
   final StreamSubscription stderrSub;
+  final Terminal _terminal;
 
   ShellConnection({
     required this.shell,
     required this.stdoutSub,
     required this.stderrSub,
-  });
+    required Terminal terminal,
+  }) : _terminal = terminal;
 
-  /// Cancel stream subscriptions and close the shell.
+  /// Cancel stream subscriptions, clear terminal callbacks, and close the shell.
   void close() {
     stdoutSub.cancel();
     stderrSub.cancel();
+    _terminal.onOutput = null;
+    _terminal.onResize = null;
     shell.close();
   }
 }
@@ -93,7 +97,7 @@ class ShellHelper {
           };
 
           if (onDone != null) {
-            shell.done.then((_) => onDone());
+            shell.done.then((_) => onDone(), onError: (_) => onDone());
           }
         } catch (e) {
           stdoutSub.cancel();
@@ -106,6 +110,7 @@ class ShellHelper {
           shell: shell,
           stdoutSub: stdoutSub,
           stderrSub: stderrSub,
+          terminal: terminal,
         );
       } catch (e) {
         if (attempt == maxAttempts - 1) rethrow;
