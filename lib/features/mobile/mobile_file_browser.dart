@@ -167,12 +167,14 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   bool _editingPath = false;
   final _pathController = TextEditingController();
   final _pathFocusNode = FocusNode();
+  final _breadcrumbScrollController = ScrollController();
 
   @override
   void dispose() {
     _sftp?.dispose();
     _pathController.dispose();
     _pathFocusNode.dispose();
+    _breadcrumbScrollController.dispose();
     super.dispose();
   }
 
@@ -210,8 +212,41 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                       selected: {_showRemote},
                       onSelectionChanged: (s) =>
                           setState(() => _showRemote = s.first),
-                      style: const ButtonStyle(
+                      style: ButtonStyle(
                         visualDensity: VisualDensity.compact,
+                        backgroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
+                          if (!states.contains(WidgetState.selected)) {
+                            return null;
+                          }
+                          final color = _showRemote
+                              ? AppTheme.green
+                              : AppTheme.blue;
+                          return color.withValues(alpha: 0.15);
+                        }),
+                        foregroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
+                          if (!states.contains(WidgetState.selected)) {
+                            return null;
+                          }
+                          return _showRemote ? AppTheme.green : AppTheme.blue;
+                        }),
+                        iconColor: WidgetStateProperty.resolveWith((states) {
+                          if (!states.contains(WidgetState.selected)) {
+                            return null;
+                          }
+                          return _showRemote ? AppTheme.green : AppTheme.blue;
+                        }),
+                        side: WidgetStateProperty.resolveWith((states) {
+                          final color = _showRemote
+                              ? AppTheme.green
+                              : AppTheme.blue;
+                          return BorderSide(
+                            color: color.withValues(alpha: 0.4),
+                          );
+                        }),
                       ),
                     ),
                   ),
@@ -293,6 +328,15 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   Widget _buildBreadcrumb() {
     final bc = parseBreadcrumbPath(_activeCtrl.currentPath);
 
+    // Scroll to end so the deepest (current) folder segment is visible.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_breadcrumbScrollController.hasClients) {
+        _breadcrumbScrollController.jumpTo(
+          _breadcrumbScrollController.position.maxScrollExtent,
+        );
+      }
+    });
+
     return GestureDetector(
       onTap: () {
         _pathController.text = _activeCtrl.currentPath;
@@ -303,8 +347,8 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
         });
       },
       child: SingleChildScrollView(
+        controller: _breadcrumbScrollController,
         scrollDirection: Axis.horizontal,
-        reverse: true,
         child: Row(
           children: [
             // Root segment
