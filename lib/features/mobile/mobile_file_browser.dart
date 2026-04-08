@@ -17,6 +17,7 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/mobile_selection_bar.dart';
+import '../file_browser/breadcrumb_path.dart';
 import '../file_browser/file_browser_controller.dart';
 import '../file_browser/file_pane_dialogs.dart';
 import '../file_browser/sftp_initializer.dart';
@@ -290,17 +291,11 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
   }
 
   Widget _buildBreadcrumb() {
-    final currentPath = _activeCtrl.currentPath;
-    final isWindows = _isWindowsPath(currentPath);
-    final separator = isWindows ? RegExp(r'[/\\]') : RegExp(r'/');
-    final parts = currentPath.split(separator)..removeWhere((p) => p.isEmpty);
-    final rootPath = isWindows && parts.isNotEmpty ? '${parts[0]}\\' : '/';
-    final rootLabel = isWindows && parts.isNotEmpty ? parts[0] : null;
-    final navParts = isWindows ? parts.skip(1).toList() : parts;
+    final bc = parseBreadcrumbPath(_activeCtrl.currentPath);
 
     return GestureDetector(
       onTap: () {
-        _pathController.text = currentPath;
+        _pathController.text = _activeCtrl.currentPath;
         setState(() => _editingPath = true);
         // Focus after frame so the TextField is built
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -314,12 +309,12 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
           children: [
             // Root segment
             _buildBreadcrumbChip(
-              label: rootLabel ?? '/',
-              icon: rootLabel == null ? Icons.home : null,
-              onTap: () => _activeCtrl.navigateTo(rootPath),
+              label: bc.rootLabel ?? '/',
+              icon: bc.rootLabel == null ? Icons.home : null,
+              onTap: () => _activeCtrl.navigateTo(bc.rootPath),
             ),
             // Path segments
-            for (var i = 0; i < navParts.length; i++) ...[
+            for (var i = 0; i < bc.navParts.length; i++) ...[
               Icon(
                 Icons.chevron_right,
                 size: 16,
@@ -328,19 +323,9 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
                 ).colorScheme.onSurface.withValues(alpha: 0.4),
               ),
               _buildBreadcrumbChip(
-                label: navParts[i],
-                isLast: i == navParts.length - 1,
-                onTap: () {
-                  if (isWindows) {
-                    _activeCtrl.navigateTo(
-                      [parts[0], ...navParts.sublist(0, i + 1)].join('\\'),
-                    );
-                  } else {
-                    _activeCtrl.navigateTo(
-                      '/${navParts.sublist(0, i + 1).join('/')}',
-                    );
-                  }
-                },
+                label: bc.navParts[i],
+                isLast: i == bc.navParts.length - 1,
+                onTap: () => _activeCtrl.navigateTo(buildPathForSegment(bc, i)),
               ),
             ],
           ],
@@ -404,11 +389,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
       },
     );
   }
-
-  static bool _isWindowsPath(String path) =>
-      path.length >= 2 &&
-      path[1] == ':' &&
-      RegExp(r'^[A-Za-z]$').hasMatch(path[0]);
 
   Widget _buildPermissionBanner(BuildContext context) {
     final theme = Theme.of(context);
