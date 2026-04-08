@@ -78,6 +78,43 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   // Search visibility — ValueNotifier so toggling doesn't rebuild TerminalView
   final _showSearch = ValueNotifier<bool>(false);
 
+  /// Cached terminal theme — rebuilt only when app brightness changes.
+  TerminalTheme? _cachedTheme;
+  bool? _cachedIsDark;
+
+  TerminalTheme get _terminalTheme {
+    final dark = AppTheme.isDark;
+    if (_cachedTheme == null || _cachedIsDark != dark) {
+      _cachedIsDark = dark;
+      _cachedTheme = TerminalTheme(
+        cursor: AppTheme.termCursor,
+        selection: AppTheme.termSelection,
+        foreground: AppTheme.fg,
+        background: AppTheme.bg2,
+        black: AppTheme.termBlack,
+        red: AppTheme.termRed,
+        green: AppTheme.termGreen,
+        yellow: AppTheme.termYellow,
+        blue: AppTheme.termBlue,
+        magenta: AppTheme.termMagenta,
+        cyan: AppTheme.termCyan,
+        white: AppTheme.termWhite,
+        brightBlack: AppTheme.termBrightBlack,
+        brightRed: AppTheme.termBrightRed,
+        brightGreen: AppTheme.termBrightGreen,
+        brightYellow: AppTheme.termBrightYellow,
+        brightBlue: AppTheme.termBrightBlue,
+        brightMagenta: AppTheme.termBrightMagenta,
+        brightCyan: AppTheme.termBrightCyan,
+        brightWhite: AppTheme.termBrightWhite,
+        searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+        searchHitBackgroundCurrent: AppTheme.accent,
+        searchHitForeground: AppTheme.searchHitFg,
+      );
+    }
+    return _cachedTheme!;
+  }
+
   /// Exposed for testing — toggle search bar visibility.
   @visibleForTesting
   ValueNotifier<bool> get showSearchNotifier => _showSearch;
@@ -273,33 +310,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                       onKeyEvent: _handleTerminalKey,
                       backgroundOpacity: 1.0,
                       padding: const EdgeInsets.all(4),
-                      theme: TerminalTheme(
-                        cursor: AppTheme.termCursor,
-                        selection: AppTheme.termSelection,
-                        foreground: AppTheme.fg,
-                        background: AppTheme.bg2,
-                        black: AppTheme.termBlack,
-                        red: AppTheme.termRed,
-                        green: AppTheme.termGreen,
-                        yellow: AppTheme.termYellow,
-                        blue: AppTheme.termBlue,
-                        magenta: AppTheme.termMagenta,
-                        cyan: AppTheme.termCyan,
-                        white: AppTheme.termWhite,
-                        brightBlack: AppTheme.termBrightBlack,
-                        brightRed: AppTheme.termBrightRed,
-                        brightGreen: AppTheme.termBrightGreen,
-                        brightYellow: AppTheme.termBrightYellow,
-                        brightBlue: AppTheme.termBrightBlue,
-                        brightMagenta: AppTheme.termBrightMagenta,
-                        brightCyan: AppTheme.termBrightCyan,
-                        brightWhite: AppTheme.termBrightWhite,
-                        searchHitBackground: AppTheme.accent.withValues(
-                          alpha: 0.3,
-                        ),
-                        searchHitBackgroundCurrent: AppTheme.accent,
-                        searchHitForeground: AppTheme.searchHitFg,
-                      ),
+                      theme: _terminalTheme,
                       textStyle: TerminalStyle(
                         fontSize: fontSize,
                         fontFamily: 'JetBrains Mono',
