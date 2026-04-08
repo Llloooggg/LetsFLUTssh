@@ -134,10 +134,18 @@ class ForegroundServiceManager {
     if (!_binding.isSupported || !_initialized) return;
 
     if (activeCount > 0 && !_running) {
+      AppLogger.instance.log(
+        'Connection count 0 -> $activeCount, starting service',
+        name: 'ForegroundService',
+      );
       await _start(activeCount);
     } else if (activeCount > 0 && _running) {
       await _updateNotification(activeCount);
     } else if (activeCount == 0 && _running) {
+      AppLogger.instance.log(
+        'Connection count -> 0, stopping service',
+        name: 'ForegroundService',
+      );
       await _stop();
     }
   }
@@ -160,6 +168,10 @@ class ForegroundServiceManager {
 
   Future<void> _updateNotification(int count) async {
     await _binding.updateNotification(count);
+    AppLogger.instance.log(
+      'Notification updated: $count connection(s)',
+      name: 'ForegroundService',
+    );
   }
 
   Future<void> _stop() async {
