@@ -334,4 +334,332 @@ void main() {
       expect(data.sourcePanelId, 'panel-A');
     });
   });
+
+  group('PanelTabBar — icon colors', () {
+    testWidgets('active terminal tab icon is blue', (tester) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [makeTab(id: 't1', kind: TabKind.terminal)],
+          activeIndex: 0,
+        ),
+      );
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.terminal));
+      expect(icon.color, AppTheme.blue);
+    });
+
+    testWidgets('active sftp tab icon is yellow', (tester) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [makeTab(id: 't1', kind: TabKind.sftp)],
+          activeIndex: 0,
+        ),
+      );
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.folder));
+      expect(icon.color, AppTheme.yellow);
+    });
+
+    testWidgets('inactive tab icon is faint', (tester) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [
+            makeTab(id: 't1', label: 'Active'),
+            makeTab(id: 't2', label: 'Inactive', kind: TabKind.terminal),
+          ],
+          activeIndex: 0,
+        ),
+      );
+
+      // There are two terminal icons; the inactive one should be faint.
+      final icons = tester.widgetList<Icon>(find.byIcon(Icons.terminal));
+      final inactiveIcon = icons.last;
+      expect(inactiveIcon.color, AppTheme.fgFaint);
+    });
+  });
+
+  group('PanelTabBar — tab background', () {
+    testWidgets('active tab background is bg2', (tester) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [
+            makeTab(id: 't1', label: 'Active'),
+            makeTab(id: 't2', label: 'Inactive'),
+          ],
+          activeIndex: 0,
+        ),
+      );
+
+      // Find containers with bg2 color (active tab) and bg1 (inactive).
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final bg2Containers = containers
+          .where((c) => c.color == AppTheme.bg2)
+          .toList();
+      final bg1Containers = containers
+          .where((c) => c.color == AppTheme.bg1)
+          .toList();
+      expect(bg2Containers, isNotEmpty, reason: 'Active tab uses bg2');
+      expect(bg1Containers, isNotEmpty, reason: 'Inactive tab uses bg1');
+    });
+  });
+
+  group('PanelTabBar — text styles', () {
+    testWidgets('active tab text uses fg color', (tester) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [
+            makeTab(id: 't1', label: 'ActiveTab'),
+            makeTab(id: 't2', label: 'InactiveTab'),
+          ],
+          activeIndex: 0,
+        ),
+      );
+
+      final activeText = tester.widget<Text>(find.text('ActiveTab'));
+      expect(activeText.style?.color, AppTheme.fg);
+    });
+
+    testWidgets('inactive tab text uses fgDim color', (tester) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [
+            makeTab(id: 't1', label: 'ActiveTab'),
+            makeTab(id: 't2', label: 'InactiveTab'),
+          ],
+          activeIndex: 0,
+        ),
+      );
+
+      final inactiveText = tester.widget<Text>(find.text('InactiveTab'));
+      expect(inactiveText.style?.color, AppTheme.fgDim);
+    });
+  });
+
+  group('PanelTabBar — scroll behavior', () {
+    testWidgets('horizontal scroll on pointer signal scrolls tabs', (
+      tester,
+    ) async {
+      // Many tabs to force scrollable content.
+      final tabs = List.generate(
+        20,
+        (i) => makeTab(id: 'tab-$i', label: 'Server $i'),
+      );
+      await tester.pumpWidget(buildBar(tabs: tabs, width: 400));
+
+      final scrollable = find.byType(SingleChildScrollView);
+      expect(scrollable, findsOneWidget);
+
+      // Dispatch a pointer scroll event over the tab bar area.
+      final center = tester.getCenter(scrollable);
+      final testPointer = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(testPointer.hover(center));
+      await tester.sendEventToBinding(testPointer.scroll(const Offset(0, 50)));
+      await tester.pump();
+
+      // The scroll controller should have moved from 0.
+      final scrollWidget = tester.widget<SingleChildScrollView>(scrollable);
+      final controller = scrollWidget.controller;
+      expect(controller, isNotNull);
+      expect(controller!.offset, greaterThan(0));
+    });
+
+    testWidgets('scroll clamps to zero at start', (tester) async {
+      final tabs = List.generate(
+        20,
+        (i) => makeTab(id: 'tab-$i', label: 'Server $i'),
+      );
+      await tester.pumpWidget(buildBar(tabs: tabs, width: 400));
+
+      final scrollable = find.byType(SingleChildScrollView);
+      final center = tester.getCenter(scrollable);
+      final testPointer = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(testPointer.hover(center));
+      // Scroll up (negative), should clamp to 0.
+      await tester.sendEventToBinding(
+        testPointer.scroll(const Offset(0, -100)),
+      );
+      await tester.pump();
+
+      final scrollWidget = tester.widget<SingleChildScrollView>(scrollable);
+      expect(scrollWidget.controller!.offset, 0);
+    });
+  });
+
+  group('PanelTabBar — trailing drop zone', () {
+    testWidgets('trailing drop zone renders after all tabs', (tester) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [makeTab(id: 't1', label: 'OnlyTab')],
+          width: 600,
+        ),
+      );
+
+      // DragTarget widgets: one for the tab + one for the trailing zone.
+      final dragTargets = find.byType(DragTarget<TabDragData>);
+      expect(dragTargets, findsNWidgets(2));
+    });
+  });
+
+  group('PanelTabBar — selecting non-active tab', () {
+    testWidgets('selecting second tab in multi-tab bar', (tester) async {
+      int? selectedIndex;
+      final tabs = [
+        makeTab(id: 't1', label: 'First'),
+        makeTab(id: 't2', label: 'Second'),
+        makeTab(id: 't3', label: 'Third'),
+      ];
+      await tester.pumpWidget(
+        buildBar(
+          tabs: tabs,
+          activeIndex: 0,
+          onSelect: (i) => selectedIndex = i,
+        ),
+      );
+
+      await tester.tap(find.text('Third'));
+      expect(selectedIndex, 2);
+    });
+  });
+
+  group('PanelTabBar — close on different tabs', () {
+    testWidgets('close button calls onClose for hovered non-active tab', (
+      tester,
+    ) async {
+      String? closedId;
+      final tabs = [
+        makeTab(id: 't1', label: 'First'),
+        makeTab(id: 't2', label: 'Second'),
+      ];
+      await tester.pumpWidget(
+        buildBar(tabs: tabs, activeIndex: 0, onClose: (id) => closedId = id),
+      );
+
+      // Hover over the non-active tab to reveal close button.
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      await gesture.moveTo(tester.getCenter(find.text('Second')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.close));
+      expect(closedId, 't2');
+    });
+  });
+
+  group('PanelTabBar — right-click context menu on specific tab', () {
+    testWidgets('right-click on second tab returns correct index', (
+      tester,
+    ) async {
+      String? menuTabId;
+      int? menuIndex;
+      final tabs = [
+        makeTab(id: 't1', label: 'First'),
+        makeTab(id: 't2', label: 'Second'),
+        makeTab(id: 't3', label: 'Third'),
+      ];
+      await tester.pumpWidget(
+        buildBar(
+          tabs: tabs,
+          activeIndex: 0,
+          onContextMenu: (tabId, index, _) {
+            menuTabId = tabId;
+            menuIndex = index;
+          },
+        ),
+      );
+
+      await tester.tap(find.text('Third'), buttons: kSecondaryButton);
+      expect(menuTabId, 't3');
+      expect(menuIndex, 2);
+    });
+  });
+
+  group('PanelTabBar — active tab has no accent bar for inactive', () {
+    testWidgets('inactive tab does not have accent colored box', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [
+            makeTab(id: 't1', label: 'Active'),
+            makeTab(id: 't2', label: 'Inactive'),
+          ],
+          activeIndex: 0,
+        ),
+      );
+
+      // Only one accent top bar should exist (for the active tab).
+      final coloredBoxes = tester.widgetList<ColoredBox>(
+        find.byType(ColoredBox),
+      );
+      final accentBoxes = coloredBoxes
+          .where((b) => b.color == AppTheme.accent)
+          .toList();
+      expect(accentBoxes.length, 1);
+    });
+  });
+
+  group('PanelTabBar — unfocused panel', () {
+    testWidgets('renders correctly when isFocusedPanel is false', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [makeTab(id: 't1', label: 'Unfocused')],
+          isFocusedPanel: false,
+        ),
+      );
+
+      expect(find.text('Unfocused'), findsOneWidget);
+    });
+  });
+
+  group('PanelTabBar — multiple tooltips', () {
+    testWidgets('each tab in multi-tab bar has correct tooltip', (
+      tester,
+    ) async {
+      final tabs = [
+        makeTab(id: 't1', label: 'Alpha'),
+        makeTab(id: 't2', label: 'Beta'),
+      ];
+      await tester.pumpWidget(buildBar(tabs: tabs));
+
+      final tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip));
+      final messages = tooltips.map((t) => t.message).toList();
+      expect(messages, contains('Alpha'));
+      expect(messages, contains('Beta'));
+    });
+  });
+
+  group('PanelTabBar — tab natural width between min and max', () {
+    testWidgets('tabs use natural width when between 80 and 180', (
+      tester,
+    ) async {
+      // 3 tabs at 360px → natural = 120 → between 80 and 180.
+      final tabs = [
+        makeTab(id: 't1', label: 'A'),
+        makeTab(id: 't2', label: 'B'),
+        makeTab(id: 't3', label: 'C'),
+      ];
+      await tester.pumpWidget(buildBar(tabs: tabs, width: 360));
+
+      final tabSizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
+      final naturalWidthBoxes = tabSizedBoxes
+          .where((s) => s.width == 120.0)
+          .toList();
+      expect(naturalWidthBoxes.length, 3);
+    });
+  });
+
+  group('PanelTabBar — DragTarget keys', () {
+    testWidgets('each tab drag target has a ValueKey', (tester) async {
+      final tabs = [
+        makeTab(id: 't1', label: 'A'),
+        makeTab(id: 't2', label: 'B'),
+      ];
+      await tester.pumpWidget(buildBar(tabs: tabs));
+
+      expect(find.byKey(const ValueKey('drop_t1')), findsOneWidget);
+      expect(find.byKey(const ValueKey('drop_t2')), findsOneWidget);
+    });
+  });
 }
