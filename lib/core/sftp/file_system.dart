@@ -28,13 +28,16 @@ class LocalFS implements FileSystem {
     // Users can pick external folders via the folder picker button.
     if (Platform.isIOS) {
       final docs = await getApplicationDocumentsDirectory();
+      AppLogger.instance.log('iOS initial dir: ${docs.path}', name: 'LocalFS');
       return docs.path;
     }
     if (Platform.isAndroid) {
       return _androidInitialDir();
     }
     final home = homeDirectory;
-    return home.isNotEmpty ? home : Directory.current.path;
+    final path = home.isNotEmpty ? home : Directory.current.path;
+    AppLogger.instance.log('Initial dir: $path', name: 'LocalFS');
+    return path;
   }
 
   /// Android: try shared storage first, fall back to app-specific dir
@@ -63,7 +66,12 @@ class LocalFS implements FileSystem {
       );
     }
     final appDir = await getExternalStorageDirectory();
-    return appDir?.path ?? Directory.current.path;
+    final fallbackPath = appDir?.path ?? Directory.current.path;
+    AppLogger.instance.log(
+      'Android fallback dir: $fallbackPath',
+      name: 'LocalFS',
+    );
+    return fallbackPath;
   }
 
   @override
@@ -110,7 +118,11 @@ class LocalFS implements FileSystem {
       );
       if (result.exitCode != 0) return {};
       return parseAttribOutput(result.stdout as String);
-    } catch (_) {
+    } catch (e) {
+      AppLogger.instance.log(
+        'attrib command failed for $dirPath: $e',
+        name: 'LocalFS',
+      );
       return {};
     }
   }
@@ -173,8 +185,11 @@ class LocalFS implements FileSystem {
       if (entity is File) {
         try {
           total += await entity.length();
-        } catch (_) {
-          // Skip unreadable files
+        } catch (e) {
+          AppLogger.instance.log(
+            'Inaccessible file ${entity.path}: $e',
+            name: 'LocalFS',
+          );
         }
       }
     }
