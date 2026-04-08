@@ -1,30 +1,31 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:xterm/xterm.dart';
 
 import '../core/connection/connection.dart';
 import '../core/connection/connection_step.dart';
-import '../core/ssh/ssh_config.dart';
+import '../core/connection/progress_tracker.dart';
+import '../core/connection/progress_writer.dart';
 import '../l10n/app_localizations.dart';
-import '../theme/app_theme.dart';
+import 'readonly_terminal_view.dart';
 
-/// Widget that displays structured connection progress steps.
+/// Displays structured connection progress using a read-only xterm Terminal —
+/// identical rendering to the terminal pane progress output.
 ///
-/// Renders in a terminal-like style (dark background, monospace font,
-/// [*]/[✓]/[✗] markers) to match the terminal pane progress output.
-///
-/// Used by SFTP file browser tabs (desktop and mobile) where there is no
-/// xterm terminal to write ANSI output into.
+/// Used by SFTP file browser tabs (desktop and mobile).
 class ConnectionProgress extends StatefulWidget {
   final Connection connection;
+  final double fontSize;
 
-  /// Optional extra step added after SSH connection succeeds
-  /// (e.g. "Opening SFTP channel").
+  /// Custom label for [ConnectionPhase.openChannel].
+  /// Defaults to "Opening shell…" when null; SFTP tabs pass "Opening SFTP…".
   final String? channelLabel;
 
   const ConnectionProgress({
     super.key,
     required this.connection,
+    this.fontSize = 14.0,
     this.channelLabel,
   });
 
@@ -33,124 +34,51 @@ class ConnectionProgress extends StatefulWidget {
 }
 
 class ConnectionProgressState extends State<ConnectionProgress> {
-  final _steps = <ConnectionStep>[];
+  late final Terminal _terminal;
+  ProgressTracker? _tracker;
+  late ProgressWriter _writer;
   StreamSubscription<ConnectionStep>? _sub;
 
   @override
   void initState() {
     super.initState();
-    // Replay buffered history (handles late subscription)
-    _steps.addAll(widget.connection.progressHistory);
-    _sub = widget.connection.progressStream.listen((step) {
-      if (mounted) setState(() => _steps.add(step));
-    });
+    _terminal = Terminal(maxLines: 50);
+    _tracker = ProgressTracker(widget.connection);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_sub != null) return; // already subscribed
+    _writer = ProgressWriter(
+      terminal: _terminal,
+      l10n: S.of(context),
+      config: widget.connection.sshConfig,
+      channelLabel: widget.channelLabel,
+    );
+    _sub = _writer.subscribe(_tracker!);
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _tracker?.dispose();
     super.dispose();
   }
 
-  /// Add a local step (not from the connection stream) — used for
-  /// channel-specific progress like "Opening SFTP channel".
+  /// Add a consumer-local step (e.g. "Opening SFTP channel").
+  /// Does NOT propagate to the shared [Connection.progressStream].
   void addStep(ConnectionStep step) {
-    if (mounted) setState(() => _steps.add(step));
+    _tracker?.addLocalStep(step);
+  }
+
+  /// Write a localized error message to the progress terminal.
+  void writeError(String message) {
+    _terminal.write('\x1B[?25h\x1B[31m$message\x1B[0m\r\n');
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    final config = widget.connection.sshConfig;
-
-    // Collapse inProgress steps that have a subsequent success/failed step
-    // for the same phase — only show the final state.
-    final visible = _collapseSteps(_steps);
-
-    return Container(
-      color: AppTheme.bg2,
-      padding: const EdgeInsets.all(4),
-      alignment: Alignment.topLeft,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final step in visible)
-            _StepLine(step: step, config: config, l10n: l10n),
-        ],
-      ),
-    );
+    return ReadOnlyTerminalView(terminal: _terminal, fontSize: widget.fontSize);
   }
-
-  /// Collapse consecutive inProgress→success/failed pairs for the same phase
-  /// into just the final step.
-  static List<ConnectionStep> _collapseSteps(List<ConnectionStep> steps) {
-    final result = <ConnectionStep>[];
-    for (var i = 0; i < steps.length; i++) {
-      final step = steps[i];
-      if (step.status == StepStatus.inProgress) {
-        // Check if next step is the resolution for this phase
-        final hasResolution =
-            i + 1 < steps.length &&
-            steps[i + 1].phase == step.phase &&
-            steps[i + 1].status != StepStatus.inProgress;
-        if (hasResolution) continue; // skip inProgress, show resolution
-      }
-      result.add(step);
-    }
-    return result;
-  }
-}
-
-class _StepLine extends StatelessWidget {
-  final ConnectionStep step;
-  final SSHConfig config;
-  final S l10n;
-
-  const _StepLine({
-    required this.step,
-    required this.config,
-    required this.l10n,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final (marker, color) = switch (step.status) {
-      StepStatus.inProgress => ('[*]', AppTheme.yellow),
-      StepStatus.success => ('[✓]', AppTheme.green),
-      StepStatus.failed => ('[✗]', AppTheme.red),
-    };
-
-    final label = _phaseLabel(step.phase);
-    final suffix = step.status == StepStatus.inProgress ? '...' : '';
-    final detail = step.detail != null ? ': ${step.detail}' : '';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: marker,
-              style: AppFonts.mono(fontSize: AppFonts.sm, color: color),
-            ),
-            TextSpan(
-              text: ' $label$suffix$detail',
-              style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _phaseLabel(ConnectionPhase phase) => switch (phase) {
-    ConnectionPhase.socketConnect => l10n.progressConnecting(
-      config.host,
-      config.effectivePort,
-    ),
-    ConnectionPhase.hostKeyVerify => l10n.progressVerifyingHostKey,
-    ConnectionPhase.authenticate => l10n.progressAuthenticating(config.user),
-    ConnectionPhase.openChannel => l10n.progressOpeningSftp,
-  };
 }

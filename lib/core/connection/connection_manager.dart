@@ -74,6 +74,9 @@ class ConnectionManager {
     return conn;
   }
 
+  /// Connection timeout — applied at the transport level, not in UI.
+  static const connectionTimeout = Duration(seconds: 30);
+
   /// Background connection logic.
   Future<void> _doConnect(Connection conn, SSHConfig config) async {
     final sshConn = _connectionFactory(config, knownHosts);
@@ -84,23 +87,66 @@ class ConnectionManager {
     };
 
     try {
-      await sshConn.connect(onProgress: (step) => conn.addProgressStep(step));
+      await sshConn
+          .connect(onProgress: (step) => conn.addProgressStep(step))
+          .timeout(connectionTimeout);
       conn.sshConnection = sshConn;
       conn.state = SSHConnectionState.connected;
       AppLogger.instance.log('Connected: ${conn.label}', name: 'Connection');
-      conn.completeReady();
-      _notify();
+    } on TimeoutException {
+      AppLogger.instance.log(
+        'Connection timed out after ${connectionTimeout.inSeconds}s',
+        name: 'Connection',
+      );
+      sshConn.disconnect();
+      conn.state = SSHConnectionState.disconnected;
+      conn.connectionError = TimeoutException(
+        'Connection timed out',
+        connectionTimeout,
+      );
     } catch (e) {
       AppLogger.instance.log(
         'Connection failed: $e',
         name: 'Connection',
         error: e,
       );
+      sshConn.disconnect();
       conn.state = SSHConnectionState.disconnected;
       conn.connectionError = e;
+    } finally {
       conn.completeReady();
       _notify();
     }
+  }
+
+  /// Reconnect an existing connection.
+  ///
+  /// Resets progress stream, disconnects old SSH, and runs a fresh
+  /// connection attempt in the background — same as [connectAsync] but
+  /// reuses the existing [Connection] object so all tabs see the update.
+  void reconnect(String id, {SSHConfig? updatedConfig}) {
+    final conn = _connections[id];
+    if (conn == null) return;
+
+    // Tear down old SSH connection
+    conn.sshConnection?.disconnect();
+    conn.sshConnection = null;
+
+    // Apply updated config if provided (e.g. session was edited)
+    if (updatedConfig != null) conn.sshConfig = updatedConfig;
+
+    // Reset for fresh progress
+    conn.resetForReconnect();
+    conn.state = SSHConnectionState.connecting;
+    _notify();
+
+    AppLogger.instance.log(
+      'Reconnecting to ${conn.sshConfig.host}:${conn.sshConfig.port} '
+      'as ${conn.sshConfig.user}',
+      name: 'Connection',
+    );
+
+    _doConnect(conn, conn.sshConfig);
   }
 
   /// Disconnect a specific connection.

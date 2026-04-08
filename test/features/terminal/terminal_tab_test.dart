@@ -746,7 +746,7 @@ void main() {
       expect(conn.connectionError, isNotNull);
     });
 
-    testWidgets('reconnect shows loading spinner during attempt', (
+    testWidgets('reconnect shows TilingView with TerminalPane during attempt', (
       tester,
     ) async {
       final key = GlobalKey<TerminalTabState>();
@@ -788,10 +788,9 @@ void main() {
       key.currentState!.reconnect();
       await tester.pump(); // single pump to see loading state
 
-      // Should show loading spinner, not TilingView or error
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.byType(TilingView), findsNothing);
-      expect(find.byIcon(Icons.error_outline), findsNothing);
+      // TerminalPane shows progress in terminal buffer — no spinner
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.byType(TerminalPane), findsOneWidget);
 
       // Complete and clean up
       completer.complete();
@@ -1005,12 +1004,13 @@ void main() {
       expect(find.byType(TilingView), findsOneWidget);
       expect(conn.connectionError, isNotNull);
 
-      // Second reconnect attempt — should show spinner
+      // Second reconnect attempt — resets to fresh TilingView
       key.currentState!.reconnect();
       await tester.pump();
 
-      // Loading spinner visible during reconnect
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // TerminalPane shows progress — no spinner
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.byType(TerminalPane), findsOneWidget);
 
       // Clean up
       completer.complete();

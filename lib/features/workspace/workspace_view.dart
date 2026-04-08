@@ -293,10 +293,20 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   VoidCallback? _retryCallback(PanelLeaf panel) {
     final tab = panel.activeTab;
     if (tab == null) return null;
-    if (tab.kind != TabKind.terminal) return null;
-    final state = _terminalKeys[tab.id]?.currentState;
-    if (state == null) return null;
-    return () => state.reconnect();
+    if (tab.kind == TabKind.terminal) {
+      final state = _terminalKeys[tab.id]?.currentState;
+      if (state == null) return null;
+      return () => state.reconnect();
+    }
+    // SFTP tab — reconnect SSH via ConnectionManager, then close + re-open
+    // the SFTP tab so FileBrowserTab re-runs _initSftp on the fresh connection.
+    return () {
+      final manager = ref.read(connectionManagerProvider);
+      manager.reconnect(tab.connection.id);
+      final notifier = ref.read(workspaceProvider.notifier);
+      notifier.closeTab(panel.id, tab.id);
+      notifier.addSftpTab(tab.connection, panelId: panel.id);
+    };
   }
 
   void _showTabContextMenu(
@@ -419,10 +429,13 @@ class _PanelConnectionBar extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (conn.isConnected)
-            _companionButton(context, isTerminal, ref, scheme),
-          if (!conn.isConnected && onRetry != null)
+          if (!conn.isConnected &&
+              conn.connectionError != null &&
+              onRetry != null) ...[
             _retryButton(context, scheme),
+            const SizedBox(width: 4),
+          ],
+          _companionButton(context, isTerminal, ref, scheme),
         ],
       ),
     );
@@ -665,12 +678,15 @@ class _WorkspaceEdgeDropTargetState extends State<_WorkspaceEdgeDropTarget> {
     );
   }
 
+  /// Offset edge zones below the tab bar so they don't intercept tab drags.
+  static const _tabBarOffset = AppTheme.barHeightSm;
+
   List<Widget> _buildEdgeListeners(BoxConstraints constraints) {
     return [
-      // Left edge
+      // Left edge — starts below tab bar
       Positioned(
         left: 0,
-        top: 0,
+        top: _tabBarOffset,
         bottom: 0,
         child: SizedBox(
           width: _edgeSize,
@@ -690,10 +706,10 @@ class _WorkspaceEdgeDropTargetState extends State<_WorkspaceEdgeDropTarget> {
           ),
         ),
       ),
-      // Right edge
+      // Right edge — starts below tab bar
       Positioned(
         right: 0,
-        top: 0,
+        top: _tabBarOffset,
         bottom: 0,
         child: SizedBox(
           width: _edgeSize,
@@ -713,11 +729,11 @@ class _WorkspaceEdgeDropTargetState extends State<_WorkspaceEdgeDropTarget> {
           ),
         ),
       ),
-      // Top edge
+      // Top edge — starts below tab bar
       Positioned(
         left: _edgeSize,
         right: _edgeSize,
-        top: 0,
+        top: _tabBarOffset,
         child: SizedBox(
           height: _edgeSize,
           child: DragTarget<TabDragData>(

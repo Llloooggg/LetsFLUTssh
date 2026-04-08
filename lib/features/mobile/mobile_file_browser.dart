@@ -10,6 +10,7 @@ import '../../core/sftp/sftp_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/sftp/sftp_models.dart';
+import '../../providers/config_provider.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
@@ -68,10 +69,12 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     if (!conn.isConnected) {
       if (mounted) {
         final l10n = S.of(context);
+        final error = conn.connectionError != null
+            ? localizeError(l10n, conn.connectionError!)
+            : l10n.errConnectionFailed;
+        _progressKey.currentState?.writeError(error);
         setState(() {
-          _error = conn.connectionError != null
-              ? localizeError(l10n, conn.connectionError!)
-              : l10n.errConnectionFailed;
+          _error = error;
           _initializing = false;
         });
       }
@@ -124,38 +127,12 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
 
   @override
   Widget build(BuildContext context) {
-    if (_initializing) {
+    if (_initializing || _error != null) {
       return ConnectionProgress(
         key: _progressKey,
         connection: widget.connection,
+        fontSize: ref.read(configProvider).fontSize,
         channelLabel: S.of(context).progressOpeningSftp,
-      );
-    }
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              size: 48,
-              color: AppTheme.disconnected,
-            ),
-            const SizedBox(height: 8),
-            Text(_error!),
-            const SizedBox(height: 16),
-            FilledButton.tonal(
-              onPressed: () {
-                setState(() {
-                  _initializing = true;
-                  _error = null;
-                });
-                _initSftp();
-              },
-              child: Text(S.of(context).retry),
-            ),
-          ],
-        ),
       );
     }
 

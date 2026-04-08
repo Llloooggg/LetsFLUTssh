@@ -4,8 +4,8 @@ import 'package:xterm/xterm.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../ssh/ssh_config.dart';
-import 'connection.dart';
 import 'connection_step.dart';
+import 'progress_tracker.dart';
 
 /// ANSI escape codes for terminal progress display.
 abstract final class _Ansi {
@@ -27,22 +27,27 @@ class ProgressWriter {
   final S l10n;
   final SSHConfig config;
 
+  /// Custom label for [ConnectionPhase.openChannel].
+  /// Defaults to [S.progressOpeningShell] when null.
+  final String? channelLabel;
+
   ProgressWriter({
     required this.terminal,
     required this.l10n,
     required this.config,
+    this.channelLabel,
   });
 
-  /// Subscribe to [connection.progressStream] and write steps to [terminal].
+  /// Subscribe to [tracker] and write steps to [terminal].
   ///
   /// Replays any buffered history first (handles late subscription), then
   /// listens for new steps. Returns the subscription so the caller can cancel.
-  StreamSubscription<ConnectionStep> subscribe(Connection connection) {
+  StreamSubscription<ConnectionStep> subscribe(ProgressTracker tracker) {
     terminal.write(_Ansi.hideCursor);
-    for (final step in connection.progressHistory) {
+    for (final step in tracker.history) {
       writeStep(step);
     }
-    return connection.progressStream.listen(writeStep);
+    return tracker.stream.listen(writeStep);
   }
 
   /// Write a single progress step to the terminal.
@@ -77,6 +82,6 @@ class ProgressWriter {
     ),
     ConnectionPhase.hostKeyVerify => l10n.progressVerifyingHostKey,
     ConnectionPhase.authenticate => l10n.progressAuthenticating(config.user),
-    ConnectionPhase.openChannel => l10n.progressOpeningShell,
+    ConnectionPhase.openChannel => channelLabel ?? l10n.progressOpeningShell,
   };
 }

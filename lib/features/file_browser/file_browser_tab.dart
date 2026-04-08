@@ -13,8 +13,6 @@ import '../../utils/logger.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/connection_progress.dart';
-import '../../widgets/error_state.dart';
-
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/sftp/sftp_client.dart';
@@ -110,10 +108,12 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     if (!conn.isConnected) {
       if (mounted) {
         final l10n = S.of(context);
+        final error = conn.connectionError != null
+            ? localizeError(l10n, conn.connectionError!)
+            : l10n.errConnectionFailed;
+        _progressKey.currentState?.writeError(error);
         setState(() {
-          _error = conn.connectionError != null
-              ? localizeError(l10n, conn.connectionError!)
-              : l10n.errConnectionFailed;
+          _error = error;
           _initializing = false;
         });
       }
@@ -160,8 +160,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_initializing) return _buildLoading();
-    if (_error != null) return _buildError();
+    if (_initializing || _error != null) return _buildLoading();
 
     final local = _localCtrl;
     final remote = _remoteCtrl;
@@ -192,20 +191,8 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     return ConnectionProgress(
       key: _progressKey,
       connection: widget.connection,
+      fontSize: ref.read(configProvider).fontSize,
       channelLabel: S.of(context).progressOpeningSftp,
-    );
-  }
-
-  Widget _buildError() {
-    return ErrorState(
-      message: _error!,
-      onRetry: () {
-        setState(() {
-          _initializing = true;
-          _error = null;
-        });
-        _initSftp();
-      },
     );
   }
 
