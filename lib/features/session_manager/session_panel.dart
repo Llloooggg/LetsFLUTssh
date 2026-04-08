@@ -673,10 +673,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               ),
               const AppDivider(),
               ListTile(
-                leading: const Icon(Icons.delete, color: AppTheme.disconnected),
+                leading: Icon(Icons.delete, color: AppTheme.disconnected),
                 title: Text(
                   S.of(ctx).delete,
-                  style: const TextStyle(color: AppTheme.disconnected),
+                  style: TextStyle(color: AppTheme.disconnected),
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -814,7 +814,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     WidgetRef ref,
     String folderPath,
   ) {
-    final folderName = folderPath.isEmpty ? 'Root' : folderPath.split('/').last;
+    final folderName = folderPath.isEmpty
+        ? S.of(context).root
+        : folderPath.split('/').last;
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -862,13 +864,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(
-                    Icons.delete,
-                    color: AppTheme.disconnected,
-                  ),
+                  leading: Icon(Icons.delete, color: AppTheme.disconnected),
                   title: Text(
                     S.of(ctx).deleteFolder,
-                    style: const TextStyle(color: AppTheme.disconnected),
+                    style: TextStyle(color: AppTheme.disconnected),
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -915,7 +914,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final result = await _showFolderNameDialog(
       context,
       title: S.of(context).newFolder,
-      confirmLabel: 'Create',
+      confirmLabel: S.of(context).create,
       existingFolders: existingFolders,
       parentPath: parentFolder,
     );
@@ -945,7 +944,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final result = await _showFolderNameDialog(
       context,
       title: S.of(context).renameFolder,
-      confirmLabel: 'Rename',
+      confirmLabel: S.of(context).rename,
       initialValue: currentName,
       existingFolders: existingFolders,
       parentPath: parentPath,
@@ -1015,7 +1014,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                     existingFolders.contains(fullPath);
                 setDialogState(() {
                   errorText = isDuplicate
-                      ? 'Folder "$name" already exists'
+                      ? S.of(context).folderAlreadyExists(name)
                       : null;
                 });
               },
@@ -1046,7 +1045,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'FOLDER NAME',
+            S.of(context).folderNameLabel,
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: AppFonts.xs,
@@ -1159,7 +1158,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       context,
       title: S.of(context).deleteSession,
       content: Text(
-        'Delete "${session.label.isNotEmpty ? session.label : session.displayName}"?',
+        S
+            .of(context)
+            .deleteSessionConfirm(
+              session.label.isNotEmpty ? session.label : session.displayName,
+            ),
       ),
     );
     if (confirmed) {
@@ -1435,9 +1438,9 @@ class _SidebarFooter extends ConsumerWidget {
     final theme = Theme.of(context);
     final Color? connectionIconColor;
     if (connectedCount > 0) {
-      connectionIconColor = AppTheme.connectedColor(theme.brightness);
+      connectionIconColor = AppTheme.connected;
     } else if (connectingCount > 0) {
-      connectionIconColor = AppTheme.connectingColor(theme.brightness);
+      connectionIconColor = AppTheme.connecting;
     } else {
       connectionIconColor = null;
     }

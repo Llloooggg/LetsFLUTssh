@@ -215,7 +215,7 @@ void main() {
       }).toList();
       expect(dots, isNotEmpty);
       final dotDec = dots.first.decoration as BoxDecoration;
-      expect(dotDec.color, AppTheme.connectedColor(Brightness.dark));
+      expect(dotDec.color, AppTheme.connected);
     });
 
     testWidgets('disconnected tab shows faint dot', (tester) async {
@@ -255,7 +255,7 @@ void main() {
       }).toList();
       expect(dots, isNotEmpty);
       final dotDec = dots.first.decoration as BoxDecoration;
-      expect(dotDec.color, AppTheme.connectingColor(Brightness.dark));
+      expect(dotDec.color, AppTheme.connecting);
     });
   });
 

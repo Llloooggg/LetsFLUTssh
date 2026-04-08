@@ -28,7 +28,10 @@ void main() {
         state: SSHConnectionState.disconnected,
       );
 
-      expect(() => ShellHelper.openShell(connection: conn, terminal: Terminal()), throwsA(isA<StateError>()));
+      expect(
+        () => ShellHelper.openShell(connection: conn, terminal: Terminal()),
+        throwsA(isA<StateError>()),
+      );
     });
 
     test('throws StateError when sshConnection.isConnected is false', () async {
@@ -45,7 +48,10 @@ void main() {
         state: SSHConnectionState.disconnected,
       );
 
-      expect(() => ShellHelper.openShell(connection: conn, terminal: Terminal()), throwsA(isA<StateError>()));
+      expect(
+        () => ShellHelper.openShell(connection: conn, terminal: Terminal()),
+        throwsA(isA<StateError>()),
+      );
     });
 
     test('opens shell and wires streams on success', () async {
@@ -73,7 +79,10 @@ void main() {
       );
 
       final terminal = Terminal();
-      final result = await ShellHelper.openShell(connection: conn, terminal: terminal);
+      final result = await ShellHelper.openShell(
+        connection: conn,
+        terminal: terminal,
+      );
 
       expect(result, isNotNull);
       expect(result.shell, mockSession);
@@ -118,7 +127,10 @@ void main() {
         state: SSHConnectionState.connected,
       );
 
-      final result = await ShellHelper.openShell(connection: conn, terminal: Terminal());
+      final result = await ShellHelper.openShell(
+        connection: conn,
+        terminal: Terminal(),
+      );
 
       expect(attempts, 3);
       expect(result.shell, mockSession);
@@ -144,7 +156,11 @@ void main() {
       );
 
       expect(
-        () => ShellHelper.openShell(connection: conn, terminal: Terminal(), maxAttempts: 2),
+        () => ShellHelper.openShell(
+          connection: conn,
+          terminal: Terminal(),
+          maxAttempts: 2,
+        ),
         throwsA(isA<Exception>()),
       );
     });
@@ -174,7 +190,11 @@ void main() {
       );
 
       var doneCalled = false;
-      await ShellHelper.openShell(connection: conn, terminal: Terminal(), onDone: () => doneCalled = true);
+      await ShellHelper.openShell(
+        connection: conn,
+        terminal: Terminal(),
+        onDone: () => doneCalled = true,
+      );
 
       // Simulate shell closing
       doneCompleter.complete();
@@ -211,7 +231,10 @@ void main() {
       );
 
       final terminal = Terminal();
-      final result = await ShellHelper.openShell(connection: conn, terminal: terminal);
+      final result = await ShellHelper.openShell(
+        connection: conn,
+        terminal: terminal,
+      );
 
       // Simulate terminal output (user typing)
       terminal.onOutput?.call('ls\n');
@@ -231,13 +254,49 @@ void main() {
 
       final stdoutSub = stdoutCtrl.stream.listen((_) {});
       final stderrSub = stderrCtrl.stream.listen((_) {});
+      final terminal = Terminal();
 
-      final shellConn = ShellConnection(shell: mockSession, stdoutSub: stdoutSub, stderrSub: stderrSub);
+      final shellConn = ShellConnection(
+        shell: mockSession,
+        stdoutSub: stdoutSub,
+        stderrSub: stderrSub,
+        terminal: terminal,
+      );
 
       shellConn.close();
 
       // Verify shell was closed
       verify(mockSession.close()).called(1);
+
+      await stdoutCtrl.close();
+      await stderrCtrl.close();
+    });
+
+    test('close clears terminal onOutput and onResize callbacks', () async {
+      final mockSession = MockSSHSession();
+      final stdoutCtrl = StreamController<Uint8List>();
+      final stderrCtrl = StreamController<Uint8List>();
+
+      final stdoutSub = stdoutCtrl.stream.listen((_) {});
+      final stderrSub = stderrCtrl.stream.listen((_) {});
+      final terminal = Terminal();
+      terminal.onOutput = (_) {};
+      terminal.onResize = (_, _, _, _) {};
+
+      final shellConn = ShellConnection(
+        shell: mockSession,
+        stdoutSub: stdoutSub,
+        stderrSub: stderrSub,
+        terminal: terminal,
+      );
+
+      expect(terminal.onOutput, isNotNull);
+      expect(terminal.onResize, isNotNull);
+
+      shellConn.close();
+
+      expect(terminal.onOutput, isNull);
+      expect(terminal.onResize, isNull);
 
       await stdoutCtrl.close();
       await stderrCtrl.close();

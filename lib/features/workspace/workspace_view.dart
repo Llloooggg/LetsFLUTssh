@@ -47,9 +47,13 @@ class WorkspaceView extends ConsumerStatefulWidget {
 
 class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   final Map<String, GlobalKey<TerminalTabState>> _terminalKeys = {};
+  final Map<String, GlobalKey> _fileBrowserKeys = {};
 
   GlobalKey<TerminalTabState> _keyForTab(String tabId) =>
       _terminalKeys.putIfAbsent(tabId, () => GlobalKey<TerminalTabState>());
+
+  GlobalKey _keyForFileBrowser(String tabId) =>
+      _fileBrowserKeys.putIfAbsent(tabId, () => GlobalKey());
 
   /// Returns the [TerminalTabState] for the given tab id (if it exists).
   TerminalTabState? terminalStateFor(String tabId) =>
@@ -61,9 +65,10 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     // Watch connection state changes so status dots update.
     ref.watch(connectionsProvider);
 
-    // Clean up stale terminal keys.
+    // Clean up stale keys.
     final allTabIds = collectAllTabs(ws.root).map((t) => t.id).toSet();
     _terminalKeys.removeWhere((id, _) => !allTabIds.contains(id));
+    _fileBrowserKeys.removeWhere((id, _) => !allTabIds.contains(id));
 
     if (!ws.hasTabs) return const WelcomeScreen();
 
@@ -202,7 +207,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
                               connection: tab.connection,
                             ),
                             TabKind.sftp => FileBrowserTab(
-                              key: ValueKey(tab.id),
+                              key: _keyForFileBrowser(tab.id),
                               connection: tab.connection,
                               crossMarquee: widget.crossMarquee,
                               reverseCrossMarquee: widget.reverseCrossMarquee,
@@ -227,40 +232,20 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   }
 
   void _handleDrop(TabDragData data, String targetPanelId, DropZone zone) {
+    if (zone == DropZone.center) return; // Inert — tab bar handles insertion.
     final notifier = ref.read(workspaceProvider.notifier);
-    switch (zone) {
-      case DropZone.center:
-        return; // Inert — tab bar handles insertion.
-      case DropZone.left:
-        notifier.splitPanel(
-          targetPanelId,
-          Axis.horizontal,
-          data.tab,
-          insertBefore: true,
-        );
-        if (data.sourcePanelId != targetPanelId) {
-          notifier.closeTab(data.sourcePanelId, data.tab.id);
-        }
-      case DropZone.right:
-        notifier.splitPanel(targetPanelId, Axis.horizontal, data.tab);
-        if (data.sourcePanelId != targetPanelId) {
-          notifier.closeTab(data.sourcePanelId, data.tab.id);
-        }
-      case DropZone.top:
-        notifier.splitPanel(
-          targetPanelId,
-          Axis.vertical,
-          data.tab,
-          insertBefore: true,
-        );
-        if (data.sourcePanelId != targetPanelId) {
-          notifier.closeTab(data.sourcePanelId, data.tab.id);
-        }
-      case DropZone.bottom:
-        notifier.splitPanel(targetPanelId, Axis.vertical, data.tab);
-        if (data.sourcePanelId != targetPanelId) {
-          notifier.closeTab(data.sourcePanelId, data.tab.id);
-        }
+    final axis = zone == DropZone.left || zone == DropZone.right
+        ? Axis.horizontal
+        : Axis.vertical;
+    final insertBefore = zone == DropZone.left || zone == DropZone.top;
+    notifier.splitPanel(
+      targetPanelId,
+      axis,
+      data.tab,
+      insertBefore: insertBefore,
+    );
+    if (data.sourcePanelId != targetPanelId) {
+      notifier.closeTab(data.sourcePanelId, data.tab.id);
     }
   }
 
@@ -784,48 +769,5 @@ class _WorkspaceEdgeDropTargetState extends State<_WorkspaceEdgeDropTarget> {
     }
   }
 
-  Widget _buildEdgeOverlay(DropZone zone) {
-    final color = AppTheme.accent.withValues(alpha: 0.15);
-    final border = Border.all(color: AppTheme.accent, width: 2);
-
-    Alignment alignment;
-    double widthFactor;
-    double heightFactor;
-
-    switch (zone) {
-      case DropZone.left:
-        alignment = Alignment.centerLeft;
-        widthFactor = 0.5;
-        heightFactor = 1.0;
-      case DropZone.right:
-        alignment = Alignment.centerRight;
-        widthFactor = 0.5;
-        heightFactor = 1.0;
-      case DropZone.top:
-        alignment = Alignment.topCenter;
-        widthFactor = 1.0;
-        heightFactor = 0.5;
-      case DropZone.bottom:
-        alignment = Alignment.bottomCenter;
-        widthFactor = 1.0;
-        heightFactor = 0.5;
-      case DropZone.center:
-        return const SizedBox.shrink();
-    }
-
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: Align(
-          alignment: alignment,
-          child: FractionallySizedBox(
-            widthFactor: widthFactor,
-            heightFactor: heightFactor,
-            child: Container(
-              decoration: BoxDecoration(color: color, border: border),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildEdgeOverlay(DropZone zone) => buildDropZoneOverlay(zone);
 }

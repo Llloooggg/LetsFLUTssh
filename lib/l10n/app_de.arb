@@ -165,12 +165,10 @@
   "showSidebar": "Seitenleiste einblenden (Ctrl+B)",
   "language": "Sprache",
   "languageSystemDefault": "Auto",
-
   "theme": "Thema",
   "themeDark": "Dunkel",
   "themeLight": "Hell",
   "themeSystem": "System",
-
   "appearance": "Darstellung",
   "connectionSection": "Verbindung",
   "transfers": "Übertragungen",
@@ -314,11 +312,12 @@
   "nSubitems": "{count} Element(e)",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "Elemente",
-
   "storagePermissionRequired": "Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen",
   "grantPermission": "Berechtigung erteilen",
   "storagePermissionLimited": "Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien",
@@ -326,5 +325,34 @@
   "progressVerifyingHostKey": "Hostschlüssel wird überprüft",
   "progressAuthenticating": "Authentifizierung als {user}",
   "progressOpeningShell": "Shell wird geöffnet",
-  "progressOpeningSftp": "SFTP-Kanal wird geöffnet"
+  "progressOpeningSftp": "SFTP-Kanal wird geöffnet",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }

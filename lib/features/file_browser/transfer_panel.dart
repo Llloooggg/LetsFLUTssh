@@ -119,7 +119,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Transfers:',
+                        S.of(context).transfersLabel,
                         style: AppFonts.inter(
                           fontSize: AppFonts.xs,
                           fontWeight: FontWeight.w500,
@@ -129,14 +129,14 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                       const SizedBox(width: 6),
                       if (status != null) ...[
                         Text(
-                          '${status.running} active',
+                          S.of(context).transferCountActive(status.running),
                           style: AppFonts.inter(
                             fontSize: AppFonts.xs,
                             color: AppTheme.accent,
                           ),
                         ),
                         Text(
-                          ', ${status.queued} queued',
+                          S.of(context).transferCountQueued(status.queued),
                           style: AppFonts.inter(
                             fontSize: AppFonts.xs,
                             color: AppTheme.fgDim,
@@ -146,7 +146,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                       const Spacer(),
                       historyAsync.when(
                         data: (history) => Text(
-                          '${history.length} in history',
+                          S.of(context).transferCountInHistory(history.length),
                           style: AppFonts.inter(
                             fontSize: AppFonts.xxs,
                             color: AppTheme.fgFaint,
@@ -669,7 +669,7 @@ class _HistoryRow extends StatelessWidget {
           SizedBox(
             width: timeWidth,
             child: Tooltip(
-              message: _timeTooltip(entry),
+              message: _timeTooltip(entry, S.of(context)),
               child: Text(
                 _timeDisplay(entry),
                 style: AppFonts.mono(
@@ -694,17 +694,17 @@ class _HistoryRow extends StatelessWidget {
     return formatTimestamp(ts);
   }
 
-  static String _timeTooltip(HistoryEntry entry) {
+  static String _timeTooltip(HistoryEntry entry, S loc) {
     final parts = <String>[];
-    parts.add('Created: ${formatTimestamp(entry.createdAt)}');
+    parts.add(loc.transferTooltipCreated(formatTimestamp(entry.createdAt)));
     if (entry.startedAt != null) {
-      parts.add('Started: ${formatTimestamp(entry.startedAt!)}');
+      parts.add(loc.transferTooltipStarted(formatTimestamp(entry.startedAt!)));
     }
     if (entry.endedAt != null) {
-      parts.add('Ended: ${formatTimestamp(entry.endedAt!)}');
+      parts.add(loc.transferTooltipEnded(formatTimestamp(entry.endedAt!)));
     }
     if (entry.duration != null) {
-      parts.add('Duration: ${formatDuration(entry.duration!)}');
+      parts.add(loc.transferTooltipDuration(formatDuration(entry.duration!)));
     }
     return parts.join('\n');
   }
@@ -849,7 +849,9 @@ class _ActiveRow extends StatelessWidget {
               SizedBox(
                 width: sizeWidth,
                 child: Text(
-                  isQueued ? 'Queued' : '${entry.percent.toStringAsFixed(0)}%',
+                  isQueued
+                      ? S.of(context).transferStatusQueued
+                      : '${entry.percent.toStringAsFixed(0)}%',
                   style: AppFonts.mono(
                     fontSize: AppFonts.xs,
                     color: AppTheme.accent,

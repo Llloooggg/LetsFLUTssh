@@ -13,7 +13,7 @@ Future<void> writeFileAtomic(String path, String content) async {
   final tmp = File('$path.tmp${_rng.nextInt(1 << 30)}');
   try {
     await tmp.writeAsString(content);
-    restrictFilePermissions(tmp.path);
+    await restrictFilePermissions(tmp.path);
     await tmp.rename(path);
   } catch (e) {
     AppLogger.instance.log(
@@ -34,7 +34,7 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
   final tmp = File('$path.tmp${_rng.nextInt(1 << 30)}');
   try {
     await tmp.writeAsBytes(bytes);
-    restrictFilePermissions(tmp.path);
+    await restrictFilePermissions(tmp.path);
     await tmp.rename(path);
   } catch (e) {
     AppLogger.instance.log(
@@ -50,10 +50,10 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
 
 /// Set file permissions to owner-only (0600) on Unix systems.
 /// No-op on Windows.
-void restrictFilePermissions(String path) {
+Future<void> restrictFilePermissions(String path) async {
   if (Platform.isLinux || Platform.isMacOS) {
     try {
-      final result = Process.runSync('chmod', ['600', path]);
+      final result = await Process.run('chmod', ['600', path]);
       if (result.exitCode != 0) {
         AppLogger.instance.log(
           'chmod 600 failed: ${result.stderr}',

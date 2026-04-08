@@ -150,6 +150,7 @@ class Session {
       folder: folder,
       server: ServerAddress(host: host, port: port, user: user),
       auth: SessionAuth(
+        authType: auth.authType,
         password: password,
         keyPath: auth.keyPath,
         keyData: keyData,

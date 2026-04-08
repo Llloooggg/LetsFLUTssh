@@ -47,7 +47,11 @@ void main() {
     test('displayName without label', () {
       final s = Session(
         label: '',
-        server: const ServerAddress(host: 'example.com', port: 2222, user: 'root'),
+        server: const ServerAddress(
+          host: 'example.com',
+          port: 2222,
+          user: 'root',
+        ),
       );
       expect(s.displayName, 'root@example.com:2222');
     });
@@ -104,12 +108,33 @@ void main() {
       expect(identical(copy.auth, s.auth), isFalse);
     });
 
+    test('duplicate preserves authType', () {
+      final s = Session(
+        label: 'key-session',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(
+          authType: AuthType.keyWithPassword,
+          keyPath: '/key',
+          passphrase: 'pp',
+        ),
+      );
+      final copy = s.duplicate();
+      expect(copy.authType, AuthType.keyWithPassword);
+    });
+
     test('JSON roundtrip', () {
       final s = Session(
         label: 'prod',
         folder: 'Servers/Web',
-        server: const ServerAddress(host: 'example.com', port: 2222, user: 'admin'),
-        auth: const SessionAuth(authType: AuthType.key, keyPath: '/home/.ssh/id_rsa'),
+        server: const ServerAddress(
+          host: 'example.com',
+          port: 2222,
+          user: 'admin',
+        ),
+        auth: const SessionAuth(
+          authType: AuthType.key,
+          keyPath: '/home/.ssh/id_rsa',
+        ),
       );
       final json = s.toJson();
       final restored = Session.fromJson(json);
@@ -127,7 +152,10 @@ void main() {
         label: 'a',
         server: const ServerAddress(host: 'b', user: 'c'),
       );
-      final updated = s.copyWith(label: 'new', server: s.server.copyWith(port: 3333));
+      final updated = s.copyWith(
+        label: 'new',
+        server: s.server.copyWith(port: 3333),
+      );
       expect(updated.id, s.id);
       expect(updated.label, 'new');
       expect(updated.port, 3333);
@@ -154,7 +182,13 @@ void main() {
 
     test('copyWith all fields', () {
       const auth = SessionAuth();
-      final copy = auth.copyWith(authType: AuthType.key, password: 'p', keyPath: 'k', keyData: 'd', passphrase: 'pp');
+      final copy = auth.copyWith(
+        authType: AuthType.key,
+        password: 'p',
+        keyPath: 'k',
+        keyData: 'd',
+        passphrase: 'pp',
+      );
       expect(copy.authType, AuthType.key);
       expect(copy.password, 'p');
       expect(copy.keyPath, 'k');
@@ -169,8 +203,20 @@ void main() {
     });
 
     test('equality for same values', () {
-      const a = SessionAuth(authType: AuthType.key, password: 'p', keyPath: 'k', keyData: 'd', passphrase: 'pp');
-      const b = SessionAuth(authType: AuthType.key, password: 'p', keyPath: 'k', keyData: 'd', passphrase: 'pp');
+      const a = SessionAuth(
+        authType: AuthType.key,
+        password: 'p',
+        keyPath: 'k',
+        keyData: 'd',
+        passphrase: 'pp',
+      );
+      const b = SessionAuth(
+        authType: AuthType.key,
+        password: 'p',
+        keyPath: 'k',
+        keyData: 'd',
+        passphrase: 'pp',
+      );
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
     });

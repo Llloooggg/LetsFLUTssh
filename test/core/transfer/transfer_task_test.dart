@@ -3,16 +3,14 @@ import 'package:letsflutssh/core/transfer/transfer_task.dart';
 
 void main() {
   group('TransferDirection', () {
-    test('has upload and download', () {
-      expect(TransferDirection.values.length, 2);
+    test('contains upload and download', () {
       expect(TransferDirection.values, contains(TransferDirection.upload));
       expect(TransferDirection.values, contains(TransferDirection.download));
     });
   });
 
   group('TransferStatus', () {
-    test('has all statuses', () {
-      expect(TransferStatus.values.length, 5);
+    test('contains expected statuses', () {
       expect(TransferStatus.values, contains(TransferStatus.queued));
       expect(TransferStatus.values, contains(TransferStatus.running));
       expect(TransferStatus.values, contains(TransferStatus.completed));

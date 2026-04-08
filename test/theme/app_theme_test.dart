@@ -73,7 +73,11 @@ void main() {
     });
 
     test('mono passes fontSize, color, fontWeight', () {
-      final style = AppFonts.mono(fontSize: 11, color: const Color(0xFF7F848E), fontWeight: FontWeight.bold);
+      final style = AppFonts.mono(
+        fontSize: 11,
+        color: const Color(0xFF7F848E),
+        fontWeight: FontWeight.bold,
+      );
       expect(style.fontSize, 11);
       expect(style.color, const Color(0xFF7F848E));
       expect(style.fontWeight, FontWeight.bold);
@@ -85,18 +89,35 @@ void main() {
     });
   });
 
-  group('brightness-aware color resolvers', () {
-    test('connected/disconnected/connecting resolve differently per brightness', () {
-      expect(AppTheme.connectedColor(Brightness.dark), AppTheme.connected);
-      expect(AppTheme.connectedColor(Brightness.light), AppTheme.connectedLight);
-      expect(AppTheme.disconnectedColor(Brightness.dark), AppTheme.disconnected);
-      expect(AppTheme.disconnectedColor(Brightness.light), AppTheme.disconnectedLight);
-      expect(AppTheme.connectingColor(Brightness.dark), AppTheme.connecting);
-      expect(AppTheme.connectingColor(Brightness.light), AppTheme.connectingLight);
+  group('semantic colors follow brightness', () {
+    test('connected/disconnected/connecting differ between dark and light', () {
+      AppTheme.setBrightness(Brightness.dark);
+      final darkConnected = AppTheme.connected;
+      final darkDisconnected = AppTheme.disconnected;
+      final darkConnecting = AppTheme.connecting;
+
+      AppTheme.setBrightness(Brightness.light);
+      expect(AppTheme.connected, isNot(darkConnected));
+      expect(AppTheme.disconnected, isNot(darkDisconnected));
+      expect(AppTheme.connecting, isNot(darkConnecting));
+
+      AppTheme.setBrightness(Brightness.dark);
     });
 
-    test('folderColor resolves differently per brightness', () {
-      expect(AppTheme.folderColor(Brightness.dark), isNot(AppTheme.folderColor(Brightness.light)));
+    test('folderIcon differs between dark and light', () {
+      AppTheme.setBrightness(Brightness.dark);
+      final darkFolder = AppTheme.folderIcon;
+      AppTheme.setBrightness(Brightness.light);
+      expect(AppTheme.folderIcon, isNot(darkFolder));
+      AppTheme.setBrightness(Brightness.dark);
+    });
+
+    test('info differs between dark and light', () {
+      AppTheme.setBrightness(Brightness.dark);
+      final darkInfo = AppTheme.info;
+      AppTheme.setBrightness(Brightness.light);
+      expect(AppTheme.info, isNot(darkInfo));
+      AppTheme.setBrightness(Brightness.dark);
     });
   });
 

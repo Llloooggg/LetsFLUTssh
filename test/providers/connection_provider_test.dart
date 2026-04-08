@@ -35,7 +35,10 @@ void main() {
       addTearDown(container.dispose);
       final asyncValue = container.read(connectionsProvider);
       // StreamProvider starts with loading, then first yield
-      expect(asyncValue.whenOrNull(data: (d) => d, loading: () => <dynamic>[]), isNotNull);
+      expect(
+        asyncValue.whenOrNull(data: (d) => d, loading: () => <dynamic>[]),
+        isNotNull,
+      );
     });
 
     test('connectionsProvider updates when connection added', () async {
@@ -66,13 +69,17 @@ void main() {
       });
     });
 
-    test('connectionManagerProvider disposes on container dispose', () {
+    test('connectionManagerProvider disposes on container dispose', () async {
       final container = ProviderContainer();
       final manager = container.read(connectionManagerProvider);
       expect(manager.connections, isEmpty);
+
+      // Listen to onChange — it should complete when disposed.
+      final streamDone = manager.onChange.toList();
       container.dispose();
-      // After dispose, the manager should be cleaned up
-      // (disconnectAll + controller.close called)
+
+      // Stream completes (controller closed by dispose).
+      await streamDone;
     });
   });
 }

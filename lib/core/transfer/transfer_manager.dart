@@ -162,12 +162,12 @@ class TransferManager {
     _notify();
   }
 
-  Future<void> _processQueue() async {
+  void _processQueue() {
     while (_running < parallelism && _queue.isNotEmpty) {
       final entry = _queue.removeAt(0);
       _running++;
       _notify();
-      _executeTask(entry);
+      unawaited(_executeTask(entry));
     }
   }
 
@@ -276,6 +276,9 @@ class TransferManager {
     }
     final completer = Completer<void>();
     final timer = Timer(taskTimeout, () {
+      // Mark for cooperative cancellation so the actual SFTP operation
+      // aborts at the next progress callback, not just the await.
+      _cancelledIds.add(entryId);
       if (!completer.isCompleted) {
         completer.completeError(
           TimeoutException(

@@ -71,8 +71,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   }
 
   void _autoSwitchToSessionsIfNeeded(List<TabEntry> allTabs) {
-    if (_navIndex == 1 && _terminalTabCount(allTabs) == 0 ||
-        _navIndex == 2 && _sftpTabCount(allTabs) == 0) {
+    if ((_navIndex == 1 && _terminalTabCount(allTabs) == 0) ||
+        (_navIndex == 2 && _sftpTabCount(allTabs) == 0)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _navIndex = 0);
       });
@@ -685,7 +685,7 @@ class _MobileTerminalPage extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'No active terminals',
+              S.of(context).noActiveTerminals,
               style: AppFonts.inter(
                 fontSize: AppFonts.lg,
                 color: AppTheme.fgDim,
@@ -693,7 +693,7 @@ class _MobileTerminalPage extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Connect from Sessions tab',
+              S.of(context).connectFromSessionsTab,
               style: AppFonts.inter(
                 fontSize: AppFonts.sm,
                 color: AppTheme.fgFaint,

@@ -178,5 +178,9 @@ class DeepLinkHandler {
 
   void dispose() {
     _sub?.cancel();
+    onConnect = null;
+    onQrImport = null;
+    onKeyFileOpened = null;
+    onLfsFileOpened = null;
   }
 }

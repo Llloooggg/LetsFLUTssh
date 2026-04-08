@@ -243,7 +243,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     if (skipped != null) {
       ref
           .read(configProvider.notifier)
-          .update((c) => c.withSkippedVersion(null));
+          .update((c) => c.copyWith(skippedVersion: null));
     }
 
     _updateDialogShown = true;
@@ -306,7 +306,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               Navigator.pop(ctx);
               ref
                   .read(configProvider.notifier)
-                  .update((c) => c.withSkippedVersion(info.latestVersion));
+                  .update(
+                    (c) => c.copyWith(skippedVersion: info.latestVersion),
+                  );
             },
           ),
           _buildPrimaryUpdateAction(ctx, context, info, hasAsset),
@@ -661,12 +663,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   ImportService _buildImportService() {
+    final store = ref.read(sessionStoreProvider);
     return ImportService(
       addSession: (s) => ref.read(sessionProvider.notifier).add(s),
       deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
       getSessions: () => ref.read(sessionProvider),
       applyConfig: (config) =>
           ref.read(configProvider.notifier).update((_) => config),
+      getEmptyFolders: () => store.emptyFolders,
+      loadCredentials: (ids) => store.loadCredentials(ids),
+      restoreSnapshot: (sessions, folders, creds) =>
+          store.restoreSnapshot(sessions, folders, creds),
     );
   }
 }

@@ -95,7 +95,7 @@ lib/
 │   ├── sftp/                         # SFTP operations, file models, FileSystem
 │   ├── transfer/                     # File transfer queue
 │   ├── session/                      # Session model, persistence, tree, QR, history
-│   ├── connection/                   # Connection lifecycle management
+│   ├── connection/                   # Connection lifecycle, progress tracking
 │   ├── security/                     # AES-256-GCM credential storage
 │   ├── config/                       # App configuration
 │   ├── deeplink/                     # Deep link handling
@@ -111,12 +111,32 @@ lib/
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
 │   └── mobile/                       # Mobile version (bottom nav)
-├── l10n/                             # Internationalization (10 languages: en, ru, zh, de, ja, pt, es, fr, ko, ar)
+├── l10n/                             # Internationalization (15 languages: en, ru, zh, de, ja, pt, es, fr, ko, ar, fa, tr, vi, id, hi)
 ├── providers/                        # Riverpod providers (global state)
 ├── widgets/                          # Reusable UI components
 │   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
-│   ├── status_indicator.dart         # Icon + count indicator with tooltip
+│   ├── app_icon_button.dart         # Rectangular hover button (replaces Material IconButton)
+│   ├── app_bordered_box.dart        # Bordered container with guaranteed radius
+│   ├── app_divider.dart             # Standardized 1px divider
+│   ├── app_shell.dart               # Desktop layout shell (toolbar, sidebar, body, status bar)
+│   ├── clipped_row.dart             # Overflow-clipping Row replacement
 │   ├── column_resize_handle.dart    # Draggable column-resize handle for table headers
+│   ├── confirm_dialog.dart          # Confirmation dialog (delete, destructive actions)
+│   ├── connection_progress.dart     # Terminal-styled progress for non-terminal tabs
+│   ├── context_menu.dart            # Custom context menu with keyboard nav
+│   ├── cross_marquee_controller.dart # Cross-widget marquee selection notifier
+│   ├── error_state.dart             # Error display with retry/secondary actions
+│   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
+│   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
+│   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
+│   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
+│   ├── mobile_selection_bar.dart    # Mobile bulk-action toolbar
+│   ├── readonly_terminal_view.dart  # Read-only terminal display widget
+│   ├── sortable_header_cell.dart    # Column header with sort indicator
+│   ├── split_view.dart              # Horizontal resizable split
+│   ├── status_indicator.dart        # Icon + count indicator with tooltip
+│   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
+│   └── toast.dart                   # Stacked notification toasts
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -134,21 +154,25 @@ lib/
 | `ssh_client.dart` | `SSHConnection` | Wrapper over dartssh2: connect, auth, openShell, resize, keepalive, disconnect |
 | `ssh_config.dart` | `SSHConfig` | Config model (host, port, user, password, keyPath, keyData, passphrase, keepAliveSec, timeoutSec) |
 | `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed |
-| `shell_helper.dart` | `openShellWithRetry()` | Shared SSH shell open logic with retry (for desktop and mobile) |
+| `shell_helper.dart` | `openShellWithRetry()`, `ShellConnection` | Shared SSH shell open logic with retry; `ShellConnection` wraps shell + terminal callbacks, clears them on `close()` |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy with structured fields (host, port, user) for localization |
 
 #### SSHConnection — lifecycle
 
 ```dart
 class SSHConnection {
-  // DI hooks for testing
-  SSHConnection({socketFactory, clientFactory});
+  SSHConnection({
+    required SSHConfig config,
+    required KnownHostsManager knownHosts,
+    SSHSocketFactory? socketFactory,   // DI hook for testing
+    SSHClientFactory? clientFactory,   // DI hook for testing
+  });
 
-  Future<void> connect(SSHConfig config, {onHostKey});
+  Future<void> connect({ConnectionProgressCallback? onProgress});
   // 1. TCP socket (via socketFactory)
   // 2. SSH handshake (via clientFactory)
   // 3. Auth chain: keyFile → keyText → password → interactive
-  // 4. Host key verification (callback)
+  // 4. Host key verification (via knownHosts)
   // 5. Keep-alive if keepAliveSec > 0
 
   Future<SSHSession> openShell({int cols, int rows});
@@ -177,6 +201,7 @@ On failure of any step → AuthError.
 class KnownHostsManager {
   KnownHostsManager(String knownHostsPath);
 
+  Future<void> load();  // safe to call concurrently — first call does I/O, subsequent await same future
   FutureOr<bool> verify(String host, int port, String type, Uint8List fingerprint);
   // → true: key matches / user accepted
   // → false: user rejected / key changed and rejected
@@ -184,6 +209,9 @@ class KnownHostsManager {
   // Callbacks (invoked via global navigatorKey):
   // onUnknownHost → HostKeyDialog.showNewHost()
   // onHostKeyChanged → HostKeyDialog.showKeyChanged()
+
+  // Concurrency: _loadFuture pattern (first call loads, later calls reuse).
+  // Write lock: _withWriteLock() serializes file writes via chained futures.
 }
 ```
 
@@ -227,11 +255,12 @@ abstract class FileSystem {
   Future<void> mkdir(String path);
   Future<void> delete(String path, {bool recursive = false});
   Future<void> rename(String oldPath, String newPath);
+  Future<int> dirSize(String path);  // recursive size in bytes
   String get separator;
 }
 
 class LocalFS implements FileSystem { ... }   // dart:io
-class RemoteFS implements FileSystem { ... }  // SFTPService wrapper
+class RemoteFS implements FileSystem { ... }  // SFTPService wrapper, dirSize capped at 64 levels
 ```
 
 **Why an interface:** Allows FilePaneController to work identically with local and remote panes. Simplifies testing — mocks can be substituted.
@@ -245,8 +274,7 @@ class RemoteFS implements FileSystem { ... }  // SFTPService wrapper
 | File | Class | Purpose |
 |------|-------|---------|
 | `transfer_manager.dart` | `TransferManager` | Task queue, parallel workers, history, cancellation |
-| `transfer_task.dart` | `TransferTask`, `TransferDirection` | Task model (name, direction, paths, size, run callback) |
-| `transfer_history.dart` | `HistoryEntry` | History entry (name, direction, size, duration, error, timestamp) |
+| `transfer_task.dart` | `TransferTask`, `TransferDirection`, `HistoryEntry` | Task model, direction enum, history entry |
 
 #### TransferManager — architecture
 
@@ -271,20 +299,23 @@ class RemoteFS implements FileSystem { ... }  // SFTPService wrapper
 
 ```dart
 class TransferManager {
-  TransferManager({int workers = 2, int maxHistory = 500});
+  TransferManager({int parallelism = 2, int maxHistory = 500, Duration taskTimeout = 30 min});
 
   String enqueue(TransferTask task);          // returns task ID
   void cancel(String taskId);
   void cancelAll();
   void clearHistory();
 
-  Stream<List<TransferTask>> get activeStream;
-  Stream<List<HistoryEntry>> get historyStream;
+  Stream<void> get onChange;                  // broadcasts on any state change
+  List<ActiveEntry> get activeEntries;        // running + queued tasks with progress
+  List<HistoryEntry> get history;             // completed/failed/cancelled
   ({int running, int queued}) get status;
 }
 ```
 
-**Cancellation:** Marks the task as cancelled; on the next progress callback invocation the flag is checked and CancelException is thrown.
+**Cancellation:** Marks the task as cancelled via `_cancelledIds` set; on the next progress callback invocation the flag is checked and CancelException is thrown. Timeout also adds to `_cancelledIds` for cooperative cancellation.
+
+**Queue processing:** `_processQueue` returns void and fires tasks via `unawaited()` — errors are caught internally per-task.
 
 #### TransferPanel — UI
 
@@ -324,7 +355,8 @@ class Session {
   final bool incomplete;      // true when imported via QR without credentials
 
   SSHConfig toSSHConfig();    // conversion for connection
-  Session copyWith({...});
+  Session copyWith({...});    // preserves id, updates updatedAt
+  Session duplicate();        // new id, "(copy)" suffix, preserves authType
   Map<String, dynamic> toJson();
   factory Session.fromJson(Map<String, dynamic> json);
 }
@@ -370,20 +402,19 @@ class SessionStore {
 
 ```dart
 class SessionTree {
-  static List<TreeNode> build(List<Session> sessions, List<String> emptyFolders);
+  static List<SessionTreeNode> build(List<Session> sessions, List<String> emptyFolders);
   // Builds hierarchy: "Production/Web/nginx" → [Production] → [Web] → [nginx]
   // Empty folders are included in the tree
 }
 
-sealed class TreeNode {
+class SessionTreeNode {
   final String name;
-  final String path;   // full path from root
-}
-class FolderNode extends TreeNode {
-  List<TreeNode> children;
-}
-class SessionNode extends TreeNode {
-  Session session;
+  final String path;         // full path from root
+  final Session? session;    // null for folders
+  final List<SessionTreeNode> children;
+
+  bool get isGroup => session == null;
+  bool get isSession => session != null;
 }
 ```
 
@@ -397,6 +428,7 @@ class SessionNode extends TreeNode {
 |------|-------|---------|
 | `connection.dart` | `Connection` | Connection model (id, label, sshConnection, state, error, ready completer, progress stream) |
 | `connection_step.dart` | `ConnectionStep` | Progress step model — phase (`socketConnect` / `hostKeyVerify` / `authenticate` / `openChannel`) × status (`inProgress` / `success` / `failed`) |
+| `progress_tracker.dart` | `ProgressTracker` | Subscribes to `Connection.progressStream`, replays history for late subscribers, notifies listeners |
 | `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to an xterm `Terminal` (shared by desktop and mobile terminal views) |
 | `connection_manager.dart` | `ConnectionManager` | Active connection management, creation, disconnection, stream |
 | `foreground_service.dart` | `ForegroundServiceManager` | Android: foreground service for SSH keep-alive on screen lock |
@@ -409,6 +441,7 @@ class Connection {
   final String label;
   SSHConfig sshConfig;       // mutable — refreshed from session store on reconnect
   final String? sessionId;   // links back to saved Session (null for quick-connect)
+  final KnownHostsManager knownHosts;  // for host key verification
   SSHConnection? sshConnection;
   SSHConnectionState state;  // disconnected | connecting | connected
   Object? connectionError;
@@ -419,7 +452,7 @@ class Connection {
   Future<void> waitUntilReady();   // waits for connect attempt to finish (success or error)
   void completeReady();            // called by ConnectionManager — also closes progressStream
   void addProgressStep(step);      // buffers + broadcasts a progress step
-  void resetForReconnect();        // fresh completer, stream, clears history/error
+  void resetForReconnect();        // closes old progress controller, then fresh completer + stream, clears history/error
 }
 ```
 
@@ -429,27 +462,37 @@ class Connection {
 
 ```dart
 class ConnectionManager {
-  ConnectionManager({KnownHostsManager? knownHosts, connectionFactory});
+  ConnectionManager({
+    required KnownHostsManager knownHosts,
+    SSHConnectionFactory? connectionFactory,
+    ActiveCountCallback? onActiveCountChanged,  // notifies foreground service
+  });
 
-  Future<Connection> connectAsync(SSHConfig config, {String? label, String? sessionId});
+  Connection connectAsync(SSHConfig config, {String? label, String? sessionId});
+  // Returns Connection immediately in state=connecting. SSH handshake runs in background.
   void disconnect(String connectionId);
-  void disconnectAll();
+  void disconnectAll();  // also completes pending ready futures for in-progress connections
 
   List<Connection> get connections;
   Stream<List<Connection>> get onChange;
-  int get activeCount;   // connections in state connecting or connected
+
+  // Reconnect race prevention: per-connection generation counter (_connectGeneration).
+  // _doConnect checks its generation is still current before applying results.
+  // Rapid reconnects increment the counter, making in-flight results stale.
 }
 ```
 
 #### ForegroundServiceManager (Android only)
 
 ```dart
-abstract class ForegroundServiceManager {
-  static ForegroundServiceManager create();
-  // Android → _AndroidForegroundService
-  // Other platforms → _NoOpForegroundService
+class ForegroundServiceManager {
+  ForegroundServiceManager({
+    @visibleForTesting ForegroundServiceBinding? binding,
+  });
+  // Android → real foreground service via binding
+  // Other platforms → no-op internally
 
-  void updateConnectionCount(int count);
+  void onConnectionCountChanged(int count);
   // count > 0 → starts foreground service with notification
   // count == 0 → stops service
 }
@@ -501,7 +544,7 @@ class CredentialStoreException {
 ```dart
 class AppConfig {
   final TerminalConfig terminal;
-  //   fontSize: 6-72 (default 14)
+  //   fontSize: 6-72 (default 14.0, type double)
   //   theme: 'dark'|'light'|'system'
   //   scrollback: ≥100 (default 5000)
 
@@ -514,13 +557,18 @@ class AppConfig {
   //   windowWidth/Height
   //   uiScale: 0.5-2.0
   //   showFolderSizes: bool
+  //   toastDurationMs: int (default 4000)
 
   final int transferWorkers;      // 1+ (default 2)
   final int maxHistory;           // ≥0 (default 500)
   final bool enableLogging;
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
-  final String? locale;             // null = OS auto-detect, or 'en'|'ru'|'zh'|'de'|'ja'|'pt'|'es'|'fr'|'ko'
+  final String? locale;             // null = OS auto-detect, or any of 15 supported locale codes
+
+  // copyWith uses sentinel pattern for nullable fields:
+  // copyWith(skippedVersion: null) clears, omitting preserves
+  // copyWith(locale: null) clears, omitting preserves
 }
 ```
 
@@ -561,6 +609,8 @@ class DeepLinkHandler {
   // Background safety: all callbacks in _MainScreenState use
   // addPostFrameCallback to defer UI-dependent work. Data-only
   // operations (QR session import) run immediately without context.
+
+  void dispose(); // cancels subscription, nulls all callbacks
 }
 ```
 
@@ -570,7 +620,7 @@ class DeepLinkHandler {
 
 | File | Purpose |
 |------|---------|
-| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations) |
+| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`) |
 | `key_file_helper.dart` | SSH key file parsing (PEM, OpenSSH formats) |
 
 #### .lfs format
@@ -603,6 +653,10 @@ class UpdateService {
   // Compares current version with latest release
   // User can skip a version (skippedVersion in config).
   // Stale skip auto-clears when a newer version supersedes the skipped one.
+  //
+  // Download: follows redirects (max 10), validates trusted hosts.
+  // openFile(): platform launcher, validates Windows paths against shell metacharacters.
+  // Progress: throttled to 1% increments in UpdateNotifier to reduce state churn.
 }
 ```
 
@@ -654,7 +708,7 @@ class AppShortcutRegistry {
         ┌─────────────────────┼──────────────────────┐
         ▼                     ▼                      ▼
 ┌───────────────┐  ┌──────────────────┐  ┌────────────────────┐
-│sessionProvider│  │  configProvider  │  │    tabProvider     │
+│sessionProvider│  │  configProvider  │  │ workspaceProvider  │
 │  (Notifier)   │  │   (Notifier)     │  │    (Notifier)      │
 └───────┬───────┘  └────────┬─────────┘  └────────────────────┘
         │                   │
@@ -698,9 +752,9 @@ class AppShortcutRegistry {
 | `sessionProvider` | NotifierProvider | sessionStoreProvider | Session CRUD + undo/redo |
 | `sessionTreeProvider` | Provider | sessionProvider | Hierarchical tree |
 | `filteredSessionsProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered session list |
-| `sessionSearchProvider` | StateProvider | — | Search query string |
+| `sessionSearchProvider` | NotifierProvider<SessionSearchNotifier, String> | — | Search query string |
 | `configStoreProvider` | Provider | — | Singleton ConfigStore |
-| `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger |
+| `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger (sequential save lock via `_pendingSave`) |
 | `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
 | `localeProvider` | Provider | configProvider | Locale? (null = system default) |
 | `knownHostsProvider` | Provider | — | KnownHostsManager |
@@ -709,10 +763,12 @@ class AppShortcutRegistry {
 | `transferManagerProvider` | Provider | — | TransferManager singleton |
 | `activeTransfersProvider` | StreamProvider | transferManagerProvider | Active/queued tasks |
 | `transferHistoryProvider` | StreamProvider | transferManagerProvider | Completed transfer history |
-| `transferStatusProvider` | Provider | transferManagerProvider | (running, queued) counts |
-| `workspaceProvider` | NotifierProvider | connectionManagerProvider | Workspace tiling tree + tabs |
-| `updateProvider` | Provider | — | UpdateService |
-| `versionProvider` | FutureProvider | — | Current version from package_info_plus |
+| `transferStatusProvider` | StreamProvider<ActiveTransferState> | transferManagerProvider | Active tasks + progress state |
+| `workspaceProvider` | NotifierProvider<WorkspaceNotifier, WorkspaceState> | connectionManagerProvider | Workspace tiling tree + tabs (defined in `features/workspace/workspace_controller.dart`) |
+| `foregroundServiceProvider` | Provider | — | ForegroundServiceManager singleton |
+| `filteredSessionTreeProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered + hierarchical session tree |
+| `updateProvider` | NotifierProvider<UpdateNotifier, UpdateState> | — | Update check state + actions |
+| `appVersionProvider` | NotifierProvider<AppVersionNotifier, String> | — | Current version from package_info_plus |
 
 **Data flow pattern:**
 ```
@@ -854,11 +910,11 @@ Session clipboard stores a session ID. Ctrl+V duplicates that session via `Sessi
 | `file_pane.dart` | `FilePane` | Single pane: table + path bar + navigation |
 | `file_pane_dialogs.dart` | — | Dialogs: New Folder, Rename, Delete |
 | `file_row.dart` | `FileRow` | Row in the file table |
+| `breadcrumb_path.dart` | `BreadcrumbPath`, `parseBreadcrumbPath()`, `buildPathForSegment()` | Shared breadcrumb path parsing for desktop and mobile file browsers |
 | `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort |
 | `sftp_initializer.dart` | `SFTPInitializer` | SFTP initialization factory (injectable) |
 | `transfer_panel.dart` | `TransferPanel` | Bottom panel: progress + history (resizable columns, sorting, column dividers) |
-| `transfer_helpers.dart` | — | Transfer helper functions |
-| `file_actions.dart` | — | Upload/download/delete/rename/mkdir actions |
+| `transfer_helpers.dart` | `TransferHelpers` | Upload/download helpers; `enqueueUpload`/`enqueueDownload` accept `required S loc` for localized status strings |
 
 #### FilePaneController
 
@@ -928,13 +984,13 @@ class SessionConnect {
   static Future<void> connectTerminal(Session session, WidgetRef ref) {
     // 1. Session → SSHConfig (with credentials from CredentialStore)
     // 2. connectionManager.connectAsync(config)
-    // 3. tabProvider.addTerminalTab(connection)
+    // 3. workspaceProvider.addTerminalTab(connection)
   }
 
   // SFTP:
   static Future<void> connectSftp(Session session, WidgetRef ref) {
     // 1-2. Same as above
-    // 3. tabProvider.addSftpTab(connection)
+    // 3. workspaceProvider.addSftpTab(connection)
   }
 }
 ```
@@ -970,7 +1026,7 @@ class TabEntry {
 | `workspace_controller.dart` | `WorkspaceNotifier`, `WorkspaceState` | State management: add/close/move/split/copy/select tabs across panels |
 | `workspace_view.dart` | `WorkspaceView`, `WorkspaceViewState` | Recursive renderer: panels with dividers, tab bars, connection bars |
 | `panel_tab_bar.dart` | `PanelTabBar`, `TabDragData` | Per-panel tab bar with cross-panel drag-and-drop |
-| `drop_zone_overlay.dart` | `PanelDropTarget`, `DropZone` | Snap/dock zones for tab dragging (center, left, right, top, bottom) |
+| `drop_zone_overlay.dart` | `PanelDropTarget`, `DropZone`, `buildDropZoneOverlay()` | Snap/dock zones for tab dragging; shared overlay builder used by both panel and workspace edge targets |
 
 #### Two-level tiling architecture
 
@@ -993,6 +1049,8 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 **Drag-and-drop:** Tabs can be dragged between panels. Dropping on a panel's tab bar inserts the tab. Dropping on a panel's content area shows drop zone overlays (center = add to panel, edges = split panel in that direction).
 
 **IndexedStack:** Each panel uses its own `IndexedStack` — all tabs in a panel stay in memory, only the current one is visible. This preserves terminal state when switching tabs.
+
+**GlobalKey for cross-panel moves:** Both `TerminalTab` and `FileBrowserTab` use `GlobalKey` (managed by `WorkspaceViewState._terminalKeys` / `_fileBrowserKeys`). When a tab is dragged to a new panel, `GlobalKey` lets Flutter reparent the widget state instead of destroying and recreating it. Without this, SFTP tabs would re-run `_initSftp()` and show connection progress on every tiling split.
 
 **Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive. Height: `AppTheme.barHeightSm` (34 px).
 
@@ -1100,6 +1158,7 @@ AppIconButton({
 })
 ```
 Rectangular hover, no splash/ripple. **Replaces Material `IconButton` everywhere.**
+When `tooltip` is set, `Tooltip` provides semantics. When absent, `Semantics(button: true)` is added for screen readers.
 
 ### HoverRegion
 
@@ -1113,7 +1172,7 @@ HoverRegion({
   MouseCursor cursor = SystemMouseCursors.basic,
 })
 ```
-**Replaces `MouseRegion` + `GestureDetector` + `setState(_hovered)`.** Exception: `context_menu.dart` (keyboard nav state).
+**Replaces `MouseRegion` + `GestureDetector` + `setState(_hovered)`.** Skips `MouseRegion` on mobile platforms (Android/iOS) — no pointer, saves an unnecessary widget. Exception: `context_menu.dart` (keyboard nav state).
 
 ### AppDialog
 
@@ -1221,6 +1280,7 @@ ContextMenuItem.divider()
 Keyboard nav (arrows, enter, esc), hover highlighting, repositioning.
 Re-entrant: right-clicking a new location auto-dismisses the previous menu and opens a new one.
 Styled with `AppTheme` colors directly (no Material surface tint).
+Each item is wrapped in `Semantics(button: true, label: item.label)` for accessibility.
 
 ### HostKeyDialog
 
@@ -1236,7 +1296,7 @@ TOFU dialogs: new host / key changed.
 ConfirmDialog.show(context, {
   required String title,
   required Widget content,
-  String confirmLabel = 'Delete',
+  String? confirmLabel,  // null → S.of(context).delete
   bool destructive = true,
 }) → Future<bool>
 ```
@@ -1320,6 +1380,58 @@ Compact icon + number indicator with tooltip. Used in sidebar footer to display 
 
 **File:** `lib/widgets/status_indicator.dart`
 
+### ReadOnlyTerminalView
+
+```dart
+ReadOnlyTerminalView({
+  required Terminal terminal,
+  double fontSize = 14.0,
+})
+```
+Read-only xterm `TerminalView` wrapper — no keyboard input, no context menu, cursor hidden. Used by `ConnectionProgress` for SFTP tab progress/error display. Wraps in `FocusScope(canRequestFocus: false)`.
+
+### ThresholdDraggable
+
+```dart
+ThresholdDraggable<T extends Object>({
+  // All standard Draggable params +
+  double moveThreshold = 8.0,   // min pixels before drag begins
+})
+```
+`Draggable` variant that requires `moveThreshold` pixels of pointer movement before initiating a drag. Prevents accidental drags when clicking close buttons or double-clicking items. Uses a custom `MultiDragGestureRecognizer`.
+
+### MobileSelectionBar
+
+```dart
+MobileSelectionBar({
+  required int selectedCount,
+  required int totalCount,
+  required VoidCallback onCancel,
+  required VoidCallback onSelectAll,
+  required VoidCallback onDeselectAll,
+  required VoidCallback? onDelete,
+  List<Widget> actions = const [],
+})
+```
+Shared selection-mode action bar for mobile screens. Used by both the file browser and session panel. Shows: close button, count, select/deselect all toggle, custom action buttons, and delete.
+
+### SortableHeaderCell
+
+```dart
+SortableHeaderCell({
+  required String label,
+  required bool isActive,
+  required bool sortAscending,
+  required VoidCallback onTap,
+  required TextStyle style,
+  double? width,
+  TextAlign? textAlign,
+})
+```
+Reusable sortable column-header cell for table views. Shows a label with optional sort-direction arrow (↑/↓). Highlights on hover and when active. Used in `FilePane` and `TransferPanel`.
+
+Also provides `columnDivider()` — thin vertical divider between table columns (for data rows, not headers).
+
 ---
 
 ## 7. Utilities — Public API Reference
@@ -1340,11 +1452,12 @@ class AppLogger {
   Future<void> init();
   void log(String message, {String? name, Object? error});
   Future<String> readLog();
-  Future<void> dispose();
-  Future<void> clearLogs();
+  Future<void> dispose();   // sets enabled=false, closes sink
+  Future<void> clearLogs(); // deletes all log files, reopens if enabled
 }
 ```
 File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
+`dispose()` sets `_enabled = false` so no writes occur after disposal.
 
 **Rule:** `AppLogger.instance.log(message, name: 'Tag')` everywhere. Never `print()` / `debugPrint()`. Never log sensitive data.
 
@@ -1353,7 +1466,7 @@ File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
 ```dart
 Future<void> writeFileAtomic(String path, String content);
 Future<void> writeBytesAtomic(String path, List<int> bytes);
-void restrictFilePermissions(String path);  // chmod 600
+Future<void> restrictFilePermissions(String path);  // async chmod 600
 ```
 
 ### Platform
@@ -1433,13 +1546,12 @@ abstract final class AppTheme {
   static Color get termCursor;     // block cursor color (#528BFF / #526FFF)
   static Color get termSelection;  // mouse selection    (#677696 @ 38% / #4078F2 @ 38%)
 
-  // Connection status
-  static Color connected;          // green
-  static Color connecting;         // yellow
-  static Color disconnected;       // red
-
-  // Special
-  static Color folderIcon;         // yellow
+  // Semantic colors (brightness-aware getters)
+  static Color get connected;      // green  (#98C379 / #50A14F)
+  static Color get connecting;     // yellow (#E5C07B / #C18401)
+  static Color get disconnected;   // red    (#E06C75 / #E45649)
+  static Color get info;           // cyan   (#56B6C2 / #0184BC)
+  static Color get folderIcon;     // yellow (#E5C07B / #C18401)
   static Color get searchHighlight;// terminal search bg (#FFFF2B / #FFD700)
   static Color get searchHitFg;    // search hit text
 
@@ -1471,7 +1583,7 @@ abstract final class AppTheme {
   static const radiusMd;  // 6 px — cards, containers, default rounding
   static const radiusLg;  // 8 px — toasts, mobile elements, larger containers
 
-  // Theme factory
+  // Theme factory — both delegate to shared _buildTheme()
   static ThemeData dark();
   static ThemeData light();
 }
@@ -1747,6 +1859,7 @@ Connection {
   label: String
   sshConfig: SSHConfig    // mutable — refreshed from session store on reconnect
   sessionId: String?      // links back to saved Session (null for quick-connect)
+  knownHosts: KnownHostsManager  // for host key verification
   sshConnection: SSHConnection?
   state: SSHConnectionState  // disconnected | connecting | connected
   connectionError: Object?
@@ -1786,16 +1899,14 @@ FileEntry {
 
 ```dart
 TransferTask {
-  id: String              // UUID (assigned by manager)
   name: String            // display name
   direction: TransferDirection  // upload | download
   sourcePath: String
   targetPath: String
   sizeBytes: int
-  state: TaskState        // queued | running | completed | failed | cancelled
-  progress: double        // 0.0 - 1.0
-  error: String?
   run: Future<void> Function(ProgressCallback)
+  // Note: id, state, progress are managed by TransferManager (ActiveEntry wrapper),
+  // not stored on TransferTask itself
 }
 ```
 
@@ -1804,7 +1915,7 @@ TransferTask {
 ```dart
 AppConfig {
   terminal: TerminalConfig {
-    fontSize: int         // 6-72, default 14
+    fontSize: double      // 6-72, default 14.0
     theme: String         // 'dark'|'light'|'system'
     scrollback: int       // ≥100, default 5000
   }
@@ -1818,6 +1929,7 @@ AppConfig {
     windowHeight: double
     uiScale: double       // 0.5-2.0
     showFolderSizes: bool
+    toastDurationMs: int  // default 4000
   }
   transferWorkers: int    // 1+, default 2
   maxHistory: int         // ≥0, default 500
@@ -2128,6 +2240,7 @@ Manual build
 | Each terminal pane → own SSH shell | Shared `SSHConnection`, independent shells |
 | `Listener` for marquee | Raw pointer events don't conflict with `Draggable` |
 | `IndexedStack` for tabs | Preserves terminal state when switching tabs |
+| `GlobalKey` for tab widgets | Preserves widget state when tab is dragged to a new panel |
 | Separate `features/mobile/` | Different interaction patterns, not a responsive adaptation |
 | Global `navigatorKey` for host key dialog | SSH callback arrives without BuildContext |
 | `AnimationStyle.noAnimation` | Animations disabled (Flutter 3.41+), design decision |
@@ -2207,6 +2320,8 @@ Manual build
 | `mockito` | Test mocking |
 | `build_runner` | Code generation |
 | `json_serializable` | JSON code gen |
+| `build_verify` | Verifies build_runner output is up-to-date |
+| `plugin_platform_interface` | Platform interface for plugin packages |
 | `flutter_launcher_icons` | App icon gen |
 
 ### Bundled Fonts

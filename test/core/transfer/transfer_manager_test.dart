@@ -472,6 +472,36 @@ void main() {
       expect(manager.history.first.error.toString(), contains('timed out'));
     });
 
+    test('task timeout marks task for cooperative cancellation', () async {
+      manager = TransferManager(
+        parallelism: 1,
+        maxHistory: 10,
+        taskTimeout: const Duration(milliseconds: 50),
+      );
+
+      manager.enqueue(
+        TransferTask(
+          name: 'timeout-cancel.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/timeout-cancel.txt',
+          targetPath: '/remote/timeout-cancel.txt',
+          run: (update) async {
+            update(10, 'starting');
+            // Wait for timeout to fire
+            await Future.delayed(const Duration(milliseconds: 200));
+            // This progress callback should throw _CancelledException
+            // because the timeout added us to _cancelledIds
+            update(20, 'after timeout');
+          },
+        ),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      // The task should have failed due to timeout
+      expect(manager.history, hasLength(1));
+      expect(manager.history.first.status, TransferStatus.failed);
+    });
+
     test('activeEntries has queued entry after enqueue', () async {
       final blocker = Completer<void>();
       manager = TransferManager(

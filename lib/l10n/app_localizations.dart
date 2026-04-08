@@ -2036,6 +2036,180 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Opening SFTP channel'**
   String get progressOpeningSftp;
+
+  /// No description provided for @transfersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfers:'**
+  String get transfersLabel;
+
+  /// No description provided for @transferCountActive.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} active'**
+  String transferCountActive(int count);
+
+  /// No description provided for @transferCountQueued.
+  ///
+  /// In en, this message translates to:
+  /// **', {count} queued'**
+  String transferCountQueued(int count);
+
+  /// No description provided for @transferCountInHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} in history'**
+  String transferCountInHistory(int count);
+
+  /// No description provided for @transferTooltipCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created: {time}'**
+  String transferTooltipCreated(String time);
+
+  /// No description provided for @transferTooltipStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Started: {time}'**
+  String transferTooltipStarted(String time);
+
+  /// No description provided for @transferTooltipEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended: {time}'**
+  String transferTooltipEnded(String time);
+
+  /// No description provided for @transferTooltipDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration: {duration}'**
+  String transferTooltipDuration(String duration);
+
+  /// No description provided for @transferStatusQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get transferStatusQueued;
+
+  /// No description provided for @transferStartingUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting upload...'**
+  String get transferStartingUpload;
+
+  /// No description provided for @transferStartingDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting download...'**
+  String get transferStartingDownload;
+
+  /// No description provided for @transferCopying.
+  ///
+  /// In en, this message translates to:
+  /// **'Copying...'**
+  String get transferCopying;
+
+  /// No description provided for @transferDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get transferDone;
+
+  /// No description provided for @transferFilesProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done}/{total} files'**
+  String transferFilesProgress(int done, int total);
+
+  /// No description provided for @folderNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'FOLDER NAME'**
+  String get folderNameLabel;
+
+  /// No description provided for @folderAlreadyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder \"{name}\" already exists'**
+  String folderAlreadyExists(String name);
+
+  /// No description provided for @dropKeyFileHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop key file here'**
+  String get dropKeyFileHere;
+
+  /// No description provided for @sessionNoCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Session has no credentials — edit it first to add a password or key'**
+  String get sessionNoCredentials;
+
+  /// No description provided for @dragItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String dragItemCount(int count);
+
+  /// No description provided for @qrSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select All ({selected}/{total})'**
+  String qrSelectAll(int selected, int total);
+
+  /// No description provided for @qrPayloadSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Payload: {size} KB / {max} KB max'**
+  String qrPayloadSize(String size, String max);
+
+  /// No description provided for @noActiveTerminals.
+  ///
+  /// In en, this message translates to:
+  /// **'No active terminals'**
+  String get noActiveTerminals;
+
+  /// No description provided for @connectFromSessionsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect from Sessions tab'**
+  String get connectFromSessionsTab;
+
+  /// No description provided for @fileNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'File not found: {path}'**
+  String fileNotFound(String path);
+
+  /// No description provided for @sshConnectionChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH Connection'**
+  String get sshConnectionChannel;
+
+  /// No description provided for @sshConnectionChannelDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeps SSH connections alive in the background.'**
+  String get sshConnectionChannelDesc;
+
+  /// No description provided for @sshActive.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH active'**
+  String get sshActive;
+
+  /// No description provided for @activeConnectionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} active connection(s)'**
+  String activeConnectionCount(int count);
+
+  /// No description provided for @itemCountWithSize.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items, {size}'**
+  String itemCountWithSize(int count, String size);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

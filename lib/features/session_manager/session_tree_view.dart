@@ -625,7 +625,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
             ),
             const SizedBox(width: 4),
             Text(
-              isBulk ? '$totalCount items' : label,
+              isBulk ? S.of(context).dragItemCount(totalCount) : label,
               style: TextStyle(fontSize: AppFonts.sm),
             ),
           ],
@@ -883,9 +883,9 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
         !isConnected && widget.connectingSessionIds.contains(session.id);
     final Color iconColor;
     if (isConnected) {
-      iconColor = AppTheme.connectedColor(theme.brightness);
+      iconColor = AppTheme.connected;
     } else if (isConnecting) {
-      iconColor = AppTheme.connectingColor(theme.brightness);
+      iconColor = AppTheme.connecting;
     } else {
       iconColor = AppTheme.fgFaint;
     }
@@ -915,7 +915,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
             child: Icon(
               Icons.warning_amber,
               size: _authIconSize,
-              color: AppTheme.connectingColor(theme.brightness),
+              color: AppTheme.connecting,
             ),
           ),
         ),

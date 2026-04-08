@@ -16,6 +16,7 @@ import '../../utils/format.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/marquee_mixin.dart';
+import 'breadcrumb_path.dart';
 import 'file_browser_controller.dart';
 import 'file_pane_dialogs.dart';
 import 'file_row.dart';
@@ -362,20 +363,14 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   Widget _buildBreadcrumb() {
     if (_editingPath) return _buildPathEditor();
 
-    final currentPath = ctrl.currentPath;
-    final isWindows = _isWindowsPath(currentPath);
-    final separator = isWindows ? RegExp(r'[/\\]') : RegExp(r'/');
-    final parts = currentPath.split(separator)..removeWhere((p) => p.isEmpty);
-    final rootPath = isWindows && parts.isNotEmpty ? '${parts[0]}\\' : '/';
-    final rootLabel = isWindows && parts.isNotEmpty ? parts[0] : null;
-    final navParts = isWindows ? parts.skip(1).toList() : parts;
+    final bc = parseBreadcrumbPath(ctrl.currentPath);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _buildRootSegment(rootLabel, rootPath),
-          ..._buildPathSegments(isWindows, parts, navParts),
+          _buildRootSegment(bc.rootLabel, bc.rootPath),
+          ..._buildPathSegments(bc),
           AppIconButton(
             icon: Icons.edit,
             onTap: () {
@@ -416,28 +411,24 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     );
   }
 
-  List<Widget> _buildPathSegments(
-    bool isWindows,
-    List<String> parts,
-    List<String> navParts,
-  ) {
-    final separatorText = isWindows ? ' \\ ' : ' / ';
+  List<Widget> _buildPathSegments(BreadcrumbPath bc) {
+    final separatorText = bc.isWindows ? ' \\ ' : ' / ';
     final sepStyle = AppFonts.mono(
       fontSize: AppFonts.xs,
       color: AppTheme.fgFaint,
     );
     return [
-      for (var i = 0; i < navParts.length; i++) ...[
+      for (var i = 0; i < bc.navParts.length; i++) ...[
         Text(separatorText, style: sepStyle),
         HoverRegion(
           cursor: SystemMouseCursors.click,
-          onTap: () => _navigateToPart(isWindows, parts, navParts, i),
+          onTap: () => ctrl.navigateTo(buildPathForSegment(bc, i)),
           builder: (hovered) {
-            final isLast = i == navParts.length - 1;
+            final isLast = i == bc.navParts.length - 1;
             final baseColor = isLast ? AppTheme.fg : AppTheme.fgDim;
             final color = hovered ? AppTheme.accent : baseColor;
             return Text(
-              navParts[i],
+              bc.navParts[i],
               style: AppFonts.mono(fontSize: AppFonts.xs, color: color),
               overflow: TextOverflow.ellipsis,
             );
@@ -445,24 +436,6 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         ),
       ],
     ];
-  }
-
-  static bool _isWindowsPath(String path) =>
-      path.length >= 2 &&
-      path[1] == ':' &&
-      RegExp(r'^[A-Za-z]$').hasMatch(path[0]);
-
-  void _navigateToPart(
-    bool isWindows,
-    List<String> parts,
-    List<String> navParts,
-    int i,
-  ) {
-    if (isWindows) {
-      ctrl.navigateTo([parts[0], ...navParts.sublist(0, i + 1)].join('\\'));
-    } else {
-      ctrl.navigateTo('/${navParts.sublist(0, i + 1).join('/')}');
-    }
   }
 
   Widget _buildPathEditor() {
@@ -956,7 +929,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
             const SizedBox(width: 4),
             Text(
               dragEntries.length > 1
-                  ? '${dragEntries.length} items'
+                  ? S.of(context).dragItemCount(dragEntries.length)
                   : entry.name,
               style: TextStyle(fontSize: AppFonts.md),
             ),
@@ -981,7 +954,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         children: [
           Flexible(
             child: Text(
-              '$count items, ${formatSize(ctrl.totalFileSize)}',
+              S
+                  .of(context)
+                  .itemCountWithSize(count, formatSize(ctrl.totalFileSize)),
               style: style,
               overflow: TextOverflow.ellipsis,
             ),

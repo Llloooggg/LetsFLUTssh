@@ -205,9 +205,9 @@ class _PanelTabItemState extends State<_PanelTabItem> {
   Color _dotColor() {
     switch (widget.tab.connection.state) {
       case SSHConnectionState.connected:
-        return AppTheme.connectedColor(Theme.of(context).brightness);
+        return AppTheme.connected;
       case SSHConnectionState.connecting:
-        return AppTheme.connectingColor(Theme.of(context).brightness);
+        return AppTheme.connecting;
       case SSHConnectionState.disconnected:
         return AppTheme.fgFaint;
     }
