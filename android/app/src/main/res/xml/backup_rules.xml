@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 6-11 (API 23-30) backup rules.
+     Excludes encrypted credential files from Auto Backup. -->
+<full-backup-content>
+    <exclude domain="root" path="credentials.enc" />
+    <exclude domain="root" path="credentials.key" />
+</full-backup-content>
