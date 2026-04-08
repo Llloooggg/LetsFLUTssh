@@ -323,5 +323,10 @@
 
   "storagePermissionRequired": "로컬 파일을 탐색하려면 저장소 권한이 필요합니다",
   "grantPermission": "권한 부여",
-  "storagePermissionLimited": "제한된 접근 — 모든 파일에 대한 전체 저장소 권한을 부여하세요"
+  "storagePermissionLimited": "제한된 접근 — 모든 파일에 대한 전체 저장소 권한을 부여하세요",
+  "progressConnecting": "{host}:{port}에 연결 중",
+  "progressVerifyingHostKey": "호스트 키 확인 중",
+  "progressAuthenticating": "{user}(으)로 인증 중",
+  "progressOpeningShell": "셸 열기",
+  "progressOpeningSftp": "SFTP 채널 열기"
 }

@@ -1197,7 +1197,7 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
 
-    testWidgets('SFTP button hidden when active tab is disconnected', (
+    testWidgets('SFTP button visible even when active tab is disconnected', (
       tester,
     ) async {
       final conn = makeConn(state: SSHConnectionState.disconnected);
@@ -1215,8 +1215,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Files'), findsNothing);
-      expect(find.byIcon(Icons.folder_open), findsNothing);
+      // Companion button is now always shown (connection progress handles
+      // the disconnected state inside the tab itself).
+      expect(find.byTooltip('Files'), findsOneWidget);
+      expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
 
     testWidgets('tapping SFTP button opens SFTP tab alongside terminal', (
@@ -1312,7 +1314,7 @@ void main() {
       expect(find.byTooltip('Terminal'), findsNothing);
     });
 
-    testWidgets('SSH button hidden when SFTP tab is disconnected', (
+    testWidgets('SSH button visible even when SFTP tab is disconnected', (
       tester,
     ) async {
       final conn = makeConn(state: SSHConnectionState.disconnected);
@@ -1330,7 +1332,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Terminal'), findsNothing);
+      // Companion button is now always shown (connection progress handles
+      // the disconnected state inside the tab itself).
+      expect(find.byTooltip('Terminal'), findsOneWidget);
     });
 
     testWidgets('tapping SSH button opens terminal tab alongside SFTP', (
@@ -2106,7 +2110,7 @@ class _FailingSSHConnection extends SSHConnection {
   _FailingSSHConnection({required super.config, required super.knownHosts});
 
   @override
-  Future<void> connect() async {
+  Future<void> connect({ConnectionProgressCallback? onProgress}) async {
     throw Exception('fake connection failure');
   }
 

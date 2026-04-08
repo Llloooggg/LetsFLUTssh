@@ -1036,4 +1036,23 @@ class SKo extends S {
 
   @override
   String get storagePermissionLimited => '제한된 접근 — 모든 파일에 대한 전체 저장소 권한을 부여하세요';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return '$host:$port에 연결 중';
+  }
+
+  @override
+  String get progressVerifyingHostKey => '호스트 키 확인 중';
+
+  @override
+  String progressAuthenticating(String user) {
+    return '$user(으)로 인증 중';
+  }
+
+  @override
+  String get progressOpeningShell => '셸 열기';
+
+  @override
+  String get progressOpeningSftp => 'SFTP 채널 열기';
 }

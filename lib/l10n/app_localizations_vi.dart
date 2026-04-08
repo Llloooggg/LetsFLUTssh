@@ -1051,4 +1051,23 @@ class SVi extends S {
   @override
   String get storagePermissionLimited =>
       'Truy cập hạn chế — cấp quyền truy cập bộ nhớ đầy đủ cho tất cả tệp';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'Đang kết nối đến $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'Đang xác minh khóa máy chủ';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'Đang xác thực với tên $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'Đang mở shell';
+
+  @override
+  String get progressOpeningSftp => 'Đang mở kênh SFTP';
 }

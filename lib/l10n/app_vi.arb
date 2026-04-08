@@ -319,5 +319,10 @@
 
   "storagePermissionRequired": "Cần quyền truy cập bộ nhớ để duyệt tệp cục bộ",
   "grantPermission": "Cấp quyền",
-  "storagePermissionLimited": "Truy cập hạn chế — cấp quyền truy cập bộ nhớ đầy đủ cho tất cả tệp"
+  "storagePermissionLimited": "Truy cập hạn chế — cấp quyền truy cập bộ nhớ đầy đủ cho tất cả tệp",
+  "progressConnecting": "Đang kết nối đến {host}:{port}",
+  "progressVerifyingHostKey": "Đang xác minh khóa máy chủ",
+  "progressAuthenticating": "Đang xác thực với tên {user}",
+  "progressOpeningShell": "Đang mở shell",
+  "progressOpeningSftp": "Đang mở kênh SFTP"
 }

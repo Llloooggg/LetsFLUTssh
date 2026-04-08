@@ -42,7 +42,7 @@ Connection connectedConn(
 
 void main() {
   group('MobileTerminalView — loading state', () {
-    testWidgets('shows loading indicator while connecting', (tester) async {
+    testWidgets('shows TerminalView while connecting', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
       when(
@@ -71,12 +71,13 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // Always renders TerminalView — progress written to buffer
+      expect(find.byType(TerminalView), findsOneWidget);
     });
   });
 
   group('MobileTerminalView — error states', () {
-    testWidgets('shows error state when shell fails', (tester) async {
+    testWidgets('renders TerminalView when shell fails', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
       when(mockSsh.openShell(any, any)).thenThrow(Exception('Shell failed'));
@@ -102,11 +103,19 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // ShellHelper.openShell retries 5× with incremental delays
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      // Error written to terminal buffer, TerminalView always shown
+      expect(find.byType(TerminalView), findsOneWidget);
     });
 
-    testWidgets('shows error when sshConnection is null', (tester) async {
+    testWidgets('renders TerminalView when sshConnection is null', (
+      tester,
+    ) async {
       final conn = Connection(
         id: 'test-3',
         label: 'Test',
@@ -129,10 +138,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      // Error written to terminal buffer, TerminalView always shown
+      expect(find.byType(TerminalView), findsOneWidget);
     });
 
-    testWidgets('error text shows specific error message', (tester) async {
+    testWidgets('error state still shows TerminalView with keyboard bar', (
+      tester,
+    ) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
       when(
@@ -160,11 +172,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      await tester.pumpAndSettle();
 
-      expect(find.textContaining('Connection refused'), findsOneWidget);
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(find.text('Esc'), findsOneWidget);
     });
 
-    testWidgets('error state uses disconnected color', (tester) async {
+    testWidgets('disconnected state renders TerminalView', (tester) async {
       final conn = Connection(
         id: 'test-color',
         label: 'Test',
@@ -187,14 +204,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline));
-      expect(icon.color, AppTheme.disconnected);
-      expect(icon.size, 48);
+      expect(find.byType(TerminalView), findsOneWidget);
     });
 
-    testWidgets('error text has disconnected color and center alignment', (
-      tester,
-    ) async {
+    testWidgets('error state renders Column layout', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
       when(mockSsh.openShell(any, any)).thenThrow(Exception('fail'));
@@ -220,19 +233,17 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      await tester.pumpAndSettle();
 
-      final errorText = tester.widget<Text>(
-        find.byWidgetPredicate(
-          (w) =>
-              w is Text &&
-              w.style?.color == AppTheme.disconnected &&
-              w.textAlign == TextAlign.center,
-        ),
-      );
-      expect(errorText, isNotNull);
+      // Always renders Column with TerminalView and keyboard bar
+      expect(find.byType(Column), findsWidgets);
+      expect(find.byType(TerminalView), findsOneWidget);
     });
 
-    testWidgets('error widget contains SizedBox(height: 16) spacer', (
+    testWidgets('error state still renders TerminalView and keyboard bar', (
       tester,
     ) async {
       final conn = Connection(
@@ -257,9 +268,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
-      final spacer16 = sizedBoxes.where((sb) => sb.height == 16);
-      expect(spacer16, isNotEmpty);
+      expect(find.byType(TerminalView), findsOneWidget);
+      expect(find.text('Ctrl'), findsOneWidget);
     });
   });
 
@@ -331,7 +341,8 @@ void main() {
       doneCompleter.complete();
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Session closed'), findsOneWidget);
+      // Session done sets hasError — TerminalView stays visible
+      expect(find.byType(TerminalView), findsOneWidget);
 
       await stdoutCtrl.close();
       await stderrCtrl.close();

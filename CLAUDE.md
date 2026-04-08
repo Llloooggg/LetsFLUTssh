@@ -29,7 +29,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 - **Every commit that affects the shipped app MUST include a version bump** in `pubspec.yaml` (the only source of truth). Includes: `lib/`, platform configs, native code, assets, build settings. Patch for bugfix/refactor, minor for new feature, major for breaking change. **No bump needed for:** tests, docs, CI, linter fixes
 - Format per [CONTRIBUTING.md](docs/CONTRIBUTING.md#commit-messages). Messages drive auto-changelog — keep them user-readable
 - **One fix / one commit** — each logical change is a separate commit. Do not bundle unrelated fixes
-- **HARD STOP between fixes** — implement fix → write tests → bump version → update docs → **stop and ask user to commit**. Do NOT start the next fix until the current one is committed
+- **HARD STOP between fixes** — implement fix → write tests → bump version → update docs → **stop and ask user to commit**. Do NOT start the next fix until the current one is committed. **Exception:** when the user explicitly asks to fix everything at once ("fix all and push"), execute end-to-end without pausing between fixes
 - **Version gatekeeper** — before suggesting commit, check if version bump needed. If yes — remind. If no — say so explicitly
 - **Green CI before merging to main** — pre-commit hook runs `make check` automatically
 - **Claude default branch is `dev`.** Always work on `dev` unless explicitly told otherwise. Never push directly to `main`

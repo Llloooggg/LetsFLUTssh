@@ -346,5 +346,10 @@
 
   "storagePermissionRequired": "برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است",
   "grantPermission": "اعطای مجوز",
-  "storagePermissionLimited": "دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید"
+  "storagePermissionLimited": "دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید",
+  "progressConnecting": "اتصال به {host}:{port}",
+  "progressVerifyingHostKey": "تأیید کلید میزبان",
+  "progressAuthenticating": "احراز هویت به‌عنوان {user}",
+  "progressOpeningShell": "باز کردن شل",
+  "progressOpeningSftp": "باز کردن کانال SFTP"
 }

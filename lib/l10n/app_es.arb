@@ -323,5 +323,10 @@
 
   "storagePermissionRequired": "Se requiere permiso de almacenamiento para explorar archivos locales",
   "grantPermission": "Conceder permiso",
-  "storagePermissionLimited": "Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos"
+  "storagePermissionLimited": "Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos",
+  "progressConnecting": "Conectando a {host}:{port}",
+  "progressVerifyingHostKey": "Verificando clave del host",
+  "progressAuthenticating": "Autenticando como {user}",
+  "progressOpeningShell": "Abriendo shell",
+  "progressOpeningSftp": "Abriendo canal SFTP"
 }

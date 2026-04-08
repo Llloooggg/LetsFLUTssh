@@ -7,9 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
+import '../../core/connection/connection_step.dart';
+import '../../core/connection/progress_tracker.dart';
+import '../../core/connection/progress_writer.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
@@ -17,7 +21,6 @@ import '../../utils/logger.dart';
 import 'cursor_overlay.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
-import '../../widgets/error_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart' as plat;
 
@@ -63,7 +66,11 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
   ShellConnection? _shellConn;
-  bool _connected = false;
+  StreamSubscription<ConnectionStep>? _progressSub;
+
+  /// Whether the terminal pane is in an error state.
+  bool get hasError => _error != null;
+
   String? _error;
 
   // Search visibility — ValueNotifier so toggling doesn't rebuild TerminalView
@@ -95,51 +102,52 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     _terminal = Terminal(maxLines: ref.read(configProvider).scrollback);
     _terminalController = TerminalController();
     HardwareKeyboard.instance.addHandler(_onShiftToggle);
-    _connectAndOpenShell();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _connectAndOpenShell();
+    });
   }
 
   Future<void> _connectAndOpenShell() async {
     final conn = widget.connection;
+    final l10n = S.of(context);
+    final tracker = ProgressTracker(conn);
+    final writer = ProgressWriter(
+      terminal: _terminal,
+      l10n: l10n,
+      config: conn.sshConfig,
+    );
+
+    // Subscribe to progress stream and write steps to terminal
+    _progressSub = writer.subscribe(tracker);
 
     // Wait for connection if still connecting
     await conn.waitUntilReady();
+    _progressSub?.cancel();
+    _progressSub = null;
+    tracker.dispose();
 
     // Check connection result
     if (!conn.isConnected) {
       if (!mounted) return;
-      final l10n = S.of(context);
+      // Mark disconnected so tab dot and connection bar update
+      conn.state = SSHConnectionState.disconnected;
       final error = conn.connectionError != null
           ? localizeError(l10n, conn.connectionError!)
           : l10n.errConnectionFailed;
-      _terminal.write('\x1B[31m$error\x1B[0m\r\n');
+      _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
       setState(() => _error = error);
+      // Force workspace rebuild so connection bar shows retry button
+      ref.invalidate(connectionsProvider);
       return;
     }
 
-    void onDone() {
-      if (mounted) {
-        setState(() {
-          _connected = false;
-          _error = S.of(context).errSessionClosed;
-        });
-      }
-    }
-
     try {
-      if (widget.shellFactory != null) {
-        _shellConn = await widget.shellFactory!(
-          connection: conn,
-          terminal: _terminal,
-          onDone: onDone,
-        );
-      } else {
-        _shellConn = await ShellHelper.openShell(
-          connection: conn,
-          terminal: _terminal,
-          onDone: onDone,
-        );
-      }
-      if (mounted) setState(() => _connected = true);
+      // Clear progress log before opening shell — openShell wires stdout
+      // to terminal.write(), so any server output must not be erased.
+      writer.clear();
+      _shellConn = await _openShell(conn);
+      // Force workspace rebuild so connection bar updates dot and hides retry
+      if (mounted) ref.invalidate(connectionsProvider);
     } catch (e) {
       AppLogger.instance.log(
         'Shell open failed: $e',
@@ -147,14 +155,32 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         error: e,
       );
       if (mounted) {
-        final l10n = S.of(context);
         final localized = localizeError(l10n, e);
-        _terminal.write(
-          '\r\n\x1B[31m${l10n.errShellError(localized)}\x1B[0m\r\n',
-        );
+        _terminal.write('\x1B[?25h\x1B[31m$localized\x1B[0m\r\n');
         setState(() => _error = localized);
       }
     }
+  }
+
+  Future<ShellConnection> _openShell(Connection conn) async {
+    void onDone() {
+      if (mounted) {
+        setState(() => _error = S.of(context).errSessionClosed);
+      }
+    }
+
+    if (widget.shellFactory != null) {
+      return widget.shellFactory!(
+        connection: conn,
+        terminal: _terminal,
+        onDone: onDone,
+      );
+    }
+    return ShellHelper.openShell(
+      connection: conn,
+      terminal: _terminal,
+      onDone: onDone,
+    );
   }
 
   @override
@@ -167,6 +193,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   @override
   void dispose() {
+    _progressSub?.cancel();
     HardwareKeyboard.instance.removeHandler(_onShiftToggle);
     _shellConn?.close();
     _terminalController.dispose();
@@ -200,13 +227,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   @override
   Widget build(BuildContext context) {
-    if (_error != null) {
-      return _buildErrorState();
-    }
-    if (!_connected) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
 
     // No border on panes — the 4px divider in TilingView separates them.
@@ -380,10 +400,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         HardwareKeyboard.instance.isControlPressed) {
       _adjustFontSize(event.scrollDelta.dy < 0 ? 1 : -1);
     }
-  }
-
-  Widget _buildErrorState() {
-    return ErrorState(message: _error!);
   }
 }
 

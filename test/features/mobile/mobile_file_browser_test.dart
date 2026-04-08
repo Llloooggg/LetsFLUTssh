@@ -13,6 +13,7 @@ import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/features/mobile/mobile_file_browser.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/connection_progress.dart';
 import 'package:letsflutssh/utils/format.dart'; // used by MobileFileList tests
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -133,12 +134,12 @@ void main() {
         ),
       );
 
-      // Should show loading while waiting for connection
-      expect(find.text('Initializing SFTP...'), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // Should show progress widget while waiting for connection
+      expect(find.byType(ConnectionProgress), findsOneWidget);
 
-      // Stop the connection-wait polling loop before test teardown
+      // Complete the connection to cancel pending timers before teardown
       connection.state = SSHConnectionState.disconnected;
+      connection.completeReady();
       await tester.pumpAndSettle();
     });
 
@@ -166,12 +167,13 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.textContaining('Connection failed'), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
+      // Error state now renders via ConnectionProgress (xterm-based)
+      expect(find.byType(ConnectionProgress), findsOneWidget);
     });
 
-    testWidgets('Retry button is tappable and triggers reinit', (tester) async {
+    testWidgets('error state shows ConnectionProgress on failure', (
+      tester,
+    ) async {
       final connection = Connection(
         id: 'test-1',
         label: 'Test Server',
@@ -193,14 +195,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Retry'), findsOneWidget);
-
-      await tester.tap(find.text('Retry'));
-      await tester.pumpAndSettle();
-
-      // After retry fails again, error state is shown again
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
+      // Error state renders via ConnectionProgress — no Retry button;
+      // retry is now handled by workspace_view's connection bar.
+      expect(find.byType(ConnectionProgress), findsOneWidget);
     });
   });
 
@@ -1074,8 +1071,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Failed to initialize SFTP'), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
+      // SFTP init failure renders via ConnectionProgress (xterm-based)
+      expect(find.byType(ConnectionProgress), findsOneWidget);
     });
 
     testWidgets('refresh button triggers controller refresh', (tester) async {

@@ -345,5 +345,10 @@
 
   "storagePermissionRequired": "Autorisation de stockage requise pour parcourir les fichiers locaux",
   "grantPermission": "Accorder l'autorisation",
-  "storagePermissionLimited": "Accès limité — accordez l'autorisation de stockage complète pour tous les fichiers"
+  "storagePermissionLimited": "Accès limité — accordez l'autorisation de stockage complète pour tous les fichiers",
+  "progressConnecting": "Connexion à {host}:{port}",
+  "progressVerifyingHostKey": "Vérification de la clé hôte",
+  "progressAuthenticating": "Authentification en tant que {user}",
+  "progressOpeningShell": "Ouverture du shell",
+  "progressOpeningSftp": "Ouverture du canal SFTP"
 }

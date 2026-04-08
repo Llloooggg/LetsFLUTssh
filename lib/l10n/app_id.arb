@@ -319,5 +319,10 @@
 
   "storagePermissionRequired": "Izin penyimpanan diperlukan untuk menjelajahi file lokal",
   "grantPermission": "Berikan izin",
-  "storagePermissionLimited": "Akses terbatas — berikan izin penyimpanan penuh untuk semua file"
+  "storagePermissionLimited": "Akses terbatas — berikan izin penyimpanan penuh untuk semua file",
+  "progressConnecting": "Menghubungkan ke {host}:{port}",
+  "progressVerifyingHostKey": "Memverifikasi kunci host",
+  "progressAuthenticating": "Mengautentikasi sebagai {user}",
+  "progressOpeningShell": "Membuka shell",
+  "progressOpeningSftp": "Membuka saluran SFTP"
 }

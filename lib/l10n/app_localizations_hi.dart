@@ -1052,4 +1052,23 @@ class SHi extends S {
   @override
   String get storagePermissionLimited =>
       'सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return '$host:$port से कनेक्ट हो रहा है';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'होस्ट कुंजी सत्यापित हो रही है';
+
+  @override
+  String progressAuthenticating(String user) {
+    return '$user के रूप में प्रमाणीकरण';
+  }
+
+  @override
+  String get progressOpeningShell => 'शेल खोला जा रहा है';
+
+  @override
+  String get progressOpeningSftp => 'SFTP चैनल खोला जा रहा है';
 }

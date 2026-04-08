@@ -563,5 +563,22 @@
 
   "storagePermissionRequired": "Storage permission required to browse local files",
   "grantPermission": "Grant Permission",
-  "storagePermissionLimited": "Limited access — grant full storage permission for all files"
+  "storagePermissionLimited": "Limited access — grant full storage permission for all files",
+
+  "progressConnecting": "Connecting to {host}:{port}",
+  "@progressConnecting": {
+    "placeholders": {
+      "host": { "type": "String" },
+      "port": { "type": "int" }
+    }
+  },
+  "progressVerifyingHostKey": "Verifying host key",
+  "progressAuthenticating": "Authenticating as {user}",
+  "@progressAuthenticating": {
+    "placeholders": {
+      "user": { "type": "String" }
+    }
+  },
+  "progressOpeningShell": "Opening shell",
+  "progressOpeningSftp": "Opening SFTP channel"
 }

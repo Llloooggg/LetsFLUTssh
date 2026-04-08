@@ -346,5 +346,10 @@
 
   "storagePermissionRequired": "يلزم إذن التخزين لتصفح الملفات المحلية",
   "grantPermission": "منح الإذن",
-  "storagePermissionLimited": "وصول محدود — امنح إذن التخزين الكامل لجميع الملفات"
+  "storagePermissionLimited": "وصول محدود — امنح إذن التخزين الكامل لجميع الملفات",
+  "progressConnecting": "الاتصال بـ {host}:{port}",
+  "progressVerifyingHostKey": "التحقق من مفتاح المضيف",
+  "progressAuthenticating": "المصادقة كـ {user}",
+  "progressOpeningShell": "فتح الطرفية",
+  "progressOpeningSftp": "فتح قناة SFTP"
 }

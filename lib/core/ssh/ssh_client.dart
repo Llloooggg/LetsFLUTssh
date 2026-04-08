@@ -6,9 +6,13 @@ import 'dart:ui' show VoidCallback;
 import 'package:dartssh2/dartssh2.dart';
 
 import '../../utils/logger.dart';
+import '../connection/connection_step.dart';
 import 'errors.dart';
 import 'known_hosts.dart';
 import 'ssh_config.dart';
+
+/// Callback for reporting connection progress steps.
+typedef ConnectionProgressCallback = void Function(ConnectionStep step);
 
 /// Typedef for socket creation — injectable for testing.
 typedef SSHSocketFactory =
@@ -82,7 +86,9 @@ class SSHConnection {
   SSHClient? get client => _client;
 
   /// Connect to SSH server with auth chain.
-  Future<void> connect() async {
+  ///
+  /// [onProgress] is called at each connection phase to report progress.
+  Future<void> connect({ConnectionProgressCallback? onProgress}) async {
     if (_disposed) {
       throw ConnectError(
         'Connection disposed',
@@ -92,58 +98,8 @@ class SSHConnection {
       );
     }
 
-    final SSHSocket socket;
-    try {
-      socket = await _socketFactory(
-        config.host,
-        config.effectivePort,
-        timeout: Duration(seconds: config.timeoutSec),
-      );
-    } catch (e) {
-      throw ConnectError(
-        'Failed to connect to ${config.host}:${config.effectivePort}',
-        e,
-        config.host,
-        config.effectivePort,
-      );
-    }
-
-    try {
-      _client = _clientFactory(
-        socket,
-        username: config.user,
-        onPasswordRequest: _onPasswordRequest,
-        identities: await _buildIdentities(),
-        onVerifyHostKey: _onVerifyHostKey,
-        keepAliveInterval: config.keepAliveSec > 0
-            ? Duration(seconds: config.keepAliveSec)
-            : null,
-      );
-
-      // Wait for authentication to complete
-      await _client!.authenticated;
-    } on SSHAuthFailError catch (e) {
-      _cleanup();
-      throw AuthError(
-        'Authentication failed for ${config.user}@${config.host}',
-        e,
-        config.user,
-        config.host,
-      );
-    } on SSHAuthAbortError catch (e) {
-      _cleanup();
-      if (_hostKeyRejected) throw _hostKeyError(e);
-      throw AuthError('Authentication aborted', e, config.user, config.host);
-    } catch (e) {
-      _cleanup();
-      if (_hostKeyRejected) throw _hostKeyError(e);
-      throw ConnectError(
-        'Connection failed to ${config.host}:${config.effectivePort}',
-        e,
-        config.host,
-        config.effectivePort,
-      );
-    }
+    final socket = await _connectSocket(onProgress);
+    await _authenticateClient(socket, onProgress);
 
     // Listen for disconnect
     _client!.done.then((_) {
@@ -153,6 +109,161 @@ class SSHConnection {
         onDisconnect?.call();
       }
     });
+  }
+
+  Future<SSHSocket> _connectSocket(
+    ConnectionProgressCallback? onProgress,
+  ) async {
+    onProgress?.call(
+      const ConnectionStep(
+        phase: ConnectionPhase.socketConnect,
+        status: StepStatus.inProgress,
+      ),
+    );
+    try {
+      final socket = await _socketFactory(
+        config.host,
+        config.effectivePort,
+        timeout: Duration(seconds: config.timeoutSec),
+      );
+      onProgress?.call(
+        const ConnectionStep(
+          phase: ConnectionPhase.socketConnect,
+          status: StepStatus.success,
+        ),
+      );
+      return socket;
+    } catch (e) {
+      onProgress?.call(
+        ConnectionStep(
+          phase: ConnectionPhase.socketConnect,
+          status: StepStatus.failed,
+          detail: e.toString(),
+        ),
+      );
+      throw ConnectError(
+        'Failed to connect to ${config.host}:${config.effectivePort}',
+        e,
+        config.host,
+        config.effectivePort,
+      );
+    }
+  }
+
+  Future<void> _authenticateClient(
+    SSHSocket socket,
+    ConnectionProgressCallback? onProgress,
+  ) async {
+    onProgress?.call(
+      const ConnectionStep(
+        phase: ConnectionPhase.hostKeyVerify,
+        status: StepStatus.inProgress,
+      ),
+    );
+
+    try {
+      _client = _clientFactory(
+        socket,
+        username: config.user,
+        onPasswordRequest: _onPasswordRequest,
+        identities: await _buildIdentities(),
+        onVerifyHostKey: _wrapVerifyCallback(onProgress),
+        keepAliveInterval: config.keepAliveSec > 0
+            ? Duration(seconds: config.keepAliveSec)
+            : null,
+      );
+
+      // Wait for authentication to complete
+      await _client!.authenticated;
+      onProgress?.call(
+        const ConnectionStep(
+          phase: ConnectionPhase.authenticate,
+          status: StepStatus.success,
+        ),
+      );
+    } on SSHAuthFailError catch (e) {
+      _cleanup();
+      onProgress?.call(
+        const ConnectionStep(
+          phase: ConnectionPhase.authenticate,
+          status: StepStatus.failed,
+        ),
+      );
+      throw AuthError(
+        'Authentication failed for ${config.user}@${config.host}',
+        e,
+        config.user,
+        config.host,
+      );
+    } on SSHAuthAbortError catch (e) {
+      _cleanup();
+      if (_hostKeyRejected) {
+        onProgress?.call(
+          const ConnectionStep(
+            phase: ConnectionPhase.hostKeyVerify,
+            status: StepStatus.failed,
+          ),
+        );
+        throw _hostKeyError(e);
+      }
+      onProgress?.call(
+        const ConnectionStep(
+          phase: ConnectionPhase.authenticate,
+          status: StepStatus.failed,
+        ),
+      );
+      throw AuthError('Authentication aborted', e, config.user, config.host);
+    } catch (e) {
+      _cleanup();
+      if (_hostKeyRejected) {
+        onProgress?.call(
+          const ConnectionStep(
+            phase: ConnectionPhase.hostKeyVerify,
+            status: StepStatus.failed,
+          ),
+        );
+        throw _hostKeyError(e);
+      }
+      onProgress?.call(
+        const ConnectionStep(
+          phase: ConnectionPhase.authenticate,
+          status: StepStatus.failed,
+        ),
+      );
+      throw ConnectError(
+        'Connection failed to ${config.host}:${config.effectivePort}',
+        e,
+        config.host,
+        config.effectivePort,
+      );
+    }
+  }
+
+  /// Wraps [_onVerifyHostKey] to emit progress steps for host key verification
+  /// and authentication phases.
+  FutureOr<bool> Function(String, Uint8List) _wrapVerifyCallback(
+    ConnectionProgressCallback? onProgress,
+  ) {
+    return (type, fingerprint) async {
+      final accepted = await _onVerifyHostKey(type, fingerprint);
+      if (accepted) {
+        onProgress?.call(
+          const ConnectionStep(
+            phase: ConnectionPhase.hostKeyVerify,
+            status: StepStatus.success,
+          ),
+        );
+        onProgress?.call(
+          const ConnectionStep(
+            phase: ConnectionPhase.authenticate,
+            status: StepStatus.inProgress,
+          ),
+        );
+      } else {
+        _hostKeyRejected = true;
+      }
+      return accepted;
+    };
   }
 
   /// Open PTY shell session.
