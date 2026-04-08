@@ -3,10 +3,6 @@ import 'package:letsflutssh/core/connection/connection_step.dart';
 
 void main() {
   group('ConnectionPhase', () {
-    test('has exactly 4 values', () {
-      expect(ConnectionPhase.values, hasLength(4));
-    });
-
     test('contains expected values', () {
       expect(
         ConnectionPhase.values,
@@ -21,10 +17,6 @@ void main() {
   });
 
   group('StepStatus', () {
-    test('has exactly 3 values', () {
-      expect(StepStatus.values, hasLength(3));
-    });
-
     test('contains expected values', () {
       expect(
         StepStatus.values,

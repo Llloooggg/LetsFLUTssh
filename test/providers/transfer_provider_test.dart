@@ -25,7 +25,11 @@ void main() {
     });
 
     test('stores currentInfo', () {
-      const state = ActiveTransferState(running: 1, queued: 0, currentInfo: 'file.txt 50%');
+      const state = ActiveTransferState(
+        running: 1,
+        queued: 0,
+        currentInfo: 'file.txt 50%',
+      );
       expect(state.currentInfo, 'file.txt 50%');
     });
   });
@@ -70,11 +74,17 @@ void main() {
       container.dispose();
     });
 
-    test('transferManagerProvider disposes on container dispose', () {
+    test('transferManagerProvider disposes on container dispose', () async {
       final container = ProviderContainer();
       final manager = container.read(transferManagerProvider);
       expect(manager, isNotNull);
+
+      // Listen to onChange — it should complete when disposed.
+      final streamDone = manager.onChange.toList();
       container.dispose();
+
+      // Stream completes (controller closed by dispose).
+      await streamDone;
     });
 
     test('transferStatusProvider updates after enqueue completes', () async {
@@ -83,8 +93,14 @@ void main() {
       final manager = container.read(transferManagerProvider);
 
       // Subscribe to streams to force providers to listen
-      final historySubscription = container.listen(transferHistoryProvider, (_, _) {});
-      final statusSubscription = container.listen(transferStatusProvider, (_, _) {});
+      final historySubscription = container.listen(
+        transferHistoryProvider,
+        (_, _) {},
+      );
+      final statusSubscription = container.listen(
+        transferStatusProvider,
+        (_, _) {},
+      );
 
       // Wait for initial values
       await container.read(transferHistoryProvider.future);
