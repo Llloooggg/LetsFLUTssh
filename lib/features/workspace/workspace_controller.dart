@@ -258,10 +258,15 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
   /// rendering changes.
   void toggleMaximizePanel(String panelId) {
     if (state.maximizedPanelId == panelId) {
+      AppLogger.instance.log(
+        'Restore panel $panelId from maximize',
+        name: 'Workspace',
+      );
       state = state.copyWith(maximizedPanelId: () => null);
     } else {
       // Only allow maximize when there are at least two panels.
       if (state.root is! WorkspaceBranch) return;
+      AppLogger.instance.log('Maximize panel $panelId', name: 'Workspace');
       state = state.copyWith(
         maximizedPanelId: () => panelId,
         focusedPanelId: panelId,

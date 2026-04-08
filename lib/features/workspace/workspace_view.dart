@@ -78,7 +78,16 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     if (ws.isMaximized) {
       final panel = findPanel(ws.root, ws.maximizedPanelId!);
       if (panel != null) {
-        content = _buildPanel(panel, ws.focusedPanelId);
+        content = DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: AppTheme.accent.withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+          ),
+          child: _buildPanel(panel, ws.focusedPanelId),
+        );
       } else {
         content = _buildNode(ws.root, ws.focusedPanelId);
       }
@@ -470,7 +479,9 @@ class _PanelConnectionBar extends ConsumerWidget {
     final s = S.of(context);
     final label = isMaximized ? s.restore : s.maximize;
     final icon = isMaximized ? Icons.close_fullscreen : Icons.open_in_full;
-    final btnColor = scheme.onSurface.withValues(alpha: 0.6);
+    final btnColor = isMaximized
+        ? AppTheme.accent
+        : scheme.onSurface.withValues(alpha: 0.6);
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Tooltip(
@@ -484,7 +495,9 @@ class _PanelConnectionBar extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
               color: btnColor.withValues(
-                alpha: hovered ? 0x20 / 255.0 : 0x00 / 255.0,
+                alpha: isMaximized
+                    ? (hovered ? 0x30 / 255.0 : 0x18 / 255.0)
+                    : (hovered ? 0x20 / 255.0 : 0x00 / 255.0),
               ),
               borderRadius: AppTheme.radiusSm,
             ),
