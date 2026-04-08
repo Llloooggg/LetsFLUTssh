@@ -1416,5 +1416,540 @@ void main() {
         expect(activeIndicator.iconColor, AppTheme.yellow);
       },
     );
+
+    testWidgets('with active tabs can navigate to terminal page', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'conn-exit',
+        label: 'Active',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to terminal
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Verify we're on terminal page
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, equals(1));
+    });
+
+    testWidgets('back button from non-sessions page returns to sessions', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'conn-back',
+        label: 'Server',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) => b.addTerminalTab(conn)),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Verify on terminal page
+      var stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, equals(1));
+
+      // Navigate back to sessions via tapping Sessions in bottom nav
+      await tester.tap(find.text('Sessions'));
+      await tester.pumpAndSettle();
+
+      stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, equals(0));
+    });
+
+    testWidgets('multiple terminal tabs show in chip bar', (tester) async {
+      final conn1 = Connection(
+        id: 'multi-t1',
+        label: 'Server A',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'a.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.connected,
+      );
+      final conn2 = Connection(
+        id: 'multi-t2',
+        label: 'Server B',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'b.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+      final conn3 = Connection(
+        id: 'multi-t3',
+        label: 'Server C',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'c.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(conn1, label: 'Server A');
+                  b.addTerminalTab(conn2, label: 'Server B');
+                  b.addTerminalTab(conn3, label: 'Server C');
+                }),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // All three tabs should be visible
+      expect(find.text('Server A'), findsOneWidget);
+      expect(find.text('Server B'), findsOneWidget);
+      expect(find.text('Server C'), findsOneWidget);
+
+      // Sort button should appear (more than 1 tab)
+      expect(find.byIcon(Icons.sort), findsOneWidget);
+    });
+
+    testWidgets('tab chip long press shows context menu with close options', (
+      tester,
+    ) async {
+      final conn1 = Connection(
+        id: 'ctx-t1',
+        label: 'Tab X',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'x.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+      final conn2 = Connection(
+        id: 'ctx-t2',
+        label: 'Tab Y',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'y.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(conn1, label: 'Tab X');
+                  b.addTerminalTab(conn2, label: 'Tab Y');
+                }),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Long press active tab chip (Tab Y is active — last added)
+      await tester.longPress(find.text('Tab Y'));
+      await tester.pumpAndSettle();
+
+      // Context menu should show close options
+      expect(find.text('Close'), findsOneWidget);
+      expect(find.text('Close Others'), findsOneWidget);
+      expect(find.text('Close All'), findsOneWidget);
+    });
+
+    testWidgets('nav item shows active icon when selected', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Sessions is selected by default — should show dns (filled) icon
+      expect(find.byIcon(Icons.dns), findsOneWidget);
+      // Terminal should show outlined icon (not selected)
+      expect(find.byIcon(Icons.terminal_outlined), findsOneWidget);
+      // Files should show outlined icon (not selected)
+      expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
+    });
+
+    testWidgets('disabled nav items have reduced opacity', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Terminal and Files are disabled (no tabs) — find Opacity widgets
+      final opacities = tester.widgetList<Opacity>(find.byType(Opacity));
+      // At least two Opacity widgets should have 0.4 opacity (Terminal + Files)
+      final disabledCount = opacities.where((o) => o.opacity == 0.4).length;
+      expect(
+        disabledCount,
+        greaterThanOrEqualTo(2),
+        reason: 'Terminal and Files nav items should be disabled',
+      );
+    });
+
+    testWidgets('app bar shows LetsFLUTssh title', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.text('LetsFLUTssh'), findsOneWidget);
+    });
+
+    testWidgets('mixed terminal and SFTP tabs show correct counts', (
+      tester,
+    ) async {
+      final conn1 = Connection(
+        id: 'mix-1',
+        label: 'Mix Server',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(conn1, label: 'Term 1');
+                  b.addTerminalTab(conn1, label: 'Term 2');
+                  b.addSftpTab(conn1, label: 'SFTP 1');
+                }),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Total tab count in header should be 3
+      expect(find.text('3'), findsWidgets);
+
+      // Navigate to Terminal — should only show terminal tabs
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+      expect(find.text('Term 1'), findsOneWidget);
+      expect(find.text('Term 2'), findsOneWidget);
+      // SFTP tab should not be in terminal chip bar
+      expect(find.text('SFTP 1'), findsNothing);
+
+      // Navigate to Files — should only show SFTP tabs
+      await tester.tap(find.text('Files'));
+      await tester.pumpAndSettle();
+      expect(find.text('SFTP 1'), findsOneWidget);
+      // Terminal tabs should not be in SFTP chip bar
+      expect(find.text('Term 1'), findsNothing);
+    });
+
+    testWidgets('empty terminal page has terminal icon in empty state', (
+      tester,
+    ) async {
+      // With no tabs, Terminal nav is disabled and auto-switches to Sessions.
+      // Verify that the IndexedStack contains a _MobileTerminalPage widget
+      // even when it is offscreen (index=0 shows sessions).
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // The IndexedStack is present and shows index 0 (sessions)
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.index, equals(0));
+      // The stack has 3 children (sessions, terminal, sftp)
+      expect(stack.children.length, equals(3));
+    });
+
+    testWidgets('empty SFTP page has folder icon in empty state', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Verify IndexedStack has 3 children including the SFTP page
+      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+      expect(stack.children.length, equals(3));
+      // Sessions page is displayed (index 0)
+      expect(stack.index, equals(0));
+    });
+
+    testWidgets('sort button in tab chip bar opens sort menu', (tester) async {
+      final conn1 = Connection(
+        id: 'sort-t1',
+        label: 'Alpha',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'a.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+      final conn2 = Connection(
+        id: 'sort-t2',
+        label: 'Beta',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'b.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(conn1, label: 'Alpha');
+                  b.addTerminalTab(conn2, label: 'Beta');
+                }),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Tap sort button
+      await tester.tap(find.byIcon(Icons.sort));
+      await tester.pumpAndSettle();
+
+      // Sort menu should show options
+      expect(find.text('Sort by Name'), findsOneWidget);
+      expect(find.text('Sort by Status'), findsOneWidget);
+    });
+
+    testWidgets('connected tab chip shows green dot indicator', (tester) async {
+      final connectedConn = Connection(
+        id: 'dot-green',
+        label: 'Green Server',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState(
+                  (b) => b.addTerminalTab(connectedConn, label: 'Green Server'),
+                ),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Tab chip should show the green dot (5x5 Container with green color)
+      final containers = tester.widgetList<Container>(find.byType(Container));
+      final greenDots = containers.where((c) {
+        final dec = c.decoration;
+        if (dec is BoxDecoration && dec.shape == BoxShape.circle) {
+          return dec.color == AppTheme.green;
+        }
+        return false;
+      });
+      expect(
+        greenDots,
+        isNotEmpty,
+        reason: 'connected tab should show green dot',
+      );
+    });
+
+    testWidgets('active tab chip has accent stripe at top', (tester) async {
+      final conn = Connection(
+        id: 'stripe-1',
+        label: 'Striped',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => _PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState(
+                  (b) => b.addTerminalTab(conn, label: 'Striped'),
+                ),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Active tab has a 2px accent-colored stripe (ColoredBox)
+      final coloredBoxes = tester.widgetList<ColoredBox>(
+        find.byType(ColoredBox),
+      );
+      final accentStripes = coloredBoxes.where(
+        (cb) => cb.color == AppTheme.accent,
+      );
+      expect(
+        accentStripes,
+        isNotEmpty,
+        reason: 'active tab should have accent stripe',
+      );
+    });
   });
 }
