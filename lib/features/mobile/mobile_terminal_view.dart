@@ -178,31 +178,36 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
     // Always render TerminalView — progress log and errors are written
     // directly into the terminal buffer via ANSI codes.
-    return Column(
+    //
+    // Stack layout: terminal fills all available space (never resizes on
+    // keyboard show/hide), keyboard bar floats at the bottom above the
+    // system keyboard.  Paired with Scaffold(resizeToAvoidBottomInset: false)
+    // in MobileShell to prevent xterm buffer reflow that caused duplicate
+    // lines when the soft keyboard appeared.
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    return Stack(
       children: [
-        Expanded(
-          child: Stack(
+        Positioned.fill(child: _buildPinchZoomArea()),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: keyboardInset,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildPinchZoomArea(),
-              if (_hasSelection)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _buildSelectionToolbar(),
-                ),
+              if (_hasSelection) _buildSelectionToolbar(),
+              SshKeyboardBar(
+                key: _keyboardKey,
+                onInput: _onKeyboardInput,
+                onPaste: _paste,
+                onSelectModeChanged: (active) {
+                  setState(() => _selectMode = active);
+                  _terminalController.setSuspendPointerInput(active);
+                  if (!active) _terminalController.clearSelection();
+                },
+              ),
             ],
           ),
-        ),
-        SshKeyboardBar(
-          key: _keyboardKey,
-          onInput: _onKeyboardInput,
-          onPaste: _paste,
-          onSelectModeChanged: (active) {
-            setState(() => _selectMode = active);
-            _terminalController.setSuspendPointerInput(active);
-            if (!active) _terminalController.clearSelection();
-          },
         ),
       ],
     );

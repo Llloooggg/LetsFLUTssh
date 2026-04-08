@@ -207,7 +207,7 @@ void main() {
       expect(find.byType(TerminalView), findsOneWidget);
     });
 
-    testWidgets('error state renders Column layout', (tester) async {
+    testWidgets('error state renders Stack layout', (tester) async {
       final mockSsh = MockSSHConnection();
       when(mockSsh.isConnected).thenReturn(true);
       when(mockSsh.openShell(any, any)).thenThrow(Exception('fail'));
@@ -238,8 +238,8 @@ void main() {
       }
       await tester.pumpAndSettle();
 
-      // Always renders Column with TerminalView and keyboard bar
-      expect(find.byType(Column), findsWidgets);
+      // Always renders Stack with TerminalView and keyboard bar
+      expect(find.byType(Stack), findsWidgets);
       expect(find.byType(TerminalView), findsOneWidget);
     });
 
@@ -398,9 +398,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('Column layout has Expanded terminal and keyboard bar', (
-      tester,
-    ) async {
+    testWidgets('Stack layout has terminal and keyboard bar', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = connectedConn(mockSsh, mockSession);
@@ -417,7 +415,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(Column), findsWidgets);
+      expect(find.byType(Stack), findsWidgets);
       expect(find.text('Ctrl'), findsOneWidget);
       expect(find.text('Alt'), findsOneWidget);
     });
