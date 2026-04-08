@@ -19,7 +19,7 @@ class ConfigNotifier extends Notifier<AppConfig> {
   Future<void> _pendingSave = Future.value();
 
   @override
-  AppConfig build() => ref.read(configStoreProvider).config;
+  AppConfig build() => ref.watch(configStoreProvider).config;
 
   ConfigStore get _store => ref.read(configStoreProvider);
 

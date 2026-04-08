@@ -400,6 +400,20 @@ void main() {
       expect(updated.tabs.length, 1);
       expect(updated.tabs.first.id, keepId);
     });
+
+    test('no-op when tabId does not exist', () {
+      notifier().addTerminalTab(_conn('c1'), label: 'A');
+      notifier().addTerminalTab(_conn('c2'), label: 'B');
+
+      final ws = state();
+      final panel = findPanel(ws.root, ws.focusedPanelId)!;
+      final tabsBefore = panel.tabs.length;
+
+      notifier().closeOthers(panel.id, 'nonexistent');
+
+      final after = findPanel(state().root, ws.focusedPanelId)!;
+      expect(after.tabs.length, tabsBefore);
+    });
   });
 
   group('closeToTheRight', () {

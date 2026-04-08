@@ -474,8 +474,9 @@ class _AppearanceSection extends ConsumerWidget {
       children: [
         _LanguageTile(
           value: locale,
-          onChanged: (v) =>
-              ref.read(configProvider.notifier).update((c) => c.withLocale(v)),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(locale: v)),
         ),
         _ThemeTile(
           value: theme,
@@ -1040,14 +1041,16 @@ class _UpdateSection extends ConsumerWidget {
                 TextButton(
                   onPressed: () => ref
                       .read(configProvider.notifier)
-                      .update((c) => c.withSkippedVersion(info.latestVersion)),
+                      .update(
+                        (c) => c.copyWith(skippedVersion: info.latestVersion),
+                      ),
                   child: Text(S.of(context).skipThisVersion),
                 )
               else
                 TextButton(
                   onPressed: () => ref
                       .read(configProvider.notifier)
-                      .update((c) => c.withSkippedVersion(null)),
+                      .update((c) => c.copyWith(skippedVersion: null)),
                   child: Text(S.of(context).unskip),
                 ),
             ],

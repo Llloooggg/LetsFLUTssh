@@ -34,19 +34,24 @@ class UpdateState {
     this.error,
   });
 
+  /// Sentinel for clearing nullable fields in [copyWith].
+  static const _unset = Object();
+
   UpdateState copyWith({
     UpdateStatus? status,
     UpdateInfo? info,
     double? progress,
-    String? downloadedPath,
-    Object? error,
+    Object? downloadedPath = _unset,
+    Object? error = _unset,
   }) {
     return UpdateState(
       status: status ?? this.status,
       info: info ?? this.info,
       progress: progress ?? this.progress,
-      downloadedPath: downloadedPath ?? this.downloadedPath,
-      error: error ?? this.error,
+      downloadedPath: identical(downloadedPath, _unset)
+          ? this.downloadedPath
+          : downloadedPath as String?,
+      error: identical(error, _unset) ? this.error : error,
     );
   }
 }
@@ -107,13 +112,18 @@ class UpdateNotifier extends Notifier<UpdateState> {
     try {
       final dir = await getApplicationSupportDirectory();
       await _cleanupStaleDownloads(dir.path, info.assetUrl!);
+      var lastReportedPercent = -1;
       final path = await _service.downloadAsset(
         info.assetUrl!,
         dir.path,
         expectedDigest: info.assetDigest,
         onProgress: (received, total) {
           if (total > 0) {
-            state = state.copyWith(progress: received / total);
+            final percent = (received * 100 ~/ total);
+            if (percent != lastReportedPercent) {
+              lastReportedPercent = percent;
+              state = state.copyWith(progress: received / total);
+            }
           }
         },
       );

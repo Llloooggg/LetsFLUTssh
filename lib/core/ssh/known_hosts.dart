@@ -167,7 +167,7 @@ class KnownHostsManager {
       final file = File(_filePath);
       await file.parent.create(recursive: true);
       await file.writeAsString('$hostPort $keyString\n', mode: FileMode.append);
-      restrictFilePermissions(file.path);
+      await restrictFilePermissions(file.path);
     });
   }
 

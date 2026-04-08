@@ -512,11 +512,10 @@ class SessionStore {
   }
 
   Session? get(String id) {
-    try {
-      return _sessions.firstWhere((s) => s.id == id);
-    } catch (_) {
-      return null;
+    for (final s in _sessions) {
+      if (s.id == id) return s;
     }
+    return null;
   }
 
   /// Duplicate a session with new ID and "(copy)" suffix.
