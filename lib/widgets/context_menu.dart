@@ -216,50 +216,54 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
     final shortcutFg = AppTheme.fgFaint;
     final hoverBg = AppTheme.selection;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() {
-        _hoveredIndex = index;
-        _keyIndex = null;
-      }),
-      onExit: (_) => setState(() => _hoveredIndex = null),
-      child: GestureDetector(
-        onTap: () => _activate(index),
-        child: Container(
-          height: AppTheme.controlHeightSm,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          color: isActive ? hoverBg : Colors.transparent,
-          child: Row(
-            children: [
-              if (item.icon != null) ...[
-                Icon(item.icon, size: 13, color: iconColor),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(
-                  item.label ?? '',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: AppFonts.sm,
-                    color: fgColor,
-                  ),
-                ),
-              ),
-              if (item.shortcut != null) ...[
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  color: shortcutBg,
+    return Semantics(
+      button: true,
+      label: item.label,
+      child: MouseRegion(
+        onEnter: (_) => setState(() {
+          _hoveredIndex = index;
+          _keyIndex = null;
+        }),
+        onExit: (_) => setState(() => _hoveredIndex = null),
+        child: GestureDetector(
+          onTap: () => _activate(index),
+          child: Container(
+            height: AppTheme.controlHeightSm,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            color: isActive ? hoverBg : Colors.transparent,
+            child: Row(
+              children: [
+                if (item.icon != null) ...[
+                  Icon(item.icon, size: 13, color: iconColor),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
                   child: Text(
-                    item.shortcut!,
+                    item.label ?? '',
                     style: TextStyle(
-                      fontFamily: 'JetBrains Mono',
-                      fontSize: AppFonts.xxs,
-                      color: shortcutFg,
+                      fontFamily: 'Inter',
+                      fontSize: AppFonts.sm,
+                      color: fgColor,
                     ),
                   ),
                 ),
+                if (item.shortcut != null) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    color: shortcutBg,
+                    child: Text(
+                      item.shortcut!,
+                      style: TextStyle(
+                        fontFamily: 'JetBrains Mono',
+                        fontSize: AppFonts.xxs,
+                        color: shortcutFg,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

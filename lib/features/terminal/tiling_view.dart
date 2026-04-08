@@ -32,9 +32,20 @@ class TilingView extends StatefulWidget {
 }
 
 class _TilingViewState extends State<TilingView> {
+  SplitNode? _cachedRoot;
+  bool _cachedHasMultiplePanes = false;
+
+  bool _hasMultiplePanes() {
+    if (!identical(_cachedRoot, widget.root)) {
+      _cachedRoot = widget.root;
+      _cachedHasMultiplePanes = collectLeafIds(widget.root).length > 1;
+    }
+    return _cachedHasMultiplePanes;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasMultiplePanes = collectLeafIds(widget.root).length > 1;
+    final hasMultiplePanes = _hasMultiplePanes();
     return _buildNode(widget.root, hasMultiplePanes);
   }
 

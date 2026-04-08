@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // HardwareKeyboard, LogicalKeyboardKey
 
@@ -83,6 +85,9 @@ class _HoverRegionState extends State<HoverRegion> {
         child: child,
       );
     }
+
+    // Skip MouseRegion on mobile — no mouse pointer, avoids unnecessary widget.
+    if (Platform.isAndroid || Platform.isIOS) return child;
 
     return MouseRegion(
       cursor: widget.cursor,
