@@ -320,20 +320,22 @@ abstract final class AppTheme {
       shadow: Color(0xFF000000),
       scrim: Color(0xFF000000),
     ),
-    popupColor: _bg1,
-    inputFill: _bg3,
-    borderColor: _borderLight,
-    hintColor: _fgFaint,
-    popupPadding: const EdgeInsets.symmetric(vertical: 4),
-    inactiveTrack: _bg4,
-    sliderOverlay: _selectionColor,
-    tooltipBg: _bg0,
-    tooltipFg: _fg,
-    tooltipFontSize: AppFonts.xs,
-    chipSelectedColor: _accent.withValues(alpha: 0.25),
-    scrollThumb: _scrollThumb,
-    snackBg: _bg3,
-    snackFg: _fg,
+    extras: _ThemeExtras(
+      popupColor: _bg1,
+      inputFill: _bg3,
+      borderColor: _borderLight,
+      hintColor: _fgFaint,
+      popupPadding: const EdgeInsets.symmetric(vertical: 4),
+      inactiveTrack: _bg4,
+      sliderOverlay: _selectionColor,
+      tooltipBg: _bg0,
+      tooltipFg: _fg,
+      tooltipFontSize: AppFonts.xs,
+      chipSelectedColor: _accent.withValues(alpha: 0.25),
+      scrollThumb: _scrollThumb,
+      snackBg: _bg3,
+      snackFg: _fg,
+    ),
   );
 
   static ThemeData light() => _buildTheme(
@@ -371,42 +373,45 @@ abstract final class AppTheme {
       shadow: Color(0xFF000000),
       scrim: Color(0xFF000000),
     ),
-    popupColor: _lightLevel1,
-    inputFill: _lightLevel1,
-    borderColor: _lightBorder,
-    hintColor: _lightGutter,
-    popupPadding: null,
-    inactiveTrack: _lightSelection,
-    sliderOverlay: const Color(0x2A4078F2),
-    tooltipBg: _lightFg,
-    tooltipFg: _lightBg,
-    tooltipFontSize: AppFonts.md,
-    chipSelectedColor: _lightBlue.withValues(alpha: 0.2),
-    scrollThumb: _lightScrollThumb,
-    snackBg: _lightFg,
-    snackFg: _lightBg,
+    extras: _ThemeExtras(
+      popupColor: _lightLevel1,
+      inputFill: _lightLevel1,
+      borderColor: _lightBorder,
+      hintColor: _lightGutter,
+      popupPadding: null,
+      inactiveTrack: _lightSelection,
+      sliderOverlay: const Color(0x2A4078F2),
+      tooltipBg: _lightFg,
+      tooltipFg: _lightBg,
+      tooltipFontSize: AppFonts.md,
+      chipSelectedColor: _lightBlue.withValues(alpha: 0.2),
+      scrollThumb: _lightScrollThumb,
+      snackBg: _lightFg,
+      snackFg: _lightBg,
+    ),
   );
 
   /// Shared theme builder — all structural decisions live here.
-  /// [scheme] carries the core Material color roles; the remaining
-  /// parameters cover colors that don't map cleanly to any scheme role.
+  /// [scheme] carries the core Material color roles; [extras] covers
+  /// colors that don't map cleanly to any scheme role.
   static ThemeData _buildTheme({
     required ColorScheme scheme,
-    required Color popupColor,
-    required Color inputFill,
-    required Color borderColor,
-    required Color hintColor,
-    required EdgeInsetsGeometry? popupPadding,
-    required Color inactiveTrack,
-    required Color sliderOverlay,
-    required Color tooltipBg,
-    required Color tooltipFg,
-    required double tooltipFontSize,
-    required Color chipSelectedColor,
-    required Color scrollThumb,
-    required Color snackBg,
-    required Color snackFg,
+    required _ThemeExtras extras,
   }) {
+    final popupColor = extras.popupColor;
+    final inputFill = extras.inputFill;
+    final borderColor = extras.borderColor;
+    final hintColor = extras.hintColor;
+    final popupPadding = extras.popupPadding;
+    final inactiveTrack = extras.inactiveTrack;
+    final sliderOverlay = extras.sliderOverlay;
+    final tooltipBg = extras.tooltipBg;
+    final tooltipFg = extras.tooltipFg;
+    final tooltipFontSize = extras.tooltipFontSize;
+    final chipSelectedColor = extras.chipSelectedColor;
+    final scrollThumb = extras.scrollThumb;
+    final snackBg = extras.snackBg;
+    final snackFg = extras.snackFg;
     final accent = scheme.primary;
     final onAccent = scheme.onPrimary;
     final fg = scheme.onSurface;
@@ -649,6 +654,41 @@ abstract final class AppTheme {
 
   /// Terminal search hit foreground — high-contrast text on colored bg.
   static Color get searchHitFg => isDark ? _termBrightWhite : _lightFgBright;
+}
+
+/// Colors that don't map to a [ColorScheme] role, passed to [AppTheme._buildTheme].
+class _ThemeExtras {
+  final Color popupColor;
+  final Color inputFill;
+  final Color borderColor;
+  final Color hintColor;
+  final EdgeInsetsGeometry? popupPadding;
+  final Color inactiveTrack;
+  final Color sliderOverlay;
+  final Color tooltipBg;
+  final Color tooltipFg;
+  final double tooltipFontSize;
+  final Color chipSelectedColor;
+  final Color scrollThumb;
+  final Color snackBg;
+  final Color snackFg;
+
+  const _ThemeExtras({
+    required this.popupColor,
+    required this.inputFill,
+    required this.borderColor,
+    required this.hintColor,
+    required this.popupPadding,
+    required this.inactiveTrack,
+    required this.sliderOverlay,
+    required this.tooltipBg,
+    required this.tooltipFg,
+    required this.tooltipFontSize,
+    required this.chipSelectedColor,
+    required this.scrollThumb,
+    required this.snackBg,
+    required this.snackFg,
+  });
 }
 
 /// Font helpers — Inter for UI, JetBrains Mono for technical data.

@@ -227,19 +227,75 @@ class UiConfig {
   }
 }
 
+/// App behavior settings: logging, update checks, skipped versions.
+class BehaviorConfig {
+  final bool enableLogging;
+  final bool checkUpdatesOnStart;
+  final String? skippedVersion;
+
+  const BehaviorConfig({
+    this.enableLogging = false,
+    this.checkUpdatesOnStart = true,
+    this.skippedVersion,
+  });
+
+  static const defaults = BehaviorConfig();
+
+  /// Sentinel for clearing nullable fields in [copyWith].
+  static const _unset = Object();
+
+  BehaviorConfig copyWith({
+    bool? enableLogging,
+    bool? checkUpdatesOnStart,
+    Object? skippedVersion = _unset,
+  }) => BehaviorConfig(
+    enableLogging: enableLogging ?? this.enableLogging,
+    checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
+    skippedVersion: identical(skippedVersion, _unset)
+        ? this.skippedVersion
+        : skippedVersion as String?,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BehaviorConfig &&
+          enableLogging == other.enableLogging &&
+          checkUpdatesOnStart == other.checkUpdatesOnStart &&
+          skippedVersion == other.skippedVersion;
+
+  @override
+  int get hashCode =>
+      Object.hash(enableLogging, checkUpdatesOnStart, skippedVersion);
+
+  Map<String, dynamic> toJson() => {
+    'enable_logging': enableLogging,
+    'check_updates_on_start': checkUpdatesOnStart,
+    if (skippedVersion != null) 'skipped_version': skippedVersion,
+  };
+
+  factory BehaviorConfig.fromJson(Map<String, dynamic> json) {
+    const d = BehaviorConfig.defaults;
+    return BehaviorConfig(
+      enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
+      checkUpdatesOnStart:
+          json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
+      skippedVersion: json['skipped_version'] as String?,
+    );
+  }
+}
+
 /// Application configuration model.
 ///
 /// Same fields and defaults as LetsGOssh config.
-/// Grouped into sub-configs: [terminal], [ssh], [ui].
+/// Grouped into sub-configs: [terminal], [ssh], [ui], [behavior].
 class AppConfig {
   final TerminalConfig terminal;
   final SshDefaults ssh;
   final UiConfig ui;
+  final BehaviorConfig behavior;
   final int transferWorkers;
   final int maxHistory;
-  final bool enableLogging;
-  final bool checkUpdatesOnStart;
-  final String? skippedVersion;
   final String? locale;
 
   /// Locale codes supported by the app.
@@ -265,11 +321,9 @@ class AppConfig {
     this.terminal = const TerminalConfig(),
     this.ssh = const SshDefaults(),
     this.ui = const UiConfig(),
+    this.behavior = const BehaviorConfig(),
     this.transferWorkers = 2,
     this.maxHistory = 500,
-    this.enableLogging = false,
-    this.checkUpdatesOnStart = true,
-    this.skippedVersion,
     this.locale,
   });
 
@@ -287,6 +341,9 @@ class AppConfig {
   double get windowHeight => ui.windowHeight;
   double get uiScale => ui.uiScale;
   bool get showFolderSizes => ui.showFolderSizes;
+  bool get enableLogging => behavior.enableLogging;
+  bool get checkUpdatesOnStart => behavior.checkUpdatesOnStart;
+  String? get skippedVersion => behavior.skippedVersion;
 
   /// Validate config values. Returns error message or null.
   String? validate() {
@@ -304,13 +361,11 @@ class AppConfig {
       terminal: terminal.sanitized(),
       ssh: ssh.sanitized(),
       ui: ui.sanitized(),
+      behavior: behavior,
       transferWorkers: transferWorkers < 1
           ? d.transferWorkers
           : transferWorkers,
       maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
-      enableLogging: enableLogging,
-      checkUpdatesOnStart: checkUpdatesOnStart,
-      skippedVersion: skippedVersion,
       locale: locale != null && supportedLocales.contains(locale)
           ? locale
           : null,
@@ -324,24 +379,18 @@ class AppConfig {
     TerminalConfig? terminal,
     SshDefaults? ssh,
     UiConfig? ui,
+    BehaviorConfig? behavior,
     int? transferWorkers,
     int? maxHistory,
-    bool? enableLogging,
-    bool? checkUpdatesOnStart,
-    Object? skippedVersion = _unset,
     Object? locale = _unset,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
       ssh: ssh ?? this.ssh,
       ui: ui ?? this.ui,
+      behavior: behavior ?? this.behavior,
       transferWorkers: transferWorkers ?? this.transferWorkers,
       maxHistory: maxHistory ?? this.maxHistory,
-      enableLogging: enableLogging ?? this.enableLogging,
-      checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
-      skippedVersion: identical(skippedVersion, _unset)
-          ? this.skippedVersion
-          : skippedVersion as String?,
       locale: identical(locale, _unset) ? this.locale : locale as String?,
     );
   }
@@ -353,11 +402,9 @@ class AppConfig {
           terminal == other.terminal &&
           ssh == other.ssh &&
           ui == other.ui &&
+          behavior == other.behavior &&
           transferWorkers == other.transferWorkers &&
           maxHistory == other.maxHistory &&
-          enableLogging == other.enableLogging &&
-          checkUpdatesOnStart == other.checkUpdatesOnStart &&
-          skippedVersion == other.skippedVersion &&
           locale == other.locale;
 
   @override
@@ -365,11 +412,9 @@ class AppConfig {
     terminal,
     ssh,
     ui,
+    behavior,
     transferWorkers,
     maxHistory,
-    enableLogging,
-    checkUpdatesOnStart,
-    skippedVersion,
     locale,
   );
 
@@ -378,11 +423,9 @@ class AppConfig {
     ...terminal.toJson(),
     ...ssh.toJson(),
     ...ui.toJson(),
+    ...behavior.toJson(),
     'transfer_workers': transferWorkers,
     'max_history': maxHistory,
-    'enable_logging': enableLogging,
-    'check_updates_on_start': checkUpdatesOnStart,
-    if (skippedVersion != null) 'skipped_version': skippedVersion,
     if (locale != null) 'locale': locale,
   };
 
@@ -392,12 +435,9 @@ class AppConfig {
       terminal: TerminalConfig.fromJson(json),
       ssh: SshDefaults.fromJson(json),
       ui: UiConfig.fromJson(json),
+      behavior: BehaviorConfig.fromJson(json),
       transferWorkers: json['transfer_workers'] as int? ?? d.transferWorkers,
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
-      enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
-      checkUpdatesOnStart:
-          json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
-      skippedVersion: json['skipped_version'] as String?,
       locale: json['locale'] as String?,
     ).sanitized();
   }

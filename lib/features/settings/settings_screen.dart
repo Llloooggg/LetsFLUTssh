@@ -855,7 +855,11 @@ class _UpdateSection extends ConsumerWidget {
           value: checkOnStart,
           onChanged: (v) => ref
               .read(configProvider.notifier)
-              .update((c) => c.copyWith(checkUpdatesOnStart: v)),
+              .update(
+                (c) => c.copyWith(
+                  behavior: c.behavior.copyWith(checkUpdatesOnStart: v),
+                ),
+              ),
         ),
         _buildCheckButton(context, ref, updateState),
         _buildStatusWidget(context, ref, updateState),
@@ -1042,7 +1046,11 @@ class _UpdateSection extends ConsumerWidget {
                   onPressed: () => ref
                       .read(configProvider.notifier)
                       .update(
-                        (c) => c.copyWith(skippedVersion: info.latestVersion),
+                        (c) => c.copyWith(
+                          behavior: c.behavior.copyWith(
+                            skippedVersion: info.latestVersion,
+                          ),
+                        ),
                       ),
                   child: Text(S.of(context).skipThisVersion),
                 )
@@ -1050,7 +1058,11 @@ class _UpdateSection extends ConsumerWidget {
                 TextButton(
                   onPressed: () => ref
                       .read(configProvider.notifier)
-                      .update((c) => c.copyWith(skippedVersion: null)),
+                      .update(
+                        (c) => c.copyWith(
+                          behavior: c.behavior.copyWith(skippedVersion: null),
+                        ),
+                      ),
                   child: Text(S.of(context).unskip),
                 ),
             ],
@@ -1758,7 +1770,10 @@ class _LoggingSection extends ConsumerWidget {
           value: enabled,
           onChanged: (v) => ref
               .read(configProvider.notifier)
-              .update((c) => c.copyWith(enableLogging: v)),
+              .update(
+                (c) =>
+                    c.copyWith(behavior: c.behavior.copyWith(enableLogging: v)),
+              ),
         ),
         if (enabled && logPath != null) ...[
           const SizedBox(height: 8),
