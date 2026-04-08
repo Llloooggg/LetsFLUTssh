@@ -25,12 +25,16 @@ class SessionStore {
   ///
   /// [credentialStore] is injectable for testing; defaults to a real
   /// [CredentialStore] in production.
-  SessionStore({CredentialStore? credentialStore})
-    : _credStore = credentialStore ?? CredentialStore();
-  late final String _filePath;
-  late final String _groupsFilePath;
-  late final String _collapsedFoldersFilePath;
-  bool _initialized = false;
+  /// [directory] is the base directory for session files; resolved lazily
+  /// from [getApplicationSupportDirectory] when not provided.
+  SessionStore({CredentialStore? credentialStore, String? directory})
+    : _credStore = credentialStore ?? CredentialStore(),
+      _directory = directory;
+
+  final String? _directory;
+  String? _filePath;
+  String? _groupsFilePath;
+  String? _collapsedFoldersFilePath;
 
   /// False only when credential decryption explicitly failed on load.
   /// When false, [_saveCredentials] skips the save to avoid overwriting
@@ -44,14 +48,19 @@ class SessionStore {
   /// Guards concurrent [load] calls — second caller awaits the first.
   Future<List<Session>>? _loadFuture;
 
+  /// Ensure file paths are resolved. Safe to call multiple times.
   Future<void> init() async {
-    if (_initialized) return;
-    final dir = await getApplicationSupportDirectory();
-    _filePath = p.join(dir.path, _fileName);
-    _groupsFilePath = p.join(dir.path, 'empty_groups.json');
-    _collapsedFoldersFilePath = p.join(dir.path, 'collapsed_folders.json');
-    _initialized = true;
+    if (_filePath != null) return;
+    final dirPath = _directory ?? (await getApplicationSupportDirectory()).path;
+    _filePath = p.join(dirPath, _fileName);
+    _groupsFilePath = p.join(dirPath, 'empty_groups.json');
+    _collapsedFoldersFilePath = p.join(dirPath, 'collapsed_folders.json');
   }
+
+  /// File path for sessions — guaranteed non-null after [init].
+  String get _sessionsPath => _filePath!;
+  String get _groupsPath => _groupsFilePath!;
+  String get _collapsedPath => _collapsedFoldersFilePath!;
 
   Future<List<Session>> load() async {
     // If a load is already in progress, return its result instead of
@@ -68,7 +77,7 @@ class SessionStore {
 
   Future<List<Session>> _doLoad() async {
     await init();
-    final file = File(_filePath);
+    final file = File(_sessionsPath);
     if (!await file.exists()) return _sessions;
     try {
       final content = await file.readAsString();
@@ -209,7 +218,7 @@ class SessionStore {
     final content = const JsonEncoder.withIndent(
       '  ',
     ).convert(_sessions.map((s) => s.toJson()).toList());
-    await writeFileAtomic(_filePath, content);
+    await writeFileAtomic(_sessionsPath, content);
   }
 
   /// Save credentials first, then session metadata.
@@ -262,7 +271,7 @@ class SessionStore {
 
   Future<void> _loadEmptyFolders() async {
     await init();
-    final file = File(_groupsFilePath);
+    final file = File(_groupsPath);
     if (!await file.exists()) return;
     try {
       final content = await file.readAsString();
@@ -281,7 +290,7 @@ class SessionStore {
 
   Future<void> _saveEmptyFolders() async {
     await init();
-    await writeFileAtomic(_groupsFilePath, jsonEncode(_emptyFolders.toList()));
+    await writeFileAtomic(_groupsPath, jsonEncode(_emptyFolders.toList()));
   }
 
   /// Add an empty folder (persists even without sessions).
@@ -309,7 +318,7 @@ class SessionStore {
 
   Future<void> _loadCollapsedFolders() async {
     await init();
-    final file = File(_collapsedFoldersFilePath);
+    final file = File(_collapsedPath);
     if (!await file.exists()) return;
     try {
       final content = await file.readAsString();
@@ -329,7 +338,7 @@ class SessionStore {
   Future<void> _saveCollapsedFolders() async {
     await init();
     await writeFileAtomic(
-      _collapsedFoldersFilePath,
+      _collapsedPath,
       jsonEncode(_collapsedFolders.toList()),
     );
   }

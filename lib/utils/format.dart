@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
+
+import '../core/sftp/errors.dart';
 import '../core/ssh/errors.dart';
 import '../l10n/app_localizations.dart';
 
@@ -40,6 +43,16 @@ String _pad(int n) => n.toString().padLeft(2, '0');
 /// Used for logging and internal error representation (no BuildContext).
 /// For user-facing localized errors, use [localizeError] instead.
 String sanitizeError(Object error) {
+  // SFTPError: keep English message, sanitize cause recursively.
+  if (error is SFTPError) {
+    if (error.cause == null) return error.message;
+    final cause = sanitizeError(error.cause!);
+    if (cause.isNotEmpty && cause != error.message) {
+      return '${error.message} ($cause)';
+    }
+    return error.message;
+  }
+
   // SSHError chain: keep English message, sanitize cause recursively.
   if (error is SSHError) {
     if (error.cause == null) return error.message;
@@ -87,6 +100,12 @@ String sanitizeError(Object error) {
 /// Use this in UI code where [BuildContext] is available.
 /// Falls back to [sanitizeError] for unknown error types.
 String localizeError(S l10n, Object error) {
+  // SFTPError: map status codes to localized messages.
+  if (error is SFTPError) {
+    final localized = _localizeSftpError(l10n, error);
+    return _withLocalizedCause(l10n, localized, error.cause);
+  }
+
   // SSHError subtypes: use structured data for parameterized messages.
   if (error is HostKeyError) {
     final localized = l10n.errSshHostKeyRejected(
@@ -162,6 +181,23 @@ String _localizeConnectError(S l10n, ConnectError error) {
     return l10n.errSshOpenShellFailed;
   }
   return msg;
+}
+
+String _localizeSftpError(S l10n, SFTPError error) {
+  final cause = error.cause;
+  if (cause is SftpStatusError) {
+    final localized = switch (cause.code) {
+      SftpStatusCode.noSuchFile => l10n.errNoSuchFileOrDirectory,
+      SftpStatusCode.permissionDenied => l10n.errPermissionDenied,
+      _ => error.message,
+    };
+    if (error.path != null) return l10n.errWithPath(localized, error.path!);
+    return localized;
+  }
+  if (error.path != null) {
+    return l10n.errWithPath(error.message, error.path!);
+  }
+  return error.message;
 }
 
 String _withLocalizedCause(S l10n, String localized, Object? cause) {

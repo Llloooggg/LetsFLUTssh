@@ -5,6 +5,7 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:path/path.dart' as p;
 
 import '../../utils/logger.dart';
+import 'errors.dart';
 import 'file_system.dart';
 import 'sftp_models.dart';
 
@@ -27,62 +28,90 @@ class SFTPService {
 
   /// List directory contents, sorted (dirs first, alphabetical).
   Future<List<FileEntry>> list(String path) async {
-    final items = await _sftp.listdir(path);
-    final entries = <FileEntry>[];
-    for (final item in items) {
-      final name = item.filename;
-      if (name == '.' || name == '..') continue;
-      final attr = item.attr;
-      // Parse owner from longname (ls -l format: "perms links owner group ...")
-      final owner = _parseOwner(item.longname);
-      entries.add(
-        FileEntry(
-          name: name,
-          path: p.posix.join(path, name),
-          size: attr.size ?? 0,
-          mode: attr.mode?.value ?? 0,
-          modTime: attr.modifyTime != null
-              ? DateTime.fromMillisecondsSinceEpoch(attr.modifyTime! * 1000)
-              : DateTime.now(),
-          isDir: attr.isDirectory,
-          owner: owner,
-        ),
-      );
+    try {
+      final items = await _sftp.listdir(path);
+      final entries = <FileEntry>[];
+      for (final item in items) {
+        final name = item.filename;
+        if (name == '.' || name == '..') continue;
+        final attr = item.attr;
+        // Parse owner from longname (ls -l format: "perms links owner group ...")
+        final owner = _parseOwner(item.longname);
+        entries.add(
+          FileEntry(
+            name: name,
+            path: p.posix.join(path, name),
+            size: attr.size ?? 0,
+            mode: attr.mode?.value ?? 0,
+            modTime: attr.modifyTime != null
+                ? DateTime.fromMillisecondsSinceEpoch(attr.modifyTime! * 1000)
+                : DateTime.now(),
+            isDir: attr.isDirectory,
+            owner: owner,
+          ),
+        );
+      }
+      sortFileEntries(entries);
+      return entries;
+    } on SFTPError {
+      rethrow;
+    } catch (e) {
+      throw SFTPError.wrap(e, 'list', path);
     }
-    sortFileEntries(entries);
-    return entries;
   }
 
   /// Get working directory (home).
   Future<String> getwd() async {
-    return await _sftp.absolute('.');
+    try {
+      return await _sftp.absolute('.');
+    } catch (e) {
+      throw SFTPError.wrap(e, 'getwd');
+    }
   }
 
   /// Get file info.
   Future<FileEntry> stat(String path) async {
-    final attr = await _sftp.stat(path);
-    return FileEntry(
-      name: p.posix.basename(path),
-      path: path,
-      size: attr.size ?? 0,
-      mode: attr.mode?.value ?? 0,
-      modTime: attr.modifyTime != null
-          ? DateTime.fromMillisecondsSinceEpoch(attr.modifyTime! * 1000)
-          : DateTime.now(),
-      isDir: attr.isDirectory,
-    );
+    try {
+      final attr = await _sftp.stat(path);
+      return FileEntry(
+        name: p.posix.basename(path),
+        path: path,
+        size: attr.size ?? 0,
+        mode: attr.mode?.value ?? 0,
+        modTime: attr.modifyTime != null
+            ? DateTime.fromMillisecondsSinceEpoch(attr.modifyTime! * 1000)
+            : DateTime.now(),
+        isDir: attr.isDirectory,
+      );
+    } on SFTPError {
+      rethrow;
+    } catch (e) {
+      throw SFTPError.wrap(e, 'stat', path);
+    }
   }
 
   /// Create directory.
   Future<void> mkdir(String path) async {
     AppLogger.instance.log('Creating remote directory: $path', name: 'SFTP');
-    await _sftp.mkdir(path);
+    try {
+      await _sftp.mkdir(path);
+    } on SFTPError {
+      rethrow;
+    } catch (e) {
+      throw SFTPError.wrap(e, 'mkdir', path);
+    }
   }
 
   /// Remove file.
   Future<void> remove(String path) async {
     AppLogger.instance.log('Removing remote file: $path', name: 'SFTP');
-    await _sftp.remove(path);
+    try {
+      await _sftp.remove(path);
+    } on SFTPError {
+      rethrow;
+    } catch (e) {
+      throw SFTPError.wrap(e, 'remove', path);
+    }
   }
 
   /// Remove directory recursively.
@@ -109,7 +138,13 @@ class SFTPService {
       'Renaming remote: $oldPath → $newPath',
       name: 'SFTP',
     );
-    await _sftp.rename(oldPath, newPath);
+    try {
+      await _sftp.rename(oldPath, newPath);
+    } on SFTPError {
+      rethrow;
+    } catch (e) {
+      throw SFTPError.wrap(e, 'rename', oldPath);
+    }
   }
 
   /// Upload a local file to remote path with progress.
@@ -118,40 +153,49 @@ class SFTPService {
     String remotePath,
     void Function(TransferProgress)? onProgress,
   ) async {
-    final file = File(localPath);
-    final fileSize = await file.length();
-    final remoteFile = await _sftp.open(
-      remotePath,
-      mode:
-          SftpFileOpenMode.create |
-          SftpFileOpenMode.write |
-          SftpFileOpenMode.truncate,
-    );
-
     try {
-      var done = 0;
-      final raf = await file.open(mode: FileMode.read);
+      final file = File(localPath);
+      final fileSize = await file.length();
+      final remoteFile = await _sftp.open(
+        remotePath,
+        mode:
+            SftpFileOpenMode.create |
+            SftpFileOpenMode.write |
+            SftpFileOpenMode.truncate,
+      );
+
       try {
-        while (true) {
-          final chunk = await raf.read(_uploadChunkSize);
-          if (chunk.isEmpty) break;
-          await remoteFile.writeBytes(Uint8List.fromList(chunk), offset: done);
-          done += chunk.length;
-          onProgress?.call(
-            TransferProgress(
-              fileName: p.basename(localPath),
-              totalBytes: fileSize,
-              doneBytes: done,
-              isUpload: true,
-              isCompleted: done >= fileSize,
-            ),
-          );
+        var done = 0;
+        final raf = await file.open(mode: FileMode.read);
+        try {
+          while (true) {
+            final chunk = await raf.read(_uploadChunkSize);
+            if (chunk.isEmpty) break;
+            await remoteFile.writeBytes(
+              Uint8List.fromList(chunk),
+              offset: done,
+            );
+            done += chunk.length;
+            onProgress?.call(
+              TransferProgress(
+                fileName: p.basename(localPath),
+                totalBytes: fileSize,
+                doneBytes: done,
+                isUpload: true,
+                isCompleted: done >= fileSize,
+              ),
+            );
+          }
+        } finally {
+          await raf.close();
         }
       } finally {
-        await raf.close();
+        remoteFile.close();
       }
-    } finally {
-      remoteFile.close();
+    } on SFTPError {
+      rethrow;
+    } catch (e) {
+      throw SFTPError.wrap(e, 'upload', remotePath);
     }
   }
 
@@ -161,35 +205,41 @@ class SFTPService {
     String localPath,
     void Function(TransferProgress)? onProgress,
   ) async {
-    final attr = await _sftp.stat(remotePath);
-    final fileSize = attr.size ?? 0;
-    final remoteFile = await _sftp.open(remotePath);
-    final localFile = File(localPath);
-    await localFile.parent.create(recursive: true);
-
     try {
-      final sink = localFile.openWrite();
+      final attr = await _sftp.stat(remotePath);
+      final fileSize = attr.size ?? 0;
+      final remoteFile = await _sftp.open(remotePath);
+      final localFile = File(localPath);
+      await localFile.parent.create(recursive: true);
+
       try {
-        var done = 0;
-        final content = remoteFile.read();
-        await for (final chunk in content) {
-          sink.add(chunk);
-          done += chunk.length;
-          onProgress?.call(
-            TransferProgress(
-              fileName: p.posix.basename(remotePath),
-              totalBytes: fileSize,
-              doneBytes: done,
-              isUpload: false,
-              isCompleted: done >= fileSize,
-            ),
-          );
+        final sink = localFile.openWrite();
+        try {
+          var done = 0;
+          final content = remoteFile.read();
+          await for (final chunk in content) {
+            sink.add(chunk);
+            done += chunk.length;
+            onProgress?.call(
+              TransferProgress(
+                fileName: p.posix.basename(remotePath),
+                totalBytes: fileSize,
+                doneBytes: done,
+                isUpload: false,
+                isCompleted: done >= fileSize,
+              ),
+            );
+          }
+        } finally {
+          await sink.close();
         }
       } finally {
-        await sink.close();
+        remoteFile.close();
       }
-    } finally {
-      remoteFile.close();
+    } on SFTPError {
+      rethrow;
+    } catch (e) {
+      throw SFTPError.wrap(e, 'download', remotePath);
     }
   }
 
