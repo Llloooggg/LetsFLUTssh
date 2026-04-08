@@ -1038,6 +1038,8 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 
 **IndexedStack:** Each panel uses its own `IndexedStack` — all tabs in a panel stay in memory, only the current one is visible. This preserves terminal state when switching tabs.
 
+**GlobalKey for cross-panel moves:** Both `TerminalTab` and `FileBrowserTab` use `GlobalKey` (managed by `WorkspaceViewState._terminalKeys` / `_fileBrowserKeys`). When a tab is dragged to a new panel, `GlobalKey` lets Flutter reparent the widget state instead of destroying and recreating it. Without this, SFTP tabs would re-run `_initSftp()` and show connection progress on every tiling split.
+
 **Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive. Height: `AppTheme.barHeightSm` (34 px).
 
 **Connection lifecycle:** When all tabs referencing a connection are closed across **all** panels, `WorkspaceNotifier` automatically disconnects the orphaned connection via `ConnectionManager.disconnect()`.
@@ -2223,6 +2225,7 @@ Manual build
 | Each terminal pane → own SSH shell | Shared `SSHConnection`, independent shells |
 | `Listener` for marquee | Raw pointer events don't conflict with `Draggable` |
 | `IndexedStack` for tabs | Preserves terminal state when switching tabs |
+| `GlobalKey` for tab widgets | Preserves widget state when tab is dragged to a new panel |
 | Separate `features/mobile/` | Different interaction patterns, not a responsive adaptation |
 | Global `navigatorKey` for host key dialog | SSH callback arrives without BuildContext |
 | `AnimationStyle.noAnimation` | Animations disabled (Flutter 3.41+), design decision |
