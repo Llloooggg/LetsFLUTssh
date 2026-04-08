@@ -2146,9 +2146,8 @@ push to dev/main or PR
   │           │     quality + coverage scan
   │           │
   │           └─► ci-auto-tag.yml     (workflow_run[CI], main only)
-  │                 parse commits → calculate semver bump
-  │                 bump needed → update pubspec.yaml → commit → push
-  │                 create tag if new version
+  │                 reads version from pubspec.yaml
+  │                 tag exists → skip / new version → create tag
   │                       │
   │                       └─► build-release.yml    "Build & Release"  (tags: v*)
   │                             build all platforms
@@ -2159,10 +2158,14 @@ push to dev/main or PR
   ├─► semgrep.yml             (main push + PR + weekly)
   └─► scorecard.yml            (main push + weekly)
 
-Dependabot PR merged (into main)
+Dependabot PR (into main)
   │
-  └─► dependabot-auto.yml → auto-merge (no version bump — handled by ci-auto-tag)
-        └─► ci.yml → ci-auto-tag.yml (patch bump) → build-release.yml → Release
+  └─► dependabot-auto.yml → bump version in PR branch → auto-merge
+        └─► ci.yml → ci-auto-tag.yml → build-release.yml → Release
+
+Version bump (on dev, before PR)
+  │
+  └─► scripts/bump-version.sh → parse commits → bump pubspec.yaml → commit
 
 Manual build
   │
@@ -2175,10 +2178,10 @@ Manual build
 | Workflow | Trigger | Branches | Purpose | Blocks release? |
 |----------|---------|----------|---------|-----------------|
 | `ci.yml` | push/PR (all paths) | main, dev | analyze + test + coverage | Yes (required) |
-| `ci-auto-tag.yml` | workflow_run[CI] success | main only | Parses commits, bumps version, creates tag | — |
+| `ci-auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
 | `build-release.yml` | push tag v* / manual | — | Build all platforms + release | — |
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
-| `dependabot-auto.yml` | PR (dependabot) | main | Auto-merge patch/minor (version bump via ci-auto-tag) | — |
+| `dependabot-auto.yml` | PR (dependabot) | main | Bump version in PR branch + auto-merge patch/minor | — |
 | `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
 | `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
