@@ -321,5 +321,10 @@
 
   "storagePermissionRequired": "Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen",
   "grantPermission": "Berechtigung erteilen",
-  "storagePermissionLimited": "Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien"
+  "storagePermissionLimited": "Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien",
+  "progressConnecting": "Verbindung zu {host}:{port}",
+  "progressVerifyingHostKey": "Hostschlüssel wird überprüft",
+  "progressAuthenticating": "Authentifizierung als {user}",
+  "progressOpeningShell": "Shell wird geöffnet",
+  "progressOpeningSftp": "SFTP-Kanal wird geöffnet"
 }

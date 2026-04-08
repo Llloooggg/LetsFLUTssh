@@ -1034,4 +1034,23 @@ class SZh extends S {
 
   @override
   String get storagePermissionLimited => '访问受限 — 请授予完整存储权限以访问所有文件';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return '正在连接 $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => '正在验证主机密钥';
+
+  @override
+  String progressAuthenticating(String user) {
+    return '正在以 $user 身份认证';
+  }
+
+  @override
+  String get progressOpeningShell => '正在打开终端';
+
+  @override
+  String get progressOpeningSftp => '正在打开 SFTP 通道';
 }

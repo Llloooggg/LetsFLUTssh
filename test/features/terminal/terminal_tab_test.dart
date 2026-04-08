@@ -597,7 +597,7 @@ void main() {
     // and reach the error state / loading state / success reset.
 
     testWidgets(
-      'reconnect failure shows error state with icon, message, and buttons',
+      'reconnect failure resets to TilingView (TerminalPane shows error)',
       (tester) async {
         final key = GlobalKey<TerminalTabState>();
         final conn = Connection(
@@ -642,19 +642,17 @@ void main() {
         key.currentState!.reconnect();
         await tester.pumpAndSettle();
 
-        // Now error state should be visible
-        expect(find.byType(TilingView), findsNothing);
-        expect(find.byIcon(Icons.error_outline), findsOneWidget);
-        expect(
-          find.text('Reconnect failed: Exception: Auth failed'),
-          findsOneWidget,
-        );
-        expect(find.text('Reconnect'), findsOneWidget);
-        expect(find.text('Close'), findsOneWidget);
+        // After failed reconnect, TerminalTab resets to TilingView
+        // with a fresh TerminalPane that handles the error display
+        expect(find.byType(TilingView), findsOneWidget);
+        expect(find.byType(TerminalPane), findsOneWidget);
+        expect(conn.connectionError, isNotNull);
       },
     );
 
-    testWidgets('error state icon has correct size and color', (tester) async {
+    testWidgets('reconnect failure sets connectionError on connection', (
+      tester,
+    ) async {
       final key = GlobalKey<TerminalTabState>();
       final conn = Connection(
         id: 'key-icon',
@@ -694,12 +692,13 @@ void main() {
       key.currentState!.reconnect();
       await tester.pumpAndSettle();
 
-      final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline));
-      expect(icon.size, 48);
-      expect(icon.color, AppTheme.disconnected);
+      // Error is stored on the connection, TerminalPane handles display
+      expect(conn.connectionError, isNotNull);
+      expect(conn.state, SSHConnectionState.disconnected);
+      expect(find.byType(TilingView), findsOneWidget);
     });
 
-    testWidgets('error state text is styled with disconnected color', (
+    testWidgets('reconnect failure preserves TilingView with TerminalPane', (
       tester,
     ) async {
       final key = GlobalKey<TerminalTabState>();
@@ -741,14 +740,13 @@ void main() {
       key.currentState!.reconnect();
       await tester.pumpAndSettle();
 
-      final errorText = tester.widget<Text>(
-        find.text('Reconnect failed: Exception: timeout'),
-      );
-      expect(errorText.style?.color, AppTheme.disconnected);
-      expect(errorText.textAlign, TextAlign.center);
+      // After failed reconnect, shows TilingView with TerminalPane
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.byType(TerminalPane), findsOneWidget);
+      expect(conn.connectionError, isNotNull);
     });
 
-    testWidgets('reconnect shows loading spinner during attempt', (
+    testWidgets('reconnect shows TilingView with TerminalPane during attempt', (
       tester,
     ) async {
       final key = GlobalKey<TerminalTabState>();
@@ -790,10 +788,9 @@ void main() {
       key.currentState!.reconnect();
       await tester.pump(); // single pump to see loading state
 
-      // Should show loading spinner, not TilingView or error
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.byType(TilingView), findsNothing);
-      expect(find.byIcon(Icons.error_outline), findsNothing);
+      // TerminalPane shows progress in terminal buffer — no spinner
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.byType(TerminalPane), findsOneWidget);
 
       // Complete and clean up
       completer.complete();
@@ -850,11 +847,10 @@ void main() {
       expect(find.textContaining('Reconnect failed'), findsNothing);
     });
 
-    testWidgets('Close button in error state calls onDisconnected', (
+    testWidgets('failed reconnect still shows TilingView with TerminalPane', (
       tester,
     ) async {
       final key = GlobalKey<TerminalTabState>();
-      var disconnectedCalled = false;
       final conn = Connection(
         id: 'key-close',
         label: 'Test',
@@ -879,7 +875,6 @@ void main() {
                   key: key,
                   tabId: 'tab-key-close',
                   connection: conn,
-                  onDisconnected: () => disconnectedCalled = true,
                   reconnectFactory: (_) async {
                     throw Exception('fail');
                   },
@@ -891,20 +886,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Get into error state
       key.currentState!.reconnect();
       await tester.pumpAndSettle();
 
-      expect(find.text('Close'), findsOneWidget);
-
-      // Tap the Close button
-      await tester.tap(find.text('Close'));
-      await tester.pumpAndSettle();
-
-      expect(disconnectedCalled, isTrue);
+      // After failed reconnect, TerminalTab resets to TilingView
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.byType(TerminalPane), findsOneWidget);
     });
 
-    testWidgets('Reconnect button in error state retries — fail then succeed', (
+    testWidgets('reconnect retry — fail then succeed both show TilingView', (
       tester,
     ) async {
       final key = GlobalKey<TerminalTabState>();
@@ -948,21 +938,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // First reconnect — fails, shows error state
+      // First reconnect — fails, resets to TilingView
       key.currentState!.reconnect();
       await tester.pumpAndSettle();
-      expect(
-        find.text('Reconnect failed: Exception: Attempt 1 failed'),
-        findsOneWidget,
-      );
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(conn.connectionError, isNotNull);
 
-      // Tap Reconnect button in error state — second attempt succeeds
-      await tester.tap(find.text('Reconnect'));
+      // Second reconnect — succeeds
+      key.currentState!.reconnect();
       await tester.pumpAndSettle();
 
-      // Should be back to TilingView — no TerminalTab error message
       expect(find.byType(TilingView), findsOneWidget);
-      expect(find.textContaining('Reconnect failed'), findsNothing);
       expect(callCount, 2);
     });
 
@@ -1012,24 +998,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // First call fails — error state
+      // First call fails — resets to TilingView
       key.currentState!.reconnect();
       await tester.pumpAndSettle();
-      expect(
-        find.text('Reconnect failed: Exception: first error'),
-        findsOneWidget,
-      );
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(conn.connectionError, isNotNull);
 
-      // Second reconnect attempt — should clear error and show spinner
+      // Second reconnect attempt — resets to fresh TilingView
       key.currentState!.reconnect();
       await tester.pump();
 
-      // Error should be gone, loading spinner visible
-      expect(
-        find.text('Reconnect failed: Exception: first error'),
-        findsNothing,
-      );
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // TerminalPane shows progress — no spinner
+      expect(find.byType(TilingView), findsOneWidget);
+      expect(find.byType(TerminalPane), findsOneWidget);
 
       // Clean up
       completer.complete();

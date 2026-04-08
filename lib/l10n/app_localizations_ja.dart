@@ -1038,4 +1038,23 @@ class SJa extends S {
   @override
   String get storagePermissionLimited =>
       '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return '$host:$port に接続中';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'ホスト鍵を検証中';
+
+  @override
+  String progressAuthenticating(String user) {
+    return '$user として認証中';
+  }
+
+  @override
+  String get progressOpeningShell => 'シェルを起動中';
+
+  @override
+  String get progressOpeningSftp => 'SFTPチャネルを起動中';
 }

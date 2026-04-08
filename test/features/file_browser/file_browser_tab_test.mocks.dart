@@ -29,19 +29,23 @@ import 'package:mockito/src/dummies.dart' as _i8;
 // ignore_for_file: invalid_use_of_internal_member
 
 class _FakeSftpHandsake_0 extends _i1.SmartFake implements _i2.SftpHandsake {
-  _FakeSftpHandsake_0(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+  _FakeSftpHandsake_0(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 class _FakeSftpFileAttrs_1 extends _i1.SmartFake implements _i3.SftpFileAttrs {
-  _FakeSftpFileAttrs_1(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+  _FakeSftpFileAttrs_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 class _FakeSftpFile_2 extends _i1.SmartFake implements _i2.SftpFile {
-  _FakeSftpFile_2(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+  _FakeSftpFile_2(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 class _FakeSftpStatVfs_3 extends _i1.SmartFake implements _i4.SftpStatVfs {
-  _FakeSftpStatVfs_3(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+  _FakeSftpStatVfs_3(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 /// A class which mocks [SftpClient].
@@ -52,7 +56,9 @@ class MockSftpClient extends _i1.Mock implements _i2.SftpClient {
   _i5.Future<_i2.SftpHandsake> get handshake =>
       (super.noSuchMethod(
             Invocation.getter(#handshake),
-            returnValue: _i5.Future<_i2.SftpHandsake>.value(_FakeSftpHandsake_0(this, Invocation.getter(#handshake))),
+            returnValue: _i5.Future<_i2.SftpHandsake>.value(
+              _FakeSftpHandsake_0(this, Invocation.getter(#handshake)),
+            ),
             returnValueForMissingStub: _i5.Future<_i2.SftpHandsake>.value(
               _FakeSftpHandsake_0(this, Invocation.getter(#handshake)),
             ),
@@ -64,10 +70,16 @@ class MockSftpClient extends _i1.Mock implements _i2.SftpClient {
       (super.noSuchMethod(
             Invocation.method(#stat, [path], {#followLink: followLink}),
             returnValue: _i5.Future<_i3.SftpFileAttrs>.value(
-              _FakeSftpFileAttrs_1(this, Invocation.method(#stat, [path], {#followLink: followLink})),
+              _FakeSftpFileAttrs_1(
+                this,
+                Invocation.method(#stat, [path], {#followLink: followLink}),
+              ),
             ),
             returnValueForMissingStub: _i5.Future<_i3.SftpFileAttrs>.value(
-              _FakeSftpFileAttrs_1(this, Invocation.method(#stat, [path], {#followLink: followLink})),
+              _FakeSftpFileAttrs_1(
+                this,
+                Invocation.method(#stat, [path], {#followLink: followLink}),
+              ),
             ),
           )
           as _i5.Future<_i3.SftpFileAttrs>);
@@ -82,14 +94,23 @@ class MockSftpClient extends _i1.Mock implements _i2.SftpClient {
           as _i5.Future<void>);
 
   @override
-  _i5.Future<_i2.SftpFile> open(String? path, {_i6.SftpFileOpenMode? mode = _i6.SftpFileOpenMode.read}) =>
+  _i5.Future<_i2.SftpFile> open(
+    String? path, {
+    _i6.SftpFileOpenMode? mode = _i6.SftpFileOpenMode.read,
+  }) =>
       (super.noSuchMethod(
             Invocation.method(#open, [path], {#mode: mode}),
             returnValue: _i5.Future<_i2.SftpFile>.value(
-              _FakeSftpFile_2(this, Invocation.method(#open, [path], {#mode: mode})),
+              _FakeSftpFile_2(
+                this,
+                Invocation.method(#open, [path], {#mode: mode}),
+              ),
             ),
             returnValueForMissingStub: _i5.Future<_i2.SftpFile>.value(
-              _FakeSftpFile_2(this, Invocation.method(#open, [path], {#mode: mode})),
+              _FakeSftpFile_2(
+                this,
+                Invocation.method(#open, [path], {#mode: mode}),
+              ),
             ),
           )
           as _i5.Future<_i2.SftpFile>);
@@ -137,7 +158,9 @@ class MockSftpClient extends _i1.Mock implements _i2.SftpClient {
       (super.noSuchMethod(
             Invocation.method(#listdir, [path]),
             returnValue: _i5.Future<List<_i7.SftpName>>.value(<_i7.SftpName>[]),
-            returnValueForMissingStub: _i5.Future<List<_i7.SftpName>>.value(<_i7.SftpName>[]),
+            returnValueForMissingStub: _i5.Future<List<_i7.SftpName>>.value(
+              <_i7.SftpName>[],
+            ),
           )
           as _i5.Future<List<_i7.SftpName>>);
 
@@ -172,9 +195,17 @@ class MockSftpClient extends _i1.Mock implements _i2.SftpClient {
   _i5.Future<String> absolute(String? path) =>
       (super.noSuchMethod(
             Invocation.method(#absolute, [path]),
-            returnValue: _i5.Future<String>.value(_i8.dummyValue<String>(this, Invocation.method(#absolute, [path]))),
+            returnValue: _i5.Future<String>.value(
+              _i8.dummyValue<String>(
+                this,
+                Invocation.method(#absolute, [path]),
+              ),
+            ),
             returnValueForMissingStub: _i5.Future<String>.value(
-              _i8.dummyValue<String>(this, Invocation.method(#absolute, [path])),
+              _i8.dummyValue<String>(
+                this,
+                Invocation.method(#absolute, [path]),
+              ),
             ),
           )
           as _i5.Future<String>);
@@ -192,9 +223,17 @@ class MockSftpClient extends _i1.Mock implements _i2.SftpClient {
   _i5.Future<String> readlink(String? path) =>
       (super.noSuchMethod(
             Invocation.method(#readlink, [path]),
-            returnValue: _i5.Future<String>.value(_i8.dummyValue<String>(this, Invocation.method(#readlink, [path]))),
+            returnValue: _i5.Future<String>.value(
+              _i8.dummyValue<String>(
+                this,
+                Invocation.method(#readlink, [path]),
+              ),
+            ),
             returnValueForMissingStub: _i5.Future<String>.value(
-              _i8.dummyValue<String>(this, Invocation.method(#readlink, [path])),
+              _i8.dummyValue<String>(
+                this,
+                Invocation.method(#readlink, [path]),
+              ),
             ),
           )
           as _i5.Future<String>);
@@ -222,5 +261,8 @@ class MockSftpClient extends _i1.Mock implements _i2.SftpClient {
           as _i5.Future<_i4.SftpStatVfs>);
 
   @override
-  void close() => super.noSuchMethod(Invocation.method(#close, []), returnValueForMissingStub: null);
+  void close() => super.noSuchMethod(
+    Invocation.method(#close, []),
+    returnValueForMissingStub: null,
+  );
 }

@@ -1048,4 +1048,23 @@ class SAr extends S {
   @override
   String get storagePermissionLimited =>
       'وصول محدود — امنح إذن التخزين الكامل لجميع الملفات';
+
+  @override
+  String progressConnecting(String host, int port) {
+    return 'الاتصال بـ $host:$port';
+  }
+
+  @override
+  String get progressVerifyingHostKey => 'التحقق من مفتاح المضيف';
+
+  @override
+  String progressAuthenticating(String user) {
+    return 'المصادقة كـ $user';
+  }
+
+  @override
+  String get progressOpeningShell => 'فتح الطرفية';
+
+  @override
+  String get progressOpeningSftp => 'فتح قناة SFTP';
 }

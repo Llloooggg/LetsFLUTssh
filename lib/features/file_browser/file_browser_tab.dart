@@ -12,9 +12,9 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/error_state.dart';
-
+import '../../widgets/connection_progress.dart';
 import '../../core/connection/connection.dart';
+import '../../core/connection/connection_step.dart';
 import '../../core/sftp/sftp_client.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/transfer_task.dart';
@@ -72,6 +72,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   bool _initializing = true;
   String? _error;
   double _splitRatio = 0.5;
+  final _progressKey = GlobalKey<ConnectionProgressState>();
 
   // SFTP clipboard for Ctrl+C / Ctrl+V across panes.
   List<FileEntry>? _clipboardEntries;
@@ -101,22 +102,31 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   Future<void> _initSftp() async {
-    // Wait for connection if still connecting
     final conn = widget.connection;
     await conn.waitUntilReady();
 
     if (!conn.isConnected) {
       if (mounted) {
         final l10n = S.of(context);
+        final error = conn.connectionError != null
+            ? localizeError(l10n, conn.connectionError!)
+            : l10n.errConnectionFailed;
+        _progressKey.currentState?.writeError(error);
         setState(() {
-          _error = conn.connectionError != null
-              ? localizeError(l10n, conn.connectionError!)
-              : l10n.errConnectionFailed;
+          _error = error;
           _initializing = false;
         });
       }
       return;
     }
+
+    // SFTP channel open step
+    _progressKey.currentState?.addStep(
+      const ConnectionStep(
+        phase: ConnectionPhase.openChannel,
+        status: StepStatus.inProgress,
+      ),
+    );
 
     try {
       _sftp = widget.sftpInitFactory != null
@@ -131,6 +141,13 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
         name: 'FileBrowser',
         error: e,
       );
+      _progressKey.currentState?.addStep(
+        ConnectionStep(
+          phase: ConnectionPhase.openChannel,
+          status: StepStatus.failed,
+          detail: e.toString(),
+        ),
+      );
       if (mounted) {
         final l10n = S.of(context);
         setState(() {
@@ -143,8 +160,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_initializing) return _buildLoading();
-    if (_error != null) return _buildError();
+    if (_initializing || _error != null) return _buildLoading();
 
     final local = _localCtrl;
     final remote = _remoteCtrl;
@@ -172,28 +188,11 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
   }
 
   Widget _buildLoading() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(S.of(context).initializingSftp),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildError() {
-    return ErrorState(
-      message: _error!,
-      onRetry: () {
-        setState(() {
-          _initializing = true;
-          _error = null;
-        });
-        _initSftp();
-      },
+    return ConnectionProgress(
+      key: _progressKey,
+      connection: widget.connection,
+      fontSize: ref.read(configProvider).fontSize,
+      channelLabel: S.of(context).progressOpeningSftp,
     );
   }
 

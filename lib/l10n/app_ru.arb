@@ -322,5 +322,10 @@
 
   "storagePermissionRequired": "Для просмотра локальных файлов необходимо разрешение на доступ к хранилищу",
   "grantPermission": "Дать разрешение",
-  "storagePermissionLimited": "Ограниченный доступ — предоставьте полный доступ к хранилищу для всех файлов"
+  "storagePermissionLimited": "Ограниченный доступ — предоставьте полный доступ к хранилищу для всех файлов",
+  "progressConnecting": "Подключение к {host}:{port}",
+  "progressVerifyingHostKey": "Проверка ключа хоста",
+  "progressAuthenticating": "Аутентификация как {user}",
+  "progressOpeningShell": "Открытие терминала",
+  "progressOpeningSftp": "Открытие SFTP-канала"
 }
