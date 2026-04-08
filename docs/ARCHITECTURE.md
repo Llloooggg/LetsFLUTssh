@@ -135,6 +135,7 @@ lib/
 │   ├── sortable_header_cell.dart    # Column header with sort indicator
 │   ├── split_view.dart              # Horizontal resizable split
 │   ├── status_indicator.dart        # Icon + count indicator with tooltip
+│   ├── styled_form_field.dart       # Shared form field (StyledFormField, FieldLabel, StyledInput)
 │   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
 │   └── toast.dart                   # Stacked notification toasts
 ├── theme/                            # OneDark / One Light palettes
@@ -1233,6 +1234,26 @@ AppDivider.indented({Color? color})  // indent = 8, endIndent = 8
 ColumnResizeHandle({required void Function(double dx) onDrag})
 ```
 Draggable column-resize handle for table headers. Place between a flexible column and a fixed-width column. The `onDrag` callback receives the raw horizontal delta (positive = right). Callers negate the delta when the fixed column is to the right of the handle. Used in `FilePane` and `TransferPanel` column headers.
+
+### StyledFormField / FieldLabel / StyledInput
+
+```dart
+StyledFormField({
+  required String label,               // uppercase label above the input
+  required TextEditingController controller,
+  String? hint,
+  bool obscure = false,
+  Widget? suffixIcon,
+  TextInputType? keyboardType,
+  String? Function(String?)? validator,
+  bool fixedHeight = false,            // wrap in SizedBox(controlHeightMd)
+  bool autofocus = false,
+  ValueChanged<String>? onSubmitted,
+})
+```
+Reusable styled form field combining `FieldLabel` + `StyledInput`. Eliminates duplication across `SessionEditDialog`, `QuickConnectDialog`, and `LfsImportDialog`. Uses `AppFonts.mono()` for input text, `AppTheme.bg3` fill, `AppTheme.radiusSm` borders. Set `fixedHeight: true` for compact bottom-sheet layouts (wraps input in `SizedBox(height: controlHeightMd)` with zero vertical padding).
+
+`FieldLabel(text)` — standalone uppercase label widget. `StyledInput(controller, ...)` — standalone text input with full decoration, accepts `labelText` and `contentPadding` overrides for non-standard layouts (e.g. `.lfs` import dialog).
 
 ### SplitView
 
