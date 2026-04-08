@@ -154,7 +154,7 @@ lib/
 | `ssh_client.dart` | `SSHConnection` | Wrapper over dartssh2: connect, auth, openShell, resize, keepalive, disconnect |
 | `ssh_config.dart` | `SSHConfig` | Config model (host, port, user, password, keyPath, keyData, passphrase, keepAliveSec, timeoutSec) |
 | `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed |
-| `shell_helper.dart` | `openShellWithRetry()` | Shared SSH shell open logic with retry (for desktop and mobile) |
+| `shell_helper.dart` | `openShellWithRetry()`, `ShellConnection` | Shared SSH shell open logic with retry; `ShellConnection` wraps shell + terminal callbacks, clears them on `close()` |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy with structured fields (host, port, user) for localization |
 
 #### SSHConnection — lifecycle
@@ -201,6 +201,7 @@ On failure of any step → AuthError.
 class KnownHostsManager {
   KnownHostsManager(String knownHostsPath);
 
+  Future<void> load();  // safe to call concurrently — first call does I/O, subsequent await same future
   FutureOr<bool> verify(String host, int port, String type, Uint8List fingerprint);
   // → true: key matches / user accepted
   // → false: user rejected / key changed and rejected
@@ -208,6 +209,9 @@ class KnownHostsManager {
   // Callbacks (invoked via global navigatorKey):
   // onUnknownHost → HostKeyDialog.showNewHost()
   // onHostKeyChanged → HostKeyDialog.showKeyChanged()
+
+  // Concurrency: _loadFuture pattern (first call loads, later calls reuse).
+  // Write lock: _withWriteLock() serializes file writes via chained futures.
 }
 ```
 
@@ -308,7 +312,9 @@ class TransferManager {
 }
 ```
 
-**Cancellation:** Marks the task as cancelled; on the next progress callback invocation the flag is checked and CancelException is thrown.
+**Cancellation:** Marks the task as cancelled via `_cancelledIds` set; on the next progress callback invocation the flag is checked and CancelException is thrown. Timeout also adds to `_cancelledIds` for cooperative cancellation.
+
+**Queue processing:** `_processQueue` returns void and fires tasks via `unawaited()` — errors are caught internally per-task.
 
 #### TransferPanel — UI
 
@@ -444,7 +450,7 @@ class Connection {
   Future<void> waitUntilReady();   // waits for connect attempt to finish (success or error)
   void completeReady();            // called by ConnectionManager — also closes progressStream
   void addProgressStep(step);      // buffers + broadcasts a progress step
-  void resetForReconnect();        // fresh completer, stream, clears history/error
+  void resetForReconnect();        // closes old progress controller, then fresh completer + stream, clears history/error
 }
 ```
 
@@ -463,10 +469,14 @@ class ConnectionManager {
   Connection connectAsync(SSHConfig config, {String? label, String? sessionId});
   // Returns Connection immediately in state=connecting. SSH handshake runs in background.
   void disconnect(String connectionId);
-  void disconnectAll();
+  void disconnectAll();  // also completes pending ready futures for in-progress connections
 
   List<Connection> get connections;
   Stream<List<Connection>> get onChange;
+
+  // Reconnect race prevention: per-connection generation counter (_connectGeneration).
+  // _doConnect checks its generation is still current before applying results.
+  // Rapid reconnects increment the counter, making in-flight results stale.
 }
 ```
 
@@ -732,7 +742,7 @@ class AppShortcutRegistry {
 | `filteredSessionsProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered session list |
 | `sessionSearchProvider` | NotifierProvider<SessionSearchNotifier, String> | — | Search query string |
 | `configStoreProvider` | Provider | — | Singleton ConfigStore |
-| `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger |
+| `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger (sequential save lock via `_pendingSave`) |
 | `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
 | `localeProvider` | Provider | configProvider | Locale? (null = system default) |
 | `knownHostsProvider` | Provider | — | KnownHostsManager |
@@ -891,7 +901,7 @@ Session clipboard stores a session ID. Ctrl+V duplicates that session via `Sessi
 | `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort |
 | `sftp_initializer.dart` | `SFTPInitializer` | SFTP initialization factory (injectable) |
 | `transfer_panel.dart` | `TransferPanel` | Bottom panel: progress + history (resizable columns, sorting, column dividers) |
-| `transfer_helpers.dart` | — | Upload/download/delete/rename/mkdir actions + transfer helpers |
+| `transfer_helpers.dart` | `TransferHelpers` | Upload/download helpers; `enqueueUpload`/`enqueueDownload` accept `required S loc` for localized status strings |
 
 #### FilePaneController
 
@@ -1269,7 +1279,7 @@ TOFU dialogs: new host / key changed.
 ConfirmDialog.show(context, {
   required String title,
   required Widget content,
-  String confirmLabel = 'Delete',
+  String? confirmLabel,  // null → S.of(context).delete
   bool destructive = true,
 }) → Future<bool>
 ```
