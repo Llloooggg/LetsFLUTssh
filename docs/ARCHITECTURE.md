@@ -1451,7 +1451,7 @@ File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
 ```dart
 Future<void> writeFileAtomic(String path, String content);
 Future<void> writeBytesAtomic(String path, List<int> bytes);
-void restrictFilePermissions(String path);  // chmod 600
+Future<void> restrictFilePermissions(String path);  // async chmod 600
 ```
 
 ### Platform

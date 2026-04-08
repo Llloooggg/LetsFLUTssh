@@ -140,7 +140,9 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
   void closeOthers(String panelId, String tabId) {
     final panel = findPanel(state.root, panelId);
     if (panel == null) return;
-    final kept = panel.tabs.firstWhere((t) => t.id == tabId);
+    final keptIndex = panel.tabs.indexWhere((t) => t.id == tabId);
+    if (keptIndex < 0) return;
+    final kept = panel.tabs[keptIndex];
     final closed = panel.tabs.where((t) => t.id != tabId).toList();
     state = state.copyWith(
       root: updatePanel(state.root, panelId, (_) {

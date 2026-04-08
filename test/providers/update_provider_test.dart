@@ -88,6 +88,29 @@ void main() {
       expect(s2.status, UpdateStatus.downloaded);
       expect(s2.progress, 0.5); // preserved
     });
+
+    test('copyWith can clear nullable fields with explicit null', () {
+      const s = UpdateState(
+        status: UpdateStatus.downloaded,
+        downloadedPath: '/tmp/file',
+        error: 'oops',
+      );
+      final s2 = s.copyWith(downloadedPath: null, error: null);
+      expect(s2.downloadedPath, isNull);
+      expect(s2.error, isNull);
+      expect(s2.status, UpdateStatus.downloaded); // preserved
+    });
+
+    test('copyWith preserves nullable fields when not specified', () {
+      const s = UpdateState(
+        status: UpdateStatus.error,
+        downloadedPath: '/tmp/file',
+        error: 'oops',
+      );
+      final s2 = s.copyWith(status: UpdateStatus.idle);
+      expect(s2.downloadedPath, '/tmp/file');
+      expect(s2.error, 'oops');
+    });
   });
 
   group('UpdateNotifier.check()', () {

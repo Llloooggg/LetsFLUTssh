@@ -43,7 +43,6 @@ class SSHConnection {
 
   SSHClient? _client;
   SSHSession? _shell;
-  Timer? _keepAliveTimer;
   bool _disposed = false;
   bool _hostKeyRejected = false;
 
@@ -106,14 +105,12 @@ class SSHConnection {
       (_) {
         if (!_disposed) {
           _disposed = true;
-          _keepAliveTimer?.cancel();
           onDisconnect?.call();
         }
       },
       onError: (_) {
         if (!_disposed) {
           _disposed = true;
-          _keepAliveTimer?.cancel();
           onDisconnect?.call();
         }
       },
@@ -313,8 +310,6 @@ class SSHConnection {
   }
 
   void _cleanup() {
-    _keepAliveTimer?.cancel();
-    _keepAliveTimer = null;
     _shell?.close();
     _shell = null;
     _client?.close();

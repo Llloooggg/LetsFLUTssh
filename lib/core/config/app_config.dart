@@ -317,6 +317,9 @@ class AppConfig {
     );
   }
 
+  /// Sentinel for clearing nullable fields in [copyWith].
+  static const _unset = Object();
+
   AppConfig copyWith({
     TerminalConfig? terminal,
     SshDefaults? ssh,
@@ -325,6 +328,8 @@ class AppConfig {
     int? maxHistory,
     bool? enableLogging,
     bool? checkUpdatesOnStart,
+    Object? skippedVersion = _unset,
+    Object? locale = _unset,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -334,34 +339,12 @@ class AppConfig {
       maxHistory: maxHistory ?? this.maxHistory,
       enableLogging: enableLogging ?? this.enableLogging,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
-      skippedVersion: skippedVersion,
-      locale: locale,
+      skippedVersion: identical(skippedVersion, _unset)
+          ? this.skippedVersion
+          : skippedVersion as String?,
+      locale: identical(locale, _unset) ? this.locale : locale as String?,
     );
   }
-
-  AppConfig withSkippedVersion(String? version) => AppConfig(
-    terminal: terminal,
-    ssh: ssh,
-    ui: ui,
-    transferWorkers: transferWorkers,
-    maxHistory: maxHistory,
-    enableLogging: enableLogging,
-    checkUpdatesOnStart: checkUpdatesOnStart,
-    skippedVersion: version,
-    locale: locale,
-  );
-
-  AppConfig withLocale(String? locale) => AppConfig(
-    terminal: terminal,
-    ssh: ssh,
-    ui: ui,
-    transferWorkers: transferWorkers,
-    maxHistory: maxHistory,
-    enableLogging: enableLogging,
-    checkUpdatesOnStart: checkUpdatesOnStart,
-    skippedVersion: skippedVersion,
-    locale: locale,
-  );
 
   @override
   bool operator ==(Object other) =>

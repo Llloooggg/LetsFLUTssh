@@ -2397,7 +2397,7 @@ void main() {
     testWidgets('shows Unskip button when version is skipped', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(
-          initialConfig: AppConfig.defaults.withSkippedVersion('2.0.0'),
+          initialConfig: AppConfig.defaults.copyWith(skippedVersion: '2.0.0'),
           initialUpdateState: const UpdateState(
             status: UpdateStatus.updateAvailable,
             info: UpdateInfo(
@@ -2422,7 +2422,7 @@ void main() {
     testWidgets('subtitle does not show skipped label', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(
-          initialConfig: AppConfig.defaults.withSkippedVersion('2.0.0'),
+          initialConfig: AppConfig.defaults.copyWith(skippedVersion: '2.0.0'),
           initialUpdateState: const UpdateState(
             status: UpdateStatus.updateAvailable,
             info: UpdateInfo(
@@ -2446,7 +2446,7 @@ void main() {
       // Skipped v2.0.0, but v3.0.0 is now available — skip doesn't match
       await tester.pumpWidget(
         buildUpdateApp(
-          initialConfig: AppConfig.defaults.withSkippedVersion('2.0.0'),
+          initialConfig: AppConfig.defaults.copyWith(skippedVersion: '2.0.0'),
           initialUpdateState: const UpdateState(
             status: UpdateStatus.updateAvailable,
             info: UpdateInfo(
