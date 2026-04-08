@@ -231,7 +231,12 @@ class UpdateService {
       if (actual != expectedDigest) {
         try {
           await File(savePath).delete();
-        } catch (_) {}
+        } catch (e) {
+          AppLogger.instance.log(
+            'Failed to delete file after SHA256 mismatch: $e',
+            name: 'UpdateService',
+          );
+        }
         throw StateError(
           'SHA256 mismatch: expected $expectedDigest, got $actual',
         );
@@ -300,8 +305,16 @@ class UpdateService {
   Future<bool> openFile(String path) async {
     ProcessResult result;
     if (Platform.isLinux) {
+      AppLogger.instance.log(
+        'Opening file with xdg-open: $path',
+        name: 'UpdateService',
+      );
       result = await Process.run('xdg-open', [path]);
     } else if (Platform.isMacOS) {
+      AppLogger.instance.log(
+        'Opening file with open: $path',
+        name: 'UpdateService',
+      );
       result = await Process.run('open', [path]);
     } else if (Platform.isWindows) {
       if (_unsafePathChars.hasMatch(path)) {
@@ -311,8 +324,16 @@ class UpdateService {
         );
         return false;
       }
+      AppLogger.instance.log(
+        'Opening file with cmd /c start: $path',
+        name: 'UpdateService',
+      );
       result = await Process.run('cmd', ['/c', 'start', '', path]);
     } else {
+      AppLogger.instance.log(
+        'Cannot open file: unsupported platform',
+        name: 'UpdateService',
+      );
       return false;
     }
     return result.exitCode == 0;

@@ -7,6 +7,7 @@ import '../../core/ssh/ssh_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/styled_form_field.dart';
 import '../../utils/platform.dart';
 
 /// Quick Connect — shown as a bottom sheet.
@@ -139,21 +140,23 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                     Row(
                       children: [
                         Expanded(
-                          child: _field(
-                            S.of(context).hostRequired,
-                            _hostCtrl,
+                          child: StyledFormField(
+                            label: S.of(context).hostRequired,
+                            controller: _hostCtrl,
                             hint: S.of(context).hintHost,
                             validator: _requiredValidator,
+                            fixedHeight: true,
                           ),
                         ),
                         const SizedBox(width: 12),
                         SizedBox(
                           width: 80,
-                          child: _field(
-                            S.of(context).port,
-                            _portCtrl,
+                          child: StyledFormField(
+                            label: S.of(context).port,
+                            controller: _portCtrl,
                             hint: S.of(context).hintPort,
                             keyboardType: TextInputType.number,
+                            fixedHeight: true,
                             validator: (v) {
                               final port = int.tryParse(v ?? '');
                               if (port == null || port < 1 || port > 65535) {
@@ -166,18 +169,20 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _field(
-                      S.of(context).usernameRequired,
-                      _userCtrl,
+                    StyledFormField(
+                      label: S.of(context).usernameRequired,
+                      controller: _userCtrl,
                       hint: S.of(context).hintUsername,
                       validator: _requiredValidator,
+                      fixedHeight: true,
                     ),
                     const SizedBox(height: 12),
-                    _field(
-                      S.of(context).password,
-                      _passwordCtrl,
+                    StyledFormField(
+                      label: S.of(context).password,
+                      controller: _passwordCtrl,
                       hint: S.of(context).hintPassword,
                       obscure: _obscurePassword,
+                      fixedHeight: true,
                       suffixIcon: GestureDetector(
                         onTap: () => setState(
                           () => _obscurePassword = !_obscurePassword,
@@ -211,11 +216,12 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       ),
                       const SizedBox(height: 12),
                     ],
-                    _field(
-                      S.of(context).keyPassphrase,
-                      _passphraseCtrl,
+                    StyledFormField(
+                      label: S.of(context).keyPassphrase,
+                      controller: _passphraseCtrl,
                       hint: S.of(context).hintOptional,
                       obscure: _obscurePassphrase,
+                      fixedHeight: true,
                       suffixIcon: GestureDetector(
                         onTap: () => setState(
                           () => _obscurePassphrase = !_obscurePassphrase,
@@ -337,86 +343,4 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
 
   String? Function(String?) get _requiredValidator =>
       (v) => v == null || v.trim().isEmpty ? S.of(context).required : null;
-
-  Widget _field(
-    String label,
-    TextEditingController controller, {
-    String? hint,
-    bool obscure = false,
-    Widget? suffixIcon,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Text(
-            label.toUpperCase(),
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: AppFonts.xs,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
-              color: AppTheme.fgFaint,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: AppTheme.controlHeightMd,
-          child: TextFormField(
-            controller: controller,
-            obscureText: obscure,
-            keyboardType: keyboardType,
-            validator: validator,
-            style: TextStyle(
-              fontFamily: 'JetBrains Mono',
-              fontSize: AppFonts.sm,
-              color: AppTheme.fg,
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(
-                fontFamily: 'JetBrains Mono',
-                fontSize: AppFonts.sm,
-                color: AppTheme.fgFaint,
-              ),
-              filled: true,
-              fillColor: AppTheme.bg3,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 0,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.borderLight),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.borderLight),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.accent),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.red),
-              ),
-              suffixIcon: suffixIcon != null
-                  ? Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: suffixIcon,
-                    )
-                  : null,
-              suffixIconConstraints: const BoxConstraints(
-                maxHeight: AppTheme.controlHeightMd,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }

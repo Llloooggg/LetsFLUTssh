@@ -173,6 +173,11 @@ class SessionStore {
       }
     }
     await _credStore.saveAll(allCreds);
+    AppLogger.instance.log(
+      'Migrated credentials for ${allCreds.length} session(s) '
+      'from plaintext to encrypted store',
+      name: 'SessionStore',
+    );
     // Re-save sessions.json without secrets (toJson() now excludes them).
     await _saveSessionFile();
   }
@@ -283,12 +288,20 @@ class SessionStore {
   Future<void> addEmptyFolder(String folderPath) async {
     if (folderPath.isEmpty) return;
     _emptyFolders.add(folderPath);
+    AppLogger.instance.log(
+      'Added empty folder: $folderPath',
+      name: 'SessionStore',
+    );
     await _saveEmptyFolders();
   }
 
   /// Remove an empty folder (called when no longer needed).
   Future<void> removeEmptyFolder(String folderPath) async {
     _emptyFolders.remove(folderPath);
+    AppLogger.instance.log(
+      'Removed empty folder: $folderPath',
+      name: 'SessionStore',
+    );
     await _saveEmptyFolders();
   }
 
@@ -323,11 +336,16 @@ class SessionStore {
 
   /// Toggle a folder's collapsed state (persisted across restarts).
   Future<void> toggleFolderCollapsed(String folderPath) async {
-    if (_collapsedFolders.contains(folderPath)) {
+    final wasCollapsed = _collapsedFolders.contains(folderPath);
+    if (wasCollapsed) {
       _collapsedFolders.remove(folderPath);
     } else {
       _collapsedFolders.add(folderPath);
     }
+    AppLogger.instance.log(
+      'Folder ${wasCollapsed ? 'expanded' : 'collapsed'}: $folderPath',
+      name: 'SessionStore',
+    );
     await _saveCollapsedFolders();
   }
 

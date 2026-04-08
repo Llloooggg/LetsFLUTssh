@@ -61,6 +61,10 @@ Future<void> main() async {
     singleInstanceLock = SingleInstance();
     final acquired = await singleInstanceLock!.acquire();
     if (!acquired) {
+      AppLogger.instance.log(
+        'Another instance detected — showing blocker',
+        name: 'App',
+      );
       runApp(const _AlreadyRunningApp());
       return;
     }
@@ -103,9 +107,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       await ref.read(appVersionProvider.notifier).load();
       ref.read(sessionProvider.notifier).load();
       if (plat.isMobilePlatform) {
+        AppLogger.instance.log('Initializing foreground service', name: 'App');
         ref.read(foregroundServiceProvider).init();
       }
       if (ref.read(configProvider).checkUpdatesOnStart) {
+        AppLogger.instance.log('Checking for updates on start', name: 'App');
         ref.read(updateProvider.notifier).check();
       }
     });
@@ -360,6 +366,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _setupDeepLinks() {
     _deepLinkHandler.onConnect = (config) {
+      AppLogger.instance.log(
+        'Deep link: connect to ${config.displayName}',
+        name: 'DeepLink',
+      );
       // Defer to next frame — when resuming from background the navigator
       // context may not be available yet on the current frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -371,6 +381,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       });
     };
     _deepLinkHandler.onLfsFileOpened = (filePath) {
+      AppLogger.instance.log(
+        'Deep link: LFS file opened — $filePath',
+        name: 'DeepLink',
+      );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = navigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
@@ -379,6 +393,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       });
     };
     _deepLinkHandler.onKeyFileOpened = (filePath) {
+      AppLogger.instance.log(
+        'Deep link: SSH key file received — $filePath',
+        name: 'DeepLink',
+      );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = navigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
@@ -391,6 +409,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       });
     };
     _deepLinkHandler.onQrImport = (data) {
+      AppLogger.instance.log(
+        'Deep link: QR import — '
+        '${data.sessions.length} session(s), '
+        '${data.emptyFolders.length} folder(s)',
+        name: 'DeepLink',
+      );
       _handleQrImport(data);
     };
     _deepLinkHandler.init();
@@ -605,6 +629,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     for (final folder in data.emptyFolders) {
       await ref.read(sessionProvider.notifier).addEmptyFolder(folder);
     }
+    AppLogger.instance.log(
+      'QR import complete: ${data.sessions.length} session(s), '
+      '${data.emptyFolders.length} folder(s)',
+      name: 'App',
+    );
 
     // Toast is best-effort — show when the navigator context is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
