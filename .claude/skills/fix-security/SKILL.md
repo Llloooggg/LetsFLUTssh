@@ -41,7 +41,6 @@ Prioritize: critical/high first, then medium, then low.
 2. Update the dependency in `pubspec.yaml` to the fixed version
 3. Run `flutter pub get` to update `pubspec.lock`
 4. Run `make check` to verify nothing breaks
-5. Bump version (patch)
 
 **Code scanning (CodeQL/Semgrep):**
 1. Read the flagged code
