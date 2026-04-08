@@ -149,7 +149,6 @@
   "duplicateTab": "Duplikat Tab",
   "duplicateTabShortcut": "Duplikat Tab (Ctrl+\\)",
   "copyDown": "Salin ke Bawah",
-  "copyDownShortcut": "Salin ke Bawah (Ctrl+Shift+\\)",
   "previous": "Sebelumnya",
   "next": "Berikutnya",
   "closeEsc": "Tutup (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "Maksimalkan",
+  "restore": "Pulihkan",
+  "duplicateDownShortcut": "Duplikat ke Bawah (Ctrl+Shift+\\)"
 }

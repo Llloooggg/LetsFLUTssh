@@ -149,7 +149,6 @@
   "duplicateTab": "Duplicar Aba",
   "duplicateTabShortcut": "Duplicar Aba (Ctrl+\\)",
   "copyDown": "Copiar Abaixo",
-  "copyDownShortcut": "Copiar Abaixo (Ctrl+Shift+\\)",
   "previous": "Anterior",
   "next": "Próximo",
   "closeEsc": "Fechar (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "Maximizar",
+  "restore": "Restaurar",
+  "duplicateDownShortcut": "Duplicar abaixo (Ctrl+Shift+\\)"
 }

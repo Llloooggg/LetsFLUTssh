@@ -503,9 +503,6 @@ class SKo extends S {
   String get copyDown => '아래에 복사';
 
   @override
-  String get copyDownShortcut => '아래에 복사 (Ctrl+Shift+\\)';
-
-  @override
   String get previous => '이전';
 
   @override
@@ -1174,4 +1171,13 @@ class SKo extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => '최대화';
+
+  @override
+  String get restore => '복원';
+
+  @override
+  String get duplicateDownShortcut => '아래로 복제 (Ctrl+Shift+\\)';
 }

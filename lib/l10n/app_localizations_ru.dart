@@ -508,9 +508,6 @@ class SRu extends S {
   String get copyDown => 'Копировать вниз';
 
   @override
-  String get copyDownShortcut => 'Копировать вниз (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'Предыдущий';
 
   @override
@@ -1191,4 +1188,13 @@ class SRu extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'Развернуть';
+
+  @override
+  String get restore => 'Восстановить';
+
+  @override
+  String get duplicateDownShortcut => 'Дублировать вниз (Ctrl+Shift+\\)';
 }
