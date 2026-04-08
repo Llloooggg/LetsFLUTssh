@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/import/import_service.dart';
+import 'package:letsflutssh/core/security/credential_store.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -166,6 +167,114 @@ void main() {
       );
 
       expect(deletedIds, ['old']);
+    });
+
+    group('replace mode rollback', () {
+      late List<Session> restoredSessions;
+      late Set<String> restoredFolders;
+      late Map<String, CredentialData> restoredCreds;
+      late Set<String> emptyFolders;
+      late Map<String, CredentialData> credentialMap;
+
+      setUp(() {
+        restoredSessions = [];
+        restoredFolders = {};
+        restoredCreds = {};
+        emptyFolders = {'FolderA'};
+        credentialMap = {'old1': const CredentialData(password: 'pw1')};
+      });
+
+      ImportService buildRollbackService({
+        required Future<void> Function(Session) onAdd,
+      }) {
+        return ImportService(
+          addSession: onAdd,
+          deleteSession: (id) async {
+            deletedIds.add(id);
+            store.removeWhere((s) => s.id == id);
+          },
+          getSessions: () => store,
+          applyConfig: (config) => appliedConfig = config,
+          getEmptyFolders: () => emptyFolders,
+          loadCredentials: (ids) async => {
+            for (final id in ids)
+              if (credentialMap.containsKey(id)) id: credentialMap[id]!,
+          },
+          restoreSnapshot: (sessions, folders, creds) async {
+            restoredSessions = sessions;
+            restoredFolders = folders;
+            restoredCreds = creds;
+            store
+              ..clear()
+              ..addAll(sessions);
+          },
+        );
+      }
+
+      test('restores snapshot when addSession fails', () async {
+        final existing = makeSession('old1', 'Old1');
+        store.add(existing);
+
+        var addCount = 0;
+        final svc = buildRollbackService(
+          onAdd: (s) async {
+            addCount++;
+            if (addCount == 2) throw Exception('disk full');
+            store.add(s);
+          },
+        );
+
+        final s1 = makeSession('new1', 'New1');
+        final s2 = makeSession('new2', 'New2');
+
+        await expectLater(
+          () => svc.applyResult(
+            ImportResult(sessions: [s1, s2], mode: ImportMode.replace),
+          ),
+          throwsException,
+        );
+
+        // Snapshot was restored
+        expect(restoredSessions, hasLength(1));
+        expect(restoredSessions.first.id, 'old1');
+        expect(restoredFolders, contains('FolderA'));
+        expect(restoredCreds['old1']?.password, 'pw1');
+      });
+
+      test('successful replace does not trigger restore', () async {
+        final existing = makeSession('old1', 'Old1');
+        store.add(existing);
+
+        final svc = buildRollbackService(onAdd: (s) async => store.add(s));
+
+        final s1 = makeSession('new1', 'New1');
+        await svc.applyResult(
+          ImportResult(sessions: [s1], mode: ImportMode.replace),
+        );
+
+        expect(restoredSessions, isEmpty);
+        expect(store.last.label, 'New1');
+      });
+
+      test('rollback without callbacks does not crash', () async {
+        // Use the basic service (no rollback callbacks)
+        final errorService = ImportService(
+          addSession: (s) async => throw Exception('fail'),
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => [],
+          applyConfig: (config) => appliedConfig = config,
+        );
+
+        await expectLater(
+          () => errorService.applyResult(
+            ImportResult(
+              sessions: [makeSession('1', 'A')],
+              mode: ImportMode.replace,
+            ),
+          ),
+          throwsException,
+        );
+      });
     });
   });
 }

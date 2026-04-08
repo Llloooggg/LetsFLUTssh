@@ -661,12 +661,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   ImportService _buildImportService() {
+    final store = ref.read(sessionStoreProvider);
     return ImportService(
       addSession: (s) => ref.read(sessionProvider.notifier).add(s),
       deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
       getSessions: () => ref.read(sessionProvider),
       applyConfig: (config) =>
           ref.read(configProvider.notifier).update((_) => config),
+      getEmptyFolders: () => store.emptyFolders,
+      loadCredentials: (ids) => store.loadCredentials(ids),
+      restoreSnapshot: (sessions, folders, creds) =>
+          store.restoreSnapshot(sessions, folders, creds),
     );
   }
 }
