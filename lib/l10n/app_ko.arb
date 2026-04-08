@@ -1,6 +1,5 @@
 {
   "@@locale": "ko",
-
   "appTitle": "LetsFLUTssh",
   "ok": "확인",
   "cancel": "취소",
@@ -166,12 +165,10 @@
   "showSidebar": "사이드바 표시 (Ctrl+B)",
   "language": "언어",
   "languageSystemDefault": "자동",
-
   "theme": "테마",
   "themeDark": "다크",
   "themeLight": "라이트",
   "themeSystem": "시스템",
-
   "appearance": "외관",
   "connectionSection": "연결",
   "transfers": "전송",
@@ -258,7 +255,6 @@
   "time": "시간",
   "failed": "실패",
   "transferNItems": "{count}개 항목 전송",
-
   "errOperationNotPermitted": "작업이 허용되지 않습니다",
   "errNoSuchFileOrDirectory": "파일 또는 디렉터리가 없습니다",
   "errNoSuchProcess": "해당 프로세스가 없습니다",
@@ -316,11 +312,12 @@
   "nSubitems": "{count}개 항목",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "항목",
-
   "storagePermissionRequired": "로컬 파일을 탐색하려면 저장소 권한이 필요합니다",
   "grantPermission": "권한 부여",
   "storagePermissionLimited": "제한된 접근 — 모든 파일에 대한 전체 저장소 권한을 부여하세요",
@@ -328,5 +325,34 @@
   "progressVerifyingHostKey": "호스트 키 확인 중",
   "progressAuthenticating": "{user}(으)로 인증 중",
   "progressOpeningShell": "셸 열기",
-  "progressOpeningSftp": "SFTP 채널 열기"
+  "progressOpeningSftp": "SFTP 채널 열기",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }

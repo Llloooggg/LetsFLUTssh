@@ -1,10 +1,11 @@
 import 'package:path/path.dart' as p;
 
 import '../../core/sftp/sftp_client.dart';
-import '../../utils/logger.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/transfer_manager.dart';
 import '../../core/transfer/transfer_task.dart';
+import '../../l10n/app_localizations.dart';
+import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
 /// Shared upload/download helpers used by both desktop and mobile file browsers.
@@ -18,6 +19,7 @@ class TransferHelpers {
     required FileEntry entry,
     required String remoteDirPath,
     required FilePaneController? remoteCtrl,
+    required S loc,
   }) {
     final remotePath = p.posix.join(remoteDirPath, entry.name);
     AppLogger.instance.log(
@@ -33,12 +35,15 @@ class TransferHelpers {
         targetPath: remotePath,
         sizeBytes: entry.size,
         run: (update) async {
-          update(0, 'Starting upload...');
+          update(0, loc.transferStartingUpload);
           if (entry.isDir) {
             await sftp.uploadDir(entry.path, remotePath, (progress) {
               update(
                 progress.percent,
-                '${progress.doneBytes}/${progress.totalBytes} files',
+                loc.transferFilesProgress(
+                  progress.doneBytes,
+                  progress.totalBytes,
+                ),
               );
             });
           } else {
@@ -62,6 +67,7 @@ class TransferHelpers {
     required FileEntry entry,
     required String localDirPath,
     required FilePaneController? localCtrl,
+    required S loc,
   }) {
     final localPath = p.join(localDirPath, entry.name);
     AppLogger.instance.log(
@@ -77,12 +83,15 @@ class TransferHelpers {
         targetPath: localPath,
         sizeBytes: entry.size,
         run: (update) async {
-          update(0, 'Starting download...');
+          update(0, loc.transferStartingDownload);
           if (entry.isDir) {
             await sftp.downloadDir(entry.path, localPath, (progress) {
               update(
                 progress.percent,
-                '${progress.doneBytes}/${progress.totalBytes} files',
+                loc.transferFilesProgress(
+                  progress.doneBytes,
+                  progress.totalBytes,
+                ),
               );
             });
           } else {

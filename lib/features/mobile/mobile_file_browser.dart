@@ -474,6 +474,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
       entry: entry,
       remoteDirPath: remote.currentPath,
       remoteCtrl: _remoteCtrl,
+      loc: S.of(context),
     );
   }
 
@@ -487,6 +488,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
       entry: entry,
       localDirPath: local.currentPath,
       localCtrl: _localCtrl,
+      loc: S.of(context),
     );
   }
 }

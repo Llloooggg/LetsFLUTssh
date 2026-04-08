@@ -956,7 +956,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
             const SizedBox(width: 4),
             Text(
               dragEntries.length > 1
-                  ? '${dragEntries.length} items'
+                  ? S.of(context).dragItemCount(dragEntries.length)
                   : entry.name,
               style: TextStyle(fontSize: AppFonts.md),
             ),
@@ -981,7 +981,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
         children: [
           Flexible(
             child: Text(
-              '$count items, ${formatSize(ctrl.totalFileSize)}',
+              S
+                  .of(context)
+                  .itemCountWithSize(count, formatSize(ctrl.totalFileSize)),
               style: style,
               overflow: TextOverflow.ellipsis,
             ),

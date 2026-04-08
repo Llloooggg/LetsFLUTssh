@@ -775,7 +775,7 @@ class _ExportImportTile extends ConsumerWidget {
         if (context.mounted) {
           Toast.show(
             context,
-            message: 'File not found: ${result.path}',
+            message: S.of(context).fileNotFound(result.path),
             level: ToastLevel.error,
           );
         }
@@ -814,7 +814,9 @@ class _ExportImportTile extends ConsumerWidget {
           Navigator.of(context).pop(); // close progress
           Toast.show(
             context,
-            message: 'Imported ${importResult.sessions.length} session(s)',
+            message: S
+                .of(context)
+                .importedSessions(importResult.sessions.length),
             level: ToastLevel.success,
           );
         }

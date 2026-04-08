@@ -1,6 +1,5 @@
 {
   "@@locale": "zh",
-
   "appTitle": "LetsFLUTssh",
   "ok": "确定",
   "cancel": "取消",
@@ -28,7 +27,6 @@
   "merge": "合并",
   "replace": "替换",
   "reconnect": "重新连接",
-
   "updateAvailable": "有可用更新",
   "updateVersionAvailable": "版本 {version} 可用（当前：v{current}）。",
   "releaseNotes": "更新说明：",
@@ -49,12 +47,10 @@
   "couldNotOpenInstaller": "无法打开安装程序",
   "versionAvailable": "版本 {version} 可用",
   "currentVersion": "当前：v{version}",
-
   "sshKeyReceived": "已接收 SSH 密钥：{filename}",
   "importedSessionsViaQr": "通过 QR 导入了 {count} 个会话",
   "importedSessions": "已导入 {count} 个会话",
   "importFailed": "导入失败：{error}",
-
   "sessions": "会话",
   "sessionsHeader": "会话",
   "savedSessions": "已保存的会话",
@@ -70,7 +66,6 @@
   "moveTo": "移动到...",
   "moveToFolder": "移动到文件夹",
   "rootFolder": "/（根目录）",
-
   "newFolder": "新建文件夹",
   "newConnection": "新建连接",
   "editConnection": "编辑连接",
@@ -85,7 +80,6 @@
   "deleteFolderConfirm": "删除文件夹 \"{name}\"？",
   "willDeleteSessionsInside": "这也将删除其中的 {count} 个会话。",
   "deleteSessionConfirm": "删除 \"{name}\"？",
-
   "connection": "连接",
   "auth": "认证",
   "options": "选项",
@@ -113,16 +107,13 @@
   "clearKeyFile": "清除密钥文件",
   "authOrDivider": "或",
   "providePasswordOrKey": "请提供密码或 SSH 密钥",
-
   "quickConnect": "快速连接",
-
   "scanQrCode": "扫描 QR 码",
   "qrGenerationFailed": "QR 码生成失败",
   "scanWithCameraApp": "使用已安装 LetsFLUTssh 的设备上的\n相机应用扫描。",
   "noPasswordsInQr": "此 QR 码中不包含密码或密钥",
   "copyLink": "复制链接",
   "linkCopied": "链接已复制到剪贴板",
-
   "hostKeyChanged": "主机密钥已更改！",
   "unknownHost": "未知主机",
   "hostKeyChangedWarning": "警告：此服务器的主机密钥已更改。这可能表示存在中间人攻击，或服务器已被重新安装。",
@@ -134,15 +125,12 @@
   "copyFingerprint": "复制指纹",
   "acceptAnyway": "仍然接受",
   "accept": "接受",
-
   "importData": "导入数据",
   "masterPassword": "主密码",
   "confirmPassword": "确认密码",
   "importModeMergeDescription": "添加新会话，保留已有会话",
   "importModeReplaceDescription": "用导入的会话替换所有会话",
-
   "errorPrefix": "错误：{error}",
-
   "folderName": "文件夹名称",
   "newName": "新名称",
   "deleteItems": "删除 {names}？",
@@ -152,14 +140,12 @@
   "failedToCreateFolder": "创建文件夹失败：{error}",
   "failedToRename": "重命名失败：{error}",
   "failedToDeleteItem": "删除 {name} 失败：{error}",
-
   "editPath": "编辑路径",
   "root": "根目录",
   "controllersNotInitialized": "控制器未初始化",
   "initializingSftp": "正在初始化 SFTP...",
   "clearHistory": "清除历史",
   "noTransfersYet": "暂无传输记录",
-
   "duplicateTab": "复制标签页",
   "duplicateTabShortcut": "复制标签页 (Ctrl+\\)",
   "copyDown": "向下复制",
@@ -167,28 +153,22 @@
   "previous": "上一个",
   "next": "下一个",
   "closeEsc": "关闭 (Esc)",
-
   "closeAll": "关闭全部",
   "closeOthers": "关闭其他",
   "closeTabsToTheLeft": "关闭左侧标签页",
   "closeTabsToTheRight": "关闭右侧标签页",
   "sortByName": "按名称排序",
   "sortByStatus": "按状态排序",
-
   "noActiveSession": "没有活动会话",
   "createConnectionHint": "创建新连接或从侧边栏选择一个",
-
   "hideSidebar": "隐藏侧边栏 (Ctrl+B)",
   "showSidebar": "显示侧边栏 (Ctrl+B)",
-
   "language": "语言",
   "languageSystemDefault": "自动",
-
   "theme": "主题",
   "themeDark": "深色",
   "themeLight": "浅色",
   "themeSystem": "跟随系统",
-
   "appearance": "外观",
   "connectionSection": "连接",
   "transfers": "传输",
@@ -206,7 +186,6 @@
   "parallelWorkers": "并行工作线程",
   "maxHistory": "最大历史记录",
   "calculateFolderSizes": "计算文件夹大小",
-
   "exportData": "导出数据",
   "exportDataSubtitle": "将会话、配置和密钥保存为加密的 .lfs 文件",
   "importDataSubtitle": "从 .lfs 文件加载数据",
@@ -217,16 +196,13 @@
   "pathToLfsFile": ".lfs 文件路径",
   "hintLfsPath": "/path/to/export.lfs",
   "browse": "浏览",
-
   "shareViaQrCode": "通过 QR 码分享",
   "shareViaQrSubtitle": "将会话导出为 QR 码，供其他设备扫描",
   "dataLocation": "数据位置",
   "pathCopied": "路径已复制到剪贴板",
   "urlCopied": "URL 已复制到剪贴板",
-
   "aboutSubtitle": "v{version} — SSH/SFTP 客户端",
   "sourceCode": "源代码",
-
   "enableLogging": "启用日志",
   "logIsEmpty": "日志为空",
   "logExportedTo": "日志已导出至：{path}",
@@ -236,7 +212,6 @@
   "copyLog": "复制日志",
   "exportLog": "导出日志",
   "clearLogs": "清除日志",
-
   "local": "本地",
   "remote": "远程",
   "pickFolder": "选择文件夹",
@@ -248,7 +223,6 @@
   "openSshTerminal": "打开 SSH 终端",
   "noActiveFileBrowsers": "没有活动的文件浏览器",
   "useSftpFromSessions": "从会话中使用 \"SFTP\"",
-
   "anotherInstanceRunning": "LetsFLUTssh 的另一个实例已在运行。",
   "importFailedShort": "导入失败：{error}",
   "saveLogAs": "日志另存为",
@@ -281,7 +255,6 @@
   "time": "时间",
   "failed": "失败",
   "transferNItems": "传输 {count} 个项目",
-
   "errOperationNotPermitted": "操作不允许",
   "errNoSuchFileOrDirectory": "文件或目录不存在",
   "errNoSuchProcess": "进程不存在",
@@ -339,11 +312,12 @@
   "nSubitems": "{count} 个项目",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "项目",
-
   "storagePermissionRequired": "需要存储权限才能浏览本地文件",
   "grantPermission": "授予权限",
   "storagePermissionLimited": "访问受限 — 请授予完整存储权限以访问所有文件",
@@ -351,5 +325,34 @@
   "progressVerifyingHostKey": "正在验证主机密钥",
   "progressAuthenticating": "正在以 {user} 身份认证",
   "progressOpeningShell": "正在打开终端",
-  "progressOpeningSftp": "正在打开 SFTP 通道"
+  "progressOpeningSftp": "正在打开 SFTP 通道",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }

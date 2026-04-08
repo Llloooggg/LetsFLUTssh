@@ -5,6 +5,12 @@ import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/transfer_helpers.dart';
+import 'package:letsflutssh/l10n/app_localizations.dart';
+
+class _FakeLoc implements S {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 /// Fake SFTPService — never called because TransferManager has parallelism: 0,
 /// so tasks stay queued and their run() closures are never invoked.
@@ -27,10 +33,12 @@ class _CapturingTransferManager extends TransferManager {
 void main() {
   late _CapturingTransferManager manager;
   late _FakeSFTPService fakeSftp;
+  late _FakeLoc fakeLoc;
 
   setUp(() {
     manager = _CapturingTransferManager();
     fakeSftp = _FakeSFTPService();
+    fakeLoc = _FakeLoc();
   });
 
   tearDown(() {
@@ -53,6 +61,7 @@ void main() {
         entry: entry,
         remoteDirPath: '/srv/www',
         remoteCtrl: null,
+        loc: fakeLoc,
       );
 
       expect(manager.capturedTasks, hasLength(1));
@@ -79,6 +88,7 @@ void main() {
         entry: entry,
         remoteDirPath: '/srv/www',
         remoteCtrl: null,
+        loc: fakeLoc,
       );
 
       expect(manager.capturedTasks, hasLength(1));
@@ -106,6 +116,7 @@ void main() {
         entry: entry,
         remoteDirPath: '/remote',
         remoteCtrl: null,
+        loc: fakeLoc,
       );
 
       expect(manager.queueLength, 1);
@@ -128,6 +139,7 @@ void main() {
         entry: entry,
         localDirPath: '/home/user/downloads',
         localCtrl: null,
+        loc: fakeLoc,
       );
 
       expect(manager.capturedTasks, hasLength(1));
@@ -154,6 +166,7 @@ void main() {
         entry: entry,
         localDirPath: '/home/user/backup',
         localCtrl: null,
+        loc: fakeLoc,
       );
 
       expect(manager.capturedTasks, hasLength(1));
@@ -181,6 +194,7 @@ void main() {
         entry: entry,
         localDirPath: '/tmp',
         localCtrl: null,
+        loc: fakeLoc,
       );
 
       expect(manager.queueLength, 1);
@@ -209,6 +223,7 @@ void main() {
       entry: file1,
       remoteDirPath: '/remote',
       remoteCtrl: null,
+      loc: fakeLoc,
     );
     TransferHelpers.enqueueDownload(
       manager: manager,
@@ -216,6 +231,7 @@ void main() {
       entry: file2,
       localDirPath: '/local',
       localCtrl: null,
+      loc: fakeLoc,
     );
 
     expect(manager.queueLength, 2);

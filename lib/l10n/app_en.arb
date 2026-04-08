@@ -580,5 +580,114 @@
     }
   },
   "progressOpeningShell": "Opening shell",
-  "progressOpeningSftp": "Opening SFTP channel"
+  "progressOpeningSftp": "Opening SFTP channel",
+
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "@transferCountActive": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "transferCountQueued": ", {count} queued",
+  "@transferCountQueued": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "transferCountInHistory": "{count} in history",
+  "@transferCountInHistory": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "transferTooltipCreated": "Created: {time}",
+  "@transferTooltipCreated": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "transferTooltipStarted": "Started: {time}",
+  "@transferTooltipStarted": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "transferTooltipEnded": "Ended: {time}",
+  "@transferTooltipEnded": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "transferTooltipDuration": "Duration: {duration}",
+  "@transferTooltipDuration": {
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "@transferFilesProgress": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "@folderAlreadyExists": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "@dragItemCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "@qrSelectAll": {
+    "placeholders": {
+      "selected": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "@qrPayloadSize": {
+    "placeholders": {
+      "size": { "type": "String" },
+      "max": { "type": "String" }
+    }
+  },
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "@fileNotFound": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "@activeConnectionCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "itemCountWithSize": "{count} items, {size}",
+  "@itemCountWithSize": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "size": { "type": "String" }
+    }
+  }
 }

@@ -245,7 +245,12 @@ class _QrExportDialogState extends State<QrExportDialog> {
                                   onChanged: (v) => _toggleAll(v == true),
                                 ),
                                 Text(
-                                  'Select All (${_selectedIds.length}/${widget.sessions.length})',
+                                  S
+                                      .of(context)
+                                      .qrSelectAll(
+                                        _selectedIds.length,
+                                        widget.sessions.length,
+                                      ),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: AppFonts.md,
@@ -270,8 +275,12 @@ class _QrExportDialogState extends State<QrExportDialog> {
 
                         // Size indicator
                         Text(
-                          'Payload: ${(_payloadSize / 1024).toStringAsFixed(1)} KB / '
-                          '${(qrMaxPayloadBytes / 1024).toStringAsFixed(1)} KB max',
+                          S
+                              .of(context)
+                              .qrPayloadSize(
+                                (_payloadSize / 1024).toStringAsFixed(1),
+                                (qrMaxPayloadBytes / 1024).toStringAsFixed(1),
+                              ),
                           style: TextStyle(
                             fontSize: AppFonts.sm,
                             color: sizeColor,

@@ -312,11 +312,12 @@
   "nSubitems": "{count} आइटम",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "आइटम",
-
   "storagePermissionRequired": "स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है",
   "grantPermission": "अनुमति दें",
   "storagePermissionLimited": "सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें",
@@ -324,5 +325,34 @@
   "progressVerifyingHostKey": "होस्ट कुंजी सत्यापित हो रही है",
   "progressAuthenticating": "{user} के रूप में प्रमाणीकरण",
   "progressOpeningShell": "शेल खोला जा रहा है",
-  "progressOpeningSftp": "SFTP चैनल खोला जा रहा है"
+  "progressOpeningSftp": "SFTP चैनल खोला जा रहा है",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }
