@@ -506,9 +506,6 @@ class SFa extends S {
   String get copyDown => 'کپی به پایین';
 
   @override
-  String get copyDownShortcut => 'کپی به پایین (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'قبلی';
 
   @override
@@ -1187,4 +1184,13 @@ class SFa extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'بزرگ‌نمایی';
+
+  @override
+  String get restore => 'بازگردانی';
+
+  @override
+  String get duplicateDownShortcut => 'کپی به پایین (Ctrl+Shift+\\)';
 }

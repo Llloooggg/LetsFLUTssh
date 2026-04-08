@@ -507,9 +507,6 @@ class SHi extends S {
   String get copyDown => 'नीचे कॉपी करें';
 
   @override
-  String get copyDownShortcut => 'नीचे कॉपी करें (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'पिछला';
 
   @override
@@ -1190,4 +1187,13 @@ class SHi extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'अधिकतम करें';
+
+  @override
+  String get restore => 'पुनर्स्थापित करें';
+
+  @override
+  String get duplicateDownShortcut => 'नीचे डुप्लिकेट करें (Ctrl+Shift+\\)';
 }

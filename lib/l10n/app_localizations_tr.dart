@@ -510,9 +510,6 @@ class STr extends S {
   String get copyDown => 'Aşağı Kopyala';
 
   @override
-  String get copyDownShortcut => 'Aşağı Kopyala (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'Önceki';
 
   @override
@@ -1193,4 +1190,13 @@ class STr extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'Büyüt';
+
+  @override
+  String get restore => 'Geri Yükle';
+
+  @override
+  String get duplicateDownShortcut => 'Aşağı Çoğalt (Ctrl+Shift+\\)';
 }

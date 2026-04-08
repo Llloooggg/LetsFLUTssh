@@ -512,9 +512,6 @@ class SFr extends S {
   String get copyDown => 'Copier en bas';
 
   @override
-  String get copyDownShortcut => 'Copier en bas (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'Précédent';
 
   @override
@@ -1199,4 +1196,13 @@ class SFr extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'Maximiser';
+
+  @override
+  String get restore => 'Restaurer';
+
+  @override
+  String get duplicateDownShortcut => 'Dupliquer en bas (Ctrl+Shift+\\)';
 }

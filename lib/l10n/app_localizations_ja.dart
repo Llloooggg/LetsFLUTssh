@@ -504,9 +504,6 @@ class SJa extends S {
   String get copyDown => '下にコピー';
 
   @override
-  String get copyDownShortcut => '下にコピー (Ctrl+Shift+\\)';
-
-  @override
   String get previous => '前へ';
 
   @override
@@ -1176,4 +1173,13 @@ class SJa extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => '最大化';
+
+  @override
+  String get restore => '元に戻す';
+
+  @override
+  String get duplicateDownShortcut => '下に複製 (Ctrl+Shift+\\)';
 }

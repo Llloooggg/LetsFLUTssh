@@ -1,6 +1,5 @@
 {
   "@@locale": "en",
-
   "appTitle": "LetsFLUTssh",
   "ok": "OK",
   "cancel": "Cancel",
@@ -28,13 +27,16 @@
   "merge": "Merge",
   "replace": "Replace",
   "reconnect": "Reconnect",
-
   "updateAvailable": "Update Available",
   "updateVersionAvailable": "Version {version} is available (current: v{current}).",
   "@updateVersionAvailable": {
     "placeholders": {
-      "version": { "type": "String" },
-      "current": { "type": "String" }
+      "version": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
     }
   },
   "releaseNotes": "Release notes:",
@@ -52,7 +54,9 @@
   "downloadingPercent": "Downloading... {percent}%",
   "@downloadingPercent": {
     "placeholders": {
-      "percent": { "type": "int" }
+      "percent": {
+        "type": "int"
+      }
     }
   },
   "downloadComplete": "Download complete",
@@ -61,41 +65,51 @@
   "versionAvailable": "Version {version} available",
   "@versionAvailable": {
     "placeholders": {
-      "version": { "type": "String" }
+      "version": {
+        "type": "String"
+      }
     }
   },
   "currentVersion": "Current: v{version}",
   "@currentVersion": {
     "placeholders": {
-      "version": { "type": "String" }
+      "version": {
+        "type": "String"
+      }
     }
   },
-
   "sshKeyReceived": "SSH key received: {filename}",
   "@sshKeyReceived": {
     "placeholders": {
-      "filename": { "type": "String" }
+      "filename": {
+        "type": "String"
+      }
     }
   },
   "importedSessionsViaQr": "Imported {count} session(s) via QR",
   "@importedSessionsViaQr": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "importedSessions": "Imported {count} session(s)",
   "@importedSessions": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "importFailed": "Import failed: {error}",
   "@importFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "sessions": "Sessions",
   "sessionsHeader": "SESSIONS",
   "savedSessions": "Saved sessions",
@@ -108,7 +122,9 @@
   "nSelectedCount": "{count} selected",
   "@nSelectedCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "selectAll": "Select All",
@@ -116,7 +132,6 @@
   "moveTo": "Move to...",
   "moveToFolder": "Move to Folder",
   "rootFolder": "/ (root)",
-
   "newFolder": "New Folder",
   "newConnection": "New Connection",
   "editConnection": "Edit Connection",
@@ -128,40 +143,51 @@
   "deleteNSessionsAndFolders": "Delete {parts}?\n\nThis cannot be undone.",
   "@deleteNSessionsAndFolders": {
     "placeholders": {
-      "parts": { "type": "String" }
+      "parts": {
+        "type": "String"
+      }
     }
   },
   "nSessions": "{count} session(s)",
   "@nSessions": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "nFolders": "{count} folder(s)",
   "@nFolders": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "deleteFolderConfirm": "Delete folder \"{name}\"?",
   "@deleteFolderConfirm": {
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
   "willDeleteSessionsInside": "This will also delete {count} session(s) inside.",
   "@willDeleteSessionsInside": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "deleteSessionConfirm": "Delete \"{name}\"?",
   "@deleteSessionConfirm": {
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
-
   "connection": "Connection",
   "auth": "Auth",
   "options": "Options",
@@ -189,16 +215,13 @@
   "clearKeyFile": "Clear key file",
   "authOrDivider": "OR",
   "providePasswordOrKey": "Provide a password or SSH key",
-
   "quickConnect": "Quick Connect",
-
   "scanQrCode": "Scan QR Code",
   "qrGenerationFailed": "QR generation failed",
   "scanWithCameraApp": "Scan with any camera app on a device\nthat has LetsFLUTssh installed.",
   "noPasswordsInQr": "No passwords or keys are in this QR code",
   "copyLink": "Copy Link",
   "linkCopied": "Link copied to clipboard",
-
   "hostKeyChanged": "Host Key Changed!",
   "unknownHost": "Unknown Host",
   "hostKeyChangedWarning": "WARNING: The host key for this server has changed. This could indicate a man-in-the-middle attack, or the server may have been reinstalled.",
@@ -210,102 +233,108 @@
   "copyFingerprint": "Copy fingerprint",
   "acceptAnyway": "Accept Anyway",
   "accept": "Accept",
-
   "importData": "Import Data",
   "masterPassword": "Master Password",
   "confirmPassword": "Confirm Password",
   "importModeMergeDescription": "Add new sessions, keep existing",
   "importModeReplaceDescription": "Replace all sessions with imported",
-
   "errorPrefix": "Error: {error}",
   "@errorPrefix": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "folderName": "Folder name",
   "newName": "New name",
   "deleteItems": "Delete {names}?",
   "@deleteItems": {
     "placeholders": {
-      "names": { "type": "String" }
+      "names": {
+        "type": "String"
+      }
     }
   },
   "deleteNItems": "Delete {count} items",
   "@deleteNItems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "deletedItem": "Deleted {name}",
   "@deletedItem": {
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
   "deletedNItems": "Deleted {count} items",
   "@deletedNItems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "failedToCreateFolder": "Failed to create folder: {error}",
   "@failedToCreateFolder": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "failedToRename": "Failed to rename: {error}",
   "@failedToRename": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "failedToDeleteItem": "Failed to delete {name}: {error}",
   "@failedToDeleteItem": {
     "placeholders": {
-      "name": { "type": "String" },
-      "error": { "type": "String" }
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "editPath": "Edit Path",
   "root": "Root",
   "controllersNotInitialized": "Controllers not initialized",
   "initializingSftp": "Initializing SFTP...",
   "clearHistory": "Clear history",
   "noTransfersYet": "No transfers yet",
-
   "duplicateTab": "Duplicate Tab",
   "duplicateTabShortcut": "Duplicate Tab (Ctrl+\\)",
   "copyDown": "Copy Down",
-  "copyDownShortcut": "Copy Down (Ctrl+Shift+\\)",
   "previous": "Previous",
   "next": "Next",
   "closeEsc": "Close (Esc)",
-
   "closeAll": "Close All",
   "closeOthers": "Close Others",
   "closeTabsToTheLeft": "Close Tabs to the Left",
   "closeTabsToTheRight": "Close Tabs to the Right",
   "sortByName": "Sort by Name",
   "sortByStatus": "Sort by Status",
-
   "noActiveSession": "No active session",
   "createConnectionHint": "Create a new connection or select one from the sidebar",
-
   "hideSidebar": "Hide Sidebar (Ctrl+B)",
   "showSidebar": "Show Sidebar (Ctrl+B)",
-
   "language": "Language",
   "languageSystemDefault": "Auto",
-
   "theme": "Theme",
   "themeDark": "Dark",
   "themeLight": "Light",
   "themeSystem": "System",
-
   "appearance": "Appearance",
   "connectionSection": "Connection",
   "transfers": "Transfers",
@@ -323,7 +352,6 @@
   "parallelWorkers": "Parallel Workers",
   "maxHistory": "Max History",
   "calculateFolderSizes": "Calculate Folder Sizes",
-
   "exportData": "Export Data",
   "exportDataSubtitle": "Save sessions, config, and keys to encrypted .lfs file",
   "importDataSubtitle": "Load data from .lfs file",
@@ -332,45 +360,52 @@
   "exportedTo": "Exported to: {path}",
   "@exportedTo": {
     "placeholders": {
-      "path": { "type": "String" }
+      "path": {
+        "type": "String"
+      }
     }
   },
   "exportFailed": "Export failed: {error}",
   "@exportFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "pathToLfsFile": "Path to .lfs file",
   "hintLfsPath": "/path/to/export.lfs",
   "browse": "Browse",
-
   "shareViaQrCode": "Share via QR Code",
   "shareViaQrSubtitle": "Export sessions to QR for scanning by another device",
   "dataLocation": "Data Location",
   "pathCopied": "Path copied to clipboard",
   "urlCopied": "URL copied to clipboard",
-
   "aboutSubtitle": "v{version} — SSH/SFTP client",
   "@aboutSubtitle": {
     "placeholders": {
-      "version": { "type": "String" }
+      "version": {
+        "type": "String"
+      }
     }
   },
   "sourceCode": "Source Code",
-
   "enableLogging": "Enable Logging",
   "logIsEmpty": "Log is empty",
   "logExportedTo": "Log exported to: {path}",
   "@logExportedTo": {
     "placeholders": {
-      "path": { "type": "String" }
+      "path": {
+        "type": "String"
+      }
     }
   },
   "logExportFailed": "Log export failed: {error}",
   "@logExportFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "logsCleared": "Logs cleared",
@@ -378,7 +413,6 @@
   "copyLog": "Copy log",
   "exportLog": "Export log",
   "clearLogs": "Clear logs",
-
   "local": "Local",
   "remote": "Remote",
   "pickFolder": "Pick Folder",
@@ -390,17 +424,17 @@
   "openSshTerminal": "Open SSH Terminal",
   "noActiveFileBrowsers": "No active file browsers",
   "useSftpFromSessions": "Use \"SFTP\" from Sessions",
-
   "anotherInstanceRunning": "Another instance of LetsFLUTssh is already running.",
   "importFailedShort": "Import failed: {error}",
   "@importFailedShort": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "saveLogAs": "Save log as",
   "chooseSaveLocation": "Choose save location",
-
   "forward": "Forward",
   "name": "Name",
   "size": "Size",
@@ -431,10 +465,11 @@
   "failed": "Failed",
   "@transferNItems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-
   "errOperationNotPermitted": "Operation not permitted",
   "errNoSuchFileOrDirectory": "No such file or directory",
   "errNoSuchProcess": "No such process",
@@ -465,34 +500,49 @@
   "errConnectionAborted": "Connection aborted",
   "errAlreadyConnected": "Already connected",
   "errNotConnected": "Not connected",
-
   "errSshConnectFailed": "Failed to connect to {host}:{port}",
   "@errSshConnectFailed": {
     "placeholders": {
-      "host": { "type": "String" },
-      "port": { "type": "int" }
+      "host": {
+        "type": "String"
+      },
+      "port": {
+        "type": "int"
+      }
     }
   },
   "errSshAuthFailed": "Authentication failed for {user}@{host}",
   "@errSshAuthFailed": {
     "placeholders": {
-      "user": { "type": "String" },
-      "host": { "type": "String" }
+      "user": {
+        "type": "String"
+      },
+      "host": {
+        "type": "String"
+      }
     }
   },
   "errSshConnectionFailed": "Connection failed to {host}:{port}",
   "@errSshConnectionFailed": {
     "placeholders": {
-      "host": { "type": "String" },
-      "port": { "type": "int" }
+      "host": {
+        "type": "String"
+      },
+      "port": {
+        "type": "int"
+      }
     }
   },
   "errSshAuthAborted": "Authentication aborted",
   "errSshHostKeyRejected": "Host key rejected for {host}:{port} — accept the host key or check known_hosts",
   "@errSshHostKeyRejected": {
     "placeholders": {
-      "host": { "type": "String" },
-      "port": { "type": "int" }
+      "host": {
+        "type": "String"
+      },
+      "port": {
+        "type": "int"
+      }
     }
   },
   "errSshOpenShellFailed": "Failed to open shell",
@@ -500,55 +550,71 @@
   "errSshParseKeyFailed": "Failed to parse PEM key data",
   "errSshConnectionDisposed": "Connection disposed",
   "errSshNotConnected": "Not connected",
-
   "errConnectionFailed": "Connection failed",
   "errConnectionTimedOutSeconds": "Connection timed out after {seconds} seconds",
   "@errConnectionTimedOutSeconds": {
     "placeholders": {
-      "seconds": { "type": "int" }
+      "seconds": {
+        "type": "int"
+      }
     }
   },
   "errSessionClosed": "Session closed",
   "errShellError": "Shell error: {error}",
   "@errShellError": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "errReconnectFailed": "Reconnect failed: {error}",
   "@errReconnectFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "errSftpInitFailed": "Failed to initialize SFTP: {error}",
   "@errSftpInitFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "errDownloadFailed": "Download failed: {error}",
   "@errDownloadFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "errDecryptionFailed": "Failed to decrypt credentials. Key file may be corrupted.",
   "errWithPath": "{error}: {path}",
   "@errWithPath": {
     "placeholders": {
-      "error": { "type": "String" },
-      "path": { "type": "String" }
+      "error": {
+        "type": "String"
+      },
+      "path": {
+        "type": "String"
+      }
     }
   },
   "errWithCause": "{error} ({cause})",
   "@errWithCause": {
     "placeholders": {
-      "error": { "type": "String" },
-      "cause": { "type": "String" }
+      "error": {
+        "type": "String"
+      },
+      "cause": {
+        "type": "String"
+      }
     }
   },
-
   "login": "Login",
   "protocol": "Protocol",
   "typeLabel": "Type",
@@ -556,73 +622,92 @@
   "nSubitems": "{count} item(s)",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "Items",
-
   "storagePermissionRequired": "Storage permission required to browse local files",
   "grantPermission": "Grant Permission",
   "storagePermissionLimited": "Limited access — grant full storage permission for all files",
-
   "progressConnecting": "Connecting to {host}:{port}",
   "@progressConnecting": {
     "placeholders": {
-      "host": { "type": "String" },
-      "port": { "type": "int" }
+      "host": {
+        "type": "String"
+      },
+      "port": {
+        "type": "int"
+      }
     }
   },
   "progressVerifyingHostKey": "Verifying host key",
   "progressAuthenticating": "Authenticating as {user}",
   "@progressAuthenticating": {
     "placeholders": {
-      "user": { "type": "String" }
+      "user": {
+        "type": "String"
+      }
     }
   },
   "progressOpeningShell": "Opening shell",
   "progressOpeningSftp": "Opening SFTP channel",
-
   "transfersLabel": "Transfers:",
   "transferCountActive": "{count} active",
   "@transferCountActive": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "transferCountQueued": ", {count} queued",
   "@transferCountQueued": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "transferCountInHistory": "{count} in history",
   "@transferCountInHistory": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "transferTooltipCreated": "Created: {time}",
   "@transferTooltipCreated": {
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
   "transferTooltipStarted": "Started: {time}",
   "@transferTooltipStarted": {
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
   "transferTooltipEnded": "Ended: {time}",
   "@transferTooltipEnded": {
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
   "transferTooltipDuration": "Duration: {duration}",
   "@transferTooltipDuration": {
     "placeholders": {
-      "duration": { "type": "String" }
+      "duration": {
+        "type": "String"
+      }
     }
   },
   "transferStatusQueued": "Queued",
@@ -633,15 +718,21 @@
   "transferFilesProgress": "{done}/{total} files",
   "@transferFilesProgress": {
     "placeholders": {
-      "done": { "type": "int" },
-      "total": { "type": "int" }
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "folderNameLabel": "FOLDER NAME",
   "folderAlreadyExists": "Folder \"{name}\" already exists",
   "@folderAlreadyExists": {
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
   "dropKeyFileHere": "Drop key file here",
@@ -649,21 +740,31 @@
   "dragItemCount": "{count} items",
   "@dragItemCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "qrSelectAll": "Select All ({selected}/{total})",
   "@qrSelectAll": {
     "placeholders": {
-      "selected": { "type": "int" },
-      "total": { "type": "int" }
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "qrPayloadSize": "Payload: {size} KB / {max} KB max",
   "@qrPayloadSize": {
     "placeholders": {
-      "size": { "type": "String" },
-      "max": { "type": "String" }
+      "size": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
     }
   },
   "noActiveTerminals": "No active terminals",
@@ -671,7 +772,9 @@
   "fileNotFound": "File not found: {path}",
   "@fileNotFound": {
     "placeholders": {
-      "path": { "type": "String" }
+      "path": {
+        "type": "String"
+      }
     }
   },
   "sshConnectionChannel": "SSH Connection",
@@ -680,14 +783,23 @@
   "activeConnectionCount": "{count} active connection(s)",
   "@activeConnectionCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "itemCountWithSize": "{count} items, {size}",
   "@itemCountWithSize": {
     "placeholders": {
-      "count": { "type": "int" },
-      "size": { "type": "String" }
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
     }
-  }
+  },
+  "maximize": "Maximize",
+  "restore": "Restore",
+  "duplicateDownShortcut": "Duplicate Down (Ctrl+Shift+\\)"
 }

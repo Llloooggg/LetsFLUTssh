@@ -1017,12 +1017,6 @@ abstract class S {
   /// **'Copy Down'**
   String get copyDown;
 
-  /// No description provided for @copyDownShortcut.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy Down (Ctrl+Shift+\\)'**
-  String get copyDownShortcut;
-
   /// No description provided for @previous.
   ///
   /// In en, this message translates to:
@@ -2210,6 +2204,24 @@ abstract class S {
   /// In en, this message translates to:
   /// **'{count} items, {size}'**
   String itemCountWithSize(int count, String size);
+
+  /// No description provided for @maximize.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximize'**
+  String get maximize;
+
+  /// No description provided for @restore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get restore;
+
+  /// No description provided for @duplicateDownShortcut.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Down (Ctrl+Shift+\\)'**
+  String get duplicateDownShortcut;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

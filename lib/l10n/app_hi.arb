@@ -149,7 +149,6 @@
   "duplicateTab": "टैब डुप्लिकेट करें",
   "duplicateTabShortcut": "टैब डुप्लिकेट करें (Ctrl+\\)",
   "copyDown": "नीचे कॉपी करें",
-  "copyDownShortcut": "नीचे कॉपी करें (Ctrl+Shift+\\)",
   "previous": "पिछला",
   "next": "अगला",
   "closeEsc": "बंद करें (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "अधिकतम करें",
+  "restore": "पुनर्स्थापित करें",
+  "duplicateDownShortcut": "नीचे डुप्लिकेट करें (Ctrl+Shift+\\)"
 }

@@ -149,7 +149,6 @@
   "duplicateTab": "تكرار التبويب",
   "duplicateTabShortcut": "تكرار التبويب (Ctrl+\\)",
   "copyDown": "نسخ للأسفل",
-  "copyDownShortcut": "نسخ للأسفل (Ctrl+Shift+\\)",
   "previous": "السابق",
   "next": "التالي",
   "closeEsc": "إغلاق (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "تكبير",
+  "restore": "استعادة",
+  "duplicateDownShortcut": "تكرار للأسفل (Ctrl+Shift+\\)"
 }

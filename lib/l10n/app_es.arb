@@ -149,7 +149,6 @@
   "duplicateTab": "Duplicar pestaña",
   "duplicateTabShortcut": "Duplicar pestaña (Ctrl+\\)",
   "copyDown": "Copiar abajo",
-  "copyDownShortcut": "Copiar abajo (Ctrl+Shift+\\)",
   "previous": "Anterior",
   "next": "Siguiente",
   "closeEsc": "Cerrar (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "Maximizar",
+  "restore": "Restaurar",
+  "duplicateDownShortcut": "Duplicar abajo (Ctrl+Shift+\\)"
 }

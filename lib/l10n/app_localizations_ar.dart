@@ -507,9 +507,6 @@ class SAr extends S {
   String get copyDown => 'نسخ للأسفل';
 
   @override
-  String get copyDownShortcut => 'نسخ للأسفل (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'السابق';
 
   @override
@@ -1186,4 +1183,13 @@ class SAr extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'تكبير';
+
+  @override
+  String get restore => 'استعادة';
+
+  @override
+  String get duplicateDownShortcut => 'تكرار للأسفل (Ctrl+Shift+\\)';
 }

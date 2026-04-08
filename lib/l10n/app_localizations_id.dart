@@ -510,9 +510,6 @@ class SId extends S {
   String get copyDown => 'Salin ke Bawah';
 
   @override
-  String get copyDownShortcut => 'Salin ke Bawah (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'Sebelumnya';
 
   @override
@@ -1193,4 +1190,13 @@ class SId extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'Maksimalkan';
+
+  @override
+  String get restore => 'Pulihkan';
+
+  @override
+  String get duplicateDownShortcut => 'Duplikat ke Bawah (Ctrl+Shift+\\)';
 }

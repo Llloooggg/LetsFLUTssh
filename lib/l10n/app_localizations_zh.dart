@@ -503,9 +503,6 @@ class SZh extends S {
   String get copyDown => '向下复制';
 
   @override
-  String get copyDownShortcut => '向下复制 (Ctrl+Shift+\\)';
-
-  @override
   String get previous => '上一个';
 
   @override
@@ -1172,4 +1169,13 @@ class SZh extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => '最大化';
+
+  @override
+  String get restore => '恢复';
+
+  @override
+  String get duplicateDownShortcut => '向下复制 (Ctrl+Shift+\\)';
 }

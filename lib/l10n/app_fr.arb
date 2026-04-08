@@ -149,7 +149,6 @@
   "duplicateTab": "Dupliquer l'onglet",
   "duplicateTabShortcut": "Dupliquer l'onglet (Ctrl+\\)",
   "copyDown": "Copier en bas",
-  "copyDownShortcut": "Copier en bas (Ctrl+Shift+\\)",
   "previous": "Précédent",
   "next": "Suivant",
   "closeEsc": "Fermer (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "Maximiser",
+  "restore": "Restaurer",
+  "duplicateDownShortcut": "Dupliquer en bas (Ctrl+Shift+\\)"
 }

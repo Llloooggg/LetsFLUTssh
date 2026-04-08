@@ -2080,7 +2080,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byTooltip('Duplicate Tab (Ctrl+\\)'), findsOneWidget);
-      expect(find.byTooltip('Copy Down (Ctrl+Shift+\\)'), findsOneWidget);
+      expect(find.byTooltip('Duplicate Down (Ctrl+Shift+\\)'), findsOneWidget);
     });
 
     testWidgets('duplicate tab button shown for SFTP tab', (tester) async {
@@ -2100,7 +2100,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byTooltip('Duplicate Tab (Ctrl+\\)'), findsOneWidget);
-      expect(find.byTooltip('Copy Down (Ctrl+Shift+\\)'), findsOneWidget);
+      expect(find.byTooltip('Duplicate Down (Ctrl+Shift+\\)'), findsOneWidget);
     });
   });
 }

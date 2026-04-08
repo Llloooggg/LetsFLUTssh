@@ -862,7 +862,8 @@ Terminal uses `Ctrl+Shift+` prefix to avoid conflicts with terminal escape seque
 | Ctrl+W | Close active tab |
 | Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab |
 | Ctrl+B | Toggle sidebar |
-| Ctrl+\\ / Ctrl+Shift+\\ | Copy tab right / down (any tab type) |
+| Ctrl+\\ / Ctrl+Shift+\\ | Duplicate tab right / down (any tab type) |
+| Ctrl+Shift+M | Toggle panel maximize (zoom) |
 | Ctrl+, | Toggle settings |
 
 **Terminal** (`terminal_pane.dart`):
@@ -1045,7 +1046,9 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 
 **Terminal-level split:** `SplitNode` tree inside each `TerminalTab` divides a single terminal tab into panes. These two tiling levels are independent.
 
-**Copy Right / Copy Down:** Toolbar buttons and Ctrl+\\ / Ctrl+Shift+\\ duplicate the active tab (any type) into a new adjacent panel via `WorkspaceNotifier.copyToNewPanel()`. The duplicate reuses the same `Connection` object (no new SSH connection), getting its own shell/SFTP channel.
+**Duplicate Right / Duplicate Down:** Toolbar buttons and Ctrl+\\ / Ctrl+Shift+\\ duplicate the active tab (any type) into a new adjacent panel via `WorkspaceNotifier.copyToNewPanel()`. The duplicate reuses the same `Connection` object (no new SSH connection), getting its own shell/SFTP channel.
+
+**Panel maximize (zoom):** `WorkspaceState.maximizedPanelId` temporarily renders a single panel full-screen while preserving the workspace tree. Toggle via Ctrl+Shift+M, the connection bar button, or the tab context menu. Maximize is cleared automatically when the maximized panel is closed or the tree collapses to a single panel. Edge drop zones are disabled while maximized.
 
 **Drag-and-drop:** Tabs can be dragged between panels. Dropping on a panel's tab bar inserts the tab. Dropping on a panel's content area shows drop zone overlays (center = add to panel, edges = split panel in that direction).
 
