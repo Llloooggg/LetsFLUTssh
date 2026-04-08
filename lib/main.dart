@@ -600,15 +600,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   .copyToNewPanel(ws.focusedPanelId, Axis.vertical);
             }
           : null,
-      onMaximize: hasTab
-          ? () {
-              final ws = ref.read(workspaceProvider);
-              ref
-                  .read(workspaceProvider.notifier)
-                  .toggleMaximizePanel(ws.focusedPanelId);
-            }
-          : null,
-      isMaximized: ref.read(workspaceProvider).isMaximized,
       onSettings: _toggleSettings,
       inSettings: inSettings,
     );
@@ -733,8 +724,6 @@ class _Toolbar extends StatelessWidget {
   final bool isTerminalTab;
   final VoidCallback? onDuplicateTab;
   final VoidCallback? onDuplicateDown;
-  final VoidCallback? onMaximize;
-  final bool isMaximized;
   final VoidCallback onSettings;
   final bool inSettings;
 
@@ -745,8 +734,6 @@ class _Toolbar extends StatelessWidget {
     this.isTerminalTab = false,
     this.onDuplicateTab,
     this.onDuplicateDown,
-    this.onMaximize,
-    this.isMaximized = false,
     required this.onSettings,
     this.inSettings = false,
   });
@@ -783,14 +770,6 @@ class _Toolbar extends StatelessWidget {
             onTap: onDuplicateDown,
             tooltip: S.of(context).duplicateDownShortcut,
           ),
-          if (onMaximize != null)
-            AppIconButton(
-              icon: isMaximized ? Icons.close_fullscreen : Icons.open_in_full,
-              onTap: onMaximize,
-              tooltip: isMaximized
-                  ? S.of(context).restore
-                  : S.of(context).maximize,
-            ),
           _Divider(),
         ] else
           _Divider(),
