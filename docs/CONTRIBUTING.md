@@ -186,7 +186,7 @@ Every push and PR is checked by multiple pipelines. For the full workflow graph 
 | `scorecard.yml` | OpenSSF supply chain assessment | No (main only) |
 | `build-release.yml` | Build all platforms + GitHub Release (on tag) | — |
 
-**Dependabot auto-releases:** when Dependabot merges a Dart dependency update (`pub` ecosystem), the pipeline automatically bumps the patch version and pushes a commit. CI runs on that commit; if it passes, a tag is created and the full build + release pipeline triggers. If CI fails — no tag, no release, just a commit on main to fix. GitHub Actions updates are auto-merged but do not trigger a release (they don't affect the shipped app).
+**Dependabot auto-releases:** when Dependabot merges a Dart dependency update (`pub` ecosystem), CI runs on `main`. After CI passes, `ci-auto-tag.yml` detects the Dependabot commit, bumps the patch version, creates a tag, and triggers the full build + release pipeline. If CI fails — no bump, no tag, no release. GitHub Actions updates are auto-merged but do not trigger a version bump (they don't affect the shipped app).
 
 ## Security
 
