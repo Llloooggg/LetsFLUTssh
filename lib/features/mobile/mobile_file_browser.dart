@@ -827,10 +827,10 @@ class _MobileFileListState extends State<MobileFileList> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete, color: AppTheme.disconnected),
+              leading: Icon(Icons.delete, color: AppTheme.disconnected),
               title: Text(
                 S.of(ctx).delete,
-                style: const TextStyle(color: AppTheme.disconnected),
+                style: TextStyle(color: AppTheme.disconnected),
               ),
               onTap: () {
                 Navigator.pop(ctx);
