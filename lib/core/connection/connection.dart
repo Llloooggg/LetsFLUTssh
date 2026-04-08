@@ -59,19 +59,13 @@ class Connection {
   /// (success or failure). Safe to await multiple times.
   Future<void> get ready => _readyCompleter.future;
 
-  /// Wait for connection to leave `connecting` state with a timeout.
+  /// Wait for connection to leave `connecting` state.
   ///
-  /// Sets [connectionError] on timeout. No-op if not currently connecting.
-  /// Shared by desktop and mobile views to avoid duplicated wait logic.
-  Future<void> waitUntilReady({
-    Duration timeout = const Duration(seconds: 30),
-  }) async {
+  /// No-op if not currently connecting. Timeout is handled at the
+  /// [ConnectionManager] level — UI callers just await this.
+  Future<void> waitUntilReady() async {
     if (!isConnecting) return;
-    try {
-      await ready.timeout(timeout);
-    } on TimeoutException catch (e) {
-      connectionError = e;
-    }
+    await ready;
   }
 
   /// Mark connection attempt as resolved. Called by [ConnectionManager].

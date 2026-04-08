@@ -8,10 +8,12 @@ import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
+import '../../core/connection/progress_tracker.dart';
 import '../../core/connection/progress_writer.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
@@ -108,6 +110,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   Future<void> _connectAndOpenShell() async {
     final conn = widget.connection;
     final l10n = S.of(context);
+    final tracker = ProgressTracker(conn);
     final writer = ProgressWriter(
       terminal: _terminal,
       l10n: l10n,
@@ -115,21 +118,26 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     );
 
     // Subscribe to progress stream and write steps to terminal
-    _progressSub = writer.subscribe(conn);
+    _progressSub = writer.subscribe(tracker);
 
     // Wait for connection if still connecting
     await conn.waitUntilReady();
     _progressSub?.cancel();
     _progressSub = null;
+    tracker.dispose();
 
     // Check connection result
     if (!conn.isConnected) {
       if (!mounted) return;
+      // Mark disconnected so tab dot and connection bar update
+      conn.state = SSHConnectionState.disconnected;
       final error = conn.connectionError != null
           ? localizeError(l10n, conn.connectionError!)
           : l10n.errConnectionFailed;
       _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
       setState(() => _error = error);
+      // Force workspace rebuild so connection bar shows retry button
+      ref.invalidate(connectionsProvider);
       return;
     }
 
@@ -138,6 +146,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       // to terminal.write(), so any server output must not be erased.
       writer.clear();
       _shellConn = await _openShell(conn);
+      // Force workspace rebuild so connection bar updates dot and hides retry
+      if (mounted) ref.invalidate(connectionsProvider);
     } catch (e) {
       AppLogger.instance.log(
         'Shell open failed: $e',

@@ -295,13 +295,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Should show error state since connection is disconnected
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(
-        find.textContaining('SSH connection not available'),
-        findsOneWidget,
-      );
-      expect(find.text('Retry'), findsOneWidget);
+      // Error state now renders via ConnectionProgress (xterm-based)
+      expect(find.byType(ConnectionProgress), findsOneWidget);
     });
 
     testWidgets('error message contains relevant context', (tester) async {
@@ -329,14 +324,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Error text should mention SSH connection
-      expect(
-        find.textContaining('SSH connection not available'),
-        findsOneWidget,
-      );
+      // Error state renders via ConnectionProgress (error info written to
+      // the embedded terminal view — no separate text widget to search).
+      expect(find.byType(ConnectionProgress), findsOneWidget);
     });
 
-    testWidgets('Retry button re-attempts SFTP init', (tester) async {
+    testWidgets('error state shows ConnectionProgress on SFTP init failure', (
+      tester,
+    ) async {
       final conn = Connection(
         id: 'test-3',
         label: 'Test',
@@ -361,20 +356,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Error state should be showing
-      expect(find.text('Retry'), findsOneWidget);
-
-      // Tap Retry — triggers re-init (which will fail again since no SSH)
-      await tester.tap(find.text('Retry'));
-      await tester.pumpAndSettle();
-
-      // Back to error state after retry fails
-      expect(find.text('Retry'), findsOneWidget);
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      // Error state renders via ConnectionProgress (xterm-based, no Retry
+      // button — retry is now in workspace_view's connection bar)
+      expect(find.byType(ConnectionProgress), findsOneWidget);
     });
 
     testWidgets(
-      'initializing state shows loading UI before async init resolves',
+      'error state keeps ConnectionProgress visible after init resolves',
       (tester) async {
         // The FileBrowserTab starts with _initializing = true, but _initSftp runs
         // immediately in initState. Since connection is disconnected,
@@ -404,11 +392,9 @@ void main() {
         // After settling, should be in error state (init failed quickly)
         await tester.pumpAndSettle();
 
-        // Error state should show error icon and retry
-        expect(find.byIcon(Icons.error_outline), findsOneWidget);
-        expect(find.text('Retry'), findsOneWidget);
-        // Loading indicator should NOT be showing anymore
-        expect(find.byType(ConnectionProgress), findsNothing);
+        // Error state keeps ConnectionProgress visible — it displays the
+        // error information inside the terminal view.
+        expect(find.byType(ConnectionProgress), findsOneWidget);
       },
     );
   });
@@ -568,9 +554,9 @@ void main() {
       completer.completeError('Connection refused');
       await tester.pumpAndSettle();
 
-      expect(find.byType(ConnectionProgress), findsNothing);
-      expect(find.textContaining('Connection refused'), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
+      // Error state keeps ConnectionProgress visible — error info is
+      // written to the embedded terminal view inside ConnectionProgress.
+      expect(find.byType(ConnectionProgress), findsOneWidget);
     });
   });
 
@@ -654,17 +640,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // First call failed — error state
-      expect(find.text('Retry'), findsOneWidget);
+      // First call failed — error state shown via ConnectionProgress
+      expect(find.byType(ConnectionProgress), findsOneWidget);
       expect(callCount, 1);
 
-      // Tap Retry — second call succeeds
-      await tester.tap(find.text('Retry'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Retry'), findsNothing);
-      expect(find.textContaining('Transfers'), findsOneWidget);
-      expect(callCount, 2);
+      // No Retry button exists in the file browser itself anymore —
+      // retry is handled by workspace_view's connection bar.
     });
   });
 

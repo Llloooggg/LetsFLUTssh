@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_step.dart';
+import 'package:letsflutssh/core/connection/progress_tracker.dart';
 import 'package:letsflutssh/core/connection/progress_writer.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -194,7 +195,8 @@ void main() {
         ),
       );
 
-      final sub = writer.subscribe(conn);
+      final tracker = ProgressTracker(conn);
+      final sub = writer.subscribe(tracker);
 
       // Now add a new step after subscription.
       conn.addProgressStep(
@@ -214,6 +216,7 @@ void main() {
       expect(content, contains('Verifying host key'));
 
       await sub.cancel();
+      tracker.dispose();
     });
 
     test('returns cancellable subscription', () async {
@@ -224,8 +227,10 @@ void main() {
         state: SSHConnectionState.connecting,
       );
 
-      final sub = writer.subscribe(conn);
+      final tracker = ProgressTracker(conn);
+      final sub = writer.subscribe(tracker);
       await sub.cancel();
+      tracker.dispose();
 
       // Adding steps after cancel should not throw.
       conn.addProgressStep(

@@ -8,6 +8,7 @@ import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
+import '../../core/connection/progress_tracker.dart';
 import '../../core/connection/progress_writer.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../l10n/app_localizations.dart';
@@ -76,16 +77,18 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   Future<void> _connectAndOpenShell() async {
     final conn = widget.connection;
     final l10n = S.of(context);
+    final tracker = ProgressTracker(conn);
     final writer = ProgressWriter(
       terminal: _terminal,
       l10n: l10n,
       config: conn.sshConfig,
     );
 
-    _progressSub = writer.subscribe(conn);
+    _progressSub = writer.subscribe(tracker);
     await conn.waitUntilReady();
     _progressSub?.cancel();
     _progressSub = null;
+    tracker.dispose();
 
     if (!conn.isConnected) {
       if (mounted) {
