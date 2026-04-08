@@ -148,24 +148,23 @@ ci: add commit message linting for PRs
 
 ## Version Bumps
 
-Changes that affect the shipped app **must** include a version bump in the same commit:
+Version bumps are **fully automated** by CI (`ci-auto-tag.yml`). When commits land on `main`, the workflow parses conventional commit prefixes and bumps `pubspec.yaml` accordingly:
 
-| Change                                  | Bump      |
+| Commit prefix                           | Bump      |
 |-----------------------------------------|-----------|
-| Bug fix, refactoring, production code   | **patch** |
-| New feature                             | **minor** |
-| Breaking change (file format, API)      | **major** |
+| `fix:`, `chore:`, `refactor:`, `perf:`, `build:`, Dependabot `Bump ...` | **patch** |
+| `feat:`                                 | **minor** |
+| `BREAKING CHANGE` or `feat!:`           | **major** |
+| `docs:`, `test:`, `ci:`                 | **no bump** |
 
-Bump the `version:` field in `pubspec.yaml` — it is the single source of truth (`package_info_plus` reads it at runtime).
-
-**No bump needed:** test-only, docs-only, CI-only, or config-only changes (`test:`, `docs:`, `chore:`, `ci:` commits).
+**Do not bump the version manually** — just use the correct conventional commit prefix. The `version:` field in `pubspec.yaml` remains the single source of truth (`package_info_plus` reads it at runtime).
 
 ## Pull Requests
 
 1. Fork the repo and create a feature branch (`git checkout -b feat/my-feature`)
 2. Target the **`dev`** branch — never `main` directly
 3. Follow commit message format (`type: description`) — CI enforces this on PRs
-4. If your change affects the shipped app, include a version bump (see above)
+4. Use correct conventional commit prefixes — version bumps are automated on merge to `main`
 5. `make analyze` and `make test` must pass
 6. All new code must have tests (80% coverage minimum, 100% target)
 7. One logical change per PR

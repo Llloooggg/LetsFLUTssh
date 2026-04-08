@@ -82,8 +82,8 @@ All user-facing strings MUST use `S.of(context).xxx`. Never hardcode strings in 
 
 | Scenario                    | What to do                                                          |
 | --------------------------- | ------------------------------------------------------------------- |
-| App change (feat/fix/refac) | Merge `dev` → `main` — auto-tag handles it                         |
-| Tests/docs/CI only          | Merge to `main` — no new version, no tag, no release                |
-| Dependabot deps             | Auto: PR to main → merge → version bump → CI → auto-tag → release  |
+| App change (feat/fix/refac) | Merge `dev` → `main` — CI → auto-bump → auto-tag → release         |
+| Tests/docs/CI only          | Merge to `main` — no bump, no tag, no release                      |
+| Dependabot deps             | Auto: PR to main → merge → CI → auto-bump (patch) → tag → release  |
 | Manual build                | `gh workflow run build-release.yml` — fails if CI hasn't passed     |
 | Failed build (re-trigger)   | `gh workflow run build-release.yml --ref v{VERSION}`                |
