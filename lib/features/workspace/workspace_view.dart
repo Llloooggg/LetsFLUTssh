@@ -47,9 +47,13 @@ class WorkspaceView extends ConsumerStatefulWidget {
 
 class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   final Map<String, GlobalKey<TerminalTabState>> _terminalKeys = {};
+  final Map<String, GlobalKey> _fileBrowserKeys = {};
 
   GlobalKey<TerminalTabState> _keyForTab(String tabId) =>
       _terminalKeys.putIfAbsent(tabId, () => GlobalKey<TerminalTabState>());
+
+  GlobalKey _keyForFileBrowser(String tabId) =>
+      _fileBrowserKeys.putIfAbsent(tabId, () => GlobalKey());
 
   /// Returns the [TerminalTabState] for the given tab id (if it exists).
   TerminalTabState? terminalStateFor(String tabId) =>
@@ -61,9 +65,10 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     // Watch connection state changes so status dots update.
     ref.watch(connectionsProvider);
 
-    // Clean up stale terminal keys.
+    // Clean up stale keys.
     final allTabIds = collectAllTabs(ws.root).map((t) => t.id).toSet();
     _terminalKeys.removeWhere((id, _) => !allTabIds.contains(id));
+    _fileBrowserKeys.removeWhere((id, _) => !allTabIds.contains(id));
 
     if (!ws.hasTabs) return const WelcomeScreen();
 
@@ -202,7 +207,7 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
                               connection: tab.connection,
                             ),
                             TabKind.sftp => FileBrowserTab(
-                              key: ValueKey(tab.id),
+                              key: _keyForFileBrowser(tab.id),
                               connection: tab.connection,
                               crossMarquee: widget.crossMarquee,
                               reverseCrossMarquee: widget.reverseCrossMarquee,
