@@ -898,6 +898,7 @@ Session clipboard stores a session ID. Ctrl+V duplicates that session via `Sessi
 | `file_pane.dart` | `FilePane` | Single pane: table + path bar + navigation |
 | `file_pane_dialogs.dart` | — | Dialogs: New Folder, Rename, Delete |
 | `file_row.dart` | `FileRow` | Row in the file table |
+| `breadcrumb_path.dart` | `BreadcrumbPath`, `parseBreadcrumbPath()`, `buildPathForSegment()` | Shared breadcrumb path parsing for desktop and mobile file browsers |
 | `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort |
 | `sftp_initializer.dart` | `SFTPInitializer` | SFTP initialization factory (injectable) |
 | `transfer_panel.dart` | `TransferPanel` | Bottom panel: progress + history (resizable columns, sorting, column dividers) |
@@ -1013,7 +1014,7 @@ class TabEntry {
 | `workspace_controller.dart` | `WorkspaceNotifier`, `WorkspaceState` | State management: add/close/move/split/copy/select tabs across panels |
 | `workspace_view.dart` | `WorkspaceView`, `WorkspaceViewState` | Recursive renderer: panels with dividers, tab bars, connection bars |
 | `panel_tab_bar.dart` | `PanelTabBar`, `TabDragData` | Per-panel tab bar with cross-panel drag-and-drop |
-| `drop_zone_overlay.dart` | `PanelDropTarget`, `DropZone` | Snap/dock zones for tab dragging (center, left, right, top, bottom) |
+| `drop_zone_overlay.dart` | `PanelDropTarget`, `DropZone`, `buildDropZoneOverlay()` | Snap/dock zones for tab dragging; shared overlay builder used by both panel and workspace edge targets |
 
 #### Two-level tiling architecture
 
