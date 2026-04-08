@@ -31,6 +31,7 @@ ShellConnection _fakeShellConnection() {
     shell: mockSession,
     stdoutSub: stdoutCtrl.stream.listen((_) {}),
     stderrSub: stderrCtrl.stream.listen((_) {}),
+    terminal: Terminal(),
   );
 }
 
@@ -895,6 +896,7 @@ void main() {
         shell: mockSession,
         stdoutSub: stdoutCtrl.stream.listen((_) {}),
         stderrSub: stderrCtrl.stream.listen((_) {}),
+        terminal: Terminal(),
       );
 
       await tester.pumpWidget(

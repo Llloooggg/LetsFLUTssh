@@ -101,14 +101,23 @@ class SSHConnection {
     final socket = await _connectSocket(onProgress);
     await _authenticateClient(socket, onProgress);
 
-    // Listen for disconnect
-    _client!.done.then((_) {
-      if (!_disposed) {
-        _disposed = true;
-        _keepAliveTimer?.cancel();
-        onDisconnect?.call();
-      }
-    });
+    // Listen for disconnect — handle both normal close and errors.
+    _client!.done.then(
+      (_) {
+        if (!_disposed) {
+          _disposed = true;
+          _keepAliveTimer?.cancel();
+          onDisconnect?.call();
+        }
+      },
+      onError: (_) {
+        if (!_disposed) {
+          _disposed = true;
+          _keepAliveTimer?.cancel();
+          onDisconnect?.call();
+        }
+      },
+    );
   }
 
   Future<SSHSocket> _connectSocket(
