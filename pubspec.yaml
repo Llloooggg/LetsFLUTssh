@@ -1,7 +1,7 @@
 name: letsflutssh
 description: Lightweight cross-platform SSH/SFTP client with GUI
 publish_to: 'none'
-version: 2.31.3+358
+version: 2.31.4+359
 
 environment:
   sdk: ^3.11.3
