@@ -11,10 +11,9 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
+import '../../widgets/styled_form_field.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
-
-const _kMonoFont = 'JetBrains Mono';
 
 /// Result of the session edit dialog.
 sealed class SessionDialogResult {}
@@ -310,18 +309,18 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _styledField(
-          S.of(context).sessionName,
-          _labelCtrl,
+        StyledFormField(
+          label: S.of(context).sessionName,
+          controller: _labelCtrl,
           hint: S.of(context).hintMyServer,
         ),
         const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
-              child: _styledField(
-                S.of(context).hostRequired,
-                _hostCtrl,
+              child: StyledFormField(
+                label: S.of(context).hostRequired,
+                controller: _hostCtrl,
                 hint: S.of(context).hintHost,
                 validator: _requiredValidator,
               ),
@@ -329,9 +328,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
             const SizedBox(width: 12),
             SizedBox(
               width: 80,
-              child: _styledField(
-                S.of(context).port,
-                _portCtrl,
+              child: StyledFormField(
+                label: S.of(context).port,
+                controller: _portCtrl,
                 hint: S.of(context).hintPort,
                 keyboardType: TextInputType.number,
                 validator: (v) {
@@ -346,9 +345,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
           ],
         ),
         const SizedBox(height: 12),
-        _styledField(
-          S.of(context).usernameRequired,
-          _userCtrl,
+        StyledFormField(
+          label: S.of(context).usernameRequired,
+          controller: _userCtrl,
           hint: S.of(context).hintUsername,
           validator: _requiredValidator,
         ),
@@ -409,9 +408,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   }
 
   Widget _buildPasswordField() {
-    return _styledField(
-      S.of(context).password,
-      _passwordCtrl,
+    return StyledFormField(
+      label: S.of(context).password,
+      controller: _passwordCtrl,
       hint: '••••••••',
       obscure: _obscurePassword,
       suffixIcon: GestureDetector(
@@ -548,8 +547,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       controller: _keyDataCtrl,
       decoration: InputDecoration(
         hintText: S.of(context).hintPemKey,
-        hintStyle: TextStyle(
-          fontFamily: _kMonoFont,
+        hintStyle: AppFonts.mono(
           fontSize: AppFonts.xs,
           color: AppTheme.fgFaint,
         ),
@@ -576,9 +574,9 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   }
 
   Widget _buildPassphraseField() {
-    return _styledField(
-      S.of(context).keyPassphrase,
-      _passphraseCtrl,
+    return StyledFormField(
+      label: S.of(context).keyPassphrase,
+      controller: _passphraseCtrl,
       hint: S.of(context).hintOptional,
       obscure: _obscurePassphrase,
       suffixIcon: GestureDetector(
@@ -639,133 +637,4 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   String? Function(String?) get _requiredValidator =>
       (v) => v == null || v.trim().isEmpty ? S.of(context).required : null;
-
-  Widget _styledField(
-    String label,
-    TextEditingController controller, {
-    String? hint,
-    bool obscure = false,
-    Widget? suffixIcon,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FieldLabel(label),
-        _StyledInput(
-          controller: controller,
-          hint: hint,
-          obscure: obscure,
-          suffixIcon: suffixIcon,
-          keyboardType: keyboardType,
-          validator: validator,
-        ),
-      ],
-    );
-  }
-}
-
-/// Uppercase field label.
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  const _FieldLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: AppFonts.xs,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.8,
-          color: AppTheme.fgFaint,
-        ),
-      ),
-    );
-  }
-}
-
-/// Styled text input matching the mockup.
-class _StyledInput extends StatelessWidget {
-  final TextEditingController controller;
-  final String? hint;
-  final bool obscure;
-  final Widget? suffixIcon;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-
-  const _StyledInput({
-    required this.controller,
-    this.hint,
-    this.obscure = false,
-    this.suffixIcon,
-    this.keyboardType,
-    this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscure,
-      keyboardType: keyboardType,
-      validator: validator,
-      style: TextStyle(
-        fontFamily: _kMonoFont,
-        fontSize: AppFonts.sm,
-        color: AppTheme.fg,
-      ),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(
-          fontFamily: _kMonoFont,
-          fontSize: AppFonts.sm,
-          color: AppTheme.fgFaint,
-        ),
-        filled: true,
-        fillColor: AppTheme.bg3,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        border: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.borderLight),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.borderLight),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.accent),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.red),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.red),
-        ),
-        errorStyle: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: AppFonts.xs,
-          color: AppTheme.red,
-          height: 1.2,
-        ),
-        suffixIcon: suffixIcon != null
-            ? Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: suffixIcon,
-              )
-            : null,
-        suffixIconConstraints: const BoxConstraints(
-          maxHeight: AppTheme.controlHeightMd,
-        ),
-      ),
-    );
-  }
 }

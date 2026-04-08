@@ -6,6 +6,7 @@ import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
+import 'styled_form_field.dart';
 
 /// Result from the LFS import password dialog.
 typedef LfsImportDialogResult = ({String password, ImportMode mode});
@@ -61,33 +62,14 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
           ),
           const SizedBox(height: 12),
-          TextField(
+          StyledInput(
             controller: _passwordCtrl,
-            obscureText: true,
+            obscure: true,
             autofocus: true,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-            decoration: InputDecoration(
-              labelText: S.of(context).masterPassword,
-              labelStyle: TextStyle(color: AppTheme.fgFaint),
-              filled: true,
-              fillColor: AppTheme.bg3,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 10,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.borderLight),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.borderLight),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.accent),
-              ),
+            labelText: S.of(context).masterPassword,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 10,
             ),
             onSubmitted: (v) {
               if (v.isNotEmpty) {
