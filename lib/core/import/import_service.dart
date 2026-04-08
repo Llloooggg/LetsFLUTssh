@@ -49,49 +49,11 @@ class ImportService {
       name: 'Import',
     );
 
-    // Snapshot for rollback (replace mode only, when callbacks available)
-    List<Session>? snapshotSessions;
-    Set<String>? snapshotFolders;
-    Map<String, CredentialData>? snapshotCreds;
+    final snapshot = result.mode == ImportMode.replace
+        ? await _snapshotAndDeleteExisting()
+        : null;
 
-    if (result.mode == ImportMode.replace) {
-      final existing = List<Session>.of(getSessions());
-
-      if (restoreSnapshot != null) {
-        snapshotSessions = existing;
-        snapshotFolders = getEmptyFolders != null
-            ? Set.of(getEmptyFolders!())
-            : <String>{};
-        snapshotCreds = loadCredentials != null
-            ? await loadCredentials!(existing.map((s) => s.id).toSet())
-            : <String, CredentialData>{};
-      }
-
-      AppLogger.instance.log(
-        'Replace mode: deleting ${existing.length} existing sessions',
-        name: 'Import',
-      );
-      for (final s in existing) {
-        await deleteSession(s.id);
-      }
-    }
-
-    var imported = 0;
-    for (final s in result.sessions) {
-      try {
-        await addSession(s);
-        imported++;
-      } catch (e) {
-        if (result.mode == ImportMode.replace) {
-          await _tryRestore(snapshotSessions, snapshotFolders, snapshotCreds);
-          rethrow;
-        }
-        AppLogger.instance.log(
-          'Skipped session ${s.label}: $e',
-          name: 'Import',
-        );
-      }
-    }
+    final imported = await _importSessions(result, snapshot);
 
     if (result.config != null) {
       applyConfig(result.config!);
@@ -103,18 +65,68 @@ class ImportService {
     );
   }
 
+  /// Takes a snapshot of existing sessions (when rollback callbacks are
+  /// available) and deletes them. Returns the snapshot for rollback.
+  Future<_Snapshot?> _snapshotAndDeleteExisting() async {
+    final existing = List<Session>.of(getSessions());
+    _Snapshot? snapshot;
+
+    if (restoreSnapshot != null) {
+      final folders = getEmptyFolders != null
+          ? Set.of(getEmptyFolders!())
+          : <String>{};
+      final creds = loadCredentials != null
+          ? await loadCredentials!(existing.map((s) => s.id).toSet())
+          : <String, CredentialData>{};
+      snapshot = _Snapshot(existing, folders, creds);
+    }
+
+    AppLogger.instance.log(
+      'Replace mode: deleting ${existing.length} existing sessions',
+      name: 'Import',
+    );
+    for (final s in existing) {
+      await deleteSession(s.id);
+    }
+
+    return snapshot;
+  }
+
+  /// Imports sessions from the result. On failure in replace mode, attempts
+  /// rollback from [snapshot]. Returns the count of successfully imported
+  /// sessions.
+  Future<int> _importSessions(ImportResult result, _Snapshot? snapshot) async {
+    var imported = 0;
+    for (final s in result.sessions) {
+      try {
+        await addSession(s);
+        imported++;
+      } catch (e) {
+        if (result.mode == ImportMode.replace) {
+          await _tryRestore(snapshot);
+          rethrow;
+        }
+        AppLogger.instance.log(
+          'Skipped session ${s.label}: $e',
+          name: 'Import',
+        );
+      }
+    }
+    return imported;
+  }
+
   /// Attempt to restore a pre-import snapshot. Logs but does not throw
   /// on failure — the original import error takes priority.
-  Future<void> _tryRestore(
-    List<Session>? sessions,
-    Set<String>? folders,
-    Map<String, CredentialData>? creds,
-  ) async {
-    if (restoreSnapshot == null || sessions == null) return;
+  Future<void> _tryRestore(_Snapshot? snapshot) async {
+    if (restoreSnapshot == null || snapshot == null) return;
     try {
-      await restoreSnapshot!(sessions, folders ?? {}, creds ?? {});
+      await restoreSnapshot!(
+        snapshot.sessions,
+        snapshot.folders,
+        snapshot.credentials,
+      );
       AppLogger.instance.log(
-        'Restored ${sessions.length} sessions after import failure',
+        'Restored ${snapshot.sessions.length} sessions after import failure',
         name: 'Import',
       );
     } catch (e) {
@@ -125,4 +137,12 @@ class ImportService {
       );
     }
   }
+}
+
+class _Snapshot {
+  final List<Session> sessions;
+  final Set<String> folders;
+  final Map<String, CredentialData> credentials;
+
+  const _Snapshot(this.sessions, this.folders, this.credentials);
 }

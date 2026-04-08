@@ -48,7 +48,7 @@ Run `make analyze` to confirm no new issues were introduced.
 ### Rules
 - Fix issues from highest severity to lowest: BLOCKER > CRITICAL > MAJOR > MINOR > INFO
 - One logical fix per commit — don't bundle unrelated fixes
-- Follow the HARD STOP rule: implement fix → tests → version bump → docs → `make analyze` → commit. Do NOT start the next fix until the current one is committed
+- Follow the HARD STOP rule: implement fix → tests → docs → `make analyze` → commit. Do NOT start the next fix until the current one is committed. Version bumps are automated by CI on merge to `main`
 - Cognitive complexity (S3776) fixes: extract helper methods, don't just inline
 - Nested ternary (S3358) fixes: extract to local variables or if/else
 - Never suppress — always fix the root cause

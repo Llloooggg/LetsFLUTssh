@@ -1636,7 +1636,9 @@ void main() {
     });
 
     testWidgets('Enable Logging switch is visible', (tester) async {
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(enableLogging: true),
+      );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
         find.text('Enable Logging'),
@@ -1652,7 +1654,9 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(enableLogging: true),
+      );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
         find.text('Live Log'),
@@ -1674,7 +1678,9 @@ void main() {
       // Write a log entry so content is non-empty
       AppLogger.instance.log('Test log entry', name: 'Test');
 
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(enableLogging: true),
+      );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
         find.text('Live Log'),
@@ -1703,7 +1709,9 @@ void main() {
       // Clear logs (real I/O)
       await tester.runAsync(() => AppLogger.instance.clearLogs());
 
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(enableLogging: true),
+      );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
         find.text('Live Log'),
@@ -1751,7 +1759,9 @@ void main() {
         () => Future.delayed(const Duration(milliseconds: 100)),
       );
 
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(enableLogging: true),
+      );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
         find.byIcon(Icons.copy),
@@ -1789,7 +1799,9 @@ void main() {
         () => Future.delayed(const Duration(milliseconds: 100)),
       );
 
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(enableLogging: true),
+      );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
         find.byIcon(Icons.delete_outline),
@@ -1871,7 +1883,9 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(enableLogging: true),
+      );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
         find.text('Enable Logging'),
@@ -1905,7 +1919,9 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
-        final config = AppConfig.defaults.copyWith(enableLogging: true);
+        final config = AppConfig.defaults.copyWith(
+          behavior: const BehaviorConfig(enableLogging: true),
+        );
         await tester.pumpWidget(buildApp(initialConfig: config));
         await tester.scrollUntilVisible(
           find.text('Live Log'),
@@ -1938,7 +1954,9 @@ void main() {
         await AppLogger.instance.setEnabled(true);
       });
 
-      final config = AppConfig.defaults.copyWith(enableLogging: true);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(enableLogging: true),
+      );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
         find.byIcon(Icons.copy),
@@ -2207,7 +2225,7 @@ void main() {
       await tester.pumpWidget(
         buildUpdateApp(
           initialConfig: AppConfig.defaults.copyWith(
-            checkUpdatesOnStart: false,
+            behavior: const BehaviorConfig(checkUpdatesOnStart: false),
           ),
         ),
       );
@@ -2397,7 +2415,9 @@ void main() {
     testWidgets('shows Unskip button when version is skipped', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(
-          initialConfig: AppConfig.defaults.copyWith(skippedVersion: '2.0.0'),
+          initialConfig: AppConfig.defaults.copyWith(
+            behavior: const BehaviorConfig(skippedVersion: '2.0.0'),
+          ),
           initialUpdateState: const UpdateState(
             status: UpdateStatus.updateAvailable,
             info: UpdateInfo(
@@ -2422,7 +2442,9 @@ void main() {
     testWidgets('subtitle does not show skipped label', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(
-          initialConfig: AppConfig.defaults.copyWith(skippedVersion: '2.0.0'),
+          initialConfig: AppConfig.defaults.copyWith(
+            behavior: const BehaviorConfig(skippedVersion: '2.0.0'),
+          ),
           initialUpdateState: const UpdateState(
             status: UpdateStatus.updateAvailable,
             info: UpdateInfo(
@@ -2446,7 +2468,9 @@ void main() {
       // Skipped v2.0.0, but v3.0.0 is now available — skip doesn't match
       await tester.pumpWidget(
         buildUpdateApp(
-          initialConfig: AppConfig.defaults.copyWith(skippedVersion: '2.0.0'),
+          initialConfig: AppConfig.defaults.copyWith(
+            behavior: const BehaviorConfig(skippedVersion: '2.0.0'),
+          ),
           initialUpdateState: const UpdateState(
             status: UpdateStatus.updateAvailable,
             info: UpdateInfo(

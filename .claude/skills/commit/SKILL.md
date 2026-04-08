@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Create a git commit following project conventions. Checks version bump and docs. Pre-commit hook handles analyzer + tests. Use when user says "commit" or "commit and push".
+description: Create a git commit following project conventions. Checks docs. Pre-commit hook handles analyzer + tests. Use when user says "commit" or "commit and push".
 ---
 
 ## Commit workflow for LetsFLUTssh
@@ -15,11 +15,11 @@ Follow these steps strictly. This is a gated workflow — do NOT skip steps.
 ### Step 2: Analyze changes
 Determine:
 1. **Type**: feat / fix / refactor / test / docs / chore / ci
-2. **Version bump needed?** — YES if any file in `lib/`, platform configs, native code, assets, or build settings changed. NO for test/docs/ci/chore only changes
-3. **Docs updated?** — Check per the documentation maintenance table in CLAUDE.md. If code changed but docs didn't, WARN the user
+2. **Docs updated?** — Check per the documentation maintenance table in CLAUDE.md. If code changed but docs didn't, WARN the user
+
+Note: Version bumps are automated by CI on merge to `main`. Do NOT bump version manually.
 
 ### Step 3: Pre-commit checks
-- If version bump needed but `pubspec.yaml` version unchanged: **STOP and tell the user** to bump version first. Do NOT commit
 - Do NOT run `make analyze` or `make test` manually — the pre-commit hook runs `make check` automatically and blocks the commit if anything fails
 
 ### Step 4: Draft commit message
@@ -29,7 +29,7 @@ Determine:
 
 ### Step 5: Confirm with user
 - If the user explicitly said "комить" / "commit" (i.e. gave a direct command), skip confirmation — proceed straight to Step 6
-- Otherwise, show: files to be committed, commit message, version bump status — and ask for confirmation
+- Otherwise, show: files to be committed, commit message — and ask for confirmation
 
 ### Step 6: Commit
 - `git add` only the relevant files (not `git add -A`)

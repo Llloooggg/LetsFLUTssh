@@ -243,7 +243,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     if (skipped != null) {
       ref
           .read(configProvider.notifier)
-          .update((c) => c.copyWith(skippedVersion: null));
+          .update(
+            (c) =>
+                c.copyWith(behavior: c.behavior.copyWith(skippedVersion: null)),
+          );
     }
 
     _updateDialogShown = true;
@@ -307,7 +310,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               ref
                   .read(configProvider.notifier)
                   .update(
-                    (c) => c.copyWith(skippedVersion: info.latestVersion),
+                    (c) => c.copyWith(
+                      behavior: c.behavior.copyWith(
+                        skippedVersion: info.latestVersion,
+                      ),
+                    ),
                   );
             },
           ),

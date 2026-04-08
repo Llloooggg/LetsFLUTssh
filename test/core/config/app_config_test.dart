@@ -766,17 +766,21 @@ void main() {
       });
 
       test('preserves enableLogging', () {
-        const config = AppConfig(enableLogging: true);
+        const config = AppConfig(behavior: BehaviorConfig(enableLogging: true));
         expect(config.sanitized().enableLogging, true);
       });
 
       test('preserves checkUpdatesOnStart', () {
-        const config = AppConfig(checkUpdatesOnStart: false);
+        const config = AppConfig(
+          behavior: BehaviorConfig(checkUpdatesOnStart: false),
+        );
         expect(config.sanitized().checkUpdatesOnStart, false);
       });
 
       test('preserves skippedVersion', () {
-        const config = AppConfig(skippedVersion: '2.0.0');
+        const config = AppConfig(
+          behavior: BehaviorConfig(skippedVersion: '2.0.0'),
+        );
         expect(config.sanitized().skippedVersion, '2.0.0');
       });
 
@@ -789,7 +793,7 @@ void main() {
         const config = AppConfig(
           transferWorkers: 4,
           maxHistory: 1000,
-          enableLogging: true,
+          behavior: BehaviorConfig(enableLogging: true),
         );
         final sanitized = config.sanitized();
         expect(sanitized.transferWorkers, 4);
@@ -837,31 +841,45 @@ void main() {
 
       test('replaces enableLogging', () {
         const config = AppConfig();
-        final copy = config.copyWith(enableLogging: true);
+        final copy = config.copyWith(
+          behavior: config.behavior.copyWith(enableLogging: true),
+        );
         expect(copy.enableLogging, true);
       });
 
       test('replaces checkUpdatesOnStart', () {
         const config = AppConfig();
-        final copy = config.copyWith(checkUpdatesOnStart: false);
+        final copy = config.copyWith(
+          behavior: config.behavior.copyWith(checkUpdatesOnStart: false),
+        );
         expect(copy.checkUpdatesOnStart, false);
       });
 
       test('replaces skippedVersion with value', () {
         const config = AppConfig();
-        final copy = config.copyWith(skippedVersion: '2.0.0');
+        final copy = config.copyWith(
+          behavior: config.behavior.copyWith(skippedVersion: '2.0.0'),
+        );
         expect(copy.skippedVersion, '2.0.0');
       });
 
       test('clears skippedVersion with null', () {
-        const config = AppConfig(skippedVersion: '2.0.0');
-        final copy = config.copyWith(skippedVersion: null);
+        const config = AppConfig(
+          behavior: BehaviorConfig(skippedVersion: '2.0.0'),
+        );
+        final copy = config.copyWith(
+          behavior: config.behavior.copyWith(skippedVersion: null),
+        );
         expect(copy.skippedVersion, isNull);
       });
 
       test('preserves skippedVersion when not specified', () {
-        const config = AppConfig(skippedVersion: '2.0.0');
-        final copy = config.copyWith(enableLogging: true);
+        const config = AppConfig(
+          behavior: BehaviorConfig(skippedVersion: '2.0.0'),
+        );
+        final copy = config.copyWith(
+          behavior: config.behavior.copyWith(enableLogging: true),
+        );
         expect(copy.skippedVersion, '2.0.0');
       });
 
@@ -879,14 +897,18 @@ void main() {
 
       test('preserves locale when using copyWith', () {
         const config = AppConfig(locale: 'ja');
-        final copy = config.copyWith(enableLogging: true);
+        final copy = config.copyWith(
+          behavior: config.behavior.copyWith(enableLogging: true),
+        );
         expect(copy.locale, 'ja');
       });
 
       test('copyWith(locale:) preserves other fields', () {
         const config = AppConfig(
-          skippedVersion: '1.0.0',
-          enableLogging: true,
+          behavior: BehaviorConfig(
+            skippedVersion: '1.0.0',
+            enableLogging: true,
+          ),
           locale: 'en',
         );
         final copy = config.copyWith(locale: 'fr');
@@ -899,7 +921,7 @@ void main() {
         const config = AppConfig(
           terminal: TerminalConfig(fontSize: 18),
           transferWorkers: 4,
-          enableLogging: true,
+          behavior: BehaviorConfig(enableLogging: true),
         );
         expect(config.copyWith(), config);
       });
@@ -910,12 +932,12 @@ void main() {
         const a = AppConfig(
           transferWorkers: 4,
           maxHistory: 100,
-          enableLogging: true,
+          behavior: BehaviorConfig(enableLogging: true),
         );
         const b = AppConfig(
           transferWorkers: 4,
           maxHistory: 100,
-          enableLogging: true,
+          behavior: BehaviorConfig(enableLogging: true),
         );
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
@@ -952,26 +974,30 @@ void main() {
       });
 
       test('different enableLogging makes unequal', () {
-        const a = AppConfig(enableLogging: false);
-        const b = AppConfig(enableLogging: true);
+        const a = AppConfig(behavior: BehaviorConfig(enableLogging: false));
+        const b = AppConfig(behavior: BehaviorConfig(enableLogging: true));
         expect(a, isNot(equals(b)));
       });
 
       test('different checkUpdatesOnStart makes unequal', () {
-        const a = AppConfig(checkUpdatesOnStart: true);
-        const b = AppConfig(checkUpdatesOnStart: false);
+        const a = AppConfig(
+          behavior: BehaviorConfig(checkUpdatesOnStart: true),
+        );
+        const b = AppConfig(
+          behavior: BehaviorConfig(checkUpdatesOnStart: false),
+        );
         expect(a, isNot(equals(b)));
       });
 
       test('different skippedVersion makes unequal', () {
-        const a = AppConfig(skippedVersion: '1.0.0');
-        const b = AppConfig(skippedVersion: '2.0.0');
+        const a = AppConfig(behavior: BehaviorConfig(skippedVersion: '1.0.0'));
+        const b = AppConfig(behavior: BehaviorConfig(skippedVersion: '2.0.0'));
         expect(a, isNot(equals(b)));
       });
 
       test('null vs non-null skippedVersion makes unequal', () {
         const a = AppConfig();
-        const b = AppConfig(skippedVersion: '2.0.0');
+        const b = AppConfig(behavior: BehaviorConfig(skippedVersion: '2.0.0'));
         expect(a, isNot(equals(b)));
       });
 
@@ -1018,9 +1044,11 @@ void main() {
           ),
           transferWorkers: 4,
           maxHistory: 1000,
-          enableLogging: true,
-          checkUpdatesOnStart: false,
-          skippedVersion: '2.0.0',
+          behavior: BehaviorConfig(
+            enableLogging: true,
+            checkUpdatesOnStart: false,
+            skippedVersion: '2.0.0',
+          ),
         );
         final json = config.toJson();
         final restored = AppConfig.fromJson(json);
@@ -1132,7 +1160,9 @@ void main() {
       });
 
       test('toJson() includes skippedVersion when set', () {
-        final json = const AppConfig(skippedVersion: '2.0.0').toJson();
+        final json = const AppConfig(
+          behavior: BehaviorConfig(skippedVersion: '2.0.0'),
+        ).toJson();
         expect(json, containsPair('skipped_version', '2.0.0'));
       });
 
