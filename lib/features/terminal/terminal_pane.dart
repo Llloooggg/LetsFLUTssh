@@ -138,8 +138,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
           : l10n.errConnectionFailed;
       _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
       setState(() => _error = error);
-      // Force workspace rebuild so connection bar shows retry button
-      ref.invalidate(connectionsProvider);
+      // Notify provider so workspace status dots and connection bar update
+      ref.read(connectionManagerProvider).notifyStateChanged();
       return;
     }
 
@@ -148,8 +148,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       // to terminal.write(), so any server output must not be erased.
       writer.clear();
       _shellConn = await _openShell(conn);
-      // Force workspace rebuild so connection bar updates dot and hides retry
-      if (mounted) ref.invalidate(connectionsProvider);
+      // Notify provider so workspace status dots and connection bar update
+      if (mounted) ref.read(connectionManagerProvider).notifyStateChanged();
     } catch (e) {
       AppLogger.instance.log(
         'Shell open failed: $e',
@@ -472,10 +472,10 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
     final queryLower = query.toLowerCase();
     final buffer = widget.terminal.buffer;
     final highlights = <TerminalHighlight>[];
+    const maxMatches = 1000;
 
     for (var y = 0; y < buffer.height; y++) {
-      final line = buffer.lines[y];
-      final lineText = line.toString().toLowerCase();
+      final lineText = buffer.lines[y].toString().toLowerCase();
       var startIndex = 0;
       while (true) {
         final pos = lineText.indexOf(queryLower, startIndex);
@@ -496,8 +496,10 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
             name: 'TerminalSearch',
           );
         }
+        if (highlights.length >= maxMatches) break;
         startIndex = pos + 1;
       }
+      if (highlights.length >= maxMatches) break;
     }
 
     setState(() {
