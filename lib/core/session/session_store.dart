@@ -19,7 +19,14 @@ class SessionStore {
   final List<Session> _sessions = [];
   final Set<String> _emptyFolders = {};
   final Set<String> _collapsedFolders = {};
-  final CredentialStore _credStore = CredentialStore();
+  final CredentialStore _credStore;
+
+  /// Creates a session store.
+  ///
+  /// [credentialStore] is injectable for testing; defaults to a real
+  /// [CredentialStore] in production.
+  SessionStore({CredentialStore? credentialStore})
+    : _credStore = credentialStore ?? CredentialStore();
   late final String _filePath;
   late final String _groupsFilePath;
   late final String _collapsedFoldersFilePath;
