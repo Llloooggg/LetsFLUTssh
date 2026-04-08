@@ -609,6 +609,8 @@ class DeepLinkHandler {
   // Background safety: all callbacks in _MainScreenState use
   // addPostFrameCallback to defer UI-dependent work. Data-only
   // operations (QR session import) run immediately without context.
+
+  void dispose(); // cancels subscription, nulls all callbacks
 }
 ```
 
@@ -618,7 +620,7 @@ class DeepLinkHandler {
 
 | File | Purpose |
 |------|---------|
-| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations) |
+| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`) |
 | `key_file_helper.dart` | SSH key file parsing (PEM, OpenSSH formats) |
 
 #### .lfs format
@@ -1156,6 +1158,7 @@ AppIconButton({
 })
 ```
 Rectangular hover, no splash/ripple. **Replaces Material `IconButton` everywhere.**
+When `tooltip` is set, `Tooltip` provides semantics. When absent, `Semantics(button: true)` is added for screen readers.
 
 ### HoverRegion
 
@@ -1169,7 +1172,7 @@ HoverRegion({
   MouseCursor cursor = SystemMouseCursors.basic,
 })
 ```
-**Replaces `MouseRegion` + `GestureDetector` + `setState(_hovered)`.** Exception: `context_menu.dart` (keyboard nav state).
+**Replaces `MouseRegion` + `GestureDetector` + `setState(_hovered)`.** Skips `MouseRegion` on mobile platforms (Android/iOS) — no pointer, saves an unnecessary widget. Exception: `context_menu.dart` (keyboard nav state).
 
 ### AppDialog
 
@@ -1277,6 +1280,7 @@ ContextMenuItem.divider()
 Keyboard nav (arrows, enter, esc), hover highlighting, repositioning.
 Re-entrant: right-clicking a new location auto-dismisses the previous menu and opens a new one.
 Styled with `AppTheme` colors directly (no Material surface tint).
+Each item is wrapped in `Semantics(button: true, label: item.label)` for accessibility.
 
 ### HostKeyDialog
 
@@ -1448,11 +1452,12 @@ class AppLogger {
   Future<void> init();
   void log(String message, {String? name, Object? error});
   Future<String> readLog();
-  Future<void> dispose();
-  Future<void> clearLogs();
+  Future<void> dispose();   // sets enabled=false, closes sink
+  Future<void> clearLogs(); // deletes all log files, reopens if enabled
 }
 ```
 File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
+`dispose()` sets `_enabled = false` so no writes occur after disposal.
 
 **Rule:** `AppLogger.instance.log(message, name: 'Tag')` everywhere. Never `print()` / `debugPrint()`. Never log sensitive data.
 
