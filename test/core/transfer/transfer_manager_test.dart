@@ -5,6 +5,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/core/transfer/transfer_task.dart';
 
+/// Wait until [manager.history] has at least [count] entries.
+Future<void> _waitForHistory(TransferManager manager, int count) async {
+  if (manager.history.length >= count) return;
+  await manager.onChange
+      .firstWhere((_) => manager.history.length >= count)
+      .timeout(const Duration(seconds: 5));
+}
+
+/// Wait until manager has no running or queued transfers.
+Future<void> _waitForIdle(TransferManager manager) async {
+  if (manager.runningCount == 0 && manager.queueLength == 0) return;
+  await manager.onChange
+      .firstWhere((_) => manager.runningCount == 0 && manager.queueLength == 0)
+      .timeout(const Duration(seconds: 5));
+}
+
 void main() {
   group('TransferManager', () {
     late TransferManager manager;
@@ -41,8 +57,7 @@ void main() {
         ),
       );
 
-      // Wait for task to complete
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForHistory(manager, 1);
 
       expect(manager.history, hasLength(1));
       expect(manager.history.first.name, 'test.txt');
@@ -64,7 +79,7 @@ void main() {
         ),
       );
 
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForHistory(manager, 1);
 
       expect(manager.history, hasLength(1));
       expect(manager.history.first.status, TransferStatus.failed);
@@ -106,7 +121,7 @@ void main() {
     test('clearHistory removes all entries', () async {
       manager.enqueue(_dummyTask('file1'));
       manager.enqueue(_dummyTask('file2'));
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForHistory(manager, 2);
 
       expect(manager.history, hasLength(2));
       manager.clearHistory();
@@ -116,7 +131,7 @@ void main() {
     test('deleteHistory removes specific entries', () async {
       final id1 = manager.enqueue(_dummyTask('file1'));
       manager.enqueue(_dummyTask('file2'));
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForHistory(manager, 2);
 
       expect(manager.history, hasLength(2));
       manager.deleteHistory([id1]);
@@ -128,7 +143,7 @@ void main() {
       for (int i = 0; i < 15; i++) {
         manager.enqueue(_dummyTask('file$i'));
       }
-      await Future.delayed(const Duration(milliseconds: 500));
+      await _waitForHistory(manager, 10);
 
       expect(manager.history.length, lessThanOrEqualTo(10));
     });
@@ -138,7 +153,7 @@ void main() {
       final sub = manager.onChange.listen((_) => eventCount++);
 
       manager.enqueue(_dummyTask('file1'));
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForHistory(manager, 1);
 
       expect(eventCount, greaterThan(0));
       await sub.cancel();
@@ -167,7 +182,7 @@ void main() {
       expect(manager.currentTransferInfo, contains('50%'));
 
       finish.complete();
-      await Future.delayed(const Duration(milliseconds: 50));
+      await _waitForHistory(manager, 1);
       expect(manager.currentTransferInfo, isNull);
     });
 
@@ -214,7 +229,7 @@ void main() {
 
         finish1.complete();
         finish2.complete();
-        await Future.delayed(const Duration(milliseconds: 50));
+        await _waitForHistory(manager, 2);
         expect(manager.currentTransferInfo, isNull);
       },
     );
@@ -222,7 +237,7 @@ void main() {
     test('dispose clears history and cancels active transfers', () async {
       manager.enqueue(_dummyTask('file1'));
       manager.enqueue(_dummyTask('file2'));
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForHistory(manager, 2);
 
       expect(manager.history, hasLength(2));
       manager.dispose();
@@ -260,7 +275,7 @@ void main() {
         ),
       );
 
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForHistory(manager, 1);
 
       expect(manager.history, hasLength(1));
       expect(manager.history.first.status, TransferStatus.failed);
@@ -284,7 +299,7 @@ void main() {
           },
         ),
       );
-      await Future.delayed(const Duration(milliseconds: 200));
+      await _waitForHistory(manager, 1);
 
       final entry = manager.history.first;
       expect(entry.duration, isNotNull);
@@ -325,7 +340,7 @@ void main() {
       expect(manager.history.first.status, TransferStatus.cancelled);
 
       blocker.complete();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForIdle(manager);
     });
 
     test('cancel marks running task for cancellation', () async {
@@ -353,7 +368,7 @@ void main() {
       final cancelled = manager.cancel(id);
       expect(cancelled, isTrue);
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      await _waitForHistory(manager, 1);
       expect(manager.history, hasLength(1));
       expect(manager.history.first.status, TransferStatus.cancelled);
       expect(manager.history.first.lastMessage, 'Cancelled');
@@ -392,7 +407,7 @@ void main() {
       manager.enqueue(_dummyTask('queued1.txt'));
       manager.enqueue(_dummyTask('queued2.txt'));
 
-      await Future.delayed(const Duration(milliseconds: 50));
+      // Queue state is synchronous — no delay needed
       expect(manager.queueLength, 2);
 
       manager.cancelAll();
@@ -404,7 +419,7 @@ void main() {
       );
 
       blocker.complete();
-      await Future.delayed(const Duration(milliseconds: 300));
+      await _waitForHistory(manager, 3);
       // Running task should also be cancelled now
       expect(
         manager.history.where((e) => e.status == TransferStatus.cancelled),
@@ -438,7 +453,7 @@ void main() {
         manager.history.isEmpty ? 'tr-1' : manager.history.first.id,
       );
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      await _waitForHistory(manager, 1);
       final entry = manager.history.first;
       expect(entry.status, TransferStatus.cancelled);
       expect(entry.lastPercent, greaterThanOrEqualTo(42));
@@ -466,7 +481,7 @@ void main() {
         ),
       );
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      await _waitForHistory(manager, 1);
       expect(manager.history, hasLength(1));
       expect(manager.history.first.status, TransferStatus.failed);
       expect(manager.history.first.error.toString(), contains('timed out'));
@@ -496,7 +511,7 @@ void main() {
         ),
       );
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      await _waitForHistory(manager, 1);
       // The task should have failed due to timeout
       expect(manager.history, hasLength(1));
       expect(manager.history.first.status, TransferStatus.failed);
@@ -524,8 +539,7 @@ void main() {
         ),
       );
 
-      await Future.delayed(const Duration(milliseconds: 50));
-
+      // Queue state is synchronous after enqueue — blocker occupies the slot
       manager.enqueue(
         TransferTask(
           name: 'queued.txt',
@@ -546,7 +560,7 @@ void main() {
       expect(queuedEntry.direction, TransferDirection.download);
 
       blocker.complete();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForIdle(manager);
     });
 
     test('activeEntries shows running status during execution', () async {
@@ -576,12 +590,12 @@ void main() {
       expect(entries.first.message, 'halfway');
 
       finish.complete();
-      await Future.delayed(const Duration(milliseconds: 50));
+      await _waitForHistory(manager, 1);
     });
 
     test('activeEntries is empty after task completes', () async {
       manager.enqueue(_dummyTask('done.txt'));
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForHistory(manager, 1);
 
       expect(manager.activeEntries, isEmpty);
       expect(manager.history, hasLength(1));
@@ -609,7 +623,6 @@ void main() {
       );
 
       final id = manager.enqueue(_dummyTask('cancel-me.txt'));
-      await Future.delayed(const Duration(milliseconds: 50));
 
       manager.cancel(id);
       // Only the blocker should remain in activeEntries
@@ -617,7 +630,7 @@ void main() {
       expect(entries.where((e) => e.name == 'cancel-me.txt'), isEmpty);
 
       blocker.complete();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _waitForIdle(manager);
     });
 
     test('activeEntries is empty after running task is cancelled', () async {
@@ -642,7 +655,7 @@ void main() {
 
       await started.future;
       manager.cancel(id);
-      await Future.delayed(const Duration(milliseconds: 500));
+      await _waitForIdle(manager);
 
       expect(manager.activeEntries, isEmpty);
     });
@@ -678,7 +691,7 @@ void main() {
       await started.future;
       manager.cancel(id);
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      await _waitForHistory(manager, 2);
       // After cancel, running count should be back to normal and next task processed
       expect(manager.runningCount, 0);
       expect(manager.currentTransferInfo, isNull);
