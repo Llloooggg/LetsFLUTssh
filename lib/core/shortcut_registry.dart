@@ -17,6 +17,9 @@ enum AppShortcut {
   splitDown(
     SingleActivator(LogicalKeyboardKey.backslash, control: true, shift: true),
   ),
+  maximizePanel(
+    SingleActivator(LogicalKeyboardKey.keyM, control: true, shift: true),
+  ),
   openSettings(SingleActivator(LogicalKeyboardKey.comma, control: true)),
   closeSettings(SingleActivator(LogicalKeyboardKey.escape)),
 

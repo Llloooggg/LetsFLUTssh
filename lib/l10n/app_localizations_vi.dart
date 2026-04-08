@@ -507,9 +507,6 @@ class SVi extends S {
   String get copyDown => 'Sao chép xuống dưới';
 
   @override
-  String get copyDownShortcut => 'Sao chép xuống dưới (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'Trước';
 
   @override
@@ -1189,4 +1186,13 @@ class SVi extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'Phóng to';
+
+  @override
+  String get restore => 'Khôi phục';
+
+  @override
+  String get duplicateDownShortcut => 'Nhân bản xuống (Ctrl+Shift+\\)';
 }

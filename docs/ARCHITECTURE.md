@@ -135,6 +135,7 @@ lib/
 │   ├── sortable_header_cell.dart    # Column header with sort indicator
 │   ├── split_view.dart              # Horizontal resizable split
 │   ├── status_indicator.dart        # Icon + count indicator with tooltip
+│   ├── styled_form_field.dart       # Shared form field (StyledFormField, FieldLabel, StyledInput)
 │   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
 │   └── toast.dart                   # Stacked notification toasts
 ├── theme/                            # OneDark / One Light palettes
@@ -861,7 +862,8 @@ Terminal uses `Ctrl+Shift+` prefix to avoid conflicts with terminal escape seque
 | Ctrl+W | Close active tab |
 | Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab |
 | Ctrl+B | Toggle sidebar |
-| Ctrl+\\ / Ctrl+Shift+\\ | Copy tab right / down (any tab type) |
+| Ctrl+\\ / Ctrl+Shift+\\ | Duplicate tab right / down (any tab type) |
+| Ctrl+Shift+M | Toggle panel maximize (zoom) |
 | Ctrl+, | Toggle settings |
 
 **Terminal** (`terminal_pane.dart`):
@@ -1044,7 +1046,9 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 
 **Terminal-level split:** `SplitNode` tree inside each `TerminalTab` divides a single terminal tab into panes. These two tiling levels are independent.
 
-**Copy Right / Copy Down:** Toolbar buttons and Ctrl+\\ / Ctrl+Shift+\\ duplicate the active tab (any type) into a new adjacent panel via `WorkspaceNotifier.copyToNewPanel()`. The duplicate reuses the same `Connection` object (no new SSH connection), getting its own shell/SFTP channel.
+**Duplicate Right / Duplicate Down:** Toolbar buttons and Ctrl+\\ / Ctrl+Shift+\\ duplicate the active tab (any type) into a new adjacent panel via `WorkspaceNotifier.copyToNewPanel()`. The duplicate reuses the same `Connection` object (no new SSH connection), getting its own shell/SFTP channel.
+
+**Panel maximize (zoom):** `WorkspaceState.maximizedPanelId` temporarily renders a single panel full-screen while preserving the workspace tree. Toggle via Ctrl+Shift+M, the connection bar button, or the tab context menu. Maximize is cleared automatically when the maximized panel is closed or the tree collapses to a single panel. Edge drop zones are disabled while maximized.
 
 **Drag-and-drop:** Tabs can be dragged between panels. Dropping on a panel's tab bar inserts the tab. Dropping on a panel's content area shows drop zone overlays (center = add to panel, edges = split panel in that direction).
 
@@ -1233,6 +1237,26 @@ AppDivider.indented({Color? color})  // indent = 8, endIndent = 8
 ColumnResizeHandle({required void Function(double dx) onDrag})
 ```
 Draggable column-resize handle for table headers. Place between a flexible column and a fixed-width column. The `onDrag` callback receives the raw horizontal delta (positive = right). Callers negate the delta when the fixed column is to the right of the handle. Used in `FilePane` and `TransferPanel` column headers.
+
+### StyledFormField / FieldLabel / StyledInput
+
+```dart
+StyledFormField({
+  required String label,               // uppercase label above the input
+  required TextEditingController controller,
+  String? hint,
+  bool obscure = false,
+  Widget? suffixIcon,
+  TextInputType? keyboardType,
+  String? Function(String?)? validator,
+  bool fixedHeight = false,            // wrap in SizedBox(controlHeightMd)
+  bool autofocus = false,
+  ValueChanged<String>? onSubmitted,
+})
+```
+Reusable styled form field combining `FieldLabel` + `StyledInput`. Eliminates duplication across `SessionEditDialog`, `QuickConnectDialog`, and `LfsImportDialog`. Uses `AppFonts.mono()` for input text, `AppTheme.bg3` fill, `AppTheme.radiusSm` borders. Set `fixedHeight: true` for compact bottom-sheet layouts (wraps input in `SizedBox(height: controlHeightMd)` with zero vertical padding).
+
+`FieldLabel(text)` — standalone uppercase label widget. `StyledInput(controller, ...)` — standalone text input with full decoration, accepts `labelText` and `contentPadding` overrides for non-standard layouts (e.g. `.lfs` import dialog).
 
 ### SplitView
 

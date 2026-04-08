@@ -475,6 +475,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           notifier.copyToNewPanel(ws.focusedPanelId, Axis.vertical);
         }
       },
+      AppShortcut.maximizePanel: () {
+        notifier.toggleMaximizePanel(ws.focusedPanelId);
+      },
       AppShortcut.openSettings: () => _toggleSettings(),
       AppShortcut.closeSettings: () {
         if (_mode == ShellMode.settings) {
@@ -589,7 +592,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   .duplicateTab(ws.focusedPanelId);
             }
           : null,
-      onCopyDown: hasTab
+      onDuplicateDown: hasTab
           ? () {
               final ws = ref.read(workspaceProvider);
               ref
@@ -597,6 +600,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   .copyToNewPanel(ws.focusedPanelId, Axis.vertical);
             }
           : null,
+      onMaximize: hasTab
+          ? () {
+              final ws = ref.read(workspaceProvider);
+              ref
+                  .read(workspaceProvider.notifier)
+                  .toggleMaximizePanel(ws.focusedPanelId);
+            }
+          : null,
+      isMaximized: ref.read(workspaceProvider).isMaximized,
       onSettings: _toggleSettings,
       inSettings: inSettings,
     );
@@ -720,7 +732,9 @@ class _Toolbar extends StatelessWidget {
   final bool showMenuButton;
   final bool isTerminalTab;
   final VoidCallback? onDuplicateTab;
-  final VoidCallback? onCopyDown;
+  final VoidCallback? onDuplicateDown;
+  final VoidCallback? onMaximize;
+  final bool isMaximized;
   final VoidCallback onSettings;
   final bool inSettings;
 
@@ -730,7 +744,9 @@ class _Toolbar extends StatelessWidget {
     this.showMenuButton = false,
     this.isTerminalTab = false,
     this.onDuplicateTab,
-    this.onCopyDown,
+    this.onDuplicateDown,
+    this.onMaximize,
+    this.isMaximized = false,
     required this.onSettings,
     this.inSettings = false,
   });
@@ -764,9 +780,17 @@ class _Toolbar extends StatelessWidget {
           ),
           AppIconButton(
             icon: Icons.horizontal_split,
-            onTap: onCopyDown,
-            tooltip: S.of(context).copyDownShortcut,
+            onTap: onDuplicateDown,
+            tooltip: S.of(context).duplicateDownShortcut,
           ),
+          if (onMaximize != null)
+            AppIconButton(
+              icon: isMaximized ? Icons.close_fullscreen : Icons.open_in_full,
+              onTap: onMaximize,
+              tooltip: isMaximized
+                  ? S.of(context).restore
+                  : S.of(context).maximize,
+            ),
           _Divider(),
         ] else
           _Divider(),

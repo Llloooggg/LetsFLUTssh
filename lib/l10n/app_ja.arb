@@ -149,7 +149,6 @@
   "duplicateTab": "タブを複製",
   "duplicateTabShortcut": "タブを複製 (Ctrl+\\)",
   "copyDown": "下にコピー",
-  "copyDownShortcut": "下にコピー (Ctrl+Shift+\\)",
   "previous": "前へ",
   "next": "次へ",
   "closeEsc": "閉じる (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "最大化",
+  "restore": "元に戻す",
+  "duplicateDownShortcut": "下に複製 (Ctrl+Shift+\\)"
 }

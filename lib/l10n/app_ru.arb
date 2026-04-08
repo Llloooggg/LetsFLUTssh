@@ -149,7 +149,6 @@
   "duplicateTab": "Дублировать вкладку",
   "duplicateTabShortcut": "Дублировать вкладку (Ctrl+\\)",
   "copyDown": "Копировать вниз",
-  "copyDownShortcut": "Копировать вниз (Ctrl+Shift+\\)",
   "previous": "Предыдущий",
   "next": "Следующий",
   "closeEsc": "Закрыть (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "Развернуть",
+  "restore": "Восстановить",
+  "duplicateDownShortcut": "Дублировать вниз (Ctrl+Shift+\\)"
 }

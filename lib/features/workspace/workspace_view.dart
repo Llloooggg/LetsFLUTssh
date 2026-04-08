@@ -72,7 +72,22 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
 
     if (!ws.hasTabs) return const WelcomeScreen();
 
-    final content = _buildNode(ws.root, ws.focusedPanelId);
+    // When a panel is maximized, render only that panel full-screen.
+    // The workspace tree is preserved — only rendering changes.
+    final Widget content;
+    if (ws.isMaximized) {
+      final panel = findPanel(ws.root, ws.maximizedPanelId!);
+      if (panel != null) {
+        content = _buildPanel(panel, ws.focusedPanelId);
+      } else {
+        content = _buildNode(ws.root, ws.focusedPanelId);
+      }
+    } else {
+      content = _buildNode(ws.root, ws.focusedPanelId);
+    }
+
+    // When maximized, disable edge drop targets (splits don't apply).
+    if (ws.isMaximized) return content;
 
     // Single workspace-level edge drop target: dragging a tab to the very
     // edge of the workspace area docks it beside ALL existing panels.
@@ -338,6 +353,20 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
             onTap: () => notifier.closeAll(panel.id),
           ),
         ],
+        // Maximize / restore toggle — only when multiple panels exist.
+        if (ref.read(workspaceProvider).root is WorkspaceBranch ||
+            ref.read(workspaceProvider).isMaximized) ...[
+          const ContextMenuItem.divider(),
+          ContextMenuItem(
+            label: ref.read(workspaceProvider).maximizedPanelId == panel.id
+                ? S.of(context).restore
+                : S.of(context).maximize,
+            icon: ref.read(workspaceProvider).maximizedPanelId == panel.id
+                ? Icons.close_fullscreen
+                : Icons.open_in_full,
+            onTap: () => notifier.toggleMaximizePanel(panel.id),
+          ),
+        ],
       ],
     );
   }
@@ -421,7 +450,47 @@ class _PanelConnectionBar extends ConsumerWidget {
             const SizedBox(width: 4),
           ],
           _companionButton(context, isTerminal, ref, scheme),
+          _maximizeButton(context, ref, scheme),
         ],
+      ),
+    );
+  }
+
+  Widget _maximizeButton(
+    BuildContext context,
+    WidgetRef ref,
+    ColorScheme scheme,
+  ) {
+    final ws = ref.watch(workspaceProvider);
+    // Only show when multiple panels exist.
+    if (ws.root is! WorkspaceBranch && !ws.isMaximized) {
+      return const SizedBox.shrink();
+    }
+    final isMaximized = ws.maximizedPanelId == panelId;
+    final s = S.of(context);
+    final label = isMaximized ? s.restore : s.maximize;
+    final icon = isMaximized ? Icons.close_fullscreen : Icons.open_in_full;
+    final btnColor = scheme.onSurface.withValues(alpha: 0.6);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Tooltip(
+        message: label,
+        child: HoverRegion(
+          onTap: () {
+            ref.read(workspaceProvider.notifier).toggleMaximizePanel(panelId);
+          },
+          builder: (hovered) => Container(
+            height: 18,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: btnColor.withValues(
+                alpha: hovered ? 0x20 / 255.0 : 0x00 / 255.0,
+              ),
+              borderRadius: AppTheme.radiusSm,
+            ),
+            child: Icon(icon, size: 11, color: btnColor),
+          ),
+        ),
       ),
     );
   }

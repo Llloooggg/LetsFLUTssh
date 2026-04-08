@@ -149,7 +149,6 @@
   "duplicateTab": "کپی تب",
   "duplicateTabShortcut": "کپی تب (Ctrl+\\)",
   "copyDown": "کپی به پایین",
-  "copyDownShortcut": "کپی به پایین (Ctrl+Shift+\\)",
   "previous": "قبلی",
   "next": "بعدی",
   "closeEsc": "بستن (Esc)",
@@ -354,5 +353,8 @@
   "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
   "sshActive": "SSH active",
   "activeConnectionCount": "{count} active connection(s)",
-  "itemCountWithSize": "{count} items, {size}"
+  "itemCountWithSize": "{count} items, {size}",
+  "maximize": "بزرگ‌نمایی",
+  "restore": "بازگردانی",
+  "duplicateDownShortcut": "کپی به پایین (Ctrl+Shift+\\)"
 }

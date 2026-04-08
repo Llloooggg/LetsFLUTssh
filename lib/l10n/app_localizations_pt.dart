@@ -509,9 +509,6 @@ class SPt extends S {
   String get copyDown => 'Copiar Abaixo';
 
   @override
-  String get copyDownShortcut => 'Copiar Abaixo (Ctrl+Shift+\\)';
-
-  @override
   String get previous => 'Anterior';
 
   @override
@@ -1193,4 +1190,13 @@ class SPt extends S {
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
+
+  @override
+  String get maximize => 'Maximizar';
+
+  @override
+  String get restore => 'Restaurar';
+
+  @override
+  String get duplicateDownShortcut => 'Duplicar abaixo (Ctrl+Shift+\\)';
 }

@@ -13,15 +13,33 @@ class WorkspaceState {
   final WorkspaceNode root;
   final String focusedPanelId;
 
-  const WorkspaceState({required this.root, required this.focusedPanelId});
+  /// When non-null the identified panel is rendered full-screen and the rest
+  /// of the tree is hidden (but preserved).
+  final String? maximizedPanelId;
+
+  const WorkspaceState({
+    required this.root,
+    required this.focusedPanelId,
+    this.maximizedPanelId,
+  });
 
   /// Whether there are any tabs open across all panels.
   bool get hasTabs => collectAllTabs(root).isNotEmpty;
 
-  WorkspaceState copyWith({WorkspaceNode? root, String? focusedPanelId}) {
+  /// Whether a panel is currently maximized.
+  bool get isMaximized => maximizedPanelId != null;
+
+  WorkspaceState copyWith({
+    WorkspaceNode? root,
+    String? focusedPanelId,
+    String? Function()? maximizedPanelId,
+  }) {
     return WorkspaceState(
       root: root ?? this.root,
       focusedPanelId: focusedPanelId ?? this.focusedPanelId,
+      maximizedPanelId: maximizedPanelId != null
+          ? maximizedPanelId()
+          : this.maximizedPanelId,
     );
   }
 }
@@ -74,6 +92,9 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     if (newTabs.isEmpty) {
       // Collapse panel — remove from tree and promote sibling.
       final newRoot = removeWorkspaceNode(state.root, panelId);
+      // Clear maximize if the maximized panel is gone.
+      final clearMaximize =
+          state.maximizedPanelId == panelId || newRoot is! WorkspaceBranch;
       if (newRoot == null) {
         // Was the last panel — reset to empty.
         AppLogger.instance.log(
@@ -94,6 +115,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
           focusedPanelId: panels.contains(state.focusedPanelId)
               ? state.focusedPanelId
               : panels.first,
+          maximizedPanelId: clearMaximize ? () => null : null,
         );
       }
     } else {
@@ -184,6 +206,8 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     final closed = [...panel.tabs];
     // Remove all tabs — panel becomes empty → collapse it.
     final newRoot = removeWorkspaceNode(state.root, panelId);
+    final clearMaximize =
+        state.maximizedPanelId == panelId || newRoot is! WorkspaceBranch;
     if (newRoot == null) {
       final fresh = PanelLeaf();
       state = WorkspaceState(root: fresh, focusedPanelId: fresh.id);
@@ -194,6 +218,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
         focusedPanelId: panels.contains(state.focusedPanelId)
             ? state.focusedPanelId
             : panels.first,
+        maximizedPanelId: clearMaximize ? () => null : null,
       );
     }
     _disconnectOrphaned(closed);
@@ -223,6 +248,24 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
   void setFocusedPanel(String panelId) {
     if (state.focusedPanelId != panelId) {
       state = state.copyWith(focusedPanelId: panelId);
+    }
+  }
+
+  /// Toggle maximize for the panel with [panelId].
+  ///
+  /// If the panel is already maximized it is restored; otherwise it becomes
+  /// the only visible panel. The workspace tree is never modified — only the
+  /// rendering changes.
+  void toggleMaximizePanel(String panelId) {
+    if (state.maximizedPanelId == panelId) {
+      state = state.copyWith(maximizedPanelId: () => null);
+    } else {
+      // Only allow maximize when there are at least two panels.
+      if (state.root is! WorkspaceBranch) return;
+      state = state.copyWith(
+        maximizedPanelId: () => panelId,
+        focusedPanelId: panelId,
+      );
     }
   }
 
