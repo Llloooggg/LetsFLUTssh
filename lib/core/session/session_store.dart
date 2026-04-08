@@ -19,7 +19,14 @@ class SessionStore {
   final List<Session> _sessions = [];
   final Set<String> _emptyFolders = {};
   final Set<String> _collapsedFolders = {};
-  final CredentialStore _credStore = CredentialStore();
+  final CredentialStore _credStore;
+
+  /// Creates a session store.
+  ///
+  /// [credentialStore] is injectable for testing; defaults to a real
+  /// [CredentialStore] in production.
+  SessionStore({CredentialStore? credentialStore})
+    : _credStore = credentialStore ?? CredentialStore();
   late final String _filePath;
   late final String _groupsFilePath;
   late final String _collapsedFoldersFilePath;
@@ -73,10 +80,11 @@ class SessionStore {
       await _mergeAndMigrateCredentials();
     } catch (e) {
       AppLogger.instance.log(
-        'Failed to load sessions, starting fresh',
+        'Failed to load sessions — backing up corrupt file',
         name: 'SessionStore',
         error: e,
       );
+      await _backupCorruptFile(file);
     }
 
     // Load empty folders
@@ -167,6 +175,27 @@ class SessionStore {
     await _credStore.saveAll(allCreds);
     // Re-save sessions.json without secrets (toJson() now excludes them).
     await _saveSessionFile();
+  }
+
+  /// Back up a corrupt sessions file so the user can recover it manually.
+  ///
+  /// Renames to `sessions.json.corrupt`. If a previous backup exists it is
+  /// overwritten — only the most recent corrupt file is kept.
+  Future<void> _backupCorruptFile(File file) async {
+    try {
+      final backupPath = '${file.path}.corrupt';
+      await file.copy(backupPath);
+      AppLogger.instance.log(
+        'Corrupt file backed up to $backupPath',
+        name: 'SessionStore',
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to back up corrupt file',
+        name: 'SessionStore',
+        error: e,
+      );
+    }
   }
 
   /// Save session metadata (no secrets) to JSON file.
@@ -356,17 +385,18 @@ class SessionStore {
   Future<void> deleteFolder(String folderPath) async {
     if (folderPath.isEmpty) return;
 
-    // Delete sessions in this folder and subfolders
+    // Delete sessions in this folder and subfolders.
+    // Credentials first so sessions remain intact on failure.
     final toDelete = _sessions
         .where(
           (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
         )
         .map((s) => s.id)
-        .toList();
+        .toSet();
     for (final id in toDelete) {
-      _sessions.removeWhere((s) => s.id == id);
       await _credStore.delete(id);
     }
+    _sessions.removeWhere((s) => toDelete.contains(s.id));
 
     // Remove empty folders under this path
     _emptyFolders.removeWhere(
@@ -382,10 +412,11 @@ class SessionStore {
   }
 
   /// Delete all sessions and empty folders.
+  ///
+  /// Clears the entire credential store in one write instead of
+  /// N sequential deletes.
   Future<void> deleteAll() async {
-    for (final s in _sessions) {
-      await _credStore.delete(s.id);
-    }
+    await _credStore.saveAll({});
     _sessions.clear();
     _emptyFolders.clear();
     _collapsedFolders.clear();
@@ -451,19 +482,22 @@ class SessionStore {
   }
 
   Future<void> delete(String id) async {
+    await _credStore.delete(id);
     _sessions.removeWhere((s) => s.id == id);
     await _save();
-    await _credStore.delete(id);
   }
 
   /// Delete multiple sessions by IDs in a single save.
+  ///
+  /// Credentials are deleted first so that on failure the sessions remain
+  /// intact — orphaned credentials are harmless, lost sessions are not.
   Future<void> deleteMultiple(Set<String> ids) async {
     if (ids.isEmpty) return;
-    _sessions.removeWhere((s) => ids.contains(s.id));
-    await _save();
     for (final id in ids) {
       await _credStore.delete(id);
     }
+    _sessions.removeWhere((s) => ids.contains(s.id));
+    await _save();
   }
 
   /// Move multiple sessions to a new folder in a single save.
@@ -478,11 +512,10 @@ class SessionStore {
   }
 
   Session? get(String id) {
-    try {
-      return _sessions.firstWhere((s) => s.id == id);
-    } catch (_) {
-      return null;
+    for (final s in _sessions) {
+      if (s.id == id) return s;
     }
+    return null;
   }
 
   /// Duplicate a session with new ID and "(copy)" suffix.

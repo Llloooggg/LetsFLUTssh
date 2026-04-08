@@ -1,6 +1,5 @@
 {
   "@@locale": "fr",
-
   "appTitle": "LetsFLUTssh",
   "ok": "OK",
   "cancel": "Annuler",
@@ -28,7 +27,6 @@
   "merge": "Fusionner",
   "replace": "Remplacer",
   "reconnect": "Reconnecter",
-
   "updateAvailable": "Mise à jour disponible",
   "updateVersionAvailable": "La version {version} est disponible (actuelle : v{current}).",
   "releaseNotes": "Notes de version :",
@@ -49,12 +47,10 @@
   "couldNotOpenInstaller": "Impossible d'ouvrir l'installateur",
   "versionAvailable": "Version {version} disponible",
   "currentVersion": "Actuelle : v{version}",
-
   "sshKeyReceived": "Clé SSH reçue : {filename}",
   "importedSessionsViaQr": "{count} session(s) importée(s) via QR",
   "importedSessions": "{count} session(s) importée(s)",
   "importFailed": "Échec de l'import : {error}",
-
   "sessions": "Sessions",
   "sessionsHeader": "SESSIONS",
   "savedSessions": "Sessions enregistrées",
@@ -70,7 +66,6 @@
   "moveTo": "Déplacer vers...",
   "moveToFolder": "Déplacer vers le dossier",
   "rootFolder": "/ (racine)",
-
   "newFolder": "Nouveau dossier",
   "newConnection": "Nouvelle connexion",
   "editConnection": "Modifier la connexion",
@@ -85,7 +80,6 @@
   "deleteFolderConfirm": "Supprimer le dossier « {name} » ?",
   "willDeleteSessionsInside": "Cela supprimera également {count} session(s) à l'intérieur.",
   "deleteSessionConfirm": "Supprimer « {name} » ?",
-
   "connection": "Connexion",
   "auth": "Authentification",
   "options": "Options",
@@ -113,16 +107,13 @@
   "clearKeyFile": "Effacer le fichier de clé",
   "authOrDivider": "OU",
   "providePasswordOrKey": "Fournissez un mot de passe ou une clé SSH",
-
   "quickConnect": "Connexion rapide",
-
   "scanQrCode": "Scanner le QR code",
   "qrGenerationFailed": "Échec de la génération du QR code",
   "scanWithCameraApp": "Scannez avec n'importe quelle application appareil photo\nsur un appareil où LetsFLUTssh est installé.",
   "noPasswordsInQr": "Aucun mot de passe ni clé dans ce QR code",
   "copyLink": "Copier le lien",
   "linkCopied": "Lien copié dans le presse-papiers",
-
   "hostKeyChanged": "Clé de l'hôte modifiée !",
   "unknownHost": "Hôte inconnu",
   "hostKeyChangedWarning": "ATTENTION : La clé de l'hôte de ce serveur a changé. Cela pourrait indiquer une attaque de type « man-in-the-middle », ou le serveur a peut-être été réinstallé.",
@@ -134,15 +125,12 @@
   "copyFingerprint": "Copier l'empreinte",
   "acceptAnyway": "Accepter quand même",
   "accept": "Accepter",
-
   "importData": "Importer des données",
   "masterPassword": "Mot de passe principal",
   "confirmPassword": "Confirmer le mot de passe",
   "importModeMergeDescription": "Ajouter les nouvelles sessions, conserver les existantes",
   "importModeReplaceDescription": "Remplacer toutes les sessions par celles importées",
-
   "errorPrefix": "Erreur : {error}",
-
   "folderName": "Nom du dossier",
   "newName": "Nouveau nom",
   "deleteItems": "Supprimer {names} ?",
@@ -152,14 +140,12 @@
   "failedToCreateFolder": "Échec de la création du dossier : {error}",
   "failedToRename": "Échec du renommage : {error}",
   "failedToDeleteItem": "Échec de la suppression de {name} : {error}",
-
   "editPath": "Modifier le chemin",
   "root": "Racine",
   "controllersNotInitialized": "Contrôleurs non initialisés",
   "initializingSftp": "Initialisation SFTP...",
   "clearHistory": "Effacer l'historique",
   "noTransfersYet": "Aucun transfert pour l'instant",
-
   "duplicateTab": "Dupliquer l'onglet",
   "duplicateTabShortcut": "Dupliquer l'onglet (Ctrl+\\)",
   "copyDown": "Copier en bas",
@@ -167,28 +153,22 @@
   "previous": "Précédent",
   "next": "Suivant",
   "closeEsc": "Fermer (Esc)",
-
   "closeAll": "Tout fermer",
   "closeOthers": "Fermer les autres",
   "closeTabsToTheLeft": "Fermer les onglets à gauche",
   "closeTabsToTheRight": "Fermer les onglets à droite",
   "sortByName": "Trier par nom",
   "sortByStatus": "Trier par statut",
-
   "noActiveSession": "Aucune session active",
   "createConnectionHint": "Créez une nouvelle connexion ou sélectionnez-en une dans la barre latérale",
-
   "hideSidebar": "Masquer la barre latérale (Ctrl+B)",
   "showSidebar": "Afficher la barre latérale (Ctrl+B)",
-
   "language": "Langue",
   "languageSystemDefault": "Auto",
-
   "theme": "Thème",
   "themeDark": "Sombre",
   "themeLight": "Clair",
   "themeSystem": "Système",
-
   "appearance": "Apparence",
   "connectionSection": "Connexion",
   "transfers": "Transferts",
@@ -206,7 +186,6 @@
   "parallelWorkers": "Workers parallèles",
   "maxHistory": "Historique max",
   "calculateFolderSizes": "Calculer la taille des dossiers",
-
   "exportData": "Exporter les données",
   "exportDataSubtitle": "Enregistrer les sessions, la configuration et les clés dans un fichier .lfs chiffré",
   "importDataSubtitle": "Charger les données depuis un fichier .lfs",
@@ -217,16 +196,13 @@
   "pathToLfsFile": "Chemin du fichier .lfs",
   "hintLfsPath": "/chemin/vers/export.lfs",
   "browse": "Parcourir",
-
   "shareViaQrCode": "Partager via QR code",
   "shareViaQrSubtitle": "Exporter les sessions en QR code pour les scanner depuis un autre appareil",
   "dataLocation": "Emplacement des données",
   "pathCopied": "Chemin copié dans le presse-papiers",
   "urlCopied": "URL copiée dans le presse-papiers",
-
   "aboutSubtitle": "v{version} — Client SSH/SFTP",
   "sourceCode": "Code source",
-
   "enableLogging": "Activer la journalisation",
   "logIsEmpty": "Le journal est vide",
   "logExportedTo": "Journal exporté vers : {path}",
@@ -236,7 +212,6 @@
   "copyLog": "Copier le journal",
   "exportLog": "Exporter le journal",
   "clearLogs": "Effacer les journaux",
-
   "local": "Local",
   "remote": "Distant",
   "pickFolder": "Choisir un dossier",
@@ -248,7 +223,6 @@
   "openSshTerminal": "Ouvrir le terminal SSH",
   "noActiveFileBrowsers": "Aucun navigateur de fichiers actif",
   "useSftpFromSessions": "Utilisez « SFTP » depuis Sessions",
-
   "anotherInstanceRunning": "Une autre instance de LetsFLUTssh est déjà en cours d'exécution.",
   "importFailedShort": "Échec de l'import : {error}",
   "saveLogAs": "Enregistrer le journal sous",
@@ -338,11 +312,12 @@
   "nSubitems": "{count} élément(s)",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "Éléments",
-
   "storagePermissionRequired": "Autorisation de stockage requise pour parcourir les fichiers locaux",
   "grantPermission": "Accorder l'autorisation",
   "storagePermissionLimited": "Accès limité — accordez l'autorisation de stockage complète pour tous les fichiers",
@@ -350,5 +325,34 @@
   "progressVerifyingHostKey": "Vérification de la clé hôte",
   "progressAuthenticating": "Authentification en tant que {user}",
   "progressOpeningShell": "Ouverture du shell",
-  "progressOpeningSftp": "Ouverture du canal SFTP"
+  "progressOpeningSftp": "Ouverture du canal SFTP",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }

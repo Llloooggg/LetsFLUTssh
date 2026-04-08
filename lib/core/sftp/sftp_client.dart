@@ -382,13 +382,17 @@ class RemoteFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) =>
       sftp.rename(oldPath, newPath);
 
+  /// Maximum directory recursion depth to prevent runaway traversals.
+  static const _maxRecursionDepth = 64;
+
   @override
-  Future<int> dirSize(String path) async {
+  Future<int> dirSize(String path, [int depth = 0]) async {
+    if (depth >= _maxRecursionDepth) return 0;
     int total = 0;
     final entries = await sftp.list(path);
     for (final entry in entries) {
       if (entry.isDir) {
-        total += await dirSize(entry.path);
+        total += await dirSize(entry.path, depth + 1);
       } else {
         total += entry.size;
       }

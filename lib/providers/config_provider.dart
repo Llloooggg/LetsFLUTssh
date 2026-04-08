@@ -15,8 +15,11 @@ final configProvider = NotifierProvider<ConfigNotifier, AppConfig>(
 );
 
 class ConfigNotifier extends Notifier<AppConfig> {
+  /// Sequential save lock — prevents concurrent file writes.
+  Future<void> _pendingSave = Future.value();
+
   @override
-  AppConfig build() => ref.read(configStoreProvider).config;
+  AppConfig build() => ref.watch(configStoreProvider).config;
 
   ConfigStore get _store => ref.read(configStoreProvider);
 
@@ -40,7 +43,12 @@ class ConfigNotifier extends Notifier<AppConfig> {
       state = updated;
       // Apply logging toggle immediately
       AppLogger.instance.setEnabled(updated.enableLogging);
-      await _store.save(updated);
+      // Chain saves to prevent concurrent file writes
+      _pendingSave = _pendingSave.then(
+        (_) => _store.save(updated),
+        onError: (_) => _store.save(updated),
+      );
+      await _pendingSave;
     } catch (e) {
       AppLogger.instance.log(
         'Failed to save config',

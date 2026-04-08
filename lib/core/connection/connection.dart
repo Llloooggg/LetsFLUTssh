@@ -93,6 +93,7 @@ class Connection {
   /// can await [ready] and subscribe to [progressStream] again.
   void resetForReconnect() {
     _readyCompleter = Completer<void>();
+    if (!_progressController.isClosed) _progressController.close();
     _progressController = StreamController<ConnectionStep>.broadcast();
     _progressHistory.clear();
     connectionError = null;

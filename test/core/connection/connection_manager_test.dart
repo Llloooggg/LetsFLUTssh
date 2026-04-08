@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
@@ -736,5 +738,135 @@ void main() {
       conn.completeReady();
       conn.completeReady(); // should not throw
     });
+
+    test('resetForReconnect closes old progress controller', () async {
+      final conn = Connection(
+        id: 'c1',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        state: SSHConnectionState.connecting,
+      );
+
+      // Subscribe to progress stream before reset
+      var closed = false;
+      conn.progressStream.listen((_) {}, onDone: () => closed = true);
+
+      conn.resetForReconnect();
+
+      // onDone fires asynchronously — let microtasks complete
+      await Future.delayed(Duration.zero);
+
+      // Old stream should have been closed
+      expect(closed, isTrue);
+      // New stream should be functional
+      expect(conn.progressHistory, isEmpty);
+    });
   });
+
+  group('ConnectionManager.reconnect — generation counter', () {
+    test('stale reconnect result is discarded', () async {
+      final completers = <Completer<void>>[];
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) {
+          final completer = Completer<void>();
+          completers.add(completer);
+          final fake = _DelayedFakeSSHConnection(
+            config: config,
+            knownHosts: kh,
+            connectCompleter: completer,
+          );
+          return fake;
+        },
+      );
+
+      const config = SSHConfig(
+        server: ServerAddress(host: 'h', user: 'u'),
+      );
+
+      // Initial connect — let it complete
+      final conn = mgr.connectAsync(config);
+      completers.last.complete();
+      await waitForConnection(conn);
+      expect(conn.isConnected, isTrue);
+
+      // First reconnect — don't complete yet
+      mgr.reconnect(conn.id);
+      final firstReconnectCompleter = completers.last;
+
+      // Second reconnect — complete immediately
+      mgr.reconnect(conn.id);
+      completers.last.complete();
+      await waitForConnection(conn);
+
+      // Now complete the stale first reconnect
+      firstReconnectCompleter.complete();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // Connection should still be from the second reconnect, not the stale first
+      expect(conn.isConnected, isTrue);
+
+      mgr.dispose();
+    });
+  });
+
+  group('ConnectionManager.disconnectAll — ready futures', () {
+    test('disconnectAll completes pending ready futures', () async {
+      final connectCompleter = Completer<void>();
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        connectionFactory: (config, kh) {
+          return _DelayedFakeSSHConnection(
+            config: config,
+            knownHosts: kh,
+            connectCompleter: connectCompleter,
+          );
+        },
+      );
+
+      const config = SSHConfig(
+        server: ServerAddress(host: 'h', user: 'u'),
+      );
+      final conn = mgr.connectAsync(config);
+
+      // Connection is still connecting — ready is not yet complete
+      expect(conn.isConnecting, isTrue);
+
+      // disconnectAll should complete the ready future
+      mgr.disconnectAll();
+
+      // ready should not hang — should complete within timeout
+      await conn.ready.timeout(const Duration(seconds: 1));
+
+      mgr.dispose();
+    });
+  });
+}
+
+/// FakeSSHConnection that defers connect() until a Completer is resolved.
+class _DelayedFakeSSHConnection extends SSHConnection {
+  final Completer<void> connectCompleter;
+  bool _connected = false;
+
+  _DelayedFakeSSHConnection({
+    required super.config,
+    required super.knownHosts,
+    required this.connectCompleter,
+  });
+
+  @override
+  Future<void> connect({void Function(ConnectionStep)? onProgress}) async {
+    await connectCompleter.future;
+    _connected = true;
+  }
+
+  @override
+  bool get isConnected => _connected;
+
+  @override
+  void disconnect() {
+    _connected = false;
+  }
 }

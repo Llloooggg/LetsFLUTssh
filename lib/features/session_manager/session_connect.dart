@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
 import '../../utils/logger.dart';
 import '../../widgets/toast.dart';
@@ -69,8 +70,7 @@ class SessionConnect {
   static void _showIncompleteMessage(BuildContext context) {
     Toast.show(
       context,
-      message:
-          'Session has no credentials — edit it first to add a password or key',
+      message: S.of(context).sessionNoCredentials,
       level: ToastLevel.warning,
     );
   }

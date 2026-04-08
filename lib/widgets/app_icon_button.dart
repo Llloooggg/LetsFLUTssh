@@ -76,6 +76,8 @@ class AppIconButton extends StatelessWidget {
 
     if (tooltip != null) {
       button = Tooltip(message: tooltip!, child: button);
+    } else {
+      button = Semantics(button: true, child: button);
     }
 
     return button;

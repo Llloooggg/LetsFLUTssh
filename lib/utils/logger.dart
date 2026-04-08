@@ -114,11 +114,8 @@ class AppLogger {
 
   /// Flush and close the log file.
   Future<void> dispose() async {
-    try {
-      await _sink?.flush();
-      await _sink?.close();
-    } catch (_) {}
-    _sink = null;
+    _enabled = false;
+    await _closeSink();
   }
 
   /// Rotate log file if it exceeds [maxLogSizeBytes].
@@ -140,7 +137,8 @@ class AppLogger {
 
   /// Delete all log files.
   Future<void> clearLogs() async {
-    await dispose();
+    final wasEnabled = _enabled;
+    await _closeSink();
     if (_logPath == null) return;
 
     for (var i = 0; i <= _maxRotatedFiles; i++) {
@@ -151,6 +149,15 @@ class AppLogger {
       }
     }
 
-    if (_enabled) await _openSink();
+    if (wasEnabled) await _openSink();
+  }
+
+  /// Close the log file sink without disabling logging.
+  Future<void> _closeSink() async {
+    try {
+      await _sink?.flush();
+      await _sink?.close();
+    } catch (_) {}
+    _sink = null;
   }
 }

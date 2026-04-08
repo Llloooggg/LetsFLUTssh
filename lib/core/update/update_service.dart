@@ -293,6 +293,9 @@ class UpdateService {
     }
   }
 
+  /// Characters that must not appear in file paths passed to `cmd /c start`.
+  static final _unsafePathChars = RegExp(r'[&|<>^%]');
+
   /// Open a downloaded file using the platform's default handler.
   Future<bool> openFile(String path) async {
     ProcessResult result;
@@ -301,6 +304,13 @@ class UpdateService {
     } else if (Platform.isMacOS) {
       result = await Process.run('open', [path]);
     } else if (Platform.isWindows) {
+      if (_unsafePathChars.hasMatch(path)) {
+        AppLogger.instance.log(
+          'Refusing to open path with unsafe characters: $path',
+          name: 'UpdateService',
+        );
+        return false;
+      }
       result = await Process.run('cmd', ['/c', 'start', '', path]);
     } else {
       return false;
@@ -340,9 +350,11 @@ class UpdateService {
       throw StateError('Untrusted update download URL: $url');
     }
 
+    const maxRedirects = 10;
     final client = HttpClient();
     try {
       var requestUri = url;
+      var redirectCount = 0;
       while (true) {
         final request = await client.getUrl(requestUri);
         request.headers.set('User-Agent', 'LetsFLUTssh-UpdateChecker');
@@ -350,6 +362,10 @@ class UpdateService {
 
         final redirect = await _handleRedirect(requestUri, response);
         if (redirect != null) {
+          redirectCount++;
+          if (redirectCount > maxRedirects) {
+            throw StateError('Too many redirects ($maxRedirects)');
+          }
           requestUri = redirect;
           continue;
         }

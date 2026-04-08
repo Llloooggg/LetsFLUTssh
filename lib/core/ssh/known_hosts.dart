@@ -15,7 +15,13 @@ import '../../utils/logger.dart';
 class KnownHostsManager {
   final Map<String, String> _hosts = {};
   late final String _filePath;
-  bool _loaded = false;
+
+  /// Cached load future — ensures concurrent calls to [load] don't race.
+  Future<void>? _loadFuture;
+
+  /// Sequential write lock — prevents concurrent file writes from corrupting
+  /// the known_hosts file.
+  Future<void> _pendingWrite = Future.value();
 
   /// Callback invoked when an unknown host is encountered.
   /// Return true to accept the key, false to reject.
@@ -40,8 +46,12 @@ class KnownHostsManager {
   onHostKeyChanged;
 
   /// Initialize and load known_hosts from app support directory.
-  Future<void> load() async {
-    if (_loaded) return;
+  ///
+  /// Safe to call concurrently — the first call does the actual I/O,
+  /// subsequent calls await the same future.
+  Future<void> load() => _loadFuture ??= _doLoad();
+
+  Future<void> _doLoad() async {
     final dir = await getApplicationSupportDirectory();
     _filePath = p.join(dir.path, 'known_hosts');
     final file = File(_filePath);
@@ -60,7 +70,6 @@ class KnownHostsManager {
         }
       }
     }
-    _loaded = true;
     AppLogger.instance.log(
       'Loaded ${_hosts.length} known hosts from $_filePath',
       name: 'KnownHosts',
@@ -154,10 +163,12 @@ class KnownHostsManager {
 
   Future<void> _addHost(String hostPort, String keyString) async {
     _hosts[hostPort] = keyString;
-    final file = File(_filePath);
-    await file.parent.create(recursive: true);
-    await file.writeAsString('$hostPort $keyString\n', mode: FileMode.append);
-    restrictFilePermissions(file.path);
+    await _withWriteLock(() async {
+      final file = File(_filePath);
+      await file.parent.create(recursive: true);
+      await file.writeAsString('$hostPort $keyString\n', mode: FileMode.append);
+      await restrictFilePermissions(file.path);
+    });
   }
 
   Future<void> _updateHost(String hostPort, String keyString) async {
@@ -165,12 +176,18 @@ class KnownHostsManager {
     await _saveAll();
   }
 
-  Future<void> _saveAll() async {
+  Future<void> _saveAll() => _withWriteLock(() async {
     final sb = StringBuffer();
     for (final entry in _hosts.entries) {
       sb.writeln('${entry.key} ${entry.value}');
     }
     await writeFileAtomic(_filePath, sb.toString());
+  });
+
+  /// Serialize file writes — each write waits for the previous one.
+  Future<void> _withWriteLock(Future<void> Function() fn) {
+    _pendingWrite = _pendingWrite.then((_) => fn(), onError: (_) => fn());
+    return _pendingWrite;
   }
 
   String _fingerprint(List<int> keyBytes) {

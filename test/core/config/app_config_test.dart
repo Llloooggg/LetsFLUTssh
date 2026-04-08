@@ -849,13 +849,13 @@ void main() {
 
       test('replaces skippedVersion with value', () {
         const config = AppConfig();
-        final copy = config.withSkippedVersion('2.0.0');
+        final copy = config.copyWith(skippedVersion: '2.0.0');
         expect(copy.skippedVersion, '2.0.0');
       });
 
       test('clears skippedVersion with null', () {
         const config = AppConfig(skippedVersion: '2.0.0');
-        final copy = config.withSkippedVersion(null);
+        final copy = config.copyWith(skippedVersion: null);
         expect(copy.skippedVersion, isNull);
       });
 
@@ -867,13 +867,13 @@ void main() {
 
       test('replaces locale with value', () {
         const config = AppConfig();
-        final copy = config.withLocale('ru');
+        final copy = config.copyWith(locale: 'ru');
         expect(copy.locale, 'ru');
       });
 
       test('clears locale with null', () {
         const config = AppConfig(locale: 'de');
-        final copy = config.withLocale(null);
+        final copy = config.copyWith(locale: null);
         expect(copy.locale, isNull);
       });
 
@@ -883,13 +883,13 @@ void main() {
         expect(copy.locale, 'ja');
       });
 
-      test('withLocale preserves other fields', () {
+      test('copyWith(locale:) preserves other fields', () {
         const config = AppConfig(
           skippedVersion: '1.0.0',
           enableLogging: true,
           locale: 'en',
         );
-        final copy = config.withLocale('fr');
+        final copy = config.copyWith(locale: 'fr');
         expect(copy.locale, 'fr');
         expect(copy.skippedVersion, '1.0.0');
         expect(copy.enableLogging, true);

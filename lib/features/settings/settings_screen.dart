@@ -474,8 +474,9 @@ class _AppearanceSection extends ConsumerWidget {
       children: [
         _LanguageTile(
           value: locale,
-          onChanged: (v) =>
-              ref.read(configProvider.notifier).update((c) => c.withLocale(v)),
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update((c) => c.copyWith(locale: v)),
         ),
         _ThemeTile(
           value: theme,
@@ -775,7 +776,7 @@ class _ExportImportTile extends ConsumerWidget {
         if (context.mounted) {
           Toast.show(
             context,
-            message: 'File not found: ${result.path}',
+            message: S.of(context).fileNotFound(result.path),
             level: ToastLevel.error,
           );
         }
@@ -796,12 +797,17 @@ class _ExportImportTile extends ConsumerWidget {
           importKnownHosts: true,
         );
 
+        final store = ref.read(sessionStoreProvider);
         final importService = ImportService(
           addSession: (s) => ref.read(sessionProvider.notifier).add(s),
           deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
           getSessions: () => ref.read(sessionProvider),
           applyConfig: (config) =>
               ref.read(configProvider.notifier).update((_) => config),
+          getEmptyFolders: () => store.emptyFolders,
+          loadCredentials: (ids) => store.loadCredentials(ids),
+          restoreSnapshot: (sessions, folders, creds) =>
+              store.restoreSnapshot(sessions, folders, creds),
         );
         await importService.applyResult(importResult);
 
@@ -809,7 +815,9 @@ class _ExportImportTile extends ConsumerWidget {
           Navigator.of(context).pop(); // close progress
           Toast.show(
             context,
-            message: 'Imported ${importResult.sessions.length} session(s)',
+            message: S
+                .of(context)
+                .importedSessions(importResult.sessions.length),
             level: ToastLevel.success,
           );
         }
@@ -1033,14 +1041,16 @@ class _UpdateSection extends ConsumerWidget {
                 TextButton(
                   onPressed: () => ref
                       .read(configProvider.notifier)
-                      .update((c) => c.withSkippedVersion(info.latestVersion)),
+                      .update(
+                        (c) => c.copyWith(skippedVersion: info.latestVersion),
+                      ),
                   child: Text(S.of(context).skipThisVersion),
                 )
               else
                 TextButton(
                   onPressed: () => ref
                       .read(configProvider.notifier)
-                      .update((c) => c.withSkippedVersion(null)),
+                      .update((c) => c.copyWith(skippedVersion: null)),
                   child: Text(S.of(context).unskip),
                 ),
             ],

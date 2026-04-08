@@ -43,7 +43,11 @@ void main() {
     test('preserves content on concurrent writes', () async {
       final path = '${tempDir.path}/test.txt';
       // Write multiple times; final file should have last content
-      await Future.wait([writeFileAtomic(path, 'a'), writeFileAtomic(path, 'b'), writeFileAtomic(path, 'c')]);
+      await Future.wait([
+        writeFileAtomic(path, 'a'),
+        writeFileAtomic(path, 'b'),
+        writeFileAtomic(path, 'c'),
+      ]);
       final content = File(path).readAsStringSync();
       expect(content.length, 1); // one of a, b, c — not corrupted
     });
@@ -78,25 +82,25 @@ void main() {
   });
 
   group('restrictFilePermissions', () {
-    test('runs without error on current platform', () {
+    test('runs without error on current platform', () async {
       final path = '${tempDir.path}/perm_test.txt';
       File(path).writeAsStringSync('test');
       // Should not throw on any platform
-      expect(() => restrictFilePermissions(path), returnsNormally);
+      await restrictFilePermissions(path);
     });
 
-    test('sets 600 permissions on Unix', () {
+    test('sets 600 permissions on Unix', () async {
       if (!Platform.isLinux && !Platform.isMacOS) return;
       final path = '${tempDir.path}/perm_test.txt';
       File(path).writeAsStringSync('secret');
-      restrictFilePermissions(path);
+      await restrictFilePermissions(path);
       final result = Process.runSync('stat', ['-c', '%a', path]);
       expect(result.stdout.toString().trim(), '600');
     });
 
-    test('handles non-existent file gracefully', () {
+    test('handles non-existent file gracefully', () async {
       // Should not throw — logs error internally
-      expect(() => restrictFilePermissions('${tempDir.path}/no_such_file'), returnsNormally);
+      await restrictFilePermissions('${tempDir.path}/no_such_file');
     });
   });
 }

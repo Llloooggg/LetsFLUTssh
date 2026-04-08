@@ -285,8 +285,8 @@ abstract final class AppTheme {
   /// 8 px — toasts, mobile elements, larger containers.
   static const radiusLg = BorderRadius.all(Radius.circular(8));
 
-  static ThemeData dark() {
-    const scheme = ColorScheme(
+  static ThemeData dark() => _buildTheme(
+    scheme: const ColorScheme(
       brightness: Brightness.dark,
       primary: _accent,
       onPrimary: _onAccent,
@@ -319,219 +319,25 @@ abstract final class AppTheme {
       inversePrimary: Color(0xFF2D4A8C),
       shadow: Color(0xFF000000),
       scrim: Color(0xFF000000),
-    );
+    ),
+    popupColor: _bg1,
+    inputFill: _bg3,
+    borderColor: _borderLight,
+    hintColor: _fgFaint,
+    popupPadding: const EdgeInsets.symmetric(vertical: 4),
+    inactiveTrack: _bg4,
+    sliderOverlay: _selectionColor,
+    tooltipBg: _bg0,
+    tooltipFg: _fg,
+    tooltipFontSize: AppFonts.xs,
+    chipSelectedColor: _accent.withValues(alpha: 0.25),
+    scrollThumb: _scrollThumb,
+    snackBg: _bg3,
+    snackFg: _fg,
+  );
 
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
-      scaffoldBackgroundColor: _bg2,
-      dividerColor: _border,
-      splashFactory: NoSplash.splashFactory,
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
-        },
-      ),
-      dividerTheme: const DividerThemeData(color: _border, space: 1),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: _bg1,
-        foregroundColor: _fg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-      ),
-      popupMenuTheme: const PopupMenuThemeData(
-        color: _bg1,
-        shape: RoundedRectangleBorder(
-          borderRadius: radiusSm,
-          side: BorderSide(color: _borderLight),
-        ),
-        menuPadding: EdgeInsets.symmetric(vertical: 4),
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: _bg2,
-        shape: const RoundedRectangleBorder(
-          borderRadius: radiusSm,
-          side: BorderSide(color: _borderLight),
-        ),
-        titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: AppFonts.lg,
-          fontWeight: FontWeight.w600,
-          color: _fg,
-        ),
-        contentTextStyle: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: AppFonts.sm,
-          color: _fg,
-        ),
-      ),
-      textSelectionTheme: TextSelectionThemeData(
-        cursorColor: _accent,
-        selectionColor: _accent.withValues(alpha: 0.3),
-        selectionHandleColor: _accent,
-      ),
-      inputDecorationTheme: const InputDecorationTheme(
-        filled: true,
-        fillColor: _bg3,
-        border: OutlineInputBorder(
-          borderRadius: radiusSm,
-          borderSide: BorderSide(color: _borderLight),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: radiusSm,
-          borderSide: BorderSide(color: _borderLight),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: radiusSm,
-          borderSide: BorderSide(color: _accent, width: 1.5),
-        ),
-        hintStyle: TextStyle(color: _fgFaint),
-        labelStyle: TextStyle(color: _fgDim),
-      ),
-      iconTheme: const IconThemeData(color: _fg, size: 20),
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: _fg),
-        bodyMedium: TextStyle(color: _fg),
-        bodySmall: TextStyle(color: _fgDim),
-        titleSmall: TextStyle(color: _accent),
-      ).apply(fontFamily: 'Inter'),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: _accent,
-          foregroundColor: _onAccent,
-          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: _fg,
-          side: const BorderSide(color: _borderLight),
-          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: _accent,
-          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _accent,
-          foregroundColor: _onAccent,
-          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
-        ),
-      ),
-      segmentedButtonTheme: SegmentedButtonThemeData(
-        style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) return _accent;
-            return _bg3;
-          }),
-          foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) return _onAccent;
-            return _fg;
-          }),
-          side: WidgetStateProperty.all(const BorderSide(color: _borderLight)),
-          shape: WidgetStateProperty.all(
-            const RoundedRectangleBorder(borderRadius: radiusSm),
-          ),
-          visualDensity: VisualDensity.compact,
-        ),
-      ),
-      listTileTheme: const ListTileThemeData(iconColor: _fg, textColor: _fg),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: _bg1,
-        indicatorColor: _accent.withValues(alpha: 0.2),
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: _accent);
-          }
-          return const IconThemeData(color: _fgDim);
-        }),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TextStyle(color: _accent, fontSize: AppFonts.md);
-          }
-          return TextStyle(color: _fgDim, fontSize: AppFonts.md);
-        }),
-      ),
-      sliderTheme: const SliderThemeData(
-        activeTrackColor: _accent,
-        thumbColor: _accent,
-        inactiveTrackColor: _bg4,
-        overlayColor: _selectionColor,
-      ),
-      tooltipTheme: TooltipThemeData(
-        waitDuration: const Duration(milliseconds: 400),
-        decoration: BoxDecoration(
-          color: _bg0,
-          border: Border.all(color: _borderLight),
-          borderRadius: radiusSm,
-        ),
-        textStyle: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: AppFonts.xs,
-          color: _fg,
-        ),
-      ),
-      chipTheme: ChipThemeData(
-        backgroundColor: _bg3,
-        selectedColor: _accent.withValues(alpha: 0.25),
-        labelStyle: const TextStyle(color: _fg),
-        secondaryLabelStyle: const TextStyle(color: _accent),
-        side: const BorderSide(color: _border),
-        shape: const RoundedRectangleBorder(borderRadius: radiusSm),
-        deleteIconColor: _fgDim,
-        checkmarkColor: _accent,
-      ),
-      scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(_scrollThumb),
-        radius: Radius.zero,
-      ),
-      iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(
-          shape: const RoundedRectangleBorder(borderRadius: radiusSm),
-        ),
-      ),
-      checkboxTheme: CheckboxThemeData(
-        shape: const RoundedRectangleBorder(borderRadius: radiusSm),
-        side: const BorderSide(color: _fgDim),
-        fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return _accent;
-          return Colors.transparent;
-        }),
-        checkColor: WidgetStateProperty.all(_onAccent),
-      ),
-      cardTheme: const CardThemeData(
-        color: _bg3,
-        shape: RoundedRectangleBorder(borderRadius: radiusSm),
-      ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: _bg3,
-        contentTextStyle: TextStyle(color: _fg),
-        shape: RoundedRectangleBorder(borderRadius: radiusSm),
-        behavior: SnackBarBehavior.floating,
-      ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: _bg2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
-        ),
-      ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: _accent,
-        linearTrackColor: _bg4,
-      ),
-    );
-  }
-
-  static ThemeData light() {
-    const scheme = ColorScheme(
+  static ThemeData light() => _buildTheme(
+    scheme: const ColorScheme(
       brightness: Brightness.light,
       primary: _lightBlue,
       onPrimary: _lightOnAccent,
@@ -564,13 +370,56 @@ abstract final class AppTheme {
       inversePrimary: Color(0xFF82B1FF),
       shadow: Color(0xFF000000),
       scrim: Color(0xFF000000),
-    );
+    ),
+    popupColor: _lightLevel1,
+    inputFill: _lightLevel1,
+    borderColor: _lightBorder,
+    hintColor: _lightGutter,
+    popupPadding: null,
+    inactiveTrack: _lightSelection,
+    sliderOverlay: const Color(0x2A4078F2),
+    tooltipBg: _lightFg,
+    tooltipFg: _lightBg,
+    tooltipFontSize: AppFonts.md,
+    chipSelectedColor: _lightBlue.withValues(alpha: 0.2),
+    scrollThumb: _lightScrollThumb,
+    snackBg: _lightFg,
+    snackFg: _lightBg,
+  );
+
+  /// Shared theme builder — all structural decisions live here.
+  /// [scheme] carries the core Material color roles; the remaining
+  /// parameters cover colors that don't map cleanly to any scheme role.
+  static ThemeData _buildTheme({
+    required ColorScheme scheme,
+    required Color popupColor,
+    required Color inputFill,
+    required Color borderColor,
+    required Color hintColor,
+    required EdgeInsetsGeometry? popupPadding,
+    required Color inactiveTrack,
+    required Color sliderOverlay,
+    required Color tooltipBg,
+    required Color tooltipFg,
+    required double tooltipFontSize,
+    required Color chipSelectedColor,
+    required Color scrollThumb,
+    required Color snackBg,
+    required Color snackFg,
+  }) {
+    final accent = scheme.primary;
+    final onAccent = scheme.onPrimary;
+    final fg = scheme.onSurface;
+    final surface = scheme.surface;
+    final surfaceLow = scheme.surfaceContainerLow;
+    final fgDim = scheme.onSurfaceVariant;
+    final divider = scheme.outline;
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: _lightBg,
-      dividerColor: _lightBorder,
+      scaffoldBackgroundColor: surface,
+      dividerColor: divider,
       splashFactory: NoSplash.splashFactory,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
@@ -581,159 +430,161 @@ abstract final class AppTheme {
           TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
         },
       ),
-      dividerTheme: const DividerThemeData(color: _lightBorder, space: 1),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: _lightSurface,
-        foregroundColor: _lightFg,
+      dividerTheme: DividerThemeData(color: divider, space: 1),
+      appBarTheme: AppBarTheme(
+        backgroundColor: surfaceLow,
+        foregroundColor: fg,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      popupMenuTheme: const PopupMenuThemeData(
-        color: _lightLevel1,
+      popupMenuTheme: PopupMenuThemeData(
+        color: popupColor,
         shape: RoundedRectangleBorder(
           borderRadius: radiusSm,
-          side: BorderSide(color: _lightBorder),
+          side: BorderSide(color: borderColor),
         ),
+        menuPadding: popupPadding,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: _lightBg,
-        shape: const RoundedRectangleBorder(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(
           borderRadius: radiusSm,
-          side: BorderSide(color: _lightBorder),
+          side: BorderSide(color: borderColor),
         ),
         titleTextStyle: TextStyle(
           fontFamily: 'Inter',
           fontSize: AppFonts.lg,
           fontWeight: FontWeight.w600,
-          color: _lightFg,
+          color: fg,
         ),
         contentTextStyle: TextStyle(
           fontFamily: 'Inter',
           fontSize: AppFonts.sm,
-          color: _lightFg,
+          color: fg,
         ),
       ),
       textSelectionTheme: TextSelectionThemeData(
-        cursorColor: _lightBlue,
-        selectionColor: _lightBlue.withValues(alpha: 0.3),
-        selectionHandleColor: _lightBlue,
+        cursorColor: accent,
+        selectionColor: accent.withValues(alpha: 0.3),
+        selectionHandleColor: accent,
       ),
-      inputDecorationTheme: const InputDecorationTheme(
+      inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: _lightLevel1,
+        fillColor: inputFill,
         border: OutlineInputBorder(
           borderRadius: radiusSm,
-          borderSide: BorderSide(color: _lightBorder),
+          borderSide: BorderSide(color: borderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: radiusSm,
-          borderSide: BorderSide(color: _lightBorder),
+          borderSide: BorderSide(color: borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: radiusSm,
-          borderSide: BorderSide(color: _lightBlue, width: 1.5),
+          borderSide: BorderSide(color: accent, width: 1.5),
         ),
-        hintStyle: TextStyle(color: _lightGutter),
-        labelStyle: TextStyle(color: _lightGutter),
+        hintStyle: TextStyle(color: hintColor),
+        labelStyle: TextStyle(color: fgDim),
       ),
-      iconTheme: const IconThemeData(color: _lightFg, size: 20),
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: _lightFg),
-        bodyMedium: TextStyle(color: _lightFg),
-        bodySmall: TextStyle(color: _lightGutter),
-        titleSmall: TextStyle(color: _lightBlue),
+      iconTheme: IconThemeData(color: fg, size: 20),
+      textTheme: TextTheme(
+        bodyLarge: TextStyle(color: fg),
+        bodyMedium: TextStyle(color: fg),
+        bodySmall: TextStyle(color: fgDim),
+        titleSmall: TextStyle(color: accent),
       ).apply(fontFamily: 'Inter'),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: _lightBlue,
-          foregroundColor: _lightOnAccent,
+          backgroundColor: accent,
+          foregroundColor: onAccent,
           shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: _lightFg,
-          side: const BorderSide(color: _lightBorder),
+          foregroundColor: fg,
+          side: BorderSide(color: borderColor),
           shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: _lightBlue,
+          foregroundColor: accent,
           shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _lightBlue,
-          foregroundColor: _lightOnAccent,
+          backgroundColor: accent,
+          foregroundColor: onAccent,
           shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) return _lightBlue;
-            return _lightLevel1;
+            if (states.contains(WidgetState.selected)) return accent;
+            return inputFill;
           }),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) return _lightOnAccent;
-            return _lightFg;
+            if (states.contains(WidgetState.selected)) return onAccent;
+            return fg;
           }),
-          side: WidgetStateProperty.all(const BorderSide(color: _lightBorder)),
+          side: WidgetStateProperty.all(BorderSide(color: borderColor)),
           shape: WidgetStateProperty.all(
             const RoundedRectangleBorder(borderRadius: radiusSm),
           ),
           visualDensity: VisualDensity.compact,
         ),
       ),
-      listTileTheme: const ListTileThemeData(
-        iconColor: _lightFg,
-        textColor: _lightFg,
-      ),
+      listTileTheme: ListTileThemeData(iconColor: fg, textColor: fg),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: _lightSurface,
-        indicatorColor: _lightBlue.withValues(alpha: 0.2),
+        backgroundColor: surfaceLow,
+        indicatorColor: accent.withValues(alpha: 0.2),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: _lightBlue);
+            return IconThemeData(color: accent);
           }
-          return const IconThemeData(color: _lightGutter);
+          return IconThemeData(color: fgDim);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return TextStyle(color: _lightBlue, fontSize: AppFonts.md);
+            return TextStyle(color: accent, fontSize: AppFonts.md);
           }
-          return TextStyle(color: _lightGutter, fontSize: AppFonts.md);
+          return TextStyle(color: fgDim, fontSize: AppFonts.md);
         }),
       ),
-      sliderTheme: const SliderThemeData(
-        activeTrackColor: _lightBlue,
-        thumbColor: _lightBlue,
-        inactiveTrackColor: _lightSelection,
-        overlayColor: Color(0x2A4078F2), // lightBlue @ 16 %
+      sliderTheme: SliderThemeData(
+        activeTrackColor: accent,
+        thumbColor: accent,
+        inactiveTrackColor: inactiveTrack,
+        overlayColor: sliderOverlay,
       ),
       tooltipTheme: TooltipThemeData(
         waitDuration: const Duration(milliseconds: 400),
         decoration: BoxDecoration(
-          color: _lightFg,
-          border: Border.all(color: _lightBorder),
+          color: tooltipBg,
+          border: Border.all(color: borderColor),
           borderRadius: radiusSm,
         ),
-        textStyle: TextStyle(color: _lightBg, fontSize: AppFonts.md),
+        textStyle: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: tooltipFontSize,
+          color: tooltipFg,
+        ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: _lightLevel1,
-        selectedColor: _lightBlue.withValues(alpha: 0.2),
-        labelStyle: const TextStyle(color: _lightFg),
-        secondaryLabelStyle: const TextStyle(color: _lightBlue),
-        side: const BorderSide(color: _lightBorder),
+        backgroundColor: inputFill,
+        selectedColor: chipSelectedColor,
+        labelStyle: TextStyle(color: fg),
+        secondaryLabelStyle: TextStyle(color: accent),
+        side: BorderSide(color: divider),
         shape: const RoundedRectangleBorder(borderRadius: radiusSm),
-        deleteIconColor: _lightGutter,
-        checkmarkColor: _lightBlue,
+        deleteIconColor: fgDim,
+        checkmarkColor: accent,
       ),
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(_lightScrollThumb),
+        thumbColor: WidgetStateProperty.all(scrollThumb),
         radius: Radius.zero,
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -743,52 +594,52 @@ abstract final class AppTheme {
       ),
       checkboxTheme: CheckboxThemeData(
         shape: const RoundedRectangleBorder(borderRadius: radiusSm),
-        side: const BorderSide(color: _lightGutter),
+        side: BorderSide(color: fgDim),
         fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return _lightBlue;
+          if (states.contains(WidgetState.selected)) return accent;
           return Colors.transparent;
         }),
-        checkColor: WidgetStateProperty.all(_lightOnAccent),
+        checkColor: WidgetStateProperty.all(onAccent),
       ),
-      cardTheme: const CardThemeData(
-        color: _lightLevel1,
-        shape: RoundedRectangleBorder(borderRadius: radiusSm),
+      cardTheme: CardThemeData(
+        color: inputFill,
+        shape: const RoundedRectangleBorder(borderRadius: radiusSm),
       ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: _lightFg,
-        contentTextStyle: TextStyle(color: _lightBg),
-        shape: RoundedRectangleBorder(borderRadius: radiusSm),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: snackBg,
+        contentTextStyle: TextStyle(color: snackFg),
+        shape: const RoundedRectangleBorder(borderRadius: radiusSm),
         behavior: SnackBarBehavior.floating,
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: _lightBg,
-        shape: RoundedRectangleBorder(
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: surface,
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
         ),
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: _lightBlue,
-        linearTrackColor: _lightSelection,
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: accent,
+        linearTrackColor: inactiveTrack,
       ),
     );
   }
 
-  // ── Semantic colors for use across the app ──
+  // ── Semantic colors (brightness-aware) ──
 
   /// Green — connected, success.
-  static const Color connected = _green;
+  static Color get connected => isDark ? _green : _lightGreen;
 
   /// Yellow/orange — connecting, warning.
-  static const Color connecting = _yellow;
+  static Color get connecting => isDark ? _yellow : _lightYellow;
 
   /// Red — disconnected, error.
-  static const Color disconnected = _red;
+  static Color get disconnected => isDark ? _red : _lightRed;
 
   /// Cyan — info, accents.
-  static const Color info = _cyan;
+  static Color get info => isDark ? _cyan : _lightCyan;
 
   /// Folder icon color.
-  static const Color folderIcon = _yellow;
+  static Color get folderIcon => isDark ? _yellow : _lightYellow;
 
   /// Terminal search highlight backgrounds.
   static const Color _searchHighlightDark = Color(0xFFFFFF2B);
@@ -798,24 +649,6 @@ abstract final class AppTheme {
 
   /// Terminal search hit foreground — high-contrast text on colored bg.
   static Color get searchHitFg => isDark ? _termBrightWhite : _lightFgBright;
-
-  /// Light-theme variants.
-  static const Color connectedLight = _lightGreen;
-  static const Color connectingLight = _lightYellow;
-  static const Color disconnectedLight = _lightRed;
-
-  /// Resolve semantic color based on brightness.
-  static Color connectedColor(Brightness brightness) =>
-      brightness == Brightness.dark ? connected : connectedLight;
-
-  static Color connectingColor(Brightness brightness) =>
-      brightness == Brightness.dark ? connecting : connectingLight;
-
-  static Color disconnectedColor(Brightness brightness) =>
-      brightness == Brightness.dark ? disconnected : disconnectedLight;
-
-  static Color folderColor(Brightness brightness) =>
-      brightness == Brightness.dark ? _yellow : _lightYellow;
 }
 
 /// Font helpers — Inter for UI, JetBrains Mono for technical data.

@@ -43,7 +43,6 @@ class SSHConnection {
 
   SSHClient? _client;
   SSHSession? _shell;
-  Timer? _keepAliveTimer;
   bool _disposed = false;
   bool _hostKeyRejected = false;
 
@@ -101,14 +100,21 @@ class SSHConnection {
     final socket = await _connectSocket(onProgress);
     await _authenticateClient(socket, onProgress);
 
-    // Listen for disconnect
-    _client!.done.then((_) {
-      if (!_disposed) {
-        _disposed = true;
-        _keepAliveTimer?.cancel();
-        onDisconnect?.call();
-      }
-    });
+    // Listen for disconnect — handle both normal close and errors.
+    _client!.done.then(
+      (_) {
+        if (!_disposed) {
+          _disposed = true;
+          onDisconnect?.call();
+        }
+      },
+      onError: (_) {
+        if (!_disposed) {
+          _disposed = true;
+          onDisconnect?.call();
+        }
+      },
+    );
   }
 
   Future<SSHSocket> _connectSocket(
@@ -304,8 +310,6 @@ class SSHConnection {
   }
 
   void _cleanup() {
-    _keepAliveTimer?.cancel();
-    _keepAliveTimer = null;
     _shell?.close();
     _shell = null;
     _client?.close();

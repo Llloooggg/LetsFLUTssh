@@ -1074,4 +1074,123 @@ class SId extends S {
 
   @override
   String get progressOpeningSftp => 'Membuka saluran SFTP';
+
+  @override
+  String get transfersLabel => 'Transfers:';
+
+  @override
+  String transferCountActive(int count) {
+    return '$count active';
+  }
+
+  @override
+  String transferCountQueued(int count) {
+    return ', $count queued';
+  }
+
+  @override
+  String transferCountInHistory(int count) {
+    return '$count in history';
+  }
+
+  @override
+  String transferTooltipCreated(String time) {
+    return 'Created: $time';
+  }
+
+  @override
+  String transferTooltipStarted(String time) {
+    return 'Started: $time';
+  }
+
+  @override
+  String transferTooltipEnded(String time) {
+    return 'Ended: $time';
+  }
+
+  @override
+  String transferTooltipDuration(String duration) {
+    return 'Duration: $duration';
+  }
+
+  @override
+  String get transferStatusQueued => 'Queued';
+
+  @override
+  String get transferStartingUpload => 'Starting upload...';
+
+  @override
+  String get transferStartingDownload => 'Starting download...';
+
+  @override
+  String get transferCopying => 'Copying...';
+
+  @override
+  String get transferDone => 'Done';
+
+  @override
+  String transferFilesProgress(int done, int total) {
+    return '$done/$total files';
+  }
+
+  @override
+  String get folderNameLabel => 'FOLDER NAME';
+
+  @override
+  String folderAlreadyExists(String name) {
+    return 'Folder \"$name\" already exists';
+  }
+
+  @override
+  String get dropKeyFileHere => 'Drop key file here';
+
+  @override
+  String get sessionNoCredentials =>
+      'Session has no credentials — edit it first to add a password or key';
+
+  @override
+  String dragItemCount(int count) {
+    return '$count items';
+  }
+
+  @override
+  String qrSelectAll(int selected, int total) {
+    return 'Select All ($selected/$total)';
+  }
+
+  @override
+  String qrPayloadSize(String size, String max) {
+    return 'Payload: $size KB / $max KB max';
+  }
+
+  @override
+  String get noActiveTerminals => 'No active terminals';
+
+  @override
+  String get connectFromSessionsTab => 'Connect from Sessions tab';
+
+  @override
+  String fileNotFound(String path) {
+    return 'File not found: $path';
+  }
+
+  @override
+  String get sshConnectionChannel => 'SSH Connection';
+
+  @override
+  String get sshConnectionChannelDesc =>
+      'Keeps SSH connections alive in the background.';
+
+  @override
+  String get sshActive => 'SSH active';
+
+  @override
+  String activeConnectionCount(int count) {
+    return '$count active connection(s)';
+  }
+
+  @override
+  String itemCountWithSize(int count, String size) {
+    return '$count items, $size';
+  }
 }

@@ -1,6 +1,5 @@
 {
   "@@locale": "es",
-
   "appTitle": "LetsFLUTssh",
   "ok": "OK",
   "cancel": "Cancelar",
@@ -166,12 +165,10 @@
   "showSidebar": "Mostrar barra lateral (Ctrl+B)",
   "language": "Idioma",
   "languageSystemDefault": "Auto",
-
   "theme": "Tema",
   "themeDark": "Oscuro",
   "themeLight": "Claro",
   "themeSystem": "Sistema",
-
   "appearance": "Apariencia",
   "connectionSection": "Conexión",
   "transfers": "Transferencias",
@@ -258,7 +255,6 @@
   "time": "Tiempo",
   "failed": "Fallido",
   "transferNItems": "Transferir {count} elementos",
-
   "errOperationNotPermitted": "Operación no permitida",
   "errNoSuchFileOrDirectory": "No existe el archivo o directorio",
   "errNoSuchProcess": "No existe el proceso",
@@ -316,11 +312,12 @@
   "nSubitems": "{count} elemento(s)",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "Elementos",
-
   "storagePermissionRequired": "Se requiere permiso de almacenamiento para explorar archivos locales",
   "grantPermission": "Conceder permiso",
   "storagePermissionLimited": "Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos",
@@ -328,5 +325,34 @@
   "progressVerifyingHostKey": "Verificando clave del host",
   "progressAuthenticating": "Autenticando como {user}",
   "progressOpeningShell": "Abriendo shell",
-  "progressOpeningSftp": "Abriendo canal SFTP"
+  "progressOpeningSftp": "Abriendo canal SFTP",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }

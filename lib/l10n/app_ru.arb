@@ -165,12 +165,10 @@
   "showSidebar": "Показать боковую панель (Ctrl+B)",
   "language": "Язык",
   "languageSystemDefault": "Авто",
-
   "theme": "Тема",
   "themeDark": "Тёмная",
   "themeLight": "Светлая",
   "themeSystem": "Системная",
-
   "appearance": "Внешний вид",
   "connectionSection": "Подключение",
   "transfers": "Передачи",
@@ -307,7 +305,6 @@
   "errDecryptionFailed": "Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
-
   "login": "Логин",
   "protocol": "Протокол",
   "typeLabel": "Тип",
@@ -315,11 +312,12 @@
   "nSubitems": "{count} элемент(ов)",
   "@nSubitems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subitems": "Элементы",
-
   "storagePermissionRequired": "Для просмотра локальных файлов необходимо разрешение на доступ к хранилищу",
   "grantPermission": "Дать разрешение",
   "storagePermissionLimited": "Ограниченный доступ — предоставьте полный доступ к хранилищу для всех файлов",
@@ -327,5 +325,34 @@
   "progressVerifyingHostKey": "Проверка ключа хоста",
   "progressAuthenticating": "Аутентификация как {user}",
   "progressOpeningShell": "Открытие терминала",
-  "progressOpeningSftp": "Открытие SFTP-канала"
+  "progressOpeningSftp": "Открытие SFTP-канала",
+  "transfersLabel": "Transfers:",
+  "transferCountActive": "{count} active",
+  "transferCountQueued": ", {count} queued",
+  "transferCountInHistory": "{count} in history",
+  "transferTooltipCreated": "Created: {time}",
+  "transferTooltipStarted": "Started: {time}",
+  "transferTooltipEnded": "Ended: {time}",
+  "transferTooltipDuration": "Duration: {duration}",
+  "transferStatusQueued": "Queued",
+  "transferStartingUpload": "Starting upload...",
+  "transferStartingDownload": "Starting download...",
+  "transferCopying": "Copying...",
+  "transferDone": "Done",
+  "transferFilesProgress": "{done}/{total} files",
+  "folderNameLabel": "FOLDER NAME",
+  "folderAlreadyExists": "Folder \"{name}\" already exists",
+  "dropKeyFileHere": "Drop key file here",
+  "sessionNoCredentials": "Session has no credentials — edit it first to add a password or key",
+  "dragItemCount": "{count} items",
+  "qrSelectAll": "Select All ({selected}/{total})",
+  "qrPayloadSize": "Payload: {size} KB / {max} KB max",
+  "noActiveTerminals": "No active terminals",
+  "connectFromSessionsTab": "Connect from Sessions tab",
+  "fileNotFound": "File not found: {path}",
+  "sshConnectionChannel": "SSH Connection",
+  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
+  "sshActive": "SSH active",
+  "activeConnectionCount": "{count} active connection(s)",
+  "itemCountWithSize": "{count} items, {size}"
 }

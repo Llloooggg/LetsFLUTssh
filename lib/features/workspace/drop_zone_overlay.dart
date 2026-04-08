@@ -99,48 +99,54 @@ class _PanelDropTargetState extends State<PanelDropTarget> {
     );
   }
 
-  Widget _buildZoneOverlay(DropZone zone) {
-    final color = AppTheme.accent.withValues(alpha: 0.15);
-    final border = Border.all(color: AppTheme.accent, width: 2);
+  Widget _buildZoneOverlay(DropZone zone) => buildDropZoneOverlay(zone);
+}
 
-    Alignment alignment;
-    double widthFactor;
-    double heightFactor;
+/// Builds a half-panel overlay indicating where a dragged tab will dock.
+///
+/// Shared between [PanelDropTarget] (panel-level) and the workspace-level
+/// edge drop target.
+Widget buildDropZoneOverlay(DropZone zone) {
+  final color = AppTheme.accent.withValues(alpha: 0.15);
+  final border = Border.all(color: AppTheme.accent, width: 2);
 
-    switch (zone) {
-      case DropZone.center:
-        return const SizedBox.shrink();
-      case DropZone.left:
-        alignment = Alignment.centerLeft;
-        widthFactor = 0.5;
-        heightFactor = 1.0;
-      case DropZone.right:
-        alignment = Alignment.centerRight;
-        widthFactor = 0.5;
-        heightFactor = 1.0;
-      case DropZone.top:
-        alignment = Alignment.topCenter;
-        widthFactor = 1.0;
-        heightFactor = 0.5;
-      case DropZone.bottom:
-        alignment = Alignment.bottomCenter;
-        widthFactor = 1.0;
-        heightFactor = 0.5;
-    }
+  Alignment alignment;
+  double widthFactor;
+  double heightFactor;
 
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: Align(
-          alignment: alignment,
-          child: FractionallySizedBox(
-            widthFactor: widthFactor,
-            heightFactor: heightFactor,
-            child: Container(
-              decoration: BoxDecoration(color: color, border: border),
-            ),
+  switch (zone) {
+    case DropZone.center:
+      return const SizedBox.shrink();
+    case DropZone.left:
+      alignment = Alignment.centerLeft;
+      widthFactor = 0.5;
+      heightFactor = 1.0;
+    case DropZone.right:
+      alignment = Alignment.centerRight;
+      widthFactor = 0.5;
+      heightFactor = 1.0;
+    case DropZone.top:
+      alignment = Alignment.topCenter;
+      widthFactor = 1.0;
+      heightFactor = 0.5;
+    case DropZone.bottom:
+      alignment = Alignment.bottomCenter;
+      widthFactor = 1.0;
+      heightFactor = 0.5;
+  }
+
+  return Positioned.fill(
+    child: IgnorePointer(
+      child: Align(
+        alignment: alignment,
+        child: FractionallySizedBox(
+          widthFactor: widthFactor,
+          heightFactor: heightFactor,
+          child: Container(
+            decoration: BoxDecoration(color: color, border: border),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }

@@ -351,6 +351,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       entry: entry,
       remoteDirPath: remote.currentPath,
       remoteCtrl: _remoteCtrl,
+      loc: S.of(context),
     );
   }
 
@@ -364,6 +365,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
       entry: entry,
       localDirPath: local.currentPath,
       localCtrl: _localCtrl,
+      loc: S.of(context),
     );
   }
 
@@ -372,6 +374,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     final local = _localCtrl;
     if (local == null) return;
     final manager = ref.read(transferManagerProvider);
+    final loc = S.of(context);
     for (final srcPath in paths) {
       final name = p.basename(srcPath);
       final targetPath = p.join(local.currentPath, name);
@@ -384,13 +387,13 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
           sourcePath: srcPath,
           targetPath: targetPath,
           run: (update) async {
-            update(0, 'Copying...');
+            update(0, loc.transferCopying);
             if (isDir) {
               await _copyDirLocal(Directory(srcPath), Directory(targetPath));
             } else {
               await File(srcPath).copy(targetPath);
             }
-            update(100, 'Done');
+            update(100, loc.transferDone);
             _localCtrl?.refresh();
           },
         ),
@@ -404,6 +407,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     final remote = _remoteCtrl;
     if (sftp == null || remote == null) return;
     final manager = ref.read(transferManagerProvider);
+    final loc = S.of(context);
 
     for (final srcPath in paths) {
       final name = p.basename(srcPath);
@@ -417,12 +421,15 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
           sourcePath: srcPath,
           targetPath: remotePath,
           run: (update) async {
-            update(0, 'Starting upload...');
+            update(0, loc.transferStartingUpload);
             if (isDir) {
               await sftp.uploadDir(srcPath, remotePath, (progress) {
                 update(
                   progress.percent,
-                  '${progress.doneBytes}/${progress.totalBytes} files',
+                  loc.transferFilesProgress(
+                    progress.doneBytes,
+                    progress.totalBytes,
+                  ),
                 );
               });
             } else {
