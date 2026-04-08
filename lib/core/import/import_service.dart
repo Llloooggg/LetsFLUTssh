@@ -1,4 +1,5 @@
 import '../../utils/logger.dart';
+import '../config/app_config.dart';
 import '../../features/settings/export_import.dart';
 import '../security/credential_store.dart';
 import '../session/session.dart';
@@ -11,7 +12,7 @@ class ImportService {
   final Future<void> Function(Session session) addSession;
   final Future<void> Function(String id) deleteSession;
   final List<Session> Function() getSessions;
-  final void Function(dynamic config) applyConfig;
+  final void Function(AppConfig config) applyConfig;
 
   /// Optional callbacks for rollback support in replace mode.
   /// When provided, a snapshot is taken before deleting existing sessions.

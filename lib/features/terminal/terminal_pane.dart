@@ -12,6 +12,7 @@ import '../../core/connection/progress_tracker.dart';
 import '../../core/connection/progress_writer.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/ssh/shell_helper.dart';
+import '../../core/config/app_config.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
@@ -67,6 +68,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   late final TerminalController _terminalController;
   ShellConnection? _shellConn;
   StreamSubscription<ConnectionStep>? _progressSub;
+  Map<AppShortcut, VoidCallback>? _shortcuts;
 
   /// Whether the terminal pane is in an error state.
   bool get hasError => _error != null;
@@ -350,7 +352,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final reg = AppShortcutRegistry.instance;
 
-    final shortcuts = <AppShortcut, VoidCallback>{
+    _shortcuts ??= <AppShortcut, VoidCallback>{
       AppShortcut.terminalCopy: _copySelection,
       AppShortcut.terminalPaste: _pasteClipboard,
       AppShortcut.zoomIn: _zoomIn,
@@ -358,7 +360,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       AppShortcut.zoomReset: _zoomReset,
     };
 
-    for (final entry in shortcuts.entries) {
+    for (final entry in _shortcuts!.entries) {
       if (reg.matches(entry.key, event)) {
         entry.value();
         return KeyEventResult.handled;
@@ -380,7 +382,11 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     ref
         .read(configProvider.notifier)
         .update(
-          (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: 14.0)),
+          (c) => c.copyWith(
+            terminal: c.terminal.copyWith(
+              fontSize: TerminalConfig.defaults.fontSize,
+            ),
+          ),
         );
   }
 

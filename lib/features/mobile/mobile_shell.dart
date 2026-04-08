@@ -71,8 +71,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   }
 
   void _autoSwitchToSessionsIfNeeded(List<TabEntry> allTabs) {
-    if (_navIndex == 1 && _terminalTabCount(allTabs) == 0 ||
-        _navIndex == 2 && _sftpTabCount(allTabs) == 0) {
+    if ((_navIndex == 1 && _terminalTabCount(allTabs) == 0) ||
+        (_navIndex == 2 && _sftpTabCount(allTabs) == 0)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _navIndex = 0);
       });

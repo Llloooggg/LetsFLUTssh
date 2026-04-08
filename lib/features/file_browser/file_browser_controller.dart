@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
@@ -29,7 +30,7 @@ class FilePaneController extends ChangeNotifier {
   // Folder size cache: path → size (calculated async, max 2 concurrent)
   final Map<String, int> _folderSizes = {};
   final Set<String> _folderSizesPending = {};
-  final List<String> _folderSizeQueue = [];
+  final Queue<String> _folderSizeQueue = Queue();
   static const _maxConcurrentSizeCalcs = 2;
 
   // Navigation history
@@ -65,7 +66,7 @@ class FilePaneController extends ChangeNotifier {
   void _drainSizeQueue() {
     while (_folderSizesPending.length < _maxConcurrentSizeCalcs &&
         _folderSizeQueue.isNotEmpty) {
-      final path = _folderSizeQueue.removeAt(0);
+      final path = _folderSizeQueue.removeFirst();
       if (_folderSizes.containsKey(path)) continue;
       _folderSizesPending.add(path);
       fs
