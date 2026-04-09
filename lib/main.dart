@@ -636,10 +636,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  void _connectSessionSftp(BuildContext context, WidgetRef ref, session) =>
-      SessionConnect.connectSftp(context, ref, session);
+  Future<void> _connectSessionSftp(
+    BuildContext context,
+    WidgetRef ref,
+    session,
+  ) => SessionConnect.connectSftp(context, ref, session);
 
-  void _connectSession(BuildContext context, WidgetRef ref, session) =>
+  Future<void> _connectSession(BuildContext context, WidgetRef ref, session) =>
       SessionConnect.connectTerminal(context, ref, session);
 
   Future<void> _newSession(BuildContext context, WidgetRef ref) async {
@@ -649,7 +652,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       case SaveResult(:final session, :final connect):
         await ref.read(sessionProvider.notifier).add(session);
         if (connect && context.mounted) {
-          SessionConnect.connectTerminal(context, ref, session);
+          await SessionConnect.connectTerminal(context, ref, session);
         }
     }
   }

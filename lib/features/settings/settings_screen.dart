@@ -30,6 +30,7 @@ import '../../widgets/toast.dart';
 import '../session_manager/qr_display_screen.dart';
 import '../session_manager/qr_export_dialog.dart';
 import 'export_import.dart';
+import '../key_manager/key_manager_dialog.dart';
 import 'known_hosts_manager.dart';
 
 part 'settings_dialogs.dart';
@@ -93,6 +94,11 @@ List<_Section> _buildSections(BuildContext context) => [
     title: S.of(context).security,
     icon: Icons.security,
     builder: _SecuritySection.new,
+  ),
+  _Section(
+    title: S.of(context).sshKeys,
+    icon: Icons.vpn_key,
+    builder: _SshKeysSection.new,
   ),
   _Section(
     title: S.of(context).data,

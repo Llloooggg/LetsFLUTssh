@@ -847,5 +847,63 @@
   },
   "noHostsToExport": "No known hosts to export",
   "keyType": "Key Type",
-  "fingerprint": "Fingerprint"
+  "fingerprint": "Fingerprint",
+  "sshKeys": "SSH Keys",
+  "sshKeysSubtitle": "Manage SSH key pairs for authentication",
+  "noKeys": "No SSH keys. Import or generate one.",
+  "generateKey": "Generate Key",
+  "importKey": "Import Key",
+  "keyLabel": "Key Label",
+  "keyLabelHint": "e.g. Work Server, GitHub",
+  "selectKeyType": "Key Type",
+  "generating": "Generating...",
+  "keyGenerated": "Key generated: {label}",
+  "@keyGenerated": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "keyImported": "Key imported: {label}",
+  "@keyImported": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteKey": "Delete Key",
+  "deleteKeyConfirm": "Delete key \"{label}\"? Sessions using it will lose access.",
+  "@deleteKeyConfirm": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "keyDeleted": "Key deleted: {label}",
+  "@keyDeleted": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "publicKey": "Public Key",
+  "publicKeyCopied": "Public key copied to clipboard",
+  "pastePrivateKey": "Paste Private Key (PEM)",
+  "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
+  "invalidPem": "Invalid PEM key data",
+  "selectFromKeyStore": "Select from Key Store",
+  "noKeySelected": "No key selected",
+  "keyCount": "{count, plural, =0{No keys} =1{1 key} other{{count} keys}}",
+  "@keyCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "generated": "Generated"
 }

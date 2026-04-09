@@ -113,7 +113,8 @@ class SId extends S {
   String get openInBrowser => 'Buka di Browser';
 
   @override
-  String get couldNotOpenBrowser => 'Tidak dapat membuka browser — URL disalin ke clipboard';
+  String get couldNotOpenBrowser =>
+      'Tidak dapat membuka browser — URL disalin ke clipboard';
 
   @override
   String get checkForUpdates => 'Periksa Pembaruan';
@@ -342,7 +343,8 @@ class SId extends S {
   String get portRange => '1-65535';
 
   @override
-  String get provideKeyFirst => 'Sediakan file kunci atau teks PEM terlebih dahulu';
+  String get provideKeyFirst =>
+      'Sediakan file kunci atau teks PEM terlebih dahulu';
 
   @override
   String get keyTextPem => 'Teks Kunci (PEM)';
@@ -369,10 +371,12 @@ class SId extends S {
   String get qrGenerationFailed => 'Pembuatan QR gagal';
 
   @override
-  String get scanWithCameraApp => 'Pindai dengan aplikasi kamera di perangkat\nyang telah memasang LetsFLUTssh.';
+  String get scanWithCameraApp =>
+      'Pindai dengan aplikasi kamera di perangkat\nyang telah memasang LetsFLUTssh.';
 
   @override
-  String get noPasswordsInQr => 'Tidak ada kata sandi atau kunci dalam kode QR ini';
+  String get noPasswordsInQr =>
+      'Tidak ada kata sandi atau kunci dalam kode QR ini';
 
   @override
   String get copyLink => 'Salin Tautan';
@@ -387,10 +391,12 @@ class SId extends S {
   String get unknownHost => 'Host Tidak Dikenal';
 
   @override
-  String get hostKeyChangedWarning => 'PERINGATAN: Kunci host untuk server ini telah berubah. Ini bisa menandakan serangan man-in-the-middle, atau server mungkin telah diinstal ulang.';
+  String get hostKeyChangedWarning =>
+      'PERINGATAN: Kunci host untuk server ini telah berubah. Ini bisa menandakan serangan man-in-the-middle, atau server mungkin telah diinstal ulang.';
 
   @override
-  String get unknownHostMessage => 'Keaslian host ini tidak dapat diverifikasi. Apakah Anda yakin ingin melanjutkan koneksi?';
+  String get unknownHostMessage =>
+      'Keaslian host ini tidak dapat diverifikasi. Apakah Anda yakin ingin melanjutkan koneksi?';
 
   @override
   String get host => 'Host';
@@ -423,10 +429,12 @@ class SId extends S {
   String get confirmPassword => 'Konfirmasi Kata Sandi';
 
   @override
-  String get importModeMergeDescription => 'Tambahkan sesi baru, pertahankan yang ada';
+  String get importModeMergeDescription =>
+      'Tambahkan sesi baru, pertahankan yang ada';
 
   @override
-  String get importModeReplaceDescription => 'Ganti semua sesi dengan yang diimpor';
+  String get importModeReplaceDescription =>
+      'Ganti semua sesi dengan yang diimpor';
 
   @override
   String errorPrefix(String error) {
@@ -532,7 +540,8 @@ class SId extends S {
   String get noActiveSession => 'Tidak ada sesi aktif';
 
   @override
-  String get createConnectionHint => 'Buat koneksi baru atau pilih dari sidebar';
+  String get createConnectionHint =>
+      'Buat koneksi baru atau pilih dari sidebar';
 
   @override
   String get hideSidebar => 'Sembunyikan Sidebar (Ctrl+B)';
@@ -613,13 +622,15 @@ class SId extends S {
   String get exportData => 'Ekspor Data';
 
   @override
-  String get exportDataSubtitle => 'Simpan sesi, konfigurasi, dan kunci ke file .lfs terenkripsi';
+  String get exportDataSubtitle =>
+      'Simpan sesi, konfigurasi, dan kunci ke file .lfs terenkripsi';
 
   @override
   String get importDataSubtitle => 'Muat data dari file .lfs';
 
   @override
-  String get setMasterPasswordHint => 'Atur kata sandi utama untuk mengenkripsi arsip.';
+  String get setMasterPasswordHint =>
+      'Atur kata sandi utama untuk mengenkripsi arsip.';
 
   @override
   String get passwordsDoNotMatch => 'Kata sandi tidak cocok';
@@ -647,7 +658,8 @@ class SId extends S {
   String get shareViaQrCode => 'Bagikan via Kode QR';
 
   @override
-  String get shareViaQrSubtitle => 'Ekspor sesi ke kode QR untuk dipindai perangkat lain';
+  String get shareViaQrSubtitle =>
+      'Ekspor sesi ke kode QR untuk dipindai perangkat lain';
 
   @override
   String get dataLocation => 'Lokasi Data';
@@ -731,7 +743,8 @@ class SId extends S {
   String get useSftpFromSessions => 'Gunakan \"SFTP\" dari Sesi';
 
   @override
-  String get anotherInstanceRunning => 'Instance LetsFLUTssh lain sudah berjalan.';
+  String get anotherInstanceRunning =>
+      'Instance LetsFLUTssh lain sudah berjalan.';
 
   @override
   String importFailedShort(String error) {
@@ -766,7 +779,8 @@ class SId extends S {
   String get connectionError => 'Kesalahan koneksi';
 
   @override
-  String get resizeWindowToViewFiles => 'Ubah ukuran jendela untuk melihat file';
+  String get resizeWindowToViewFiles =>
+      'Ubah ukuran jendela untuk melihat file';
 
   @override
   String get completed => 'Selesai';
@@ -793,13 +807,16 @@ class SId extends S {
   String get exportSessionsViaQr => 'Ekspor Sesi via QR';
 
   @override
-  String get qrNoCredentialsWarning => 'Kata sandi dan kunci SSH TIDAK disertakan.\nSesi yang diimpor perlu diisi kredensialnya.';
+  String get qrNoCredentialsWarning =>
+      'Kata sandi dan kunci SSH TIDAK disertakan.\nSesi yang diimpor perlu diisi kredensialnya.';
 
   @override
-  String get qrTooManyForSingleCode => 'Terlalu banyak sesi untuk satu kode QR. Batalkan beberapa pilihan atau gunakan ekspor .lfs.';
+  String get qrTooManyForSingleCode =>
+      'Terlalu banyak sesi untuk satu kode QR. Batalkan beberapa pilihan atau gunakan ekspor .lfs.';
 
   @override
-  String get qrTooLarge => 'Terlalu besar — batalkan beberapa sesi atau gunakan ekspor file .lfs.';
+  String get qrTooLarge =>
+      'Terlalu besar — batalkan beberapa sesi atau gunakan ekspor file .lfs.';
 
   @override
   String get exportAll => 'Ekspor Semua';
@@ -846,7 +863,8 @@ class SId extends S {
   String get errBadFileDescriptor => 'Deskriptor file buruk';
 
   @override
-  String get errResourceTemporarilyUnavailable => 'Sumber daya sementara tidak tersedia';
+  String get errResourceTemporarilyUnavailable =>
+      'Sumber daya sementara tidak tersedia';
 
   @override
   String get errOutOfMemory => 'Kehabisan memori';
@@ -888,7 +906,8 @@ class SId extends S {
   String get errAddressAlreadyInUse => 'Alamat sudah digunakan';
 
   @override
-  String get errCannotAssignAddress => 'Tidak dapat menetapkan alamat yang diminta';
+  String get errCannotAssignAddress =>
+      'Tidak dapat menetapkan alamat yang diminta';
 
   @override
   String get errNetworkIsDown => 'Jaringan tidak aktif';
@@ -990,7 +1009,8 @@ class SId extends S {
   }
 
   @override
-  String get errDecryptionFailed => 'Gagal mendekripsi kredensial. File kunci mungkin rusak.';
+  String get errDecryptionFailed =>
+      'Gagal mendekripsi kredensial. File kunci mungkin rusak.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1023,13 +1043,15 @@ class SId extends S {
   String get subitems => 'Item';
 
   @override
-  String get storagePermissionRequired => 'Izin penyimpanan diperlukan untuk menjelajahi file lokal';
+  String get storagePermissionRequired =>
+      'Izin penyimpanan diperlukan untuk menjelajahi file lokal';
 
   @override
   String get grantPermission => 'Berikan izin';
 
   @override
-  String get storagePermissionLimited => 'Akses terbatas — berikan izin penyimpanan penuh untuk semua file';
+  String get storagePermissionLimited =>
+      'Akses terbatas — berikan izin penyimpanan penuh untuk semua file';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1120,7 +1142,8 @@ class SId extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials =>
+      'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1152,7 +1175,8 @@ class SId extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc =>
+      'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1198,7 +1222,8 @@ class SId extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty =>
+      'No known hosts yet. Connect to a server to add one.';
 
   @override
   String get removeHost => 'Remove Host';
@@ -1212,7 +1237,8 @@ class SId extends S {
   String get clearAllKnownHosts => 'Clear All Known Hosts';
 
   @override
-  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+  String get clearAllKnownHostsConfirm =>
+      'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
   String get importKnownHosts => 'Import Known Hosts';
@@ -1238,4 +1264,90 @@ class SId extends S {
 
   @override
   String get noHostsToExport => 'No known hosts to export';
+
+  @override
+  String get sshKeys => 'SSH Keys';
+
+  @override
+  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+
+  @override
+  String get noKeys => 'No SSH keys. Import or generate one.';
+
+  @override
+  String get generateKey => 'Generate Key';
+
+  @override
+  String get importKey => 'Import Key';
+
+  @override
+  String get keyLabel => 'Key Label';
+
+  @override
+  String get keyLabelHint => 'e.g. Work Server, GitHub';
+
+  @override
+  String get selectKeyType => 'Key Type';
+
+  @override
+  String get generating => 'Generating...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'Key generated: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'Key imported: $label';
+  }
+
+  @override
+  String get deleteKey => 'Delete Key';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'Delete key \"$label\"? Sessions using it will lose access.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'Key deleted: $label';
+  }
+
+  @override
+  String get publicKey => 'Public Key';
+
+  @override
+  String get publicKeyCopied => 'Public key copied to clipboard';
+
+  @override
+  String get pastePrivateKey => 'Paste Private Key (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'Invalid PEM key data';
+
+  @override
+  String get selectFromKeyStore => 'Select from Key Store';
+
+  @override
+  String get noKeySelected => 'No key selected';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count keys',
+      one: '1 key',
+      zero: 'No keys',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'Generated';
 }

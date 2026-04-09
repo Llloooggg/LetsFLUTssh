@@ -369,7 +369,8 @@ class SJa extends S {
   String get qrGenerationFailed => 'QRコード生成に失敗しました';
 
   @override
-  String get scanWithCameraApp => 'LetsFLUTsshがインストールされている\nデバイスのカメラアプリでスキャンしてください。';
+  String get scanWithCameraApp =>
+      'LetsFLUTsshがインストールされている\nデバイスのカメラアプリでスキャンしてください。';
 
   @override
   String get noPasswordsInQr => 'このQRコードにパスワードや鍵は含まれていません';
@@ -387,7 +388,8 @@ class SJa extends S {
   String get unknownHost => '不明なホスト';
 
   @override
-  String get hostKeyChangedWarning => '警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。';
+  String get hostKeyChangedWarning =>
+      '警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。';
 
   @override
   String get unknownHostMessage => 'このホストの信頼性を確認できません。接続を続行しますか？';
@@ -793,10 +795,12 @@ class SJa extends S {
   String get exportSessionsViaQr => 'QRでセッションをエクスポート';
 
   @override
-  String get qrNoCredentialsWarning => 'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
+  String get qrNoCredentialsWarning =>
+      'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
 
   @override
-  String get qrTooManyForSingleCode => '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
+  String get qrTooManyForSingleCode =>
+      '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
 
   @override
   String get qrTooLarge => 'データが大きすぎます — 選択を減らすか、.lfsファイルエクスポートを使用してください。';
@@ -1029,7 +1033,8 @@ class SJa extends S {
   String get grantPermission => '権限を付与';
 
   @override
-  String get storagePermissionLimited => '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
+  String get storagePermissionLimited =>
+      '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1120,7 +1125,8 @@ class SJa extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials =>
+      'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1152,7 +1158,8 @@ class SJa extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc =>
+      'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1198,7 +1205,8 @@ class SJa extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty =>
+      'No known hosts yet. Connect to a server to add one.';
 
   @override
   String get removeHost => 'Remove Host';
@@ -1212,7 +1220,8 @@ class SJa extends S {
   String get clearAllKnownHosts => 'Clear All Known Hosts';
 
   @override
-  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+  String get clearAllKnownHostsConfirm =>
+      'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
   String get importKnownHosts => 'Import Known Hosts';
@@ -1238,4 +1247,90 @@ class SJa extends S {
 
   @override
   String get noHostsToExport => 'No known hosts to export';
+
+  @override
+  String get sshKeys => 'SSH Keys';
+
+  @override
+  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+
+  @override
+  String get noKeys => 'No SSH keys. Import or generate one.';
+
+  @override
+  String get generateKey => 'Generate Key';
+
+  @override
+  String get importKey => 'Import Key';
+
+  @override
+  String get keyLabel => 'Key Label';
+
+  @override
+  String get keyLabelHint => 'e.g. Work Server, GitHub';
+
+  @override
+  String get selectKeyType => 'Key Type';
+
+  @override
+  String get generating => 'Generating...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'Key generated: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'Key imported: $label';
+  }
+
+  @override
+  String get deleteKey => 'Delete Key';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'Delete key \"$label\"? Sessions using it will lose access.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'Key deleted: $label';
+  }
+
+  @override
+  String get publicKey => 'Public Key';
+
+  @override
+  String get publicKeyCopied => 'Public key copied to clipboard';
+
+  @override
+  String get pastePrivateKey => 'Paste Private Key (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'Invalid PEM key data';
+
+  @override
+  String get selectFromKeyStore => 'Select from Key Store';
+
+  @override
+  String get noKeySelected => 'No key selected';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count keys',
+      one: '1 key',
+      zero: 'No keys',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'Generated';
 }

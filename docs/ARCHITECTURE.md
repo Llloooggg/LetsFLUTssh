@@ -549,6 +549,35 @@ class CredentialStoreException {
 
 **Why not flutter_secure_storage:** Needs pure Dart (cross-platform). flutter_secure_storage depends on OS keychain — different behavior across platforms.
 
+#### KeyStore
+
+Central SSH key store — encrypted with the same `credentials.key` as CredentialStore.
+
+```dart
+class KeyStore {
+  // Storage: keys.enc (AES-256-GCM, same key as CredentialStore)
+  Future<Map<String, SshKeyEntry>> loadAll();
+  Future<void> save(SshKeyEntry entry);
+  Future<void> delete(String id);
+  SshKeyEntry importKey(String pem, String label);      // parse PEM, detect type
+  static SshKeyEntry generateKeyPair(SshKeyType, label); // Ed25519 or RSA
+
+  // Key generation:
+  // - Ed25519: pinenacl SigningKey.generate() → OpenSSHEd25519KeyPair → toPem()
+  // - RSA: pointycastle RSAKeyGenerator → OpenSSHRsaKeyPair → toPem()
+}
+
+class SshKeyEntry {
+  final String id, label, privateKey, publicKey, keyType;
+  final DateTime createdAt;
+  final bool isGenerated;
+}
+
+enum SshKeyType { ed25519, rsa2048, rsa4096 }
+```
+
+**Session integration:** `SessionAuth.keyId` references a key by ID. Resolved in `SessionConnect._resolveConfig()` — key's PEM injected into `SSHConfig.auth.keyData` before connecting. SSH layer receives plain PEM text, unchanged.
+
 ---
 
 ### 3.7 Configuration (`core/config/`)
@@ -778,6 +807,8 @@ class AppShortcutRegistry {
 | `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
 | `localeProvider` | Provider | configProvider | Locale? (null = system default) |
 | `knownHostsProvider` | Provider | — | KnownHostsManager |
+| `keyStoreProvider` | Provider | — | KeyStore |
+| `sshKeysProvider` | FutureProvider | — | List\<SshKeyEntry\> |
 | `connectionManagerProvider` | Provider | knownHostsProvider | ConnectionManager singleton |
 | `connectionsProvider` | StreamProvider | connectionManagerProvider | Real-time connection list |
 | `transferManagerProvider` | Provider | — | TransferManager singleton |
@@ -1096,9 +1127,10 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
 | `settings_sections.dart` | — | Section-specific build methods (part of `settings_screen.dart`) |
 | `known_hosts_manager.dart` | `KnownHostsManagerDialog` | Known hosts management dialog (search, delete, import, export, clear) |
+| `key_manager/key_manager_dialog.dart` | `KeyManagerDialog` | SSH key management dialog (list, generate, import, delete, copy public key) |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
 
-**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Security (known hosts manager), Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
+**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Security (known hosts manager), SSH Keys (key manager), Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
 
 **Desktop:** Settings are embedded directly in `MainScreen` via `ShellMode`. The toolbar settings button toggles between `ShellMode.sessions` and `ShellMode.settings` — no route navigation. `SettingsSidebar` + `SettingsContent` replace the session panel and tab area while sharing the same `AppShell` frame (sidebar width preserved).
 
