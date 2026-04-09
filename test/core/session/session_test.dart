@@ -147,6 +147,23 @@ void main() {
       expect(restored.keyPath, '/home/.ssh/id_rsa');
     });
 
+    test('JSON roundtrip preserves keyId', () {
+      final s = Session(
+        label: 'with-key-id',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(authType: AuthType.key, keyId: 'store-key-42'),
+      );
+      final json = s.toJson();
+      expect(json['key_id'], 'store-key-42');
+      final restored = Session.fromJson(json);
+      expect(restored.keyId, 'store-key-42');
+    });
+
+    test('JSON without key_id defaults to empty', () {
+      final restored = Session.fromJson({'id': 'x', 'host': 'h', 'user': 'u'});
+      expect(restored.keyId, isEmpty);
+    });
+
     test('copyWith updates fields', () {
       final s = Session(
         label: 'a',
@@ -253,6 +270,24 @@ void main() {
     test('not equal to other types', () {
       const a = SessionAuth();
       expect(a == Object(), isFalse);
+    });
+
+    test('keyId preserved in copyWith', () {
+      const auth = SessionAuth(keyId: 'key-123', authType: AuthType.key);
+      final copy = auth.copyWith(password: 'pw');
+      expect(copy.keyId, 'key-123');
+      expect(copy.password, 'pw');
+    });
+
+    test('keyId included in equality', () {
+      const a = SessionAuth(keyId: 'k1');
+      const b = SessionAuth(keyId: 'k2');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('keyId defaults to empty', () {
+      const auth = SessionAuth();
+      expect(auth.keyId, isEmpty);
     });
   });
 

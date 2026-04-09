@@ -36,8 +36,20 @@ class KnownHostsManagerDialog extends ConsumerStatefulWidget {
 class _KnownHostsManagerDialogState
     extends ConsumerState<KnownHostsManagerDialog> {
   String _filter = '';
+  bool _loading = true;
 
   KnownHostsManager get _manager => ref.read(knownHostsProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHosts();
+  }
+
+  Future<void> _loadHosts() async {
+    await _manager.load();
+    if (mounted) setState(() => _loading = false);
+  }
 
   List<MapEntry<String, String>> get _filteredEntries {
     final entries = _manager.entries.entries.toList()
@@ -68,7 +80,11 @@ class _KnownHostsManagerDialogState
             _buildToolbar(s, totalCount),
             const Divider(height: 1),
             Expanded(
-              child: entries.isEmpty
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : entries.isEmpty
                   ? Center(
                       child: Text(
                         totalCount == 0
