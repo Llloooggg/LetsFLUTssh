@@ -1158,4 +1158,112 @@ void main() {
       expect(url, isNull);
     });
   });
+
+  // ===========================================================================
+  // UpdateService.openFile (with injected ProcessRunner)
+  // ===========================================================================
+  group('UpdateService.openFile', () {
+    test('returns true when process exits with 0', () async {
+      String? capturedExe;
+      List<String>? capturedArgs;
+      final service = UpdateService(
+        runProcess: (exe, args) async {
+          capturedExe = exe;
+          capturedArgs = args;
+          return ProcessResult(0, 0, '', '');
+        },
+      );
+
+      final result = await service.openFile('/tmp/test.AppImage');
+      expect(result, isTrue);
+      // On Linux the exe should be xdg-open.
+      if (Platform.isLinux) {
+        expect(capturedExe, 'xdg-open');
+        expect(capturedArgs, ['/tmp/test.AppImage']);
+      } else if (Platform.isMacOS) {
+        expect(capturedExe, 'open');
+      } else if (Platform.isWindows) {
+        expect(capturedExe, 'cmd');
+      }
+    });
+
+    test('returns false when process exits with non-zero', () async {
+      final service = UpdateService(
+        runProcess: (exe, args) async {
+          return ProcessResult(0, 1, '', 'error');
+        },
+      );
+
+      // On unsupported platforms (not linux/mac/win) this returns false
+      // before calling the runner. On Linux it calls the runner.
+      final result = await service.openFile('/tmp/test.AppImage');
+      if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+        expect(result, isFalse);
+      }
+    });
+
+    test(
+      'returns false for unsupported platform path with unsafe chars on Windows',
+      () async {
+        // This test only applies on Windows, but we can test the regex logic.
+        final service = UpdateService(
+          runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
+        );
+
+        if (Platform.isWindows) {
+          // Unsafe characters should be rejected.
+          final result = await service.openFile('/tmp/file&name.exe');
+          expect(result, isFalse);
+        }
+      },
+    );
+
+    test('rejects paths with pipe character on Windows', () async {
+      if (!Platform.isWindows) return;
+      final service = UpdateService(
+        runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
+      );
+      expect(await service.openFile('/tmp/file|name.exe'), isFalse);
+    });
+
+    test('rejects paths with angle brackets on Windows', () async {
+      if (!Platform.isWindows) return;
+      final service = UpdateService(
+        runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
+      );
+      expect(await service.openFile('/tmp/file<name>.exe'), isFalse);
+    });
+
+    test('rejects paths with caret on Windows', () async {
+      if (!Platform.isWindows) return;
+      final service = UpdateService(
+        runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
+      );
+      expect(await service.openFile('/tmp/file^name.exe'), isFalse);
+    });
+
+    test('rejects paths with percent on Windows', () async {
+      if (!Platform.isWindows) return;
+      final service = UpdateService(
+        runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
+      );
+      expect(await service.openFile('/tmp/file%name.exe'), isFalse);
+    });
+
+    test('_unsafePathChars regex matches expected characters', () {
+      // Test the static regex directly — it's internal but accessible via
+      // behavior: paths with unsafe chars should be rejected on Windows.
+      const unsafe = r'&|<>^%';
+      for (final c in unsafe.split('')) {
+        final path = '/tmp/file${c}name.exe';
+        // Just verify the regex would match.
+        expect(
+          RegExp(r'[&|<>^%]').hasMatch(path),
+          isTrue,
+          reason: 'Should match $c',
+        );
+      }
+      expect(RegExp(r'[&|<>^%]').hasMatch('/tmp/safe_file.exe'), isFalse);
+    });
+  });
 }

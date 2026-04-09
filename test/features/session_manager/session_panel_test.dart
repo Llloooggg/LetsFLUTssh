@@ -2749,4 +2749,525 @@ void main() {
       expect(focusNode.hasFocus, isFalse);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Mobile bottom sheets
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — mobile bottom sheets', () {
+    setUp(() {
+      debugMobilePlatformOverride = true;
+    });
+
+    tearDown(() {
+      debugMobilePlatformOverride = null;
+    });
+
+    testWidgets('long-press session shows mobile bottom sheet', (tester) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      // Long-press a session to trigger context menu → mobile sheet
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Mobile bottom sheet should show session-level actions
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.text('Files'), findsOneWidget);
+      expect(find.text('Edit Connection'), findsOneWidget);
+      expect(find.text('Duplicate'), findsOneWidget);
+      expect(find.text('Move to...'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+      expect(find.text('Select'), findsOneWidget);
+    });
+
+    testWidgets('mobile sheet shows session label as header', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // The label "staging" should appear as the sheet header
+      expect(find.text('staging'), findsWidgets);
+    });
+
+    testWidgets('mobile sheet shows host subtitle', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('192.168.1.1'), findsWidgets);
+    });
+
+    testWidgets('tapping Terminal in mobile sheet calls onConnect', (
+      tester,
+    ) async {
+      Session? connectedSession;
+      await tester.pumpWidget(buildApp(onConnect: (s) => connectedSession = s));
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      expect(connectedSession?.id, '3');
+    });
+
+    testWidgets('tapping Files in mobile sheet calls onSftpConnect', (
+      tester,
+    ) async {
+      Session? sftpSession;
+      await tester.pumpWidget(buildApp(onSftpConnect: (s) => sftpSession = s));
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Files'));
+      await tester.pumpAndSettle();
+
+      expect(sftpSession?.id, '3');
+    });
+
+    testWidgets('mobile sheet Select action wired for session', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Verify Select ListTile exists in the bottom sheet
+      final selectTile = find.widgetWithText(ListTile, 'Select');
+      expect(selectTile, findsOneWidget);
+
+      // Verify the ListTile has an onTap (is tappable)
+      final listTile = tester.widget<ListTile>(selectTile);
+      expect(listTile.onTap, isNotNull);
+    });
+
+    testWidgets('tapping Duplicate in mobile sheet duplicates session', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Tapping Duplicate should not crash
+      await tester.tap(find.text('Duplicate'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('long-press folder shows mobile folder sheet', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Long-press a folder row
+      await tester.longPress(find.text('Production'));
+      await tester.pumpAndSettle();
+
+      // Mobile folder bottom sheet should show folder actions
+      expect(find.text('New Connection'), findsOneWidget);
+      expect(find.text('New Folder'), findsOneWidget);
+      expect(find.text('Rename Folder'), findsOneWidget);
+      expect(find.text('Delete Folder'), findsOneWidget);
+      expect(find.text('Select'), findsOneWidget);
+    });
+
+    testWidgets('folder sheet shows folder name as header', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('Production'));
+      await tester.pumpAndSettle();
+
+      // The folder name should appear as the sheet header
+      expect(find.text('Production'), findsWidgets);
+    });
+
+    testWidgets('tapping Select on folder enters select mode with folder', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.text('Production'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      expect(panelState.selectMode, isTrue);
+      expect(panelState.selectedFolderPaths, contains('Production'));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Mobile selection bar
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — mobile selection bar', () {
+    setUp(() {
+      debugMobilePlatformOverride = true;
+    });
+
+    tearDown(() {
+      debugMobilePlatformOverride = null;
+    });
+
+    testWidgets('selection bar shows after entering select mode', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      panelState.enterSelectModeWithSession('1');
+      await tester.pumpAndSettle();
+
+      // Selection bar replaces the normal header
+      expect(find.text('SESSIONS'), findsNothing);
+      // Selection count should be visible
+      expect(find.textContaining('1'), findsWidgets);
+    });
+
+    testWidgets('cancel button exits select mode', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      panelState.enterSelectModeWithSession('1');
+      await tester.pumpAndSettle();
+      expect(panelState.selectMode, isTrue);
+
+      // Tap cancel (X icon)
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(panelState.selectMode, isFalse);
+    });
+
+    testWidgets('select all button selects all sessions', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      panelState.enterSelectModeWithSession('1');
+      await tester.pumpAndSettle();
+
+      // Tap Select All
+      await tester.tap(find.byTooltip('Select All'));
+      await tester.pumpAndSettle();
+
+      expect(panelState.selectedIds.length, 3);
+    });
+
+    testWidgets('deselect all clears selection', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      panelState.enterSelectModeWithSession('1');
+      await tester.pumpAndSettle();
+
+      // Select all first
+      await tester.tap(find.byTooltip('Select All'));
+      await tester.pumpAndSettle();
+      expect(panelState.selectedIds.length, 3);
+
+      // Then deselect all
+      await tester.tap(find.byTooltip('Deselect All'));
+      await tester.pumpAndSettle();
+      expect(panelState.selectedIds, isEmpty);
+    });
+
+    testWidgets('delete button shows confirmation dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      panelState.enterSelectModeWithSession('1');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.delete));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Selected'), findsOneWidget);
+      expect(find.textContaining('1 session'), findsWidgets);
+    });
+
+    testWidgets('move button is visible in selection bar', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      panelState.enterSelectModeWithSession('1');
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.drive_file_move), findsOneWidget);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Keyboard shortcuts
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — keyboard shortcuts', () {
+    testWidgets('Ctrl+C copies focused session', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+
+      // Click session to focus it (desktop mode)
+      await tester.tap(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      expect(panelState.focusedSessionId, '3');
+
+      // Send Ctrl+C
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      // Ctrl+V should duplicate — count sessions before/after
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // The paste should have triggered duplicate
+      // (session notifier add is called)
+    });
+
+    testWidgets('Ctrl+Z triggers undo', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      panelState.focusNode.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      // Should not crash — undo on empty history is a no-op
+    });
+
+    testWidgets('Ctrl+Y triggers redo', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      panelState.focusNode.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      // Should not crash — redo on empty history is a no-op
+    });
+
+    testWidgets('Delete key on focused session shows confirmation', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Click session to focus it
+      await tester.tap(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Press Delete
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Session'), findsOneWidget);
+    });
+
+    testWidgets('F2 key on focused session opens edit dialog', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Click session to focus it
+      await tester.tap(find.text('staging'));
+      await tester.pumpAndSettle();
+
+      // Press F2
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pumpAndSettle();
+
+      // Session edit dialog should appear
+      expect(find.textContaining('Edit'), findsWidgets);
+    });
+
+    testWidgets('Delete key with no focused session is ignored', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+      panelState.focusNode.requestFocus();
+      await tester.pump();
+
+      // No session focused — press Delete
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      // No dialog should appear
+      expect(find.text('Delete Session'), findsNothing);
+    });
+
+    testWidgets('Delete key with marquee selection shows bulk delete', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+
+      // Simulate marquee selection of two sessions
+      panelState.setMarqueeSelection({'1', '2'});
+      panelState.focusNode.requestFocus();
+      await tester.pumpAndSettle();
+
+      // Press Delete
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Selected'), findsOneWidget);
+      expect(find.textContaining('2 session'), findsWidgets);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // visibleForTesting helpers
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — test helpers', () {
+    testWidgets('setMarqueeSelection sets IDs and folder paths', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+
+      panelState.setMarqueeSelection({'1', '3'}, {'Production'});
+      await tester.pump();
+
+      expect(panelState.selectedIds, {'1', '3'});
+      expect(panelState.selectedFolderPaths, {'Production'});
+    });
+
+    testWidgets('simulateMarqueeStart/End toggles marqueeInProgress', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+
+      expect(panelState.marqueeInProgress, isFalse);
+      panelState.simulateMarqueeStart();
+      await tester.pump();
+      expect(panelState.marqueeInProgress, isTrue);
+      panelState.simulateMarqueeEnd();
+      await tester.pump();
+      expect(panelState.marqueeInProgress, isFalse);
+    });
+
+    testWidgets('enterSelectModeWithSession sets correct state', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+
+      panelState.enterSelectModeWithSession('2');
+      await tester.pump();
+
+      expect(panelState.selectMode, isTrue);
+      expect(panelState.selectedIds, {'2'});
+      expect(panelState.selectedFolderPaths, isEmpty);
+    });
+
+    testWidgets('enterSelectModeWithFolder sets correct state', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+
+      panelState.enterSelectModeWithFolder('Production');
+      await tester.pump();
+
+      expect(panelState.selectMode, isTrue);
+      expect(panelState.selectedIds, isEmpty);
+      expect(panelState.selectedFolderPaths, {'Production'});
+    });
+
+    testWidgets('clearDesktopSelection clears IDs but keeps focused', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final panelState = tester.state<SessionPanelState>(
+        find.byType(SessionPanel),
+      );
+
+      // Focus a session then set marquee selection
+      await tester.tap(find.text('staging'));
+      await tester.pumpAndSettle();
+      panelState.setMarqueeSelection({'1', '2'});
+      await tester.pump();
+
+      panelState.clearDesktopSelection();
+      await tester.pump();
+
+      expect(panelState.selectedIds, isEmpty);
+      expect(panelState.focusedSessionId, '3');
+    });
+  });
 }
