@@ -86,31 +86,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final dark = AppTheme.isDark;
     if (_cachedTheme == null || _cachedIsDark != dark) {
       _cachedIsDark = dark;
-      _cachedTheme = TerminalTheme(
-        cursor: AppTheme.termCursor,
-        selection: AppTheme.termSelection,
-        foreground: AppTheme.fg,
-        background: AppTheme.bg2,
-        black: AppTheme.termBlack,
-        red: AppTheme.termRed,
-        green: AppTheme.termGreen,
-        yellow: AppTheme.termYellow,
-        blue: AppTheme.termBlue,
-        magenta: AppTheme.termMagenta,
-        cyan: AppTheme.termCyan,
-        white: AppTheme.termWhite,
-        brightBlack: AppTheme.termBrightBlack,
-        brightRed: AppTheme.termBrightRed,
-        brightGreen: AppTheme.termBrightGreen,
-        brightYellow: AppTheme.termBrightYellow,
-        brightBlue: AppTheme.termBrightBlue,
-        brightMagenta: AppTheme.termBrightMagenta,
-        brightCyan: AppTheme.termBrightCyan,
-        brightWhite: AppTheme.termBrightWhite,
-        searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
-        searchHitBackgroundCurrent: AppTheme.accent,
-        searchHitForeground: AppTheme.searchHitFg,
-      );
+      _cachedTheme = AppTheme.terminalTheme;
     }
     return _cachedTheme!;
   }
@@ -480,37 +456,12 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
       return;
     }
 
-    final queryLower = query.toLowerCase();
     final buffer = widget.terminal.buffer;
     final highlights = <TerminalHighlight>[];
     const maxMatches = 1000;
 
-    for (var y = 0; y < buffer.height; y++) {
-      final lineText = buffer.lines[y].toString().toLowerCase();
-      var startIndex = 0;
-      while (true) {
-        final pos = lineText.indexOf(queryLower, startIndex);
-        if (pos < 0) break;
-        try {
-          final p1 = buffer.createAnchor(pos, y);
-          final p2 = buffer.createAnchor(pos + query.length, y);
-          highlights.add(
-            widget.terminalController.highlight(
-              p1: p1,
-              p2: p2,
-              color: AppTheme.searchHighlight,
-            ),
-          );
-        } catch (e) {
-          AppLogger.instance.log(
-            'Highlight failed at ($pos, $y): $e',
-            name: 'TerminalSearch',
-          );
-        }
-        if (highlights.length >= maxMatches) break;
-        startIndex = pos + 1;
-      }
-      if (highlights.length >= maxMatches) break;
+    for (var y = 0; y < buffer.height && highlights.length < maxMatches; y++) {
+      _highlightLineMatches(buffer, y, query, highlights, maxMatches);
     }
 
     setState(() {
@@ -518,6 +469,39 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
       _totalMatches = highlights.length;
       _currentMatchIndex = highlights.isNotEmpty ? 0 : -1;
     });
+  }
+
+  void _highlightLineMatches(
+    Buffer buffer,
+    int y,
+    String query,
+    List<TerminalHighlight> highlights,
+    int maxMatches,
+  ) {
+    final lineText = buffer.lines[y].toString().toLowerCase();
+    final queryLower = query.toLowerCase();
+    var startIndex = 0;
+    while (startIndex < lineText.length && highlights.length < maxMatches) {
+      final pos = lineText.indexOf(queryLower, startIndex);
+      if (pos < 0) break;
+      try {
+        final p1 = buffer.createAnchor(pos, y);
+        final p2 = buffer.createAnchor(pos + query.length, y);
+        highlights.add(
+          widget.terminalController.highlight(
+            p1: p1,
+            p2: p2,
+            color: AppTheme.searchHighlight,
+          ),
+        );
+      } catch (e) {
+        AppLogger.instance.log(
+          'Highlight failed at ($pos, $y): $e',
+          name: 'TerminalSearch',
+        );
+      }
+      startIndex = pos + 1;
+    }
   }
 
   void _nextMatch() {
