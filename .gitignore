@@ -5,6 +5,7 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 .metadata
+devtools_options.yaml
 
 # IDE
 .idea/
