@@ -1360,4 +1360,24 @@ class SRu extends S {
 
   @override
   String get generated => 'Сгенерирован';
+
+  @override
+  String get passphraseRequired => 'Требуется парольная фраза';
+
+  @override
+  String passphrasePrompt(String host) {
+    return 'SSH-ключ для $host зашифрован. Введите парольную фразу для разблокировки.';
+  }
+
+  @override
+  String get passphraseWrong => 'Неверная парольная фраза. Попробуйте ещё раз.';
+
+  @override
+  String get passphrase => 'Парольная фраза';
+
+  @override
+  String get rememberPassphrase => 'Запомнить для этой сессии';
+
+  @override
+  String get unlock => 'Разблокировать';
 }

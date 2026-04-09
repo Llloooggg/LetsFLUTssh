@@ -2456,6 +2456,42 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Generated'**
   String get generated;
+
+  /// No description provided for @passphraseRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Passphrase Required'**
+  String get passphraseRequired;
+
+  /// No description provided for @passphrasePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'The SSH key for {host} is encrypted. Enter the passphrase to unlock it.'**
+  String passphrasePrompt(String host);
+
+  /// No description provided for @passphraseWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong passphrase. Please try again.'**
+  String get passphraseWrong;
+
+  /// No description provided for @passphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Passphrase'**
+  String get passphrase;
+
+  /// No description provided for @rememberPassphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember for this session'**
+  String get rememberPassphrase;
+
+  /// No description provided for @unlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlock;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

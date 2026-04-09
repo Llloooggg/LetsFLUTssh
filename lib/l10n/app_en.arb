@@ -905,5 +905,18 @@
       }
     }
   },
-  "generated": "Generated"
+  "generated": "Generated",
+  "passphraseRequired": "Passphrase Required",
+  "passphrasePrompt": "The SSH key for {host} is encrypted. Enter the passphrase to unlock it.",
+  "@passphrasePrompt": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "passphraseWrong": "Wrong passphrase. Please try again.",
+  "passphrase": "Passphrase",
+  "rememberPassphrase": "Remember for this session",
+  "unlock": "Unlock"
 }

@@ -1350,4 +1350,24 @@ class SId extends S {
 
   @override
   String get generated => 'Generated';
+
+  @override
+  String get passphraseRequired => 'Passphrase Required';
+
+  @override
+  String passphrasePrompt(String host) {
+    return 'The SSH key for $host is encrypted. Enter the passphrase to unlock it.';
+  }
+
+  @override
+  String get passphraseWrong => 'Wrong passphrase. Please try again.';
+
+  @override
+  String get passphrase => 'Passphrase';
+
+  @override
+  String get rememberPassphrase => 'Remember for this session';
+
+  @override
+  String get unlock => 'Unlock';
 }

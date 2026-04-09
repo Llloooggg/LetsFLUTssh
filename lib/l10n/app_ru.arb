@@ -397,5 +397,11 @@
   "selectFromKeyStore": "Выбрать из хранилища ключей",
   "noKeySelected": "Ключ не выбран",
   "keyCount": "{count, plural, =0{Нет ключей} =1{1 ключ} few{{count} ключа} other{{count} ключей}}",
-  "generated": "Сгенерирован"
+  "generated": "Сгенерирован",
+  "passphraseRequired": "Требуется парольная фраза",
+  "passphrasePrompt": "SSH-ключ для {host} зашифрован. Введите парольную фразу для разблокировки.",
+  "passphraseWrong": "Неверная парольная фраза. Попробуйте ещё раз.",
+  "passphrase": "Парольная фраза",
+  "rememberPassphrase": "Запомнить для этой сессии",
+  "unlock": "Разблокировать"
 }
