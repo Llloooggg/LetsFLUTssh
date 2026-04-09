@@ -127,6 +127,7 @@ lib/
 │   ├── cross_marquee_controller.dart # Cross-widget marquee selection notifier
 │   ├── error_state.dart             # Error display with retry/secondary actions
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
+│   ├── passphrase_dialog.dart      # Interactive SSH key passphrase prompt
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
@@ -183,18 +184,29 @@ class SSHConnection {
 
   SSHClient? get client;        // dartssh2 client
   bool get isConnected;
+
+  PassphraseCallback? onPassphraseRequired;  // interactive passphrase prompt
+  static const maxPassphraseAttempts = 3;
 }
 ```
 
 #### Auth chain — attempt order
 
 ```
-1. keyPath → read file, parse PEM → SSHKeyPair
-2. keyData → parse PEM string → SSHKeyPair
+1. keyPath → read file, resolve passphrase → SSHKeyPair
+2. keyData → resolve passphrase, parse PEM → SSHKeyPair
 3. password → SSHPasswordAuth
 4. interactive → keyboard-interactive prompt (fallback)
 Each step is skipped if the parameter is empty.
 On failure of any step → AuthError.
+
+Passphrase resolution (for encrypted keys):
+  1. If config.passphrase is set → use it (stored or cached)
+  2. Try SSHKeyPair.fromPem(pem, null) → if unencrypted, succeed
+  3. If encrypted + no callback → AuthError
+  4. Invoke onPassphraseRequired(host, attempt) up to 3 times
+  5. User cancel (null) → AuthError; wrong passphrase → retry
+  6. Correct passphrase → use it; cached via Connection.cachedPassphrase
 ```
 
 #### KnownHostsManager
@@ -459,6 +471,7 @@ class Connection {
   SSHConnection? sshConnection;
   SSHConnectionState state;  // disconnected | connecting | connected
   Object? connectionError;
+  String? cachedPassphrase;  // interactively entered, reused on reconnect
 
   Stream<ConnectionStep> progressStream;  // broadcasts steps during connect
   List<ConnectionStep> progressHistory;   // buffered for late subscribers
@@ -482,8 +495,13 @@ class ConnectionManager {
     ActiveCountCallback? onActiveCountChanged,  // notifies foreground service
   });
 
+  PassphrasePromptCallback? onPassphraseRequired;  // set by UI layer (main.dart)
+
   Connection connectAsync(SSHConfig config, {String? label, String? sessionId});
   // Returns Connection immediately in state=connecting. SSH handshake runs in background.
+  // _doConnect injects cachedPassphrase into config and wires onPassphraseRequired
+  // onto the SSHConnection before connect(). If user checks "remember", the passphrase
+  // is stored in Connection.cachedPassphrase for automatic reuse on reconnect.
   void disconnect(String connectionId);
   void disconnectAll();  // also completes pending ready futures for in-progress connections
 
@@ -1382,6 +1400,16 @@ HostKeyDialog.showNewHost(context, {host, port, keyType, fingerprint})    → Fu
 HostKeyDialog.showKeyChanged(context, {host, port, keyType, fingerprint}) → Future<bool>
 ```
 TOFU dialogs: new host / key changed.
+
+### PassphraseDialog
+
+```dart
+PassphraseDialog.show(context, {required String host, int? attempt}) → Future<PassphraseResult?>
+class PassphraseResult { String passphrase; bool remember; }
+```
+Interactive prompt for encrypted SSH key passphrase. Shows "wrong passphrase" on retry (attempt > 1).
+Checkbox "Remember for this session" (default: checked). Returns null on cancel.
+Wired via `ConnectionManager.onPassphraseRequired` → `SSHConnection.onPassphraseRequired`.
 
 ### ConfirmDialog
 

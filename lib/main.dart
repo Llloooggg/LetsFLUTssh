@@ -17,6 +17,7 @@ import 'core/import/import_service.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/app_dialog.dart';
 import 'widgets/host_key_dialog.dart';
+import 'widgets/passphrase_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/cross_marquee_controller.dart';
 import 'widgets/app_icon_button.dart';
@@ -160,6 +161,20 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   }
 
   void _setupHostKeyCallbacks() {
+    // Interactive passphrase prompt for encrypted SSH keys.
+    final connManager = ref.read(connectionManagerProvider);
+    connManager.onPassphraseRequired = (host, attempt) async {
+      final ctx = navigatorKey.currentContext;
+      if (ctx == null) return null;
+      final result = await PassphraseDialog.show(
+        ctx,
+        host: host,
+        attempt: attempt,
+      );
+      if (result == null) return null;
+      return (passphrase: result.passphrase, remember: result.remember);
+    };
+
     final knownHosts = ref.read(knownHostsProvider);
     knownHosts.onUnknownHost = (host, port, keyType, fingerprint) async {
       final ctx = navigatorKey.currentContext;

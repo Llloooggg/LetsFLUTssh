@@ -26,6 +26,10 @@ class Connection {
   SSHConnection? sshConnection;
   SSHConnectionState state;
 
+  /// Passphrase entered interactively — cached for reconnect within same session.
+  /// Cleared on disconnect. Set by [ConnectionManager] when user checks "remember".
+  String? cachedPassphrase;
+
   /// Raw error from last connection attempt, null if no error.
   /// Use [localizeError] from `utils/format.dart` to display to user.
   Object? connectionError;

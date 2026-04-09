@@ -15,6 +15,13 @@ typedef SSHConnectionFactory =
 /// Optional callback invoked when the number of active (connected) sessions changes.
 typedef ActiveCountCallback = void Function(int activeCount);
 
+/// Callback for interactive passphrase prompts — set by the UI layer.
+typedef PassphrasePromptCallback =
+    Future<({String passphrase, bool remember})?> Function(
+      String host,
+      int attempt,
+    );
+
 /// Manages active SSH connections lifecycle.
 ///
 /// Tracks connections, associates them with tabs, notifies listeners.
@@ -30,6 +37,10 @@ class ConnectionManager {
   /// Called whenever the number of *connected* sessions changes.
   /// Used by [ForegroundServiceManager] on Android to start/stop the service.
   ActiveCountCallback? onActiveCountChanged;
+
+  /// Called when an encrypted SSH key needs a passphrase interactively.
+  /// Set by the UI layer (main.dart) — same pattern as host key callbacks.
+  PassphrasePromptCallback? onPassphraseRequired;
 
   final _controller = StreamController<void>.broadcast();
 
@@ -90,12 +101,29 @@ class ConnectionManager {
     SSHConfig config,
     int generation,
   ) async {
+    // Inject cached passphrase from a previous interactive prompt (reconnect).
+    if (conn.cachedPassphrase != null && config.passphrase.isEmpty) {
+      config = config.copyWith(
+        auth: config.auth.copyWith(passphrase: conn.cachedPassphrase!),
+      );
+    }
+
     final sshConn = _connectionFactory(config, knownHosts);
     sshConn.onDisconnect = () {
       conn.state = SSHConnectionState.disconnected;
       conn.sshConnection = null;
       _notify();
     };
+
+    // Wire interactive passphrase prompt if the UI layer provided one.
+    if (onPassphraseRequired != null) {
+      sshConn.onPassphraseRequired = (host, attempt) async {
+        final result = await onPassphraseRequired!(host, attempt);
+        if (result == null) return null;
+        if (result.remember) conn.cachedPassphrase = result.passphrase;
+        return result.passphrase;
+      };
+    }
 
     try {
       await sshConn
