@@ -2142,6 +2142,23 @@ Rule: **one test file per source file** (`lib/core/ssh/ssh_client.dart` → `tes
 
 Uses `mockito` + `@GenerateMocks`. Generated mocks: `*.mocks.dart`.
 
+### Fuzz testing
+
+Two layers of fuzz testing:
+
+**Dart property-based tests** (`test/fuzz/`): run as part of `make test` (included in `test/`). Generate random/malformed inputs for parsers and verify they never crash with unhandled exceptions. Targets:
+
+| Test file | Fuzzed function | Input type |
+|-----------|----------------|------------|
+| `fuzz_session_json_test.dart` | `Session.fromJson()` | Random JSON maps |
+| `fuzz_qr_codec_test.dart` | `decodeSessionsFromQr()`, `decodeImportUri()` | Random strings, URIs |
+| `fuzz_app_config_test.dart` | `AppConfig.fromJson()` + sub-configs | Random JSON maps |
+| `fuzz_deeplink_test.dart` | `DeepLinkHandler.parseConnectUri()` | Random URIs |
+
+**Standalone fuzz harnesses** (`fuzz/`): compiled to native via `dart compile exe` (`make fuzz-build`). Read from stdin, exercise parsing logic, used by ClusterFuzzLite/AFL++ in CI. Targets: `fuzz_json_parser`, `fuzz_known_hosts`, `fuzz_uri_parser`.
+
+**CI integration**: `.github/workflows/cfl-fuzz.yml` runs ClusterFuzzLite weekly + on changes to `fuzz/` or `.clusterfuzzlite/`. Detected by OpenSSF Scorecard's Fuzzing check.
+
 ---
 
 ## 15. CI/CD Pipeline
@@ -2182,6 +2199,9 @@ push to dev/main or PR
   │                             build all platforms
   │                             → GitHub Release + SLSA attestation
   │
+  ├─► cfl-fuzz.yml             (main push + PR [fuzz/** paths] + weekly)
+  │     ClusterFuzzLite batch fuzzing
+  │
   ├─► osv.yml                 (main push + PR + weekly)
   ├─► codeql.yml              (main push + PR + weekly)
   ├─► semgrep.yml             (main push + PR + weekly)
@@ -2214,6 +2234,7 @@ Manual build
 | `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
 | `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
+| `cfl-fuzz.yml` | push main / PR (fuzz paths) / weekly | main | ClusterFuzzLite batch fuzzing | No |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 
 **External Integrations:**
@@ -2236,6 +2257,7 @@ Manual build
 | `make format` | `dart format .` | Format code |
 | `make gen` | `build_runner build` | Code generation |
 | `make deps` | `flutter pub get` | Install dependencies |
+| `make fuzz-build` | `dart compile exe fuzz/*.dart` | Compile native fuzz targets |
 
 #### Build
 
