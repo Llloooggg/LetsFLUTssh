@@ -2221,7 +2221,7 @@ push to dev/main or PR
   │                             → GitHub Release + SLSA attestation
   │
   ├─► cfl-fuzz.yml             (push main / PR to main)
-  │     ClusterFuzzLite batch fuzzing
+  │     cfl-fuzz
   │
   ├─► osv.yml                 (main push + PR + weekly)
   ├─► codeql.yml              (main push + PR + weekly)
@@ -2255,7 +2255,7 @@ Manual build
 | `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
 | `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
-| `cfl-fuzz.yml` | push main / PR to main | main | ClusterFuzzLite batch fuzzing | No |
+| `cfl-fuzz.yml` | push main / PR to main | main | cfl-fuzz | No |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 
 **External Integrations:**
