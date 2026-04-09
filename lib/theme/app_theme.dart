@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:xterm/xterm.dart';
 
 import '../utils/platform.dart' as plat;
 
@@ -654,6 +655,68 @@ abstract final class AppTheme {
 
   /// Terminal search hit foreground — high-contrast text on colored bg.
   static Color get searchHitFg => isDark ? _termBrightWhite : _lightFgBright;
+
+  /// Shared terminal color theme for xterm views.
+  static TerminalTheme get terminalTheme => TerminalTheme(
+    cursor: termCursor,
+    selection: termSelection,
+    foreground: fg,
+    background: bg2,
+    black: termBlack,
+    red: termRed,
+    green: termGreen,
+    yellow: termYellow,
+    blue: termBlue,
+    magenta: termMagenta,
+    cyan: termCyan,
+    white: termWhite,
+    brightBlack: termBrightBlack,
+    brightRed: termBrightRed,
+    brightGreen: termBrightGreen,
+    brightYellow: termBrightYellow,
+    brightBlue: termBrightBlue,
+    brightMagenta: termBrightMagenta,
+    brightCyan: termBrightCyan,
+    brightWhite: termBrightWhite,
+    searchHitBackground: accent.withValues(alpha: 0.3),
+    searchHitBackgroundCurrent: accent,
+    searchHitForeground: searchHitFg,
+  );
+
+  /// Standard input decoration used across dialogs.
+  ///
+  /// Provides consistent filled input styling with themed borders.
+  /// Pass [labelText], [hintText], or [hintStyle] to customize per-use.
+  static InputDecoration inputDecoration({
+    String? labelText,
+    String? hintText,
+    TextStyle? hintStyle,
+    EdgeInsetsGeometry contentPadding = const EdgeInsets.symmetric(
+      horizontal: 10,
+      vertical: 10,
+    ),
+  }) {
+    final normalBorder = OutlineInputBorder(
+      borderRadius: radiusSm,
+      borderSide: BorderSide(color: borderLight),
+    );
+    return InputDecoration(
+      labelText: labelText,
+      hintText: hintText,
+      labelStyle: TextStyle(color: fgFaint),
+      hintStyle: hintStyle ?? TextStyle(color: fgFaint),
+      filled: true,
+      fillColor: bg3,
+      isDense: true,
+      contentPadding: contentPadding,
+      border: normalBorder,
+      enabledBorder: normalBorder,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radiusSm,
+        borderSide: BorderSide(color: accent),
+      ),
+    );
+  }
 }
 
 /// Colors that don't map to a [ColorScheme] role, passed to [AppTheme._buildTheme].

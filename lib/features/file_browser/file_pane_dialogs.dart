@@ -46,25 +46,10 @@ class FilePaneDialogs {
                 controller: nameCtrl,
                 autofocus: true,
                 style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: AppTheme.bg3,
-                  isDense: true,
+                decoration: AppTheme.inputDecoration(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 8,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: AppTheme.radiusSm,
-                    borderSide: BorderSide(color: AppTheme.borderLight),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: AppTheme.radiusSm,
-                    borderSide: BorderSide(color: AppTheme.borderLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: AppTheme.radiusSm,
-                    borderSide: BorderSide(color: AppTheme.accent),
                   ),
                 ),
                 onSubmitted: (v) => Navigator.of(ctx).pop(v),
