@@ -21,14 +21,7 @@ import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/status_indicator.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
-/// A WorkspaceNotifier subclass that starts with a pre-built WorkspaceState.
-class _PrePopulatedWorkspaceNotifier extends WorkspaceNotifier {
-  final WorkspaceState _initialState;
-  _PrePopulatedWorkspaceNotifier(this._initialState);
-
-  @override
-  WorkspaceState build() => _initialState;
-}
+import '../../helpers/test_notifiers.dart';
 
 /// Helper to build a WorkspaceState with tabs added via a setup callback.
 WorkspaceState _buildWorkspaceState(
@@ -68,19 +61,6 @@ class _WorkspaceStateBuilder {
         kind: TabKind.sftp,
       ),
     );
-  }
-}
-
-/// A SessionNotifier subclass that starts with pre-populated sessions.
-class _PrePopulatedSessionNotifier extends SessionNotifier {
-  final List<Session> _initialSessions;
-  _PrePopulatedSessionNotifier(this._initialSessions);
-
-  @override
-  List<Session> build() {
-    super.build();
-    state = _initialSessions;
-    return state;
   }
 }
 
@@ -223,7 +203,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) => b.addTerminalTab(conn)),
               ),
             ),
@@ -267,7 +247,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) => b.addSftpTab(conn)),
               ),
             ),
@@ -311,7 +291,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState(
                   (b) => b.addTerminalTab(conn, label: 'Close Me'),
                 ),
@@ -427,7 +407,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState(
                   (b) => b.addSftpTab(conn, label: 'SFTP Close Me'),
                 ),
@@ -491,7 +471,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
                   b.addSftpTab(conn1, label: 'SFTP A');
                   b.addSftpTab(conn2, label: 'SFTP B');
@@ -552,7 +532,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
                   b.addTerminalTab(conn1, label: 'Term A');
                   b.addTerminalTab(conn2, label: 'Term B');
@@ -615,7 +595,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
                   // Add SFTP tab first, then terminal tab (terminal becomes active)
                   b.addSftpTab(sftpConn, label: 'SFTP Tab');
@@ -673,7 +653,7 @@ void main() {
                 ConnectionManager(knownHosts: KnownHostsManager()),
               ),
               workspaceProvider.overrideWith(
-                () => _PrePopulatedWorkspaceNotifier(
+                () => PrePopulatedWorkspaceNotifier(
                   _buildWorkspaceState((b) {
                     // Add terminal tab first, then SFTP tab (SFTP becomes active)
                     b.addTerminalTab(termConn, label: 'Term Tab');
@@ -711,7 +691,7 @@ void main() {
         overrides: [
           sessionStoreProvider.overrideWithValue(store),
           sessionProvider.overrideWith(
-            () => _PrePopulatedSessionNotifier(store.sessions),
+            () => PrePopulatedSessionNotifier(store.sessions),
           ),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(manager),
@@ -901,7 +881,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) => b.addTerminalTab(conn)),
               ),
             ),
@@ -947,7 +927,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) => b.addTerminalTab(conn)),
               ),
             ),
@@ -991,7 +971,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) => b.addSftpTab(conn)),
               ),
             ),
@@ -1037,7 +1017,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) => b.addSftpTab(conn)),
               ),
             ),
@@ -1083,7 +1063,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) => b.addTerminalTab(conn)),
               ),
             ),
@@ -1232,7 +1212,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
                   b.addTerminalTab(conn, label: 'Tab 1');
                   b.addTerminalTab(conn, label: 'Tab 2');
@@ -1284,7 +1264,7 @@ void main() {
             overrides: [
               sessionStoreProvider.overrideWithValue(SessionStore()),
               sessionProvider.overrideWith(
-                () => _PrePopulatedSessionNotifier(sessions),
+                () => PrePopulatedSessionNotifier(sessions),
               ),
               knownHostsProvider.overrideWithValue(KnownHostsManager()),
               connectionManagerProvider.overrideWithValue(
@@ -1440,7 +1420,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) => b.addTerminalTab(conn)),
               ),
             ),
@@ -1487,7 +1467,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) => b.addTerminalTab(conn)),
               ),
             ),
@@ -1557,7 +1537,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
                   b.addTerminalTab(conn1, label: 'Server A');
                   b.addTerminalTab(conn2, label: 'Server B');
@@ -1621,7 +1601,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
                   b.addTerminalTab(conn1, label: 'Tab X');
                   b.addTerminalTab(conn2, label: 'Tab Y');
@@ -1710,7 +1690,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
                   b.addTerminalTab(conn1, label: 'Term 1');
                   b.addTerminalTab(conn1, label: 'Term 2');
@@ -1807,7 +1787,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState((b) {
                   b.addTerminalTab(conn1, label: 'Alpha');
                   b.addTerminalTab(conn2, label: 'Beta');
@@ -1859,7 +1839,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState(
                   (b) => b.addTerminalTab(connectedConn, label: 'Green Server'),
                 ),
@@ -1917,7 +1897,7 @@ void main() {
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(
+              () => PrePopulatedWorkspaceNotifier(
                 _buildWorkspaceState(
                   (b) => b.addTerminalTab(conn, label: 'Striped'),
                 ),

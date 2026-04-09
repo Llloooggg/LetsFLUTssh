@@ -20,6 +20,8 @@ import 'package:letsflutssh/utils/logger.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/toast.dart';
 
+import '../../helpers/test_notifiers.dart';
+
 /// Mock FilePickerPlatform that returns a temp directory for getDirectoryPath
 /// and a temp file path for saveFile, without launching native dialogs.
 class _MockFilePickerPlatform extends FilePickerPlatform
@@ -60,19 +62,6 @@ class _MockFilePickerPlatform extends FilePickerPlatform
     bool readSequential = false,
     bool cancelUploadOnWindowBlur = true,
   }) async => null;
-}
-
-/// A ConfigNotifier subclass that starts with a custom initial config.
-class _PrePopulatedConfigNotifier extends ConfigNotifier {
-  final AppConfig _initialConfig;
-  _PrePopulatedConfigNotifier(this._initialConfig);
-
-  @override
-  AppConfig build() {
-    super.build();
-    state = _initialConfig;
-    return state;
-  }
 }
 
 void main() {
@@ -120,8 +109,8 @@ void main() {
     final config = initialConfig ?? AppConfig.defaults;
     return ProviderScope(
       overrides: [
-        configProvider.overrideWith(() => _PrePopulatedConfigNotifier(config)),
-        appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
+        configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
+        appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
       ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
@@ -137,8 +126,8 @@ void main() {
     final config = initialConfig ?? AppConfig.defaults;
     return ProviderScope(
       overrides: [
-        configProvider.overrideWith(() => _PrePopulatedConfigNotifier(config)),
-        appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
+        configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
+        appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
         sessionStoreProvider.overrideWithValue(SessionStore()),
         sessionProvider.overrideWith(SessionNotifier.new),
       ],
@@ -2041,13 +2030,11 @@ void main() {
       final config = initialConfig ?? AppConfig.defaults;
       return ProviderScope(
         overrides: [
-          configProvider.overrideWith(
-            () => _PrePopulatedConfigNotifier(config),
-          ),
-          appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
+          configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
+          appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
           if (initialUpdateState != null)
             updateProvider.overrideWith(
-              () => _PrePopulatedUpdateNotifier(initialUpdateState),
+              () => PrePopulatedUpdateNotifier(initialUpdateState),
             ),
         ],
         child: MaterialApp(
@@ -2268,10 +2255,10 @@ void main() {
         ProviderScope(
           overrides: [
             configProvider.overrideWith(
-              () => _PrePopulatedConfigNotifier(AppConfig.defaults),
+              () => PrePopulatedConfigNotifier(AppConfig.defaults),
             ),
             appVersionProvider.overrideWith(
-              () => _FixedVersionNotifier('1.5.0'),
+              () => FixedVersionNotifier('1.5.0'),
             ),
             updateServiceProvider.overrideWithValue(mockService),
           ],
@@ -2313,10 +2300,10 @@ void main() {
         ProviderScope(
           overrides: [
             configProvider.overrideWith(
-              () => _PrePopulatedConfigNotifier(AppConfig.defaults),
+              () => PrePopulatedConfigNotifier(AppConfig.defaults),
             ),
             appVersionProvider.overrideWith(
-              () => _FixedVersionNotifier('1.5.0'),
+              () => FixedVersionNotifier('1.5.0'),
             ),
             updateServiceProvider.overrideWithValue(mockService),
           ],
@@ -2356,10 +2343,10 @@ void main() {
         ProviderScope(
           overrides: [
             configProvider.overrideWith(
-              () => _PrePopulatedConfigNotifier(AppConfig.defaults),
+              () => PrePopulatedConfigNotifier(AppConfig.defaults),
             ),
             appVersionProvider.overrideWith(
-              () => _FixedVersionNotifier('1.5.0'),
+              () => FixedVersionNotifier('1.5.0'),
             ),
             updateServiceProvider.overrideWithValue(mockService),
           ],
@@ -2504,10 +2491,8 @@ void main() {
       final config = initialConfig ?? AppConfig.defaults;
       return ProviderScope(
         overrides: [
-          configProvider.overrideWith(
-            () => _PrePopulatedConfigNotifier(config),
-          ),
-          appVersionProvider.overrideWith(() => _FixedVersionNotifier('1.5.0')),
+          configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
+          appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
         ],
         child: MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
@@ -2599,26 +2584,4 @@ void main() {
       expect(find.text('SETTINGS'), findsOneWidget);
     });
   });
-}
-
-/// An UpdateNotifier subclass that starts with a custom initial state.
-class _PrePopulatedUpdateNotifier extends UpdateNotifier {
-  final UpdateState _initial;
-  _PrePopulatedUpdateNotifier(this._initial);
-
-  @override
-  UpdateState build() {
-    super.build();
-    state = _initial;
-    return state;
-  }
-}
-
-/// An AppVersionNotifier that returns a fixed version string.
-class _FixedVersionNotifier extends AppVersionNotifier {
-  final String _version;
-  _FixedVersionNotifier(this._version);
-
-  @override
-  String build() => _version;
 }
