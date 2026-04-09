@@ -36,7 +36,7 @@ gh pr create --base main --head dev --title "TITLE" --body "$(cat <<'EOF'
 - bullet points from commits
 
 ## Test plan
-- [ ] CI passes (ci, osv-scan, semgrep-scan, codeql-scan)
+- CI passes (ci, osv-scan, semgrep-scan, codeql-scan)
 
 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
