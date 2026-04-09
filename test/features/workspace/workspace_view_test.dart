@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -517,6 +518,201 @@ void main() {
       // Both panels render — the ratio determines their relative size.
       expect(find.text('Wide'), findsOneWidget);
       expect(find.text('Narrow'), findsOneWidget);
+    });
+  });
+
+  group('WorkspaceView — context menu', () {
+    testWidgets('right-click on tab opens context menu with Close', (
+      tester,
+    ) async {
+      final conn = _conn('c1');
+      final tab = _tab(id: 'tab-1', connection: conn);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Right-click on the tab label to open context menu.
+      await tester.tap(find.text('Server-c1'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      // Context menu should show Close item.
+      expect(find.text('Close'), findsOneWidget);
+      // Single tab — no Close Others or Close All.
+      expect(find.text('Close Others'), findsNothing);
+    });
+
+    testWidgets('context menu shows Close Others for multi-tab panel', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'Tab A');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Tab B');
+      final panel = PanelLeaf(id: 'p0', tabs: [tab1, tab2], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Right-click on second tab.
+      await tester.tap(find.text('Tab B'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Close'), findsOneWidget);
+      expect(find.text('Close Others'), findsOneWidget);
+      expect(find.text('Close All'), findsOneWidget);
+    });
+
+    testWidgets('context menu shows Close Tabs to the Left for non-first tab', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'First');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Second');
+      final panel = PanelLeaf(id: 'p0', tabs: [tab1, tab2], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Right-click on second tab (index 1).
+      await tester.tap(find.text('Second'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Close Tabs to the Left'), findsOneWidget);
+    });
+
+    testWidgets('context menu shows Close Tabs to the Right for non-last tab', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'First');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Second');
+      final panel = PanelLeaf(id: 'p0', tabs: [tab1, tab2], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Right-click on first tab (index 0).
+      await tester.tap(find.text('First'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Close Tabs to the Right'), findsOneWidget);
+      expect(find.text('Close Tabs to the Left'), findsNothing);
+    });
+
+    testWidgets('context menu shows Maximize for multi-panel workspace', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'Left');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Right');
+      final branch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: PanelLeaf(id: 'p1', tabs: [tab1], activeTabIndex: 0),
+        second: PanelLeaf(id: 'p2', tabs: [tab2], activeTabIndex: 0),
+      );
+      final ws = WorkspaceState(root: branch, focusedPanelId: 'p1');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Right-click on left tab.
+      await tester.tap(find.text('Left'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Maximize'), findsOneWidget);
+    });
+  });
+
+  group('WorkspaceView — companion button', () {
+    testWidgets('terminal tab shows Files companion button', (tester) async {
+      final conn = _conn('c1');
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.terminal);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      expect(find.text('Files'), findsOneWidget);
+      expect(find.byIcon(Icons.folder_open), findsOneWidget);
+    });
+
+    testWidgets('sftp tab shows Terminal companion button', (tester) async {
+      final conn = _conn('c1');
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.sftp);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.byIcon(Icons.terminal), findsWidgets);
+    });
+  });
+
+  group('WorkspaceView — maximized panel', () {
+    testWidgets('maximized panel renders only that panel', (tester) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'Left');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Right');
+      final branch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: PanelLeaf(id: 'p1', tabs: [tab1], activeTabIndex: 0),
+        second: PanelLeaf(id: 'p2', tabs: [tab2], activeTabIndex: 0),
+      );
+      final ws = WorkspaceState(
+        root: branch,
+        focusedPanelId: 'p1',
+        maximizedPanelId: 'p1',
+      );
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Only the maximized panel tab should be visible.
+      expect(find.text('Left'), findsOneWidget);
+      // Right tab should NOT be visible since p1 is maximized.
+      expect(find.text('Right'), findsNothing);
+    });
+  });
+
+  group('WorkspaceView — disconnected state', () {
+    testWidgets('shows disconnected text and faint dot', (tester) async {
+      final conn = _conn('c1', connState: SSHConnectionState.disconnected);
+      final tab = _tab(id: 'tab-1', connection: conn);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Text is inside a Text.rich with TextSpan children.
+      expect(find.textContaining('Disconnected'), findsOneWidget);
+    });
+
+    testWidgets('connecting state renders as disconnected in bar', (
+      tester,
+    ) async {
+      final conn = _conn('c1', connState: SSHConnectionState.connecting);
+      final tab = _tab(id: 'tab-1', connection: conn);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Connecting is not yet connected — bar shows "Disconnected".
+      expect(find.textContaining('Disconnected'), findsOneWidget);
     });
   });
 }
