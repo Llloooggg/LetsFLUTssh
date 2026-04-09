@@ -131,6 +131,7 @@ lib/
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
 │   ├── mobile_selection_bar.dart    # Mobile bulk-action toolbar
+│   ├── mode_button.dart             # Shared pill-shaped toggle button (import mode)
 │   ├── readonly_terminal_view.dart  # Read-only terminal display widget
 │   ├── sortable_header_cell.dart    # Column header with sort indicator
 │   ├── split_view.dart              # Horizontal resizable split
@@ -1182,6 +1183,18 @@ HoverRegion({
 ```
 **Replaces `MouseRegion` + `GestureDetector` + `setState(_hovered)`.** Skips `MouseRegion` on mobile platforms (Android/iOS) — no pointer, saves an unnecessary widget. Exception: `context_menu.dart` (keyboard nav state).
 
+### ModeButton
+
+```dart
+ModeButton({
+  required String label,
+  required IconData icon,
+  required bool selected,
+  required VoidCallback onTap,
+})
+```
+Pill-shaped toggle button for import mode selection (merge/replace). Accent-colored when selected, neutral when not. Used in `settings_dialogs.dart` and `lfs_import_dialog.dart`.
+
 ### AppDialog
 
 ```dart
@@ -1610,6 +1623,13 @@ abstract final class AppTheme {
   static const radiusSm;  // 4 px — inputs, buttons, small elements
   static const radiusMd;  // 6 px — cards, containers, default rounding
   static const radiusLg;  // 8 px — toasts, mobile elements, larger containers
+
+  // Shared builders — eliminate duplication across dialogs and terminal views
+  static InputDecoration inputDecoration({
+    String? labelText, String? hintText, TextStyle? hintStyle,
+    EdgeInsetsGeometry contentPadding,
+  });
+  static TerminalTheme get terminalTheme; // xterm color theme from current brightness
 
   // Theme factory — both delegate to shared _buildTheme()
   static ThemeData dark();
@@ -2154,6 +2174,7 @@ Two layers of fuzz testing:
 | `fuzz_qr_codec_test.dart` | `decodeSessionsFromQr()`, `decodeImportUri()` | Random strings, URIs |
 | `fuzz_app_config_test.dart` | `AppConfig.fromJson()` + sub-configs | Random JSON maps |
 | `fuzz_deeplink_test.dart` | `DeepLinkHandler.parseConnectUri()` | Random URIs |
+| `fuzz_format_test.dart` | `sanitizeError()`, `formatSize()`, `formatDuration()` | Random strings, errno patterns, objects |
 
 **Standalone fuzz harnesses** (`fuzz/`): compiled to native via `dart compile exe` (`make fuzz-build`). Read from stdin, exercise parsing logic, used by ClusterFuzzLite/AFL++ in CI. Targets: `fuzz_json_parser`, `fuzz_known_hosts`, `fuzz_uri_parser`.
 
