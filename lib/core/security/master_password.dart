@@ -91,8 +91,8 @@ class MasterPasswordManager {
   /// 4. Returns the derived key (caller re-encrypts stores with it)
   ///
   /// The caller is responsible for:
-  /// - Re-encrypting CredentialStore and KeyStore with the returned key
-  /// - Deleting `credentials.key` after successful re-encryption
+  /// - Re-encrypting SessionStore, KeyStore, and KnownHostsManager with
+  ///   the returned key
   Future<Uint8List> enable(String password) async {
     final basePath = await _getBasePath();
     final random = Random.secure();

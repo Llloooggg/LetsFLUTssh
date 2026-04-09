@@ -7,7 +7,8 @@ import 'package:pointycastle/export.dart';
 /// AES-256-GCM encryption utility.
 ///
 /// Wire format: `[IV (12 bytes)] [ciphertext + GCM authentication tag]`.
-/// Used by [CredentialStore], [KeyStore], and [MasterPasswordManager].
+/// Used by [SessionStore], [KeyStore], [KnownHostsManager], and
+/// [MasterPasswordManager].
 class AesGcm {
   /// AES-256 key length in bytes.
   static const keyLength = 32;
