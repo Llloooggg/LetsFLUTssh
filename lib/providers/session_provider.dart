@@ -7,9 +7,14 @@ import '../core/session/session_store.dart';
 import '../core/session/session_tree.dart';
 import '../utils/logger.dart';
 
+/// Global credential store — shared between SessionStore and master password flow.
+final credentialStoreProvider = Provider<CredentialStore>((ref) {
+  return CredentialStore();
+});
+
 /// Global session store instance.
 final sessionStoreProvider = Provider<SessionStore>((ref) {
-  return SessionStore();
+  return SessionStore(credentialStore: ref.read(credentialStoreProvider));
 });
 
 /// Session list state — loaded async, notifies on changes.

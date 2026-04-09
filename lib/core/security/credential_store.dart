@@ -35,6 +35,36 @@ class CredentialStore {
   /// Guards concurrent key generation to prevent race conditions.
   Completer<Uint8List>? _keyGenCompleter;
 
+  /// External key injected by master password flow.
+  ///
+  /// When set, this key is used instead of reading `credentials.key`.
+  /// Set via [setExternalKey], cleared via [clearExternalKey].
+  Uint8List? _externalKey;
+
+  /// Set the encryption key externally (master password derived key).
+  ///
+  /// Clears the in-memory cache so data is re-decrypted with the new key.
+  void setExternalKey(Uint8List key) {
+    _externalKey = key;
+    _cache = null;
+  }
+
+  /// Clear the external key, reverting to file-based key.
+  void clearExternalKey() {
+    _externalKey = null;
+    _cache = null;
+  }
+
+  /// Whether the store is locked (master password enabled but no key provided).
+  ///
+  /// When locked, [loadAll] will throw — the caller must provide the key
+  /// via [setExternalKey] first.
+  Future<bool> get isLocked async {
+    final basePath = await _getBasePath();
+    final saltExists = await File('$basePath/credentials.salt').exists();
+    return saltExists && _externalKey == null;
+  }
+
   Future<String> _getBasePath() async {
     if (_basePath != null) return _basePath!;
     final dir = await getApplicationSupportDirectory();
@@ -54,19 +84,19 @@ class CredentialStore {
 
     final basePath = await _getBasePath();
     final credFile = File('$basePath/$_credFileName');
-    final keyFile = File('$basePath/$_keyFileName');
 
-    if (!await credFile.exists() || !await keyFile.exists()) {
+    if (!await credFile.exists()) return {};
+
+    // When no external key is set, the file-based key must exist.
+    if (_externalKey == null &&
+        !await File('$basePath/$_keyFileName').exists()) {
       return {};
     }
 
+    // Resolve encryption key
+    final keyBytes = await _resolveKey(basePath);
+
     try {
-      final keyBytes = await keyFile.readAsBytes();
-      if (keyBytes.length != keyLength) {
-        throw CredentialStoreException(
-          'Invalid key length: ${keyBytes.length} bytes (expected $keyLength)',
-        );
-      }
       final encData = await credFile.readAsBytes();
       final json = _decrypt(encData, keyBytes);
       final map = jsonDecode(json) as Map<String, dynamic>;
@@ -110,15 +140,21 @@ class CredentialStore {
   Future<void> saveAll(Map<String, CredentialData> credentials) async {
     final basePath = await _getBasePath();
     final credFile = File('$basePath/$_credFileName');
-    final keyFile = File('$basePath/$_keyFileName');
 
-    // Load or generate key with guard against concurrent generation
-    final keyBytes = await _loadOrGenerateKey(keyFile);
+    // Resolve encryption key (external or file-based)
+    final keyBytes = await _resolveKey(basePath);
 
     final json = jsonEncode(credentials.map((k, v) => MapEntry(k, v.toJson())));
     final encData = _encrypt(json, keyBytes);
     await writeBytesAtomic(credFile.path, encData);
     _cache = Map.of(credentials);
+  }
+
+  /// Resolve the encryption key: external key if set, otherwise from file.
+  Future<Uint8List> _resolveKey(String basePath) async {
+    if (_externalKey != null) return _externalKey!;
+    final keyFile = File('$basePath/$_keyFileName');
+    return _loadOrGenerateKey(keyFile);
   }
 
   /// Load existing key or generate a new one with concurrency guard.

@@ -99,6 +99,28 @@ class KeyStore {
   String? _basePath;
   Map<String, SshKeyEntry>? _cache;
 
+  /// External key injected by master password flow.
+  Uint8List? _externalKey;
+
+  /// Set the encryption key externally (master password derived key).
+  void setExternalKey(Uint8List key) {
+    _externalKey = key;
+    _cache = null;
+  }
+
+  /// Clear the external key, reverting to file-based key.
+  void clearExternalKey() {
+    _externalKey = null;
+    _cache = null;
+  }
+
+  /// Whether the store is locked (master password enabled but no key provided).
+  Future<bool> get isLocked async {
+    final basePath = await _getBasePath();
+    final saltExists = await File('$basePath/credentials.salt').exists();
+    return saltExists && _externalKey == null;
+  }
+
   Future<String> _getBasePath() async {
     if (_basePath != null) return _basePath!;
     final dir = await getApplicationSupportDirectory();
@@ -112,19 +134,19 @@ class KeyStore {
 
     final basePath = await _getBasePath();
     final keysFile = File('$basePath/$_keysFileName');
-    final keyFile = File('$basePath/$_keyFileName');
 
-    if (!await keysFile.exists() || !await keyFile.exists()) {
+    if (!await keysFile.exists()) return {};
+
+    // When no external key is set, the file-based key must exist.
+    // Without either key source, we cannot decrypt — return empty.
+    if (_externalKey == null &&
+        !await File('$basePath/$_keyFileName').exists()) {
       return {};
     }
 
+    final keyBytes = await _resolveKey(basePath);
+
     try {
-      final keyBytes = await keyFile.readAsBytes();
-      if (keyBytes.length != _keyLength) {
-        throw KeyStoreException(
-          'Invalid key length: ${keyBytes.length} bytes (expected $_keyLength)',
-        );
-      }
       final encData = await keysFile.readAsBytes();
       final json = _decrypt(encData, keyBytes);
       final map = jsonDecode(json) as Map<String, dynamic>;
@@ -160,9 +182,8 @@ class KeyStore {
   Future<void> saveAll(Map<String, SshKeyEntry> keys) async {
     final basePath = await _getBasePath();
     final keysFile = File('$basePath/$_keysFileName');
-    final keyFile = File('$basePath/$_keyFileName');
 
-    final keyBytes = await _loadKey(keyFile);
+    final keyBytes = await _resolveKey(basePath);
     final json = jsonEncode(keys.map((k, v) => MapEntry(k, v.toJson())));
     final encData = _encrypt(json, keyBytes);
     await writeBytesAtomic(keysFile.path, encData);
@@ -278,6 +299,13 @@ class KeyStore {
   }
 
   // ── AES-256-GCM encryption (same as CredentialStore) ─────────────
+
+  /// Resolve the encryption key: external key if set, otherwise from file.
+  Future<Uint8List> _resolveKey(String basePath) async {
+    if (_externalKey != null) return _externalKey!;
+    final keyFile = File('$basePath/$_keyFileName');
+    return _loadKey(keyFile);
+  }
 
   Future<Uint8List> _loadKey(File keyFile) async {
     if (!await keyFile.exists()) {
