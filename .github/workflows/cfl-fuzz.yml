@@ -1,6 +1,8 @@
 name: ClusterFuzzLite
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -14,10 +16,6 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        sanitizer: [undefined]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -26,7 +24,7 @@ jobs:
         uses: google/clusterfuzzlite/actions/build_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
         with:
           language: c
-          sanitizer: ${{ matrix.sanitizer }}
+          sanitizer: undefined
 
       - name: Run fuzzers
         id: run
@@ -34,4 +32,4 @@ jobs:
         with:
           fuzz-seconds: 300
           mode: batch
-          sanitizer: ${{ matrix.sanitizer }}
+          sanitizer: undefined
