@@ -1,16 +1,13 @@
 FROM gcr.io/oss-fuzz-base/base-builder
 
-# Install Dart SDK
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    apt-transport-https ca-certificates gnupg curl unzip && \
-    curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub \
-      | gpg --dearmor -o /usr/share/keyrings/dart-archive-keyring.gpg && \
-    echo 'deb [signed-by=/usr/share/keyrings/dart-archive-keyring.gpg] https://storage.googleapis.com/dart-archive/channels/stable/release/latest/linux/debian stable main' \
-      > /etc/apt/sources.list.d/dart.list && \
-    apt-get update && apt-get install -y dart && \
-    rm -rf /var/lib/apt/lists/*
+# Install Dart SDK via zip (apt repo URL is unreliable)
+ARG DART_VERSION=3.7.2
+RUN curl -fsSL "https://storage.googleapis.com/dart-archive/channels/stable/release/${DART_VERSION}/sdk/dartsdk-linux-x64-release.zip" \
+      -o /tmp/dart-sdk.zip && \
+    unzip -q /tmp/dart-sdk.zip -d /opt && \
+    rm /tmp/dart-sdk.zip
 
-ENV PATH="/usr/lib/dart/bin:${PATH}"
+ENV PATH="/opt/dart-sdk/bin:${PATH}"
 
 COPY . $SRC/letsflutssh
 WORKDIR $SRC/letsflutssh
