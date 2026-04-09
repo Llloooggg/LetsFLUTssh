@@ -135,6 +135,24 @@ class _ConnectionSection extends ConsumerWidget {
   }
 }
 
+class _SecuritySection extends ConsumerWidget {
+  const _SecuritySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        _ActionTile(
+          icon: Icons.verified_user,
+          title: S.of(context).knownHosts,
+          subtitle: S.of(context).knownHostsSubtitle,
+          onTap: () => KnownHostsManagerDialog.show(context),
+        ),
+      ],
+    );
+  }
+}
+
 class _TransferSection extends ConsumerWidget {
   const _TransferSection();
 

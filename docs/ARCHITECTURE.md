@@ -155,7 +155,7 @@ lib/
 |------|---------------|---------|
 | `ssh_client.dart` | `SSHConnection` | Wrapper over dartssh2: connect, auth, openShell, resize, keepalive, disconnect |
 | `ssh_config.dart` | `SSHConfig` | Config model (host, port, user, password, keyPath, keyData, passphrase, keepAliveSec, timeoutSec) |
-| `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed |
+| `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed, CRUD management (remove/import/export/clear) |
 | `shell_helper.dart` | `openShellWithRetry()`, `ShellConnection` | Shared SSH shell open logic with retry; `ShellConnection` wraps shell + terminal callbacks, clears them on `close()` |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy with structured fields (host, port, user) for localization |
 
@@ -211,6 +211,18 @@ class KnownHostsManager {
   // Callbacks (invoked via global navigatorKey):
   // onUnknownHost → HostKeyDialog.showNewHost()
   // onHostKeyChanged → HostKeyDialog.showKeyChanged()
+
+  // Public read access:
+  Map<String, String> get entries;  // unmodifiable {hostPort → "keyType base64Key"}
+  int get count;
+  static String fingerprint(List<int> keyBytes);  // SHA256 fingerprint
+
+  // CRUD operations (each persists to file via _saveAll):
+  Future<void> removeHost(String hostPort);
+  Future<void> removeMultiple(Set<String> hostPorts);
+  Future<void> clearAll();
+  Future<int> importFromFile(String path);  // merge from OpenSSH file, returns added count
+  String exportToString();                  // serialize to OpenSSH format
 
   // Concurrency: _loadFuture pattern (first call loads, later calls reuse).
   // Write lock: _withWriteLock() serializes file writes via chained futures.
@@ -1083,9 +1095,10 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_logging.dart` | — | Logging section widgets (part of `settings_screen.dart`) |
 | `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
 | `settings_sections.dart` | — | Section-specific build methods (part of `settings_screen.dart`) |
+| `known_hosts_manager.dart` | `KnownHostsManagerDialog` | Known hosts management dialog (search, delete, import, export, clear) |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
 
-**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
+**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Security (known hosts manager), Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
 
 **Desktop:** Settings are embedded directly in `MainScreen` via `ShellMode`. The toolbar settings button toggles between `ShellMode.sessions` and `ShellMode.settings` — no route navigation. `SettingsSidebar` + `SettingsContent` replace the session panel and tab area while sharing the same `AppShell` frame (sidebar width preserved).
 

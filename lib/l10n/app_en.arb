@@ -801,5 +801,51 @@
   },
   "maximize": "Maximize",
   "restore": "Restore",
-  "duplicateDownShortcut": "Duplicate Down (Ctrl+Shift+\\)"
+  "duplicateDownShortcut": "Duplicate Down (Ctrl+Shift+\\)",
+  "security": "Security",
+  "knownHosts": "Known Hosts",
+  "knownHostsSubtitle": "Manage trusted SSH server fingerprints",
+  "knownHostsCount": "{count, plural, =0{No known hosts} =1{1 known host} other{{count} known hosts}}",
+  "@knownHostsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "knownHostsEmpty": "No known hosts yet. Connect to a server to add one.",
+  "removeHost": "Remove Host",
+  "removeHostConfirm": "Remove {host} from known hosts? You will be prompted to verify its key again on next connection.",
+  "@removeHostConfirm": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "clearAllKnownHosts": "Clear All Known Hosts",
+  "clearAllKnownHostsConfirm": "Remove all known hosts? You will be prompted to verify each server key again.",
+  "importKnownHosts": "Import Known Hosts",
+  "importKnownHostsSubtitle": "Import from OpenSSH known_hosts file",
+  "exportKnownHosts": "Export Known Hosts",
+  "importedHosts": "Imported {count} new hosts",
+  "@importedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "clearedAllHosts": "Cleared all known hosts",
+  "removedHost": "Removed {host}",
+  "@removedHost": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "noHostsToExport": "No known hosts to export",
+  "keyType": "Key Type",
+  "fingerprint": "Fingerprint"
 }

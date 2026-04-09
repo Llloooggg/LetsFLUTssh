@@ -75,8 +75,7 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the S.supportedLocales
 /// property.
 abstract class S {
-  S(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  S(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -96,13 +95,12 @@ abstract class S {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
@@ -120,7 +118,7 @@ abstract class S {
     Locale('ru'),
     Locale('tr'),
     Locale('vi'),
-    Locale('zh'),
+    Locale('zh')
   ];
 
   /// No description provided for @appTitle.
@@ -840,7 +838,7 @@ abstract class S {
   /// No description provided for @keyType.
   ///
   /// In en, this message translates to:
-  /// **'Key type'**
+  /// **'Key Type'**
   String get keyType;
 
   /// No description provided for @fingerprint.
@@ -2222,6 +2220,102 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Duplicate Down (Ctrl+Shift+\\)'**
   String get duplicateDownShortcut;
+
+  /// No description provided for @security.
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get security;
+
+  /// No description provided for @knownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Known Hosts'**
+  String get knownHosts;
+
+  /// No description provided for @knownHostsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage trusted SSH server fingerprints'**
+  String get knownHostsSubtitle;
+
+  /// No description provided for @knownHostsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No known hosts} =1{1 known host} other{{count} known hosts}}'**
+  String knownHostsCount(int count);
+
+  /// No description provided for @knownHostsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No known hosts yet. Connect to a server to add one.'**
+  String get knownHostsEmpty;
+
+  /// No description provided for @removeHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Host'**
+  String get removeHost;
+
+  /// No description provided for @removeHostConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {host} from known hosts? You will be prompted to verify its key again on next connection.'**
+  String removeHostConfirm(String host);
+
+  /// No description provided for @clearAllKnownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Known Hosts'**
+  String get clearAllKnownHosts;
+
+  /// No description provided for @clearAllKnownHostsConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all known hosts? You will be prompted to verify each server key again.'**
+  String get clearAllKnownHostsConfirm;
+
+  /// No description provided for @importKnownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Known Hosts'**
+  String get importKnownHosts;
+
+  /// No description provided for @importKnownHostsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from OpenSSH known_hosts file'**
+  String get importKnownHostsSubtitle;
+
+  /// No description provided for @exportKnownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Known Hosts'**
+  String get exportKnownHosts;
+
+  /// No description provided for @importedHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} new hosts'**
+  String importedHosts(int count);
+
+  /// No description provided for @clearedAllHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared all known hosts'**
+  String get clearedAllHosts;
+
+  /// No description provided for @removedHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {host}'**
+  String removedHost(String host);
+
+  /// No description provided for @noHostsToExport.
+  ///
+  /// In en, this message translates to:
+  /// **'No known hosts to export'**
+  String get noHostsToExport;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
@@ -2233,67 +2327,38 @@ class _SDelegate extends LocalizationsDelegate<S> {
   }
 
   @override
-  bool isSupported(Locale locale) => <String>[
-    'ar',
-    'de',
-    'en',
-    'es',
-    'fa',
-    'fr',
-    'hi',
-    'id',
-    'ja',
-    'ko',
-    'pt',
-    'ru',
-    'tr',
-    'vi',
-    'zh',
-  ].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['ar', 'de', 'en', 'es', 'fa', 'fr', 'hi', 'id', 'ja', 'ko', 'pt', 'ru', 'tr', 'vi', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_SDelegate old) => false;
 }
 
 S lookupS(Locale locale) {
+
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'ar':
-      return SAr();
-    case 'de':
-      return SDe();
-    case 'en':
-      return SEn();
-    case 'es':
-      return SEs();
-    case 'fa':
-      return SFa();
-    case 'fr':
-      return SFr();
-    case 'hi':
-      return SHi();
-    case 'id':
-      return SId();
-    case 'ja':
-      return SJa();
-    case 'ko':
-      return SKo();
-    case 'pt':
-      return SPt();
-    case 'ru':
-      return SRu();
-    case 'tr':
-      return STr();
-    case 'vi':
-      return SVi();
-    case 'zh':
-      return SZh();
+    case 'ar': return SAr();
+    case 'de': return SDe();
+    case 'en': return SEn();
+    case 'es': return SEs();
+    case 'fa': return SFa();
+    case 'fr': return SFr();
+    case 'hi': return SHi();
+    case 'id': return SId();
+    case 'ja': return SJa();
+    case 'ko': return SKo();
+    case 'pt': return SPt();
+    case 'ru': return SRu();
+    case 'tr': return STr();
+    case 'vi': return SVi();
+    case 'zh': return SZh();
   }
 
   throw FlutterError(
     'S.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
+    'that was used.'
   );
 }
