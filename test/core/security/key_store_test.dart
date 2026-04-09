@@ -135,7 +135,7 @@ void main() {
   });
 
   group('KeyStore encryption', () {
-    // These are the same AES-256-GCM encrypt/decrypt as CredentialStore.
+    // Uses the same AES-256-GCM encrypt/decrypt as SessionStore.
     // Test via the full KeyStore with mocked path_provider.
     TestWidgetsFlutterBinding.ensureInitialized();
     late Directory tempDir;

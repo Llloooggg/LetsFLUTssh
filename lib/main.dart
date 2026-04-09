@@ -181,7 +181,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
   /// Check if master password is enabled and show unlock dialog if needed.
   ///
-  /// On success, injects the derived key into CredentialStore and KeyStore.
+  /// On success, injects the derived key into SessionStore and KeyStore.
   /// On reset (forgot password), stores are cleared — sessions load without
   /// credentials.
   /// True when the user chose "forgot password" — used to show a toast

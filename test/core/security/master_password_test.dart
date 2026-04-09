@@ -2,9 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/credential_store.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
+import 'package:letsflutssh/core/security/security_level.dart';
+import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/session/session_store.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -177,57 +180,6 @@ void main() {
     });
   });
 
-  group('CredentialStore with external key', () {
-    test('setExternalKey allows loadAll and saveAll', () async {
-      // Create key and credential store with external key.
-      final key = await manager.enable('mypassword');
-      final store = CredentialStore();
-
-      // Save with external key.
-      store.setExternalKey(key);
-      await store.saveAll({'s1': const CredentialData(password: 'pw1')});
-
-      // Load with same key in a fresh store instance.
-      final store2 = CredentialStore();
-      store2.setExternalKey(key);
-      final all = await store2.loadAll();
-      expect(all['s1']?.password, 'pw1');
-    });
-
-    test('clearExternalKey reverts to file-based key', () async {
-      // First save with file-based key.
-      final store = CredentialStore();
-      await store.saveAll({'s1': const CredentialData(password: 'pw1')});
-
-      // Set external key, then clear it — should fall back to file key.
-      store.clearExternalKey();
-      final all = await store.loadAll();
-      expect(all['s1']?.password, 'pw1');
-    });
-
-    test(
-      'isLocked returns true when salt exists but no external key',
-      () async {
-        // Create salt file.
-        await File('${tempDir.path}/credentials.salt').writeAsBytes([1, 2, 3]);
-        final store = CredentialStore();
-        expect(await store.isLocked, isTrue);
-      },
-    );
-
-    test('isLocked returns false when salt does not exist', () async {
-      final store = CredentialStore();
-      expect(await store.isLocked, isFalse);
-    });
-
-    test('isLocked returns false when external key is set', () async {
-      await File('${tempDir.path}/credentials.salt').writeAsBytes([1, 2, 3]);
-      final store = CredentialStore();
-      store.setExternalKey(Uint8List(32));
-      expect(await store.isLocked, isFalse);
-    });
-  });
-
   group('KeyStore with external key', () {
     test('setExternalKey allows loadAll and saveAll', () async {
       final key = await manager.enable('mypassword');
@@ -268,58 +220,54 @@ void main() {
   });
 
   group('Re-encryption flow', () {
+    Session makeSession(String label, String password) => Session(
+      label: label,
+      server: const ServerAddress(host: 'example.com', user: 'root'),
+      auth: SessionAuth(password: password),
+    );
+
     test('enable → re-encrypt → load with derived key', () async {
-      // Save data with file-based key first.
-      final credStore = CredentialStore();
-      await credStore.saveAll({'s1': const CredentialData(password: 'secret')});
+      // Save session in plaintext first.
+      final store = SessionStore(directory: tempDir.path);
+      await store.add(makeSession('s1', 'secret'));
 
-      // Enable master password.
-      final allCreds = await credStore.loadAll();
+      // Enable master password and re-encrypt.
       final key = await manager.enable('masterpass');
+      await store.reEncrypt(key, SecurityLevel.masterPassword);
 
-      // Re-encrypt with derived key.
-      credStore.setExternalKey(key);
-      await credStore.saveAll(allCreds);
-
-      // Delete file-based key.
-      final keyFile = File('${tempDir.path}/credentials.key');
-      if (await keyFile.exists()) await keyFile.delete();
+      // Plaintext file should be gone, encrypted file should exist.
+      expect(await File('${tempDir.path}/sessions.json').exists(), isFalse);
+      expect(await File('${tempDir.path}/sessions.enc').exists(), isTrue);
 
       // Verify data loads correctly with derived key.
-      final freshStore = CredentialStore();
-      freshStore.setExternalKey(key);
-      final loaded = await freshStore.loadAll();
-      expect(loaded['s1']?.password, 'secret');
+      final freshStore = SessionStore(directory: tempDir.path);
+      freshStore.setEncryptionKey(key, SecurityLevel.masterPassword);
+      final loaded = await freshStore.load();
+      expect(loaded.length, 1);
+      expect(loaded.first.label, 's1');
+      expect(loaded.first.auth.password, 'secret');
     });
 
-    test(
-      'disable → re-encrypt with random key → load without external key',
-      () async {
-        // Start with master password enabled.
-        final key = await manager.enable('masterpass');
-        final credStore = CredentialStore();
-        credStore.setExternalKey(key);
-        await credStore.saveAll({
-          's1': const CredentialData(password: 'secret'),
-        });
+    test('disable → re-encrypt to plaintext → load without key', () async {
+      // Start with master password enabled.
+      final key = await manager.enable('masterpass');
+      final store = SessionStore(directory: tempDir.path);
+      store.setEncryptionKey(key, SecurityLevel.masterPassword);
+      await store.add(makeSession('s1', 'secret'));
 
-        // Generate random key and re-encrypt.
-        final randomKey = Uint8List.fromList(List.generate(32, (i) => i));
-        await File('${tempDir.path}/credentials.key').writeAsBytes(randomKey);
-        credStore.setExternalKey(randomKey);
-        await credStore.saveAll({
-          's1': const CredentialData(password: 'secret'),
-        });
-        credStore.clearExternalKey();
+      // Disable master password — re-encrypt to plaintext.
+      await store.reEncrypt(null, SecurityLevel.plaintext);
+      await manager.disable();
 
-        // Disable master password.
-        await manager.disable();
+      // Encrypted file should be gone, plaintext file should exist.
+      expect(await File('${tempDir.path}/sessions.enc').exists(), isFalse);
+      expect(await File('${tempDir.path}/sessions.json').exists(), isTrue);
 
-        // Verify data loads with file-based key.
-        final freshStore = CredentialStore();
-        final loaded = await freshStore.loadAll();
-        expect(loaded['s1']?.password, 'secret');
-      },
-    );
+      // Verify data loads without key.
+      final freshStore = SessionStore(directory: tempDir.path);
+      final loaded = await freshStore.load();
+      expect(loaded.length, 1);
+      expect(loaded.first.auth.password, 'secret');
+    });
   });
 }
