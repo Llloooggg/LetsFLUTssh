@@ -915,6 +915,7 @@ Session clipboard stores a session ID. Ctrl+V duplicates that session via `Sessi
 | `file_row.dart` | `FileRow` | Row in the file table |
 | `breadcrumb_path.dart` | `BreadcrumbPath`, `parseBreadcrumbPath()`, `buildPathForSegment()` | Shared breadcrumb path parsing for desktop and mobile file browsers |
 | `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort |
+| `sftp_browser_mixin.dart` | `SftpBrowserMixin` | Shared mixin: SFTP init, upload, download — used by `FileBrowserTab` and `MobileFileBrowser` |
 | `sftp_initializer.dart` | `SFTPInitializer` | SFTP initialization factory (injectable) |
 | `transfer_panel.dart` | `TransferPanel` | Bottom panel: progress + history (resizable columns, sorting, column dividers) |
 | `transfer_helpers.dart` | `TransferHelpers` | Upload/download helpers; `enqueueUpload`/`enqueueDownload` accept `required S loc` for localized status strings |
@@ -2153,6 +2154,13 @@ Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 debugMobilePlatformOverride = true;    // force mobile layout in tests
 debugDesktopPlatformOverride = true;   // force desktop layout in tests
 ```
+
+### Shared test helpers (`test/helpers/`)
+
+| File | Contents |
+|------|----------|
+| `test_notifiers.dart` | `TestConfigNotifier`, `PrePopulatedConfigNotifier`, `PrePopulatedSessionNotifier`, `PrePopulatedWorkspaceNotifier`, `PrePopulatedUpdateNotifier`, `FixedVersionNotifier` |
+| `fake_session_store.dart` | `FakeSessionStore` (in-memory), `ThrowingSessionStore` |
 
 ### Test file mapping
 
