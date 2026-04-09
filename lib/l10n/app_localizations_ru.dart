@@ -1452,4 +1452,34 @@ class SRu extends S {
   @override
   String get confirmRemoveMasterPassword =>
       'Введите текущий пароль для отключения защиты мастер-паролем. Учётные данные будут перешифрованы автогенерированным ключом.';
+
+  @override
+  String get securitySetupTitle => 'Security Setup';
+
+  @override
+  String securitySetupKeychainFound(String keychainName) {
+    return 'OS Keychain detected ($keychainName). Your data will be automatically encrypted using your system keychain.';
+  }
+
+  @override
+  String get securitySetupKeychainOptional =>
+      'You can also set a master password for additional protection.';
+
+  @override
+  String get securitySetupNoKeychain =>
+      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+
+  @override
+  String get securitySetupNoKeychainHint =>
+      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+
+  @override
+  String get securitySetupRecommendMasterPassword =>
+      'We recommend setting a master password to protect your data.';
+
+  @override
+  String get continueWithKeychain => 'Continue with Keychain';
+
+  @override
+  String get continueWithoutEncryption => 'Continue without Encryption';
 }
