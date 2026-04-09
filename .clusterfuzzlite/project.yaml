@@ -2,4 +2,4 @@ language: c
 fuzzing_engines:
   - afl
 sanitizers:
-  - none
+  - undefined
