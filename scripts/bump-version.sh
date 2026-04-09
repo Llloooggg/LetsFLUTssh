@@ -7,8 +7,8 @@ set -euo pipefail
 # Bump rules:
 #   BREAKING CHANGE / feat!:  → major
 #   feat:                     → minor
-#   fix: / chore: / refactor: / perf: / build: / Dependabot "Bump ..." → patch
-#   docs: / test: / ci:       → no bump
+#   fix: / refactor: / perf: / build: / Dependabot "Bump ..." → patch
+#   docs: / test: / ci: / chore: → no bump
 #
 # Usage: scripts/bump-version.sh [--dry-run]
 
@@ -37,6 +37,9 @@ while IFS= read -r MSG; do
   # Skip version-bump commits
   echo "$MSG" | grep -qE '^chore: bump version ' && continue
 
+  # Skip revert commits
+  echo "$MSG" | grep -qE '^Revert "' && continue
+
   # BREAKING CHANGE → major
   if echo "$MSG" | grep -qiE 'BREAKING CHANGE|^[a-z]+(\([a-z0-9_-]+\))?!:'; then
     BUMP="major"
@@ -44,7 +47,7 @@ while IFS= read -r MSG; do
   fi
 
   # Skip non-bumping types
-  echo "$MSG" | grep -qE '^(docs|test|ci)(\([a-z0-9_-]+\))?: ' && continue
+  echo "$MSG" | grep -qE '^(docs|test|ci|chore)(\([a-z0-9_-]+\))?: ' && continue
 
   # feat → minor
   if echo "$MSG" | grep -qE '^feat(\([a-z0-9_-]+\))?: '; then
@@ -52,8 +55,8 @@ while IFS= read -r MSG; do
     continue
   fi
 
-  # fix / chore / refactor / perf / build → patch
-  if echo "$MSG" | grep -qE '^(fix|chore|refactor|perf|build)(\([a-z0-9_-]+\))?: '; then
+  # fix / refactor / perf / build → patch
+  if echo "$MSG" | grep -qE '^(fix|refactor|perf|build)(\([a-z0-9_-]+\))?: '; then
     [ "$BUMP" = "none" ] && BUMP="patch"
     continue
   fi

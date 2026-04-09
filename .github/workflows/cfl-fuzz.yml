@@ -10,8 +10,7 @@ on:
 permissions: read-all
 
 jobs:
-  fuzz:
-    name: ClusterFuzzLite batch fuzzing
+  cfl-fuzz:
     runs-on: ubuntu-latest
     permissions:
       contents: read
