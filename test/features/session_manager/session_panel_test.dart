@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/credential_store.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/session_panel.dart';
@@ -16,196 +14,8 @@ import 'package:letsflutssh/widgets/app_dialog.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
-/// A SessionNotifier subclass that starts with pre-populated sessions.
-class _PrePopulatedSessionNotifier extends SessionNotifier {
-  final List<Session> _initialSessions;
-  _PrePopulatedSessionNotifier(this._initialSessions);
-
-  @override
-  List<Session> build() {
-    super.build();
-    state = _initialSessions;
-    return state;
-  }
-}
-
-/// A fake SessionStore that doesn't use path_provider.
-class FakeSessionStore extends SessionStore {
-  final List<Session> _fakeSessions;
-  final Set<String> _fakeEmptyFolders;
-
-  FakeSessionStore({List<Session>? sessions, Set<String>? emptyFolders})
-    : _fakeSessions = sessions ?? [],
-      _fakeEmptyFolders = emptyFolders ?? {};
-
-  @override
-  List<Session> get sessions => List.unmodifiable(_fakeSessions);
-
-  @override
-  Set<String> get emptyFolders => Set.unmodifiable(_fakeEmptyFolders);
-
-  @override
-  List<String> folders() {
-    final g = _fakeSessions
-        .map((s) => s.folder)
-        .where((g) => g.isNotEmpty)
-        .toSet()
-        .toList();
-    g.sort();
-    return g;
-  }
-
-  @override
-  int countSessionsInFolder(String groupPath) {
-    return _fakeSessions
-        .where(
-          (s) => s.folder == groupPath || s.folder.startsWith('$groupPath/'),
-        )
-        .length;
-  }
-
-  @override
-  List<Session> byFolder(String folder) {
-    return _fakeSessions.where((s) => s.folder == folder).toList();
-  }
-
-  @override
-  Future<Session> duplicateSession(String id) async {
-    final original = _fakeSessions.firstWhere((s) => s.id == id);
-    final copy = Session(
-      label: '${original.label} (copy)',
-      folder: original.folder,
-      server: ServerAddress(
-        host: original.host,
-        port: original.port,
-        user: original.user,
-      ),
-      auth: SessionAuth(authType: original.authType),
-    );
-    _fakeSessions.add(copy);
-    return copy;
-  }
-
-  @override
-  Future<void> delete(String id) async {
-    _fakeSessions.removeWhere((s) => s.id == id);
-  }
-
-  @override
-  Future<void> deleteAll() async {
-    _fakeSessions.clear();
-    _fakeEmptyFolders.clear();
-  }
-
-  @override
-  Future<void> deleteFolder(String groupPath) async {
-    _fakeSessions.removeWhere(
-      (s) => s.folder == groupPath || s.folder.startsWith('$groupPath/'),
-    );
-    _fakeEmptyFolders.remove(groupPath);
-  }
-
-  @override
-  Future<void> addEmptyFolder(String groupPath) async {
-    _fakeEmptyFolders.add(groupPath);
-  }
-
-  @override
-  Future<void> renameFolder(String oldPath, String newPath) async {
-    // Move sessions
-    for (var i = 0; i < _fakeSessions.length; i++) {
-      final s = _fakeSessions[i];
-      if (s.folder == oldPath) {
-        _fakeSessions[i] = Session(
-          id: s.id,
-          label: s.label,
-          folder: newPath,
-          server: ServerAddress(host: s.host, port: s.port, user: s.user),
-        );
-      } else if (s.folder.startsWith('$oldPath/')) {
-        _fakeSessions[i] = Session(
-          id: s.id,
-          label: s.label,
-          folder: s.folder.replaceFirst(oldPath, newPath),
-          server: ServerAddress(host: s.host, port: s.port, user: s.user),
-        );
-      }
-    }
-    _fakeEmptyFolders.remove(oldPath);
-    _fakeEmptyFolders.add(newPath);
-  }
-
-  @override
-  Future<void> update(Session session) async {
-    final idx = _fakeSessions.indexWhere((s) => s.id == session.id);
-    if (idx >= 0) {
-      _fakeSessions[idx] = session;
-    }
-  }
-
-  @override
-  Future<Session> add(Session session) async {
-    _fakeSessions.add(session);
-    return session;
-  }
-
-  @override
-  Future<void> moveSession(String sessionId, String newFolder) async {
-    final idx = _fakeSessions.indexWhere((s) => s.id == sessionId);
-    if (idx >= 0) {
-      final s = _fakeSessions[idx];
-      _fakeSessions[idx] = Session(
-        id: s.id,
-        label: s.label,
-        folder: newFolder,
-        server: ServerAddress(host: s.host, port: s.port, user: s.user),
-      );
-    }
-  }
-
-  @override
-  Future<void> moveFolder(String groupPath, String newParent) async {
-    // Simplified stub
-  }
-
-  @override
-  Future<void> deleteMultiple(Set<String> ids) async {
-    _fakeSessions.removeWhere((s) => ids.contains(s.id));
-  }
-
-  @override
-  Future<void> moveMultiple(Set<String> ids, String newFolder) async {
-    for (var i = 0; i < _fakeSessions.length; i++) {
-      if (ids.contains(_fakeSessions[i].id)) {
-        final s = _fakeSessions[i];
-        _fakeSessions[i] = Session(
-          id: s.id,
-          label: s.label,
-          folder: newFolder,
-          server: ServerAddress(host: s.host, port: s.port, user: s.user),
-        );
-      }
-    }
-  }
-
-  @override
-  Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async =>
-      {};
-
-  @override
-  Future<void> restoreSnapshot(
-    List<Session> sessions,
-    Set<String> emptyFolders, [
-    Map<String, CredentialData> credentials = const {},
-  ]) async {
-    _fakeSessions
-      ..clear()
-      ..addAll(sessions);
-    _fakeEmptyFolders
-      ..clear()
-      ..addAll(emptyFolders);
-  }
-}
+import '../../helpers/fake_session_store.dart';
+import '../../helpers/test_notifiers.dart';
 
 void main() {
   late List<Session> testSessions;
@@ -256,7 +66,7 @@ void main() {
       overrides: [
         sessionStoreProvider.overrideWithValue(store),
         sessionProvider.overrideWith(
-          () => _PrePopulatedSessionNotifier(sessionList),
+          () => PrePopulatedSessionNotifier(sessionList),
         ),
         sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
         filteredSessionTreeProvider.overrideWithValue(tree),

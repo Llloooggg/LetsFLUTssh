@@ -5,13 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
-import '../../core/connection/connection_step.dart';
-import '../../core/sftp/sftp_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../providers/config_provider.dart';
-import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
@@ -20,8 +17,8 @@ import '../../widgets/mobile_selection_bar.dart';
 import '../file_browser/breadcrumb_path.dart';
 import '../file_browser/file_browser_controller.dart';
 import '../file_browser/file_pane_dialogs.dart';
+import '../file_browser/sftp_browser_mixin.dart';
 import '../file_browser/sftp_initializer.dart';
-import '../file_browser/transfer_helpers.dart';
 import '../file_browser/transfer_panel.dart';
 
 /// Factory for SFTP initialization — injectable for testing.
@@ -45,82 +42,36 @@ class MobileFileBrowser extends ConsumerStatefulWidget {
   ConsumerState<MobileFileBrowser> createState() => _MobileFileBrowserState();
 }
 
-class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
-  SFTPInitResult? _sftp;
-  bool _initializing = true;
-  String? _error;
+class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
+    with SftpBrowserMixin {
+  @override
+  SFTPInitResult? sftpResult;
+  @override
+  bool sftpInitializing = true;
+  @override
+  String? sftpError;
   bool _showRemote = true; // Start on remote pane
   bool _storagePermissionDenied = false;
-  final _progressKey = GlobalKey<ConnectionProgressState>();
+  @override
+  final progressKey = GlobalKey<ConnectionProgressState>();
 
-  FilePaneController? get _localCtrl => _sftp?.localCtrl;
-  FilePaneController? get _remoteCtrl => _sftp?.remoteCtrl;
-  SFTPService? get _sftpService => _sftp?.sftpService;
+  @override
+  Connection get sftpConnection => widget.connection;
+  @override
+  MobileSFTPInitFactory? get sftpInitFactory => widget.sftpInitFactory;
+
+  @override
+  void onSftpReady(SFTPInitResult result) {
+    _storagePermissionDenied = result.storagePermissionDenied;
+  }
+
+  FilePaneController? get _localCtrl => sftpResult?.localCtrl;
+  FilePaneController? get _remoteCtrl => sftpResult?.remoteCtrl;
 
   @override
   void initState() {
     super.initState();
-    _initSftp();
-  }
-
-  Future<void> _initSftp() async {
-    final conn = widget.connection;
-    await conn.waitUntilReady();
-
-    if (!conn.isConnected) {
-      if (mounted) {
-        final l10n = S.of(context);
-        final error = conn.connectionError != null
-            ? localizeError(l10n, conn.connectionError!)
-            : l10n.errConnectionFailed;
-        _progressKey.currentState?.writeError(error);
-        setState(() {
-          _error = error;
-          _initializing = false;
-        });
-      }
-      return;
-    }
-
-    _progressKey.currentState?.addStep(
-      const ConnectionStep(
-        phase: ConnectionPhase.openChannel,
-        status: StepStatus.inProgress,
-      ),
-    );
-
-    try {
-      final result = widget.sftpInitFactory != null
-          ? await widget.sftpInitFactory!(conn)
-          : await SFTPInitializer.init(conn);
-      _sftp = result;
-      if (mounted) {
-        setState(() {
-          _storagePermissionDenied = result.storagePermissionDenied;
-          _initializing = false;
-        });
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'SFTP init failed: $e',
-        name: 'MobileFileBrowser',
-        error: e,
-      );
-      _progressKey.currentState?.addStep(
-        ConnectionStep(
-          phase: ConnectionPhase.openChannel,
-          status: StepStatus.failed,
-          detail: e.toString(),
-        ),
-      );
-      if (mounted) {
-        final l10n = S.of(context);
-        setState(() {
-          _error = l10n.errSftpInitFailed(localizeError(l10n, e));
-          _initializing = false;
-        });
-      }
-    }
+    initSftp();
   }
 
   FilePaneController get _activeCtrl =>
@@ -128,9 +79,9 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
 
   @override
   Widget build(BuildContext context) {
-    if (_initializing || _error != null) {
+    if (sftpInitializing || sftpError != null) {
       return ConnectionProgress(
-        key: _progressKey,
+        key: progressKey,
         connection: widget.connection,
         fontSize: ref.read(configProvider).fontSize,
         channelLabel: S.of(context).progressOpeningSftp,
@@ -145,16 +96,16 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
         Expanded(
           child: MobileFileList(
             controller: _activeCtrl,
-            onTransfer: _showRemote ? _download : _upload,
+            onTransfer: _showRemote ? download : upload,
             onTransferMultiple: _showRemote
                 ? (entries) {
                     for (final e in entries) {
-                      _download(e);
+                      download(e);
                     }
                   }
                 : (entries) {
                     for (final e in entries) {
-                      _upload(e);
+                      upload(e);
                     }
                   },
           ),
@@ -171,7 +122,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
 
   @override
   void dispose() {
-    _sftp?.dispose();
+    sftpResult?.dispose();
     _pathController.dispose();
     _pathFocusNode.dispose();
     _breadcrumbScrollController.dispose();
@@ -476,34 +427,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
     if (path != null && _localCtrl != null) {
       await _localCtrl!.navigateTo(path);
     }
-  }
-
-  void _upload(FileEntry entry) {
-    final sftp = _sftpService;
-    final remote = _remoteCtrl;
-    if (sftp == null || remote == null) return;
-    TransferHelpers.enqueueUpload(
-      manager: ref.read(transferManagerProvider),
-      sftp: sftp,
-      entry: entry,
-      remoteDirPath: remote.currentPath,
-      remoteCtrl: _remoteCtrl,
-      loc: S.of(context),
-    );
-  }
-
-  void _download(FileEntry entry) {
-    final sftp = _sftpService;
-    final local = _localCtrl;
-    if (sftp == null || local == null) return;
-    TransferHelpers.enqueueDownload(
-      manager: ref.read(transferManagerProvider),
-      sftp: sftp,
-      entry: entry,
-      localDirPath: local.currentPath,
-      localCtrl: _localCtrl,
-      loc: S.of(context),
-    );
   }
 }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/config/config_store.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
@@ -20,20 +19,7 @@ import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
-/// A WorkspaceNotifier that starts with a pre-built state.
-class _PrePopulatedWorkspaceNotifier extends WorkspaceNotifier {
-  final WorkspaceState _initialState;
-  _PrePopulatedWorkspaceNotifier(this._initialState);
-
-  @override
-  WorkspaceState build() => _initialState;
-}
-
-/// A ConfigNotifier that returns defaults without touching disk.
-class _TestConfigNotifier extends ConfigNotifier {
-  @override
-  AppConfig build() => AppConfig.defaults;
-}
+import '../../helpers/test_notifiers.dart';
 
 Connection _conn(
   String id, {
@@ -81,10 +67,10 @@ void main() {
         ),
         connectionsProvider.overrideWith((ref) => Stream.value(<Connection>[])),
         configStoreProvider.overrideWithValue(ConfigStore()),
-        configProvider.overrideWith(_TestConfigNotifier.new),
+        configProvider.overrideWith(TestConfigNotifier.new),
         if (workspaceState != null)
           workspaceProvider.overrideWith(
-            () => _PrePopulatedWorkspaceNotifier(workspaceState),
+            () => PrePopulatedWorkspaceNotifier(workspaceState),
           ),
       ],
       child: MaterialApp(
@@ -377,9 +363,9 @@ void main() {
               (ref) => Stream.value(<Connection>[]),
             ),
             configStoreProvider.overrideWithValue(ConfigStore()),
-            configProvider.overrideWith(_TestConfigNotifier.new),
+            configProvider.overrideWith(TestConfigNotifier.new),
             workspaceProvider.overrideWith(
-              () => _PrePopulatedWorkspaceNotifier(ws),
+              () => PrePopulatedWorkspaceNotifier(ws),
             ),
           ],
           child: Builder(

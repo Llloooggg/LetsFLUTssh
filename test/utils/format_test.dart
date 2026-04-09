@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
+import 'package:letsflutssh/core/sftp/errors.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/l10n/app_localizations_en.dart';
@@ -386,6 +388,161 @@ void main() {
 
       test('returns toString for string error', () {
         expect(localizeError(l10n, 'plain error'), 'plain error');
+      });
+
+      test('localizes TimeoutException with duration', () {
+        final error = TimeoutException(
+          'timed out',
+          const Duration(seconds: 10),
+        );
+        final result = localizeError(l10n, error);
+        expect(result, contains('10'));
+      });
+
+      test('localizes TimeoutException without duration', () {
+        final error = TimeoutException('timed out');
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes SFTPError with SftpStatusCode.noSuchFile', () {
+        final error = SFTPError(
+          'File not found',
+          cause: SftpStatusError(SftpStatusCode.noSuchFile, 'No such file'),
+          path: '/remote/file.txt',
+        );
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+        expect(result, contains('/remote/file.txt'));
+      });
+
+      test('localizes SFTPError with SftpStatusCode.permissionDenied', () {
+        final error = SFTPError(
+          'Permission denied',
+          cause: SftpStatusError(
+            SftpStatusCode.permissionDenied,
+            'Access denied',
+          ),
+        );
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes SFTPError with unknown status code', () {
+        final error = SFTPError(
+          'SFTP failure',
+          cause: SftpStatusError(SftpStatusCode.failure, 'Generic failure'),
+        );
+        final result = localizeError(l10n, error);
+        expect(result, contains('SFTP failure'));
+      });
+
+      test('localizes SFTPError without status error', () {
+        const error = SFTPError('SFTP error', path: '/path');
+        final result = localizeError(l10n, error);
+        expect(result, contains('/path'));
+      });
+
+      test('localizes SFTPError without cause or path', () {
+        const error = SFTPError('bare error');
+        expect(localizeError(l10n, error), 'bare error');
+      });
+
+      test('localizes ConnectError with "Connection disposed"', () {
+        const error = ConnectError('Connection disposed');
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes ConnectError with "Not connected"', () {
+        const error = ConnectError('Not connected');
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes ConnectError with "open shell"', () {
+        const error = ConnectError('Failed to open shell channel');
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes ConnectError with "Connection failed to"', () {
+        const error = ConnectError(
+          'Connection failed to host',
+          null,
+          '10.0.0.1',
+          22,
+        );
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes ConnectError with unknown message', () {
+        const error = ConnectError('Something else');
+        expect(localizeError(l10n, error), 'Something else');
+      });
+
+      test('localizes AuthError with "Authentication aborted"', () {
+        const error = AuthError('Authentication aborted');
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes AuthError with "load SSH key file"', () {
+        const error = AuthError('Failed to load SSH key file');
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes AuthError with "parse PEM"', () {
+        const error = AuthError('Failed to parse PEM key');
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes AuthError with unknown message', () {
+        const error = AuthError('Custom auth error');
+        expect(localizeError(l10n, error), 'Custom auth error');
+      });
+
+      test('localizes generic SSHError with cause', () {
+        const error = SSHError(
+          'SSH problem',
+          SocketException('OS Error: connection refused, errno = 111'),
+        );
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes generic SSHError without cause', () {
+        const error = SSHError('SSH problem');
+        expect(localizeError(l10n, error), 'SSH problem');
+      });
+
+      test('localizes HostKeyError', () {
+        const error = HostKeyError('Host key rejected', null, '10.0.0.1', 22);
+        final result = localizeError(l10n, error);
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes OS error with errno via _localizeOsError', () {
+        final result = localizeError(
+          l10n,
+          const FileSystemException(
+            'Cannot open file',
+            '/tmp/test',
+            OSError('Permission denied', 13),
+          ),
+        );
+        expect(result, isNotEmpty);
+      });
+
+      test('localizes SocketException with OS error errno', () {
+        final result = localizeError(
+          l10n,
+          const SocketException('OS Error: Connection refused, errno = 111'),
+        );
+        expect(result, isNotEmpty);
       });
     });
   });
