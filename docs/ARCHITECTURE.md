@@ -660,6 +660,11 @@ class UpdateService {
   // Download: follows redirects (max 10), validates trusted hosts.
   // openFile(): platform launcher, validates Windows paths against shell metacharacters.
   // Progress: throttled to 1% increments in UpdateNotifier to reduce state churn.
+  //
+  // Changelog: fetched once during check(), stored in UpdateInfo.changelog,
+  // preserved across state transitions (downloading → downloaded) via copyWith.
+  // Displayed in startup dialog (inline) and settings (via "Release Notes" button → AppDialog).
+  // Available in both updateAvailable and downloaded states on all platforms.
 }
 ```
 
