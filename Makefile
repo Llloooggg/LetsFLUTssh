@@ -16,7 +16,7 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
         build-linux build-windows build-macos build-apk build-aab build-ios \
         linux windows macos apk ios \
         package-linux package-windows release-linux \
-        deps-linux deps-macos deps-windows help
+        deps-linux deps-macos deps-windows fuzz-build help
 
 all: build
 
@@ -55,6 +55,15 @@ gen: ## Code generation (freezed, json_serializable)
 
 watch: ## Watch mode code generation
 	dart run build_runner watch --delete-conflicting-outputs
+
+fuzz-build: ## Compile standalone fuzz targets to native (fuzz/out/)
+	@mkdir -p fuzz/out
+	@for f in fuzz/fuzz_*.dart; do \
+		name=$$(basename "$$f" .dart); \
+		echo "Compiling $$name..."; \
+		dart compile exe "$$f" -o "fuzz/out/$$name"; \
+	done
+	@echo "Fuzz targets built in fuzz/out/"
 
 ## ─── Platform Builds ──────────────────────────────────────────
 ## Short aliases: make linux, make macos, make apk, etc.

@@ -56,6 +56,7 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 - **Never suppress issues** — no `// NOSONAR`, `// ignore:`, `@SuppressWarnings`. Always fix the root cause
 - **Never amend after push** — only new commits. Amend OK only before first push
 - **All code must have tests** — target 100% coverage (80% is SonarCloud minimum, not the goal). One test file per source file. Testable by design: extract pure logic from SSH/platform/I/O deps, DI over hardcoded `ref.read()` — [§14 Testing Patterns](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks)
+- **Fuzz tests for parsers** — any function that parses untrusted input (JSON `fromJson()`, URI parsing, file format parsing) must have a corresponding fuzz test in `test/fuzz/`. Fuzz tests generate random/malformed inputs and verify the parser never crashes with unhandled exceptions. Run as part of `make test`. See [§14 Fuzz testing](docs/ARCHITECTURE.md#fuzz-testing)
 - **Parallel agents** — only `git add` files YOU changed. **Do NOT run tests** — testing is the main process's job
 
 ---
