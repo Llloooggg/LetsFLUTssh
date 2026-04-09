@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ (API 31+) data extraction rules.
+     Excludes encrypted credential files from cloud backup
+     and device-to-device transfer. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="credentials.enc" />
+        <exclude domain="root" path="credentials.key" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="credentials.enc" />
+        <exclude domain="root" path="credentials.key" />
+    </device-transfer>
+</data-extraction-rules>

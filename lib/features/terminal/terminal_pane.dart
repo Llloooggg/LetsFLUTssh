@@ -78,6 +78,43 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   // Search visibility — ValueNotifier so toggling doesn't rebuild TerminalView
   final _showSearch = ValueNotifier<bool>(false);
 
+  /// Cached terminal theme — rebuilt only when app brightness changes.
+  TerminalTheme? _cachedTheme;
+  bool? _cachedIsDark;
+
+  TerminalTheme get _terminalTheme {
+    final dark = AppTheme.isDark;
+    if (_cachedTheme == null || _cachedIsDark != dark) {
+      _cachedIsDark = dark;
+      _cachedTheme = TerminalTheme(
+        cursor: AppTheme.termCursor,
+        selection: AppTheme.termSelection,
+        foreground: AppTheme.fg,
+        background: AppTheme.bg2,
+        black: AppTheme.termBlack,
+        red: AppTheme.termRed,
+        green: AppTheme.termGreen,
+        yellow: AppTheme.termYellow,
+        blue: AppTheme.termBlue,
+        magenta: AppTheme.termMagenta,
+        cyan: AppTheme.termCyan,
+        white: AppTheme.termWhite,
+        brightBlack: AppTheme.termBrightBlack,
+        brightRed: AppTheme.termBrightRed,
+        brightGreen: AppTheme.termBrightGreen,
+        brightYellow: AppTheme.termBrightYellow,
+        brightBlue: AppTheme.termBrightBlue,
+        brightMagenta: AppTheme.termBrightMagenta,
+        brightCyan: AppTheme.termBrightCyan,
+        brightWhite: AppTheme.termBrightWhite,
+        searchHitBackground: AppTheme.accent.withValues(alpha: 0.3),
+        searchHitBackgroundCurrent: AppTheme.accent,
+        searchHitForeground: AppTheme.searchHitFg,
+      );
+    }
+    return _cachedTheme!;
+  }
+
   /// Exposed for testing — toggle search bar visibility.
   @visibleForTesting
   ValueNotifier<bool> get showSearchNotifier => _showSearch;
@@ -138,8 +175,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
           : l10n.errConnectionFailed;
       _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
       setState(() => _error = error);
-      // Force workspace rebuild so connection bar shows retry button
-      ref.invalidate(connectionsProvider);
+      // Notify provider so workspace status dots and connection bar update
+      ref.read(connectionManagerProvider).notifyStateChanged();
       return;
     }
 
@@ -148,8 +185,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       // to terminal.write(), so any server output must not be erased.
       writer.clear();
       _shellConn = await _openShell(conn);
-      // Force workspace rebuild so connection bar updates dot and hides retry
-      if (mounted) ref.invalidate(connectionsProvider);
+      // Notify provider so workspace status dots and connection bar update
+      if (mounted) ref.read(connectionManagerProvider).notifyStateChanged();
     } catch (e) {
       AppLogger.instance.log(
         'Shell open failed: $e',
@@ -273,33 +310,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                       onKeyEvent: _handleTerminalKey,
                       backgroundOpacity: 1.0,
                       padding: const EdgeInsets.all(4),
-                      theme: TerminalTheme(
-                        cursor: AppTheme.termCursor,
-                        selection: AppTheme.termSelection,
-                        foreground: AppTheme.fg,
-                        background: AppTheme.bg2,
-                        black: AppTheme.termBlack,
-                        red: AppTheme.termRed,
-                        green: AppTheme.termGreen,
-                        yellow: AppTheme.termYellow,
-                        blue: AppTheme.termBlue,
-                        magenta: AppTheme.termMagenta,
-                        cyan: AppTheme.termCyan,
-                        white: AppTheme.termWhite,
-                        brightBlack: AppTheme.termBrightBlack,
-                        brightRed: AppTheme.termBrightRed,
-                        brightGreen: AppTheme.termBrightGreen,
-                        brightYellow: AppTheme.termBrightYellow,
-                        brightBlue: AppTheme.termBrightBlue,
-                        brightMagenta: AppTheme.termBrightMagenta,
-                        brightCyan: AppTheme.termBrightCyan,
-                        brightWhite: AppTheme.termBrightWhite,
-                        searchHitBackground: AppTheme.accent.withValues(
-                          alpha: 0.3,
-                        ),
-                        searchHitBackgroundCurrent: AppTheme.accent,
-                        searchHitForeground: AppTheme.searchHitFg,
-                      ),
+                      theme: _terminalTheme,
                       textStyle: TerminalStyle(
                         fontSize: fontSize,
                         fontFamily: 'JetBrains Mono',
@@ -472,10 +483,10 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
     final queryLower = query.toLowerCase();
     final buffer = widget.terminal.buffer;
     final highlights = <TerminalHighlight>[];
+    const maxMatches = 1000;
 
     for (var y = 0; y < buffer.height; y++) {
-      final line = buffer.lines[y];
-      final lineText = line.toString().toLowerCase();
+      final lineText = buffer.lines[y].toString().toLowerCase();
       var startIndex = 0;
       while (true) {
         final pos = lineText.indexOf(queryLower, startIndex);
@@ -496,8 +507,10 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
             name: 'TerminalSearch',
           );
         }
+        if (highlights.length >= maxMatches) break;
         startIndex = pos + 1;
       }
+      if (highlights.length >= maxMatches) break;
     }
 
     setState(() {

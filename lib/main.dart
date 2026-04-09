@@ -54,7 +54,37 @@ SingleInstance? singleInstanceLock;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AppLogger.instance.init();
+
+  // Start logger init early — runs in parallel with config/lock I/O below.
+  // Log path resolves in background; log() calls buffer to dev.log until ready.
+  final loggerInit = AppLogger.instance.init();
+
+  // Global error boundary — catch unhandled Flutter framework errors
+  FlutterError.onError = (details) {
+    AppLogger.instance.log(
+      'FlutterError: ${details.exceptionAsString()}',
+      name: 'ErrorBoundary',
+      error: details.exception,
+    );
+    // Forward to default handler (logs to console in debug mode)
+    FlutterError.presentError(details);
+  };
+
+  // Replace the red error screen with a user-friendly widget
+  ErrorWidget.builder = (details) {
+    return Container(
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(16),
+      child: const Text(
+        'Something went wrong.\n'
+        'Try restarting the app.',
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+        style: TextStyle(fontSize: 14, color: Color(0xFFABB2BF)),
+      ),
+    );
+  };
+
   AppLogger.instance.log('App starting', name: 'App');
 
   if (plat.isDesktopPlatform) {
@@ -75,6 +105,7 @@ Future<void> main() async {
   // reads the real config instead of defaults.
   final configStore = ConfigStore();
   final config = await configStore.load();
+  await loggerInit; // ensure log path resolved before enabling file logging
   AppLogger.instance.setEnabled(config.enableLogging);
 
   runApp(

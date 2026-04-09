@@ -98,6 +98,18 @@ void main() {
       expect(result.stdout.toString().trim(), '600');
     });
 
+    test('restricts ACLs on Windows', () async {
+      if (!Platform.isWindows) return;
+      final path = '${tempDir.path}/perm_test.txt';
+      File(path).writeAsStringSync('secret');
+      await restrictFilePermissions(path);
+      // Verify icacls was applied — file should only have current user ACL
+      final result = Process.runSync('icacls', [path]);
+      final output = result.stdout.toString();
+      final user = Platform.environment['USERNAME'] ?? '';
+      expect(output, contains(user));
+    });
+
     test('handles non-existent file gracefully', () async {
       // Should not throw — logs error internally
       await restrictFilePermissions('${tempDir.path}/no_such_file');

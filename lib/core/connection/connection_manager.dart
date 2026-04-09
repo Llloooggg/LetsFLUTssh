@@ -207,6 +207,13 @@ class ConnectionManager {
     _notify();
   }
 
+  /// Notify listeners that connection state changed externally.
+  ///
+  /// Called when a [Connection] object's state is mutated directly (e.g. by
+  /// terminal pane on shell error). Prefer [_notify] for internal state
+  /// changes — this is the public equivalent for external callers.
+  void notifyStateChanged() => _notify();
+
   bool _disposed = false;
 
   int _lastActiveCount = 0;

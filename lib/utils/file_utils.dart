@@ -48,11 +48,14 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
   }
 }
 
-/// Set file permissions to owner-only (0600) on Unix systems.
-/// No-op on Windows.
+/// Set file permissions to owner-only on all desktop platforms.
+///
+/// Unix: `chmod 600` (owner read/write only).
+/// Windows: `icacls` — removes inherited ACLs, grants full control to current
+/// user only.
 Future<void> restrictFilePermissions(String path) async {
-  if (Platform.isLinux || Platform.isMacOS) {
-    try {
+  try {
+    if (Platform.isLinux || Platform.isMacOS) {
       final result = await Process.run('chmod', ['600', path]);
       if (result.exitCode != 0) {
         AppLogger.instance.log(
@@ -60,11 +63,27 @@ Future<void> restrictFilePermissions(String path) async {
           name: 'FileUtils',
         );
       }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to restrict permissions: $e',
-        name: 'FileUtils',
-      );
+    } else if (Platform.isWindows) {
+      final user = Platform.environment['USERNAME'] ?? '';
+      if (user.isEmpty) return;
+      // Remove inherited permissions, then grant current user full control.
+      final result = await Process.run('icacls', [
+        path,
+        '/inheritance:r',
+        '/grant:r',
+        '$user:(F)',
+      ]);
+      if (result.exitCode != 0) {
+        AppLogger.instance.log(
+          'icacls failed: ${result.stderr}',
+          name: 'FileUtils',
+        );
+      }
     }
+  } catch (e) {
+    AppLogger.instance.log(
+      'Failed to restrict permissions: $e',
+      name: 'FileUtils',
+    );
   }
 }
