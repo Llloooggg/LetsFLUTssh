@@ -46,6 +46,9 @@ windows/flutter/ephemeral/
 *.g.dart
 *.freezed.dart
 
+# Fuzz (compiled native targets)
+fuzz/out/
+
 # Coverage
 /coverage/
 *.lcov
