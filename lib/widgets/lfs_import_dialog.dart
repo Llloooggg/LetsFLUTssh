@@ -6,6 +6,7 @@ import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
+import 'mode_button.dart';
 import 'styled_form_field.dart';
 
 /// Result from the LFS import password dialog.
@@ -98,52 +99,20 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
   Widget _buildModeSelector() {
     return Row(
       children: [
-        _modeButton(S.of(context).merge, Icons.merge, ImportMode.merge),
+        ModeButton(
+          label: S.of(context).merge,
+          icon: Icons.merge,
+          selected: _mode == ImportMode.merge,
+          onTap: () => setState(() => _mode = ImportMode.merge),
+        ),
         const SizedBox(width: 8),
-        _modeButton(
-          S.of(context).replace,
-          Icons.swap_horiz,
-          ImportMode.replace,
+        ModeButton(
+          label: S.of(context).replace,
+          icon: Icons.swap_horiz,
+          selected: _mode == ImportMode.replace,
+          onTap: () => setState(() => _mode = ImportMode.replace),
         ),
       ],
-    );
-  }
-
-  Widget _modeButton(String label, IconData icon, ImportMode mode) {
-    final selected = _mode == mode;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _mode = mode),
-        child: Container(
-          height: AppTheme.controlHeightLg,
-          decoration: BoxDecoration(
-            color: selected ? AppTheme.accent : AppTheme.bg3,
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(
-              color: selected ? AppTheme.accent : AppTheme.borderLight,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: selected ? AppTheme.onAccent : AppTheme.fgDim,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  fontWeight: selected ? FontWeight.w600 : null,
-                  color: selected ? AppTheme.onAccent : AppTheme.fg,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -64,29 +64,7 @@ class _ExportPasswordDialog extends StatelessWidget {
       controller: ctrl,
       obscureText: true,
       style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: AppTheme.fgFaint),
-        filled: true,
-        fillColor: AppTheme.bg3,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.borderLight),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.borderLight),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.accent),
-        ),
-      ),
+      decoration: AppTheme.inputDecoration(labelText: label),
     );
   }
 }
@@ -160,28 +138,8 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
             controller: widget.passwordCtrl,
             obscureText: true,
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-            decoration: InputDecoration(
+            decoration: AppTheme.inputDecoration(
               labelText: S.of(context).masterPassword,
-              labelStyle: TextStyle(color: AppTheme.fgFaint),
-              filled: true,
-              fillColor: AppTheme.bg3,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 10,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.borderLight),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.borderLight),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.accent),
-              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -218,52 +176,22 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
   Widget _buildModeSelector() {
     return Row(
       children: [
-        _modeButton(S.of(context).merge, Icons.merge, ImportMode.merge),
+        ModeButton(
+          label: S.of(context).merge,
+          icon: Icons.merge,
+          selected: widget.modeHolder.value == ImportMode.merge,
+          onTap: () =>
+              setState(() => widget.modeHolder.value = ImportMode.merge),
+        ),
         const SizedBox(width: 8),
-        _modeButton(
-          S.of(context).replace,
-          Icons.swap_horiz,
-          ImportMode.replace,
+        ModeButton(
+          label: S.of(context).replace,
+          icon: Icons.swap_horiz,
+          selected: widget.modeHolder.value == ImportMode.replace,
+          onTap: () =>
+              setState(() => widget.modeHolder.value = ImportMode.replace),
         ),
       ],
-    );
-  }
-
-  Widget _modeButton(String label, IconData icon, ImportMode mode) {
-    final selected = widget.modeHolder.value == mode;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => widget.modeHolder.value = mode),
-        child: Container(
-          height: AppTheme.controlHeightLg,
-          decoration: BoxDecoration(
-            color: selected ? AppTheme.accent : AppTheme.bg3,
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(
-              color: selected ? AppTheme.accent : AppTheme.borderLight,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: selected ? AppTheme.onAccent : AppTheme.fgDim,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  fontWeight: selected ? FontWeight.w600 : null,
-                  color: selected ? AppTheme.onAccent : AppTheme.fg,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -275,31 +203,7 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
     return TextField(
       controller: ctrl,
       style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        labelStyle: TextStyle(color: AppTheme.fgFaint),
-        hintStyle: TextStyle(color: AppTheme.fgFaint),
-        filled: true,
-        fillColor: AppTheme.bg3,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.borderLight),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.borderLight),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: AppTheme.radiusSm,
-          borderSide: BorderSide(color: AppTheme.accent),
-        ),
-      ),
+      decoration: AppTheme.inputDecoration(labelText: label, hintText: hint),
     );
   }
 }
