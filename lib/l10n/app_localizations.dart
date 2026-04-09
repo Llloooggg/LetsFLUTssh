@@ -75,7 +75,8 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the S.supportedLocales
 /// property.
 abstract class S {
-  S(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  S(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -95,12 +96,13 @@ abstract class S {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
@@ -118,7 +120,7 @@ abstract class S {
     Locale('ru'),
     Locale('tr'),
     Locale('vi'),
-    Locale('zh')
+    Locale('zh'),
   ];
 
   /// No description provided for @appTitle.
@@ -2316,6 +2318,144 @@ abstract class S {
   /// In en, this message translates to:
   /// **'No known hosts to export'**
   String get noHostsToExport;
+
+  /// No description provided for @sshKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH Keys'**
+  String get sshKeys;
+
+  /// No description provided for @sshKeysSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage SSH key pairs for authentication'**
+  String get sshKeysSubtitle;
+
+  /// No description provided for @noKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'No SSH keys. Import or generate one.'**
+  String get noKeys;
+
+  /// No description provided for @generateKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Key'**
+  String get generateKey;
+
+  /// No description provided for @importKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Key'**
+  String get importKey;
+
+  /// No description provided for @keyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Key Label'**
+  String get keyLabel;
+
+  /// No description provided for @keyLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Work Server, GitHub'**
+  String get keyLabelHint;
+
+  /// No description provided for @selectKeyType.
+  ///
+  /// In en, this message translates to:
+  /// **'Key Type'**
+  String get selectKeyType;
+
+  /// No description provided for @generating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating...'**
+  String get generating;
+
+  /// No description provided for @keyGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Key generated: {label}'**
+  String keyGenerated(String label);
+
+  /// No description provided for @keyImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Key imported: {label}'**
+  String keyImported(String label);
+
+  /// No description provided for @deleteKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Key'**
+  String get deleteKey;
+
+  /// No description provided for @deleteKeyConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete key \"{label}\"? Sessions using it will lose access.'**
+  String deleteKeyConfirm(String label);
+
+  /// No description provided for @keyDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Key deleted: {label}'**
+  String keyDeleted(String label);
+
+  /// No description provided for @publicKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Public Key'**
+  String get publicKey;
+
+  /// No description provided for @publicKeyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Public key copied to clipboard'**
+  String get publicKeyCopied;
+
+  /// No description provided for @pastePrivateKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Private Key (PEM)'**
+  String get pastePrivateKey;
+
+  /// No description provided for @pemHint.
+  ///
+  /// In en, this message translates to:
+  /// **'-----BEGIN OPENSSH PRIVATE KEY-----'**
+  String get pemHint;
+
+  /// No description provided for @invalidPem.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid PEM key data'**
+  String get invalidPem;
+
+  /// No description provided for @selectFromKeyStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Select from Key Store'**
+  String get selectFromKeyStore;
+
+  /// No description provided for @noKeySelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No key selected'**
+  String get noKeySelected;
+
+  /// No description provided for @keyCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No keys} =1{1 key} other{{count} keys}}'**
+  String keyCount(int count);
+
+  /// No description provided for @generated.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated'**
+  String get generated;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
@@ -2327,38 +2467,67 @@ class _SDelegate extends LocalizationsDelegate<S> {
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['ar', 'de', 'en', 'es', 'fa', 'fr', 'hi', 'id', 'ja', 'ko', 'pt', 'ru', 'tr', 'vi', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>[
+    'ar',
+    'de',
+    'en',
+    'es',
+    'fa',
+    'fr',
+    'hi',
+    'id',
+    'ja',
+    'ko',
+    'pt',
+    'ru',
+    'tr',
+    'vi',
+    'zh',
+  ].contains(locale.languageCode);
 
   @override
   bool shouldReload(_SDelegate old) => false;
 }
 
 S lookupS(Locale locale) {
-
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'ar': return SAr();
-    case 'de': return SDe();
-    case 'en': return SEn();
-    case 'es': return SEs();
-    case 'fa': return SFa();
-    case 'fr': return SFr();
-    case 'hi': return SHi();
-    case 'id': return SId();
-    case 'ja': return SJa();
-    case 'ko': return SKo();
-    case 'pt': return SPt();
-    case 'ru': return SRu();
-    case 'tr': return STr();
-    case 'vi': return SVi();
-    case 'zh': return SZh();
+    case 'ar':
+      return SAr();
+    case 'de':
+      return SDe();
+    case 'en':
+      return SEn();
+    case 'es':
+      return SEs();
+    case 'fa':
+      return SFa();
+    case 'fr':
+      return SFr();
+    case 'hi':
+      return SHi();
+    case 'id':
+      return SId();
+    case 'ja':
+      return SJa();
+    case 'ko':
+      return SKo();
+    case 'pt':
+      return SPt();
+    case 'ru':
+      return SRu();
+    case 'tr':
+      return STr();
+    case 'vi':
+      return SVi();
+    case 'zh':
+      return SZh();
   }
 
   throw FlutterError(
     'S.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
+    'that was used.',
   );
 }

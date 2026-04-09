@@ -135,6 +135,24 @@ class _ConnectionSection extends ConsumerWidget {
   }
 }
 
+class _SshKeysSection extends ConsumerWidget {
+  const _SshKeysSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        _ActionTile(
+          icon: Icons.vpn_key,
+          title: S.of(context).sshKeys,
+          subtitle: S.of(context).sshKeysSubtitle,
+          onTap: () => KeyManagerDialog.show(context),
+        ),
+      ],
+    );
+  }
+}
+
 class _SecuritySection extends ConsumerWidget {
   const _SecuritySection();
 

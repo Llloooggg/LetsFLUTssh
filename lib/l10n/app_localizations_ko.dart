@@ -387,7 +387,8 @@ class SKo extends S {
   String get unknownHost => '알 수 없는 호스트';
 
   @override
-  String get hostKeyChangedWarning => '경고: 이 서버의 호스트 키가 변경되었습니다. 이는 중간자 공격을 나타낼 수 있으며, 서버가 재설치되었을 수도 있습니다.';
+  String get hostKeyChangedWarning =>
+      '경고: 이 서버의 호스트 키가 변경되었습니다. 이는 중간자 공격을 나타낼 수 있으며, 서버가 재설치되었을 수도 있습니다.';
 
   @override
   String get unknownHostMessage => '이 호스트의 신뢰성을 확인할 수 없습니다. 연결을 계속하시겠습니까?';
@@ -793,10 +794,12 @@ class SKo extends S {
   String get exportSessionsViaQr => 'QR로 세션 내보내기';
 
   @override
-  String get qrNoCredentialsWarning => '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
+  String get qrNoCredentialsWarning =>
+      '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
 
   @override
-  String get qrTooManyForSingleCode => '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
+  String get qrTooManyForSingleCode =>
+      '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
 
   @override
   String get qrTooLarge => '너무 큽니다 — 일부 세션을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.';
@@ -1120,7 +1123,8 @@ class SKo extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials =>
+      'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1152,7 +1156,8 @@ class SKo extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc =>
+      'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1198,7 +1203,8 @@ class SKo extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty =>
+      'No known hosts yet. Connect to a server to add one.';
 
   @override
   String get removeHost => 'Remove Host';
@@ -1212,7 +1218,8 @@ class SKo extends S {
   String get clearAllKnownHosts => 'Clear All Known Hosts';
 
   @override
-  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+  String get clearAllKnownHostsConfirm =>
+      'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
   String get importKnownHosts => 'Import Known Hosts';
@@ -1238,4 +1245,90 @@ class SKo extends S {
 
   @override
   String get noHostsToExport => 'No known hosts to export';
+
+  @override
+  String get sshKeys => 'SSH Keys';
+
+  @override
+  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+
+  @override
+  String get noKeys => 'No SSH keys. Import or generate one.';
+
+  @override
+  String get generateKey => 'Generate Key';
+
+  @override
+  String get importKey => 'Import Key';
+
+  @override
+  String get keyLabel => 'Key Label';
+
+  @override
+  String get keyLabelHint => 'e.g. Work Server, GitHub';
+
+  @override
+  String get selectKeyType => 'Key Type';
+
+  @override
+  String get generating => 'Generating...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'Key generated: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'Key imported: $label';
+  }
+
+  @override
+  String get deleteKey => 'Delete Key';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'Delete key \"$label\"? Sessions using it will lose access.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'Key deleted: $label';
+  }
+
+  @override
+  String get publicKey => 'Public Key';
+
+  @override
+  String get publicKeyCopied => 'Public key copied to clipboard';
+
+  @override
+  String get pastePrivateKey => 'Paste Private Key (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'Invalid PEM key data';
+
+  @override
+  String get selectFromKeyStore => 'Select from Key Store';
+
+  @override
+  String get noKeySelected => 'No key selected';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count keys',
+      one: '1 key',
+      zero: 'No keys',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'Generated';
 }

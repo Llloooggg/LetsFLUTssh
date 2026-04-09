@@ -387,7 +387,8 @@ class SZh extends S {
   String get unknownHost => '未知主机';
 
   @override
-  String get hostKeyChangedWarning => '警告：此服务器的主机密钥已更改。这可能表示存在中间人攻击，或服务器已被重新安装。';
+  String get hostKeyChangedWarning =>
+      '警告：此服务器的主机密钥已更改。这可能表示存在中间人攻击，或服务器已被重新安装。';
 
   @override
   String get unknownHostMessage => '无法验证此主机的真实性。确定要继续连接吗？';
@@ -1120,7 +1121,8 @@ class SZh extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials =>
+      'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1152,7 +1154,8 @@ class SZh extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc =>
+      'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1198,7 +1201,8 @@ class SZh extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty =>
+      'No known hosts yet. Connect to a server to add one.';
 
   @override
   String get removeHost => 'Remove Host';
@@ -1212,7 +1216,8 @@ class SZh extends S {
   String get clearAllKnownHosts => 'Clear All Known Hosts';
 
   @override
-  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+  String get clearAllKnownHostsConfirm =>
+      'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
   String get importKnownHosts => 'Import Known Hosts';
@@ -1238,4 +1243,90 @@ class SZh extends S {
 
   @override
   String get noHostsToExport => 'No known hosts to export';
+
+  @override
+  String get sshKeys => 'SSH Keys';
+
+  @override
+  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+
+  @override
+  String get noKeys => 'No SSH keys. Import or generate one.';
+
+  @override
+  String get generateKey => 'Generate Key';
+
+  @override
+  String get importKey => 'Import Key';
+
+  @override
+  String get keyLabel => 'Key Label';
+
+  @override
+  String get keyLabelHint => 'e.g. Work Server, GitHub';
+
+  @override
+  String get selectKeyType => 'Key Type';
+
+  @override
+  String get generating => 'Generating...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'Key generated: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'Key imported: $label';
+  }
+
+  @override
+  String get deleteKey => 'Delete Key';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'Delete key \"$label\"? Sessions using it will lose access.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'Key deleted: $label';
+  }
+
+  @override
+  String get publicKey => 'Public Key';
+
+  @override
+  String get publicKeyCopied => 'Public key copied to clipboard';
+
+  @override
+  String get pastePrivateKey => 'Paste Private Key (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'Invalid PEM key data';
+
+  @override
+  String get selectFromKeyStore => 'Select from Key Store';
+
+  @override
+  String get noKeySelected => 'No key selected';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count keys',
+      one: '1 key',
+      zero: 'No keys',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'Generated';
 }

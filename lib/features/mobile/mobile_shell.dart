@@ -354,13 +354,21 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   int _sftpTabCount(List<TabEntry> tabs) =>
       tabs.where((t) => t.kind == TabKind.sftp).length;
 
-  void _connectSession(BuildContext ctx, WidgetRef ref, Session session) {
-    final ok = SessionConnect.connectTerminal(ctx, ref, session);
+  Future<void> _connectSession(
+    BuildContext ctx,
+    WidgetRef ref,
+    Session session,
+  ) async {
+    final ok = await SessionConnect.connectTerminal(ctx, ref, session);
     if (ok) setState(() => _navIndex = 1);
   }
 
-  void _connectSessionSftp(BuildContext ctx, WidgetRef ref, Session session) {
-    final ok = SessionConnect.connectSftp(ctx, ref, session);
+  Future<void> _connectSessionSftp(
+    BuildContext ctx,
+    WidgetRef ref,
+    Session session,
+  ) async {
+    final ok = await SessionConnect.connectSftp(ctx, ref, session);
     if (ok) setState(() => _navIndex = 2);
   }
 }
