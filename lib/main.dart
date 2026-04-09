@@ -34,6 +34,7 @@ import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/key_provider.dart';
 import 'core/security/master_password.dart';
+import 'core/security/security_level.dart';
 import 'providers/master_password_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/locale_provider.dart';
@@ -194,8 +195,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
     final key = await _showUnlockDialog(manager);
     if (key != null) {
-      // Inject derived key into both stores.
-      ref.read(credentialStoreProvider).setExternalKey(key);
+      // Inject derived key into stores.
+      ref
+          .read(sessionStoreProvider)
+          .setEncryptionKey(key, SecurityLevel.masterPassword);
       ref.read(keyStoreProvider).setExternalKey(key);
       AppLogger.instance.log('Master password unlocked', name: 'App');
     } else {
@@ -818,9 +821,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       applyConfig: (config) =>
           ref.read(configProvider.notifier).update((_) => config),
       getEmptyFolders: () => store.emptyFolders,
-      loadCredentials: (ids) => store.loadCredentials(ids),
-      restoreSnapshot: (sessions, folders, creds) =>
-          store.restoreSnapshot(sessions, folders, creds),
+      restoreSnapshot: (sessions, folders) =>
+          store.restoreSnapshot(sessions, folders),
     );
   }
 }

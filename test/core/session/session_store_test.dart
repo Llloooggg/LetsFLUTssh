@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/security_level.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -157,83 +157,142 @@ void main() {
     });
   });
 
-  group('SessionStore — credential migration', () {
-    test(
-      'plaintext credentials in JSON are migrated to encrypted store',
-      () async {
-        // Write sessions.json directly with plaintext credentials (legacy format)
-        final sessionsFile = File('${tempDir.path}/sessions.json');
-        final legacyData = [
-          {
-            'id': 'legacy-1',
-            'label': 'legacy',
-            'host': 'host.com',
-            'user': 'admin',
-            'port': 22,
-            'auth_type': 'password',
-            'password': 'legacy-password',
-            'key_data': 'legacy-pem',
-            'passphrase': 'legacy-pass',
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          },
-        ];
-        await sessionsFile.writeAsString(jsonEncode(legacyData));
-
-        // Load — should trigger migration
-        final store = SessionStore();
-        final sessions = await store.load();
-        expect(sessions, hasLength(1));
-        expect(sessions.first.password, 'legacy-password');
-        expect(sessions.first.keyData, 'legacy-pem');
-        expect(sessions.first.passphrase, 'legacy-pass');
-
-        // After migration, sessions.json should NOT contain secrets
-        final rawJson = await sessionsFile.readAsString();
-        final list = jsonDecode(rawJson) as List;
-        final firstSession = list.first as Map<String, dynamic>;
-        // toJson() excludes password, key_data, passphrase
-        expect(firstSession.containsKey('password'), isFalse);
-        expect(firstSession.containsKey('key_data'), isFalse);
-        expect(firstSession.containsKey('passphrase'), isFalse);
-      },
-    );
-  });
-
-  group('SessionStore — credential merge', () {
-    test('encrypted credentials are merged into session on load', () async {
-      // First: add a session with credentials
-      final store = SessionStore();
+  group('SessionStore — plaintext credentials', () {
+    test('credentials are stored in sessions.json in plaintext mode', () async {
+      final store = SessionStore(directory: tempDir.path);
       await store.load();
       final session = makeSession(
-        id: 'merge-1',
-        label: 'merge-test',
-        password: 'encrypted-pw',
+        id: 'cred-1',
+        label: 'with-creds',
+        password: 'secret123',
+        keyData: 'PEM-KEY-DATA',
+        passphrase: 'mypass',
       );
       await store.add(session);
 
-      // Verify sessions.json does NOT have password
+      // In plaintext mode, sessions.json includes credentials
       final sessionsFile = File('${tempDir.path}/sessions.json');
       final rawJson = await sessionsFile.readAsString();
-      expect(rawJson.contains('encrypted-pw'), isFalse);
+      expect(rawJson.contains('secret123'), isTrue);
+      expect(rawJson.contains('PEM-KEY-DATA'), isTrue);
 
-      // Reload — credentials should come from encrypted store
-      final store2 = SessionStore();
+      // Reload — credentials should load from plaintext JSON
+      final store2 = SessionStore(directory: tempDir.path);
       final loaded = await store2.load();
-      expect(loaded.first.password, 'encrypted-pw');
+      expect(loaded.first.password, 'secret123');
+      expect(loaded.first.keyData, 'PEM-KEY-DATA');
+      expect(loaded.first.passphrase, 'mypass');
     });
 
     test('session without credentials loads cleanly', () async {
-      final store = SessionStore();
+      final store = SessionStore(directory: tempDir.path);
       await store.load();
       final session = makeSession(id: 'no-cred', label: 'nocred');
       await store.add(session);
 
-      final store2 = SessionStore();
+      final store2 = SessionStore(directory: tempDir.path);
       final loaded = await store2.load();
       expect(loaded.first.password, '');
       expect(loaded.first.keyData, '');
       expect(loaded.first.passphrase, '');
+    });
+  });
+
+  group('SessionStore — encrypted mode', () {
+    test('sessions are encrypted when key is set', () async {
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+      final store = SessionStore(directory: tempDir.path);
+      store.setEncryptionKey(key, SecurityLevel.keychain);
+      await store.load();
+
+      final session = makeSession(
+        id: 'enc-1',
+        label: 'encrypted',
+        password: 'secret',
+      );
+      await store.add(session);
+
+      // sessions.enc should exist, sessions.json should not
+      expect(await File('${tempDir.path}/sessions.enc').exists(), isTrue);
+      expect(await File('${tempDir.path}/sessions.json').exists(), isFalse);
+
+      // Reload with same key — credentials should be available
+      final store2 = SessionStore(directory: tempDir.path);
+      store2.setEncryptionKey(key, SecurityLevel.keychain);
+      final loaded = await store2.load();
+      expect(loaded.first.password, 'secret');
+      expect(loaded.first.label, 'encrypted');
+    });
+
+    test('encrypted file is not readable as plaintext', () async {
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+      final store = SessionStore(directory: tempDir.path);
+      store.setEncryptionKey(key, SecurityLevel.keychain);
+      await store.load();
+      await store.add(makeSession(id: 'enc-2', password: 'hidden'));
+
+      final raw = await File('${tempDir.path}/sessions.enc').readAsBytes();
+      // The word 'hidden' as UTF-8 bytes should not appear in encrypted data.
+      final hiddenBytes = 'hidden'.codeUnits;
+      var found = false;
+      for (var i = 0; i <= raw.length - hiddenBytes.length; i++) {
+        if (raw[i] == hiddenBytes[0]) {
+          var match = true;
+          for (var j = 1; j < hiddenBytes.length; j++) {
+            if (raw[i + j] != hiddenBytes[j]) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
+            found = true;
+            break;
+          }
+        }
+      }
+      expect(found, isFalse);
+    });
+  });
+
+  group('SessionStore — reEncrypt', () {
+    test('reEncrypt from plaintext to encrypted', () async {
+      final store = SessionStore(directory: tempDir.path);
+      await store.load();
+      await store.add(makeSession(id: 're-1', password: 'pw1'));
+
+      // Re-encrypt to keychain mode
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+      await store.reEncrypt(key, SecurityLevel.keychain);
+
+      // Plaintext file should be deleted
+      expect(await File('${tempDir.path}/sessions.json').exists(), isFalse);
+      expect(await File('${tempDir.path}/sessions.enc').exists(), isTrue);
+
+      // Load with key — data intact
+      final store2 = SessionStore(directory: tempDir.path);
+      store2.setEncryptionKey(key, SecurityLevel.keychain);
+      final loaded = await store2.load();
+      expect(loaded.first.password, 'pw1');
+    });
+
+    test('reEncrypt from encrypted to plaintext', () async {
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+      final store = SessionStore(directory: tempDir.path);
+      store.setEncryptionKey(key, SecurityLevel.keychain);
+      await store.load();
+      await store.add(makeSession(id: 're-2', password: 'pw2'));
+
+      // Re-encrypt to plaintext
+      await store.reEncrypt(null, SecurityLevel.plaintext);
+
+      // Encrypted file should be deleted
+      expect(await File('${tempDir.path}/sessions.enc').exists(), isFalse);
+      expect(await File('${tempDir.path}/sessions.json').exists(), isTrue);
+
+      // Load without key — data intact
+      final store2 = SessionStore(directory: tempDir.path);
+      final loaded = await store2.load();
+      expect(loaded.first.password, 'pw2');
     });
   });
 
@@ -646,104 +705,6 @@ void main() {
     });
   });
 
-  group('SessionStore — _save credential error recovery', () {
-    test(
-      'credential save failure does not prevent session file save',
-      () async {
-        final store = SessionStore();
-        await store.load();
-
-        // Add a session with credentials
-        final session = makeSession(
-          id: 'save-fail-1',
-          label: 'cred-fail',
-          password: 'secret',
-        );
-        await store.add(session);
-
-        // Now corrupt credentials.key by replacing it with a directory
-        // This will cause credential save to fail on next _save call
-        final keyFile = File('${tempDir.path}/credentials.key');
-        await keyFile.delete();
-        await Directory('${tempDir.path}/credentials.key').create();
-
-        // Add another session — _save will be called, credential save will fail
-        // but session file save should succeed
-        final session2 = makeSession(
-          id: 'save-fail-2',
-          label: 'after-fail',
-          password: 'pw2',
-        );
-        await store.add(session2);
-
-        // Verify session file was saved (2 sessions)
-        final sessionsFile = File('${tempDir.path}/sessions.json');
-        final content = await sessionsFile.readAsString();
-        expect(content, contains('save-fail-1'));
-        expect(content, contains('save-fail-2'));
-
-        // Clean up: remove the directory we created
-        await Directory('${tempDir.path}/credentials.key').delete();
-      },
-    );
-  });
-
-  group('SessionStore — credential loss protection', () {
-    test(
-      'load does not overwrite encrypted creds when key is corrupted',
-      () async {
-        // 1. Create a session with credentials
-        final store = SessionStore();
-        await store.load();
-        final session = makeSession(
-          id: 'protect-1',
-          label: 'protected',
-          password: 'my-secret',
-        );
-        await store.add(session);
-
-        // Verify credentials.enc exists
-        final credFile = File('${tempDir.path}/credentials.enc');
-        expect(await credFile.exists(), isTrue);
-        final originalEncBytes = await credFile.readAsBytes();
-
-        // 2. Corrupt the key file
-        final keyFile = File('${tempDir.path}/credentials.key');
-        await keyFile.writeAsBytes([1, 2, 3]); // too short / wrong key
-
-        // 3. Load again — should NOT overwrite credentials.enc
-        final store2 = SessionStore();
-        await store2.load();
-
-        // Credential file should be untouched (same bytes)
-        final afterLoadBytes = await credFile.readAsBytes();
-        expect(afterLoadBytes, equals(originalEncBytes));
-      },
-    );
-
-    test(
-      'load still works with sessions when creds cannot be decrypted',
-      () async {
-        // Create session
-        final store = SessionStore();
-        await store.load();
-        await store.add(makeSession(id: 's1', label: 'test', password: 'pw'));
-
-        // Corrupt key
-        final keyFile = File('${tempDir.path}/credentials.key');
-        await keyFile.writeAsBytes([0, 0, 0]);
-
-        // Load again — session metadata should still load (just without creds)
-        final store2 = SessionStore();
-        final sessions = await store2.load();
-        expect(sessions, hasLength(1));
-        expect(sessions.first.label, 'test');
-        // Password won't be restored since decryption failed
-        expect(sessions.first.password, isEmpty);
-      },
-    );
-  });
-
   group('SessionStore — concurrent load guard', () {
     test('concurrent load calls do not lose credentials', () async {
       // Setup: create a session with credentials
@@ -789,43 +750,6 @@ void main() {
       expect(second, hasLength(1));
       expect(second.first.password, 'pw');
     });
-  });
-
-  group('SessionStore — credential save protection', () {
-    test(
-      'save after failed merge does not overwrite encrypted creds',
-      () async {
-        // Create session with credentials
-        final store = SessionStore();
-        await store.load();
-        await store.add(
-          makeSession(
-            id: 'save-prot-1',
-            label: 'protected',
-            password: 'secret',
-          ),
-        );
-
-        // Snapshot the credential file
-        final credFile = File('${tempDir.path}/credentials.enc');
-        final originalBytes = await credFile.readAsBytes();
-
-        // Corrupt the key
-        final keyFile = File('${tempDir.path}/credentials.key');
-        await keyFile.writeAsBytes([1, 2, 3]);
-
-        // Load with corrupted key — merge fails
-        final store2 = SessionStore();
-        await store2.load();
-
-        // Trigger a save (e.g., add a session without creds)
-        await store2.add(makeSession(id: 'save-prot-2', label: 'new'));
-
-        // Credential file should not be overwritten
-        final afterBytes = await credFile.readAsBytes();
-        expect(afterBytes, equals(originalBytes));
-      },
-    );
   });
 
   // ---------------------------------------------------------------------------
@@ -978,72 +902,6 @@ void main() {
       await store.load();
 
       expect(await backup.readAsString(), 'new corrupt data');
-    });
-  });
-
-  group('SessionStore — atomic delete order', () {
-    test('delete removes credential before session file', () async {
-      final store = SessionStore();
-      await store.load();
-      await store.add(makeSession(id: 'ad-1', label: 'victim', password: 'pw'));
-
-      // Verify credential exists
-      final credFile = File('${tempDir.path}/credentials.enc');
-      expect(await credFile.exists(), isTrue);
-      final beforeBytes = await credFile.readAsBytes();
-      expect(beforeBytes.isNotEmpty, isTrue);
-
-      await store.delete('ad-1');
-
-      // Session removed
-      expect(store.sessions, isEmpty);
-      // Credential file still exists but content changed (empty map encrypted)
-      final afterBytes = await credFile.readAsBytes();
-      expect(afterBytes != beforeBytes, isTrue);
-    });
-
-    test('deleteAll clears credentials in single operation', () async {
-      final store = SessionStore();
-      await store.load();
-      await store.add(makeSession(id: 'da-b1', label: 's1', password: 'p1'));
-      await store.add(makeSession(id: 'da-b2', label: 's2', password: 'p2'));
-      await store.add(makeSession(id: 'da-b3', label: 's3', password: 'p3'));
-
-      await store.deleteAll();
-
-      expect(store.sessions, isEmpty);
-
-      // Verify no credentials remain by loading fresh
-      final store2 = SessionStore();
-      await store2.load();
-      await store2.add(makeSession(id: 'after', label: 'after'));
-      // Loading should not find any old credentials
-      expect(store2.get('da-b1'), isNull);
-    });
-
-    test('deleteFolder deletes credentials before removing sessions', () async {
-      final store = SessionStore();
-      await store.load();
-      await store.add(
-        makeSession(id: 'df-1', label: 's1', folder: 'F', password: 'p1'),
-      );
-      await store.add(
-        makeSession(id: 'df-2', label: 's2', folder: 'F/Sub', password: 'p2'),
-      );
-      await store.add(
-        makeSession(id: 'df-3', label: 's3', folder: 'Other', password: 'p3'),
-      );
-
-      await store.deleteFolder('F');
-
-      expect(store.sessions, hasLength(1));
-      expect(store.sessions.first.id, 'df-3');
-
-      // Verify deleted session credentials are gone
-      final store2 = SessionStore();
-      final loaded = await store2.load();
-      expect(loaded, hasLength(1));
-      expect(loaded.first.password, 'p3');
     });
   });
 }

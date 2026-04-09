@@ -264,12 +264,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   Future<void> _enableMasterPassword(String password) async {
     final manager = ref.read(masterPasswordProvider);
-    final credStore = ref.read(credentialStoreProvider);
+    final sessionStore = ref.read(sessionStoreProvider);
     final keyStore = ref.read(keyStoreProvider);
-
-    // Load all data with current key before re-encryption.
-    final allCreds = await credStore.loadAllSafe();
-    final allKeys = await keyStore.loadAllSafe();
 
     // Derive new key from password.
     final newKey = await manager.enable(password);
@@ -277,23 +273,16 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // Sanity check: verify the password immediately to catch crypto issues.
     final verified = await manager.verify(password);
     if (!verified) {
-      // Revert: disable master password so the user isn't locked out.
       await manager.disable();
       throw const MasterPasswordException(
         'Verification failed after enable — reverted',
       );
     }
 
-    // Re-encrypt both stores with the derived key.
-    credStore.setExternalKey(newKey);
-    await credStore.saveAll(allCreds);
+    // Re-encrypt all stores with the derived key.
+    await sessionStore.reEncrypt(newKey, SecurityLevel.masterPassword);
     keyStore.setExternalKey(newKey);
-    await keyStore.saveAll(allKeys);
-
-    // Delete the file-based key — no longer needed.
-    final basePath = await _getBasePath();
-    final keyFile = File('$basePath/credentials.key');
-    if (await keyFile.exists()) await keyFile.delete();
+    await keyStore.saveAll(await keyStore.loadAllSafe());
   }
 
   Future<void> _changeMasterPassword(BuildContext context) async {
@@ -351,21 +340,16 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   Future<void> _doChangePassword(String oldPassword, String newPassword) async {
     final manager = ref.read(masterPasswordProvider);
-    final credStore = ref.read(credentialStoreProvider);
+    final sessionStore = ref.read(sessionStoreProvider);
     final keyStore = ref.read(keyStoreProvider);
-
-    // Load all data with current key.
-    final allCreds = await credStore.loadAllSafe();
-    final allKeys = await keyStore.loadAllSafe();
 
     // Change password — verifies old, generates new salt + verifier.
     final newKey = await manager.changePassword(oldPassword, newPassword);
 
-    // Re-encrypt with new key.
-    credStore.setExternalKey(newKey);
-    await credStore.saveAll(allCreds);
+    // Re-encrypt all stores with new key.
+    await sessionStore.reEncrypt(newKey, SecurityLevel.masterPassword);
     keyStore.setExternalKey(newKey);
-    await keyStore.saveAll(allKeys);
+    await keyStore.saveAll(await keyStore.loadAllSafe());
   }
 
   Future<void> _removeMasterPassword(BuildContext context) async {
@@ -417,7 +401,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   Future<void> _doRemoveMasterPassword(String password) async {
     final manager = ref.read(masterPasswordProvider);
-    final credStore = ref.read(credentialStoreProvider);
+    final sessionStore = ref.read(sessionStoreProvider);
     final keyStore = ref.read(keyStoreProvider);
 
     // Verify password first.
@@ -426,35 +410,14 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       throw const MasterPasswordException('Current password is incorrect');
     }
 
-    // Load all data with current (derived) key.
-    final allCreds = await credStore.loadAllSafe();
-    final allKeys = await keyStore.loadAllSafe();
-
-    // Generate a new random key and save it to file.
-    final random = Random.secure();
-    final randomKey = Uint8List.fromList(
-      List.generate(32, (_) => random.nextInt(256)),
-    );
-    final basePath = await _getBasePath();
-    await writeBytesAtomic('$basePath/credentials.key', randomKey);
-
-    // Re-encrypt with random key.
-    credStore.setExternalKey(randomKey);
-    await credStore.saveAll(allCreds);
-    keyStore.setExternalKey(randomKey);
-    await keyStore.saveAll(allKeys);
-
-    // Revert to file-based key.
-    credStore.clearExternalKey();
+    // Re-encrypt to plaintext (no key).
+    // TODO(security-refactor): try keychain first, fall to plaintext
+    await sessionStore.reEncrypt(null, SecurityLevel.plaintext);
     keyStore.clearExternalKey();
+    await keyStore.saveAll(await keyStore.loadAllSafe());
 
     // Delete salt + verifier.
     await manager.disable();
-  }
-
-  Future<String> _getBasePath() async {
-    final dir = await getApplicationSupportDirectory();
-    return dir.path;
   }
 }
 
@@ -686,9 +649,8 @@ class _ExportImportTile extends ConsumerWidget {
           applyConfig: (config) =>
               ref.read(configProvider.notifier).update((_) => config),
           getEmptyFolders: () => store.emptyFolders,
-          loadCredentials: (ids) => store.loadCredentials(ids),
-          restoreSnapshot: (sessions, folders, creds) =>
-              store.restoreSnapshot(sessions, folders, creds),
+          restoreSnapshot: (sessions, folders) =>
+              store.restoreSnapshot(sessions, folders),
         );
         await importService.applyResult(importResult);
 

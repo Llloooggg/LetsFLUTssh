@@ -1,70 +1,85 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
-import '../security/credential_store.dart';
+import '../security/aes_gcm.dart';
+import '../security/security_level.dart';
 import 'session.dart';
 
-/// CRUD + JSON persistence for sessions.
+/// CRUD + persistence for sessions.
 ///
-/// Session metadata is stored in plaintext JSON. Secrets (password, keyData,
-/// passphrase) are stored in an AES-256-GCM encrypted file via [CredentialStore].
+/// Supports three security levels:
+/// - [SecurityLevel.plaintext]: `sessions.json` with credentials in cleartext.
+/// - [SecurityLevel.keychain]: `sessions.enc` encrypted with OS keychain key.
+/// - [SecurityLevel.masterPassword]: `sessions.enc` encrypted with PBKDF2 key.
+///
+/// On upgrade from old format (`credentials.enc` + `credentials.key`),
+/// automatically migrates data to the new unified format.
 class SessionStore {
-  static const _fileName = 'sessions.json';
+  static const _jsonFileName = 'sessions.json';
+  static const _encFileName = 'sessions.enc';
 
   final List<Session> _sessions = [];
   final Set<String> _emptyFolders = {};
   final Set<String> _collapsedFolders = {};
-  final CredentialStore _credStore;
 
-  /// Creates a session store.
-  ///
-  /// [credentialStore] is injectable for testing; defaults to a real
-  /// [CredentialStore] in production.
+  SecurityLevel _level;
+  Uint8List? _encryptionKey;
+
   /// [directory] is the base directory for session files; resolved lazily
   /// from [getApplicationSupportDirectory] when not provided.
-  SessionStore({CredentialStore? credentialStore, String? directory})
-    : _credStore = credentialStore ?? CredentialStore(),
-      _directory = directory;
+  SessionStore({
+    String? directory,
+    SecurityLevel level = SecurityLevel.plaintext,
+  }) : _directory = directory,
+       _level = level;
 
   final String? _directory;
-  String? _filePath;
+  String? _basePath;
   String? _groupsFilePath;
   String? _collapsedFoldersFilePath;
-
-  /// False only when credential decryption explicitly failed on load.
-  /// When false, [_saveCredentials] skips the save to avoid overwriting
-  /// valid encrypted credentials with empty in-memory data.
-  bool _credentialsMerged = true;
 
   List<Session> get sessions => List.unmodifiable(_sessions);
   Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);
   Set<String> get collapsedFolders => Set.unmodifiable(_collapsedFolders);
+
+  /// Current security level.
+  SecurityLevel get securityLevel => _level;
+
+  /// Set the encryption key (from keychain or master password derivation).
+  void setEncryptionKey(Uint8List key, SecurityLevel level) {
+    _encryptionKey = key;
+    _level = level;
+  }
+
+  /// Clear the encryption key (revert to plaintext).
+  void clearEncryptionKey() {
+    _encryptionKey = null;
+    _level = SecurityLevel.plaintext;
+  }
 
   /// Guards concurrent [load] calls — second caller awaits the first.
   Future<List<Session>>? _loadFuture;
 
   /// Ensure file paths are resolved. Safe to call multiple times.
   Future<void> init() async {
-    if (_filePath != null) return;
+    if (_basePath != null) return;
     final dirPath = _directory ?? (await getApplicationSupportDirectory()).path;
-    _filePath = p.join(dirPath, _fileName);
+    _basePath = dirPath;
     _groupsFilePath = p.join(dirPath, 'empty_groups.json');
     _collapsedFoldersFilePath = p.join(dirPath, 'collapsed_folders.json');
   }
 
-  /// File path for sessions — guaranteed non-null after [init].
-  String get _sessionsPath => _filePath!;
+  String get _base => _basePath!;
   String get _groupsPath => _groupsFilePath!;
   String get _collapsedPath => _collapsedFoldersFilePath!;
 
   Future<List<Session>> load() async {
-    // If a load is already in progress, return its result instead of
-    // starting a second one — concurrent loads race on _sessions.
     if (_loadFuture != null) return _loadFuture!;
     final future = _doLoad();
     _loadFuture = future;
@@ -77,124 +92,203 @@ class SessionStore {
 
   Future<List<Session>> _doLoad() async {
     await init();
-    final file = File(_sessionsPath);
-    if (!await file.exists()) return _sessions;
-    try {
-      final content = await file.readAsString();
-      final list = jsonDecode(content) as List;
-      _sessions
-        ..clear()
-        ..addAll(list.map((e) => Session.fromJson(e as Map<String, dynamic>)));
 
-      await _mergeAndMigrateCredentials();
+    // Check for old format and migrate if needed.
+    await _migrateFromOldFormat();
+
+    try {
+      await _loadSessions();
     } catch (e) {
       AppLogger.instance.log(
         'Failed to load sessions — backing up corrupt file',
         name: 'SessionStore',
         error: e,
       );
-      await _backupCorruptFile(file);
+      // Try to back up whichever file exists.
+      final encFile = File('$_base/$_encFileName');
+      final jsonFile = File('$_base/$_jsonFileName');
+      if (await encFile.exists()) {
+        await _backupCorruptFile(encFile);
+      } else if (await jsonFile.exists()) {
+        await _backupCorruptFile(jsonFile);
+      }
     }
 
-    // Load empty folders
     await _loadEmptyFolders();
     await _loadCollapsedFolders();
 
     return _sessions;
   }
 
-  /// Load credentials from encrypted store, merge into sessions,
-  /// and migrate any legacy plaintext credentials.
-  Future<void> _mergeAndMigrateCredentials() async {
-    Map<String, CredentialData> allCreds;
-    try {
-      allCreds = await _credStore.loadAll();
-    } on CredentialStoreException catch (e) {
-      // Decryption failed — do NOT overwrite encrypted store.
-      // Keep sessions without credentials rather than risk data loss.
-      _credentialsMerged = false;
-      AppLogger.instance.log(
-        'Credential decryption failed, '
-        'skipping merge to prevent data loss',
-        name: 'SessionStore',
-        error: e,
-      );
-      return;
-    }
-    _credentialsMerged = true;
-    bool needsMigration = false;
-
-    for (int i = 0; i < _sessions.length; i++) {
-      final s = _sessions[i];
-      final cred = allCreds[s.id];
-      if (cred != null && !cred.isEmpty) {
-        _sessions[i] = _mergeCredential(s, cred);
-      } else if (_hasPlaintextCredentials(s)) {
-        needsMigration = true;
-      }
-    }
-
-    if (needsMigration) {
-      await _migrateCredentials();
+  /// Load sessions from the appropriate file based on security level.
+  Future<void> _loadSessions() async {
+    if (_encryptionKey != null) {
+      // Encrypted mode (keychain or master password).
+      final encFile = File('$_base/$_encFileName');
+      if (!await encFile.exists()) return;
+      final encData = await encFile.readAsBytes();
+      final json = AesGcm.decrypt(encData, _encryptionKey!);
+      _parseSessions(json);
+    } else {
+      // Plaintext mode.
+      final jsonFile = File('$_base/$_jsonFileName');
+      if (!await jsonFile.exists()) return;
+      final json = await jsonFile.readAsString();
+      _parseSessions(json);
     }
   }
 
-  /// Merge encrypted credential data into a session object.
-  Session _mergeCredential(Session session, CredentialData cred) {
-    return session.copyWith(
-      auth: session.auth.copyWith(
-        password: cred.password.isNotEmpty ? cred.password : session.password,
-        keyData: cred.keyData.isNotEmpty ? cred.keyData : session.keyData,
-        passphrase: cred.passphrase.isNotEmpty
-            ? cred.passphrase
-            : session.passphrase,
-      ),
+  void _parseSessions(String json) {
+    final list = jsonDecode(json) as List;
+    _sessions
+      ..clear()
+      ..addAll(list.map((e) => Session.fromJson(e as Map<String, dynamic>)));
+  }
+
+  /// Save sessions to the appropriate file based on security level.
+  Future<void> _save() async {
+    await init();
+    final json = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_sessions.map((s) => s.toJsonWithCredentials()).toList());
+
+    if (_encryptionKey != null) {
+      final encData = AesGcm.encrypt(json, _encryptionKey!);
+      await writeBytesAtomic('$_base/$_encFileName', encData);
+    } else {
+      await writeFileAtomic('$_base/$_jsonFileName', json);
+    }
+  }
+
+  /// Re-encrypt all data with a new key and security level.
+  ///
+  /// Used when enabling/disabling/changing master password or switching
+  /// between keychain and plaintext.
+  Future<void> reEncrypt(Uint8List? newKey, SecurityLevel newLevel) async {
+    await init();
+
+    // Delete old files (both formats).
+    final oldEnc = File('$_base/$_encFileName');
+    final oldJson = File('$_base/$_jsonFileName');
+
+    // Update key and level, then save in new format.
+    _encryptionKey = newKey;
+    _level = newLevel;
+    await _save();
+
+    // Clean up the opposite format file.
+    if (newKey != null) {
+      // Switched to encrypted — delete plaintext.
+      if (await oldJson.exists()) await oldJson.delete();
+    } else {
+      // Switched to plaintext — delete encrypted.
+      if (await oldEnc.exists()) await oldEnc.delete();
+    }
+  }
+
+  // ── Migration from old format ────────────────────────────────────
+
+  /// Migrate from old format (separate `credentials.enc` + `credentials.key`)
+  /// to unified format.
+  ///
+  /// Detection: `credentials.enc` file exists alongside `sessions.json`.
+  /// After migration, old files are deleted.
+  Future<void> _migrateFromOldFormat() async {
+    final oldCredFile = File('$_base/credentials.enc');
+    final oldKeyFile = File('$_base/credentials.key');
+    final oldSessionsFile = File('$_base/$_jsonFileName');
+
+    // Only migrate when old credential files exist.
+    if (!await oldCredFile.exists()) return;
+
+    AppLogger.instance.log(
+      'Detected old format — starting migration',
+      name: 'SessionStore',
     );
-  }
 
-  /// Check if a session has credentials stored in plaintext.
-  bool _hasPlaintextCredentials(Session s) {
-    return s.password.isNotEmpty ||
-        s.keyData.isNotEmpty ||
-        s.passphrase.isNotEmpty;
-  }
-
-  /// Migrate plaintext credentials from sessions.json to encrypted store,
-  /// then re-save sessions.json without secrets.
-  Future<void> _migrateCredentials() async {
-    Map<String, CredentialData> allCreds;
-    try {
-      allCreds = await _credStore.loadAll();
-    } on CredentialStoreException {
-      // Cannot load existing creds — start fresh map for migration.
-      // This is safe: we only add plaintext creds that exist in sessions.json.
-      allCreds = {};
-    }
-    for (final s in _sessions) {
-      if (s.password.isNotEmpty ||
-          s.keyData.isNotEmpty ||
-          s.passphrase.isNotEmpty) {
-        allCreds[s.id] = CredentialData(
-          password: s.password,
-          keyData: s.keyData,
-          passphrase: s.passphrase,
+    // Load old sessions from plaintext JSON.
+    if (await oldSessionsFile.exists()) {
+      try {
+        final json = await oldSessionsFile.readAsString();
+        _parseSessions(json);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to parse old sessions.json during migration',
+          name: 'SessionStore',
+          error: e,
         );
       }
     }
-    await _credStore.saveAll(allCreds);
-    AppLogger.instance.log(
-      'Migrated credentials for ${allCreds.length} session(s) '
-      'from plaintext to encrypted store',
-      name: 'SessionStore',
-    );
-    // Re-save sessions.json without secrets (toJson() now excludes them).
-    await _saveSessionFile();
+
+    // Decrypt old credentials and merge into sessions.
+    // The key comes from either the external key (master password) or the
+    // old credentials.key file.
+    Uint8List? credKey = _encryptionKey;
+    if (credKey == null && await oldKeyFile.exists()) {
+      final keyBytes = await oldKeyFile.readAsBytes();
+      if (keyBytes.length == AesGcm.keyLength) {
+        credKey = keyBytes;
+      }
+    }
+
+    if (credKey != null) {
+      try {
+        final encData = await oldCredFile.readAsBytes();
+        final credJson = AesGcm.decrypt(encData, credKey);
+        final credMap = jsonDecode(credJson) as Map<String, dynamic>;
+        _mergeOldCredentials(credMap);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to decrypt old credentials during migration — '
+          'sessions will load without secrets',
+          name: 'SessionStore',
+          error: e,
+        );
+      }
+    }
+
+    // Save in new format.
+    await _save();
+
+    // Delete old files.
+    try {
+      await oldCredFile.delete();
+      if (await oldKeyFile.exists()) await oldKeyFile.delete();
+      AppLogger.instance.log(
+        'Migration complete — old files deleted',
+        name: 'SessionStore',
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to delete old files after migration',
+        name: 'SessionStore',
+        error: e,
+      );
+    }
   }
 
-  /// Back up a corrupt sessions file so the user can recover it manually.
-  ///
-  /// Renames to `sessions.json.corrupt`. If a previous backup exists it is
-  /// overwritten — only the most recent corrupt file is kept.
+  /// Merge old credential data into in-memory sessions.
+  void _mergeOldCredentials(Map<String, dynamic> credMap) {
+    for (int i = 0; i < _sessions.length; i++) {
+      final s = _sessions[i];
+      final cred = credMap[s.id] as Map<String, dynamic>?;
+      if (cred == null) continue;
+      final password = cred['password'] as String? ?? '';
+      final keyData = cred['key_data'] as String? ?? '';
+      final passphrase = cred['passphrase'] as String? ?? '';
+      if (password.isEmpty && keyData.isEmpty && passphrase.isEmpty) continue;
+      _sessions[i] = s.copyWith(
+        auth: s.auth.copyWith(
+          password: password.isNotEmpty ? password : s.password,
+          keyData: keyData.isNotEmpty ? keyData : s.keyData,
+          passphrase: passphrase.isNotEmpty ? passphrase : s.passphrase,
+        ),
+      );
+    }
+  }
+
+  // ── Corrupt file backup ──────────────────────────────────────────
+
   Future<void> _backupCorruptFile(File file) async {
     try {
       final backupPath = '${file.path}.corrupt';
@@ -212,62 +306,7 @@ class SessionStore {
     }
   }
 
-  /// Save session metadata (no secrets) to JSON file.
-  Future<void> _saveSessionFile() async {
-    await init();
-    final content = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(_sessions.map((s) => s.toJson()).toList());
-    await writeFileAtomic(_sessionsPath, content);
-  }
-
-  /// Save credentials first, then session metadata.
-  ///
-  /// Credentials are saved before sessions so that on crash/restart
-  /// the encrypted store is never behind the session file. If credential
-  /// save fails, session file is still persisted (credentials remain in
-  /// memory and will be retried on next save).
-  Future<void> _save() async {
-    try {
-      await _saveCredentials();
-    } catch (e) {
-      AppLogger.instance.log(
-        'Credential save failed — '
-        'credentials remain in memory and will retry on next save',
-        name: 'SessionStore',
-        error: e,
-      );
-    }
-    await _saveSessionFile();
-  }
-
-  /// Save all credentials to encrypted store.
-  ///
-  /// When [_credentialsMerged] is false (decryption failed on load),
-  /// skips the save entirely to prevent overwriting valid encrypted
-  /// credentials with empty in-memory data.
-  Future<void> _saveCredentials() async {
-    if (!_credentialsMerged) {
-      AppLogger.instance.log(
-        'Skipping credential save — credentials were not merged on load',
-        name: 'SessionStore',
-      );
-      return;
-    }
-    final allCreds = <String, CredentialData>{};
-    for (final s in _sessions) {
-      if (s.password.isNotEmpty ||
-          s.keyData.isNotEmpty ||
-          s.passphrase.isNotEmpty) {
-        allCreds[s.id] = CredentialData(
-          password: s.password,
-          keyData: s.keyData,
-          passphrase: s.passphrase,
-        );
-      }
-    }
-    await _credStore.saveAll(allCreds);
-  }
+  // ── Empty folders persistence ────────────────────────────────────
 
   Future<void> _loadEmptyFolders() async {
     await init();
@@ -293,7 +332,6 @@ class SessionStore {
     await writeFileAtomic(_groupsPath, jsonEncode(_emptyFolders.toList()));
   }
 
-  /// Add an empty folder (persists even without sessions).
   Future<void> addEmptyFolder(String folderPath) async {
     if (folderPath.isEmpty) return;
     _emptyFolders.add(folderPath);
@@ -304,7 +342,6 @@ class SessionStore {
     await _saveEmptyFolders();
   }
 
-  /// Remove an empty folder (called when no longer needed).
   Future<void> removeEmptyFolder(String folderPath) async {
     _emptyFolders.remove(folderPath);
     AppLogger.instance.log(
@@ -314,7 +351,7 @@ class SessionStore {
     await _saveEmptyFolders();
   }
 
-  // ── Collapsed folders persistence ──
+  // ── Collapsed folders persistence ────────────────────────────────
 
   Future<void> _loadCollapsedFolders() async {
     await init();
@@ -343,7 +380,6 @@ class SessionStore {
     );
   }
 
-  /// Toggle a folder's collapsed state (persisted across restarts).
   Future<void> toggleFolderCollapsed(String folderPath) async {
     final wasCollapsed = _collapsedFolders.contains(folderPath);
     if (wasCollapsed) {
@@ -358,12 +394,20 @@ class SessionStore {
     await _saveCollapsedFolders();
   }
 
-  /// Rename a folder and all its subfolders.
-  /// Updates sessions and empty folders with the old path prefix.
+  /// Count sessions in a folder and its subfolders.
+  int countSessionsInFolder(String folderPath) {
+    return _sessions
+        .where(
+          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+        )
+        .length;
+  }
+
+  // ── Folder operations ────────────────────────────────────────────
+
   Future<void> renameFolder(String oldPath, String newPath) async {
     if (oldPath.isEmpty || newPath.isEmpty || oldPath == newPath) return;
 
-    // Update sessions: exact match or subfolder (oldPath/...)
     for (int i = 0; i < _sessions.length; i++) {
       final s = _sessions[i];
       if (s.folder == oldPath) {
@@ -375,7 +419,6 @@ class SessionStore {
       }
     }
 
-    // Update empty folders
     final toRemove = <String>[];
     final toAdd = <String>[];
     for (final g in _emptyFolders) {
@@ -390,7 +433,6 @@ class SessionStore {
     _emptyFolders.removeAll(toRemove);
     _emptyFolders.addAll(toAdd);
 
-    // Update collapsed folders
     final colToRemove = <String>[];
     final colToAdd = <String>[];
     for (final c in _collapsedFolders) {
@@ -408,67 +450,33 @@ class SessionStore {
     await Future.wait([_save(), _saveEmptyFolders(), _saveCollapsedFolders()]);
   }
 
-  /// Delete a folder: remove all sessions and empty folders under this path.
   Future<void> deleteFolder(String folderPath) async {
     if (folderPath.isEmpty) return;
-
-    // Delete sessions in this folder and subfolders.
-    // Credentials first so sessions remain intact on failure.
-    final toDelete = _sessions
-        .where(
-          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
-        )
-        .map((s) => s.id)
-        .toSet();
-    for (final id in toDelete) {
-      await _credStore.delete(id);
-    }
-    _sessions.removeWhere((s) => toDelete.contains(s.id));
-
-    // Remove empty folders under this path
+    _sessions.removeWhere(
+      (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+    );
     _emptyFolders.removeWhere(
       (g) => g == folderPath || g.startsWith('$folderPath/'),
     );
-
-    // Remove collapsed state for deleted folders
     _collapsedFolders.removeWhere(
       (c) => c == folderPath || c.startsWith('$folderPath/'),
     );
-
     await Future.wait([_save(), _saveEmptyFolders(), _saveCollapsedFolders()]);
   }
 
-  /// Delete all sessions and empty folders.
-  ///
-  /// Clears the entire credential store in one write instead of
-  /// N sequential deletes.
   Future<void> deleteAll() async {
-    await _credStore.saveAll({});
     _sessions.clear();
     _emptyFolders.clear();
     _collapsedFolders.clear();
     await Future.wait([_save(), _saveEmptyFolders(), _saveCollapsedFolders()]);
   }
 
-  /// Load credentials for the given session IDs.
-  Future<Map<String, CredentialData>> loadCredentials(
-    Set<String> sessionIds,
-  ) async {
-    if (sessionIds.isEmpty) return {};
-    final all = await _credStore.loadAllSafe();
-    return {
-      for (final id in sessionIds)
-        if (all.containsKey(id)) id: all[id]!,
-    };
-  }
+  // ── Snapshot / restore (for undo) ────────────────────────────────
 
-  /// Replace sessions and empty folders with the given state and persist.
-  /// Optionally restores credentials for sessions that were deleted.
   Future<void> restoreSnapshot(
     List<Session> sessions,
-    Set<String> emptyFolders, [
-    Map<String, CredentialData> credentials = const {},
-  ]) async {
+    Set<String> emptyFolders,
+  ) async {
     _sessions
       ..clear()
       ..addAll(sessions);
@@ -476,21 +484,9 @@ class SessionStore {
       ..clear()
       ..addAll(emptyFolders);
     await Future.wait([_save(), _saveEmptyFolders()]);
-    if (credentials.isNotEmpty) {
-      final all = await _credStore.loadAllSafe();
-      all.addAll(credentials);
-      await _credStore.saveAll(all);
-    }
   }
 
-  /// Count sessions in a folder and its subfolders.
-  int countSessionsInFolder(String folderPath) {
-    return _sessions
-        .where(
-          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
-        )
-        .length;
-  }
+  // ── CRUD ─────────────────────────────────────────────────────────
 
   Future<void> add(Session session) async {
     final error = session.validate();
@@ -509,25 +505,16 @@ class SessionStore {
   }
 
   Future<void> delete(String id) async {
-    await _credStore.delete(id);
     _sessions.removeWhere((s) => s.id == id);
     await _save();
   }
 
-  /// Delete multiple sessions by IDs in a single save.
-  ///
-  /// Credentials are deleted first so that on failure the sessions remain
-  /// intact — orphaned credentials are harmless, lost sessions are not.
   Future<void> deleteMultiple(Set<String> ids) async {
     if (ids.isEmpty) return;
-    for (final id in ids) {
-      await _credStore.delete(id);
-    }
     _sessions.removeWhere((s) => ids.contains(s.id));
     await _save();
   }
 
-  /// Move multiple sessions to a new folder in a single save.
   Future<void> moveMultiple(Set<String> ids, String newFolder) async {
     if (ids.isEmpty) return;
     for (var i = 0; i < _sessions.length; i++) {
@@ -545,7 +532,6 @@ class SessionStore {
     return null;
   }
 
-  /// Duplicate a session with new ID and "(copy)" suffix.
   Future<Session> duplicateSession(String id) async {
     final original = get(id);
     if (original == null) throw ArgumentError('Session not found: $id');
@@ -554,7 +540,6 @@ class SessionStore {
     return copy;
   }
 
-  /// Move a session to a different folder.
   Future<void> moveSession(String sessionId, String newFolder) async {
     final idx = _sessions.indexWhere((s) => s.id == sessionId);
     if (idx < 0) return;
@@ -562,20 +547,17 @@ class SessionStore {
     await _save();
   }
 
-  /// Move a folder (and all its sessions/subfolders) under a new parent.
-  /// [folderPath] — current full path, [newParent] — new parent path ('' for root).
   Future<void> moveFolder(String folderPath, String newParent) async {
     if (folderPath.isEmpty) return;
     final folderName = folderPath.split('/').last;
     final newPath = newParent.isEmpty ? folderName : '$newParent/$folderName';
     if (newPath == folderPath) return;
-    // Prevent moving into own subtree
     if (newPath.startsWith('$folderPath/')) return;
-
     await renameFolder(folderPath, newPath);
   }
 
-  /// Unique folder paths sorted alphabetically.
+  // ── Query ────────────────────────────────────────────────────────
+
   List<String> folders() {
     final g = _sessions
         .map((s) => s.folder)
@@ -586,16 +568,12 @@ class SessionStore {
     return g;
   }
 
-  /// Sessions in a specific folder.
   List<Session> byFolder(String folder) {
     return _sessions.where((s) => s.folder == folder).toList();
   }
 
-  /// Search sessions by label, folder, or host.
   List<Session> search(String query) => filterSessions(_sessions, query);
 
-  /// Filter a session list by query. Static so providers can reuse
-  /// the logic without depending on store instance state.
   static List<Session> filterSessions(List<Session> sessions, String query) {
     if (query.isEmpty) return sessions;
     final q = query.toLowerCase();

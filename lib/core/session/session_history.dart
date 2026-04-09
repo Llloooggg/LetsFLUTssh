@@ -1,4 +1,3 @@
-import '../security/credential_store.dart';
 import 'session.dart';
 
 /// Snapshot of session state for undo/redo.
@@ -7,14 +6,10 @@ class SessionSnapshot {
   final Set<String> emptyFolders;
   final String description;
 
-  /// Credentials saved before deletion — restored on undo.
-  final Map<String, CredentialData> credentials;
-
   SessionSnapshot({
     required this.sessions,
     required this.emptyFolders,
     required this.description,
-    this.credentials = const {},
   });
 }
 
