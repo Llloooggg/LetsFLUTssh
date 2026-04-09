@@ -1023,8 +1023,8 @@ class FilePaneController extends ChangeNotifier {
 |------|-------|---------|
 | `session_panel.dart` | `SessionPanel` | Sidebar: tree view + search + actions + bulk select. Header has "New Folder" and "New Connection" buttons |
 | `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data. Session icon color: green (connected), yellow (connecting), grey (disconnected) |
-| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab always shows all fields (password + key); auth type selector (Password/SSH Key/Both) controls validation: Password requires password, Key requires key file or PEM, Both requires at least one |
-| `session_connect.dart` | `SessionConnect` | Connection logic: Session → SSHConfig → ConnectionManager |
+| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab: password, key file/PEM, or key from central store (via `keyId`). Key store selector shown when keys exist |
+| `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionManager. Async to support key store lookup |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link) |
 | `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export |

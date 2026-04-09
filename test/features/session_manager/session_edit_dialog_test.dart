@@ -1,6 +1,7 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -13,20 +14,22 @@ void main() {
 
   Widget buildApp({Session? session, String? defaultFolder}) {
     dialogResult = null;
-    return MaterialApp(
-      localizationsDelegates: S.localizationsDelegates,
-      supportedLocales: S.supportedLocales,
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () async {
-              dialogResult = await SessionEditDialog.show(
-                context,
-                session: session,
-                defaultFolder: defaultFolder,
-              );
-            },
-            child: const Text('Open'),
+    return ProviderScope(
+      child: MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                dialogResult = await SessionEditDialog.show(
+                  context,
+                  session: session,
+                  defaultFolder: defaultFolder,
+                );
+              },
+              child: const Text('Open'),
+            ),
           ),
         ),
       ),
@@ -561,19 +564,21 @@ void main() {
   group('SessionEditDialog — defaultFolder parameter', () {
     testWidgets('defaultFolder is applied to saved session', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () async {
-                  dialogResult = await SessionEditDialog.show(
-                    context,
-                    defaultFolder: 'Production/Web',
-                  );
-                },
-                child: const Text('Open'),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () async {
+                    dialogResult = await SessionEditDialog.show(
+                      context,
+                      defaultFolder: 'Production/Web',
+                    );
+                  },
+                  child: const Text('Open'),
+                ),
               ),
             ),
           ),

@@ -1,12 +1,15 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
+import '../../core/security/key_store.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../providers/key_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
@@ -27,7 +30,7 @@ class SaveResult extends SessionDialogResult {
 
 /// Dialog for creating or editing a session.
 /// Shows 3 buttons: Cancel | Save | Save & Connect
-class SessionEditDialog extends StatefulWidget {
+class SessionEditDialog extends ConsumerStatefulWidget {
   final Session? session; // null = create new
   final String? defaultFolder;
 
@@ -48,10 +51,10 @@ class SessionEditDialog extends StatefulWidget {
   }
 
   @override
-  State<SessionEditDialog> createState() => _SessionEditDialogState();
+  ConsumerState<SessionEditDialog> createState() => _SessionEditDialogState();
 }
 
-class _SessionEditDialogState extends State<SessionEditDialog> {
+class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _labelCtrl;
   late final TextEditingController _folderCtrl;
@@ -69,12 +72,20 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   String? _authError;
   int _tabIndex = 0;
 
+  /// Selected key from the central key store.
+  String _selectedKeyId = '';
+  String _selectedKeyLabel = '';
+
   bool get _isEditing => widget.session != null;
+
+  /// Whether a key from the store is selected.
+  bool get _hasStoreKey => _selectedKeyId.isNotEmpty;
 
   /// Derive auth type from what the user actually filled in.
   AuthType get _derivedAuthType {
     final hasPassword = _passwordCtrl.text.isNotEmpty;
     final hasKey =
+        _hasStoreKey ||
         _keyPathCtrl.text.trim().isNotEmpty ||
         _keyDataCtrl.text.trim().isNotEmpty;
     if (hasPassword && hasKey) return AuthType.keyWithPassword;
@@ -98,6 +109,19 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
     _keyDataCtrl = TextEditingController(text: s?.keyData ?? '');
     _passphraseCtrl = TextEditingController(text: s?.passphrase ?? '');
     _showKeyText = (s?.keyData ?? '').isNotEmpty;
+    _selectedKeyId = s?.keyId ?? '';
+    if (_selectedKeyId.isNotEmpty) {
+      _resolveKeyLabel();
+    }
+  }
+
+  /// Look up the key label from the store for display.
+  Future<void> _resolveKeyLabel() async {
+    final store = ref.read(keyStoreProvider);
+    final entry = await store.get(_selectedKeyId);
+    if (entry != null && mounted) {
+      setState(() => _selectedKeyLabel = entry.label);
+    }
   }
 
   @override
@@ -127,6 +151,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
         ),
         auth: widget.session!.auth.copyWith(
           authType: _derivedAuthType,
+          keyId: _selectedKeyId,
           password: _passwordCtrl.text,
           keyPath: keyPath,
           keyData: _keyDataCtrl.text.trim(),
@@ -144,6 +169,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
       ),
       auth: SessionAuth(
         authType: _derivedAuthType,
+        keyId: _selectedKeyId,
         password: _passwordCtrl.text,
         keyPath: keyPath,
         keyData: _keyDataCtrl.text.trim(),
@@ -155,6 +181,7 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
   bool _validateAuth() {
     final hasPassword = _passwordCtrl.text.isNotEmpty;
     final hasKey =
+        _hasStoreKey ||
         _keyPathCtrl.text.trim().isNotEmpty ||
         _keyDataCtrl.text.trim().isNotEmpty;
 
@@ -426,13 +453,154 @@ class _SessionEditDialogState extends State<SessionEditDialog> {
 
   List<Widget> _buildKeyFields() {
     return [
-      _buildKeyPathField(),
-      const SizedBox(height: 8),
-      _buildPemToggle(),
-      if (_showKeyText) _buildPemTextField(),
+      _buildKeyStoreSelector(),
       const SizedBox(height: 12),
+      if (!_hasStoreKey) ...[
+        _buildKeyPathField(),
+        const SizedBox(height: 8),
+        _buildPemToggle(),
+        if (_showKeyText) _buildPemTextField(),
+        const SizedBox(height: 12),
+      ],
       _buildPassphraseField(),
     ];
+  }
+
+  Widget _buildKeyStoreSelector() {
+    final s = S.of(context);
+    final keys = ref.watch(sshKeysProvider);
+
+    return keys.when(
+      data: (keyList) {
+        if (keyList.isEmpty && !_hasStoreKey) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _hasStoreKey
+                      ? _buildSelectedKeyChip()
+                      : OutlinedButton.icon(
+                          onPressed: keyList.isEmpty
+                              ? null
+                              : () => _showKeyPicker(keyList),
+                          icon: const Icon(Icons.vpn_key, size: 18),
+                          label: Text(
+                            s.selectFromKeyStore,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                            alignment: Alignment.centerLeft,
+                          ),
+                        ),
+                ),
+              ],
+            ),
+            if (_hasStoreKey)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _buildOrDividerLabel(),
+                    style: TextStyle(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgFaint,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+
+  String _buildOrDividerLabel() =>
+      '${S.of(context).selectFromKeyStore}: $_selectedKeyLabel';
+
+  Widget _buildSelectedKeyChip() {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.accent.withValues(alpha: 0.1),
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.vpn_key, size: 16, color: AppTheme.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _selectedKeyLabel,
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fg,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          AppIconButton(
+            icon: Icons.close,
+            onTap: () => setState(() {
+              _selectedKeyId = '';
+              _selectedKeyLabel = '';
+            }),
+            tooltip: S.of(context).clearKeyFile,
+            size: 18,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showKeyPicker(List<SshKeyEntry> keys) async {
+    final selected = await showDialog<SshKeyEntry>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(S.of(context).selectFromKeyStore),
+        children: keys
+            .map(
+              (k) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, k),
+                child: ListTile(
+                  leading: Icon(
+                    Icons.vpn_key,
+                    size: 16,
+                    color: k.isGenerated ? AppTheme.accent : AppTheme.fgDim,
+                  ),
+                  title: Text(k.label),
+                  subtitle: Text(
+                    k.keyType,
+                    style: TextStyle(fontSize: AppFonts.xs),
+                  ),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedKeyId = selected.id;
+        _selectedKeyLabel = selected.label;
+        // Clear manual key fields when selecting from store
+        _keyPathCtrl.clear();
+        _keyDataCtrl.clear();
+        _showKeyText = false;
+      });
+    }
   }
 
   Future<void> _pickKeyFile() async {
