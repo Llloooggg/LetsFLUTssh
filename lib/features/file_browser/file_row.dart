@@ -142,17 +142,22 @@ class FileRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return HoverRegion(
-      onTap: onTap,
-      onCtrlTap: onCtrlTap,
-      onDoubleTap: onDoubleTap,
-      onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
-      builder: (hovered) => Container(
-        height: AppTheme.controlHeightXs,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        clipBehavior: Clip.hardEdge,
-        decoration: BoxDecoration(color: _rowColor(hovered)),
-        child: Row(children: _buildColumns(theme)),
+    return Semantics(
+      label: entry.name,
+      button: true,
+      selected: isSelected,
+      child: HoverRegion(
+        onTap: onTap,
+        onCtrlTap: onCtrlTap,
+        onDoubleTap: onDoubleTap,
+        onSecondaryTapUp: (d) => onContextMenu(d.globalPosition),
+        builder: (hovered) => Container(
+          height: AppTheme.controlHeightXs,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(color: _rowColor(hovered)),
+          child: Row(children: _buildColumns(theme)),
+        ),
       ),
     );
   }

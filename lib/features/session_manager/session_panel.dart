@@ -1184,42 +1184,46 @@ class _PanelHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      height: AppTheme.barHeightSm,
-      padding: const EdgeInsets.only(left: 12, right: 2),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              S.of(context).sessionsHeader,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: AppFonts.sm,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+    return Semantics(
+      header: true,
+      label: S.of(context).sessionsHeader,
+      child: Container(
+        height: AppTheme.barHeightSm,
+        padding: const EdgeInsets.only(left: 12, right: 2),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: theme.dividerColor)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                S.of(context).sessionsHeader,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: AppFonts.sm,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                ),
               ),
             ),
-          ),
-          AppIconButton(
-            icon: Icons.create_new_folder,
-            onTap: onAddFolder,
-            tooltip: S.of(context).newFolder,
-            size: 14,
-            boxSize: 24,
-          ),
-          AppIconButton(
-            icon: Icons.add,
-            onTap: onAddSession,
-            tooltip: S.of(context).newConnection,
-            size: 16,
-            boxSize: 24,
-          ),
-        ],
+            AppIconButton(
+              icon: Icons.create_new_folder,
+              onTap: onAddFolder,
+              tooltip: S.of(context).newFolder,
+              size: 14,
+              boxSize: 24,
+            ),
+            AppIconButton(
+              icon: Icons.add,
+              onTap: onAddSession,
+              tooltip: S.of(context).newConnection,
+              size: 16,
+              boxSize: 24,
+            ),
+          ],
+        ),
       ),
     );
   }

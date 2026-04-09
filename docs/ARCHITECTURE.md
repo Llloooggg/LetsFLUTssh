@@ -1071,6 +1071,10 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_screen.dart` | `SettingsScreen` | Mobile-only route (collapsible sections in a scrollable list) |
 | `settings_screen.dart` | `SettingsSidebar` | Desktop nav panel — embedded in `AppShell`'s sidebar slot |
 | `settings_screen.dart` | `SettingsContent` | Desktop content pane — embedded in `AppShell`'s body slot |
+| `settings_dialogs.dart` | — | Dialog helpers (part of `settings_screen.dart`) |
+| `settings_logging.dart` | — | Logging section widgets (part of `settings_screen.dart`) |
+| `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
+| `settings_sections.dart` | — | Section-specific build methods (part of `settings_screen.dart`) |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
 
 **Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
@@ -2103,9 +2107,10 @@ Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 - Handles `SSHError` chain: preserves structured data (`host`, `port`, `user`), sanitizes `cause` recursively
 - 43 errno codes mapped (30 POSIX/Linux + 13 Windows Winsock)
 - `SSHError` subtypes carry structured fields: `AuthError(user, host)`, `ConnectError(host, port)`, `HostKeyError(host, port)`
+- `SFTPError` (`core/sftp/errors.dart`) — typed SFTP error with `message`, `cause`, `path`, `statusCode`, `userMessage`. Factory `SFTPError.wrap(error, op, path)` for wrapping raw exceptions with operation context
 - `Connection.connectionError` stores raw `Object?` — localized at display time with `localizeError`
 - Unknown errno → original OS text preserved as-is
-- Applied in: `ConnectionManager`, `TerminalTab.reconnect()`, `TransferManager` (+ path stripping)
+- Applied in: `ConnectionManager`, `TerminalTab.reconnect()`, `TransferManager` (+ path stripping, inline error in transfer panel)
 
 ---
 
