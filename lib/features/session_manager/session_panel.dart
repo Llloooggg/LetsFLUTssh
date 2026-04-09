@@ -262,21 +262,19 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
   }
 
-  /// Build set of session IDs that have an active connection.
-  Set<String> _connectedSessionIds(WidgetRef ref) {
+  /// Build connected and connecting session ID sets from a single provider watch.
+  ({Set<String> connected, Set<String> connecting}) _connectionSessionIds(
+    WidgetRef ref,
+  ) {
     final connections = ref.watch(connectionsProvider).value ?? [];
-    return connections
-        .where((c) => c.isConnected && c.sessionId != null)
-        .map((c) => c.sessionId!)
-        .toSet();
-  }
-
-  Set<String> _connectingSessionIds(WidgetRef ref) {
-    final connections = ref.watch(connectionsProvider).value ?? [];
-    return connections
-        .where((c) => c.isConnecting && c.sessionId != null)
-        .map((c) => c.sessionId!)
-        .toSet();
+    final connected = <String>{};
+    final connecting = <String>{};
+    for (final c in connections) {
+      if (c.sessionId == null) continue;
+      if (c.isConnected) connected.add(c.sessionId!);
+      if (c.isConnecting) connecting.add(c.sessionId!);
+    }
+    return (connected: connected, connecting: connecting);
   }
 
   /// Copy the focused session to the clipboard.
@@ -453,10 +451,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     List<SessionTreeNode> tree,
     bool mobile,
   ) {
+    final connState = _connectionSessionIds(ref);
     return SessionTreeView(
       tree: tree,
-      connectedSessionIds: _connectedSessionIds(ref),
-      connectingSessionIds: _connectingSessionIds(ref),
+      connectedSessionIds: connState.connected,
+      connectingSessionIds: connState.connecting,
       collapsedFolders: ref.watch(sessionStoreProvider).collapsedFolders,
       onToggleFolderCollapsed: (path) =>
           ref.read(sessionStoreProvider).toggleFolderCollapsed(path),
@@ -1185,42 +1184,46 @@ class _PanelHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      height: AppTheme.barHeightSm,
-      padding: const EdgeInsets.only(left: 12, right: 2),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              S.of(context).sessionsHeader,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: AppFonts.sm,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+    return Semantics(
+      header: true,
+      label: S.of(context).sessionsHeader,
+      child: Container(
+        height: AppTheme.barHeightSm,
+        padding: const EdgeInsets.only(left: 12, right: 2),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: theme.dividerColor)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                S.of(context).sessionsHeader,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: AppFonts.sm,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                ),
               ),
             ),
-          ),
-          AppIconButton(
-            icon: Icons.create_new_folder,
-            onTap: onAddFolder,
-            tooltip: S.of(context).newFolder,
-            size: 14,
-            boxSize: 24,
-          ),
-          AppIconButton(
-            icon: Icons.add,
-            onTap: onAddSession,
-            tooltip: S.of(context).newConnection,
-            size: 16,
-            boxSize: 24,
-          ),
-        ],
+            AppIconButton(
+              icon: Icons.create_new_folder,
+              onTap: onAddFolder,
+              tooltip: S.of(context).newFolder,
+              size: 14,
+              boxSize: 24,
+            ),
+            AppIconButton(
+              icon: Icons.add,
+              onTap: onAddSession,
+              tooltip: S.of(context).newConnection,
+              size: 16,
+              boxSize: 24,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -33,19 +33,22 @@ class StatusIndicator extends StatelessWidget {
       context,
     ).colorScheme.onSurface.withValues(alpha: 0.45);
     final color = iconColor ?? dimColor;
-    return Tooltip(
-      message: tooltip,
-      waitDuration: const Duration(milliseconds: 400),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 3),
-          Text(
-            '$count',
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
-          ),
-        ],
+    return Semantics(
+      label: '$tooltip: $count',
+      child: Tooltip(
+        message: tooltip,
+        waitDuration: const Duration(milliseconds: 400),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 10, color: color),
+            const SizedBox(width: 3),
+            Text(
+              '$count',
+              style: AppFonts.inter(fontSize: AppFonts.xs, color: dimColor),
+            ),
+          ],
+        ),
       ),
     );
   }

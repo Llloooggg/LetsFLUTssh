@@ -5,7 +5,8 @@ import '../../core/transfer/transfer_task.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/transfer_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/format.dart';
+import '../../utils/format.dart'
+    show formatDuration, formatSize, formatTimestamp, localizeError;
 import '../../utils/platform.dart' as plat;
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/clipped_row.dart';
@@ -570,6 +571,10 @@ class _HistoryRow extends StatelessWidget {
     return Expanded(child: child);
   }
 
+  static String _errorLabel(BuildContext context, Object error) {
+    return localizeError(S.of(context), error);
+  }
+
   String _statusTooltip(BuildContext context, bool isFailed, HistoryEntry e) {
     if (!isFailed) return S.of(context).completed;
     if (e.error != null) return localizeError(S.of(context), e.error!);
@@ -608,15 +613,35 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          // Name
+          // Name (+ inline error for failed transfers)
           _nameCell(
-            Text(
-              entry.name,
-              style: AppFonts.mono(
-                fontSize: AppFonts.xs,
-                color: isFailed ? AppTheme.red : AppTheme.fgDim,
-              ),
-              overflow: TextOverflow.ellipsis,
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    entry.name,
+                    style: AppFonts.mono(
+                      fontSize: AppFonts.xs,
+                      color: isFailed ? AppTheme.red : AppTheme.fgDim,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isFailed && entry.error != null) ...[
+                  const SizedBox(width: 4),
+                  Flexible(
+                    flex: 0,
+                    child: Text(
+                      _errorLabel(context, entry.error!),
+                      style: AppFonts.mono(
+                        fontSize: AppFonts.tiny,
+                        color: AppTheme.red.withValues(alpha: 0.7),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           // Local path

@@ -139,4 +139,39 @@ void main() {
       expect(lightHover, isNot(AppTheme.hover));
     });
   });
+
+  group('AppFonts platform-aware sizing', () {
+    test('desktop sizes are default (tests run on desktop)', () {
+      // Tests run on Linux — desktop is the default.
+      expect(AppFonts.xs, 12.0);
+      expect(AppFonts.sm, 13.0);
+      expect(AppFonts.lg, 16.0);
+      expect(AppFonts.xl, 19.0);
+    });
+
+    test('platform-invariant sizes stay the same', () {
+      expect(AppFonts.tiny, 10.0);
+      expect(AppFonts.xxs, 11.0);
+      expect(AppFonts.md, 14.0);
+    });
+
+    test('all size tiers are in ascending order', () {
+      final sizes = [
+        AppFonts.tiny,
+        AppFonts.xxs,
+        AppFonts.xs,
+        AppFonts.sm,
+        AppFonts.md,
+        AppFonts.lg,
+        AppFonts.xl,
+      ];
+      for (var i = 1; i < sizes.length; i++) {
+        expect(
+          sizes[i],
+          greaterThanOrEqualTo(sizes[i - 1]),
+          reason: 'size tier $i should be >= tier ${i - 1}',
+        );
+      }
+    });
+  });
 }

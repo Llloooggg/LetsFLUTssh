@@ -62,8 +62,15 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   @override
   Widget build(BuildContext context) {
     final ws = ref.watch(workspaceProvider);
-    // Watch connection state changes so status dots update.
-    ref.watch(connectionsProvider);
+    // Watch only connection id→state changes so status dots update.
+    // Using a derived string avoids full workspace rebuild on unrelated
+    // connection events (e.g. keep-alive pings, progress updates).
+    ref.watch(
+      connectionsProvider.select((asyncValue) {
+        final conns = asyncValue.value ?? [];
+        return conns.map((c) => '${c.id}:${c.state.index}').join(',');
+      }),
+    );
 
     // Clean up stale keys.
     final allTabIds = collectAllTabs(ws.root).map((t) => t.id).toSet();
@@ -302,10 +309,12 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   VoidCallback? _retryCallback(PanelLeaf panel) {
     final tab = panel.activeTab;
     if (tab == null) return null;
+    final conn = tab.connection;
+    if (conn.isConnected || conn.connectionError == null) return null;
     if (tab.kind == TabKind.terminal) {
-      final state = _terminalKeys[tab.id]?.currentState;
-      if (state == null) return null;
-      return () => state.reconnect();
+      // Resolve state lazily — GlobalKey may not have a state during
+      // the first build frame.
+      return () => _terminalKeys[tab.id]?.currentState?.reconnect();
     }
     // SFTP tab — reconnect SSH via ConnectionManager, then close + re-open
     // the SFTP tab so FileBrowserTab re-runs _initSftp on the fresh connection.

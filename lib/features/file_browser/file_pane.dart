@@ -874,6 +874,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     }
 
     final row = FileRow(
+      key: ValueKey(entry.path),
       entry: entry,
       isSelected: isSelected,
       sizeWidth: cols.size ? _sizeColWidth : 0,

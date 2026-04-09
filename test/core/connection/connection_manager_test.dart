@@ -36,15 +36,6 @@ class FakeSSHConnection extends SSHConnection {
   }
 }
 
-/// Wait for background connection to complete (polling).
-Future<void> waitForConnection(Connection conn, {int maxMs = 2000}) async {
-  final deadline = DateTime.now().add(Duration(milliseconds: maxMs));
-  while (conn.state == SSHConnectionState.connecting &&
-      DateTime.now().isBefore(deadline)) {
-    await Future.delayed(const Duration(milliseconds: 10));
-  }
-}
-
 void main() {
   late ConnectionManager manager;
   late KnownHostsManager knownHosts;
@@ -140,7 +131,7 @@ void main() {
       final conn = manager.connectAsync(config);
 
       // Wait for background connection to fail
-      await waitForConnection(conn);
+      await conn.ready;
 
       expect(conn.state, SSHConnectionState.disconnected);
       expect(conn.connectionError, isNotNull);
@@ -197,7 +188,7 @@ void main() {
       expect(emitCount, greaterThanOrEqualTo(1));
 
       // Wait for background failure
-      await waitForConnection(conn);
+      await conn.ready;
       await Future.delayed(Duration.zero);
 
       // At least 2 emits: connecting + failed
@@ -271,7 +262,7 @@ void main() {
         expect(conn.label, 'Test Server');
 
         // Wait for background connection
-        await waitForConnection(conn);
+        await conn.ready;
 
         expect(conn.isConnected, isTrue);
         expect(conn.state, SSHConnectionState.connected);
@@ -296,7 +287,7 @@ void main() {
 
         expect(conn.label, 'root@server.com:2222');
 
-        await waitForConnection(conn);
+        await conn.ready;
         mgr.dispose();
       });
 
@@ -316,7 +307,7 @@ void main() {
             server: ServerAddress(host: 'h', user: 'u'),
           );
           final conn = mgr.connectAsync(config);
-          await waitForConnection(conn);
+          await conn.ready;
           await Future.delayed(Duration.zero);
 
           expect(emitCount, greaterThanOrEqualTo(2));
@@ -342,7 +333,7 @@ void main() {
             server: ServerAddress(host: 'h', user: 'u'),
           );
           final conn = mgr.connectAsync(config);
-          await waitForConnection(conn);
+          await conn.ready;
           mgr.disconnect(conn.id);
 
           expect(fakeConn.disconnectCalled, isTrue);
@@ -366,7 +357,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         );
         final conn = mgr.connectAsync(config);
-        await waitForConnection(conn);
+        await conn.ready;
 
         // Simulate remote disconnect
         fakeConn.onDisconnect?.call();
@@ -392,7 +383,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         );
         final conn = mgr.connectAsync(config);
-        await waitForConnection(conn);
+        await conn.ready;
 
         expect(conn.state, SSHConnectionState.disconnected);
         expect(conn.connectionError, isNotNull);
@@ -419,8 +410,8 @@ void main() {
           ),
           label: 'B',
         );
-        await waitForConnection(connA);
-        await waitForConnection(connB);
+        await connA.ready;
+        await connB.ready;
 
         expect(mgr.connections, hasLength(2));
 
@@ -439,7 +430,7 @@ void main() {
             server: ServerAddress(host: 'h', user: 'u'),
           ),
         );
-        await waitForConnection(conn);
+        await conn.ready;
         expect(mgr.get(conn.id), conn);
 
         mgr.dispose();
@@ -466,8 +457,8 @@ void main() {
             server: ServerAddress(host: 'b', user: 'u'),
           ),
         );
-        await waitForConnection(connA);
-        await waitForConnection(connB);
+        await connA.ready;
+        await connB.ready;
 
         mgr.disconnectAll();
 
@@ -495,7 +486,7 @@ void main() {
         server: ServerAddress(host: 'h', user: 'u'),
       );
       final conn = mgr.connectAsync(config);
-      await waitForConnection(conn);
+      await conn.ready;
 
       expect(counts, contains(1));
 
@@ -515,7 +506,7 @@ void main() {
         server: ServerAddress(host: 'h', user: 'u'),
       );
       final conn = mgr.connectAsync(config);
-      await waitForConnection(conn);
+      await conn.ready;
 
       mgr.disconnect(conn.id);
 
@@ -540,7 +531,7 @@ void main() {
             server: ServerAddress(host: 'a', user: 'u'),
           ),
         );
-        await waitForConnection(connA);
+        await connA.ready;
         expect(counts.last, 1);
 
         final connB = mgr.connectAsync(
@@ -548,7 +539,7 @@ void main() {
             server: ServerAddress(host: 'b', user: 'u'),
           ),
         );
-        await waitForConnection(connB);
+        await connB.ready;
         expect(counts.last, 2);
 
         mgr.disconnect(connA.id);
@@ -590,7 +581,7 @@ void main() {
         server: ServerAddress(host: 'h', user: 'u'),
       );
       final conn = mgr.connectAsync(config);
-      await waitForConnection(conn);
+      await conn.ready;
 
       expect(counts, contains(1));
 
@@ -613,7 +604,7 @@ void main() {
         server: ServerAddress(host: 'h', user: 'u'),
       );
       final conn = mgr.connectAsync(config);
-      await waitForConnection(conn);
+      await conn.ready;
       expect(counts.last, 1);
 
       // Simulate remote disconnect
@@ -789,7 +780,7 @@ void main() {
       // Initial connect — let it complete
       final conn = mgr.connectAsync(config);
       completers.last.complete();
-      await waitForConnection(conn);
+      await conn.ready;
       expect(conn.isConnected, isTrue);
 
       // First reconnect — don't complete yet
@@ -799,7 +790,7 @@ void main() {
       // Second reconnect — complete immediately
       mgr.reconnect(conn.id);
       completers.last.complete();
-      await waitForConnection(conn);
+      await conn.ready;
 
       // Now complete the stale first reconnect
       firstReconnectCompleter.complete();
