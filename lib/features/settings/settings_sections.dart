@@ -572,6 +572,7 @@ class _UpdateSection extends ConsumerWidget {
           child: Wrap(
             spacing: 8,
             children: [
+              _ChangelogButton(changelog: info.changelog),
               if (hasAsset && plat.isDesktopPlatform)
                 FilledButton.icon(
                   onPressed: () => ref.read(updateProvider.notifier).download(),
@@ -649,22 +650,57 @@ class _UpdateSection extends ConsumerWidget {
         ),
         Padding(
           padding: const EdgeInsets.only(left: 8),
-          child: FilledButton.icon(
-            onPressed: () async {
-              final ok = await ref.read(updateProvider.notifier).install();
-              if (!ok && context.mounted) {
-                Toast.show(
-                  context,
-                  message: S.of(context).couldNotOpenInstaller,
-                  level: ToastLevel.error,
-                );
-              }
-            },
-            icon: const Icon(Icons.install_desktop, size: 18),
-            label: Text(S.of(context).installNow),
+          child: Wrap(
+            spacing: 8,
+            children: [
+              _ChangelogButton(changelog: updateState.info?.changelog),
+              FilledButton.icon(
+                onPressed: () async {
+                  final ok = await ref.read(updateProvider.notifier).install();
+                  if (!ok && context.mounted) {
+                    Toast.show(
+                      context,
+                      message: S.of(context).couldNotOpenInstaller,
+                      level: ToastLevel.error,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.install_desktop, size: 18),
+                label: Text(S.of(context).installNow),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ChangelogButton extends StatelessWidget {
+  const _ChangelogButton({required this.changelog});
+
+  final String? changelog;
+
+  @override
+  Widget build(BuildContext context) {
+    if (changelog == null || changelog!.isEmpty) return const SizedBox.shrink();
+
+    return TextButton.icon(
+      onPressed: () => AppDialog.show(
+        context,
+        builder: (ctx) => AppDialog(
+          title: S.of(ctx).releaseNotes,
+          content: SingleChildScrollView(
+            child: Text(
+              changelog!,
+              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
+            ),
+          ),
+          actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(ctx))],
+        ),
+      ),
+      icon: const Icon(Icons.article_outlined, size: 18),
+      label: Text(S.of(context).releaseNotes),
     );
   }
 }

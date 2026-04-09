@@ -2620,6 +2620,111 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('shows Release Notes button when changelog is available', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.updateAvailable,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+              changelog: '## v2.0.0\n- New feature',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Release notes:'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Release notes:'), findsOneWidget);
+    });
+
+    testWidgets('hides Release Notes button when changelog is null', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.updateAvailable,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Version 2.0.0 available'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Release notes:'), findsNothing);
+    });
+
+    testWidgets('shows Release Notes button in downloaded state', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.downloaded,
+            downloadedPath: '/tmp/letsflutssh-2.0.0.AppImage',
+            progress: 1,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+              changelog: '## v2.0.0\n- Bug fix',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Release notes:'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Release notes:'), findsOneWidget);
+    });
+
+    testWidgets('tapping Release Notes opens dialog with changelog', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.updateAvailable,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+              changelog: '## v2.0.0\n- Awesome feature',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Release notes:'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Release notes:'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Awesome feature'), findsOneWidget);
+    });
   });
 
   // ---------------------------------------------------------------------------
