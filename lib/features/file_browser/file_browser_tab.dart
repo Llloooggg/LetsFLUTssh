@@ -8,21 +8,18 @@ import '../../l10n/app_localizations.dart';
 import 'package:path/path.dart' as p;
 
 import '../../providers/config_provider.dart';
-import '../../utils/format.dart';
-import '../../utils/logger.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/connection/connection.dart';
-import '../../core/connection/connection_step.dart';
 import '../../core/sftp/sftp_client.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/transfer_task.dart';
 import '../../providers/transfer_provider.dart';
 import 'file_browser_controller.dart';
 import 'file_pane.dart';
+import 'sftp_browser_mixin.dart';
 import 'sftp_initializer.dart';
-import 'transfer_helpers.dart';
 import 'transfer_panel.dart';
 
 /// Dual-pane SFTP file browser tab.
@@ -67,32 +64,42 @@ class FileBrowserTab extends ConsumerStatefulWidget {
   ConsumerState<FileBrowserTab> createState() => _FileBrowserTabState();
 }
 
-class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
-  SFTPInitResult? _sftp;
-  bool _initializing = true;
-  String? _error;
+class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
+    with SftpBrowserMixin {
+  @override
+  SFTPInitResult? sftpResult;
+  @override
+  bool sftpInitializing = true;
+  @override
+  String? sftpError;
   double _splitRatio = 0.5;
-  final _progressKey = GlobalKey<ConnectionProgressState>();
+  @override
+  final progressKey = GlobalKey<ConnectionProgressState>();
 
   // SFTP clipboard for Ctrl+C / Ctrl+V across panes.
   List<FileEntry>? _clipboardEntries;
   String? _clipboardSourcePane;
 
-  FilePaneController? get _localCtrl => _sftp?.localCtrl;
-  FilePaneController? get _remoteCtrl => _sftp?.remoteCtrl;
-  SFTPService? get _sftpService => _sftp?.sftpService;
+  @override
+  Connection get sftpConnection => widget.connection;
+  @override
+  SFTPInitFactory? get sftpInitFactory => widget.sftpInitFactory;
+
+  FilePaneController? get _localCtrl => sftpResult?.localCtrl;
+  FilePaneController? get _remoteCtrl => sftpResult?.remoteCtrl;
+  SFTPService? get _sftpService => sftpResult?.sftpService;
 
   @override
   void initState() {
     super.initState();
-    _initSftp();
+    initSftp();
     widget.sidebarActivated?.addListener(_onSidebarActivated);
   }
 
   @override
   void dispose() {
     widget.sidebarActivated?.removeListener(_onSidebarActivated);
-    _sftp?.dispose();
+    sftpResult?.dispose();
     super.dispose();
   }
 
@@ -101,66 +108,9 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     _remoteCtrl?.clearSelection();
   }
 
-  Future<void> _initSftp() async {
-    final conn = widget.connection;
-    await conn.waitUntilReady();
-
-    if (!conn.isConnected) {
-      if (mounted) {
-        final l10n = S.of(context);
-        final error = conn.connectionError != null
-            ? localizeError(l10n, conn.connectionError!)
-            : l10n.errConnectionFailed;
-        _progressKey.currentState?.writeError(error);
-        setState(() {
-          _error = error;
-          _initializing = false;
-        });
-      }
-      return;
-    }
-
-    // SFTP channel open step
-    _progressKey.currentState?.addStep(
-      const ConnectionStep(
-        phase: ConnectionPhase.openChannel,
-        status: StepStatus.inProgress,
-      ),
-    );
-
-    try {
-      _sftp = widget.sftpInitFactory != null
-          ? await widget.sftpInitFactory!(conn)
-          : await SFTPInitializer.init(conn);
-      if (mounted) {
-        setState(() => _initializing = false);
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'SFTP init failed: $e',
-        name: 'FileBrowser',
-        error: e,
-      );
-      _progressKey.currentState?.addStep(
-        ConnectionStep(
-          phase: ConnectionPhase.openChannel,
-          status: StepStatus.failed,
-          detail: e.toString(),
-        ),
-      );
-      if (mounted) {
-        final l10n = S.of(context);
-        setState(() {
-          _error = l10n.errSftpInitFailed(localizeError(l10n, e));
-          _initializing = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_initializing || _error != null) return _buildLoading();
+    if (sftpInitializing || sftpError != null) return _buildLoading();
 
     final local = _localCtrl;
     final remote = _remoteCtrl;
@@ -189,7 +139,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
 
   Widget _buildLoading() {
     return ConnectionProgress(
-      key: _progressKey,
+      key: progressKey,
       connection: widget.connection,
       fontSize: ref.read(configProvider).fontSize,
       channelLabel: S.of(context).progressOpeningSftp,
@@ -229,10 +179,10 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                       crossMarquee: widget.crossMarquee,
                       reverseCrossMarquee: widget.reverseCrossMarquee,
                       actions: (
-                        transfer: _upload,
-                        drop: _download,
+                        transfer: upload,
+                        drop: download,
                         oppositeSourcePane: 'remote',
-                        paste: _download,
+                        paste: download,
                         onOsDropReceived: _osDropToLocal,
                       ),
                       otherController: remote,
@@ -246,10 +196,10 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
                       paneId: 'remote',
                       showFolderSizes: showFolderSizes,
                       actions: (
-                        transfer: _download,
-                        drop: _upload,
+                        transfer: download,
+                        drop: upload,
                         oppositeSourcePane: 'local',
-                        paste: _upload,
+                        paste: upload,
                         onOsDropReceived: _osDropToRemote,
                       ),
                       otherController: local,
@@ -339,34 +289,6 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab> {
     if (entries == null || entries.isEmpty) return;
     if (_clipboardSourcePane != expectedSource) return;
     entries.forEach(action);
-  }
-
-  void _upload(FileEntry entry) {
-    final sftp = _sftpService;
-    final remote = _remoteCtrl;
-    if (sftp == null || remote == null) return;
-    TransferHelpers.enqueueUpload(
-      manager: ref.read(transferManagerProvider),
-      sftp: sftp,
-      entry: entry,
-      remoteDirPath: remote.currentPath,
-      remoteCtrl: _remoteCtrl,
-      loc: S.of(context),
-    );
-  }
-
-  void _download(FileEntry entry) {
-    final sftp = _sftpService;
-    final local = _localCtrl;
-    if (sftp == null || local == null) return;
-    TransferHelpers.enqueueDownload(
-      manager: ref.read(transferManagerProvider),
-      sftp: sftp,
-      entry: entry,
-      localDirPath: local.currentPath,
-      localCtrl: _localCtrl,
-      loc: S.of(context),
-    );
   }
 
   /// OS drop onto local pane — copy files into the current local directory.
