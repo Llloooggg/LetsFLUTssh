@@ -43,36 +43,35 @@ String _pad(int n) => n.toString().padLeft(2, '0');
 /// Used for logging and internal error representation (no BuildContext).
 /// For user-facing localized errors, use [localizeError] instead.
 String sanitizeError(Object error) {
-  // SFTPError: keep English message, sanitize cause recursively.
   if (error is SFTPError) {
-    if (error.cause == null) return error.message;
-    final cause = sanitizeError(error.cause!);
-    if (cause.isNotEmpty && cause != error.message) {
-      return '${error.message} ($cause)';
-    }
-    return error.message;
+    return _sanitizeWithCause(error.message, error.cause);
   }
-
-  // SSHError chain: keep English message, sanitize cause recursively.
   if (error is SSHError) {
-    if (error.cause == null) return error.message;
-    final cause = sanitizeError(error.cause!);
-    if (cause.isNotEmpty && cause != error.message) {
-      return '${error.message} ($cause)';
-    }
-    return error.message;
+    return _sanitizeWithCause(error.message, error.cause);
   }
 
   final msg = error.toString();
+  return _sanitizeErrnoMessage(msg) ?? msg;
+}
 
+/// Sanitize an error that has a message and an optional cause.
+String _sanitizeWithCause(String message, Object? cause) {
+  if (cause == null) return message;
+  final sanitized = sanitizeError(cause);
+  if (sanitized.isNotEmpty && sanitized != message) {
+    return '$message ($sanitized)';
+  }
+  return message;
+}
+
+/// Try to extract an errno from the message and map to English.
+/// Returns null if no errno-based translation is found.
+String? _sanitizeErrnoMessage(String msg) {
   // FileSystemException: "OS Error: <localized text>, errno = N"
-  // Extract errno and map to English message.
   final errnoMatch = RegExp(r'errno\s*=\s*(\d+)').firstMatch(msg);
   if (errnoMatch != null) {
-    final errno = int.parse(errnoMatch.group(1)!);
-    final english = _errnoEnglish[errno];
+    final english = _errnoEnglish[int.parse(errnoMatch.group(1)!)];
     if (english != null) {
-      // Try to extract the path from the exception
       final pathMatch = RegExp(r"path\s*=\s*'([^']*)'").firstMatch(msg);
       final path = pathMatch?.group(1);
       return path != null ? '$english: $path' : english;
@@ -84,12 +83,11 @@ String sanitizeError(Object error) {
     r'OS Error:\s*[^,]+,\s*errno\s*=\s*(\d+)',
   ).firstMatch(msg);
   if (osErrorMatch != null) {
-    final errno = int.parse(osErrorMatch.group(1)!);
-    final english = _errnoEnglish[errno];
+    final english = _errnoEnglish[int.parse(osErrorMatch.group(1)!)];
     if (english != null) return english;
   }
 
-  return msg;
+  return null;
 }
 
 /// Localize error messages using the app's current locale.

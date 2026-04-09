@@ -499,22 +499,26 @@ class _PanelConnectionBar extends ConsumerWidget {
           onTap: () {
             ref.read(workspaceProvider.notifier).toggleMaximizePanel(panelId);
           },
-          builder: (hovered) => Container(
-            height: 18,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: btnColor.withValues(
-                alpha: isMaximized
-                    ? (hovered ? 0x30 / 255.0 : 0x18 / 255.0)
-                    : (hovered ? 0x20 / 255.0 : 0x00 / 255.0),
+          builder: (hovered) {
+            final alpha = _maximizeBtnAlpha(isMaximized, hovered);
+            return Container(
+              height: 18,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: btnColor.withValues(alpha: alpha),
+                borderRadius: AppTheme.radiusSm,
               ),
-              borderRadius: AppTheme.radiusSm,
-            ),
-            child: Icon(icon, size: 11, color: btnColor),
-          ),
+              child: Icon(icon, size: 11, color: btnColor),
+            );
+          },
         ),
       ),
     );
+  }
+
+  static double _maximizeBtnAlpha(bool isMaximized, bool hovered) {
+    if (isMaximized) return hovered ? 0x30 / 255.0 : 0x18 / 255.0;
+    return hovered ? 0x20 / 255.0 : 0x00 / 255.0;
   }
 
   Widget _companionButton(

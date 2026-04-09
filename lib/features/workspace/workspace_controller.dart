@@ -90,34 +90,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     final newTabs = [...panel.tabs]..removeAt(idx);
 
     if (newTabs.isEmpty) {
-      // Collapse panel — remove from tree and promote sibling.
-      final newRoot = removeWorkspaceNode(state.root, panelId);
-      // Clear maximize if the maximized panel is gone.
-      final clearMaximize =
-          state.maximizedPanelId == panelId || newRoot is! WorkspaceBranch;
-      if (newRoot == null) {
-        // Was the last panel — reset to empty.
-        AppLogger.instance.log(
-          'Last panel removed, resetting workspace',
-          name: 'Workspace',
-        );
-        final fresh = PanelLeaf();
-        state = WorkspaceState(root: fresh, focusedPanelId: fresh.id);
-      } else {
-        // Focus moves to the first remaining panel.
-        AppLogger.instance.log(
-          'Panel $panelId removed, promoting sibling',
-          name: 'Workspace',
-        );
-        final panels = collectPanelIds(newRoot);
-        state = state.copyWith(
-          root: newRoot,
-          focusedPanelId: panels.contains(state.focusedPanelId)
-              ? state.focusedPanelId
-              : panels.first,
-          maximizedPanelId: clearMaximize ? () => null : null,
-        );
-      }
+      _collapseEmptyPanel(panelId);
     } else {
       var newActive = panel.activeTabIndex;
       if (newActive >= newTabs.length) newActive = newTabs.length - 1;
@@ -129,6 +102,34 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     }
 
     _disconnectOrphaned([closedTab]);
+  }
+
+  /// Remove an empty panel from the tree and promote its sibling.
+  void _collapseEmptyPanel(String panelId) {
+    final newRoot = removeWorkspaceNode(state.root, panelId);
+    final clearMaximize =
+        state.maximizedPanelId == panelId || newRoot is! WorkspaceBranch;
+    if (newRoot == null) {
+      AppLogger.instance.log(
+        'Last panel removed, resetting workspace',
+        name: 'Workspace',
+      );
+      final fresh = PanelLeaf();
+      state = WorkspaceState(root: fresh, focusedPanelId: fresh.id);
+    } else {
+      AppLogger.instance.log(
+        'Panel $panelId removed, promoting sibling',
+        name: 'Workspace',
+      );
+      final panels = collectPanelIds(newRoot);
+      state = state.copyWith(
+        root: newRoot,
+        focusedPanelId: panels.contains(state.focusedPanelId)
+            ? state.focusedPanelId
+            : panels.first,
+        maximizedPanelId: clearMaximize ? () => null : null,
+      );
+    }
   }
 
   /// Select a tab by index within a panel.

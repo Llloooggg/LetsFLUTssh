@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:xterm/xterm.dart';
 
 void main() {
   group('AppTheme.dark()', () {
@@ -172,6 +173,60 @@ void main() {
           reason: 'size tier $i should be >= tier ${i - 1}',
         );
       }
+    });
+  });
+
+  group('AppTheme.inputDecoration', () {
+    test('returns filled decoration with themed borders', () {
+      final dec = AppTheme.inputDecoration();
+      expect(dec.filled, isTrue);
+      expect(dec.fillColor, AppTheme.bg3);
+      expect(dec.isDense, isTrue);
+      expect(dec.border, isA<OutlineInputBorder>());
+      expect(dec.enabledBorder, isA<OutlineInputBorder>());
+      expect(dec.focusedBorder, isA<OutlineInputBorder>());
+    });
+
+    test('passes through labelText and hintText', () {
+      final dec = AppTheme.inputDecoration(
+        labelText: 'Label',
+        hintText: 'Hint',
+      );
+      expect(dec.labelText, 'Label');
+      expect(dec.hintText, 'Hint');
+    });
+
+    test('uses custom contentPadding when provided', () {
+      const padding = EdgeInsets.all(20);
+      final dec = AppTheme.inputDecoration(contentPadding: padding);
+      expect(dec.contentPadding, padding);
+    });
+
+    test('enabled and normal borders share the same style', () {
+      final dec = AppTheme.inputDecoration();
+      expect(dec.border, equals(dec.enabledBorder));
+    });
+
+    test('focused border uses accent color', () {
+      final dec = AppTheme.inputDecoration();
+      final focused = dec.focusedBorder! as OutlineInputBorder;
+      expect(focused.borderSide.color, AppTheme.accent);
+    });
+  });
+
+  group('AppTheme.terminalTheme', () {
+    test('returns a valid TerminalTheme', () {
+      final theme = AppTheme.terminalTheme;
+      expect(theme, isA<TerminalTheme>());
+      expect(theme.foreground, AppTheme.fg);
+      expect(theme.background, AppTheme.bg2);
+      expect(theme.cursor, AppTheme.termCursor);
+    });
+
+    test('search hit colors are set', () {
+      final theme = AppTheme.terminalTheme;
+      expect(theme.searchHitBackgroundCurrent, AppTheme.accent);
+      expect(theme.searchHitForeground, AppTheme.searchHitFg);
     });
   });
 }

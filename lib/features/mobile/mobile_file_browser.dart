@@ -192,136 +192,126 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Local/Remote toggle
-              Row(
-                children: [
-                  Expanded(
-                    child: SegmentedButton<bool>(
-                      segments: [
-                        ButtonSegment(
-                          value: false,
-                          label: Text(S.of(context).local),
-                          icon: const Icon(Icons.phone_android, size: 16),
-                        ),
-                        ButtonSegment(
-                          value: true,
-                          label: Text(S.of(context).remote),
-                          icon: const Icon(Icons.cloud, size: 16),
-                        ),
-                      ],
-                      selected: {_showRemote},
-                      onSelectionChanged: (s) =>
-                          setState(() => _showRemote = s.first),
-                      style: ButtonStyle(
-                        visualDensity: VisualDensity.compact,
-                        backgroundColor: WidgetStateProperty.resolveWith((
-                          states,
-                        ) {
-                          if (!states.contains(WidgetState.selected)) {
-                            return null;
-                          }
-                          final color = _showRemote
-                              ? AppTheme.green
-                              : AppTheme.blue;
-                          return color.withValues(alpha: 0.15);
-                        }),
-                        foregroundColor: WidgetStateProperty.resolveWith((
-                          states,
-                        ) {
-                          if (!states.contains(WidgetState.selected)) {
-                            return null;
-                          }
-                          return _showRemote ? AppTheme.green : AppTheme.blue;
-                        }),
-                        iconColor: WidgetStateProperty.resolveWith((states) {
-                          if (!states.contains(WidgetState.selected)) {
-                            return null;
-                          }
-                          return _showRemote ? AppTheme.green : AppTheme.blue;
-                        }),
-                        side: WidgetStateProperty.resolveWith((states) {
-                          final color = _showRemote
-                              ? AppTheme.green
-                              : AppTheme.blue;
-                          return BorderSide(
-                            color: color.withValues(alpha: 0.4),
-                          );
-                        }),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // iOS: folder picker for local pane (sandbox escape)
-                  if (Platform.isIOS && !_showRemote)
-                    AppIconButton(
-                      icon: Icons.folder_open,
-                      size: 20,
-                      boxSize: 36,
-                      onTap: _pickLocalFolder,
-                      tooltip: S.of(context).pickFolder,
-                    ),
-                  // Android: grant storage permission button
-                  if (Platform.isAndroid &&
-                      !_showRemote &&
-                      _storagePermissionDenied)
-                    AppIconButton(
-                      icon: Icons.security,
-                      size: 20,
-                      boxSize: 36,
-                      onTap: _requestAndRefreshPermission,
-                      tooltip: S.of(context).grantPermission,
-                    ),
-                  AppIconButton(
-                    icon: Icons.refresh,
-                    size: 20,
-                    boxSize: 36,
-                    onTap: _activeCtrl.refresh,
-                    tooltip: S.of(context).refresh,
-                  ),
-                ],
-              ),
+              _buildToggleRow(context),
               const SizedBox(height: 4),
-              // Path breadcrumb / editor
-              SizedBox(
-                height: AppTheme.barHeightMd,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _editingPath
-                          ? _buildPathEditor()
-                          : _buildBreadcrumb(),
-                    ),
-                    const SizedBox(width: 4),
-                    AppIconButton(
-                      icon: Icons.arrow_back,
-                      size: 22,
-                      boxSize: 36,
-                      onTap: _activeCtrl.canGoBack ? _activeCtrl.goBack : null,
-                      tooltip: S.of(context).back,
-                    ),
-                    AppIconButton(
-                      icon: Icons.arrow_forward,
-                      size: 22,
-                      boxSize: 36,
-                      onTap: _activeCtrl.canGoForward
-                          ? _activeCtrl.goForward
-                          : null,
-                      tooltip: S.of(context).forward,
-                    ),
-                    AppIconButton(
-                      icon: Icons.arrow_upward,
-                      size: 22,
-                      boxSize: 36,
-                      onTap: _activeCtrl.navigateUp,
-                      tooltip: S.of(context).up,
-                    ),
-                  ],
-                ),
-              ),
+              _buildNavigationRow(context),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildToggleRow(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: SegmentedButton<bool>(
+            segments: [
+              ButtonSegment(
+                value: false,
+                label: Text(S.of(context).local),
+                icon: const Icon(Icons.phone_android, size: 16),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text(S.of(context).remote),
+                icon: const Icon(Icons.cloud, size: 16),
+              ),
+            ],
+            selected: {_showRemote},
+            onSelectionChanged: (s) => setState(() => _showRemote = s.first),
+            style: _segmentedButtonStyle(),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ..._platformButtons(context),
+        AppIconButton(
+          icon: Icons.refresh,
+          size: 20,
+          boxSize: 36,
+          onTap: _activeCtrl.refresh,
+          tooltip: S.of(context).refresh,
+        ),
+      ],
+    );
+  }
+
+  ButtonStyle _segmentedButtonStyle() {
+    final accentColor = _showRemote ? AppTheme.green : AppTheme.blue;
+    return ButtonStyle(
+      visualDensity: VisualDensity.compact,
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (!states.contains(WidgetState.selected)) return null;
+        return accentColor.withValues(alpha: 0.15);
+      }),
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (!states.contains(WidgetState.selected)) return null;
+        return accentColor;
+      }),
+      iconColor: WidgetStateProperty.resolveWith((states) {
+        if (!states.contains(WidgetState.selected)) return null;
+        return accentColor;
+      }),
+      side: WidgetStateProperty.all(
+        BorderSide(color: accentColor.withValues(alpha: 0.4)),
+      ),
+    );
+  }
+
+  List<Widget> _platformButtons(BuildContext context) {
+    return [
+      if (Platform.isIOS && !_showRemote)
+        AppIconButton(
+          icon: Icons.folder_open,
+          size: 20,
+          boxSize: 36,
+          onTap: _pickLocalFolder,
+          tooltip: S.of(context).pickFolder,
+        ),
+      if (Platform.isAndroid && !_showRemote && _storagePermissionDenied)
+        AppIconButton(
+          icon: Icons.security,
+          size: 20,
+          boxSize: 36,
+          onTap: _requestAndRefreshPermission,
+          tooltip: S.of(context).grantPermission,
+        ),
+    ];
+  }
+
+  Widget _buildNavigationRow(BuildContext context) {
+    return SizedBox(
+      height: AppTheme.barHeightMd,
+      child: Row(
+        children: [
+          Expanded(
+            child: _editingPath ? _buildPathEditor() : _buildBreadcrumb(),
+          ),
+          const SizedBox(width: 4),
+          AppIconButton(
+            icon: Icons.arrow_back,
+            size: 22,
+            boxSize: 36,
+            onTap: _activeCtrl.canGoBack ? _activeCtrl.goBack : null,
+            tooltip: S.of(context).back,
+          ),
+          AppIconButton(
+            icon: Icons.arrow_forward,
+            size: 22,
+            boxSize: 36,
+            onTap: _activeCtrl.canGoForward ? _activeCtrl.goForward : null,
+            tooltip: S.of(context).forward,
+          ),
+          AppIconButton(
+            icon: Icons.arrow_upward,
+            size: 22,
+            boxSize: 36,
+            onTap: _activeCtrl.navigateUp,
+            tooltip: S.of(context).up,
+          ),
+        ],
+      ),
     );
   }
 
