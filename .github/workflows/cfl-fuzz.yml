@@ -1,20 +1,8 @@
 name: ClusterFuzzLite
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'fuzz/**'
-      - '.clusterfuzzlite/**'
-      - '.github/workflows/cfl-fuzz.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'fuzz/**'
-      - '.clusterfuzzlite/**'
-      - '.github/workflows/cfl-fuzz.yml'
-  schedule:
-    - cron: '0 4 * * 6' # weekly Saturday 04:00 UTC
   workflow_dispatch:
 
 permissions: read-all
