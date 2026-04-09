@@ -537,53 +537,63 @@ class ForegroundServiceManager {
 
 ### 3.6 Security & Encryption (`core/security/`)
 
-#### CredentialStore
+#### Three-Level Security Model
+
+All data stores (SessionStore, KeyStore, KnownHostsManager) support three security levels:
+
+| Level | When | Files on disk | Key source |
+|-------|------|---------------|------------|
+| **Plaintext** | No keychain AND no master password | `sessions.json`, `keys.json`, `known_hosts` | None |
+| **Keychain** | OS keychain available, no master password | `sessions.enc`, `keys.enc`, `known_hosts.enc` | OS keychain via `flutter_secure_storage` |
+| **Master Password** | User set master password | `sessions.enc`, `keys.enc`, `known_hosts.enc` + `credentials.salt` + `credentials.verify` | PBKDF2-derived |
+
+First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. The `security_initialized` flag file prevents the wizard from re-appearing.
+
+#### AesGcm
+
+Shared AES-256-GCM utility used by all encrypted stores.
 
 ```dart
-class CredentialStore {
-  CredentialStore(String dataDir);
-
-  Future<Map<String, CredentialData>> load();
-  Future<void> save(Map<String, CredentialData> data);
-
-  // Internals:
-  // - Encryption key: 32 bytes random, stored in separate file
-  // - Algorithm: AES-256-GCM (pointycastle)
-  // - File format: [IV 12B] [ciphertext] [GCM auth tag 16B]
-  // - Guard: Completer prevents race condition during key generation
-}
-
-class CredentialData {
-  final String? password;
-  final String? keyData;      // PEM text
-  final String? passphrase;
-}
-
-class CredentialStoreException {
-  // Distinguishes "no credentials" from "corrupt key/file"
+class AesGcm {
+  static Uint8List encrypt(String plaintext, Uint8List key);
+  static String decrypt(Uint8List data, Uint8List key);
+  static Uint8List generateKey(); // 32-byte random key
+  // Wire format: [IV (12 bytes)] [ciphertext + GCM authentication tag]
 }
 ```
 
 **Why pointycastle:** `encrypt` package has version conflicts with dartssh2. pointycastle is pure Dart, transitive dependency via dartssh2.
 
-**Why not flutter_secure_storage:** Needs pure Dart (cross-platform). flutter_secure_storage depends on OS keychain — different behavior across platforms.
+#### SecureKeyStorage
+
+Thin wrapper around `flutter_secure_storage` for OS keychain access. All methods catch exceptions and return null/false — graceful fallback to plaintext or master-password mode.
+
+```dart
+class SecureKeyStorage {
+  Future<bool> isAvailable();      // write+read+delete probe
+  Future<Uint8List?> readKey();    // null on failure
+  Future<bool> writeKey(Uint8List key); // false on failure
+  Future<void> deleteKey();
+}
+```
+
+OS keychain backends: Keychain (macOS/iOS), Credential Manager (Windows), libsecret (Linux), EncryptedSharedPreferences (Android). All are **optional** — the app works without them.
 
 #### KeyStore
 
-Central SSH key store — encrypted with the same `credentials.key` as CredentialStore.
+Central SSH key store with three-level encryption.
 
 ```dart
 class KeyStore {
-  // Storage: keys.enc (AES-256-GCM, same key as CredentialStore)
+  // Storage: keys.json (plaintext) or keys.enc (encrypted)
+  void setEncryptionKey(Uint8List key, SecurityLevel level);
+  void clearEncryptionKey();
+  Future<void> reEncrypt(Uint8List? newKey, SecurityLevel newLevel);
   Future<Map<String, SshKeyEntry>> loadAll();
   Future<void> save(SshKeyEntry entry);
   Future<void> delete(String id);
-  SshKeyEntry importKey(String pem, String label);      // parse PEM, detect type
+  SshKeyEntry importKey(String pem, String label);
   static SshKeyEntry generateKeyPair(SshKeyType, label); // Ed25519 or RSA
-
-  // Key generation:
-  // - Ed25519: pinenacl SigningKey.generate() → OpenSSHEd25519KeyPair → toPem()
-  // - RSA: pointycastle RSAKeyGenerator → OpenSSHRsaKeyPair → toPem()
 }
 
 class SshKeyEntry {
@@ -2169,54 +2179,70 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 
 ## 13. Security Model
 
-### Credential encryption
+### Three-level encryption
 
-```
-credential.key (32 bytes, random)  ← OR derived from master password
-         │
-         ▼ AES-256-GCM
-credentials.enc = [IV 12B] [ciphertext(JSON)] [GCM tag 16B]
-```
+All data stores support three security levels (see §3.6):
 
-- Key generated once, stored alongside (protection: file permissions)
-- Completer guard prevents race condition during parallel key generation
-- `CredentialStoreException` distinguishes "no data" from "corrupt key"
-- Both `CredentialStore` and `KeyStore` support `setExternalKey()` / `clearExternalKey()` for master password flow
-- `isLocked` property: true when `credentials.salt` exists but no external key provided
+| Level | Key source | Encrypted files |
+|-------|-----------|----------------|
+| Plaintext | None | `sessions.json`, `keys.json`, `known_hosts` |
+| Keychain | OS keychain (`flutter_secure_storage`) | `sessions.enc`, `keys.enc`, `known_hosts.enc` |
+| Master Password | PBKDF2-derived | `sessions.enc`, `keys.enc`, `known_hosts.enc` + `credentials.salt` + `credentials.verify` |
 
-### Optional master password
+All encrypted files use AES-256-GCM via `AesGcm` utility. Wire format: `[IV 12B] [ciphertext + GCM tag]`.
 
-When enabled, the AES-256 key is derived from the user's password via PBKDF2 instead of stored in `credentials.key`:
+No `credentials.key` file — the old pattern of storing a key next to the ciphertext is eliminated.
+
+### First-launch wizard
+
+`SecuritySetupDialog` shown on first launch (no `security_initialized` flag file):
+1. Probes OS keychain via `SecureKeyStorage.isAvailable()` (write+read+delete cycle)
+2. Keychain found → offers "Continue with Keychain" or "Set Master Password"
+3. Keychain not found → offers "Continue without Encryption" or "Set Master Password"
+4. Writes `security_initialized` flag after choice
+
+### Startup security flow
+
+`_initSecurity()` in `main.dart`:
+1. Flag file exists? → existing install flow. Otherwise → first-launch wizard
+2. Existing: `credentials.salt` exists → show `UnlockDialog` → derive key
+3. Existing: keychain has key → read from keychain
+4. Otherwise → plaintext
+5. Inject key into all three stores via `_injectKey()` + update `securityStateProvider`
+
+### Master password
 
 ```
 User password → PBKDF2-SHA256(600k iterations, random salt) → 256-bit key
                                                                    │
-                                    ┌──────────────────────────────┤
-                                    ▼                              ▼
-                           credentials.enc                    keys.enc
+                               ┌───────────────┬──────────────────┤
+                               ▼               ▼                  ▼
+                        sessions.enc      keys.enc       known_hosts.enc
 ```
 
 - **Detection:** `credentials.salt` exists = master password enabled
 - **Verification:** `credentials.verify` = AES-256-GCM(known plaintext "LetsFLUTssh-verify")
-- **Enable flow:** derive key → re-encrypt stores → delete `credentials.key`
-- **Disable flow:** generate random key → re-encrypt stores → save `credentials.key` → delete salt/verifier
-- **Startup:** `_unlockIfNeeded()` in `main.dart` shows `UnlockDialog` → injects key into both stores before loading sessions
-- **Forgot password:** deletes all encrypted files (salt, verifier, key, credentials.enc, keys.enc)
+- **Enable flow:** derive key → `reEncrypt()` all three stores → delete keychain key if present
+- **Disable flow:** try keychain → generate random key → `reEncrypt()` all stores → delete salt/verifier. No keychain → plaintext fallback
+- **Change flow:** verify old → derive new → `reEncrypt()` all three stores
+- **Forgot password:** deletes all encrypted files (salt, verifier, all `.enc` files)
 
 ### .lfs export
 
 ```
-[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions.json + credentials.json))]
+[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions.json + config.json + known_hosts))]
 
 Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 ```
+
+Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
 
 ### TOFU (Trust On First Use)
 
 - New host → dialog with SHA256 fingerprint → user accepts/rejects
 - Changed key → warning dialog → user accepts/rejects
 - Without callback → reject (fail-safe)
-- known_hosts: chmod 600
+- known_hosts encrypted when security level > plaintext
 
 ### Deep link validation
 
@@ -2420,7 +2446,8 @@ Manual build
 | Decision | Why |
 |----------|-----|
 | `pointycastle` instead of `encrypt` | Version conflict with dartssh2 |
-| `CredentialStore` instead of `flutter_secure_storage` | Pure Dart, no OS deps, cross-platform |
+| Three-level security (plaintext/keychain/master password) | Honest security: no key-file next to ciphertext. OS keychain optional with graceful fallback |
+| `flutter_secure_storage` as optional dep | OS keychain for automatic encryption; app works without it (libsecret on Linux is optional) |
 | `app_links` instead of `uni_links` | Desktop support |
 | `FilePaneController` as `ChangeNotifier` | Lightweight per-pane state, Riverpod overhead not justified |
 | Sealed class `SplitNode` | Recursive split tree with type safety |
