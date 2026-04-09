@@ -945,5 +945,19 @@
   "derivingKey": "Deriving encryption key...",
   "reEncrypting": "Re-encrypting data...",
   "confirmRemoveMasterPassword": "Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.",
-  "password": "Password"
+  "password": "Password",
+
+  "securitySetupTitle": "Security Setup",
+  "securitySetupKeychainFound": "OS Keychain detected ({keychainName}). Your data will be automatically encrypted using your system keychain.",
+  "@securitySetupKeychainFound": {
+    "placeholders": {
+      "keychainName": {"type": "String"}
+    }
+  },
+  "securitySetupKeychainOptional": "You can also set a master password for additional protection.",
+  "securitySetupNoKeychain": "No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.",
+  "securitySetupNoKeychainHint": "This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).",
+  "securitySetupRecommendMasterPassword": "We recommend setting a master password to protect your data.",
+  "continueWithKeychain": "Continue with Keychain",
+  "continueWithoutEncryption": "Continue without Encryption"
 }

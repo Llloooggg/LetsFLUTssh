@@ -2624,6 +2624,54 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.'**
   String get confirmRemoveMasterPassword;
+
+  /// No description provided for @securitySetupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Security Setup'**
+  String get securitySetupTitle;
+
+  /// No description provided for @securitySetupKeychainFound.
+  ///
+  /// In en, this message translates to:
+  /// **'OS Keychain detected ({keychainName}). Your data will be automatically encrypted using your system keychain.'**
+  String securitySetupKeychainFound(String keychainName);
+
+  /// No description provided for @securitySetupKeychainOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'You can also set a master password for additional protection.'**
+  String get securitySetupKeychainOptional;
+
+  /// No description provided for @securitySetupNoKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.'**
+  String get securitySetupNoKeychain;
+
+  /// No description provided for @securitySetupNoKeychainHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).'**
+  String get securitySetupNoKeychainHint;
+
+  /// No description provided for @securitySetupRecommendMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'We recommend setting a master password to protect your data.'**
+  String get securitySetupRecommendMasterPassword;
+
+  /// No description provided for @continueWithKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Keychain'**
+  String get continueWithKeychain;
+
+  /// No description provided for @continueWithoutEncryption.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue without Encryption'**
+  String get continueWithoutEncryption;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
