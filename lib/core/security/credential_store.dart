@@ -1,15 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
-
-import 'package:pointycastle/export.dart';
 
 import 'package:path_provider/path_provider.dart';
 
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import 'aes_gcm.dart';
 
 /// Encrypted credential store — file-based AES-256-GCM.
 ///
@@ -22,9 +20,6 @@ class CredentialStore {
 
   /// AES-256 key length in bytes.
   static const keyLength = 32;
-
-  /// Minimum encrypted payload: 12-byte IV + at least 1 byte ciphertext.
-  static const _minEncryptedLength = 13;
 
   String? _basePath;
 
@@ -98,7 +93,7 @@ class CredentialStore {
 
     try {
       final encData = await credFile.readAsBytes();
-      final json = _decrypt(encData, keyBytes);
+      final json = AesGcm.decrypt(encData, keyBytes);
       final map = jsonDecode(json) as Map<String, dynamic>;
       final result = map.map(
         (k, v) =>
@@ -145,7 +140,7 @@ class CredentialStore {
     final keyBytes = await _resolveKey(basePath);
 
     final json = jsonEncode(credentials.map((k, v) => MapEntry(k, v.toJson())));
-    final encData = _encrypt(json, keyBytes);
+    final encData = AesGcm.encrypt(json, keyBytes);
     await writeBytesAtomic(credFile.path, encData);
     _cache = Map.of(credentials);
   }
@@ -227,42 +222,7 @@ class CredentialStore {
     await saveAll(all);
   }
 
-  Uint8List _generateKey() {
-    final random = Random.secure();
-    return Uint8List.fromList(List.generate(32, (_) => random.nextInt(256)));
-  }
-
-  Uint8List _encrypt(String plaintext, Uint8List key) {
-    final random = Random.secure();
-    final iv = Uint8List.fromList(
-      List.generate(12, (_) => random.nextInt(256)),
-    );
-
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-
-    final input = Uint8List.fromList(utf8.encode(plaintext));
-    final output = cipher.process(input);
-
-    // Format: [iv (12)] [ciphertext+tag]
-    return Uint8List.fromList([...iv, ...output]);
-  }
-
-  String _decrypt(Uint8List data, Uint8List key) {
-    if (data.length < _minEncryptedLength) {
-      throw CredentialStoreException(
-        'Encrypted data too short (${data.length} bytes) — file is corrupted',
-      );
-    }
-    final iv = data.sublist(0, 12);
-    final ciphertext = data.sublist(12);
-
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(false, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-
-    final output = cipher.process(ciphertext);
-    return utf8.decode(output);
-  }
+  Uint8List _generateKey() => AesGcm.generateKey();
 }
 
 /// Credential data for a single session.
