@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -184,7 +185,14 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     // system keyboard.  Paired with Scaffold(resizeToAvoidBottomInset: false)
     // in MobileShell to prevent xterm buffer reflow that caused duplicate
     // lines when the soft keyboard appeared.
-    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    // viewInsets.bottom is measured from the screen bottom, but this Stack
+    // sits inside the Scaffold body which ends above the bottomNavigationBar
+    // and the device safe-area.  Subtract that gap so the keyboard bar sits
+    // flush against the system keyboard instead of floating above it.
+    final mq = MediaQuery.of(context);
+    final rawInset = mq.viewInsets.bottom;
+    final bottomGap = AppTheme.itemHeightXl + mq.viewPadding.bottom;
+    final keyboardInset = math.max(0.0, rawInset - bottomGap);
     return Stack(
       children: [
         Positioned.fill(child: _buildPinchZoomArea()),
