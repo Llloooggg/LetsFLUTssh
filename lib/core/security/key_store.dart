@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import 'aes_gcm.dart';
 
 /// Supported SSH key types for generation.
 enum SshKeyType {
@@ -94,7 +95,6 @@ class KeyStore {
   static const _keysFileName = 'keys.enc';
   static const _keyFileName = 'credentials.key';
   static const _keyLength = 32;
-  static const _minEncryptedLength = 13;
 
   String? _basePath;
   Map<String, SshKeyEntry>? _cache;
@@ -148,7 +148,7 @@ class KeyStore {
 
     try {
       final encData = await keysFile.readAsBytes();
-      final json = _decrypt(encData, keyBytes);
+      final json = AesGcm.decrypt(encData, keyBytes);
       final map = jsonDecode(json) as Map<String, dynamic>;
       final result = map.map(
         (k, v) => MapEntry(k, SshKeyEntry.fromJson(v as Map<String, dynamic>)),
@@ -185,7 +185,7 @@ class KeyStore {
 
     final keyBytes = await _resolveKey(basePath);
     final json = jsonEncode(keys.map((k, v) => MapEntry(k, v.toJson())));
-    final encData = _encrypt(json, keyBytes);
+    final encData = AesGcm.encrypt(json, keyBytes);
     await writeBytesAtomic(keysFile.path, encData);
     _cache = Map.of(keys);
   }
@@ -320,32 +320,6 @@ class KeyStore {
       );
     }
     return bytes;
-  }
-
-  Uint8List _encrypt(String plaintext, Uint8List key) {
-    final random = Random.secure();
-    final iv = Uint8List.fromList(
-      List.generate(12, (_) => random.nextInt(256)),
-    );
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-    final input = Uint8List.fromList(utf8.encode(plaintext));
-    final output = cipher.process(input);
-    return Uint8List.fromList([...iv, ...output]);
-  }
-
-  String _decrypt(Uint8List data, Uint8List key) {
-    if (data.length < _minEncryptedLength) {
-      throw KeyStoreException(
-        'Encrypted data too short (${data.length} bytes) — file is corrupted',
-      );
-    }
-    final iv = data.sublist(0, 12);
-    final ciphertext = data.sublist(12);
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(false, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-    final output = cipher.process(ciphertext);
-    return utf8.decode(output);
   }
 }
 
