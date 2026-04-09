@@ -387,8 +387,7 @@ class SKo extends S {
   String get unknownHost => '알 수 없는 호스트';
 
   @override
-  String get hostKeyChangedWarning =>
-      '경고: 이 서버의 호스트 키가 변경되었습니다. 이는 중간자 공격을 나타낼 수 있으며, 서버가 재설치되었을 수도 있습니다.';
+  String get hostKeyChangedWarning => '경고: 이 서버의 호스트 키가 변경되었습니다. 이는 중간자 공격을 나타낼 수 있으며, 서버가 재설치되었을 수도 있습니다.';
 
   @override
   String get unknownHostMessage => '이 호스트의 신뢰성을 확인할 수 없습니다. 연결을 계속하시겠습니까?';
@@ -794,12 +793,10 @@ class SKo extends S {
   String get exportSessionsViaQr => 'QR로 세션 내보내기';
 
   @override
-  String get qrNoCredentialsWarning =>
-      '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
+  String get qrNoCredentialsWarning => '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
 
   @override
-  String get qrTooManyForSingleCode =>
-      '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
+  String get qrTooManyForSingleCode => '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
 
   @override
   String get qrTooLarge => '너무 큽니다 — 일부 세션을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.';
@@ -1123,8 +1120,7 @@ class SKo extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1156,8 +1152,7 @@ class SKo extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1180,4 +1175,67 @@ class SKo extends S {
 
   @override
   String get duplicateDownShortcut => '아래로 복제 (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Security';
+
+  @override
+  String get knownHosts => 'Known Hosts';
+
+  @override
+  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count known hosts',
+      one: '1 known host',
+      zero: 'No known hosts',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+
+  @override
+  String get removeHost => 'Remove Host';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Clear All Known Hosts';
+
+  @override
+  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+
+  @override
+  String get importKnownHosts => 'Import Known Hosts';
+
+  @override
+  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+
+  @override
+  String get exportKnownHosts => 'Export Known Hosts';
+
+  @override
+  String importedHosts(int count) {
+    return 'Imported $count new hosts';
+  }
+
+  @override
+  String get clearedAllHosts => 'Cleared all known hosts';
+
+  @override
+  String removedHost(String host) {
+    return 'Removed $host';
+  }
+
+  @override
+  String get noHostsToExport => 'No known hosts to export';
 }

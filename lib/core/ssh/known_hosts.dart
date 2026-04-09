@@ -16,6 +16,14 @@ class KnownHostsManager {
   final Map<String, String> _hosts = {};
   late final String _filePath;
 
+  /// Read-only view of all known host entries.
+  ///
+  /// Keys are `host:port`, values are `keytype base64key`.
+  Map<String, String> get entries => Map.unmodifiable(_hosts);
+
+  /// Number of known hosts.
+  int get count => _hosts.length;
+
   /// Cached load future — ensures concurrent calls to [load] don't race.
   Future<void>? _loadFuture;
 
@@ -190,9 +198,96 @@ class KnownHostsManager {
     return _pendingWrite;
   }
 
-  String _fingerprint(List<int> keyBytes) {
+  /// Remove a single known host entry.
+  Future<void> removeHost(String hostPort) async {
+    await load();
+    if (_hosts.remove(hostPort) != null) {
+      await _saveAll();
+      AppLogger.instance.log(
+        'Removed known host: $hostPort',
+        name: 'KnownHosts',
+      );
+    }
+  }
+
+  /// Remove multiple known host entries.
+  Future<void> removeMultiple(Set<String> hostPorts) async {
+    await load();
+    var removed = 0;
+    for (final hp in hostPorts) {
+      if (_hosts.remove(hp) != null) removed++;
+    }
+    if (removed > 0) {
+      await _saveAll();
+      AppLogger.instance.log(
+        'Removed $removed known hosts',
+        name: 'KnownHosts',
+      );
+    }
+  }
+
+  /// Remove all known host entries.
+  Future<void> clearAll() async {
+    await load();
+    if (_hosts.isEmpty) return;
+    final count = _hosts.length;
+    _hosts.clear();
+    await _saveAll();
+    AppLogger.instance.log(
+      'Cleared all $count known hosts',
+      name: 'KnownHosts',
+    );
+  }
+
+  /// Import entries from an OpenSSH-format known_hosts file.
+  ///
+  /// Returns the number of new entries added (existing hosts are skipped).
+  Future<int> importFromFile(String path) async {
+    await load();
+    final file = File(path);
+    if (!await file.exists()) return 0;
+
+    final lines = await file.readAsLines();
+    var added = 0;
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+      final parts = trimmed.split(' ');
+      if (parts.length >= 3) {
+        final hostPort = parts[0];
+        final keyString = '${parts[1]} ${parts[2]}';
+        if (!_hosts.containsKey(hostPort)) {
+          _hosts[hostPort] = keyString;
+          added++;
+        }
+      }
+    }
+
+    if (added > 0) {
+      await _saveAll();
+      AppLogger.instance.log(
+        'Imported $added known hosts from $path',
+        name: 'KnownHosts',
+      );
+    }
+    return added;
+  }
+
+  /// Export all entries to OpenSSH known_hosts format.
+  String exportToString() {
+    final sb = StringBuffer();
+    for (final entry in _hosts.entries) {
+      sb.writeln('${entry.key} ${entry.value}');
+    }
+    return sb.toString();
+  }
+
+  /// Compute SHA256 fingerprint of host key bytes.
+  static String fingerprint(List<int> keyBytes) {
     final digest = SHA256Digest();
     final hash = digest.process(Uint8List.fromList(keyBytes));
     return 'SHA256:${base64Encode(hash)}';
   }
+
+  String _fingerprint(List<int> keyBytes) => fingerprint(keyBytes);
 }

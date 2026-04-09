@@ -369,8 +369,7 @@ class SJa extends S {
   String get qrGenerationFailed => 'QRコード生成に失敗しました';
 
   @override
-  String get scanWithCameraApp =>
-      'LetsFLUTsshがインストールされている\nデバイスのカメラアプリでスキャンしてください。';
+  String get scanWithCameraApp => 'LetsFLUTsshがインストールされている\nデバイスのカメラアプリでスキャンしてください。';
 
   @override
   String get noPasswordsInQr => 'このQRコードにパスワードや鍵は含まれていません';
@@ -388,8 +387,7 @@ class SJa extends S {
   String get unknownHost => '不明なホスト';
 
   @override
-  String get hostKeyChangedWarning =>
-      '警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。';
+  String get hostKeyChangedWarning => '警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。';
 
   @override
   String get unknownHostMessage => 'このホストの信頼性を確認できません。接続を続行しますか？';
@@ -795,12 +793,10 @@ class SJa extends S {
   String get exportSessionsViaQr => 'QRでセッションをエクスポート';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
+  String get qrNoCredentialsWarning => 'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
 
   @override
-  String get qrTooManyForSingleCode =>
-      '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
+  String get qrTooManyForSingleCode => '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
 
   @override
   String get qrTooLarge => 'データが大きすぎます — 選択を減らすか、.lfsファイルエクスポートを使用してください。';
@@ -1033,8 +1029,7 @@ class SJa extends S {
   String get grantPermission => '権限を付与';
 
   @override
-  String get storagePermissionLimited =>
-      '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
+  String get storagePermissionLimited => '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1125,8 +1120,7 @@ class SJa extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1158,8 +1152,7 @@ class SJa extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1182,4 +1175,67 @@ class SJa extends S {
 
   @override
   String get duplicateDownShortcut => '下に複製 (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Security';
+
+  @override
+  String get knownHosts => 'Known Hosts';
+
+  @override
+  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count known hosts',
+      one: '1 known host',
+      zero: 'No known hosts',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+
+  @override
+  String get removeHost => 'Remove Host';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Clear All Known Hosts';
+
+  @override
+  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+
+  @override
+  String get importKnownHosts => 'Import Known Hosts';
+
+  @override
+  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+
+  @override
+  String get exportKnownHosts => 'Export Known Hosts';
+
+  @override
+  String importedHosts(int count) {
+    return 'Imported $count new hosts';
+  }
+
+  @override
+  String get clearedAllHosts => 'Cleared all known hosts';
+
+  @override
+  String removedHost(String host) {
+    return 'Removed $host';
+  }
+
+  @override
+  String get noHostsToExport => 'No known hosts to export';
 }

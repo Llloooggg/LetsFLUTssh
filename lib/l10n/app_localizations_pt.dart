@@ -113,8 +113,7 @@ class SPt extends S {
   String get openInBrowser => 'Abrir no Navegador';
 
   @override
-  String get couldNotOpenBrowser =>
-      'Não foi possível abrir o navegador — URL copiada para a área de transferência';
+  String get couldNotOpenBrowser => 'Não foi possível abrir o navegador — URL copiada para a área de transferência';
 
   @override
   String get checkForUpdates => 'Verificar Atualizações';
@@ -343,8 +342,7 @@ class SPt extends S {
   String get portRange => '1-65535';
 
   @override
-  String get provideKeyFirst =>
-      'Forneça um arquivo de chave ou texto PEM primeiro';
+  String get provideKeyFirst => 'Forneça um arquivo de chave ou texto PEM primeiro';
 
   @override
   String get keyTextPem => 'Texto da Chave (PEM)';
@@ -371,8 +369,7 @@ class SPt extends S {
   String get qrGenerationFailed => 'Falha ao gerar QR';
 
   @override
-  String get scanWithCameraApp =>
-      'Escaneie com qualquer aplicativo de câmera em um dispositivo\nque tenha o LetsFLUTssh instalado.';
+  String get scanWithCameraApp => 'Escaneie com qualquer aplicativo de câmera em um dispositivo\nque tenha o LetsFLUTssh instalado.';
 
   @override
   String get noPasswordsInQr => 'Nenhuma senha ou chave está neste código QR';
@@ -390,12 +387,10 @@ class SPt extends S {
   String get unknownHost => 'Host Desconhecido';
 
   @override
-  String get hostKeyChangedWarning =>
-      'AVISO: A chave do host deste servidor foi alterada. Isso pode indicar um ataque man-in-the-middle, ou o servidor pode ter sido reinstalado.';
+  String get hostKeyChangedWarning => 'AVISO: A chave do host deste servidor foi alterada. Isso pode indicar um ataque man-in-the-middle, ou o servidor pode ter sido reinstalado.';
 
   @override
-  String get unknownHostMessage =>
-      'A autenticidade deste host não pode ser verificada. Tem certeza de que deseja continuar a conexão?';
+  String get unknownHostMessage => 'A autenticidade deste host não pode ser verificada. Tem certeza de que deseja continuar a conexão?';
 
   @override
   String get host => 'Host';
@@ -428,12 +423,10 @@ class SPt extends S {
   String get confirmPassword => 'Confirmar Senha';
 
   @override
-  String get importModeMergeDescription =>
-      'Adicionar novas sessões, manter existentes';
+  String get importModeMergeDescription => 'Adicionar novas sessões, manter existentes';
 
   @override
-  String get importModeReplaceDescription =>
-      'Substituir todas as sessões pelas importadas';
+  String get importModeReplaceDescription => 'Substituir todas as sessões pelas importadas';
 
   @override
   String errorPrefix(String error) {
@@ -539,8 +532,7 @@ class SPt extends S {
   String get noActiveSession => 'Nenhuma sessão ativa';
 
   @override
-  String get createConnectionHint =>
-      'Crie uma nova conexão ou selecione uma na barra lateral';
+  String get createConnectionHint => 'Crie uma nova conexão ou selecione uma na barra lateral';
 
   @override
   String get hideSidebar => 'Ocultar Barra Lateral (Ctrl+B)';
@@ -621,15 +613,13 @@ class SPt extends S {
   String get exportData => 'Exportar Dados';
 
   @override
-  String get exportDataSubtitle =>
-      'Salvar sessões, configurações e chaves em arquivo .lfs criptografado';
+  String get exportDataSubtitle => 'Salvar sessões, configurações e chaves em arquivo .lfs criptografado';
 
   @override
   String get importDataSubtitle => 'Carregar dados de arquivo .lfs';
 
   @override
-  String get setMasterPasswordHint =>
-      'Defina uma senha mestra para criptografar o arquivo.';
+  String get setMasterPasswordHint => 'Defina uma senha mestra para criptografar o arquivo.';
 
   @override
   String get passwordsDoNotMatch => 'As senhas não coincidem';
@@ -657,8 +647,7 @@ class SPt extends S {
   String get shareViaQrCode => 'Compartilhar via Código QR';
 
   @override
-  String get shareViaQrSubtitle =>
-      'Exportar sessões para QR para escaneamento por outro dispositivo';
+  String get shareViaQrSubtitle => 'Exportar sessões para QR para escaneamento por outro dispositivo';
 
   @override
   String get dataLocation => 'Local dos Dados';
@@ -742,8 +731,7 @@ class SPt extends S {
   String get useSftpFromSessions => 'Use \"SFTP\" nas Sessões';
 
   @override
-  String get anotherInstanceRunning =>
-      'Outra instância do LetsFLUTssh já está em execução.';
+  String get anotherInstanceRunning => 'Outra instância do LetsFLUTssh já está em execução.';
 
   @override
   String importFailedShort(String error) {
@@ -778,8 +766,7 @@ class SPt extends S {
   String get connectionError => 'Erro de conexão';
 
   @override
-  String get resizeWindowToViewFiles =>
-      'Redimensione a janela para visualizar os arquivos';
+  String get resizeWindowToViewFiles => 'Redimensione a janela para visualizar os arquivos';
 
   @override
   String get completed => 'Concluído';
@@ -806,16 +793,13 @@ class SPt extends S {
   String get exportSessionsViaQr => 'Exportar Sessões via QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Senhas e chaves SSH NÃO estão incluídas.\nAs sessões importadas precisarão ter as credenciais preenchidas.';
+  String get qrNoCredentialsWarning => 'Senhas e chaves SSH NÃO estão incluídas.\nAs sessões importadas precisarão ter as credenciais preenchidas.';
 
   @override
-  String get qrTooManyForSingleCode =>
-      'Sessões demais para um único código QR. Desmarque algumas ou use a exportação .lfs.';
+  String get qrTooManyForSingleCode => 'Sessões demais para um único código QR. Desmarque algumas ou use a exportação .lfs.';
 
   @override
-  String get qrTooLarge =>
-      'Muito grande — desmarque algumas sessões ou use a exportação em arquivo .lfs.';
+  String get qrTooLarge => 'Muito grande — desmarque algumas sessões ou use a exportação em arquivo .lfs.';
 
   @override
   String get exportAll => 'Exportar Tudo';
@@ -862,8 +846,7 @@ class SPt extends S {
   String get errBadFileDescriptor => 'Descritor de arquivo inválido';
 
   @override
-  String get errResourceTemporarilyUnavailable =>
-      'Recurso temporariamente indisponível';
+  String get errResourceTemporarilyUnavailable => 'Recurso temporariamente indisponível';
 
   @override
   String get errOutOfMemory => 'Memória esgotada';
@@ -905,8 +888,7 @@ class SPt extends S {
   String get errAddressAlreadyInUse => 'Endereço já em uso';
 
   @override
-  String get errCannotAssignAddress =>
-      'Não é possível atribuir o endereço solicitado';
+  String get errCannotAssignAddress => 'Não é possível atribuir o endereço solicitado';
 
   @override
   String get errNetworkIsDown => 'Rede inativa';
@@ -965,8 +947,7 @@ class SPt extends S {
   String get errSshOpenShellFailed => 'Falha ao abrir o shell';
 
   @override
-  String get errSshLoadKeyFileFailed =>
-      'Falha ao carregar o arquivo de chave SSH';
+  String get errSshLoadKeyFileFailed => 'Falha ao carregar o arquivo de chave SSH';
 
   @override
   String get errSshParseKeyFailed => 'Falha ao analisar os dados da chave PEM';
@@ -1009,8 +990,7 @@ class SPt extends S {
   }
 
   @override
-  String get errDecryptionFailed =>
-      'Falha ao descriptografar as credenciais. O arquivo de chave pode estar corrompido.';
+  String get errDecryptionFailed => 'Falha ao descriptografar as credenciais. O arquivo de chave pode estar corrompido.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1043,15 +1023,13 @@ class SPt extends S {
   String get subitems => 'Itens';
 
   @override
-  String get storagePermissionRequired =>
-      'Permissão de armazenamento necessária para navegar arquivos locais';
+  String get storagePermissionRequired => 'Permissão de armazenamento necessária para navegar arquivos locais';
 
   @override
   String get grantPermission => 'Conceder permissão';
 
   @override
-  String get storagePermissionLimited =>
-      'Acesso limitado — conceda permissão total de armazenamento para todos os arquivos';
+  String get storagePermissionLimited => 'Acesso limitado — conceda permissão total de armazenamento para todos os arquivos';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1142,8 +1120,7 @@ class SPt extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1175,8 +1152,7 @@ class SPt extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1199,4 +1175,67 @@ class SPt extends S {
 
   @override
   String get duplicateDownShortcut => 'Duplicar abaixo (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Security';
+
+  @override
+  String get knownHosts => 'Known Hosts';
+
+  @override
+  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count known hosts',
+      one: '1 known host',
+      zero: 'No known hosts',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+
+  @override
+  String get removeHost => 'Remove Host';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Clear All Known Hosts';
+
+  @override
+  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+
+  @override
+  String get importKnownHosts => 'Import Known Hosts';
+
+  @override
+  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+
+  @override
+  String get exportKnownHosts => 'Export Known Hosts';
+
+  @override
+  String importedHosts(int count) {
+    return 'Imported $count new hosts';
+  }
+
+  @override
+  String get clearedAllHosts => 'Cleared all known hosts';
+
+  @override
+  String removedHost(String host) {
+    return 'Removed $host';
+  }
+
+  @override
+  String get noHostsToExport => 'No known hosts to export';
 }

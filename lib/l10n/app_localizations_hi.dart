@@ -113,8 +113,7 @@ class SHi extends S {
   String get openInBrowser => 'ब्राउज़र में खोलें';
 
   @override
-  String get couldNotOpenBrowser =>
-      'ब्राउज़र नहीं खुल सका — URL क्लिपबोर्ड पर कॉपी किया गया';
+  String get couldNotOpenBrowser => 'ब्राउज़र नहीं खुल सका — URL क्लिपबोर्ड पर कॉपी किया गया';
 
   @override
   String get checkForUpdates => 'अपडेट जांचें';
@@ -343,8 +342,7 @@ class SHi extends S {
   String get portRange => '1-65535';
 
   @override
-  String get provideKeyFirst =>
-      'पहले एक कुंजी फ़ाइल या PEM टेक्स्ट प्रदान करें';
+  String get provideKeyFirst => 'पहले एक कुंजी फ़ाइल या PEM टेक्स्ट प्रदान करें';
 
   @override
   String get keyTextPem => 'कुंजी टेक्स्ट (PEM)';
@@ -371,8 +369,7 @@ class SHi extends S {
   String get qrGenerationFailed => 'QR बनाना विफल';
 
   @override
-  String get scanWithCameraApp =>
-      'LetsFLUTssh इंस्टॉल किए गए डिवाइस पर\nकिसी भी कैमरा ऐप से स्कैन करें।';
+  String get scanWithCameraApp => 'LetsFLUTssh इंस्टॉल किए गए डिवाइस पर\nकिसी भी कैमरा ऐप से स्कैन करें।';
 
   @override
   String get noPasswordsInQr => 'इस QR कोड में कोई पासवर्ड या कुंजी नहीं है';
@@ -390,12 +387,10 @@ class SHi extends S {
   String get unknownHost => 'अज्ञात होस्ट';
 
   @override
-  String get hostKeyChangedWarning =>
-      'चेतावनी: इस सर्वर की होस्ट कुंजी बदल गई है। यह मैन-इन-द-मिडल हमले का संकेत हो सकता है, या सर्वर पुनः इंस्टॉल किया गया हो सकता है।';
+  String get hostKeyChangedWarning => 'चेतावनी: इस सर्वर की होस्ट कुंजी बदल गई है। यह मैन-इन-द-मिडल हमले का संकेत हो सकता है, या सर्वर पुनः इंस्टॉल किया गया हो सकता है।';
 
   @override
-  String get unknownHostMessage =>
-      'इस होस्ट की प्रामाणिकता सत्यापित नहीं की जा सकती। क्या आप कनेक्ट करना जारी रखना चाहते हैं?';
+  String get unknownHostMessage => 'इस होस्ट की प्रामाणिकता सत्यापित नहीं की जा सकती। क्या आप कनेक्ट करना जारी रखना चाहते हैं?';
 
   @override
   String get host => 'होस्ट';
@@ -618,15 +613,13 @@ class SHi extends S {
   String get exportData => 'डेटा निर्यात करें';
 
   @override
-  String get exportDataSubtitle =>
-      'सत्र, कॉन्फ़िग और कुंजियों को एन्क्रिप्टेड .lfs फ़ाइल में सहेजें';
+  String get exportDataSubtitle => 'सत्र, कॉन्फ़िग और कुंजियों को एन्क्रिप्टेड .lfs फ़ाइल में सहेजें';
 
   @override
   String get importDataSubtitle => '.lfs फ़ाइल से डेटा लोड करें';
 
   @override
-  String get setMasterPasswordHint =>
-      'आर्काइव को एन्क्रिप्ट करने के लिए मास्टर पासवर्ड सेट करें।';
+  String get setMasterPasswordHint => 'आर्काइव को एन्क्रिप्ट करने के लिए मास्टर पासवर्ड सेट करें।';
 
   @override
   String get passwordsDoNotMatch => 'पासवर्ड मेल नहीं खाते';
@@ -654,8 +647,7 @@ class SHi extends S {
   String get shareViaQrCode => 'QR कोड से साझा करें';
 
   @override
-  String get shareViaQrSubtitle =>
-      'दूसरे डिवाइस से स्कैन करने के लिए सत्रों को QR कोड में निर्यात करें';
+  String get shareViaQrSubtitle => 'दूसरे डिवाइस से स्कैन करने के लिए सत्रों को QR कोड में निर्यात करें';
 
   @override
   String get dataLocation => 'डेटा स्थान';
@@ -739,8 +731,7 @@ class SHi extends S {
   String get useSftpFromSessions => 'सत्रों से \"SFTP\" का उपयोग करें';
 
   @override
-  String get anotherInstanceRunning =>
-      'LetsFLUTssh का एक अन्य इंस्टेंस पहले से चल रहा है।';
+  String get anotherInstanceRunning => 'LetsFLUTssh का एक अन्य इंस्टेंस पहले से चल रहा है।';
 
   @override
   String importFailedShort(String error) {
@@ -775,8 +766,7 @@ class SHi extends S {
   String get connectionError => 'कनेक्शन त्रुटि';
 
   @override
-  String get resizeWindowToViewFiles =>
-      'फ़ाइलें देखने के लिए विंडो का आकार बदलें';
+  String get resizeWindowToViewFiles => 'फ़ाइलें देखने के लिए विंडो का आकार बदलें';
 
   @override
   String get completed => 'पूर्ण';
@@ -791,8 +781,7 @@ class SHi extends S {
   String get exit => 'बाहर निकलें';
 
   @override
-  String get exitConfirmation =>
-      'सक्रिय सत्र डिस्कनेक्ट हो जाएंगे। बाहर निकलें?';
+  String get exitConfirmation => 'सक्रिय सत्र डिस्कनेक्ट हो जाएंगे। बाहर निकलें?';
 
   @override
   String get hintFolderExample => 'उदा. Production';
@@ -804,16 +793,13 @@ class SHi extends S {
   String get exportSessionsViaQr => 'QR से सत्र निर्यात करें';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'पासवर्ड और SSH कुंजियां शामिल नहीं हैं।\nआयातित सत्रों में क्रेडेंशियल भरने की आवश्यकता होगी।';
+  String get qrNoCredentialsWarning => 'पासवर्ड और SSH कुंजियां शामिल नहीं हैं।\nआयातित सत्रों में क्रेडेंशियल भरने की आवश्यकता होगी।';
 
   @override
-  String get qrTooManyForSingleCode =>
-      'एक QR कोड के लिए बहुत अधिक सत्र। कुछ अचयनित करें या .lfs निर्यात का उपयोग करें।';
+  String get qrTooManyForSingleCode => 'एक QR कोड के लिए बहुत अधिक सत्र। कुछ अचयनित करें या .lfs निर्यात का उपयोग करें।';
 
   @override
-  String get qrTooLarge =>
-      'बहुत बड़ा — कुछ सत्र अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।';
+  String get qrTooLarge => 'बहुत बड़ा — कुछ सत्र अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।';
 
   @override
   String get exportAll => 'सभी निर्यात करें';
@@ -860,8 +846,7 @@ class SHi extends S {
   String get errBadFileDescriptor => 'खराब फ़ाइल डिस्क्रिप्टर';
 
   @override
-  String get errResourceTemporarilyUnavailable =>
-      'संसाधन अस्थायी रूप से अनुपलब्ध';
+  String get errResourceTemporarilyUnavailable => 'संसाधन अस्थायी रूप से अनुपलब्ध';
 
   @override
   String get errOutOfMemory => 'मेमोरी समाप्त';
@@ -903,8 +888,7 @@ class SHi extends S {
   String get errAddressAlreadyInUse => 'पता पहले से उपयोग में है';
 
   @override
-  String get errCannotAssignAddress =>
-      'अनुरोधित पता निर्दिष्ट नहीं किया जा सकता';
+  String get errCannotAssignAddress => 'अनुरोधित पता निर्दिष्ट नहीं किया जा सकता';
 
   @override
   String get errNetworkIsDown => 'नेटवर्क बंद है';
@@ -1006,8 +990,7 @@ class SHi extends S {
   }
 
   @override
-  String get errDecryptionFailed =>
-      'क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।';
+  String get errDecryptionFailed => 'क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।';
 
   @override
   String errWithPath(String error, String path) {
@@ -1040,15 +1023,13 @@ class SHi extends S {
   String get subitems => 'आइटम';
 
   @override
-  String get storagePermissionRequired =>
-      'स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है';
+  String get storagePermissionRequired => 'स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है';
 
   @override
   String get grantPermission => 'अनुमति दें';
 
   @override
-  String get storagePermissionLimited =>
-      'सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें';
+  String get storagePermissionLimited => 'सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1139,8 +1120,7 @@ class SHi extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1172,8 +1152,7 @@ class SHi extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1196,4 +1175,67 @@ class SHi extends S {
 
   @override
   String get duplicateDownShortcut => 'नीचे डुप्लिकेट करें (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Security';
+
+  @override
+  String get knownHosts => 'Known Hosts';
+
+  @override
+  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count known hosts',
+      one: '1 known host',
+      zero: 'No known hosts',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+
+  @override
+  String get removeHost => 'Remove Host';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Clear All Known Hosts';
+
+  @override
+  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+
+  @override
+  String get importKnownHosts => 'Import Known Hosts';
+
+  @override
+  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+
+  @override
+  String get exportKnownHosts => 'Export Known Hosts';
+
+  @override
+  String importedHosts(int count) {
+    return 'Imported $count new hosts';
+  }
+
+  @override
+  String get clearedAllHosts => 'Cleared all known hosts';
+
+  @override
+  String removedHost(String host) {
+    return 'Removed $host';
+  }
+
+  @override
+  String get noHostsToExport => 'No known hosts to export';
 }

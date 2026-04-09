@@ -30,6 +30,7 @@ import '../../widgets/toast.dart';
 import '../session_manager/qr_display_screen.dart';
 import '../session_manager/qr_export_dialog.dart';
 import 'export_import.dart';
+import 'known_hosts_manager.dart';
 
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';
@@ -87,6 +88,11 @@ List<_Section> _buildSections(BuildContext context) => [
     title: S.of(context).transfers,
     icon: Icons.swap_horiz,
     builder: _TransferSection.new,
+  ),
+  _Section(
+    title: S.of(context).security,
+    icon: Icons.security,
+    builder: _SecuritySection.new,
   ),
   _Section(
     title: S.of(context).data,

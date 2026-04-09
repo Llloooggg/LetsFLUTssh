@@ -113,8 +113,7 @@ class SAr extends S {
   String get openInBrowser => 'فتح في المتصفح';
 
   @override
-  String get couldNotOpenBrowser =>
-      'تعذر فتح المتصفح — تم نسخ الرابط إلى الحافظة';
+  String get couldNotOpenBrowser => 'تعذر فتح المتصفح — تم نسخ الرابط إلى الحافظة';
 
   @override
   String get checkForUpdates => 'التحقق من التحديثات';
@@ -370,8 +369,7 @@ class SAr extends S {
   String get qrGenerationFailed => 'فشل إنشاء رمز QR';
 
   @override
-  String get scanWithCameraApp =>
-      'امسح باستخدام أي تطبيق كاميرا على جهاز\nمثبّت عليه LetsFLUTssh.';
+  String get scanWithCameraApp => 'امسح باستخدام أي تطبيق كاميرا على جهاز\nمثبّت عليه LetsFLUTssh.';
 
   @override
   String get noPasswordsInQr => 'لا توجد كلمات مرور أو مفاتيح في رمز QR هذا';
@@ -389,12 +387,10 @@ class SAr extends S {
   String get unknownHost => 'مضيف غير معروف';
 
   @override
-  String get hostKeyChangedWarning =>
-      'تحذير: تغيّر مفتاح المضيف لهذا الخادم. قد يشير ذلك إلى هجوم رجل في المنتصف، أو ربما تمت إعادة تثبيت الخادم.';
+  String get hostKeyChangedWarning => 'تحذير: تغيّر مفتاح المضيف لهذا الخادم. قد يشير ذلك إلى هجوم رجل في المنتصف، أو ربما تمت إعادة تثبيت الخادم.';
 
   @override
-  String get unknownHostMessage =>
-      'لا يمكن التحقق من هوية هذا المضيف. هل أنت متأكد أنك تريد متابعة الاتصال؟';
+  String get unknownHostMessage => 'لا يمكن التحقق من هوية هذا المضيف. هل أنت متأكد أنك تريد متابعة الاتصال؟';
 
   @override
   String get host => 'المضيف';
@@ -427,8 +423,7 @@ class SAr extends S {
   String get confirmPassword => 'تأكيد كلمة المرور';
 
   @override
-  String get importModeMergeDescription =>
-      'إضافة جلسات جديدة والاحتفاظ بالحالية';
+  String get importModeMergeDescription => 'إضافة جلسات جديدة والاحتفاظ بالحالية';
 
   @override
   String get importModeReplaceDescription => 'استبدال جميع الجلسات بالمستوردة';
@@ -537,8 +532,7 @@ class SAr extends S {
   String get noActiveSession => 'لا توجد جلسة نشطة';
 
   @override
-  String get createConnectionHint =>
-      'أنشئ اتصالاً جديداً أو اختر واحداً من الشريط الجانبي';
+  String get createConnectionHint => 'أنشئ اتصالاً جديداً أو اختر واحداً من الشريط الجانبي';
 
   @override
   String get hideSidebar => 'إخفاء الشريط الجانبي (Ctrl+B)';
@@ -619,8 +613,7 @@ class SAr extends S {
   String get exportData => 'تصدير البيانات';
 
   @override
-  String get exportDataSubtitle =>
-      'حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر';
+  String get exportDataSubtitle => 'حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر';
 
   @override
   String get importDataSubtitle => 'تحميل البيانات من ملف .lfs';
@@ -738,8 +731,7 @@ class SAr extends S {
   String get useSftpFromSessions => 'استخدم \"SFTP\" من الجلسات';
 
   @override
-  String get anotherInstanceRunning =>
-      'نسخة أخرى من LetsFLUTssh قيد التشغيل بالفعل.';
+  String get anotherInstanceRunning => 'نسخة أخرى من LetsFLUTssh قيد التشغيل بالفعل.';
 
   @override
   String importFailedShort(String error) {
@@ -801,16 +793,13 @@ class SAr extends S {
   String get exportSessionsViaQr => 'تصدير الجلسات عبر QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'كلمات المرور ومفاتيح SSH غير مضمّنة.\nالجلسات المستوردة ستحتاج إلى إدخال بيانات الاعتماد.';
+  String get qrNoCredentialsWarning => 'كلمات المرور ومفاتيح SSH غير مضمّنة.\nالجلسات المستوردة ستحتاج إلى إدخال بيانات الاعتماد.';
 
   @override
-  String get qrTooManyForSingleCode =>
-      'جلسات كثيرة جداً لرمز QR واحد. ألغِ تحديد بعضها أو استخدم تصدير .lfs.';
+  String get qrTooManyForSingleCode => 'جلسات كثيرة جداً لرمز QR واحد. ألغِ تحديد بعضها أو استخدم تصدير .lfs.';
 
   @override
-  String get qrTooLarge =>
-      'كبير جداً — ألغِ تحديد بعض الجلسات أو استخدم تصدير ملف .lfs.';
+  String get qrTooLarge => 'كبير جداً — ألغِ تحديد بعض الجلسات أو استخدم تصدير ملف .lfs.';
 
   @override
   String get exportAll => 'تصدير الكل';
@@ -908,8 +897,7 @@ class SAr extends S {
   String get errNetworkIsUnreachable => 'الشبكة غير قابلة للوصول';
 
   @override
-  String get errConnectionResetByPeer =>
-      'أُعيد تعيين الاتصال من قبل الطرف الآخر';
+  String get errConnectionResetByPeer => 'أُعيد تعيين الاتصال من قبل الطرف الآخر';
 
   @override
   String get errConnectionTimedOut => 'انتهت مهلة الاتصال';
@@ -1002,8 +990,7 @@ class SAr extends S {
   }
 
   @override
-  String get errDecryptionFailed =>
-      'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
+  String get errDecryptionFailed => 'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1036,15 +1023,13 @@ class SAr extends S {
   String get subitems => 'العناصر';
 
   @override
-  String get storagePermissionRequired =>
-      'يلزم إذن التخزين لتصفح الملفات المحلية';
+  String get storagePermissionRequired => 'يلزم إذن التخزين لتصفح الملفات المحلية';
 
   @override
   String get grantPermission => 'منح الإذن';
 
   @override
-  String get storagePermissionLimited =>
-      'وصول محدود — امنح إذن التخزين الكامل لجميع الملفات';
+  String get storagePermissionLimited => 'وصول محدود — امنح إذن التخزين الكامل لجميع الملفات';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1135,8 +1120,7 @@ class SAr extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1168,8 +1152,7 @@ class SAr extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1192,4 +1175,67 @@ class SAr extends S {
 
   @override
   String get duplicateDownShortcut => 'تكرار للأسفل (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Security';
+
+  @override
+  String get knownHosts => 'Known Hosts';
+
+  @override
+  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count known hosts',
+      one: '1 known host',
+      zero: 'No known hosts',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+
+  @override
+  String get removeHost => 'Remove Host';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Clear All Known Hosts';
+
+  @override
+  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+
+  @override
+  String get importKnownHosts => 'Import Known Hosts';
+
+  @override
+  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+
+  @override
+  String get exportKnownHosts => 'Export Known Hosts';
+
+  @override
+  String importedHosts(int count) {
+    return 'Imported $count new hosts';
+  }
+
+  @override
+  String get clearedAllHosts => 'Cleared all known hosts';
+
+  @override
+  String removedHost(String host) {
+    return 'Removed $host';
+  }
+
+  @override
+  String get noHostsToExport => 'No known hosts to export';
 }
