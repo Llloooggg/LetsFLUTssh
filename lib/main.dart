@@ -54,7 +54,10 @@ SingleInstance? singleInstanceLock;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AppLogger.instance.init();
+
+  // Start logger init early — runs in parallel with config/lock I/O below.
+  // Log path resolves in background; log() calls buffer to dev.log until ready.
+  final loggerInit = AppLogger.instance.init();
 
   // Global error boundary — catch unhandled Flutter framework errors
   FlutterError.onError = (details) {
@@ -102,6 +105,7 @@ Future<void> main() async {
   // reads the real config instead of defaults.
   final configStore = ConfigStore();
   final config = await configStore.load();
+  await loggerInit; // ensure log path resolved before enabling file logging
   AppLogger.instance.setEnabled(config.enableLogging);
 
   runApp(

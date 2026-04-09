@@ -176,5 +176,96 @@ void main() {
         expect(shortcut.defaultBinding.trigger, isNotNull);
       }
     });
+
+    testWidgets('CallbackShortcuts fires callback from buildCallbackMap', (
+      tester,
+    ) async {
+      var fired = false;
+      final map = registry.buildCallbackMap({
+        AppShortcut.toggleSidebar: () => fired = true,
+      });
+
+      await tester.pumpWidget(
+        CallbackShortcuts(
+          bindings: map,
+          child: const Focus(autofocus: true, child: SizedBox()),
+        ),
+      );
+      await tester.pump();
+
+      // Ctrl+B = toggleSidebar
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyB);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyB);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(fired, isTrue);
+    });
+
+    testWidgets('CallbackShortcuts does not fire for unregistered shortcut', (
+      tester,
+    ) async {
+      var fired = false;
+      final map = registry.buildCallbackMap({
+        AppShortcut.newSession: () => fired = true,
+      });
+
+      await tester.pumpWidget(
+        CallbackShortcuts(
+          bindings: map,
+          child: const Focus(autofocus: true, child: SizedBox()),
+        ),
+      );
+      await tester.pump();
+
+      // Ctrl+B is toggleSidebar, not registered
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyB);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyB);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(fired, isFalse);
+    });
+
+    test('shortcut groups cover all expected contexts', () {
+      final globalShortcuts = [
+        AppShortcut.newSession,
+        AppShortcut.closeTab,
+        AppShortcut.nextTab,
+        AppShortcut.prevTab,
+        AppShortcut.toggleSidebar,
+        AppShortcut.openSettings,
+      ];
+      final terminalShortcuts = [
+        AppShortcut.terminalCopy,
+        AppShortcut.terminalPaste,
+        AppShortcut.terminalSearch,
+      ];
+      final fileShortcuts = [
+        AppShortcut.fileSelectAll,
+        AppShortcut.fileCopy,
+        AppShortcut.filePaste,
+        AppShortcut.fileDelete,
+        AppShortcut.fileRename,
+        AppShortcut.fileRefresh,
+      ];
+      final sessionShortcuts = [
+        AppShortcut.sessionUndo,
+        AppShortcut.sessionRedo,
+        AppShortcut.sessionDelete,
+      ];
+
+      // All shortcut groups are subsets of AppShortcut.values
+      for (final s in [
+        ...globalShortcuts,
+        ...terminalShortcuts,
+        ...fileShortcuts,
+        ...sessionShortcuts,
+      ]) {
+        expect(AppShortcut.values, contains(s), reason: '${s.name} missing');
+      }
+    });
   });
 }

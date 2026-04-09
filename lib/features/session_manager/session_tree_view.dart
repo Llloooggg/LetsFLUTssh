@@ -721,29 +721,35 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     final isSelected = widget.selectedFolderPaths.contains(node.fullPath);
     final isFocused = node.fullPath == widget.focusedFolderPath;
 
-    return HoverRegion(
-      onTap: () => _onFolderTap(node, expanded),
-      onCtrlTap: !_mobile
-          ? () => widget.onToggleFolderSelected?.call(node.fullPath)
-          : null,
-      onSecondaryTapUp: (d) {
-        widget.onFolderContextMenu?.call(node.fullPath, d.globalPosition);
-      },
-      onLongPressStart: _mobile
-          ? (d) => widget.onFolderContextMenu?.call(
-              node.fullPath,
-              d.globalPosition,
-            )
-          : null,
-      builder: (hovered) => _buildTreeRow(
-        decoration: _rowDecoration(
-          isDropTarget,
-          hovered,
-          isSelected,
-          isFocused,
-          theme,
+    return Semantics(
+      label: node.name,
+      button: true,
+      selected: isSelected,
+      expanded: expanded,
+      child: HoverRegion(
+        onTap: () => _onFolderTap(node, expanded),
+        onCtrlTap: !_mobile
+            ? () => widget.onToggleFolderSelected?.call(node.fullPath)
+            : null,
+        onSecondaryTapUp: (d) {
+          widget.onFolderContextMenu?.call(node.fullPath, d.globalPosition);
+        },
+        onLongPressStart: _mobile
+            ? (d) => widget.onFolderContextMenu?.call(
+                node.fullPath,
+                d.globalPosition,
+              )
+            : null,
+        builder: (hovered) => _buildTreeRow(
+          decoration: _rowDecoration(
+            isDropTarget,
+            hovered,
+            isSelected,
+            isFocused,
+            theme,
+          ),
+          children: _buildFolderRowChildren(node, depth, expanded, theme),
         ),
-        children: _buildFolderRowChildren(node, depth, expanded, theme),
       ),
     );
   }
@@ -983,32 +989,38 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     final theme = Theme.of(context);
     final canInteract = !_mobile && !widget.selectMode;
 
-    final Widget content = HoverRegion(
-      onTap: () => _onSessionTap(session),
-      onCtrlTap: canInteract
-          ? () => widget.onToggleSelected?.call(session.id)
-          : null,
-      onSecondaryTapUp: canInteract
-          ? (details) => widget.onSessionContextMenu?.call(
-              session,
-              details.globalPosition,
-            )
-          : null,
-      onLongPressStart: (_mobile && !widget.selectMode)
-          ? (d) => widget.onSessionContextMenu?.call(session, d.globalPosition)
-          : null,
-      builder: (hovered) => _buildTreeRow(
-        decoration: _sessionRowDecoration(
-          isSelected || isChecked,
-          hovered,
-          theme,
-        ),
-        children: _buildSessionRowChildren(
-          node,
-          session,
-          depth,
-          isChecked,
-          theme,
+    final Widget content = Semantics(
+      label: session.displayName,
+      button: true,
+      selected: isSelected,
+      child: HoverRegion(
+        onTap: () => _onSessionTap(session),
+        onCtrlTap: canInteract
+            ? () => widget.onToggleSelected?.call(session.id)
+            : null,
+        onSecondaryTapUp: canInteract
+            ? (details) => widget.onSessionContextMenu?.call(
+                session,
+                details.globalPosition,
+              )
+            : null,
+        onLongPressStart: (_mobile && !widget.selectMode)
+            ? (d) =>
+                  widget.onSessionContextMenu?.call(session, d.globalPosition)
+            : null,
+        builder: (hovered) => _buildTreeRow(
+          decoration: _sessionRowDecoration(
+            isSelected || isChecked,
+            hovered,
+            theme,
+          ),
+          children: _buildSessionRowChildren(
+            node,
+            session,
+            depth,
+            isChecked,
+            theme,
+          ),
         ),
       ),
     );
