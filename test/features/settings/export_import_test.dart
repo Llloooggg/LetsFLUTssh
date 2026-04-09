@@ -15,22 +15,24 @@ void main() {
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('export_import_test_');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (call) async {
-        if (call.method == 'getApplicationSupportDirectory') {
-          return tempDir.path;
-        }
-        return null;
-      },
-    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async {
+            if (call.method == 'getApplicationSupportDirectory') {
+              return tempDir.path;
+            }
+            return null;
+          },
+        );
   });
 
   tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      null,
-    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
     await tempDir.delete(recursive: true);
   });
 
@@ -85,11 +87,19 @@ void main() {
 
     test('export then import restores config', () async {
       final config = AppConfig.defaults.copyWith(
-        terminal: AppConfig.defaults.terminal.copyWith(fontSize: 18, scrollback: 10000),
+        terminal: AppConfig.defaults.terminal.copyWith(
+          fontSize: 18,
+          scrollback: 10000,
+        ),
       );
       final outputPath = '${tempDir.path}/config.lfs';
 
-      await ExportImport.export(masterPassword: 'pw', sessions: [], config: config, outputPath: outputPath);
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: [],
+        config: config,
+        outputPath: outputPath,
+      );
 
       final result = await ExportImport.import_(
         filePath: outputPath,
@@ -108,7 +118,12 @@ void main() {
     test('import with importConfig=false skips config', () async {
       final outputPath = '${tempDir.path}/noconfig.lfs';
 
-      await ExportImport.export(masterPassword: 'pw', sessions: [], config: AppConfig.defaults, outputPath: outputPath);
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: [],
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+      );
 
       final result = await ExportImport.import_(
         filePath: outputPath,
@@ -121,15 +136,19 @@ void main() {
       expect(result.config, isNull);
     });
 
-    test('export includes known_hosts when present', () async {
-      // Write a known_hosts file
-      final khFile = File('${tempDir.path}/known_hosts');
-      await khFile.writeAsString('example.com ssh-rsa AAAAB3...');
+    test('export includes known_hosts when content provided', () async {
+      const knownHostsContent = 'example.com:22 ssh-rsa AAAAB3...';
 
       final outputPath = '${tempDir.path}/withkh.lfs';
-      await ExportImport.export(masterPassword: 'pw', sessions: [], config: AppConfig.defaults, outputPath: outputPath);
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: [],
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+        knownHostsContent: knownHostsContent,
+      );
 
-      await ExportImport.import_(
+      final result = await ExportImport.import_(
         filePath: outputPath,
         masterPassword: 'pw',
         mode: ImportMode.merge,
@@ -137,10 +156,29 @@ void main() {
         importKnownHosts: true,
       );
 
-      // known_hosts should have been restored
-      final restoredKh = File('${tempDir.path}/known_hosts');
-      expect(await restoredKh.exists(), isTrue);
-      expect(await restoredKh.readAsString(), 'example.com ssh-rsa AAAAB3...');
+      // known_hosts content should be returned for caller to import
+      expect(result.knownHostsContent, knownHostsContent);
+    });
+
+    test('import without known_hosts returns null content', () async {
+      final outputPath = '${tempDir.path}/nokh.lfs';
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: [],
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+      );
+
+      final result = await ExportImport.import_(
+        filePath: outputPath,
+        masterPassword: 'pw',
+        mode: ImportMode.merge,
+        importConfig: false,
+        importKnownHosts: true,
+      );
+
+      // No known_hosts was included in the export
+      expect(result.knownHostsContent, isNull);
     });
   });
 
@@ -156,7 +194,10 @@ void main() {
         outputPath: outputPath,
       );
 
-      final preview = await ExportImport.preview(filePath: outputPath, masterPassword: 'pw');
+      final preview = await ExportImport.preview(
+        filePath: outputPath,
+        masterPassword: 'pw',
+      );
 
       expect(preview.sessions, hasLength(1));
       expect(preview.sessions.first.label, 'preview-server');
@@ -203,7 +244,11 @@ void main() {
     });
 
     test('LfsPreview holds data', () {
-      const preview = LfsPreview(sessions: [], hasConfig: true, hasKnownHosts: false);
+      const preview = LfsPreview(
+        sessions: [],
+        hasConfig: true,
+        hasKnownHosts: false,
+      );
       expect(preview.sessions, isEmpty);
       expect(preview.hasConfig, isTrue);
       expect(preview.hasKnownHosts, isFalse);

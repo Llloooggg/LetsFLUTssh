@@ -629,6 +629,7 @@ class _ExportImportTile extends ConsumerWidget {
         sessions: ref.read(sessionProvider),
         config: ref.read(configProvider),
         outputPath: outputPath,
+        knownHostsContent: ref.read(knownHostsProvider).exportToString(),
       );
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -741,6 +742,12 @@ class _ExportImportTile extends ConsumerWidget {
               store.restoreSnapshot(sessions, folders),
         );
         await importService.applyResult(importResult);
+
+        // Import known hosts via the manager (handles encryption).
+        if (importResult.knownHostsContent != null) {
+          final knownHosts = ref.read(knownHostsProvider);
+          await knownHosts.importFromString(importResult.knownHostsContent!);
+        }
 
         if (context.mounted) {
           Navigator.of(context).pop(); // close progress

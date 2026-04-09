@@ -354,6 +354,36 @@ class KnownHostsManager {
     return added;
   }
 
+  /// Import entries from an OpenSSH-format known_hosts string.
+  ///
+  /// Returns the number of new entries added (existing hosts are skipped).
+  Future<int> importFromString(String content) async {
+    await load();
+    var added = 0;
+    for (final line in content.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+      final parts = trimmed.split(' ');
+      if (parts.length >= 3) {
+        final hostPort = parts[0];
+        final keyString = '${parts[1]} ${parts[2]}';
+        if (!_hosts.containsKey(hostPort)) {
+          _hosts[hostPort] = keyString;
+          added++;
+        }
+      }
+    }
+
+    if (added > 0) {
+      await _saveAll();
+      AppLogger.instance.log(
+        'Imported $added known hosts from string',
+        name: 'KnownHosts',
+      );
+    }
+    return added;
+  }
+
   /// Export all entries to OpenSSH known_hosts format.
   String exportToString() => _serializeContent();
 

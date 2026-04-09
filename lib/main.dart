@@ -883,6 +883,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
       await _buildImportService().applyResult(importResult);
 
+      // Import known hosts via the manager (handles encryption).
+      if (importResult.knownHostsContent != null) {
+        ref
+            .read(knownHostsProvider)
+            .importFromString(importResult.knownHostsContent!);
+      }
+
       AppLogger.instance.log(
         'LFS import success: ${importResult.sessions.length} session(s)',
         name: 'App',
