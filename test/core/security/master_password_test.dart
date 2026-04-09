@@ -251,14 +251,20 @@ void main() {
       expect(all['k1']?.label, 'test');
     });
 
-    test(
-      'isLocked returns true when salt exists but no external key',
-      () async {
-        await File('${tempDir.path}/credentials.salt').writeAsBytes([1, 2, 3]);
-        final store = KeyStore();
-        expect(await store.isLocked, isTrue);
-      },
-    );
+    test('plaintext mode stores keys.json', () async {
+      final store = KeyStore();
+      await store.saveAll({
+        'k1': SshKeyEntry(
+          id: 'k1',
+          label: 'test',
+          privateKey: 'pk',
+          publicKey: 'pub',
+          keyType: 'ed25519',
+          createdAt: DateTime(2024),
+        ),
+      });
+      expect(await File('${tempDir.path}/keys.json').exists(), isTrue);
+    });
   });
 
   group('Re-encryption flow', () {
