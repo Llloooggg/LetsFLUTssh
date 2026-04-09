@@ -30,7 +30,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - **SSH** — xterm/VT100 terminal (256-color, RGB, mouse), tiling with recursive splits, search, multi-tab, keep-alive & reconnect
 - **SFTP** — dual-pane file browser, drag & drop, transfer queue with parallel workers
 - **Sessions** — tree with nested folders, search, drag & drop, QR code sharing, host key verification
-- **Security** — three-level encryption (plaintext / OS keychain / master password), all data encrypted (sessions, SSH keys, known hosts), AES-256-GCM, encrypted `.lfs` export/import (PBKDF2-SHA256 600k), first-launch security wizard
+- **Security** — optional encryption via OS keychain or master password (AES-256-GCM), encrypted `.lfs` export/import, TOFU host key verification
 - **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), pinch-to-zoom, deep links
 - **Auth** — password, key file, PEM text
 - **Themes** — OneDark / One Light, system auto-detection
