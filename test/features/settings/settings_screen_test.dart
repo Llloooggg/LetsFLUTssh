@@ -11,7 +11,9 @@ import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
+import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
+import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/update_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
@@ -111,6 +113,9 @@ void main() {
       overrides: [
         configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
         appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
+        masterPasswordProvider.overrideWithValue(
+          MasterPasswordManager(basePath: tempDir.path),
+        ),
       ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
@@ -128,6 +133,9 @@ void main() {
       overrides: [
         configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
         appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
+        masterPasswordProvider.overrideWithValue(
+          MasterPasswordManager(basePath: tempDir.path),
+        ),
         sessionStoreProvider.overrideWithValue(SessionStore()),
         sessionProvider.overrideWith(SessionNotifier.new),
       ],

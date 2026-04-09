@@ -96,7 +96,7 @@ lib/
 │   ├── transfer/                     # File transfer queue
 │   ├── session/                      # Session model, persistence, tree, QR, history
 │   ├── connection/                   # Connection lifecycle, progress tracking
-│   ├── security/                     # AES-256-GCM credential storage
+│   ├── security/                     # AES-256-GCM credential storage + master password
 │   ├── config/                       # App configuration
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
@@ -128,6 +128,7 @@ lib/
 │   ├── error_state.dart             # Error display with retry/secondary actions
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
 │   ├── passphrase_dialog.dart      # Interactive SSH key passphrase prompt
+│   ├── unlock_dialog.dart          # Master password unlock dialog (startup)
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
@@ -815,7 +816,9 @@ class AppShortcutRegistry {
 
 | Provider | Type | Depends on | Description |
 |----------|------|-----------|-------------|
-| `sessionStoreProvider` | Provider | — | Singleton SessionStore |
+| `credentialStoreProvider` | Provider | — | Singleton CredentialStore (shared with SessionStore + master password flow) |
+| `masterPasswordProvider` | Provider | — | MasterPasswordManager singleton |
+| `sessionStoreProvider` | Provider | credentialStoreProvider | Singleton SessionStore |
 | `sessionProvider` | NotifierProvider | sessionStoreProvider | Session CRUD + undo/redo |
 | `sessionTreeProvider` | Provider | sessionProvider | Hierarchical tree |
 | `filteredSessionsProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered session list |
@@ -2169,7 +2172,7 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 ### Credential encryption
 
 ```
-credential.key (32 bytes, random)
+credential.key (32 bytes, random)  ← OR derived from master password
          │
          ▼ AES-256-GCM
 credentials.enc = [IV 12B] [ciphertext(JSON)] [GCM tag 16B]
@@ -2178,6 +2181,27 @@ credentials.enc = [IV 12B] [ciphertext(JSON)] [GCM tag 16B]
 - Key generated once, stored alongside (protection: file permissions)
 - Completer guard prevents race condition during parallel key generation
 - `CredentialStoreException` distinguishes "no data" from "corrupt key"
+- Both `CredentialStore` and `KeyStore` support `setExternalKey()` / `clearExternalKey()` for master password flow
+- `isLocked` property: true when `credentials.salt` exists but no external key provided
+
+### Optional master password
+
+When enabled, the AES-256 key is derived from the user's password via PBKDF2 instead of stored in `credentials.key`:
+
+```
+User password → PBKDF2-SHA256(600k iterations, random salt) → 256-bit key
+                                                                   │
+                                    ┌──────────────────────────────┤
+                                    ▼                              ▼
+                           credentials.enc                    keys.enc
+```
+
+- **Detection:** `credentials.salt` exists = master password enabled
+- **Verification:** `credentials.verify` = AES-256-GCM(known plaintext "LetsFLUTssh-verify")
+- **Enable flow:** derive key → re-encrypt stores → delete `credentials.key`
+- **Disable flow:** generate random key → re-encrypt stores → save `credentials.key` → delete salt/verifier
+- **Startup:** `_unlockIfNeeded()` in `main.dart` shows `UnlockDialog` → injects key into both stores before loading sessions
+- **Forgot password:** deletes all encrypted files (salt, verifier, key, credentials.enc, keys.enc)
 
 ### .lfs export
 

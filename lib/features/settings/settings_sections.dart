@@ -153,21 +153,308 @@ class _SshKeysSection extends ConsumerWidget {
   }
 }
 
-class _SecuritySection extends ConsumerWidget {
+class _SecuritySection extends ConsumerStatefulWidget {
   const _SecuritySection();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SecuritySection> createState() => _SecuritySectionState();
+}
+
+class _SecuritySectionState extends ConsumerState<_SecuritySection> {
+  bool? _masterPasswordEnabled;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkMasterPasswordState();
+  }
+
+  Future<void> _checkMasterPasswordState() async {
+    final manager = ref.read(masterPasswordProvider);
+    final enabled = await manager.isEnabled();
+    if (mounted) setState(() => _masterPasswordEnabled = enabled);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    final isEnabled = _masterPasswordEnabled;
+
     return Column(
       children: [
+        if (isEnabled == null)
+          const SizedBox.shrink()
+        else if (!isEnabled)
+          _ActionTile(
+            icon: Icons.lock_open,
+            title: l10n.masterPassword,
+            subtitle: l10n.masterPasswordDisabled,
+            onTap: () => _setMasterPassword(context),
+          )
+        else ...[
+          _ActionTile(
+            icon: Icons.lock,
+            title: l10n.changeMasterPassword,
+            subtitle: l10n.masterPasswordEnabled,
+            onTap: () => _changeMasterPassword(context),
+          ),
+          _ActionTile(
+            icon: Icons.lock_open,
+            title: l10n.removeMasterPassword,
+            subtitle: l10n.masterPasswordSubtitle,
+            onTap: () => _removeMasterPassword(context),
+          ),
+        ],
         _ActionTile(
           icon: Icons.verified_user,
-          title: S.of(context).knownHosts,
-          subtitle: S.of(context).knownHostsSubtitle,
+          title: l10n.knownHosts,
+          subtitle: l10n.knownHostsSubtitle,
           onTap: () => KnownHostsManagerDialog.show(context),
         ),
       ],
     );
+  }
+
+  Future<void> _setMasterPassword(BuildContext context) async {
+    final l10n = S.of(context);
+    final passwordCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+
+    try {
+      final password = await AppDialog.show<String>(
+        context,
+        builder: (ctx) => _SetMasterPasswordDialog(
+          passwordCtrl: passwordCtrl,
+          confirmCtrl: confirmCtrl,
+        ),
+      );
+
+      if (password == null || !context.mounted) return;
+
+      AppProgressDialog.show(context);
+      try {
+        await _enableMasterPassword(password);
+        if (context.mounted) {
+          Navigator.of(context).pop(); // close progress
+          Toast.show(
+            context,
+            message: l10n.masterPasswordSet,
+            level: ToastLevel.success,
+          );
+          _checkMasterPasswordState();
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop();
+        rethrow;
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Set master password failed: $e',
+        name: 'Security',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+      }
+    } finally {
+      passwordCtrl.dispose();
+      confirmCtrl.dispose();
+    }
+  }
+
+  Future<void> _enableMasterPassword(String password) async {
+    final manager = ref.read(masterPasswordProvider);
+    final credStore = ref.read(credentialStoreProvider);
+    final keyStore = ref.read(keyStoreProvider);
+
+    // Load all data with current key before re-encryption.
+    final allCreds = await credStore.loadAllSafe();
+    final allKeys = await keyStore.loadAllSafe();
+
+    // Derive new key from password.
+    final newKey = await manager.enable(password);
+
+    // Sanity check: verify the password immediately to catch crypto issues.
+    final verified = await manager.verify(password);
+    if (!verified) {
+      // Revert: disable master password so the user isn't locked out.
+      await manager.disable();
+      throw const MasterPasswordException(
+        'Verification failed after enable — reverted',
+      );
+    }
+
+    // Re-encrypt both stores with the derived key.
+    credStore.setExternalKey(newKey);
+    await credStore.saveAll(allCreds);
+    keyStore.setExternalKey(newKey);
+    await keyStore.saveAll(allKeys);
+
+    // Delete the file-based key — no longer needed.
+    final basePath = await _getBasePath();
+    final keyFile = File('$basePath/credentials.key');
+    if (await keyFile.exists()) await keyFile.delete();
+  }
+
+  Future<void> _changeMasterPassword(BuildContext context) async {
+    final l10n = S.of(context);
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+
+    try {
+      final result = await AppDialog.show<({String current, String newPw})>(
+        context,
+        builder: (ctx) => _ChangeMasterPasswordDialog(
+          currentCtrl: currentCtrl,
+          newCtrl: newCtrl,
+          confirmCtrl: confirmCtrl,
+        ),
+      );
+
+      if (result == null || !context.mounted) return;
+
+      AppProgressDialog.show(context);
+      try {
+        await _doChangePassword(result.current, result.newPw);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          Toast.show(
+            context,
+            message: l10n.masterPasswordChanged,
+            level: ToastLevel.success,
+          );
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop();
+        rethrow;
+      }
+    } on MasterPasswordException catch (e) {
+      if (context.mounted) {
+        Toast.show(context, message: e.message, level: ToastLevel.error);
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Change master password failed: $e',
+        name: 'Security',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+      }
+    } finally {
+      currentCtrl.dispose();
+      newCtrl.dispose();
+      confirmCtrl.dispose();
+    }
+  }
+
+  Future<void> _doChangePassword(String oldPassword, String newPassword) async {
+    final manager = ref.read(masterPasswordProvider);
+    final credStore = ref.read(credentialStoreProvider);
+    final keyStore = ref.read(keyStoreProvider);
+
+    // Load all data with current key.
+    final allCreds = await credStore.loadAllSafe();
+    final allKeys = await keyStore.loadAllSafe();
+
+    // Change password — verifies old, generates new salt + verifier.
+    final newKey = await manager.changePassword(oldPassword, newPassword);
+
+    // Re-encrypt with new key.
+    credStore.setExternalKey(newKey);
+    await credStore.saveAll(allCreds);
+    keyStore.setExternalKey(newKey);
+    await keyStore.saveAll(allKeys);
+  }
+
+  Future<void> _removeMasterPassword(BuildContext context) async {
+    final l10n = S.of(context);
+    final passwordCtrl = TextEditingController();
+
+    try {
+      final password = await AppDialog.show<String>(
+        context,
+        builder: (ctx) =>
+            _RemoveMasterPasswordDialog(passwordCtrl: passwordCtrl),
+      );
+
+      if (password == null || !context.mounted) return;
+
+      AppProgressDialog.show(context);
+      try {
+        await _doRemoveMasterPassword(password);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          Toast.show(
+            context,
+            message: l10n.masterPasswordRemoved,
+            level: ToastLevel.success,
+          );
+          _checkMasterPasswordState();
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop();
+        rethrow;
+      }
+    } on MasterPasswordException catch (e) {
+      if (context.mounted) {
+        Toast.show(context, message: e.message, level: ToastLevel.error);
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Remove master password failed: $e',
+        name: 'Security',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+      }
+    } finally {
+      passwordCtrl.dispose();
+    }
+  }
+
+  Future<void> _doRemoveMasterPassword(String password) async {
+    final manager = ref.read(masterPasswordProvider);
+    final credStore = ref.read(credentialStoreProvider);
+    final keyStore = ref.read(keyStoreProvider);
+
+    // Verify password first.
+    final isValid = await manager.verify(password);
+    if (!isValid) {
+      throw const MasterPasswordException('Current password is incorrect');
+    }
+
+    // Load all data with current (derived) key.
+    final allCreds = await credStore.loadAllSafe();
+    final allKeys = await keyStore.loadAllSafe();
+
+    // Generate a new random key and save it to file.
+    final random = Random.secure();
+    final randomKey = Uint8List.fromList(
+      List.generate(32, (_) => random.nextInt(256)),
+    );
+    final basePath = await _getBasePath();
+    await writeBytesAtomic('$basePath/credentials.key', randomKey);
+
+    // Re-encrypt with random key.
+    credStore.setExternalKey(randomKey);
+    await credStore.saveAll(allCreds);
+    keyStore.setExternalKey(randomKey);
+    await keyStore.saveAll(allKeys);
+
+    // Revert to file-based key.
+    credStore.clearExternalKey();
+    keyStore.clearExternalKey();
+
+    // Delete salt + verifier.
+    await manager.disable();
+  }
+
+  Future<String> _getBasePath() async {
+    final dir = await getApplicationSupportDirectory();
+    return dir.path;
   }
 }
 

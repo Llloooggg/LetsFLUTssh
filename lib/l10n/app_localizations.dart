@@ -2492,6 +2492,138 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Unlock'**
   String get unlock;
+
+  /// No description provided for @masterPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Protect saved credentials with a password'**
+  String get masterPasswordSubtitle;
+
+  /// No description provided for @setMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Master Password'**
+  String get setMasterPassword;
+
+  /// No description provided for @changeMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Master Password'**
+  String get changeMasterPassword;
+
+  /// No description provided for @removeMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Master Password'**
+  String get removeMasterPassword;
+
+  /// No description provided for @masterPasswordEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials are protected by master password'**
+  String get masterPasswordEnabled;
+
+  /// No description provided for @masterPasswordDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials use auto-generated key (no password)'**
+  String get masterPasswordDisabled;
+
+  /// No description provided for @enterMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter master password to unlock your saved credentials.'**
+  String get enterMasterPassword;
+
+  /// No description provided for @wrongMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password. Please try again.'**
+  String get wrongMasterPassword;
+
+  /// No description provided for @newPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'New Password'**
+  String get newPassword;
+
+  /// No description provided for @currentPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Password'**
+  String get currentPassword;
+
+  /// No description provided for @passwordTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Password must be at least 8 characters'**
+  String get passwordTooShort;
+
+  /// No description provided for @masterPasswordSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password enabled'**
+  String get masterPasswordSet;
+
+  /// No description provided for @masterPasswordChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password changed'**
+  String get masterPasswordChanged;
+
+  /// No description provided for @masterPasswordRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password removed'**
+  String get masterPasswordRemoved;
+
+  /// No description provided for @masterPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.'**
+  String get masterPasswordWarning;
+
+  /// No description provided for @forgotPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot Password?'**
+  String get forgotPassword;
+
+  /// No description provided for @forgotPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.'**
+  String get forgotPasswordWarning;
+
+  /// No description provided for @resetAndDeleteCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset & Delete Credentials'**
+  String get resetAndDeleteCredentials;
+
+  /// No description provided for @credentialsReset.
+  ///
+  /// In en, this message translates to:
+  /// **'All saved credentials have been deleted'**
+  String get credentialsReset;
+
+  /// No description provided for @derivingKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Deriving encryption key...'**
+  String get derivingKey;
+
+  /// No description provided for @reEncrypting.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encrypting data...'**
+  String get reEncrypting;
+
+  /// No description provided for @confirmRemoveMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.'**
+  String get confirmRemoveMasterPassword;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

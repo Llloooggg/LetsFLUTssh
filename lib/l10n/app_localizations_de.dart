@@ -1376,4 +1376,77 @@ class SDe extends S {
 
   @override
   String get unlock => 'Unlock';
+
+  @override
+  String get masterPasswordSubtitle =>
+      'Protect saved credentials with a password';
+
+  @override
+  String get setMasterPassword => 'Set Master Password';
+
+  @override
+  String get changeMasterPassword => 'Change Master Password';
+
+  @override
+  String get removeMasterPassword => 'Remove Master Password';
+
+  @override
+  String get masterPasswordEnabled =>
+      'Credentials are protected by master password';
+
+  @override
+  String get masterPasswordDisabled =>
+      'Credentials use auto-generated key (no password)';
+
+  @override
+  String get enterMasterPassword =>
+      'Enter master password to unlock your saved credentials.';
+
+  @override
+  String get wrongMasterPassword => 'Wrong password. Please try again.';
+
+  @override
+  String get newPassword => 'New Password';
+
+  @override
+  String get currentPassword => 'Current Password';
+
+  @override
+  String get passwordTooShort => 'Password must be at least 8 characters';
+
+  @override
+  String get masterPasswordSet => 'Master password enabled';
+
+  @override
+  String get masterPasswordChanged => 'Master password changed';
+
+  @override
+  String get masterPasswordRemoved => 'Master password removed';
+
+  @override
+  String get masterPasswordWarning =>
+      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+
+  @override
+  String get forgotPassword => 'Forgot Password?';
+
+  @override
+  String get forgotPasswordWarning =>
+      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+
+  @override
+  String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
+
+  @override
+  String get credentialsReset => 'All saved credentials have been deleted';
+
+  @override
+  String get derivingKey => 'Deriving encryption key...';
+
+  @override
+  String get reEncrypting => 'Re-encrypting data...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
 }

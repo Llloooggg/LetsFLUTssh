@@ -18,6 +18,7 @@ import 'features/settings/export_import.dart';
 import 'widgets/app_dialog.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/passphrase_dialog.dart';
+import 'widgets/unlock_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/cross_marquee_controller.dart';
 import 'widgets/app_icon_button.dart';
@@ -31,6 +32,9 @@ import 'features/workspace/workspace_node.dart';
 import 'features/workspace/workspace_view.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
+import 'providers/key_provider.dart';
+import 'core/security/master_password.dart';
+import 'providers/master_password_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/theme_provider.dart';
@@ -137,7 +141,21 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(appVersionProvider.notifier).load();
-      ref.read(sessionProvider.notifier).load();
+      await _unlockIfNeeded();
+      await ref.read(sessionProvider.notifier).load();
+      if (_credentialsWereReset) {
+        _credentialsWereReset = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = navigatorKey.currentContext;
+          if (ctx != null && ctx.mounted) {
+            Toast.show(
+              ctx,
+              message: S.of(ctx).credentialsReset,
+              level: ToastLevel.warning,
+            );
+          }
+        });
+      }
       if (plat.isMobilePlatform) {
         AppLogger.instance.log('Initializing foreground service', name: 'App');
         ref.read(foregroundServiceProvider).init();
@@ -158,6 +176,47 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   void _reloadSessions() {
     AppLogger.instance.log('App resumed — reloading sessions', name: 'App');
     ref.read(sessionProvider.notifier).load();
+  }
+
+  /// Check if master password is enabled and show unlock dialog if needed.
+  ///
+  /// On success, injects the derived key into CredentialStore and KeyStore.
+  /// On reset (forgot password), stores are cleared — sessions load without
+  /// credentials.
+  /// True when the user chose "forgot password" — used to show a toast
+  /// after sessions load (needs l10n context).
+  bool _credentialsWereReset = false;
+
+  Future<void> _unlockIfNeeded() async {
+    final manager = ref.read(masterPasswordProvider);
+    final isEnabled = await manager.isEnabled();
+    if (!isEnabled || !mounted) return;
+
+    final key = await _showUnlockDialog(manager);
+    if (key != null) {
+      // Inject derived key into both stores.
+      ref.read(credentialStoreProvider).setExternalKey(key);
+      ref.read(keyStoreProvider).setExternalKey(key);
+      AppLogger.instance.log('Master password unlocked', name: 'App');
+    } else {
+      // User chose "forgot password" — stores were reset by UnlockDialog.
+      _credentialsWereReset = true;
+      AppLogger.instance.log(
+        'Master password reset — credentials cleared',
+        name: 'App',
+      );
+    }
+  }
+
+  /// Show unlock dialog using the navigator key context.
+  ///
+  /// Separated to avoid the `use_build_context_synchronously` lint — the
+  /// context is obtained synchronously within this method, not across an
+  /// async gap.
+  Future<Uint8List?> _showUnlockDialog(MasterPasswordManager manager) {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return Future.value(null);
+    return UnlockDialog.show(ctx, manager: manager);
   }
 
   void _setupHostKeyCallbacks() {

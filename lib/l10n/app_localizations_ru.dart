@@ -424,7 +424,7 @@ class SRu extends S {
   String get masterPassword => 'Мастер-пароль';
 
   @override
-  String get confirmPassword => 'Подтвердите пароль';
+  String get confirmPassword => 'Подтверждение пароля';
 
   @override
   String get importModeMergeDescription =>
@@ -1380,4 +1380,76 @@ class SRu extends S {
 
   @override
   String get unlock => 'Разблокировать';
+
+  @override
+  String get masterPasswordSubtitle =>
+      'Защита сохранённых учётных данных паролем';
+
+  @override
+  String get setMasterPassword => 'Установить мастер-пароль';
+
+  @override
+  String get changeMasterPassword => 'Изменить мастер-пароль';
+
+  @override
+  String get removeMasterPassword => 'Удалить мастер-пароль';
+
+  @override
+  String get masterPasswordEnabled => 'Учётные данные защищены мастер-паролем';
+
+  @override
+  String get masterPasswordDisabled =>
+      'Учётные данные используют автогенерированный ключ (без пароля)';
+
+  @override
+  String get enterMasterPassword =>
+      'Введите мастер-пароль для доступа к сохранённым учётным данным.';
+
+  @override
+  String get wrongMasterPassword => 'Неверный пароль. Попробуйте ещё раз.';
+
+  @override
+  String get newPassword => 'Новый пароль';
+
+  @override
+  String get currentPassword => 'Текущий пароль';
+
+  @override
+  String get passwordTooShort => 'Пароль должен содержать минимум 8 символов';
+
+  @override
+  String get masterPasswordSet => 'Мастер-пароль установлен';
+
+  @override
+  String get masterPasswordChanged => 'Мастер-пароль изменён';
+
+  @override
+  String get masterPasswordRemoved => 'Мастер-пароль удалён';
+
+  @override
+  String get masterPasswordWarning =>
+      'Если вы забудете этот пароль, все сохранённые пароли и SSH-ключи будут потеряны. Восстановление невозможно.';
+
+  @override
+  String get forgotPassword => 'Забыли пароль?';
+
+  @override
+  String get forgotPasswordWarning =>
+      'Это удалит ВСЕ сохранённые пароли, SSH-ключи и парольные фразы. Сессии и настройки будут сохранены. Это действие необратимо.';
+
+  @override
+  String get resetAndDeleteCredentials => 'Сбросить и удалить данные';
+
+  @override
+  String get credentialsReset => 'Все сохранённые учётные данные удалены';
+
+  @override
+  String get derivingKey => 'Генерация ключа шифрования...';
+
+  @override
+  String get reEncrypting => 'Перешифрование данных...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'Введите текущий пароль для отключения защиты мастер-паролем. Учётные данные будут перешифрованы автогенерированным ключом.';
 }

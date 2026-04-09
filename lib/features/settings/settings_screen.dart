@@ -9,12 +9,18 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'dart:math';
+
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
+import '../../core/security/master_password.dart';
 import '../../core/session/qr_codec.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/key_provider.dart';
+import '../../providers/master_password_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/version_provider.dart';
+import '../../utils/file_utils.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
