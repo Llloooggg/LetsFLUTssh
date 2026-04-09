@@ -75,8 +75,7 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the S.supportedLocales
 /// property.
 abstract class S {
-  S(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  S(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -96,13 +95,12 @@ abstract class S {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
@@ -120,7 +118,7 @@ abstract class S {
     Locale('ru'),
     Locale('tr'),
     Locale('vi'),
-    Locale('zh'),
+    Locale('zh')
   ];
 
   /// No description provided for @appTitle.
@@ -2672,6 +2670,60 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Continue without Encryption'**
   String get continueWithoutEncryption;
+
+  /// No description provided for @securityLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Security Level'**
+  String get securityLevel;
+
+  /// No description provided for @securityLevelPlaintext.
+  ///
+  /// In en, this message translates to:
+  /// **'None (plaintext)'**
+  String get securityLevelPlaintext;
+
+  /// No description provided for @securityLevelKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'OS Keychain'**
+  String get securityLevelKeychain;
+
+  /// No description provided for @securityLevelMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Master Password'**
+  String get securityLevelMasterPassword;
+
+  /// No description provided for @keychainStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain'**
+  String get keychainStatus;
+
+  /// No description provided for @keychainAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available ({name})'**
+  String keychainAvailable(String name);
+
+  /// No description provided for @keychainNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available'**
+  String get keychainNotAvailable;
+
+  /// No description provided for @manageMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Master Password'**
+  String get manageMasterPassword;
+
+  /// No description provided for @manageMasterPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set, change, or remove master password'**
+  String get manageMasterPasswordSubtitle;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
@@ -2683,67 +2735,38 @@ class _SDelegate extends LocalizationsDelegate<S> {
   }
 
   @override
-  bool isSupported(Locale locale) => <String>[
-    'ar',
-    'de',
-    'en',
-    'es',
-    'fa',
-    'fr',
-    'hi',
-    'id',
-    'ja',
-    'ko',
-    'pt',
-    'ru',
-    'tr',
-    'vi',
-    'zh',
-  ].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['ar', 'de', 'en', 'es', 'fa', 'fr', 'hi', 'id', 'ja', 'ko', 'pt', 'ru', 'tr', 'vi', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_SDelegate old) => false;
 }
 
 S lookupS(Locale locale) {
+
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'ar':
-      return SAr();
-    case 'de':
-      return SDe();
-    case 'en':
-      return SEn();
-    case 'es':
-      return SEs();
-    case 'fa':
-      return SFa();
-    case 'fr':
-      return SFr();
-    case 'hi':
-      return SHi();
-    case 'id':
-      return SId();
-    case 'ja':
-      return SJa();
-    case 'ko':
-      return SKo();
-    case 'pt':
-      return SPt();
-    case 'ru':
-      return SRu();
-    case 'tr':
-      return STr();
-    case 'vi':
-      return SVi();
-    case 'zh':
-      return SZh();
+    case 'ar': return SAr();
+    case 'de': return SDe();
+    case 'en': return SEn();
+    case 'es': return SEs();
+    case 'fa': return SFa();
+    case 'fr': return SFr();
+    case 'hi': return SHi();
+    case 'id': return SId();
+    case 'ja': return SJa();
+    case 'ko': return SKo();
+    case 'pt': return SPt();
+    case 'ru': return SRu();
+    case 'tr': return STr();
+    case 'vi': return SVi();
+    case 'zh': return SZh();
   }
 
   throw FlutterError(
     'S.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
+    'that was used.'
   );
 }

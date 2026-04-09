@@ -113,8 +113,7 @@ class SRu extends S {
   String get openInBrowser => 'Открыть в браузере';
 
   @override
-  String get couldNotOpenBrowser =>
-      'Не удалось открыть браузер — URL скопирован в буфер обмена';
+  String get couldNotOpenBrowser => 'Не удалось открыть браузер — URL скопирован в буфер обмена';
 
   @override
   String get checkForUpdates => 'Проверить обновления';
@@ -370,8 +369,7 @@ class SRu extends S {
   String get qrGenerationFailed => 'Не удалось создать QR-код';
 
   @override
-  String get scanWithCameraApp =>
-      'Сканируйте любым приложением камеры на устройстве,\nгде установлен LetsFLUTssh.';
+  String get scanWithCameraApp => 'Сканируйте любым приложением камеры на устройстве,\nгде установлен LetsFLUTssh.';
 
   @override
   String get noPasswordsInQr => 'В этом QR-коде нет паролей и ключей';
@@ -389,12 +387,10 @@ class SRu extends S {
   String get unknownHost => 'Неизвестный хост';
 
   @override
-  String get hostKeyChangedWarning =>
-      'ВНИМАНИЕ: Ключ хоста для этого сервера изменился. Это может означать атаку \"человек посередине\" или переустановку сервера.';
+  String get hostKeyChangedWarning => 'ВНИМАНИЕ: Ключ хоста для этого сервера изменился. Это может означать атаку \"человек посередине\" или переустановку сервера.';
 
   @override
-  String get unknownHostMessage =>
-      'Подлинность этого хоста не может быть подтверждена. Вы уверены, что хотите продолжить подключение?';
+  String get unknownHostMessage => 'Подлинность этого хоста не может быть подтверждена. Вы уверены, что хотите продолжить подключение?';
 
   @override
   String get host => 'Хост';
@@ -427,12 +423,10 @@ class SRu extends S {
   String get confirmPassword => 'Подтверждение пароля';
 
   @override
-  String get importModeMergeDescription =>
-      'Добавить новые сессии, сохранить существующие';
+  String get importModeMergeDescription => 'Добавить новые сессии, сохранить существующие';
 
   @override
-  String get importModeReplaceDescription =>
-      'Заменить все сессии импортированными';
+  String get importModeReplaceDescription => 'Заменить все сессии импортированными';
 
   @override
   String errorPrefix(String error) {
@@ -538,8 +532,7 @@ class SRu extends S {
   String get noActiveSession => 'Нет активной сессии';
 
   @override
-  String get createConnectionHint =>
-      'Создайте новое подключение или выберите из боковой панели';
+  String get createConnectionHint => 'Создайте новое подключение или выберите из боковой панели';
 
   @override
   String get hideSidebar => 'Скрыть боковую панель (Ctrl+B)';
@@ -620,15 +613,13 @@ class SRu extends S {
   String get exportData => 'Экспорт данных';
 
   @override
-  String get exportDataSubtitle =>
-      'Сохранить сессии, конфигурацию и ключи в зашифрованный файл .lfs';
+  String get exportDataSubtitle => 'Сохранить сессии, конфигурацию и ключи в зашифрованный файл .lfs';
 
   @override
   String get importDataSubtitle => 'Загрузить данные из файла .lfs';
 
   @override
-  String get setMasterPasswordHint =>
-      'Задайте мастер-пароль для шифрования архива.';
+  String get setMasterPasswordHint => 'Задайте мастер-пароль для шифрования архива.';
 
   @override
   String get passwordsDoNotMatch => 'Пароли не совпадают';
@@ -656,8 +647,7 @@ class SRu extends S {
   String get shareViaQrCode => 'Поделиться через QR-код';
 
   @override
-  String get shareViaQrSubtitle =>
-      'Экспортировать сессии в QR для сканирования другим устройством';
+  String get shareViaQrSubtitle => 'Экспортировать сессии в QR для сканирования другим устройством';
 
   @override
   String get dataLocation => 'Расположение данных';
@@ -741,8 +731,7 @@ class SRu extends S {
   String get useSftpFromSessions => 'Используйте \"SFTP\" из раздела Сессии';
 
   @override
-  String get anotherInstanceRunning =>
-      'Другой экземпляр LetsFLUTssh уже запущен.';
+  String get anotherInstanceRunning => 'Другой экземпляр LetsFLUTssh уже запущен.';
 
   @override
   String importFailedShort(String error) {
@@ -777,8 +766,7 @@ class SRu extends S {
   String get connectionError => 'Ошибка подключения';
 
   @override
-  String get resizeWindowToViewFiles =>
-      'Измените размер окна для просмотра файлов';
+  String get resizeWindowToViewFiles => 'Измените размер окна для просмотра файлов';
 
   @override
   String get completed => 'Завершено';
@@ -805,16 +793,13 @@ class SRu extends S {
   String get exportSessionsViaQr => 'Экспорт сессий через QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Пароли и SSH-ключи НЕ включены.\nДля импортированных сессий потребуется заполнить учётные данные.';
+  String get qrNoCredentialsWarning => 'Пароли и SSH-ключи НЕ включены.\nДля импортированных сессий потребуется заполнить учётные данные.';
 
   @override
-  String get qrTooManyForSingleCode =>
-      'Слишком много сессий для одного QR-кода. Снимите часть выделения или используйте экспорт в .lfs.';
+  String get qrTooManyForSingleCode => 'Слишком много сессий для одного QR-кода. Снимите часть выделения или используйте экспорт в .lfs.';
 
   @override
-  String get qrTooLarge =>
-      'Слишком большой объём — снимите часть выделения или используйте экспорт в файл .lfs.';
+  String get qrTooLarge => 'Слишком большой объём — снимите часть выделения или используйте экспорт в файл .lfs.';
 
   @override
   String get exportAll => 'Экспортировать все';
@@ -885,8 +870,7 @@ class SRu extends S {
   String get errTooManyOpenFiles => 'Слишком много открытых файлов';
 
   @override
-  String get errNoSpaceLeftOnDevice =>
-      'На устройстве не осталось свободного места';
+  String get errNoSpaceLeftOnDevice => 'На устройстве не осталось свободного места';
 
   @override
   String get errReadOnlyFileSystem => 'Файловая система только для чтения';
@@ -913,8 +897,7 @@ class SRu extends S {
   String get errNetworkIsUnreachable => 'Сеть недостижима';
 
   @override
-  String get errConnectionResetByPeer =>
-      'Соединение сброшено удалённой стороной';
+  String get errConnectionResetByPeer => 'Соединение сброшено удалённой стороной';
 
   @override
   String get errConnectionTimedOut => 'Время ожидания соединения истекло';
@@ -1007,8 +990,7 @@ class SRu extends S {
   }
 
   @override
-  String get errDecryptionFailed =>
-      'Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.';
+  String get errDecryptionFailed => 'Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1041,15 +1023,13 @@ class SRu extends S {
   String get subitems => 'Элементы';
 
   @override
-  String get storagePermissionRequired =>
-      'Для просмотра локальных файлов необходимо разрешение на доступ к хранилищу';
+  String get storagePermissionRequired => 'Для просмотра локальных файлов необходимо разрешение на доступ к хранилищу';
 
   @override
   String get grantPermission => 'Дать разрешение';
 
   @override
-  String get storagePermissionLimited =>
-      'Ограниченный доступ — предоставьте полный доступ к хранилищу для всех файлов';
+  String get storagePermissionLimited => 'Ограниченный доступ — предоставьте полный доступ к хранилищу для всех файлов';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1140,8 +1120,7 @@ class SRu extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1173,8 +1152,7 @@ class SRu extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1205,8 +1183,7 @@ class SRu extends S {
   String get knownHosts => 'Известные хосты';
 
   @override
-  String get knownHostsSubtitle =>
-      'Управление доверенными отпечатками SSH-серверов';
+  String get knownHostsSubtitle => 'Управление доверенными отпечатками SSH-серверов';
 
   @override
   String knownHostsCount(int count) {
@@ -1222,8 +1199,7 @@ class SRu extends S {
   }
 
   @override
-  String get knownHostsEmpty =>
-      'Нет известных хостов. Подключитесь к серверу, чтобы добавить.';
+  String get knownHostsEmpty => 'Нет известных хостов. Подключитесь к серверу, чтобы добавить.';
 
   @override
   String get removeHost => 'Удалить хост';
@@ -1237,8 +1213,7 @@ class SRu extends S {
   String get clearAllKnownHosts => 'Очистить все известные хосты';
 
   @override
-  String get clearAllKnownHostsConfirm =>
-      'Удалить все известные хосты? При подключении к каждому серверу потребуется повторная проверка ключа.';
+  String get clearAllKnownHostsConfirm => 'Удалить все известные хосты? При подключении к каждому серверу потребуется повторная проверка ключа.';
 
   @override
   String get importKnownHosts => 'Импорт известных хостов';
@@ -1277,8 +1252,7 @@ class SRu extends S {
   String get sshKeys => 'SSH-ключи';
 
   @override
-  String get sshKeysSubtitle =>
-      'Управление парами SSH-ключей для аутентификации';
+  String get sshKeysSubtitle => 'Управление парами SSH-ключей для аутентификации';
 
   @override
   String get noKeys => 'Нет SSH-ключей. Импортируйте или сгенерируйте.';
@@ -1382,8 +1356,7 @@ class SRu extends S {
   String get unlock => 'Разблокировать';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Защита сохранённых учётных данных паролем';
+  String get masterPasswordSubtitle => 'Защита сохранённых учётных данных паролем';
 
   @override
   String get setMasterPassword => 'Установить мастер-пароль';
@@ -1398,12 +1371,10 @@ class SRu extends S {
   String get masterPasswordEnabled => 'Учётные данные защищены мастер-паролем';
 
   @override
-  String get masterPasswordDisabled =>
-      'Учётные данные используют автогенерированный ключ (без пароля)';
+  String get masterPasswordDisabled => 'Учётные данные используют автогенерированный ключ (без пароля)';
 
   @override
-  String get enterMasterPassword =>
-      'Введите мастер-пароль для доступа к сохранённым учётным данным.';
+  String get enterMasterPassword => 'Введите мастер-пароль для доступа к сохранённым учётным данным.';
 
   @override
   String get wrongMasterPassword => 'Неверный пароль. Попробуйте ещё раз.';
@@ -1427,15 +1398,13 @@ class SRu extends S {
   String get masterPasswordRemoved => 'Мастер-пароль удалён';
 
   @override
-  String get masterPasswordWarning =>
-      'Если вы забудете этот пароль, все сохранённые пароли и SSH-ключи будут потеряны. Восстановление невозможно.';
+  String get masterPasswordWarning => 'Если вы забудете этот пароль, все сохранённые пароли и SSH-ключи будут потеряны. Восстановление невозможно.';
 
   @override
   String get forgotPassword => 'Забыли пароль?';
 
   @override
-  String get forgotPasswordWarning =>
-      'Это удалит ВСЕ сохранённые пароли, SSH-ключи и парольные фразы. Сессии и настройки будут сохранены. Это действие необратимо.';
+  String get forgotPasswordWarning => 'Это удалит ВСЕ сохранённые пароли, SSH-ключи и парольные фразы. Сессии и настройки будут сохранены. Это действие необратимо.';
 
   @override
   String get resetAndDeleteCredentials => 'Сбросить и удалить данные';
@@ -1450,8 +1419,7 @@ class SRu extends S {
   String get reEncrypting => 'Перешифрование данных...';
 
   @override
-  String get confirmRemoveMasterPassword =>
-      'Введите текущий пароль для отключения защиты мастер-паролем. Учётные данные будут перешифрованы автогенерированным ключом.';
+  String get confirmRemoveMasterPassword => 'Введите текущий пароль для отключения защиты мастер-паролем. Учётные данные будут перешифрованы автогенерированным ключом.';
 
   @override
   String get securitySetupTitle => 'Security Setup';
@@ -1462,24 +1430,49 @@ class SRu extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional =>
-      'You can also set a master password for additional protection.';
+  String get securitySetupKeychainOptional => 'You can also set a master password for additional protection.';
 
   @override
-  String get securitySetupNoKeychain =>
-      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+  String get securitySetupNoKeychain => 'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
 
   @override
-  String get securitySetupNoKeychainHint =>
-      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+  String get securitySetupNoKeychainHint => 'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
 
   @override
-  String get securitySetupRecommendMasterPassword =>
-      'We recommend setting a master password to protect your data.';
+  String get securitySetupRecommendMasterPassword => 'We recommend setting a master password to protect your data.';
 
   @override
   String get continueWithKeychain => 'Continue with Keychain';
 
   @override
   String get continueWithoutEncryption => 'Continue without Encryption';
+
+  @override
+  String get securityLevel => 'Security Level';
+
+  @override
+  String get securityLevelPlaintext => 'None (plaintext)';
+
+  @override
+  String get securityLevelKeychain => 'OS Keychain';
+
+  @override
+  String get securityLevelMasterPassword => 'Master Password';
+
+  @override
+  String get keychainStatus => 'Keychain';
+
+  @override
+  String keychainAvailable(String name) {
+    return 'Available ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => 'Not available';
+
+  @override
+  String get manageMasterPassword => 'Manage Master Password';
+
+  @override
+  String get manageMasterPasswordSubtitle => 'Set, change, or remove master password';
 }

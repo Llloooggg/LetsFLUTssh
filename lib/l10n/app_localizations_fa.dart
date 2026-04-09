@@ -369,8 +369,7 @@ class SFa extends S {
   String get qrGenerationFailed => 'تولید QR ناموفق بود';
 
   @override
-  String get scanWithCameraApp =>
-      'با هر برنامه دوربینی روی دستگاهی که LetsFLUTssh نصب است اسکن کنید.';
+  String get scanWithCameraApp => 'با هر برنامه دوربینی روی دستگاهی که LetsFLUTssh نصب است اسکن کنید.';
 
   @override
   String get noPasswordsInQr => 'رمز عبور یا کلیدی در این کد QR وجود ندارد';
@@ -388,12 +387,10 @@ class SFa extends S {
   String get unknownHost => 'میزبان ناشناخته';
 
   @override
-  String get hostKeyChangedWarning =>
-      'هشدار: کلید میزبان این سرور تغییر کرده است. این ممکن است نشانه حمله مرد میانی باشد، یا سرور مجدداً نصب شده باشد.';
+  String get hostKeyChangedWarning => 'هشدار: کلید میزبان این سرور تغییر کرده است. این ممکن است نشانه حمله مرد میانی باشد، یا سرور مجدداً نصب شده باشد.';
 
   @override
-  String get unknownHostMessage =>
-      'اصالت این میزبان قابل تأیید نیست. آیا مطمئنید که می‌خواهید اتصال را ادامه دهید؟';
+  String get unknownHostMessage => 'اصالت این میزبان قابل تأیید نیست. آیا مطمئنید که می‌خواهید اتصال را ادامه دهید؟';
 
   @override
   String get host => 'میزبان';
@@ -429,8 +426,7 @@ class SFa extends S {
   String get importModeMergeDescription => 'افزودن جلسات جدید، حفظ موجودها';
 
   @override
-  String get importModeReplaceDescription =>
-      'جایگزینی همه جلسات با موارد وارد شده';
+  String get importModeReplaceDescription => 'جایگزینی همه جلسات با موارد وارد شده';
 
   @override
   String errorPrefix(String error) {
@@ -536,8 +532,7 @@ class SFa extends S {
   String get noActiveSession => 'جلسه فعالی وجود ندارد';
 
   @override
-  String get createConnectionHint =>
-      'یک اتصال جدید ایجاد کنید یا از نوار کناری انتخاب کنید';
+  String get createConnectionHint => 'یک اتصال جدید ایجاد کنید یا از نوار کناری انتخاب کنید';
 
   @override
   String get hideSidebar => 'پنهان کردن نوار کناری (Ctrl+B)';
@@ -618,15 +613,13 @@ class SFa extends S {
   String get exportData => 'خروجی گرفتن از داده';
 
   @override
-  String get exportDataSubtitle =>
-      'ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs';
+  String get exportDataSubtitle => 'ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs';
 
   @override
   String get importDataSubtitle => 'بارگذاری داده از فایل .lfs';
 
   @override
-  String get setMasterPasswordHint =>
-      'یک رمز عبور اصلی برای رمزگذاری آرشیو تعیین کنید.';
+  String get setMasterPasswordHint => 'یک رمز عبور اصلی برای رمزگذاری آرشیو تعیین کنید.';
 
   @override
   String get passwordsDoNotMatch => 'رمزهای عبور مطابقت ندارند';
@@ -654,8 +647,7 @@ class SFa extends S {
   String get shareViaQrCode => 'اشتراک‌گذاری از طریق کد QR';
 
   @override
-  String get shareViaQrSubtitle =>
-      'خروجی گرفتن از جلسات به QR برای اسکن توسط دستگاه دیگر';
+  String get shareViaQrSubtitle => 'خروجی گرفتن از جلسات به QR برای اسکن توسط دستگاه دیگر';
 
   @override
   String get dataLocation => 'محل داده';
@@ -739,8 +731,7 @@ class SFa extends S {
   String get useSftpFromSessions => 'از «SFTP» در جلسات استفاده کنید';
 
   @override
-  String get anotherInstanceRunning =>
-      'نسخه دیگری از LetsFLUTssh در حال اجرا است.';
+  String get anotherInstanceRunning => 'نسخه دیگری از LetsFLUTssh در حال اجرا است.';
 
   @override
   String importFailedShort(String error) {
@@ -775,8 +766,7 @@ class SFa extends S {
   String get connectionError => 'خطای اتصال';
 
   @override
-  String get resizeWindowToViewFiles =>
-      'اندازه پنجره را برای مشاهده فایل‌ها تغییر دهید';
+  String get resizeWindowToViewFiles => 'اندازه پنجره را برای مشاهده فایل‌ها تغییر دهید';
 
   @override
   String get completed => 'تکمیل شد';
@@ -803,16 +793,13 @@ class SFa extends S {
   String get exportSessionsViaQr => 'خروجی جلسات از طریق QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'رمزهای عبور و کلیدهای SSH شامل نمی‌شوند.\nجلسات وارد شده نیاز به تکمیل اعتبارنامه دارند.';
+  String get qrNoCredentialsWarning => 'رمزهای عبور و کلیدهای SSH شامل نمی‌شوند.\nجلسات وارد شده نیاز به تکمیل اعتبارنامه دارند.';
 
   @override
-  String get qrTooManyForSingleCode =>
-      'تعداد جلسات برای یک کد QR بیش از حد است. برخی را حذف انتخاب کنید یا از خروجی .lfs استفاده کنید.';
+  String get qrTooManyForSingleCode => 'تعداد جلسات برای یک کد QR بیش از حد است. برخی را حذف انتخاب کنید یا از خروجی .lfs استفاده کنید.';
 
   @override
-  String get qrTooLarge =>
-      'حجم بیش از حد است — برخی جلسات را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.';
+  String get qrTooLarge => 'حجم بیش از حد است — برخی جلسات را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.';
 
   @override
   String get exportAll => 'خروجی همه';
@@ -1003,8 +990,7 @@ class SFa extends S {
   }
 
   @override
-  String get errDecryptionFailed =>
-      'رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.';
+  String get errDecryptionFailed => 'رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1037,15 +1023,13 @@ class SFa extends S {
   String get subitems => 'موارد';
 
   @override
-  String get storagePermissionRequired =>
-      'برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است';
+  String get storagePermissionRequired => 'برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است';
 
   @override
   String get grantPermission => 'اعطای مجوز';
 
   @override
-  String get storagePermissionLimited =>
-      'دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید';
+  String get storagePermissionLimited => 'دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1136,8 +1120,7 @@ class SFa extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1169,8 +1152,7 @@ class SFa extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1216,8 +1198,7 @@ class SFa extends S {
   }
 
   @override
-  String get knownHostsEmpty =>
-      'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
 
   @override
   String get removeHost => 'Remove Host';
@@ -1231,8 +1212,7 @@ class SFa extends S {
   String get clearAllKnownHosts => 'Clear All Known Hosts';
 
   @override
-  String get clearAllKnownHostsConfirm =>
-      'Remove all known hosts? You will be prompted to verify each server key again.';
+  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
   String get importKnownHosts => 'Import Known Hosts';
@@ -1366,8 +1346,7 @@ class SFa extends S {
   String get unlock => 'Unlock';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Protect saved credentials with a password';
+  String get masterPasswordSubtitle => 'Protect saved credentials with a password';
 
   @override
   String get setMasterPassword => 'Set Master Password';
@@ -1379,16 +1358,13 @@ class SFa extends S {
   String get removeMasterPassword => 'Remove Master Password';
 
   @override
-  String get masterPasswordEnabled =>
-      'Credentials are protected by master password';
+  String get masterPasswordEnabled => 'Credentials are protected by master password';
 
   @override
-  String get masterPasswordDisabled =>
-      'Credentials use auto-generated key (no password)';
+  String get masterPasswordDisabled => 'Credentials use auto-generated key (no password)';
 
   @override
-  String get enterMasterPassword =>
-      'Enter master password to unlock your saved credentials.';
+  String get enterMasterPassword => 'Enter master password to unlock your saved credentials.';
 
   @override
   String get wrongMasterPassword => 'Wrong password. Please try again.';
@@ -1412,15 +1388,13 @@ class SFa extends S {
   String get masterPasswordRemoved => 'Master password removed';
 
   @override
-  String get masterPasswordWarning =>
-      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+  String get masterPasswordWarning => 'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
 
   @override
   String get forgotPassword => 'Forgot Password?';
 
   @override
-  String get forgotPasswordWarning =>
-      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+  String get forgotPasswordWarning => 'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
 
   @override
   String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
@@ -1435,8 +1409,7 @@ class SFa extends S {
   String get reEncrypting => 'Re-encrypting data...';
 
   @override
-  String get confirmRemoveMasterPassword =>
-      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+  String get confirmRemoveMasterPassword => 'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
 
   @override
   String get securitySetupTitle => 'Security Setup';
@@ -1447,24 +1420,49 @@ class SFa extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional =>
-      'You can also set a master password for additional protection.';
+  String get securitySetupKeychainOptional => 'You can also set a master password for additional protection.';
 
   @override
-  String get securitySetupNoKeychain =>
-      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+  String get securitySetupNoKeychain => 'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
 
   @override
-  String get securitySetupNoKeychainHint =>
-      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+  String get securitySetupNoKeychainHint => 'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
 
   @override
-  String get securitySetupRecommendMasterPassword =>
-      'We recommend setting a master password to protect your data.';
+  String get securitySetupRecommendMasterPassword => 'We recommend setting a master password to protect your data.';
 
   @override
   String get continueWithKeychain => 'Continue with Keychain';
 
   @override
   String get continueWithoutEncryption => 'Continue without Encryption';
+
+  @override
+  String get securityLevel => 'Security Level';
+
+  @override
+  String get securityLevelPlaintext => 'None (plaintext)';
+
+  @override
+  String get securityLevelKeychain => 'OS Keychain';
+
+  @override
+  String get securityLevelMasterPassword => 'Master Password';
+
+  @override
+  String get keychainStatus => 'Keychain';
+
+  @override
+  String keychainAvailable(String name) {
+    return 'Available ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => 'Not available';
+
+  @override
+  String get manageMasterPassword => 'Manage Master Password';
+
+  @override
+  String get manageMasterPasswordSubtitle => 'Set, change, or remove master password';
 }

@@ -162,49 +162,59 @@ class _SecuritySection extends ConsumerStatefulWidget {
 
 class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   bool? _masterPasswordEnabled;
+  bool? _keychainAvailable;
 
   @override
   void initState() {
     super.initState();
-    _checkMasterPasswordState();
+    _checkState();
   }
 
-  Future<void> _checkMasterPasswordState() async {
+  Future<void> _checkState() async {
     final manager = ref.read(masterPasswordProvider);
-    final enabled = await manager.isEnabled();
-    if (mounted) setState(() => _masterPasswordEnabled = enabled);
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final results = await Future.wait([
+      manager.isEnabled(),
+      keyStorage.isAvailable(),
+    ]);
+    if (mounted) {
+      setState(() {
+        _masterPasswordEnabled = results[0];
+        _keychainAvailable = results[1];
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    final isEnabled = _masterPasswordEnabled;
+    final secState = ref.watch(securityStateProvider);
 
     return Column(
       children: [
-        if (isEnabled == null)
-          const SizedBox.shrink()
-        else if (!isEnabled)
-          _ActionTile(
-            icon: Icons.lock_open,
-            title: l10n.masterPassword,
-            subtitle: l10n.masterPasswordDisabled,
-            onTap: () => _setMasterPassword(context),
-          )
-        else ...[
-          _ActionTile(
-            icon: Icons.lock,
-            title: l10n.changeMasterPassword,
-            subtitle: l10n.masterPasswordEnabled,
-            onTap: () => _changeMasterPassword(context),
-          ),
-          _ActionTile(
-            icon: Icons.lock_open,
-            title: l10n.removeMasterPassword,
-            subtitle: l10n.masterPasswordSubtitle,
-            onTap: () => _removeMasterPassword(context),
-          ),
-        ],
+        // Security level info.
+        _InfoTile(
+          icon: Icons.shield,
+          title: l10n.securityLevel,
+          value: _securityLevelLabel(l10n, secState.level),
+        ),
+        // Keychain status.
+        _InfoTile(
+          icon: Icons.key,
+          title: l10n.keychainStatus,
+          value: _keychainAvailable == true
+              ? l10n.keychainAvailable(_keychainName)
+              : _keychainAvailable == false
+              ? l10n.keychainNotAvailable
+              : '...',
+        ),
+        // Manage master password — single tile.
+        _ActionTile(
+          icon: _masterPasswordEnabled == true ? Icons.lock : Icons.lock_open,
+          title: l10n.manageMasterPassword,
+          subtitle: l10n.manageMasterPasswordSubtitle,
+          onTap: () => _manageMasterPassword(context),
+        ),
         _ActionTile(
           icon: Icons.verified_user,
           title: l10n.knownHosts,
@@ -213,6 +223,65 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         ),
       ],
     );
+  }
+
+  String _securityLevelLabel(S l10n, SecurityLevel level) {
+    switch (level) {
+      case SecurityLevel.plaintext:
+        return l10n.securityLevelPlaintext;
+      case SecurityLevel.keychain:
+        return l10n.securityLevelKeychain;
+      case SecurityLevel.masterPassword:
+        return l10n.securityLevelMasterPassword;
+    }
+  }
+
+  static String get _keychainName {
+    if (Platform.isMacOS || Platform.isIOS) return 'Keychain';
+    if (Platform.isWindows) return 'Credential Manager';
+    if (Platform.isAndroid) return 'EncryptedSharedPreferences';
+    return 'libsecret';
+  }
+
+  /// Single entry point for master password management.
+  ///
+  /// Not set → show set dialog.
+  /// Already set → show dialog with Change / Remove options.
+  Future<void> _manageMasterPassword(BuildContext context) async {
+    if (_masterPasswordEnabled != true) {
+      await _setMasterPassword(context);
+    } else {
+      await _showManageOptions(context);
+    }
+  }
+
+  Future<void> _showManageOptions(BuildContext context) async {
+    final l10n = S.of(context);
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.manageMasterPassword),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'change'),
+            child: Text(l10n.changeMasterPassword),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'remove'),
+            child: Text(
+              l10n.removeMasterPassword,
+              style: TextStyle(color: AppTheme.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (action == null || !context.mounted) return;
+    if (action == 'change') {
+      await _changeMasterPassword(context);
+    } else {
+      await _removeMasterPassword(context);
+    }
   }
 
   Future<void> _setMasterPassword(BuildContext context) async {
@@ -241,7 +310,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
             message: l10n.masterPasswordSet,
             level: ToastLevel.success,
           );
-          _checkMasterPasswordState();
+          _checkState();
         }
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
@@ -264,8 +333,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   Future<void> _enableMasterPassword(String password) async {
     final manager = ref.read(masterPasswordProvider);
-    final sessionStore = ref.read(sessionStoreProvider);
-    final keyStore = ref.read(keyStoreProvider);
 
     // Derive new key from password.
     final newKey = await manager.enable(password);
@@ -280,9 +347,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
 
     // Re-encrypt all stores with the derived key.
-    await sessionStore.reEncrypt(newKey, SecurityLevel.masterPassword);
-    keyStore.setExternalKey(newKey);
-    await keyStore.saveAll(await keyStore.loadAllSafe());
+    await _reEncryptAll(newKey, SecurityLevel.masterPassword);
+
+    // Delete keychain key if it was used before.
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    await keyStorage.deleteKey();
   }
 
   Future<void> _changeMasterPassword(BuildContext context) async {
@@ -340,16 +409,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   Future<void> _doChangePassword(String oldPassword, String newPassword) async {
     final manager = ref.read(masterPasswordProvider);
-    final sessionStore = ref.read(sessionStoreProvider);
-    final keyStore = ref.read(keyStoreProvider);
 
     // Change password — verifies old, generates new salt + verifier.
     final newKey = await manager.changePassword(oldPassword, newPassword);
 
     // Re-encrypt all stores with new key.
-    await sessionStore.reEncrypt(newKey, SecurityLevel.masterPassword);
-    keyStore.setExternalKey(newKey);
-    await keyStore.saveAll(await keyStore.loadAllSafe());
+    await _reEncryptAll(newKey, SecurityLevel.masterPassword);
   }
 
   Future<void> _removeMasterPassword(BuildContext context) async {
@@ -375,7 +440,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
             message: l10n.masterPasswordRemoved,
             level: ToastLevel.success,
           );
-          _checkMasterPasswordState();
+          _checkState();
         }
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
@@ -401,8 +466,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   Future<void> _doRemoveMasterPassword(String password) async {
     final manager = ref.read(masterPasswordProvider);
-    final sessionStore = ref.read(sessionStoreProvider);
-    final keyStore = ref.read(keyStoreProvider);
 
     // Verify password first.
     final isValid = await manager.verify(password);
@@ -410,14 +473,39 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       throw const MasterPasswordException('Current password is incorrect');
     }
 
-    // Re-encrypt to plaintext (no key).
-    // TODO(security-refactor): try keychain first, fall to plaintext
-    await sessionStore.reEncrypt(null, SecurityLevel.plaintext);
-    keyStore.clearExternalKey();
-    await keyStore.saveAll(await keyStore.loadAllSafe());
+    // Try keychain first, fall back to plaintext.
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final keychainAvailable = await keyStorage.isAvailable();
+    if (keychainAvailable) {
+      final key = AesGcm.generateKey();
+      final stored = await keyStorage.writeKey(key);
+      if (stored) {
+        await _reEncryptAll(key, SecurityLevel.keychain);
+        await manager.disable();
+        return;
+      }
+    }
 
-    // Delete salt + verifier.
+    // No keychain — fall back to plaintext.
+    await _reEncryptAll(null, SecurityLevel.plaintext);
     await manager.disable();
+  }
+
+  /// Re-encrypt all three data stores and update global security state.
+  Future<void> _reEncryptAll(Uint8List? key, SecurityLevel level) async {
+    final sessionStore = ref.read(sessionStoreProvider);
+    final keyStore = ref.read(keyStoreProvider);
+    final knownHosts = ref.read(knownHostsProvider);
+
+    await sessionStore.reEncrypt(key, level);
+    await keyStore.reEncrypt(key, level);
+    await knownHosts.reEncrypt(key, level);
+
+    if (key != null) {
+      ref.read(securityStateProvider.notifier).set(level, key);
+    } else {
+      ref.read(securityStateProvider.notifier).clearEncryption();
+    }
   }
 }
 
