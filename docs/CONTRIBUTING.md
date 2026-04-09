@@ -154,10 +154,10 @@ Version bumps are **fully automated**. The bump script (`scripts/bump-version.sh
 
 | Commit prefix                           | Bump      |
 |-----------------------------------------|-----------|
-| `fix:`, `chore:`, `refactor:`, `perf:`, `build:`, Dependabot `Bump ...` | **patch** |
+| `fix:`, `refactor:`, `perf:`, `build:`, Dependabot `Bump ...` | **patch** |
 | `feat:`                                 | **minor** |
 | `BREAKING CHANGE` or `feat!:`           | **major** |
-| `docs:`, `test:`, `ci:`                 | **no bump** |
+| `docs:`, `test:`, `ci:`, `chore:`, `Revert "..."` | **no bump** |
 
 **Do not bump the version manually** — just use the correct conventional commit prefix. The `version:` field in `pubspec.yaml` remains the single source of truth (`package_info_plus` reads it at runtime).
 
