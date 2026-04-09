@@ -656,6 +656,7 @@ class UpdateService {
   // User can skip a version (skippedVersion in config).
   // Stale skip auto-clears when a newer version supersedes the skipped one.
   //
+  // DI: HttpFetcher, FileDownloader, ProcessRunner — all injectable for testing.
   // Download: follows redirects (max 10), validates trusted hosts.
   // openFile(): platform launcher, validates Windows paths against shell metacharacters.
   // Progress: throttled to 1% increments in UpdateNotifier to reduce state churn.
