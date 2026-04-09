@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import 'aes_gcm.dart';
+import 'security_level.dart';
 
 /// Supported SSH key types for generation.
 enum SshKeyType {
@@ -87,38 +88,50 @@ class SshKeyEntry {
   int get hashCode => Object.hash(id, label, privateKey);
 }
 
-/// Encrypted key store — file-based AES-256-GCM.
+/// SSH key store with three-level security.
 ///
-/// Stores SSH keys in `keys.enc`, encrypted with the same key as
-/// [CredentialStore] (`credentials.key`).
+/// - [SecurityLevel.plaintext]: `keys.json` in cleartext.
+/// - [SecurityLevel.keychain] / [SecurityLevel.masterPassword]: `keys.enc`
+///   encrypted with AES-256-GCM.
 class KeyStore {
-  static const _keysFileName = 'keys.enc';
-  static const _keyFileName = 'credentials.key';
-  static const _keyLength = 32;
+  static const _jsonFileName = 'keys.json';
+  static const _encFileName = 'keys.enc';
 
   String? _basePath;
   Map<String, SshKeyEntry>? _cache;
 
-  /// External key injected by master password flow.
-  Uint8List? _externalKey;
+  SecurityLevel _level;
+  Uint8List? _encryptionKey;
 
-  /// Set the encryption key externally (master password derived key).
+  KeyStore({SecurityLevel level = SecurityLevel.plaintext}) : _level = level;
+
+  /// Current security level.
+  SecurityLevel get securityLevel => _level;
+
+  /// Set the encryption key (from keychain or master password).
+  void setEncryptionKey(Uint8List key, SecurityLevel level) {
+    _encryptionKey = key;
+    _level = level;
+    _cache = null;
+  }
+
+  /// Clear the encryption key (revert to plaintext).
+  void clearEncryptionKey() {
+    _encryptionKey = null;
+    _level = SecurityLevel.plaintext;
+    _cache = null;
+  }
+
+  // Keep legacy API for transition period.
+  // TODO(security-refactor): remove after commit 10
+  /// @deprecated Use [setEncryptionKey] instead.
   void setExternalKey(Uint8List key) {
-    _externalKey = key;
-    _cache = null;
+    setEncryptionKey(key, SecurityLevel.masterPassword);
   }
 
-  /// Clear the external key, reverting to file-based key.
+  /// @deprecated Use [clearEncryptionKey] instead.
   void clearExternalKey() {
-    _externalKey = null;
-    _cache = null;
-  }
-
-  /// Whether the store is locked (master password enabled but no key provided).
-  Future<bool> get isLocked async {
-    final basePath = await _getBasePath();
-    final saltExists = await File('$basePath/credentials.salt').exists();
-    return saltExists && _externalKey == null;
+    clearEncryptionKey();
   }
 
   Future<String> _getBasePath() async {
@@ -133,36 +146,44 @@ class KeyStore {
     if (_cache != null) return Map.of(_cache!);
 
     final basePath = await _getBasePath();
-    final keysFile = File('$basePath/$_keysFileName');
 
-    if (!await keysFile.exists()) return {};
-
-    // When no external key is set, the file-based key must exist.
-    // Without either key source, we cannot decrypt — return empty.
-    if (_externalKey == null &&
-        !await File('$basePath/$_keyFileName').exists()) {
-      return {};
+    if (_encryptionKey != null) {
+      // Encrypted mode.
+      final encFile = File('$basePath/$_encFileName');
+      if (!await encFile.exists()) return {};
+      try {
+        final encData = await encFile.readAsBytes();
+        final json = AesGcm.decrypt(encData, _encryptionKey!);
+        return _parseAndCache(json);
+      } catch (e) {
+        AppLogger.instance.log('Failed to load keys: $e', name: 'KeyStore');
+        if (e is KeyStoreException) rethrow;
+        throw KeyStoreException(
+          'Failed to decrypt keys. Key may be incorrect.',
+          cause: e,
+        );
+      }
+    } else {
+      // Plaintext mode.
+      final jsonFile = File('$basePath/$_jsonFileName');
+      if (!await jsonFile.exists()) return {};
+      try {
+        final json = await jsonFile.readAsString();
+        return _parseAndCache(json);
+      } catch (e) {
+        AppLogger.instance.log('Failed to load keys: $e', name: 'KeyStore');
+        throw KeyStoreException('Failed to parse keys file.', cause: e);
+      }
     }
+  }
 
-    final keyBytes = await _resolveKey(basePath);
-
-    try {
-      final encData = await keysFile.readAsBytes();
-      final json = AesGcm.decrypt(encData, keyBytes);
-      final map = jsonDecode(json) as Map<String, dynamic>;
-      final result = map.map(
-        (k, v) => MapEntry(k, SshKeyEntry.fromJson(v as Map<String, dynamic>)),
-      );
-      _cache = result;
-      return Map.of(result);
-    } catch (e) {
-      AppLogger.instance.log('Failed to load keys: $e', name: 'KeyStore');
-      if (e is KeyStoreException) rethrow;
-      throw KeyStoreException(
-        'Failed to decrypt keys. Key file may be corrupted.',
-        cause: e,
-      );
-    }
+  Map<String, SshKeyEntry> _parseAndCache(String json) {
+    final map = jsonDecode(json) as Map<String, dynamic>;
+    final result = map.map(
+      (k, v) => MapEntry(k, SshKeyEntry.fromJson(v as Map<String, dynamic>)),
+    );
+    _cache = result;
+    return Map.of(result);
   }
 
   /// Load all keys, returning empty map on any error.
@@ -181,13 +202,40 @@ class KeyStore {
   /// Save all keys.
   Future<void> saveAll(Map<String, SshKeyEntry> keys) async {
     final basePath = await _getBasePath();
-    final keysFile = File('$basePath/$_keysFileName');
-
-    final keyBytes = await _resolveKey(basePath);
     final json = jsonEncode(keys.map((k, v) => MapEntry(k, v.toJson())));
-    final encData = AesGcm.encrypt(json, keyBytes);
-    await writeBytesAtomic(keysFile.path, encData);
+
+    if (_encryptionKey != null) {
+      final encData = AesGcm.encrypt(json, _encryptionKey!);
+      await writeBytesAtomic('$basePath/$_encFileName', encData);
+    } else {
+      await writeFileAtomic(
+        '$basePath/$_jsonFileName',
+        const JsonEncoder.withIndent(
+          '  ',
+        ).convert(keys.map((k, v) => MapEntry(k, v.toJson()))),
+      );
+    }
     _cache = Map.of(keys);
+  }
+
+  /// Re-encrypt all data with a new key and security level.
+  Future<void> reEncrypt(Uint8List? newKey, SecurityLevel newLevel) async {
+    final basePath = await _getBasePath();
+    final data = await loadAllSafe();
+
+    _encryptionKey = newKey;
+    _level = newLevel;
+    _cache = null;
+    await saveAll(data);
+
+    // Clean up opposite format file.
+    if (newKey != null) {
+      final jsonFile = File('$basePath/$_jsonFileName');
+      if (await jsonFile.exists()) await jsonFile.delete();
+    } else {
+      final encFile = File('$basePath/$_encFileName');
+      if (await encFile.exists()) await encFile.delete();
+    }
   }
 
   /// Get a single key entry.
@@ -296,30 +344,6 @@ class KeyStore {
     final hostKey = pair.toPublicKey();
     final encoded = base64Encode(hostKey.encode());
     return '${pair.type} $encoded $comment';
-  }
-
-  // ── AES-256-GCM encryption (same as CredentialStore) ─────────────
-
-  /// Resolve the encryption key: external key if set, otherwise from file.
-  Future<Uint8List> _resolveKey(String basePath) async {
-    if (_externalKey != null) return _externalKey!;
-    final keyFile = File('$basePath/$_keyFileName');
-    return _loadKey(keyFile);
-  }
-
-  Future<Uint8List> _loadKey(File keyFile) async {
-    if (!await keyFile.exists()) {
-      throw const KeyStoreException(
-        'Encryption key file not found. Save a session first to create it.',
-      );
-    }
-    final bytes = await keyFile.readAsBytes();
-    if (bytes.length != _keyLength) {
-      throw KeyStoreException(
-        'Invalid key length: ${bytes.length} bytes (expected $_keyLength)',
-      );
-    }
-    return bytes;
   }
 }
 
