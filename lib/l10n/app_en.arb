@@ -959,5 +959,20 @@
   "securitySetupNoKeychainHint": "This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).",
   "securitySetupRecommendMasterPassword": "We recommend setting a master password to protect your data.",
   "continueWithKeychain": "Continue with Keychain",
-  "continueWithoutEncryption": "Continue without Encryption"
+  "continueWithoutEncryption": "Continue without Encryption",
+
+  "securityLevel": "Security Level",
+  "securityLevelPlaintext": "None (plaintext)",
+  "securityLevelKeychain": "OS Keychain",
+  "securityLevelMasterPassword": "Master Password",
+  "keychainStatus": "Keychain",
+  "keychainAvailable": "Available ({name})",
+  "@keychainAvailable": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "keychainNotAvailable": "Not available",
+  "manageMasterPassword": "Manage Master Password",
+  "manageMasterPasswordSubtitle": "Set, change, or remove master password"
 }
