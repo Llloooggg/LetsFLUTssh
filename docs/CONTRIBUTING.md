@@ -121,6 +121,8 @@ Format: `type: short description`
 | `feat:`     | New features                    | Yes — under **Features**  |
 | `fix:`      | Bug fixes                       | Yes — under **Fixes**     |
 | `refactor:` | Code improvements (no new behavior) | Yes — under **Improvements** |
+| `perf:`     | Performance improvements        | Yes — under **Improvements** |
+| `build:`    | Build system, dependencies      | No                        |
 | `test:`     | Test changes only               | No                        |
 | `docs:`     | Documentation only              | No                        |
 | `chore:`    | Config, tooling                 | No                        |
