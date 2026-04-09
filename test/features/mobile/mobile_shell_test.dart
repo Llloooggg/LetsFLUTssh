@@ -10,6 +10,7 @@ import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_shell.dart';
+import 'package:letsflutssh/features/session_manager/session_panel.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/workspace/workspace_controller.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
@@ -1930,6 +1931,457 @@ void main() {
         isNotEmpty,
         reason: 'active tab should have accent stripe',
       );
+    });
+
+    testWidgets('sort by name reorders tabs alphabetically', (tester) async {
+      final connZ = Connection(
+        id: 'sort-z',
+        label: 'Zulu',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'z.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+      final connA = Connection(
+        id: 'sort-a',
+        label: 'Alpha',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'a.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(connZ, label: 'Zulu');
+                  b.addTerminalTab(connA, label: 'Alpha');
+                }),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Verify initial order: Zulu before Alpha (insertion order)
+      final zuluBefore = tester.getCenter(find.text('Zulu'));
+      final alphaBefore = tester.getCenter(find.text('Alpha'));
+      expect(zuluBefore.dx, lessThan(alphaBefore.dx));
+
+      // Open sort menu and select Sort by Name
+      await tester.tap(find.byIcon(Icons.sort));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sort by Name'));
+      await tester.pumpAndSettle();
+
+      // After sort by name: Alpha before Zulu
+      final alphaAfter = tester.getCenter(find.text('Alpha'));
+      final zuluAfter = tester.getCenter(find.text('Zulu'));
+      expect(alphaAfter.dx, lessThan(zuluAfter.dx));
+    });
+
+    testWidgets('sort by status puts connected tabs first', (tester) async {
+      final connDisconnected = Connection(
+        id: 'sort-disc',
+        label: 'Offline',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'off.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+      final connConnected = Connection(
+        id: 'sort-conn',
+        label: 'Online',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'on.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  // Add disconnected first, connected second
+                  b.addTerminalTab(connDisconnected, label: 'Offline');
+                  b.addTerminalTab(connConnected, label: 'Online');
+                }),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Open sort menu and select Sort by Status
+      await tester.tap(find.byIcon(Icons.sort));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sort by Status'));
+      await tester.pumpAndSettle();
+
+      // After sort by status: Online (connected) before Offline (disconnected)
+      final onlinePos = tester.getCenter(find.text('Online'));
+      final offlinePos = tester.getCenter(find.text('Offline'));
+      expect(onlinePos.dx, lessThan(offlinePos.dx));
+    });
+
+    testWidgets('toggling same sort option returns to unsorted', (
+      tester,
+    ) async {
+      final connZ = Connection(
+        id: 'toggle-z',
+        label: 'Zulu',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'z.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+      final connA = Connection(
+        id: 'toggle-a',
+        label: 'Alpha',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'a.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(connZ, label: 'Zulu');
+                  b.addTerminalTab(connA, label: 'Alpha');
+                }),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Sort by name
+      await tester.tap(find.byIcon(Icons.sort));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sort by Name'));
+      await tester.pumpAndSettle();
+
+      // Alpha should be first
+      expect(
+        tester.getCenter(find.text('Alpha')).dx,
+        lessThan(tester.getCenter(find.text('Zulu')).dx),
+      );
+
+      // Toggle same sort off
+      await tester.tap(find.byIcon(Icons.sort));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sort by Name'));
+      await tester.pumpAndSettle();
+
+      // Back to insertion order: Zulu first
+      expect(
+        tester.getCenter(find.text('Zulu')).dx,
+        lessThan(tester.getCenter(find.text('Alpha')).dx),
+      );
+    });
+
+    testWidgets('auto-switches to sessions when last terminal tab closes', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'auto-switch',
+        label: 'Solo',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState(
+                  (b) => b.addTerminalTab(conn, label: 'Solo'),
+                ),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Terminal page
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+      expect(find.text('Solo'), findsOneWidget);
+
+      // Close the only terminal tab via the close button
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      // Should auto-switch back to Sessions page (index 0)
+      // SessionPanel should be visible
+      expect(find.byType(SessionPanel), findsOneWidget);
+    });
+
+    testWidgets('exit confirmation dialog shows on back press with tabs', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'exit-test',
+        label: 'Server',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState(
+                  (b) => b.addTerminalTab(conn, label: 'Server'),
+                ),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // We're on Sessions page (index 0) with active tabs → back triggers confirm
+      // Simulate system back button via PopScope
+      final dynamic widgetsApp = tester.state(find.byType(WidgetsApp));
+      // ignore: avoid_dynamic_calls
+      await widgetsApp.didPopRoute();
+      await tester.pumpAndSettle();
+
+      // Exit confirmation dialog should appear
+      expect(find.text('Exit'), findsWidgets);
+      expect(
+        find.textContaining('Active sessions will be disconnected'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('sort button icon color reflects active sort', (tester) async {
+      final conn1 = Connection(
+        id: 'icon-t1',
+        label: 'First',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'a.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+      final conn2 = Connection(
+        id: 'icon-t2',
+        label: 'Second',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'b.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(conn1, label: 'First');
+                  b.addTerminalTab(conn2, label: 'Second');
+                }),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Initially sort icon is dim (no sort active)
+      final sortIconBefore = tester.widget<Icon>(find.byIcon(Icons.sort));
+      expect(sortIconBefore.color, AppTheme.fgDim);
+
+      // Activate sort by name
+      await tester.tap(find.byIcon(Icons.sort));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sort by Name'));
+      await tester.pumpAndSettle();
+
+      // Sort icon should now be accent colored
+      final sortIconAfter = tester.widget<Icon>(find.byIcon(Icons.sort));
+      expect(sortIconAfter.color, AppTheme.accent);
+    });
+
+    testWidgets('sort menu shows check mark next to active sort', (
+      tester,
+    ) async {
+      final conn1 = Connection(
+        id: 'check-t1',
+        label: 'First',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'a.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+      final conn2 = Connection(
+        id: 'check-t2',
+        label: 'Second',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'b.com', user: 'u'),
+        ),
+        sshConnection: null,
+        state: SSHConnectionState.disconnected,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(SessionStore()),
+            sessionProvider.overrideWith(SessionNotifier.new),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              ConnectionManager(knownHosts: KnownHostsManager()),
+            ),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState((b) {
+                  b.addTerminalTab(conn1, label: 'First');
+                  b.addTerminalTab(conn2, label: 'Second');
+                }),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const MobileShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      // Activate sort by name
+      await tester.tap(find.byIcon(Icons.sort));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sort by Name'));
+      await tester.pumpAndSettle();
+
+      // Open menu again — check mark should appear next to Sort by Name
+      await tester.tap(find.byIcon(Icons.sort));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.check), findsOneWidget);
     });
   });
 }

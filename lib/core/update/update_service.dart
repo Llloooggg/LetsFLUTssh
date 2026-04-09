@@ -81,6 +81,10 @@ typedef FileDownloader =
       void Function(int received, int total)? onProgress,
     );
 
+/// Callback type for running a process — injectable for testing.
+typedef ProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
+
 /// Checks GitHub releases for updates and downloads assets.
 ///
 /// HTTP operations are injected for testability — production code uses
@@ -93,10 +97,15 @@ class UpdateService {
 
   final HttpFetcher _fetch;
   final FileDownloader _download;
+  final ProcessRunner _runProcess;
 
-  UpdateService({HttpFetcher? fetch, FileDownloader? download})
-    : _fetch = fetch ?? defaultFetch,
-      _download = download ?? defaultDownload;
+  UpdateService({
+    HttpFetcher? fetch,
+    FileDownloader? download,
+    ProcessRunner? runProcess,
+  }) : _fetch = fetch ?? defaultFetch,
+       _download = download ?? defaultDownload,
+       _runProcess = runProcess ?? Process.run;
 
   /// True if [uri] uses HTTPS and a host GitHub uses for release assets
   /// (same-origin policy for [browser_download_url] and redirect targets).
@@ -309,13 +318,13 @@ class UpdateService {
         'Opening file with xdg-open: $path',
         name: 'UpdateService',
       );
-      result = await Process.run('xdg-open', [path]);
+      result = await _runProcess('xdg-open', [path]);
     } else if (Platform.isMacOS) {
       AppLogger.instance.log(
         'Opening file with open: $path',
         name: 'UpdateService',
       );
-      result = await Process.run('open', [path]);
+      result = await _runProcess('open', [path]);
     } else if (Platform.isWindows) {
       if (_unsafePathChars.hasMatch(path)) {
         AppLogger.instance.log(
@@ -328,7 +337,7 @@ class UpdateService {
         'Opening file with cmd /c start: $path',
         name: 'UpdateService',
       );
-      result = await Process.run('cmd', ['/c', 'start', '', path]);
+      result = await _runProcess('cmd', ['/c', 'start', '', path]);
     } else {
       AppLogger.instance.log(
         'Cannot open file: unsupported platform',

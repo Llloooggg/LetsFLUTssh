@@ -545,5 +545,216 @@ void main() {
         expect(result, isNotEmpty);
       });
     });
+
+    group('errno localization coverage', () {
+      // POSIX errno codes via FileSystemException
+      test('errno 1 — Operation not permitted', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 1));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 2 — No such file or directory', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 2));
+        expect(localizeError(l10n, e), contains('/f'));
+      });
+      test('errno 5 — I/O error', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 5));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 12 — Out of memory', () {
+        const e = SocketException('x', osError: OSError('loc', 12));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 17 — File exists', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 17));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 20 — Not a directory', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 20));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 21 — Is a directory', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 21));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 22 — Invalid argument', () {
+        const e = FileSystemException('x', null, OSError('loc', 22));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 23 — Too many open files', () {
+        const e = FileSystemException('x', null, OSError('loc', 23));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 28 — No space left on device', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 28));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 32 — Broken pipe', () {
+        const e = SocketException('x', osError: OSError('loc', 32));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 36 — File name too long', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 36));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 39 — Directory not empty', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 39));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 98 — Address already in use', () {
+        const e = SocketException('x', osError: OSError('loc', 98));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 99 — Cannot assign address', () {
+        const e = SocketException('x', osError: OSError('loc', 99));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 100 — Network is down', () {
+        const e = SocketException('x', osError: OSError('loc', 100));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 101 — Network is unreachable', () {
+        const e = SocketException('x', osError: OSError('loc', 101));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 112 — Host is down', () {
+        const e = SocketException('x', osError: OSError('loc', 112));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+
+      // Windows Winsock codes
+      test('errno 10013 — Permission denied (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10013));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10048 — Address in use (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10048));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10049 — Cannot assign address (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10049));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10050 — Network down (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10050));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10051 — Network unreachable (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10051));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10053 — Connection aborted (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10053));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10054 — Connection reset (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10054));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10056 — Already connected (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10056));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10057 — Not connected (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10057));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10064 — Host is down (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10064));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+    });
+
+    group('sanitizeError — errno English coverage', () {
+      test('errno 1 — Operation not permitted', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 1));
+        expect(sanitizeError(e), 'Operation not permitted: /f');
+      });
+      test('errno 5 — I/O error', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 5));
+        expect(sanitizeError(e), 'I/O error: /f');
+      });
+      test('errno 12 — Out of memory', () {
+        const e = SocketException('x', osError: OSError('loc', 12));
+        expect(sanitizeError(e), 'Out of memory');
+      });
+      test('errno 17 — File exists', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 17));
+        expect(sanitizeError(e), 'File exists: /f');
+      });
+      test('errno 20 — Not a directory', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 20));
+        expect(sanitizeError(e), 'Not a directory: /f');
+      });
+      test('errno 21 — Is a directory', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 21));
+        expect(sanitizeError(e), 'Is a directory: /f');
+      });
+      test('errno 22 — Invalid argument', () {
+        const e = SocketException('x', osError: OSError('loc', 22));
+        expect(sanitizeError(e), 'Invalid argument');
+      });
+      test('errno 28 — No space left on device', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 28));
+        expect(sanitizeError(e), 'No space left on device: /f');
+      });
+      test('errno 32 — Broken pipe', () {
+        const e = SocketException('x', osError: OSError('loc', 32));
+        expect(sanitizeError(e), 'Broken pipe');
+      });
+      test('errno 36 — File name too long', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 36));
+        expect(sanitizeError(e), 'File name too long: /f');
+      });
+      test('errno 39 — Directory not empty', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 39));
+        expect(sanitizeError(e), 'Directory not empty: /f');
+      });
+      test('errno 98 — Address already in use', () {
+        const e = SocketException('x', osError: OSError('loc', 98));
+        expect(sanitizeError(e), 'Address already in use');
+      });
+      test('errno 100 — Network is down', () {
+        const e = SocketException('x', osError: OSError('loc', 100));
+        expect(sanitizeError(e), 'Network is down');
+      });
+      test('errno 101 — Network is unreachable', () {
+        const e = SocketException('x', osError: OSError('loc', 101));
+        expect(sanitizeError(e), 'Network is unreachable');
+      });
+      test('errno 112 — Host is down', () {
+        const e = SocketException('x', osError: OSError('loc', 112));
+        expect(sanitizeError(e), 'Host is down');
+      });
+
+      // Windows Winsock
+      test('errno 10013 — Permission denied (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10013));
+        expect(sanitizeError(e), 'Permission denied');
+      });
+      test('errno 10048 — Address already in use (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10048));
+        expect(sanitizeError(e), 'Address already in use');
+      });
+      test('errno 10050 — Network is down (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10050));
+        expect(sanitizeError(e), 'Network is down');
+      });
+      test('errno 10053 — Connection aborted (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10053));
+        expect(sanitizeError(e), 'Connection aborted');
+      });
+      test('errno 10054 — Connection reset (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10054));
+        expect(sanitizeError(e), 'Connection reset by peer');
+      });
+      test('errno 10056 — Already connected (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10056));
+        expect(sanitizeError(e), 'Already connected');
+      });
+      test('errno 10057 — Not connected (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10057));
+        expect(sanitizeError(e), 'Not connected');
+      });
+    });
   });
 }

@@ -656,6 +656,7 @@ class UpdateService {
   // User can skip a version (skippedVersion in config).
   // Stale skip auto-clears when a newer version supersedes the skipped one.
   //
+  // DI: HttpFetcher, FileDownloader, ProcessRunner — all injectable for testing.
   // Download: follows redirects (max 10), validates trusted hosts.
   // openFile(): platform launcher, validates Windows paths against shell metacharacters.
   // Progress: throttled to 1% increments in UpdateNotifier to reduce state churn.
@@ -2196,7 +2197,7 @@ Two layers of fuzz testing:
 
 Two branches: **`dev`** (daily work) and **`main`** (releases only).
 
-- All app development happens on `dev`. Push freely — CI, SonarCloud, OSV-Scanner, Semgrep run on every push. No tags, no builds, no releases.
+- All app development happens on `dev`. Push freely — CI and security scans run on PRs (not on every push). No tags, no builds, no releases.
 - To release: merge `dev` → `main`. Everything is automatic: CI → auto-tag → build → release.
 - Never push app changes directly to `main`. Dependabot PRs and CI/docs-only fixes are exceptions.
 - **Contributors** work via forks → PR into `dev`. CI runs on PRs automatically. Maintainer reviews and merges.
@@ -2255,7 +2256,7 @@ Manual build
 
 | Workflow | Trigger | Branches | Purpose | Blocks release? |
 |----------|---------|----------|---------|-----------------|
-| `ci.yml` | push/PR (all paths) | main, dev | analyze + test + coverage | Yes (required) |
+| `ci.yml` | push main / PR (all) | main, dev | analyze + test + coverage | Yes (required) |
 | `ci-auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
 | `build-release.yml` | push tag v* / manual | — | Build all platforms + release | — |
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
