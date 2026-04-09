@@ -3,6 +3,11 @@ name: ClusterFuzzLite
 on:
   push:
     branches: [main]
+    paths:
+      - 'lib/**'
+      - 'fuzz/**'
+      - 'pubspec.*'
+      - '.github/workflows/cfl-fuzz.yml'
   pull_request:
     branches: [main]
   workflow_dispatch:
