@@ -1,9 +1,10 @@
-import 'dart:io' show exit;
+import 'dart:io' show File, exit;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'l10n/app_localizations.dart';
 import 'core/config/config_store.dart';
@@ -11,13 +12,18 @@ import 'core/shortcut_registry.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
+import 'core/security/aes_gcm.dart';
+import 'core/security/master_password.dart';
+import 'core/security/secure_key_storage.dart';
+import 'core/security/security_level.dart';
+import 'core/import/import_service.dart';
 import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
-import 'core/import/import_service.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/app_dialog.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/passphrase_dialog.dart';
+import 'widgets/security_setup_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/cross_marquee_controller.dart';
@@ -33,9 +39,8 @@ import 'features/workspace/workspace_view.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/key_provider.dart';
-import 'core/security/master_password.dart';
-import 'core/security/security_level.dart';
 import 'providers/master_password_provider.dart';
+import 'providers/security_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/theme_provider.dart';
@@ -142,7 +147,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(appVersionProvider.notifier).load();
-      await _unlockIfNeeded();
+      await _initSecurity();
       await ref.read(sessionProvider.notifier).load();
       if (_credentialsWereReset) {
         _credentialsWereReset = false;
@@ -179,36 +184,127 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ref.read(sessionProvider.notifier).load();
   }
 
-  /// Check if master password is enabled and show unlock dialog if needed.
-  ///
-  /// On success, injects the derived key into SessionStore and KeyStore.
-  /// On reset (forgot password), stores are cleared — sessions load without
-  /// credentials.
+  static const _flagFileName = 'security_initialized';
+
   /// True when the user chose "forgot password" — used to show a toast
   /// after sessions load (needs l10n context).
   bool _credentialsWereReset = false;
 
-  Future<void> _unlockIfNeeded() async {
+  /// Determine security level on startup.
+  ///
+  /// - First launch (no flag file): show [SecuritySetupDialog] wizard.
+  /// - Existing install with master password: show [UnlockDialog].
+  /// - Existing install with keychain: read key from OS keychain.
+  /// - Otherwise: plaintext mode.
+  ///
+  /// After resolving, injects the encryption key into all three stores
+  /// (SessionStore, KeyStore, KnownHostsManager) and updates the global
+  /// [securityStateProvider].
+  Future<void> _initSecurity() async {
+    final dir = await getApplicationSupportDirectory();
+    final flagFile = File('${dir.path}/$_flagFileName');
     final manager = ref.read(masterPasswordProvider);
-    final isEnabled = await manager.isEnabled();
-    if (!isEnabled || !mounted) return;
+    final keyStorage = ref.read(secureKeyStorageProvider);
 
-    final key = await _showUnlockDialog(manager);
-    if (key != null) {
-      // Inject derived key into stores.
-      ref
-          .read(sessionStoreProvider)
-          .setEncryptionKey(key, SecurityLevel.masterPassword);
-      ref.read(keyStoreProvider).setExternalKey(key);
-      AppLogger.instance.log('Master password unlocked', name: 'App');
+    if (!await flagFile.exists()) {
+      // ── First launch ──────────────────────────────────────────────
+      await _firstLaunchSetup(flagFile, manager, keyStorage);
     } else {
-      // User chose "forgot password" — stores were reset by UnlockDialog.
-      _credentialsWereReset = true;
+      // ── Existing install ──────────────────────────────────────────
+      await _existingInstallUnlock(manager, keyStorage);
+    }
+  }
+
+  /// First-launch flow: show wizard, configure security, write flag file.
+  Future<void> _firstLaunchSetup(
+    File flagFile,
+    MasterPasswordManager manager,
+    SecureKeyStorage keyStorage,
+  ) async {
+    if (!mounted) return;
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
+
+    final result = await SecuritySetupDialog.show(ctx, keyStorage: keyStorage);
+
+    if (!mounted) return;
+
+    if (result.masterPassword != null) {
+      // User chose master password.
+      final key = await manager.enable(result.masterPassword!);
+      _injectKey(key, SecurityLevel.masterPassword);
       AppLogger.instance.log(
-        'Master password reset — credentials cleared',
+        'First launch: master password enabled',
+        name: 'App',
+      );
+    } else if (result.keychainAvailable) {
+      // User chose OS keychain.
+      final key = AesGcm.generateKey();
+      final stored = await keyStorage.writeKey(key);
+      if (stored) {
+        _injectKey(key, SecurityLevel.keychain);
+        AppLogger.instance.log(
+          'First launch: keychain encryption enabled',
+          name: 'App',
+        );
+      } else {
+        AppLogger.instance.log(
+          'First launch: keychain write failed, falling back to plaintext',
+          name: 'App',
+        );
+      }
+    } else {
+      AppLogger.instance.log(
+        'First launch: plaintext mode (no keychain, no master password)',
         name: 'App',
       );
     }
+
+    await flagFile.create();
+  }
+
+  /// Existing install: check master password → keychain → plaintext.
+  Future<void> _existingInstallUnlock(
+    MasterPasswordManager manager,
+    SecureKeyStorage keyStorage,
+  ) async {
+    final isPasswordEnabled = await manager.isEnabled();
+
+    if (isPasswordEnabled && mounted) {
+      // Master password flow.
+      final key = _showUnlockDialog(manager);
+      final derivedKey = await key;
+      if (derivedKey != null) {
+        _injectKey(derivedKey, SecurityLevel.masterPassword);
+        AppLogger.instance.log('Master password unlocked', name: 'App');
+      } else {
+        _credentialsWereReset = true;
+        AppLogger.instance.log(
+          'Master password reset — credentials cleared',
+          name: 'App',
+        );
+      }
+      return;
+    }
+
+    // Try OS keychain.
+    final keychainKey = await keyStorage.readKey();
+    if (keychainKey != null) {
+      _injectKey(keychainKey, SecurityLevel.keychain);
+      AppLogger.instance.log('Keychain key loaded', name: 'App');
+      return;
+    }
+
+    // Plaintext — nothing to do.
+    AppLogger.instance.log('Plaintext mode (no encryption)', name: 'App');
+  }
+
+  /// Inject the encryption key into all data stores and update global state.
+  void _injectKey(Uint8List key, SecurityLevel level) {
+    ref.read(sessionStoreProvider).setEncryptionKey(key, level);
+    ref.read(keyStoreProvider).setEncryptionKey(key, level);
+    ref.read(knownHostsProvider).setEncryptionKey(key, level);
+    ref.read(securityStateProvider.notifier).set(level, key);
   }
 
   /// Show unlock dialog using the navigator key context.
