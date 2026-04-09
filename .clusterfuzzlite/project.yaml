@@ -1,0 +1,5 @@
+language: c
+fuzzing_engines:
+  - afl
+sanitizers:
+  - undefined

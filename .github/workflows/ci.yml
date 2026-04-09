@@ -77,7 +77,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ERRORS=""
-          PATTERN='^(feat|fix|refactor|test|docs|chore|ci)(\([a-z]+\))?: \S.+'
+          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci)(\([a-z]+\))?: \S.+'
 
           # Get all commits in the PR
           COMMITS=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '.commits[].messageHeadline')
@@ -97,7 +97,7 @@ jobs:
             echo "::error::Some commit messages don't follow the required format."
             echo ""
             echo "Expected format: type: short description"
-            echo "Valid types: feat, fix, refactor, test, docs, chore, ci"
+            echo "Valid types: feat, fix, refactor, perf, build, test, docs, chore, ci"
             echo ""
             echo "Invalid commits:"
             echo -e "$ERRORS"

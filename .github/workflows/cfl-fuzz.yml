@@ -1,0 +1,49 @@
+name: ClusterFuzzLite
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fuzz/**'
+      - '.clusterfuzzlite/**'
+      - '.github/workflows/cfl-fuzz.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'fuzz/**'
+      - '.clusterfuzzlite/**'
+      - '.github/workflows/cfl-fuzz.yml'
+  schedule:
+    - cron: '0 4 * * 6' # weekly Saturday 04:00 UTC
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  fuzz:
+    name: ClusterFuzzLite batch fuzzing
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [undefined]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Build and run fuzzers
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
+        with:
+          language: c
+          sanitizer: ${{ matrix.sanitizer }}
+
+      - name: Run fuzzers
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
+        with:
+          fuzz-seconds: 300
+          mode: batch
+          sanitizer: ${{ matrix.sanitizer }}
