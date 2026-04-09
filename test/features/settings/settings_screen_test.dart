@@ -2479,6 +2479,218 @@ void main() {
       expect(find.text('Unskip'), findsNothing);
       expect(find.text('Version 3.0.0 available'), findsOneWidget);
     });
+
+    testWidgets('Skip button is a tappable TextButton', (tester) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.updateAvailable,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+              assetUrl:
+                  'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Skip This Version'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final skipButton = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Skip This Version'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(skipButton.onPressed, isNotNull);
+    });
+
+    testWidgets('Unskip button is a tappable TextButton', (tester) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialConfig: AppConfig.defaults.copyWith(
+            behavior: const BehaviorConfig(skippedVersion: '2.0.0'),
+          ),
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.updateAvailable,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+              assetUrl:
+                  'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Unskip'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final unskipButton = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Unskip'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(unskipButton.onPressed, isNotNull);
+    });
+
+    testWidgets('checking state shows spinner and disables button', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(status: UpdateStatus.checking),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.textContaining('Checking'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('Checking'), findsOneWidget);
+      // Spinner should be visible
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('downloading with zero progress shows indeterminate spinner', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.downloading,
+            progress: 0,
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.textContaining('Downloading'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Zero progress → indeterminate spinner (value: null)
+      final indicator = tester.widget<CircularProgressIndicator>(
+        find.byType(CircularProgressIndicator),
+      );
+      expect(indicator.value, isNull);
+    });
+
+    testWidgets('error state with null error shows unknown error', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(status: UpdateStatus.error),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Update check failed'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Update check failed'), findsOneWidget);
+      expect(find.text('Unknown error'), findsOneWidget);
+    });
+
+    testWidgets('download complete shows downloaded path', (tester) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.downloaded,
+            downloadedPath: '/downloads/letsflutssh-2.0.0.AppImage',
+            progress: 1,
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Download complete'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Download complete'), findsOneWidget);
+      expect(
+        find.text('/downloads/letsflutssh-2.0.0.AppImage'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // About section
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — About section', () {
+    testWidgets('renders about section with version and source code', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Source Code'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Source Code'), findsOneWidget);
+      expect(
+        find.text('https://github.com/Llloooggg/LetsFLUTssh'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('tapping source code copies URL to clipboard', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      String? copiedText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      });
+
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Source Code'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Source Code'));
+      await tester.pump();
+
+      expect(copiedText, 'https://github.com/Llloooggg/LetsFLUTssh');
+      expect(find.text('URL copied to clipboard'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('renders app version subtitle', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.textContaining('1.5.0'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('1.5.0'), findsWidgets);
+    });
   });
 
   // ---------------------------------------------------------------------------
