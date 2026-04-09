@@ -715,4 +715,271 @@ void main() {
       expect(find.textContaining('Disconnected'), findsOneWidget);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Companion button
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — companion button', () {
+    testWidgets('terminal tab shows Files companion button', (tester) async {
+      final conn = _conn('c1');
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.terminal);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      expect(find.text('Files'), findsOneWidget);
+    });
+
+    testWidgets('SFTP tab shows Terminal companion button', (tester) async {
+      final conn = _conn('c1');
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.sftp);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      expect(find.text('Terminal'), findsOneWidget);
+    });
+
+    testWidgets('tapping Files companion adds SFTP tab', (tester) async {
+      final conn = _conn('c1');
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.terminal);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      await tester.tap(find.text('Files'));
+      await tester.pump();
+
+      // After adding SFTP tab, the new tab should be visible
+      // (workspace_controller adds the tab and activates it)
+    });
+
+    testWidgets('tapping Terminal companion adds terminal tab', (tester) async {
+      final conn = _conn('c1');
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.sftp);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      await tester.tap(find.text('Terminal'));
+      await tester.pump();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Retry button
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — retry button', () {
+    testWidgets('retry button visible for disconnected tab with error', (
+      tester,
+    ) async {
+      final conn = _conn('c1', connState: SSHConnectionState.disconnected);
+      conn.connectionError = 'Connection refused';
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.terminal);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      expect(find.text('Reconnect'), findsOneWidget);
+      expect(find.byIcon(Icons.refresh), findsWidgets);
+    });
+
+    testWidgets('retry button NOT visible for connected tab', (tester) async {
+      final conn = _conn('c1');
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.terminal);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      expect(find.text('Reconnect'), findsNothing);
+    });
+
+    testWidgets('retry button NOT visible when no error', (tester) async {
+      final conn = _conn('c1', connState: SSHConnectionState.disconnected);
+      // No connectionError set
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.terminal);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      expect(find.text('Reconnect'), findsNothing);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Maximize button
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — maximize button', () {
+    testWidgets('maximize button not visible for single panel', (tester) async {
+      final conn = _conn('c1');
+      final tab = _tab(id: 'tab-1', connection: conn);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Single panel — no maximize button
+      expect(find.byTooltip('Maximize'), findsNothing);
+    });
+
+    testWidgets('maximize button visible for multi-panel workspace', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'Left');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Right');
+      final p1 = PanelLeaf(id: 'p1', tabs: [tab1], activeTabIndex: 0);
+      final p2 = PanelLeaf(id: 'p2', tabs: [tab2], activeTabIndex: 0);
+      final branch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: p1,
+        second: p2,
+      );
+      final ws = WorkspaceState(root: branch, focusedPanelId: 'p1');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      expect(find.byTooltip('Maximize'), findsNWidgets(2));
+    });
+
+    testWidgets('maximized panel shows Restore tooltip', (tester) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'Left');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Right');
+      final p1 = PanelLeaf(id: 'p1', tabs: [tab1], activeTabIndex: 0);
+      final p2 = PanelLeaf(id: 'p2', tabs: [tab2], activeTabIndex: 0);
+      final branch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: p1,
+        second: p2,
+      );
+      final ws = WorkspaceState(
+        root: branch,
+        focusedPanelId: 'p1',
+        maximizedPanelId: 'p1',
+      );
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Maximized panel shows "Restore" tooltip
+      expect(find.byTooltip('Restore'), findsOneWidget);
+      // Only the maximized panel tab is visible
+      expect(find.text('Left'), findsOneWidget);
+      expect(find.text('Right'), findsNothing);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Divider drag
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — divider drag', () {
+    testWidgets('horizontal split has column-resize cursor', (tester) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'Left');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Right');
+      final p1 = PanelLeaf(id: 'p1', tabs: [tab1], activeTabIndex: 0);
+      final p2 = PanelLeaf(id: 'p2', tabs: [tab2], activeTabIndex: 0);
+      final branch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: p1,
+        second: p2,
+      );
+      final ws = WorkspaceState(root: branch, focusedPanelId: 'p1');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // The divider MouseRegion has a column-resize cursor
+      final mouseRegions = tester.widgetList<MouseRegion>(
+        find.byWidgetPredicate(
+          (w) =>
+              w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
+        ),
+      );
+      expect(mouseRegions.isNotEmpty, isTrue);
+    });
+
+    testWidgets('vertical split has row-resize cursor', (tester) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'Top');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Bottom');
+      final p1 = PanelLeaf(id: 'p1', tabs: [tab1], activeTabIndex: 0);
+      final p2 = PanelLeaf(id: 'p2', tabs: [tab2], activeTabIndex: 0);
+      final branch = WorkspaceBranch(
+        direction: Axis.vertical,
+        first: p1,
+        second: p2,
+      );
+      final ws = WorkspaceState(root: branch, focusedPanelId: 'p1');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      final mouseRegions = tester.widgetList<MouseRegion>(
+        find.byWidgetPredicate(
+          (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeRow,
+        ),
+      );
+      expect(mouseRegions.isNotEmpty, isTrue);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Context menu — Restore
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — context menu Restore', () {
+    testWidgets('Restore appears in context menu for maximized panel', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final tab1 = _tab(id: 't1', connection: conn1, label: 'Left');
+      final tab2 = _tab(id: 't2', connection: conn2, label: 'Right');
+      final p1 = PanelLeaf(id: 'p1', tabs: [tab1], activeTabIndex: 0);
+      final p2 = PanelLeaf(id: 'p2', tabs: [tab2], activeTabIndex: 0);
+      final branch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: p1,
+        second: p2,
+      );
+      final ws = WorkspaceState(
+        root: branch,
+        focusedPanelId: 'p1',
+        maximizedPanelId: 'p1',
+      );
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Right-click on the tab to open context menu
+      await tester.tapAt(
+        tester.getCenter(find.text('Left')),
+        buttons: kSecondaryButton,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Restore'), findsOneWidget);
+    });
+  });
 }

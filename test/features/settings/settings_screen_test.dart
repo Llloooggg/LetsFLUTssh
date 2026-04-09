@@ -2796,4 +2796,199 @@ void main() {
       expect(find.text('SETTINGS'), findsOneWidget);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Transfers — Calculate Folder Sizes toggle
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Calculate Folder Sizes', () {
+    testWidgets('renders toggle with default off', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.scrollUntilVisible(
+        find.text('Calculate Folder Sizes'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Calculate Folder Sizes'), findsOneWidget);
+      // Default is false — pill should have bg4 color (off state)
+      final transferRow = find
+          .ancestor(
+            of: find.text('Calculate Folder Sizes'),
+            matching: find.byType(Row),
+          )
+          .first;
+      final offPill = find.descendant(
+        of: transferRow,
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).color == AppTheme.bg4,
+        ),
+      );
+      expect(offPill, findsOneWidget);
+    });
+
+    testWidgets('renders toggle as on when enabled', (tester) async {
+      final config = AppConfig.defaults.copyWith(
+        ui: const UiConfig(showFolderSizes: true),
+      );
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await tester.scrollUntilVisible(
+        find.text('Calculate Folder Sizes'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final transferRow = find
+          .ancestor(
+            of: find.text('Calculate Folder Sizes'),
+            matching: find.byType(Row),
+          )
+          .first;
+      final onPill = find.descendant(
+        of: transferRow,
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).color == AppTheme.accent,
+        ),
+      );
+      expect(onPill, findsOneWidget);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // QR Export — empty sessions
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — QR Export', () {
+    testWidgets('empty sessions shows warning toast', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildFullApp());
+      await tester.scrollUntilVisible(
+        find.text('Share via QR Code'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Share via QR Code'));
+      await tester.pump();
+
+      expect(find.text('No sessions to export'), findsOneWidget);
+      Toast.clearAllForTest();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Updates — Install Now failure toast
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Install Now', () {
+    testWidgets('install failure shows toast', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // Create a mock update service whose openFile always fails
+      final mockService = UpdateService(
+        fetch: (_) async => '[]',
+        runProcess: (_, _) async => ProcessResult(0, 1, '', 'failed'),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith(
+              () => PrePopulatedConfigNotifier(AppConfig.defaults),
+            ),
+            appVersionProvider.overrideWith(
+              () => FixedVersionNotifier('1.5.0'),
+            ),
+            updateServiceProvider.overrideWithValue(mockService),
+            updateProvider.overrideWith(
+              () => PrePopulatedUpdateNotifier(
+                const UpdateState(
+                  status: UpdateStatus.downloaded,
+                  downloadedPath: '/tmp/letsflutssh-2.0.0.AppImage',
+                  progress: 1,
+                ),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const SettingsScreen(),
+          ),
+        ),
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Install Now'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Install Now'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      expect(find.text('Could not open installer'), findsOneWidget);
+      Toast.clearAllForTest();
+    });
+
+    testWidgets('download & install button visible on desktop with asset', (
+      tester,
+    ) async {
+      plat.debugMobilePlatformOverride = false;
+      plat.debugDesktopPlatformOverride = true;
+      addTearDown(() {
+        plat.debugMobilePlatformOverride = true;
+        plat.debugDesktopPlatformOverride = false;
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            configProvider.overrideWith(
+              () => PrePopulatedConfigNotifier(AppConfig.defaults),
+            ),
+            appVersionProvider.overrideWith(
+              () => FixedVersionNotifier('1.5.0'),
+            ),
+            updateProvider.overrideWith(
+              () => PrePopulatedUpdateNotifier(
+                const UpdateState(
+                  status: UpdateStatus.updateAvailable,
+                  info: UpdateInfo(
+                    latestVersion: '2.0.0',
+                    currentVersion: '1.5.0',
+                    releaseUrl: 'https://github.com/releases',
+                    assetUrl:
+                        'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/file.AppImage',
+                  ),
+                ),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const SizedBox(height: 2000, child: SettingsScreen()),
+          ),
+        ),
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Download & Install'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Download & Install'), findsOneWidget);
+    });
+  });
 }
