@@ -37,6 +37,9 @@ while IFS= read -r MSG; do
   # Skip version-bump commits
   echo "$MSG" | grep -qE '^chore: bump version ' && continue
 
+  # Skip revert commits
+  echo "$MSG" | grep -qE '^Revert "' && continue
+
   # BREAKING CHANGE → major
   if echo "$MSG" | grep -qiE 'BREAKING CHANGE|^[a-z]+(\([a-z0-9_-]+\))?!:'; then
     BUMP="major"
