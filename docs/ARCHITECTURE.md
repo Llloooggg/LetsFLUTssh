@@ -2157,7 +2157,7 @@ Two layers of fuzz testing:
 
 **Standalone fuzz harnesses** (`fuzz/`): compiled to native via `dart compile exe` (`make fuzz-build`). Read from stdin, exercise parsing logic, used by ClusterFuzzLite/AFL++ in CI. Targets: `fuzz_json_parser`, `fuzz_known_hosts`, `fuzz_uri_parser`.
 
-**CI integration**: `.github/workflows/cfl-fuzz.yml` runs ClusterFuzzLite on PRs to main. Detected by OpenSSF Scorecard's Fuzzing check.
+**CI integration**: `.github/workflows/cfl-fuzz.yml` runs ClusterFuzzLite on push to main and PRs to main. Detected by OpenSSF Scorecard's Fuzzing check.
 
 ---
 
@@ -2199,7 +2199,7 @@ push to dev/main or PR
   │                             build all platforms
   │                             → GitHub Release + SLSA attestation
   │
-  ├─► cfl-fuzz.yml             (PR to main)
+  ├─► cfl-fuzz.yml             (push main / PR to main)
   │     ClusterFuzzLite batch fuzzing
   │
   ├─► osv.yml                 (main push + PR + weekly)
@@ -2234,7 +2234,7 @@ Manual build
 | `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
 | `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
-| `cfl-fuzz.yml` | PR to main | main | ClusterFuzzLite batch fuzzing | No |
+| `cfl-fuzz.yml` | push main / PR to main | main | ClusterFuzzLite batch fuzzing | No |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 
 **External Integrations:**
