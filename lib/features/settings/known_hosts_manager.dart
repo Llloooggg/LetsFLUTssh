@@ -79,34 +79,34 @@ class _KnownHostsManagerDialogState
           children: [
             _buildToolbar(s, totalCount),
             const Divider(height: 1),
-            Expanded(
-              child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : entries.isEmpty
-                  ? Center(
-                      child: Text(
-                        totalCount == 0
-                            ? s.knownHostsEmpty
-                            : s.knownHostsCount(0),
-                        style: TextStyle(
-                          color: AppTheme.fgDim,
-                          fontSize: AppFonts.sm,
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      itemCount: entries.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) =>
-                          _buildEntry(s, entries[index]),
-                    ),
-            ),
+            Expanded(child: _buildBody(s, entries, totalCount)),
           ],
         ),
       ),
       actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+    );
+  }
+
+  Widget _buildBody(
+    S s,
+    List<MapEntry<String, String>> entries,
+    int totalCount,
+  ) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    if (entries.isEmpty) {
+      return Center(
+        child: Text(
+          totalCount == 0 ? s.knownHostsEmpty : s.knownHostsCount(0),
+          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
+        ),
+      );
+    }
+    return ListView.separated(
+      itemCount: entries.length,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, index) => _buildEntry(s, entries[index]),
     );
   }
 

@@ -181,11 +181,11 @@ void main() {
   });
 
   group('KeyStore with external key', () {
-    test('setExternalKey allows loadAll and saveAll', () async {
+    test('setEncryptionKey allows loadAll and saveAll', () async {
       final key = await manager.enable('mypassword');
       final store = KeyStore();
 
-      store.setExternalKey(key);
+      store.setEncryptionKey(key, SecurityLevel.masterPassword);
       await store.saveAll({
         'k1': SshKeyEntry(
           id: 'k1',
@@ -198,7 +198,7 @@ void main() {
       });
 
       final store2 = KeyStore();
-      store2.setExternalKey(key);
+      store2.setEncryptionKey(key, SecurityLevel.masterPassword);
       final all = await store2.loadAll();
       expect(all['k1']?.label, 'test');
     });

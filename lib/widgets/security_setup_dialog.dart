@@ -137,15 +137,17 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           constraints: const BoxConstraints(maxWidth: 440),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: _probing
-                ? _buildProbing()
-                : _showPasswordForm
-                ? _buildPasswordForm(l10n)
-                : _buildChoice(l10n),
+            child: _buildContent(l10n),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildContent(S l10n) {
+    if (_probing) return _buildProbing();
+    if (_showPasswordForm) return _buildPasswordForm(l10n);
+    return _buildChoice(l10n);
   }
 
   Widget _buildProbing() {
