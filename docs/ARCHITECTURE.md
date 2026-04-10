@@ -547,7 +547,7 @@ All data stores (SessionStore, KeyStore, KnownHostsManager) support three securi
 | **Keychain** | OS keychain available, no master password | `sessions.enc`, `keys.enc`, `known_hosts.enc` | OS keychain via `flutter_secure_storage` |
 | **Master Password** | User set master password | `sessions.enc`, `keys.enc`, `known_hosts.enc` + `credentials.salt` + `credentials.verify` | PBKDF2-derived |
 
-First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. The `security_initialized` flag file prevents the wizard from re-appearing.
+First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. First launch is detected by the absence of any data files (no master password salt, no keychain key, no session files).
 
 #### AesGcm
 
@@ -2195,19 +2195,18 @@ No `credentials.key` file — the old pattern of storing a key next to the ciphe
 
 ### First-launch wizard
 
-`SecuritySetupDialog` shown on first launch (no `security_initialized` flag file):
+`SecuritySetupDialog` shown on first launch (no data files on disk):
 1. Probes OS keychain via `SecureKeyStorage.isAvailable()` (write+read+delete cycle)
 2. Keychain found → offers "Continue with Keychain" or "Set Master Password"
 3. Keychain not found → offers "Continue without Encryption" or "Set Master Password"
-4. Writes `security_initialized` flag after choice
 
 ### Startup security flow
 
 `_initSecurity()` in `main.dart`:
-1. Flag file exists? → existing install flow. Otherwise → first-launch wizard
-2. Existing: `credentials.salt` exists → show `UnlockDialog` → derive key
-3. Existing: keychain has key → read from keychain
-4. Otherwise → plaintext
+1. `credentials.salt` exists → show `UnlockDialog` → derive key
+2. Keychain has key → read from keychain
+3. Data files exist but no encryption → plaintext mode
+4. No data at all → first launch → show `SecuritySetupDialog` wizard
 5. Inject key into all three stores via `_injectKey()` + update `securityStateProvider`
 
 ### Master password

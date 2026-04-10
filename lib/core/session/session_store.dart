@@ -17,9 +17,6 @@ import 'session.dart';
 /// - [SecurityLevel.plaintext]: `sessions.json` with credentials in cleartext.
 /// - [SecurityLevel.keychain]: `sessions.enc` encrypted with OS keychain key.
 /// - [SecurityLevel.masterPassword]: `sessions.enc` encrypted with PBKDF2 key.
-///
-/// On upgrade from old format (`credentials.enc` + `credentials.key`),
-/// automatically migrates data to the new unified format.
 class SessionStore {
   static const _jsonFileName = 'sessions.json';
   static const _encFileName = 'sessions.enc';
@@ -93,9 +90,6 @@ class SessionStore {
   Future<List<Session>> _doLoad() async {
     await init();
 
-    // Check for old format and migrate if needed.
-    await _migrateFromOldFormat();
-
     try {
       await _loadSessions();
     } catch (e) {
@@ -117,20 +111,19 @@ class SessionStore {
     await _loadEmptyFolders();
     await _loadCollapsedFolders();
 
-    return _sessions;
+    // Return a copy so Riverpod detects state changes (identity check).
+    return List.of(_sessions);
   }
 
   /// Load sessions from the appropriate file based on security level.
   Future<void> _loadSessions() async {
     if (_encryptionKey != null) {
-      // Encrypted mode (keychain or master password).
       final encFile = File('$_base/$_encFileName');
       if (!await encFile.exists()) return;
       final encData = await encFile.readAsBytes();
       final json = AesGcm.decrypt(encData, _encryptionKey!);
       _parseSessions(json);
     } else {
-      // Plaintext mode.
       final jsonFile = File('$_base/$_jsonFileName');
       if (!await jsonFile.exists()) return;
       final json = await jsonFile.readAsString();
@@ -183,107 +176,6 @@ class SessionStore {
     } else {
       // Switched to plaintext — delete encrypted.
       if (await oldEnc.exists()) await oldEnc.delete();
-    }
-  }
-
-  // ── Migration from old format ────────────────────────────────────
-
-  /// Migrate from old format (separate `credentials.enc` + `credentials.key`)
-  /// to unified format.
-  ///
-  /// Detection: `credentials.enc` file exists alongside `sessions.json`.
-  /// After migration, old files are deleted.
-  Future<void> _migrateFromOldFormat() async {
-    final oldCredFile = File('$_base/credentials.enc');
-    final oldKeyFile = File('$_base/credentials.key');
-    final oldSessionsFile = File('$_base/$_jsonFileName');
-
-    // Only migrate when old credential files exist.
-    if (!await oldCredFile.exists()) return;
-
-    AppLogger.instance.log(
-      'Detected old format — starting migration',
-      name: 'SessionStore',
-    );
-
-    // Load old sessions from plaintext JSON.
-    if (await oldSessionsFile.exists()) {
-      try {
-        final json = await oldSessionsFile.readAsString();
-        _parseSessions(json);
-      } catch (e) {
-        AppLogger.instance.log(
-          'Failed to parse old sessions.json during migration',
-          name: 'SessionStore',
-          error: e,
-        );
-      }
-    }
-
-    // Decrypt old credentials and merge into sessions.
-    // The key comes from either the external key (master password) or the
-    // old credentials.key file.
-    Uint8List? credKey = _encryptionKey;
-    if (credKey == null && await oldKeyFile.exists()) {
-      final keyBytes = await oldKeyFile.readAsBytes();
-      if (keyBytes.length == AesGcm.keyLength) {
-        credKey = keyBytes;
-      }
-    }
-
-    if (credKey != null) {
-      try {
-        final encData = await oldCredFile.readAsBytes();
-        final credJson = AesGcm.decrypt(encData, credKey);
-        final credMap = jsonDecode(credJson) as Map<String, dynamic>;
-        _mergeOldCredentials(credMap);
-      } catch (e) {
-        AppLogger.instance.log(
-          'Failed to decrypt old credentials during migration — '
-          'sessions will load without secrets',
-          name: 'SessionStore',
-          error: e,
-        );
-      }
-    }
-
-    // Save in new format.
-    await _save();
-
-    // Delete old files.
-    try {
-      await oldCredFile.delete();
-      if (await oldKeyFile.exists()) await oldKeyFile.delete();
-      AppLogger.instance.log(
-        'Migration complete — old files deleted',
-        name: 'SessionStore',
-      );
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to delete old files after migration',
-        name: 'SessionStore',
-        error: e,
-      );
-    }
-  }
-
-  /// Merge old credential data into in-memory sessions.
-  void _mergeOldCredentials(Map<String, dynamic> credMap) {
-    for (int i = 0; i < _sessions.length; i++) {
-      final s = _sessions[i];
-      final cred = credMap[s.id] as Map<String, dynamic>?;
-      if (cred == null) continue;
-      final password = cred['password'] as String? ?? '';
-      final keyData = cred['key_data'] as String? ?? '';
-      final passphrase = cred['passphrase'] as String? ?? '';
-      if (password.isEmpty && keyData.isEmpty && passphrase.isEmpty) continue;
-      _sessions[i] = s.copyWith(
-        auth: s.auth.copyWith(
-          password: password.isNotEmpty ? password : s.password,
-          keyData: keyData.isNotEmpty ? keyData : s.keyData,
-          passphrase: passphrase.isNotEmpty ? passphrase : s.passphrase,
-        ),
-      );
     }
   }
 
