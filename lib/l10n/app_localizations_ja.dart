@@ -369,7 +369,8 @@ class SJa extends S {
   String get qrGenerationFailed => 'QRコード生成に失敗しました';
 
   @override
-  String get scanWithCameraApp => 'LetsFLUTsshがインストールされている\nデバイスのカメラアプリでスキャンしてください。';
+  String get scanWithCameraApp =>
+      'LetsFLUTsshがインストールされている\nデバイスのカメラアプリでスキャンしてください。';
 
   @override
   String get noPasswordsInQr => 'このQRコードにパスワードや鍵は含まれていません';
@@ -387,7 +388,8 @@ class SJa extends S {
   String get unknownHost => '不明なホスト';
 
   @override
-  String get hostKeyChangedWarning => '警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。';
+  String get hostKeyChangedWarning =>
+      '警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。';
 
   @override
   String get unknownHostMessage => 'このホストの信頼性を確認できません。接続を続行しますか？';
@@ -793,10 +795,12 @@ class SJa extends S {
   String get exportSessionsViaQr => 'QRでセッションをエクスポート';
 
   @override
-  String get qrNoCredentialsWarning => 'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
+  String get qrNoCredentialsWarning =>
+      'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
 
   @override
-  String get qrTooManyForSingleCode => '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
+  String get qrTooManyForSingleCode =>
+      '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
 
   @override
   String get qrTooLarge => 'データが大きすぎます — 選択を減らすか、.lfsファイルエクスポートを使用してください。';
@@ -1029,7 +1033,8 @@ class SJa extends S {
   String get grantPermission => '権限を付与';
 
   @override
-  String get storagePermissionLimited => '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
+  String get storagePermissionLimited =>
+      '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1120,7 +1125,8 @@ class SJa extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials =>
+      'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1152,7 +1158,8 @@ class SJa extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc =>
+      'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1198,7 +1205,8 @@ class SJa extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty =>
+      'No known hosts yet. Connect to a server to add one.';
 
   @override
   String get removeHost => 'Remove Host';
@@ -1212,7 +1220,8 @@ class SJa extends S {
   String get clearAllKnownHosts => 'Clear All Known Hosts';
 
   @override
-  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+  String get clearAllKnownHostsConfirm =>
+      'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
   String get importKnownHosts => 'Import Known Hosts';
@@ -1346,7 +1355,8 @@ class SJa extends S {
   String get unlock => 'Unlock';
 
   @override
-  String get masterPasswordSubtitle => 'Protect saved credentials with a password';
+  String get masterPasswordSubtitle =>
+      'Protect saved credentials with a password';
 
   @override
   String get setMasterPassword => 'Set Master Password';
@@ -1358,13 +1368,16 @@ class SJa extends S {
   String get removeMasterPassword => 'Remove Master Password';
 
   @override
-  String get masterPasswordEnabled => 'Credentials are protected by master password';
+  String get masterPasswordEnabled =>
+      'Credentials are protected by master password';
 
   @override
-  String get masterPasswordDisabled => 'Credentials use auto-generated key (no password)';
+  String get masterPasswordDisabled =>
+      'Credentials use auto-generated key (no password)';
 
   @override
-  String get enterMasterPassword => 'Enter master password to unlock your saved credentials.';
+  String get enterMasterPassword =>
+      'Enter master password to unlock your saved credentials.';
 
   @override
   String get wrongMasterPassword => 'Wrong password. Please try again.';
@@ -1388,13 +1401,15 @@ class SJa extends S {
   String get masterPasswordRemoved => 'Master password removed';
 
   @override
-  String get masterPasswordWarning => 'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+  String get masterPasswordWarning =>
+      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
 
   @override
   String get forgotPassword => 'Forgot Password?';
 
   @override
-  String get forgotPasswordWarning => 'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+  String get forgotPasswordWarning =>
+      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
 
   @override
   String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
@@ -1409,7 +1424,8 @@ class SJa extends S {
   String get reEncrypting => 'Re-encrypting data...';
 
   @override
-  String get confirmRemoveMasterPassword => 'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+  String get confirmRemoveMasterPassword =>
+      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
 
   @override
   String get securitySetupTitle => 'Security Setup';
@@ -1420,16 +1436,20 @@ class SJa extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional => 'You can also set a master password for additional protection.';
+  String get securitySetupKeychainOptional =>
+      'You can also set a master password for additional protection.';
 
   @override
-  String get securitySetupNoKeychain => 'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+  String get securitySetupNoKeychain =>
+      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
 
   @override
-  String get securitySetupNoKeychainHint => 'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+  String get securitySetupNoKeychainHint =>
+      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
 
   @override
-  String get securitySetupRecommendMasterPassword => 'We recommend setting a master password to protect your data.';
+  String get securitySetupRecommendMasterPassword =>
+      'We recommend setting a master password to protect your data.';
 
   @override
   String get continueWithKeychain => 'Continue with Keychain';
@@ -1464,5 +1484,6 @@ class SJa extends S {
   String get manageMasterPassword => 'Manage Master Password';
 
   @override
-  String get manageMasterPasswordSubtitle => 'Set, change, or remove master password';
+  String get manageMasterPasswordSubtitle =>
+      'Set, change, or remove master password';
 }
