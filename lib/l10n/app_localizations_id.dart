@@ -1073,122 +1073,122 @@ class SId extends S {
   String get progressOpeningSftp => 'Membuka saluran SFTP';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'Transfer:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count aktif';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return ', $count dalam antrean';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count dalam riwayat';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'Dibuat: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'Dimulai: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'Selesai: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'Durasi: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'Dalam antrean';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'Memulai unggah...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'Memulai unduh...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'Menyalin...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'Selesai';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total file';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'NAMA FOLDER';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'Folder \"$name\" sudah ada';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'Seret file kunci ke sini';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'Sesi tidak memiliki kredensial — edit untuk menambahkan kata sandi atau kunci';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count item';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'Pilih semua ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'Ukuran: $size KB / maks. $max KB';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'Tidak ada terminal aktif';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'Hubungkan dari tab Sesi';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'File tidak ditemukan: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'Koneksi SSH';
 
   @override
   String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+      'Menjaga koneksi SSH tetap aktif di latar belakang.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH aktif';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count koneksi aktif';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count item, $size';
   }
 
   @override
@@ -1201,306 +1201,309 @@ class SId extends S {
   String get duplicateDownShortcut => 'Duplikat ke Bawah (Ctrl+Shift+\\)';
 
   @override
-  String get security => 'Security';
+  String get security => 'Keamanan';
 
   @override
-  String get knownHosts => 'Known Hosts';
+  String get knownHosts => 'Host Dikenal';
 
   @override
-  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+  String get knownHostsSubtitle => 'Kelola sidik jari server SSH terpercaya';
 
   @override
   String knownHostsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count known hosts',
-      one: '1 known host',
-      zero: 'No known hosts',
+      other: '$count host dikenal',
+      zero: 'Tidak ada host dikenal',
     );
     return '$_temp0';
   }
 
   @override
   String get knownHostsEmpty =>
-      'No known hosts yet. Connect to a server to add one.';
+      'Tidak ada host dikenal. Hubungkan ke server untuk menambahkan.';
 
   @override
-  String get removeHost => 'Remove Host';
+  String get removeHost => 'Hapus host';
 
   @override
   String removeHostConfirm(String host) {
-    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+    return 'Hapus $host dari host dikenal? Kunci akan diverifikasi ulang pada koneksi berikutnya.';
   }
 
   @override
-  String get clearAllKnownHosts => 'Clear All Known Hosts';
+  String get clearAllKnownHosts => 'Hapus semua host dikenal';
 
   @override
   String get clearAllKnownHostsConfirm =>
-      'Remove all known hosts? You will be prompted to verify each server key again.';
+      'Hapus semua host dikenal? Setiap kunci server perlu diverifikasi ulang.';
 
   @override
-  String get importKnownHosts => 'Import Known Hosts';
+  String get importKnownHosts => 'Impor host dikenal';
 
   @override
-  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+  String get importKnownHostsSubtitle => 'Impor dari file OpenSSH known_hosts';
 
   @override
-  String get exportKnownHosts => 'Export Known Hosts';
+  String get exportKnownHosts => 'Ekspor host dikenal';
 
   @override
   String importedHosts(int count) {
-    return 'Imported $count new hosts';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count host baru diimpor',
+      zero: 'Tidak ada host baru diimpor',
+    );
+    return '$_temp0';
   }
 
   @override
-  String get clearedAllHosts => 'Cleared all known hosts';
+  String get clearedAllHosts => 'Semua host dikenal telah dihapus';
 
   @override
   String removedHost(String host) {
-    return 'Removed $host';
+    return '$host dihapus';
   }
 
   @override
-  String get noHostsToExport => 'No known hosts to export';
+  String get noHostsToExport => 'Tidak ada host untuk diekspor';
 
   @override
-  String get sshKeys => 'SSH Keys';
+  String get sshKeys => 'Kunci SSH';
 
   @override
-  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+  String get sshKeysSubtitle => 'Kelola pasangan kunci SSH untuk autentikasi';
 
   @override
-  String get noKeys => 'No SSH keys. Import or generate one.';
+  String get noKeys => 'Tidak ada kunci SSH. Impor atau buat satu.';
 
   @override
-  String get generateKey => 'Generate Key';
+  String get generateKey => 'Buat kunci';
 
   @override
-  String get importKey => 'Import Key';
+  String get importKey => 'Impor kunci';
 
   @override
-  String get keyLabel => 'Key Label';
+  String get keyLabel => 'Nama kunci';
 
   @override
-  String get keyLabelHint => 'e.g. Work Server, GitHub';
+  String get keyLabelHint => 'cth. Server Kerja, GitHub';
 
   @override
-  String get selectKeyType => 'Key Type';
+  String get selectKeyType => 'Tipe kunci';
 
   @override
-  String get generating => 'Generating...';
+  String get generating => 'Membuat...';
 
   @override
   String keyGenerated(String label) {
-    return 'Key generated: $label';
+    return 'Kunci dibuat: $label';
   }
 
   @override
   String keyImported(String label) {
-    return 'Key imported: $label';
+    return 'Kunci diimpor: $label';
   }
 
   @override
-  String get deleteKey => 'Delete Key';
+  String get deleteKey => 'Hapus kunci';
 
   @override
   String deleteKeyConfirm(String label) {
-    return 'Delete key \"$label\"? Sessions using it will lose access.';
+    return 'Hapus kunci \"$label\"? Sesi yang menggunakannya akan kehilangan akses.';
   }
 
   @override
   String keyDeleted(String label) {
-    return 'Key deleted: $label';
+    return 'Kunci dihapus: $label';
   }
 
   @override
-  String get publicKey => 'Public Key';
+  String get publicKey => 'Kunci publik';
 
   @override
-  String get publicKeyCopied => 'Public key copied to clipboard';
+  String get publicKeyCopied => 'Kunci publik disalin ke clipboard';
 
   @override
-  String get pastePrivateKey => 'Paste Private Key (PEM)';
+  String get pastePrivateKey => 'Tempel kunci privat (PEM)';
 
   @override
   String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
 
   @override
-  String get invalidPem => 'Invalid PEM key data';
+  String get invalidPem => 'Data kunci PEM tidak valid';
 
   @override
-  String get selectFromKeyStore => 'Select from Key Store';
+  String get selectFromKeyStore => 'Pilih dari penyimpanan kunci';
 
   @override
-  String get noKeySelected => 'No key selected';
+  String get noKeySelected => 'Tidak ada kunci dipilih';
 
   @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count keys',
-      one: '1 key',
-      zero: 'No keys',
+      other: '$count kunci',
+      zero: 'Tidak ada kunci',
     );
     return '$_temp0';
   }
 
   @override
-  String get generated => 'Generated';
+  String get generated => 'Dibuat';
 
   @override
-  String get passphraseRequired => 'Passphrase Required';
+  String get passphraseRequired => 'Frasa sandi diperlukan';
 
   @override
   String passphrasePrompt(String host) {
-    return 'The SSH key for $host is encrypted. Enter the passphrase to unlock it.';
+    return 'Kunci SSH untuk $host terenkripsi. Masukkan frasa sandi untuk membukanya.';
   }
 
   @override
-  String get passphraseWrong => 'Wrong passphrase. Please try again.';
+  String get passphraseWrong => 'Frasa sandi salah. Silakan coba lagi.';
 
   @override
-  String get passphrase => 'Passphrase';
+  String get passphrase => 'Frasa sandi';
 
   @override
-  String get rememberPassphrase => 'Remember for this session';
+  String get rememberPassphrase => 'Ingat untuk sesi ini';
 
   @override
-  String get unlock => 'Unlock';
+  String get unlock => 'Buka kunci';
 
   @override
   String get masterPasswordSubtitle =>
-      'Protect saved credentials with a password';
+      'Lindungi kredensial tersimpan dengan kata sandi';
 
   @override
-  String get setMasterPassword => 'Set Master Password';
+  String get setMasterPassword => 'Atur kata sandi utama';
 
   @override
-  String get changeMasterPassword => 'Change Master Password';
+  String get changeMasterPassword => 'Ubah kata sandi utama';
 
   @override
-  String get removeMasterPassword => 'Remove Master Password';
+  String get removeMasterPassword => 'Hapus kata sandi utama';
 
   @override
-  String get masterPasswordEnabled =>
-      'Credentials are protected by master password';
+  String get masterPasswordEnabled => 'Kredensial dilindungi kata sandi utama';
 
   @override
   String get masterPasswordDisabled =>
-      'Credentials use auto-generated key (no password)';
+      'Kredensial menggunakan kunci otomatis (tanpa kata sandi)';
 
   @override
   String get enterMasterPassword =>
-      'Enter master password to unlock your saved credentials.';
+      'Masukkan kata sandi utama untuk mengakses kredensial tersimpan.';
 
   @override
-  String get wrongMasterPassword => 'Wrong password. Please try again.';
+  String get wrongMasterPassword => 'Kata sandi salah. Silakan coba lagi.';
 
   @override
-  String get newPassword => 'New Password';
+  String get newPassword => 'Kata sandi baru';
 
   @override
-  String get currentPassword => 'Current Password';
+  String get currentPassword => 'Kata sandi saat ini';
 
   @override
-  String get passwordTooShort => 'Password must be at least 8 characters';
+  String get passwordTooShort => 'Kata sandi minimal 8 karakter';
 
   @override
-  String get masterPasswordSet => 'Master password enabled';
+  String get masterPasswordSet => 'Kata sandi utama diaktifkan';
 
   @override
-  String get masterPasswordChanged => 'Master password changed';
+  String get masterPasswordChanged => 'Kata sandi utama diubah';
 
   @override
-  String get masterPasswordRemoved => 'Master password removed';
+  String get masterPasswordRemoved => 'Kata sandi utama dihapus';
 
   @override
   String get masterPasswordWarning =>
-      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+      'Jika Anda lupa kata sandi ini, semua kata sandi dan kunci SSH tersimpan akan hilang. Tidak ada pemulihan.';
 
   @override
-  String get forgotPassword => 'Forgot Password?';
+  String get forgotPassword => 'Lupa kata sandi?';
 
   @override
   String get forgotPasswordWarning =>
-      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+      'Ini akan menghapus SEMUA kata sandi, kunci SSH, dan frasa sandi tersimpan. Sesi dan pengaturan akan dipertahankan. Tindakan ini tidak dapat dibatalkan.';
 
   @override
-  String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
+  String get resetAndDeleteCredentials => 'Reset dan hapus data';
 
   @override
-  String get credentialsReset => 'All saved credentials have been deleted';
+  String get credentialsReset => 'Semua kredensial tersimpan telah dihapus';
 
   @override
-  String get derivingKey => 'Deriving encryption key...';
+  String get derivingKey => 'Membuat kunci enkripsi...';
 
   @override
-  String get reEncrypting => 'Re-encrypting data...';
+  String get reEncrypting => 'Mengenkripsi ulang data...';
 
   @override
   String get confirmRemoveMasterPassword =>
-      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+      'Masukkan kata sandi saat ini untuk menghapus perlindungan kata sandi utama. Kredensial akan dienkripsi ulang dengan kunci otomatis.';
 
   @override
-  String get securitySetupTitle => 'Security Setup';
+  String get securitySetupTitle => 'Pengaturan keamanan';
 
   @override
   String securitySetupKeychainFound(String keychainName) {
-    return 'OS Keychain detected ($keychainName). Your data will be automatically encrypted using your system keychain.';
+    return 'Rantai kunci sistem terdeteksi ($keychainName). Data Anda akan dienkripsi secara otomatis menggunakan rantai kunci sistem.';
   }
 
   @override
   String get securitySetupKeychainOptional =>
-      'You can also set a master password for additional protection.';
+      'Anda juga bisa mengatur kata sandi utama untuk perlindungan tambahan.';
 
   @override
   String get securitySetupNoKeychain =>
-      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+      'Rantai kunci sistem tidak terdeteksi. Tanpa rantai kunci, data sesi (host, kata sandi, kunci) akan disimpan dalam teks biasa.';
 
   @override
   String get securitySetupNoKeychainHint =>
-      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+      'Ini normal di WSL, Linux tanpa GUI, atau instalasi minimal. Untuk mengaktifkan rantai kunci di Linux: instal libsecret dan daemon rantai kunci (cth. gnome-keyring).';
 
   @override
   String get securitySetupRecommendMasterPassword =>
-      'We recommend setting a master password to protect your data.';
+      'Kami sarankan mengatur kata sandi utama untuk melindungi data Anda.';
 
   @override
-  String get continueWithKeychain => 'Continue with Keychain';
+  String get continueWithKeychain => 'Lanjutkan dengan rantai kunci';
 
   @override
-  String get continueWithoutEncryption => 'Continue without Encryption';
+  String get continueWithoutEncryption => 'Lanjutkan tanpa enkripsi';
 
   @override
-  String get securityLevel => 'Security Level';
+  String get securityLevel => 'Tingkat keamanan';
 
   @override
-  String get securityLevelPlaintext => 'None (plaintext)';
+  String get securityLevelPlaintext => 'Tidak ada (teks biasa)';
 
   @override
-  String get securityLevelKeychain => 'OS Keychain';
+  String get securityLevelKeychain => 'Rantai kunci sistem';
 
   @override
-  String get securityLevelMasterPassword => 'Master Password';
+  String get securityLevelMasterPassword => 'Kata sandi utama';
 
   @override
-  String get keychainStatus => 'Keychain';
+  String get keychainStatus => 'Rantai kunci';
 
   @override
   String keychainAvailable(String name) {
-    return 'Available ($name)';
+    return 'Tersedia ($name)';
   }
 
   @override
-  String get keychainNotAvailable => 'Not available';
+  String get keychainNotAvailable => 'Tidak tersedia';
 
   @override
-  String get manageMasterPassword => 'Manage Master Password';
+  String get manageMasterPassword => 'Kelola kata sandi utama';
 
   @override
   String get manageMasterPasswordSubtitle =>
-      'Set, change, or remove master password';
+      'Atur, ubah, atau hapus kata sandi utama';
 }
