@@ -398,7 +398,7 @@ class SJa extends S {
   String get host => 'ホスト';
 
   @override
-  String get keyType => '鍵の種類';
+  String get keyType => 'キータイプ';
 
   @override
   String get fingerprint => 'フィンガープリント';
@@ -422,7 +422,7 @@ class SJa extends S {
   String get masterPassword => 'マスターパスワード';
 
   @override
-  String get confirmPassword => 'パスワードを確認';
+  String get confirmPassword => 'パスワード確認';
 
   @override
   String get importModeMergeDescription => '新しいセッションを追加し、既存のものを保持';
@@ -1056,122 +1056,121 @@ class SJa extends S {
   String get progressOpeningSftp => 'SFTPチャネルを起動中';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => '転送：';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count 件アクティブ';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return '、$count 件待機中';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count 件の履歴';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return '作成：$time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return '開始：$time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return '終了：$time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return '所要時間：$duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => '待機中';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'アップロード開始...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'ダウンロード開始...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'コピー中...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => '完了';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total ファイル';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'フォルダ名';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'フォルダ「$name」は既に存在します';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => '鍵ファイルをここにドロップ';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'セッションに認証情報がありません — パスワードまたは鍵を追加するために編集してください';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count 個の項目';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'すべて選択 ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'サイズ：$size KB / 最大 $max KB';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'アクティブなターミナルがありません';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'セッションタブから接続';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'ファイルが見つかりません：$path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'SSH 接続';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'SSH 接続をバックグラウンドで維持します。';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH アクティブ';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count 件のアクティブな接続';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count 個の項目、$size';
   }
 
   @override
@@ -1182,4 +1181,305 @@ class SJa extends S {
 
   @override
   String get duplicateDownShortcut => '下に複製 (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'セキュリティ';
+
+  @override
+  String get knownHosts => '既知のホスト';
+
+  @override
+  String get knownHostsSubtitle => '信頼済み SSH サーバーのフィンガープリントを管理';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '既知のホスト $count 件',
+      zero: '既知のホストなし',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty => '既知のホストがありません。サーバーに接続して追加してください。';
+
+  @override
+  String get removeHost => 'ホストを削除';
+
+  @override
+  String removeHostConfirm(String host) {
+    return '既知のホストから $host を削除しますか？次回接続時にキーの再確認が必要になります。';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'すべての既知のホストを削除';
+
+  @override
+  String get clearAllKnownHostsConfirm =>
+      'すべての既知のホストを削除しますか？各サーバーキーの再確認が必要になります。';
+
+  @override
+  String get importKnownHosts => '既知のホストをインポート';
+
+  @override
+  String get importKnownHostsSubtitle => 'OpenSSH known_hosts ファイルからインポート';
+
+  @override
+  String get exportKnownHosts => '既知のホストをエクスポート';
+
+  @override
+  String importedHosts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件の新しいホストをインポートしました',
+      zero: '新しいホストはインポートされませんでした',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clearedAllHosts => 'すべての既知のホストを削除しました';
+
+  @override
+  String removedHost(String host) {
+    return '$host を削除しました';
+  }
+
+  @override
+  String get noHostsToExport => 'エクスポートするホストがありません';
+
+  @override
+  String get sshKeys => 'SSH キー';
+
+  @override
+  String get sshKeysSubtitle => '認証用 SSH キーペアの管理';
+
+  @override
+  String get noKeys => 'SSH キーがありません。インポートまたは生成してください。';
+
+  @override
+  String get generateKey => 'キーを生成';
+
+  @override
+  String get importKey => 'キーをインポート';
+
+  @override
+  String get keyLabel => 'キー名';
+
+  @override
+  String get keyLabelHint => '例：業務サーバー、GitHub';
+
+  @override
+  String get selectKeyType => 'キータイプ';
+
+  @override
+  String get generating => '生成中...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'キーを生成しました：$label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'キーをインポートしました：$label';
+  }
+
+  @override
+  String get deleteKey => 'キーを削除';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'キー「$label」を削除しますか？このキーを使用するセッションはアクセスできなくなります。';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'キーを削除しました：$label';
+  }
+
+  @override
+  String get publicKey => '公開鍵';
+
+  @override
+  String get publicKeyCopied => '公開鍵をクリップボードにコピーしました';
+
+  @override
+  String get pastePrivateKey => '秘密鍵を貼り付け (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => '無効な PEM キーデータ';
+
+  @override
+  String get selectFromKeyStore => 'キーストアから選択';
+
+  @override
+  String get noKeySelected => 'キーが選択されていません';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'キー $count 個',
+      zero: 'キーなし',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => '生成済み';
+
+  @override
+  String get passphraseRequired => 'パスフレーズが必要です';
+
+  @override
+  String passphrasePrompt(String host) {
+    return '$host の SSH キーは暗号化されています。パスフレーズを入力してください。';
+  }
+
+  @override
+  String get passphraseWrong => 'パスフレーズが正しくありません。もう一度お試しください。';
+
+  @override
+  String get passphrase => 'パスフレーズ';
+
+  @override
+  String get rememberPassphrase => 'このセッションで記憶';
+
+  @override
+  String get unlock => 'ロック解除';
+
+  @override
+  String get masterPasswordSubtitle => '保存された認証情報をパスワードで保護';
+
+  @override
+  String get setMasterPassword => 'マスターパスワードを設定';
+
+  @override
+  String get changeMasterPassword => 'マスターパスワードを変更';
+
+  @override
+  String get removeMasterPassword => 'マスターパスワードを削除';
+
+  @override
+  String get masterPasswordEnabled => '認証情報はマスターパスワードで保護されています';
+
+  @override
+  String get masterPasswordDisabled => '認証情報は自動生成キーを使用（パスワードなし）';
+
+  @override
+  String get enterMasterPassword => '保存された認証情報にアクセスするにはマスターパスワードを入力してください。';
+
+  @override
+  String get wrongMasterPassword => 'パスワードが正しくありません。もう一度お試しください。';
+
+  @override
+  String get newPassword => '新しいパスワード';
+
+  @override
+  String get currentPassword => '現在のパスワード';
+
+  @override
+  String get passwordTooShort => 'パスワードは 8 文字以上必要です';
+
+  @override
+  String get masterPasswordSet => 'マスターパスワードを有効にしました';
+
+  @override
+  String get masterPasswordChanged => 'マスターパスワードを変更しました';
+
+  @override
+  String get masterPasswordRemoved => 'マスターパスワードを削除しました';
+
+  @override
+  String get masterPasswordWarning =>
+      'このパスワードを忘れると、保存されたすべてのパスワードと SSH キーが失われます。復旧はできません。';
+
+  @override
+  String get forgotPassword => 'パスワードを忘れましたか？';
+
+  @override
+  String get forgotPasswordWarning =>
+      '保存されたすべてのパスワード、SSH キー、パスフレーズが削除されます。セッションと設定は保持されます。この操作は元に戻せません。';
+
+  @override
+  String get resetAndDeleteCredentials => 'リセットしてデータを削除';
+
+  @override
+  String get credentialsReset => '保存された認証情報がすべて削除されました';
+
+  @override
+  String get derivingKey => '暗号化キーを生成中...';
+
+  @override
+  String get reEncrypting => 'データを再暗号化中...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'マスターパスワード保護を解除するには現在のパスワードを入力してください。認証情報は自動生成キーで再暗号化されます。';
+
+  @override
+  String get securitySetupTitle => 'セキュリティ設定';
+
+  @override
+  String securitySetupKeychainFound(String keychainName) {
+    return 'OS キーチェーンを検出しました ($keychainName)。データはシステムキーチェーンを使用して自動的に暗号化されます。';
+  }
+
+  @override
+  String get securitySetupKeychainOptional => '追加の保護としてマスターパスワードを設定することもできます。';
+
+  @override
+  String get securitySetupNoKeychain =>
+      'OS キーチェーンが検出されませんでした。キーチェーンがない場合、セッションデータ（ホスト、パスワード、キー）は平文で保存されます。';
+
+  @override
+  String get securitySetupNoKeychainHint =>
+      'WSL、ヘッドレス Linux、最小インストールでは正常です。Linux でキーチェーンを有効にするには：libsecret とキーリングデーモン（gnome-keyring など）をインストールしてください。';
+
+  @override
+  String get securitySetupRecommendMasterPassword =>
+      'データを保護するためにマスターパスワードの設定を推奨します。';
+
+  @override
+  String get continueWithKeychain => 'キーチェーンで続行';
+
+  @override
+  String get continueWithoutEncryption => '暗号化なしで続行';
+
+  @override
+  String get securityLevel => 'セキュリティレベル';
+
+  @override
+  String get securityLevelPlaintext => 'なし（平文）';
+
+  @override
+  String get securityLevelKeychain => 'OS キーチェーン';
+
+  @override
+  String get securityLevelMasterPassword => 'マスターパスワード';
+
+  @override
+  String get keychainStatus => 'キーチェーン';
+
+  @override
+  String keychainAvailable(String name) {
+    return '利用可能 ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => '利用不可';
+
+  @override
+  String get manageMasterPassword => 'マスターパスワード管理';
+
+  @override
+  String get manageMasterPasswordSubtitle => 'マスターパスワードの設定、変更、削除';
 }

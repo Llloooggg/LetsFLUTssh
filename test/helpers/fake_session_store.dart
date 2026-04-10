@@ -1,4 +1,3 @@
-import 'package:letsflutssh/core/security/credential_store.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -65,9 +64,8 @@ class FakeSessionStore extends SessionStore {
   }
 
   @override
-  Future<Session> add(Session session) async {
+  Future<void> add(Session session) async {
     _fakeSessions.add(session);
-    return session;
   }
 
   @override
@@ -149,15 +147,10 @@ class FakeSessionStore extends SessionStore {
   }
 
   @override
-  Future<Map<String, CredentialData>> loadCredentials(Set<String> ids) async =>
-      {};
-
-  @override
   Future<void> restoreSnapshot(
     List<Session> sessions,
-    Set<String> emptyFolders, [
-    Map<String, CredentialData> credentials = const {},
-  ]) async {
+    Set<String> emptyFolders,
+  ) async {
     _fakeSessions
       ..clear()
       ..addAll(sessions);
@@ -179,7 +172,7 @@ class ThrowingSessionStore extends FakeSessionStore {
   }
 
   @override
-  Future<Session> add(Session session) async {
+  Future<void> add(Session session) async {
     if (shouldThrowOnAdd) throw Exception('add failed');
     return super.add(session);
   }

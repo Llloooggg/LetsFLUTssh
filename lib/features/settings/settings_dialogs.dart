@@ -207,3 +207,182 @@ class _ImportDataDialogState extends State<_ImportDataDialog> {
     );
   }
 }
+
+// ── Master password dialogs ──
+
+class _SetMasterPasswordDialog extends StatelessWidget {
+  final TextEditingController passwordCtrl;
+  final TextEditingController confirmCtrl;
+
+  const _SetMasterPasswordDialog({
+    required this.passwordCtrl,
+    required this.confirmCtrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return AppDialog(
+      title: l10n.setMasterPassword,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            l10n.masterPasswordWarning,
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _passwordField(passwordCtrl, l10n.newPassword),
+          const SizedBox(height: 8),
+          _passwordField(confirmCtrl, l10n.confirmPassword),
+        ],
+      ),
+      actions: [
+        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
+        AppDialogAction.primary(
+          label: l10n.ok,
+          onTap: () {
+            final password = passwordCtrl.text;
+            if (password.length < 8) {
+              Toast.show(
+                context,
+                message: l10n.passwordTooShort,
+                level: ToastLevel.warning,
+              );
+              return;
+            }
+            if (password != confirmCtrl.text) {
+              Toast.show(
+                context,
+                message: l10n.passwordsDoNotMatch,
+                level: ToastLevel.warning,
+              );
+              return;
+            }
+            Navigator.pop(context, password);
+          },
+        ),
+      ],
+    );
+  }
+
+  static Widget _passwordField(TextEditingController ctrl, String label) {
+    return TextField(
+      controller: ctrl,
+      obscureText: true,
+      style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+      decoration: AppTheme.inputDecoration(labelText: label),
+    );
+  }
+}
+
+class _ChangeMasterPasswordDialog extends StatelessWidget {
+  final TextEditingController currentCtrl;
+  final TextEditingController newCtrl;
+  final TextEditingController confirmCtrl;
+
+  const _ChangeMasterPasswordDialog({
+    required this.currentCtrl,
+    required this.newCtrl,
+    required this.confirmCtrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return AppDialog(
+      title: l10n.changeMasterPassword,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _passwordField(currentCtrl, l10n.currentPassword),
+          const SizedBox(height: 8),
+          _passwordField(newCtrl, l10n.newPassword),
+          const SizedBox(height: 8),
+          _passwordField(confirmCtrl, l10n.confirmPassword),
+        ],
+      ),
+      actions: [
+        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
+        AppDialogAction.primary(
+          label: l10n.ok,
+          onTap: () {
+            if (currentCtrl.text.isEmpty) return;
+            final newPw = newCtrl.text;
+            if (newPw.length < 8) {
+              Toast.show(
+                context,
+                message: l10n.passwordTooShort,
+                level: ToastLevel.warning,
+              );
+              return;
+            }
+            if (newPw != confirmCtrl.text) {
+              Toast.show(
+                context,
+                message: l10n.passwordsDoNotMatch,
+                level: ToastLevel.warning,
+              );
+              return;
+            }
+            Navigator.pop(context, (current: currentCtrl.text, newPw: newPw));
+          },
+        ),
+      ],
+    );
+  }
+
+  static Widget _passwordField(TextEditingController ctrl, String label) {
+    return TextField(
+      controller: ctrl,
+      obscureText: true,
+      style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+      decoration: AppTheme.inputDecoration(labelText: label),
+    );
+  }
+}
+
+class _RemoveMasterPasswordDialog extends StatelessWidget {
+  final TextEditingController passwordCtrl;
+
+  const _RemoveMasterPasswordDialog({required this.passwordCtrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return AppDialog(
+      title: l10n.removeMasterPassword,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            l10n.confirmRemoveMasterPassword,
+            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: passwordCtrl,
+            obscureText: true,
+            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            decoration: AppTheme.inputDecoration(
+              labelText: l10n.currentPassword,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
+        AppDialogAction.primary(
+          label: l10n.ok,
+          onTap: () {
+            if (passwordCtrl.text.isEmpty) return;
+            Navigator.pop(context, passwordCtrl.text);
+          },
+        ),
+      ],
+    );
+  }
+}

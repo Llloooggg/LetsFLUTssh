@@ -1079,122 +1079,122 @@ class SDe extends S {
   String get progressOpeningSftp => 'SFTP-Kanal wird geöffnet';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'Übertragungen:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count aktiv';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return ', $count in Warteschlange';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count im Verlauf';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'Erstellt: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'Gestartet: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'Beendet: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'Dauer: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'In Warteschlange';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'Upload wird gestartet...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'Download wird gestartet...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'Wird kopiert...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'Fertig';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total Dateien';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'ORDNERNAME';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'Ordner \"$name\" existiert bereits';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'Schlüsseldatei hierher ziehen';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'Sitzung hat keine Anmeldedaten — bearbeiten Sie sie, um ein Passwort oder einen Schlüssel hinzuzufügen';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count Elemente';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'Alle auswählen ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'Größe: $size KB / $max KB max.';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'Keine aktiven Terminals';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'Verbindung über Sitzungen herstellen';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'Datei nicht gefunden: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'SSH-Verbindung';
 
   @override
   String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+      'Hält SSH-Verbindungen im Hintergrund aufrecht.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH aktiv';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count aktive Verbindung(en)';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count Elemente, $size';
   }
 
   @override
@@ -1205,4 +1205,322 @@ class SDe extends S {
 
   @override
   String get duplicateDownShortcut => 'Nach unten duplizieren (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Sicherheit';
+
+  @override
+  String get knownHosts => 'Bekannte Hosts';
+
+  @override
+  String get knownHostsSubtitle =>
+      'Verwaltung vertrauenswürdiger SSH-Server-Fingerabdrücke';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bekannte Hosts',
+      one: '1 bekannter Host',
+      zero: 'Keine bekannten Hosts',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty =>
+      'Keine bekannten Hosts. Verbinden Sie sich mit einem Server, um einen hinzuzufügen.';
+
+  @override
+  String get removeHost => 'Host entfernen';
+
+  @override
+  String removeHostConfirm(String host) {
+    return '$host aus bekannten Hosts entfernen? Beim nächsten Verbinden wird der Schlüssel erneut überprüft.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Alle bekannten Hosts löschen';
+
+  @override
+  String get clearAllKnownHostsConfirm =>
+      'Alle bekannten Hosts entfernen? Jeder Serverschlüssel muss erneut bestätigt werden.';
+
+  @override
+  String get importKnownHosts => 'Bekannte Hosts importieren';
+
+  @override
+  String get importKnownHostsSubtitle => 'Import aus OpenSSH known_hosts-Datei';
+
+  @override
+  String get exportKnownHosts => 'Bekannte Hosts exportieren';
+
+  @override
+  String importedHosts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count neue Hosts importiert',
+      one: '1 neuer Host importiert',
+      zero: 'Keine neuen Hosts importiert',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clearedAllHosts => 'Alle bekannten Hosts gelöscht';
+
+  @override
+  String removedHost(String host) {
+    return '$host entfernt';
+  }
+
+  @override
+  String get noHostsToExport => 'Keine Hosts zum Exportieren';
+
+  @override
+  String get sshKeys => 'SSH-Schlüssel';
+
+  @override
+  String get sshKeysSubtitle =>
+      'Verwaltung von SSH-Schlüsselpaaren zur Authentifizierung';
+
+  @override
+  String get noKeys =>
+      'Keine SSH-Schlüssel. Importieren oder generieren Sie einen.';
+
+  @override
+  String get generateKey => 'Schlüssel generieren';
+
+  @override
+  String get importKey => 'Schlüssel importieren';
+
+  @override
+  String get keyLabel => 'Schlüsselname';
+
+  @override
+  String get keyLabelHint => 'z.B. Arbeitsserver, GitHub';
+
+  @override
+  String get selectKeyType => 'Schlüsseltyp';
+
+  @override
+  String get generating => 'Wird generiert...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'Schlüssel generiert: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'Schlüssel importiert: $label';
+  }
+
+  @override
+  String get deleteKey => 'Schlüssel löschen';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'Schlüssel \"$label\" löschen? Sitzungen, die ihn verwenden, verlieren den Zugang.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'Schlüssel gelöscht: $label';
+  }
+
+  @override
+  String get publicKey => 'Öffentlicher Schlüssel';
+
+  @override
+  String get publicKeyCopied =>
+      'Öffentlicher Schlüssel in Zwischenablage kopiert';
+
+  @override
+  String get pastePrivateKey => 'Privaten Schlüssel einfügen (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'Ungültige PEM-Schlüsseldaten';
+
+  @override
+  String get selectFromKeyStore => 'Aus Schlüsselspeicher auswählen';
+
+  @override
+  String get noKeySelected => 'Kein Schlüssel ausgewählt';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Schlüssel',
+      one: '1 Schlüssel',
+      zero: 'Keine Schlüssel',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'Generiert';
+
+  @override
+  String get passphraseRequired => 'Passphrase erforderlich';
+
+  @override
+  String passphrasePrompt(String host) {
+    return 'Der SSH-Schlüssel für $host ist verschlüsselt. Geben Sie die Passphrase zum Entsperren ein.';
+  }
+
+  @override
+  String get passphraseWrong =>
+      'Falsche Passphrase. Bitte versuchen Sie es erneut.';
+
+  @override
+  String get passphrase => 'Passphrase';
+
+  @override
+  String get rememberPassphrase => 'Für diese Sitzung merken';
+
+  @override
+  String get unlock => 'Entsperren';
+
+  @override
+  String get masterPasswordSubtitle =>
+      'Gespeicherte Anmeldedaten mit Passwort schützen';
+
+  @override
+  String get setMasterPassword => 'Master-Passwort festlegen';
+
+  @override
+  String get changeMasterPassword => 'Master-Passwort ändern';
+
+  @override
+  String get removeMasterPassword => 'Master-Passwort entfernen';
+
+  @override
+  String get masterPasswordEnabled =>
+      'Anmeldedaten sind durch Master-Passwort geschützt';
+
+  @override
+  String get masterPasswordDisabled =>
+      'Anmeldedaten verwenden automatisch generierten Schlüssel (kein Passwort)';
+
+  @override
+  String get enterMasterPassword =>
+      'Geben Sie das Master-Passwort ein, um Ihre gespeicherten Anmeldedaten zu entsperren.';
+
+  @override
+  String get wrongMasterPassword =>
+      'Falsches Passwort. Bitte versuchen Sie es erneut.';
+
+  @override
+  String get newPassword => 'Neues Passwort';
+
+  @override
+  String get currentPassword => 'Aktuelles Passwort';
+
+  @override
+  String get passwordTooShort => 'Passwort muss mindestens 8 Zeichen lang sein';
+
+  @override
+  String get masterPasswordSet => 'Master-Passwort aktiviert';
+
+  @override
+  String get masterPasswordChanged => 'Master-Passwort geändert';
+
+  @override
+  String get masterPasswordRemoved => 'Master-Passwort entfernt';
+
+  @override
+  String get masterPasswordWarning =>
+      'Wenn Sie dieses Passwort vergessen, gehen alle gespeicherten Passwörter und SSH-Schlüssel verloren. Eine Wiederherstellung ist nicht möglich.';
+
+  @override
+  String get forgotPassword => 'Passwort vergessen?';
+
+  @override
+  String get forgotPasswordWarning =>
+      'Dies löscht ALLE gespeicherten Passwörter, SSH-Schlüssel und Passphrasen. Sitzungen und Einstellungen bleiben erhalten. Dies kann nicht rückgängig gemacht werden.';
+
+  @override
+  String get resetAndDeleteCredentials => 'Zurücksetzen und Daten löschen';
+
+  @override
+  String get credentialsReset =>
+      'Alle gespeicherten Anmeldedaten wurden gelöscht';
+
+  @override
+  String get derivingKey => 'Verschlüsselungsschlüssel wird abgeleitet...';
+
+  @override
+  String get reEncrypting => 'Daten werden neu verschlüsselt...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'Geben Sie Ihr aktuelles Passwort ein, um den Master-Passwort-Schutz zu entfernen. Anmeldedaten werden mit einem automatisch generierten Schlüssel neu verschlüsselt.';
+
+  @override
+  String get securitySetupTitle => 'Sicherheitseinrichtung';
+
+  @override
+  String securitySetupKeychainFound(String keychainName) {
+    return 'OS-Schlüsselbund erkannt ($keychainName). Ihre Daten werden automatisch mit Ihrem System-Schlüsselbund verschlüsselt.';
+  }
+
+  @override
+  String get securitySetupKeychainOptional =>
+      'Sie können auch ein Master-Passwort für zusätzlichen Schutz festlegen.';
+
+  @override
+  String get securitySetupNoKeychain =>
+      'Kein OS-Schlüsselbund erkannt. Ohne Schlüsselbund werden Ihre Sitzungsdaten (Hosts, Passwörter, Schlüssel) im Klartext gespeichert.';
+
+  @override
+  String get securitySetupNoKeychainHint =>
+      'Dies ist normal bei WSL, Headless Linux oder Minimalinstallationen. Zur Aktivierung des Schlüsselbunds unter Linux: Installieren Sie libsecret und einen Schlüsselring-Daemon (z.B. gnome-keyring).';
+
+  @override
+  String get securitySetupRecommendMasterPassword =>
+      'Wir empfehlen, ein Master-Passwort zum Schutz Ihrer Daten festzulegen.';
+
+  @override
+  String get continueWithKeychain => 'Mit Schlüsselbund fortfahren';
+
+  @override
+  String get continueWithoutEncryption => 'Ohne Verschlüsselung fortfahren';
+
+  @override
+  String get securityLevel => 'Sicherheitsstufe';
+
+  @override
+  String get securityLevelPlaintext => 'Keine (Klartext)';
+
+  @override
+  String get securityLevelKeychain => 'OS-Schlüsselbund';
+
+  @override
+  String get securityLevelMasterPassword => 'Master-Passwort';
+
+  @override
+  String get keychainStatus => 'Schlüsselbund';
+
+  @override
+  String keychainAvailable(String name) {
+    return 'Verfügbar ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => 'Nicht verfügbar';
+
+  @override
+  String get manageMasterPassword => 'Master-Passwort verwalten';
+
+  @override
+  String get manageMasterPasswordSubtitle =>
+      'Master-Passwort festlegen, ändern oder entfernen';
 }

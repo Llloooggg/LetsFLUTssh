@@ -1,7 +1,7 @@
 name: letsflutssh
 description: Lightweight cross-platform SSH/SFTP client with GUI
 publish_to: 'none'
-version: 3.3.4+376
+version: 3.4.0+377
 
 environment:
   sdk: ^3.11.3
@@ -31,6 +31,7 @@ dependencies:
 
   # Crypto (pure Dart, transitive via dartssh2)
   pointycastle: ^4.0.0
+  pinenacl: ^0.6.0
 
   # Archive (pure Dart ZIP)
   archive: ^4.0.4
@@ -51,6 +52,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: any
+  flutter_secure_storage: ^10.0.0
 
 dev_dependencies:
   flutter_test:

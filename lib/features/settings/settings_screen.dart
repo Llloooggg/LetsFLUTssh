@@ -11,8 +11,15 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
+import '../../core/security/aes_gcm.dart';
+import '../../core/security/master_password.dart';
+import '../../core/security/security_level.dart';
 import '../../core/session/qr_codec.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/connection_provider.dart';
+import '../../providers/key_provider.dart';
+import '../../providers/master_password_provider.dart';
+import '../../providers/security_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/version_provider.dart';
 import '../../utils/format.dart';
@@ -30,6 +37,8 @@ import '../../widgets/toast.dart';
 import '../session_manager/qr_display_screen.dart';
 import '../session_manager/qr_export_dialog.dart';
 import 'export_import.dart';
+import '../key_manager/key_manager_dialog.dart';
+import 'known_hosts_manager.dart';
 
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';
@@ -87,6 +96,16 @@ List<_Section> _buildSections(BuildContext context) => [
     title: S.of(context).transfers,
     icon: Icons.swap_horiz,
     builder: _TransferSection.new,
+  ),
+  _Section(
+    title: S.of(context).security,
+    icon: Icons.security,
+    builder: _SecuritySection.new,
+  ),
+  _Section(
+    title: S.of(context).sshKeys,
+    icon: Icons.vpn_key,
+    builder: _SshKeysSection.new,
   ),
   _Section(
     title: S.of(context).data,

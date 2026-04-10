@@ -96,7 +96,7 @@ lib/
 │   ├── transfer/                     # File transfer queue
 │   ├── session/                      # Session model, persistence, tree, QR, history
 │   ├── connection/                   # Connection lifecycle, progress tracking
-│   ├── security/                     # AES-256-GCM credential storage
+│   ├── security/                     # AES-256-GCM credential storage + master password
 │   ├── config/                       # App configuration
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
@@ -127,6 +127,8 @@ lib/
 │   ├── cross_marquee_controller.dart # Cross-widget marquee selection notifier
 │   ├── error_state.dart             # Error display with retry/secondary actions
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
+│   ├── passphrase_dialog.dart      # Interactive SSH key passphrase prompt
+│   ├── unlock_dialog.dart          # Master password unlock dialog (startup)
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
@@ -155,7 +157,7 @@ lib/
 |------|---------------|---------|
 | `ssh_client.dart` | `SSHConnection` | Wrapper over dartssh2: connect, auth, openShell, resize, keepalive, disconnect |
 | `ssh_config.dart` | `SSHConfig` | Config model (host, port, user, password, keyPath, keyData, passphrase, keepAliveSec, timeoutSec) |
-| `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed |
+| `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed, CRUD management (remove/import/export/clear) |
 | `shell_helper.dart` | `openShellWithRetry()`, `ShellConnection` | Shared SSH shell open logic with retry; `ShellConnection` wraps shell + terminal callbacks, clears them on `close()` |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy with structured fields (host, port, user) for localization |
 
@@ -183,18 +185,29 @@ class SSHConnection {
 
   SSHClient? get client;        // dartssh2 client
   bool get isConnected;
+
+  PassphraseCallback? onPassphraseRequired;  // interactive passphrase prompt
+  static const maxPassphraseAttempts = 3;
 }
 ```
 
 #### Auth chain — attempt order
 
 ```
-1. keyPath → read file, parse PEM → SSHKeyPair
-2. keyData → parse PEM string → SSHKeyPair
+1. keyPath → read file, resolve passphrase → SSHKeyPair
+2. keyData → resolve passphrase, parse PEM → SSHKeyPair
 3. password → SSHPasswordAuth
 4. interactive → keyboard-interactive prompt (fallback)
 Each step is skipped if the parameter is empty.
 On failure of any step → AuthError.
+
+Passphrase resolution (for encrypted keys):
+  1. If config.passphrase is set → use it (stored or cached)
+  2. Try SSHKeyPair.fromPem(pem, null) → if unencrypted, succeed
+  3. If encrypted + no callback → AuthError
+  4. Invoke onPassphraseRequired(host, attempt) up to 3 times
+  5. User cancel (null) → AuthError; wrong passphrase → retry
+  6. Correct passphrase → use it; cached via Connection.cachedPassphrase
 ```
 
 #### KnownHostsManager
@@ -211,6 +224,18 @@ class KnownHostsManager {
   // Callbacks (invoked via global navigatorKey):
   // onUnknownHost → HostKeyDialog.showNewHost()
   // onHostKeyChanged → HostKeyDialog.showKeyChanged()
+
+  // Public read access:
+  Map<String, String> get entries;  // unmodifiable {hostPort → "keyType base64Key"}
+  int get count;
+  static String fingerprint(List<int> keyBytes);  // SHA256 fingerprint
+
+  // CRUD operations (each persists to file via _saveAll):
+  Future<void> removeHost(String hostPort);
+  Future<void> removeMultiple(Set<String> hostPorts);
+  Future<void> clearAll();
+  Future<int> importFromFile(String path);  // merge from OpenSSH file, returns added count
+  String exportToString();                  // serialize to OpenSSH format
 
   // Concurrency: _loadFuture pattern (first call loads, later calls reuse).
   // Write lock: _withWriteLock() serializes file writes via chained futures.
@@ -447,6 +472,7 @@ class Connection {
   SSHConnection? sshConnection;
   SSHConnectionState state;  // disconnected | connecting | connected
   Object? connectionError;
+  String? cachedPassphrase;  // interactively entered, reused on reconnect
 
   Stream<ConnectionStep> progressStream;  // broadcasts steps during connect
   List<ConnectionStep> progressHistory;   // buffered for late subscribers
@@ -470,8 +496,13 @@ class ConnectionManager {
     ActiveCountCallback? onActiveCountChanged,  // notifies foreground service
   });
 
+  PassphrasePromptCallback? onPassphraseRequired;  // set by UI layer (main.dart)
+
   Connection connectAsync(SSHConfig config, {String? label, String? sessionId});
   // Returns Connection immediately in state=connecting. SSH handshake runs in background.
+  // _doConnect injects cachedPassphrase into config and wires onPassphraseRequired
+  // onto the SSHConnection before connect(). If user checks "remember", the passphrase
+  // is stored in Connection.cachedPassphrase for automatic reuse on reconnect.
   void disconnect(String connectionId);
   void disconnectAll();  // also completes pending ready futures for in-progress connections
 
@@ -506,36 +537,75 @@ class ForegroundServiceManager {
 
 ### 3.6 Security & Encryption (`core/security/`)
 
-#### CredentialStore
+#### Three-Level Security Model
+
+All data stores (SessionStore, KeyStore, KnownHostsManager) support three security levels:
+
+| Level | When | Files on disk | Key source |
+|-------|------|---------------|------------|
+| **Plaintext** | No keychain AND no master password | `sessions.json`, `keys.json`, `known_hosts` | None |
+| **Keychain** | OS keychain available, no master password | `sessions.enc`, `keys.enc`, `known_hosts.enc` | OS keychain via `flutter_secure_storage` |
+| **Master Password** | User set master password | `sessions.enc`, `keys.enc`, `known_hosts.enc` + `credentials.salt` + `credentials.verify` | PBKDF2-derived |
+
+First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. First launch is detected by the absence of any data files (no master password salt, no keychain key, no session files).
+
+#### AesGcm
+
+Shared AES-256-GCM utility used by all encrypted stores.
 
 ```dart
-class CredentialStore {
-  CredentialStore(String dataDir);
-
-  Future<Map<String, CredentialData>> load();
-  Future<void> save(Map<String, CredentialData> data);
-
-  // Internals:
-  // - Encryption key: 32 bytes random, stored in separate file
-  // - Algorithm: AES-256-GCM (pointycastle)
-  // - File format: [IV 12B] [ciphertext] [GCM auth tag 16B]
-  // - Guard: Completer prevents race condition during key generation
-}
-
-class CredentialData {
-  final String? password;
-  final String? keyData;      // PEM text
-  final String? passphrase;
-}
-
-class CredentialStoreException {
-  // Distinguishes "no credentials" from "corrupt key/file"
+class AesGcm {
+  static Uint8List encrypt(String plaintext, Uint8List key);
+  static String decrypt(Uint8List data, Uint8List key);
+  static Uint8List generateKey(); // 32-byte random key
+  // Wire format: [IV (12 bytes)] [ciphertext + GCM authentication tag]
 }
 ```
 
 **Why pointycastle:** `encrypt` package has version conflicts with dartssh2. pointycastle is pure Dart, transitive dependency via dartssh2.
 
-**Why not flutter_secure_storage:** Needs pure Dart (cross-platform). flutter_secure_storage depends on OS keychain — different behavior across platforms.
+#### SecureKeyStorage
+
+Thin wrapper around `flutter_secure_storage` for OS keychain access. All methods catch exceptions and return null/false — graceful fallback to plaintext or master-password mode.
+
+```dart
+class SecureKeyStorage {
+  Future<bool> isAvailable();      // write+read+delete probe
+  Future<Uint8List?> readKey();    // null on failure
+  Future<bool> writeKey(Uint8List key); // false on failure
+  Future<void> deleteKey();
+}
+```
+
+OS keychain backends: Keychain (macOS/iOS), Credential Manager (Windows), libsecret (Linux), EncryptedSharedPreferences (Android). All are **optional** — the app works without them.
+
+#### KeyStore
+
+Central SSH key store with three-level encryption.
+
+```dart
+class KeyStore {
+  // Storage: keys.json (plaintext) or keys.enc (encrypted)
+  void setEncryptionKey(Uint8List key, SecurityLevel level);
+  void clearEncryptionKey();
+  Future<void> reEncrypt(Uint8List? newKey, SecurityLevel newLevel);
+  Future<Map<String, SshKeyEntry>> loadAll();
+  Future<void> save(SshKeyEntry entry);
+  Future<void> delete(String id);
+  SshKeyEntry importKey(String pem, String label);
+  static SshKeyEntry generateKeyPair(SshKeyType, label); // Ed25519 or RSA
+}
+
+class SshKeyEntry {
+  final String id, label, privateKey, publicKey, keyType;
+  final DateTime createdAt;
+  final bool isGenerated;
+}
+
+enum SshKeyType { ed25519, rsa2048, rsa4096 }
+```
+
+**Session integration:** `SessionAuth.keyId` references a key by ID. Resolved in `SessionConnect._resolveConfig()` — key's PEM injected into `SSHConfig.auth.keyData` before connecting. SSH layer receives plain PEM text, unchanged.
 
 ---
 
@@ -660,6 +730,11 @@ class UpdateService {
   // Download: follows redirects (max 10), validates trusted hosts.
   // openFile(): platform launcher, validates Windows paths against shell metacharacters.
   // Progress: throttled to 1% increments in UpdateNotifier to reduce state churn.
+  //
+  // Changelog: fetched once during check(), stored in UpdateInfo.changelog,
+  // preserved across state transitions (downloading → downloaded) via copyWith.
+  // Displayed in startup dialog (inline) and settings (via "Release Notes" button → AppDialog).
+  // Available in both updateAvailable and downloaded states on all platforms.
 }
 ```
 
@@ -751,7 +826,9 @@ class AppShortcutRegistry {
 
 | Provider | Type | Depends on | Description |
 |----------|------|-----------|-------------|
-| `sessionStoreProvider` | Provider | — | Singleton SessionStore |
+| `credentialStoreProvider` | Provider | — | Singleton CredentialStore (shared with SessionStore + master password flow) |
+| `masterPasswordProvider` | Provider | — | MasterPasswordManager singleton |
+| `sessionStoreProvider` | Provider | credentialStoreProvider | Singleton SessionStore |
 | `sessionProvider` | NotifierProvider | sessionStoreProvider | Session CRUD + undo/redo |
 | `sessionTreeProvider` | Provider | sessionProvider | Hierarchical tree |
 | `filteredSessionsProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered session list |
@@ -761,6 +838,8 @@ class AppShortcutRegistry {
 | `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
 | `localeProvider` | Provider | configProvider | Locale? (null = system default) |
 | `knownHostsProvider` | Provider | — | KnownHostsManager |
+| `keyStoreProvider` | Provider | — | KeyStore |
+| `sshKeysProvider` | FutureProvider | — | List\<SshKeyEntry\> |
 | `connectionManagerProvider` | Provider | knownHostsProvider | ConnectionManager singleton |
 | `connectionsProvider` | StreamProvider | connectionManagerProvider | Real-time connection list |
 | `transferManagerProvider` | Provider | — | TransferManager singleton |
@@ -975,8 +1054,8 @@ class FilePaneController extends ChangeNotifier {
 |------|-------|---------|
 | `session_panel.dart` | `SessionPanel` | Sidebar: tree view + search + actions + bulk select. Header has "New Folder" and "New Connection" buttons |
 | `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data. Session icon color: green (connected), yellow (connecting), grey (disconnected) |
-| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab always shows all fields (password + key); auth type selector (Password/SSH Key/Both) controls validation: Password requires password, Key requires key file or PEM, Both requires at least one |
-| `session_connect.dart` | `SessionConnect` | Connection logic: Session → SSHConfig → ConnectionManager |
+| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab: password, key file/PEM, or key from central store (via `keyId`). Key store selector shown when keys exist |
+| `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionManager. Async to support key store lookup |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link) |
 | `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export |
@@ -1078,9 +1157,11 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_logging.dart` | — | Logging section widgets (part of `settings_screen.dart`) |
 | `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
 | `settings_sections.dart` | — | Section-specific build methods (part of `settings_screen.dart`) |
+| `known_hosts_manager.dart` | `KnownHostsManagerDialog` | Known hosts management dialog (search, delete, import, export, clear) |
+| `key_manager/key_manager_dialog.dart` | `KeyManagerDialog` | SSH key management dialog (list, generate, import, delete, copy public key) |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
 
-**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
+**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Security (known hosts manager), SSH Keys (key manager), Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
 
 **Desktop:** Settings are embedded directly in `MainScreen` via `ShellMode`. The toolbar settings button toggles between `ShellMode.sessions` and `ShellMode.settings` — no route navigation. `SettingsSidebar` + `SettingsContent` replace the session panel and tab area while sharing the same `AppShell` frame (sidebar width preserved).
 
@@ -1332,6 +1413,16 @@ HostKeyDialog.showNewHost(context, {host, port, keyType, fingerprint})    → Fu
 HostKeyDialog.showKeyChanged(context, {host, port, keyType, fingerprint}) → Future<bool>
 ```
 TOFU dialogs: new host / key changed.
+
+### PassphraseDialog
+
+```dart
+PassphraseDialog.show(context, {required String host, int? attempt}) → Future<PassphraseResult?>
+class PassphraseResult { String passphrase; bool remember; }
+```
+Interactive prompt for encrypted SSH key passphrase. Shows "wrong passphrase" on retry (attempt > 1).
+Checkbox "Remember for this session" (default: checked). Returns null on cancel.
+Wired via `ConnectionManager.onPassphraseRequired` → `SSHConnection.onPassphraseRequired`.
 
 ### ConfirmDialog
 
@@ -2088,33 +2179,69 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 
 ## 13. Security Model
 
-### Credential encryption
+### Three-level encryption
+
+All data stores support three security levels (see §3.6):
+
+| Level | Key source | Encrypted files |
+|-------|-----------|----------------|
+| Plaintext | None | `sessions.json`, `keys.json`, `known_hosts` |
+| Keychain | OS keychain (`flutter_secure_storage`) | `sessions.enc`, `keys.enc`, `known_hosts.enc` |
+| Master Password | PBKDF2-derived | `sessions.enc`, `keys.enc`, `known_hosts.enc` + `credentials.salt` + `credentials.verify` |
+
+All encrypted files use AES-256-GCM via `AesGcm` utility. Wire format: `[IV 12B] [ciphertext + GCM tag]`.
+
+No `credentials.key` file — the old pattern of storing a key next to the ciphertext is eliminated.
+
+### First-launch wizard
+
+`SecuritySetupDialog` shown on first launch (no data files on disk):
+1. Probes OS keychain via `SecureKeyStorage.isAvailable()` (write+read+delete cycle)
+2. Keychain found → offers "Continue with Keychain" or "Set Master Password"
+3. Keychain not found → offers "Continue without Encryption" or "Set Master Password"
+
+### Startup security flow
+
+`_initSecurity()` in `main.dart`:
+1. `credentials.salt` exists → show `UnlockDialog` → derive key
+2. Keychain has key → read from keychain
+3. Data files exist but no encryption → plaintext mode
+4. No data at all → first launch → show `SecuritySetupDialog` wizard
+5. Inject key into all three stores via `_injectKey()` + update `securityStateProvider`
+
+### Master password
 
 ```
-credential.key (32 bytes, random)
-         │
-         ▼ AES-256-GCM
-credentials.enc = [IV 12B] [ciphertext(JSON)] [GCM tag 16B]
+User password → PBKDF2-SHA256(600k iterations, random salt) → 256-bit key
+                                                                   │
+                               ┌───────────────┬──────────────────┤
+                               ▼               ▼                  ▼
+                        sessions.enc      keys.enc       known_hosts.enc
 ```
 
-- Key generated once, stored alongside (protection: file permissions)
-- Completer guard prevents race condition during parallel key generation
-- `CredentialStoreException` distinguishes "no data" from "corrupt key"
+- **Detection:** `credentials.salt` exists = master password enabled
+- **Verification:** `credentials.verify` = AES-256-GCM(known plaintext "LetsFLUTssh-verify")
+- **Enable flow:** derive key → `reEncrypt()` all three stores → delete keychain key if present
+- **Disable flow:** try keychain → generate random key → `reEncrypt()` all stores → delete salt/verifier. No keychain → plaintext fallback
+- **Change flow:** verify old → derive new → `reEncrypt()` all three stores
+- **Forgot password:** deletes all encrypted files (salt, verifier, all `.enc` files)
 
 ### .lfs export
 
 ```
-[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions.json + credentials.json))]
+[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions.json + config.json + known_hosts))]
 
 Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 ```
+
+Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
 
 ### TOFU (Trust On First Use)
 
 - New host → dialog with SHA256 fingerprint → user accepts/rejects
 - Changed key → warning dialog → user accepts/rejects
 - Without callback → reject (fail-safe)
-- known_hosts: chmod 600
+- known_hosts encrypted when security level > plaintext
 
 ### Deep link validation
 
@@ -2318,7 +2445,8 @@ Manual build
 | Decision | Why |
 |----------|-----|
 | `pointycastle` instead of `encrypt` | Version conflict with dartssh2 |
-| `CredentialStore` instead of `flutter_secure_storage` | Pure Dart, no OS deps, cross-platform |
+| Three-level security (plaintext/keychain/master password) | Honest security: no key-file next to ciphertext. OS keychain optional with graceful fallback |
+| `flutter_secure_storage` as optional dep | OS keychain for automatic encryption; app works without it (libsecret on Linux is optional) |
 | `app_links` instead of `uni_links` | Desktop support |
 | `FilePaneController` as `ChangeNotifier` | Lightweight per-pane state, Riverpod overhead not justified |
 | Sealed class `SplitNode` | Recursive split tree with type safety |

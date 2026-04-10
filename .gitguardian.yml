@@ -6,3 +6,10 @@ secret:
   ignored_paths:
     - 'test/**'
     - 'lib/l10n/**'
+
+  ignored_detectors:
+    # Security stores reference "password" in code logic / comments, not secrets
+    - name: generic_password
+      paths:
+        - 'lib/core/security/key_store.dart'
+        - 'lib/core/session/session_store.dart'

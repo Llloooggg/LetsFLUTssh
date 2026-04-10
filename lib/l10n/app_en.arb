@@ -801,5 +801,178 @@
   },
   "maximize": "Maximize",
   "restore": "Restore",
-  "duplicateDownShortcut": "Duplicate Down (Ctrl+Shift+\\)"
+  "duplicateDownShortcut": "Duplicate Down (Ctrl+Shift+\\)",
+  "security": "Security",
+  "knownHosts": "Known Hosts",
+  "knownHostsSubtitle": "Manage trusted SSH server fingerprints",
+  "knownHostsCount": "{count, plural, =0{No known hosts} =1{1 known host} other{{count} known hosts}}",
+  "@knownHostsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "knownHostsEmpty": "No known hosts yet. Connect to a server to add one.",
+  "removeHost": "Remove Host",
+  "removeHostConfirm": "Remove {host} from known hosts? You will be prompted to verify its key again on next connection.",
+  "@removeHostConfirm": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "clearAllKnownHosts": "Clear All Known Hosts",
+  "clearAllKnownHostsConfirm": "Remove all known hosts? You will be prompted to verify each server key again.",
+  "importKnownHosts": "Import Known Hosts",
+  "importKnownHostsSubtitle": "Import from OpenSSH known_hosts file",
+  "exportKnownHosts": "Export Known Hosts",
+  "importedHosts": "Imported {count} new hosts",
+  "@importedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "clearedAllHosts": "Cleared all known hosts",
+  "removedHost": "Removed {host}",
+  "@removedHost": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "noHostsToExport": "No known hosts to export",
+  "keyType": "Key Type",
+  "fingerprint": "Fingerprint",
+  "sshKeys": "SSH Keys",
+  "sshKeysSubtitle": "Manage SSH key pairs for authentication",
+  "noKeys": "No SSH keys. Import or generate one.",
+  "generateKey": "Generate Key",
+  "importKey": "Import Key",
+  "keyLabel": "Key Label",
+  "keyLabelHint": "e.g. Work Server, GitHub",
+  "selectKeyType": "Key Type",
+  "generating": "Generating...",
+  "keyGenerated": "Key generated: {label}",
+  "@keyGenerated": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "keyImported": "Key imported: {label}",
+  "@keyImported": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteKey": "Delete Key",
+  "deleteKeyConfirm": "Delete key \"{label}\"? Sessions using it will lose access.",
+  "@deleteKeyConfirm": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "keyDeleted": "Key deleted: {label}",
+  "@keyDeleted": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "publicKey": "Public Key",
+  "publicKeyCopied": "Public key copied to clipboard",
+  "pastePrivateKey": "Paste Private Key (PEM)",
+  "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
+  "invalidPem": "Invalid PEM key data",
+  "selectFromKeyStore": "Select from Key Store",
+  "noKeySelected": "No key selected",
+  "keyCount": "{count, plural, =0{No keys} =1{1 key} other{{count} keys}}",
+  "@keyCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "generated": "Generated",
+  "passphraseRequired": "Passphrase Required",
+  "passphrasePrompt": "The SSH key for {host} is encrypted. Enter the passphrase to unlock it.",
+  "@passphrasePrompt": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "passphraseWrong": "Wrong passphrase. Please try again.",
+  "passphrase": "Passphrase",
+  "rememberPassphrase": "Remember for this session",
+  "unlock": "Unlock",
+
+  "masterPassword": "Master Password",
+  "masterPasswordSubtitle": "Protect saved credentials with a password",
+  "setMasterPassword": "Set Master Password",
+  "changeMasterPassword": "Change Master Password",
+  "removeMasterPassword": "Remove Master Password",
+  "masterPasswordEnabled": "Credentials are protected by master password",
+  "masterPasswordDisabled": "Credentials use auto-generated key (no password)",
+  "enterMasterPassword": "Enter master password to unlock your saved credentials.",
+  "wrongMasterPassword": "Wrong password. Please try again.",
+  "newPassword": "New Password",
+  "confirmPassword": "Confirm Password",
+  "currentPassword": "Current Password",
+  "passwordsDoNotMatch": "Passwords do not match",
+  "passwordTooShort": "Password must be at least 8 characters",
+  "masterPasswordSet": "Master password enabled",
+  "masterPasswordChanged": "Master password changed",
+  "masterPasswordRemoved": "Master password removed",
+  "masterPasswordWarning": "If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.",
+  "forgotPassword": "Forgot Password?",
+  "forgotPasswordWarning": "This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.",
+  "resetAndDeleteCredentials": "Reset & Delete Credentials",
+  "credentialsReset": "All saved credentials have been deleted",
+  "derivingKey": "Deriving encryption key...",
+  "reEncrypting": "Re-encrypting data...",
+  "confirmRemoveMasterPassword": "Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.",
+  "password": "Password",
+
+  "securitySetupTitle": "Security Setup",
+  "securitySetupKeychainFound": "OS Keychain detected ({keychainName}). Your data will be automatically encrypted using your system keychain.",
+  "@securitySetupKeychainFound": {
+    "placeholders": {
+      "keychainName": {"type": "String"}
+    }
+  },
+  "securitySetupKeychainOptional": "You can also set a master password for additional protection.",
+  "securitySetupNoKeychain": "No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.",
+  "securitySetupNoKeychainHint": "This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).",
+  "securitySetupRecommendMasterPassword": "We recommend setting a master password to protect your data.",
+  "continueWithKeychain": "Continue with Keychain",
+  "continueWithoutEncryption": "Continue without Encryption",
+
+  "securityLevel": "Security Level",
+  "securityLevelPlaintext": "None (plaintext)",
+  "securityLevelKeychain": "OS Keychain",
+  "securityLevelMasterPassword": "Master Password",
+  "keychainStatus": "Keychain",
+  "keychainAvailable": "Available ({name})",
+  "@keychainAvailable": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "keychainNotAvailable": "Not available",
+  "manageMasterPassword": "Manage Master Password",
+  "manageMasterPasswordSubtitle": "Set, change, or remove master password"
 }

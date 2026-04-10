@@ -14,6 +14,10 @@ import 'ssh_config.dart';
 /// Callback for reporting connection progress steps.
 typedef ConnectionProgressCallback = void Function(ConnectionStep step);
 
+/// Callback invoked when an encrypted SSH key needs a passphrase.
+/// Returns the passphrase string, or null if the user cancelled.
+typedef PassphraseCallback = Future<String?> Function(String host, int attempt);
+
 /// Typedef for socket creation — injectable for testing.
 typedef SSHSocketFactory =
     Future<SSHSocket> Function(String host, int port, {Duration? timeout});
@@ -46,7 +50,14 @@ class SSHConnection {
   bool _disposed = false;
   bool _hostKeyRejected = false;
 
+  /// Maximum number of passphrase prompt attempts before giving up.
+  static const maxPassphraseAttempts = 3;
+
   VoidCallback? onDisconnect;
+
+  /// Called when an encrypted key requires a passphrase not in config.
+  /// Set by [ConnectionManager] before calling [connect].
+  PassphraseCallback? onPassphraseRequired;
 
   SSHConnection({
     required this.config,
@@ -328,7 +339,7 @@ class SSHConnection {
     final identities = <SSHKeyPair>[];
 
     await _tryKeyFileAuth(identities);
-    _tryKeyTextAuth(identities);
+    await _tryKeyTextAuth(identities);
 
     return identities;
   }
@@ -336,10 +347,10 @@ class SSHConnection {
   /// Try loading SSH key from explicit file path.
   Future<void> _tryKeyFileAuth(List<SSHKeyPair> identities) async {
     if (config.keyPath.isEmpty) return;
-    final passphrase = config.passphrase.isNotEmpty ? config.passphrase : null;
     try {
       final keyFile = File(config.keyPath);
       final keyData = await keyFile.readAsString();
+      final passphrase = await _resolvePassphrase(keyData);
       identities.addAll(SSHKeyPair.fromPem(keyData, passphrase));
     } catch (e) {
       AppLogger.instance.log('Failed to load key file: $e', name: 'SSH');
@@ -353,10 +364,10 @@ class SSHConnection {
   }
 
   /// Try parsing SSH key from PEM text.
-  void _tryKeyTextAuth(List<SSHKeyPair> identities) {
+  Future<void> _tryKeyTextAuth(List<SSHKeyPair> identities) async {
     if (config.keyData.isEmpty) return;
-    final passphrase = config.passphrase.isNotEmpty ? config.passphrase : null;
     try {
+      final passphrase = await _resolvePassphrase(config.keyData);
       identities.addAll(SSHKeyPair.fromPem(config.keyData, passphrase));
     } catch (e) {
       throw AuthError(
@@ -366,6 +377,72 @@ class SSHConnection {
         config.host,
       );
     }
+  }
+
+  /// Resolve passphrase for a PEM key: try stored passphrase first,
+  /// then interactively prompt up to [maxPassphraseAttempts] times.
+  ///
+  /// Returns passphrase string or null if the key is not encrypted.
+  Future<String?> _resolvePassphrase(String pemData) async {
+    if (config.passphrase.isNotEmpty) return config.passphrase;
+
+    // Try without passphrase first — succeeds for unencrypted keys.
+    try {
+      SSHKeyPair.fromPem(pemData, null);
+      return null;
+    } on SSHKeyDecryptError {
+      // Key is encrypted — need passphrase
+    } on ArgumentError catch (e) {
+      // RSA keys: "passphrase is required for encrypted key"
+      if (!e.message.toString().contains('passphrase')) rethrow;
+    }
+
+    // No callback — can't prompt user.
+    if (onPassphraseRequired == null) {
+      throw AuthError(
+        'Key is encrypted but no passphrase provided',
+        null,
+        config.user,
+        config.host,
+      );
+    }
+
+    // Prompt user up to maxPassphraseAttempts times.
+    for (int attempt = 1; attempt <= maxPassphraseAttempts; attempt++) {
+      final passphrase = await onPassphraseRequired!(config.host, attempt);
+      if (passphrase == null) {
+        throw AuthError(
+          'Passphrase entry cancelled',
+          null,
+          config.user,
+          config.host,
+        );
+      }
+
+      try {
+        SSHKeyPair.fromPem(pemData, passphrase);
+        return passphrase;
+      } on SSHKeyDecryptError {
+        if (attempt == maxPassphraseAttempts) {
+          throw AuthError(
+            'Invalid passphrase after $maxPassphraseAttempts attempts',
+            null,
+            config.user,
+            config.host,
+          );
+        }
+      } on ArgumentError {
+        if (attempt == maxPassphraseAttempts) {
+          throw AuthError(
+            'Invalid passphrase after $maxPassphraseAttempts attempts',
+            null,
+            config.user,
+            config.host,
+          );
+        }
+      }
+    }
+    return null; // unreachable
   }
 
   HostKeyError _hostKeyError(Object cause) => HostKeyError(

@@ -135,6 +135,380 @@ class _ConnectionSection extends ConsumerWidget {
   }
 }
 
+class _SshKeysSection extends ConsumerWidget {
+  const _SshKeysSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        _ActionTile(
+          icon: Icons.vpn_key,
+          title: S.of(context).sshKeys,
+          subtitle: S.of(context).sshKeysSubtitle,
+          onTap: () => KeyManagerDialog.show(context),
+        ),
+      ],
+    );
+  }
+}
+
+class _SecuritySection extends ConsumerStatefulWidget {
+  const _SecuritySection();
+
+  @override
+  ConsumerState<_SecuritySection> createState() => _SecuritySectionState();
+}
+
+class _SecuritySectionState extends ConsumerState<_SecuritySection> {
+  bool? _masterPasswordEnabled;
+  bool? _keychainAvailable;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkState();
+  }
+
+  Future<void> _checkState() async {
+    final manager = ref.read(masterPasswordProvider);
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final results = await Future.wait([
+      manager.isEnabled(),
+      keyStorage.isAvailable(),
+    ]);
+    if (mounted) {
+      setState(() {
+        _masterPasswordEnabled = results[0];
+        _keychainAvailable = results[1];
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    final secState = ref.watch(securityStateProvider);
+
+    return Column(
+      children: [
+        // Security level info.
+        _InfoTile(
+          icon: Icons.shield,
+          title: l10n.securityLevel,
+          value: _securityLevelLabel(l10n, secState.level),
+        ),
+        // Keychain status.
+        _InfoTile(
+          icon: Icons.key,
+          title: l10n.keychainStatus,
+          value: _keychainAvailable == true
+              ? l10n.keychainAvailable(_keychainName)
+              : _keychainAvailable == false
+              ? l10n.keychainNotAvailable
+              : '...',
+        ),
+        // Manage master password — single tile.
+        _ActionTile(
+          icon: _masterPasswordEnabled == true ? Icons.lock : Icons.lock_open,
+          title: l10n.manageMasterPassword,
+          subtitle: l10n.manageMasterPasswordSubtitle,
+          onTap: () => _manageMasterPassword(context),
+        ),
+        _ActionTile(
+          icon: Icons.verified_user,
+          title: l10n.knownHosts,
+          subtitle: l10n.knownHostsSubtitle,
+          onTap: () => KnownHostsManagerDialog.show(context),
+        ),
+      ],
+    );
+  }
+
+  String _securityLevelLabel(S l10n, SecurityLevel level) {
+    switch (level) {
+      case SecurityLevel.plaintext:
+        return l10n.securityLevelPlaintext;
+      case SecurityLevel.keychain:
+        return l10n.securityLevelKeychain;
+      case SecurityLevel.masterPassword:
+        return l10n.securityLevelMasterPassword;
+    }
+  }
+
+  static String get _keychainName {
+    if (Platform.isMacOS || Platform.isIOS) return 'Keychain';
+    if (Platform.isWindows) return 'Credential Manager';
+    if (Platform.isAndroid) return 'EncryptedSharedPreferences';
+    return 'libsecret';
+  }
+
+  /// Single entry point for master password management.
+  ///
+  /// Not set → show set dialog.
+  /// Already set → show dialog with Change / Remove options.
+  Future<void> _manageMasterPassword(BuildContext context) async {
+    if (_masterPasswordEnabled != true) {
+      await _setMasterPassword(context);
+    } else {
+      await _showManageOptions(context);
+    }
+  }
+
+  Future<void> _showManageOptions(BuildContext context) async {
+    final l10n = S.of(context);
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.manageMasterPassword),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'change'),
+            child: Text(l10n.changeMasterPassword),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'remove'),
+            child: Text(
+              l10n.removeMasterPassword,
+              style: TextStyle(color: AppTheme.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (action == null || !context.mounted) return;
+    if (action == 'change') {
+      await _changeMasterPassword(context);
+    } else {
+      await _removeMasterPassword(context);
+    }
+  }
+
+  Future<void> _setMasterPassword(BuildContext context) async {
+    final l10n = S.of(context);
+    final passwordCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+
+    try {
+      final password = await AppDialog.show<String>(
+        context,
+        builder: (ctx) => _SetMasterPasswordDialog(
+          passwordCtrl: passwordCtrl,
+          confirmCtrl: confirmCtrl,
+        ),
+      );
+
+      if (password == null || !context.mounted) return;
+
+      AppProgressDialog.show(context);
+      try {
+        await _enableMasterPassword(password);
+        if (context.mounted) {
+          Navigator.of(context).pop(); // close progress
+          Toast.show(
+            context,
+            message: l10n.masterPasswordSet,
+            level: ToastLevel.success,
+          );
+          _checkState();
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop();
+        rethrow;
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Set master password failed: $e',
+        name: 'Security',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+      }
+    } finally {
+      passwordCtrl.dispose();
+      confirmCtrl.dispose();
+    }
+  }
+
+  Future<void> _enableMasterPassword(String password) async {
+    final manager = ref.read(masterPasswordProvider);
+
+    // Derive new key from password.
+    final newKey = await manager.enable(password);
+
+    // Sanity check: verify the password immediately to catch crypto issues.
+    final verified = await manager.verify(password);
+    if (!verified) {
+      await manager.disable();
+      throw const MasterPasswordException(
+        'Verification failed after enable — reverted',
+      );
+    }
+
+    // Re-encrypt all stores with the derived key.
+    await _reEncryptAll(newKey, SecurityLevel.masterPassword);
+
+    // Delete keychain key if it was used before.
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    await keyStorage.deleteKey();
+  }
+
+  Future<void> _changeMasterPassword(BuildContext context) async {
+    final l10n = S.of(context);
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+
+    try {
+      final result = await AppDialog.show<({String current, String newPw})>(
+        context,
+        builder: (ctx) => _ChangeMasterPasswordDialog(
+          currentCtrl: currentCtrl,
+          newCtrl: newCtrl,
+          confirmCtrl: confirmCtrl,
+        ),
+      );
+
+      if (result == null || !context.mounted) return;
+
+      AppProgressDialog.show(context);
+      try {
+        await _doChangePassword(result.current, result.newPw);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          Toast.show(
+            context,
+            message: l10n.masterPasswordChanged,
+            level: ToastLevel.success,
+          );
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop();
+        rethrow;
+      }
+    } on MasterPasswordException catch (e) {
+      if (context.mounted) {
+        Toast.show(context, message: e.message, level: ToastLevel.error);
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Change master password failed: $e',
+        name: 'Security',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+      }
+    } finally {
+      currentCtrl.dispose();
+      newCtrl.dispose();
+      confirmCtrl.dispose();
+    }
+  }
+
+  Future<void> _doChangePassword(String oldPassword, String newPassword) async {
+    final manager = ref.read(masterPasswordProvider);
+
+    // Change password — verifies old, generates new salt + verifier.
+    final newKey = await manager.changePassword(oldPassword, newPassword);
+
+    // Re-encrypt all stores with new key.
+    await _reEncryptAll(newKey, SecurityLevel.masterPassword);
+  }
+
+  Future<void> _removeMasterPassword(BuildContext context) async {
+    final l10n = S.of(context);
+    final passwordCtrl = TextEditingController();
+
+    try {
+      final password = await AppDialog.show<String>(
+        context,
+        builder: (ctx) =>
+            _RemoveMasterPasswordDialog(passwordCtrl: passwordCtrl),
+      );
+
+      if (password == null || !context.mounted) return;
+
+      AppProgressDialog.show(context);
+      try {
+        await _doRemoveMasterPassword(password);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          Toast.show(
+            context,
+            message: l10n.masterPasswordRemoved,
+            level: ToastLevel.success,
+          );
+          _checkState();
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop();
+        rethrow;
+      }
+    } on MasterPasswordException catch (e) {
+      if (context.mounted) {
+        Toast.show(context, message: e.message, level: ToastLevel.error);
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Remove master password failed: $e',
+        name: 'Security',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+      }
+    } finally {
+      passwordCtrl.dispose();
+    }
+  }
+
+  Future<void> _doRemoveMasterPassword(String password) async {
+    final manager = ref.read(masterPasswordProvider);
+
+    // Verify password first.
+    final isValid = await manager.verify(password);
+    if (!isValid) {
+      throw const MasterPasswordException('Current password is incorrect');
+    }
+
+    // Try keychain first, fall back to plaintext.
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final keychainAvailable = await keyStorage.isAvailable();
+    if (keychainAvailable) {
+      final key = AesGcm.generateKey();
+      final stored = await keyStorage.writeKey(key);
+      if (stored) {
+        await _reEncryptAll(key, SecurityLevel.keychain);
+        await manager.disable();
+        return;
+      }
+    }
+
+    // No keychain — fall back to plaintext.
+    await _reEncryptAll(null, SecurityLevel.plaintext);
+    await manager.disable();
+  }
+
+  /// Re-encrypt all three data stores and update global security state.
+  Future<void> _reEncryptAll(Uint8List? key, SecurityLevel level) async {
+    final sessionStore = ref.read(sessionStoreProvider);
+    final keyStore = ref.read(keyStoreProvider);
+    final knownHosts = ref.read(knownHostsProvider);
+
+    await sessionStore.reEncrypt(key, level);
+    await keyStore.reEncrypt(key, level);
+    await knownHosts.reEncrypt(key, level);
+
+    if (key != null) {
+      ref.read(securityStateProvider.notifier).set(level, key);
+    } else {
+      ref.read(securityStateProvider.notifier).clearEncryption();
+    }
+  }
+}
+
 class _TransferSection extends ConsumerWidget {
   const _TransferSection();
 
@@ -255,6 +629,7 @@ class _ExportImportTile extends ConsumerWidget {
         sessions: ref.read(sessionProvider),
         config: ref.read(configProvider),
         outputPath: outputPath,
+        knownHostsContent: ref.read(knownHostsProvider).exportToString(),
       );
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -363,11 +738,16 @@ class _ExportImportTile extends ConsumerWidget {
           applyConfig: (config) =>
               ref.read(configProvider.notifier).update((_) => config),
           getEmptyFolders: () => store.emptyFolders,
-          loadCredentials: (ids) => store.loadCredentials(ids),
-          restoreSnapshot: (sessions, folders, creds) =>
-              store.restoreSnapshot(sessions, folders, creds),
+          restoreSnapshot: (sessions, folders) =>
+              store.restoreSnapshot(sessions, folders),
         );
         await importService.applyResult(importResult);
+
+        // Import known hosts via the manager (handles encryption).
+        if (importResult.knownHostsContent != null) {
+          final knownHosts = ref.read(knownHostsProvider);
+          await knownHosts.importFromString(importResult.knownHostsContent!);
+        }
 
         if (context.mounted) {
           Navigator.of(context).pop(); // close progress
@@ -572,6 +952,7 @@ class _UpdateSection extends ConsumerWidget {
           child: Wrap(
             spacing: 8,
             children: [
+              _ChangelogButton(changelog: info.changelog),
               if (hasAsset && plat.isDesktopPlatform)
                 FilledButton.icon(
                   onPressed: () => ref.read(updateProvider.notifier).download(),
@@ -649,22 +1030,57 @@ class _UpdateSection extends ConsumerWidget {
         ),
         Padding(
           padding: const EdgeInsets.only(left: 8),
-          child: FilledButton.icon(
-            onPressed: () async {
-              final ok = await ref.read(updateProvider.notifier).install();
-              if (!ok && context.mounted) {
-                Toast.show(
-                  context,
-                  message: S.of(context).couldNotOpenInstaller,
-                  level: ToastLevel.error,
-                );
-              }
-            },
-            icon: const Icon(Icons.install_desktop, size: 18),
-            label: Text(S.of(context).installNow),
+          child: Wrap(
+            spacing: 8,
+            children: [
+              _ChangelogButton(changelog: updateState.info?.changelog),
+              FilledButton.icon(
+                onPressed: () async {
+                  final ok = await ref.read(updateProvider.notifier).install();
+                  if (!ok && context.mounted) {
+                    Toast.show(
+                      context,
+                      message: S.of(context).couldNotOpenInstaller,
+                      level: ToastLevel.error,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.install_desktop, size: 18),
+                label: Text(S.of(context).installNow),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ChangelogButton extends StatelessWidget {
+  const _ChangelogButton({required this.changelog});
+
+  final String? changelog;
+
+  @override
+  Widget build(BuildContext context) {
+    if (changelog == null || changelog!.isEmpty) return const SizedBox.shrink();
+
+    return TextButton.icon(
+      onPressed: () => AppDialog.show(
+        context,
+        builder: (ctx) => AppDialog(
+          title: S.of(ctx).releaseNotes,
+          content: SingleChildScrollView(
+            child: Text(
+              changelog!,
+              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
+            ),
+          ),
+          actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(ctx))],
+        ),
+      ),
+      icon: const Icon(Icons.article_outlined, size: 18),
+      label: Text(S.of(context).releaseNotes),
     );
   }
 }

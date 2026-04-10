@@ -512,5 +512,179 @@ void main() {
         expect(capturedFingerprint, startsWith('SHA256:'));
       },
     );
+
+    // -------------------------------------------------------------------------
+    // entries, count, removeHost, removeMultiple, clearAll, import, export
+    // -------------------------------------------------------------------------
+
+    test('entries returns unmodifiable map of hosts', () async {
+      final file = File('${mgrTempDir.path}/known_hosts');
+      await file.writeAsString(
+        'a.com:22 ssh-rsa KEY_A\nb.com:22 ssh-ed25519 KEY_B\n',
+      );
+
+      final manager = KnownHostsManager();
+      await manager.load();
+
+      final entries = manager.entries;
+      expect(entries.length, 2);
+      expect(entries['a.com:22'], 'ssh-rsa KEY_A');
+      expect(entries['b.com:22'], 'ssh-ed25519 KEY_B');
+
+      // Should be unmodifiable
+      expect(() => entries['c.com:22'] = 'x', throwsUnsupportedError);
+    });
+
+    test('count returns number of hosts', () async {
+      final file = File('${mgrTempDir.path}/known_hosts');
+      await file.writeAsString('h1:22 ssh-rsa K1\nh2:22 ssh-rsa K2\n');
+
+      final manager = KnownHostsManager();
+      await manager.load();
+      expect(manager.count, 2);
+    });
+
+    test('removeHost removes entry and updates file', () async {
+      final file = File('${mgrTempDir.path}/known_hosts');
+      await file.writeAsString('h1:22 ssh-rsa K1\nh2:22 ssh-rsa K2\n');
+
+      final manager = KnownHostsManager();
+      await manager.load();
+      expect(manager.count, 2);
+
+      await manager.removeHost('h1:22');
+      expect(manager.count, 1);
+      expect(manager.entries.containsKey('h1:22'), isFalse);
+      expect(manager.entries.containsKey('h2:22'), isTrue);
+
+      // File should be updated
+      final content = await file.readAsString();
+      expect(content, isNot(contains('h1:22')));
+      expect(content, contains('h2:22'));
+    });
+
+    test('removeHost with non-existent key is a no-op', () async {
+      final file = File('${mgrTempDir.path}/known_hosts');
+      await file.writeAsString('h1:22 ssh-rsa K1\n');
+
+      final manager = KnownHostsManager();
+      await manager.load();
+
+      await manager.removeHost('nonexistent:22');
+      expect(manager.count, 1);
+    });
+
+    test('removeMultiple removes selected entries', () async {
+      final file = File('${mgrTempDir.path}/known_hosts');
+      await file.writeAsString(
+        'h1:22 ssh-rsa K1\nh2:22 ssh-rsa K2\nh3:22 ssh-rsa K3\n',
+      );
+
+      final manager = KnownHostsManager();
+      await manager.load();
+
+      await manager.removeMultiple({'h1:22', 'h3:22'});
+      expect(manager.count, 1);
+      expect(manager.entries.containsKey('h2:22'), isTrue);
+
+      final content = await file.readAsString();
+      expect(content, isNot(contains('h1:22')));
+      expect(content, contains('h2:22'));
+      expect(content, isNot(contains('h3:22')));
+    });
+
+    test('clearAll removes all entries', () async {
+      final file = File('${mgrTempDir.path}/known_hosts');
+      await file.writeAsString('h1:22 ssh-rsa K1\nh2:22 ssh-rsa K2\n');
+
+      final manager = KnownHostsManager();
+      await manager.load();
+      expect(manager.count, 2);
+
+      await manager.clearAll();
+      expect(manager.count, 0);
+      expect(manager.entries, isEmpty);
+
+      final content = await file.readAsString();
+      expect(content.trim(), isEmpty);
+    });
+
+    test('clearAll on empty manager is a no-op', () async {
+      final manager = KnownHostsManager();
+      await manager.load();
+      await manager.clearAll();
+      expect(manager.count, 0);
+    });
+
+    test('importFromFile merges entries from OpenSSH file', () async {
+      // Existing host
+      final file = File('${mgrTempDir.path}/known_hosts');
+      await file.writeAsString('existing:22 ssh-rsa OLD_KEY\n');
+
+      // Import source
+      final importFile = File('${mgrTempDir.path}/import_hosts');
+      await importFile.writeAsString(
+        'existing:22 ssh-rsa DUPLICATE_KEY\n'
+        'new1:22 ssh-ed25519 NEW_KEY_1\n'
+        '# comment line\n'
+        '\n'
+        'new2:2222 ssh-rsa NEW_KEY_2\n',
+      );
+
+      final manager = KnownHostsManager();
+      await manager.load();
+
+      final added = await manager.importFromFile(importFile.path);
+      expect(added, 2); // Only new1 and new2 are new
+      expect(manager.count, 3);
+
+      // Existing key should NOT be overwritten
+      expect(manager.entries['existing:22'], 'ssh-rsa OLD_KEY');
+      expect(manager.entries['new1:22'], 'ssh-ed25519 NEW_KEY_1');
+      expect(manager.entries['new2:2222'], 'ssh-rsa NEW_KEY_2');
+    });
+
+    test('importFromFile with non-existent file returns 0', () async {
+      final manager = KnownHostsManager();
+      await manager.load();
+      final added = await manager.importFromFile('/tmp/nonexistent_file_xyz');
+      expect(added, 0);
+    });
+
+    test('exportToString serializes in OpenSSH format', () async {
+      final file = File('${mgrTempDir.path}/known_hosts');
+      await file.writeAsString(
+        'alpha:22 ssh-rsa KEY_A\nbeta:22 ssh-ed25519 KEY_B\n',
+      );
+
+      final manager = KnownHostsManager();
+      await manager.load();
+
+      final exported = manager.exportToString();
+      expect(exported, contains('alpha:22 ssh-rsa KEY_A'));
+      expect(exported, contains('beta:22 ssh-ed25519 KEY_B'));
+      // Each line should end with newline
+      for (final line in exported.split('\n')) {
+        if (line.isEmpty) continue;
+        final parts = line.split(' ');
+        expect(parts.length, greaterThanOrEqualTo(3));
+      }
+    });
+
+    test('exportToString on empty manager returns empty string', () async {
+      final manager = KnownHostsManager();
+      await manager.load();
+      expect(manager.exportToString(), isEmpty);
+    });
+
+    test('static fingerprint matches instance fingerprint', () async {
+      final keyBytes = [10, 20, 30, 40, 50];
+      final staticFp = KnownHostsManager.fingerprint(keyBytes);
+      expect(staticFp, startsWith('SHA256:'));
+      // Verify same result as the algorithm test
+      final digest = SHA256Digest();
+      final hash = digest.process(Uint8List.fromList(keyBytes));
+      expect(staticFp, 'SHA256:${base64Encode(hash)}');
+    });
   });
 }

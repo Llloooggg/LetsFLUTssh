@@ -6,6 +6,7 @@ import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
+import '../../providers/key_provider.dart';
 import '../../utils/logger.dart';
 import '../../widgets/toast.dart';
 import '../workspace/workspace_controller.dart';
@@ -19,12 +20,12 @@ class SessionConnect {
 
   /// Open a terminal tab and connect to session in background.
   /// Returns false if session is incomplete (missing credentials).
-  static bool connectTerminal(
+  static Future<bool> connectTerminal(
     BuildContext context,
     WidgetRef ref,
     Session session,
-  ) {
-    final conn = _createConnection(context, ref, session, 'terminal');
+  ) async {
+    final conn = await _createConnection(context, ref, session, 'terminal');
     if (conn == null) return false;
     ref.read(workspaceProvider.notifier).addTerminalTab(conn);
     return true;
@@ -32,24 +33,24 @@ class SessionConnect {
 
   /// Open an SFTP tab and connect to session in background.
   /// Returns false if session is incomplete (missing credentials).
-  static bool connectSftp(
+  static Future<bool> connectSftp(
     BuildContext context,
     WidgetRef ref,
     Session session,
-  ) {
-    final conn = _createConnection(context, ref, session, 'SFTP');
+  ) async {
+    final conn = await _createConnection(context, ref, session, 'SFTP');
     if (conn == null) return false;
     ref.read(workspaceProvider.notifier).addSftpTab(conn);
     return true;
   }
 
   /// Validate session and create a background connection, or return null on failure.
-  static Connection? _createConnection(
+  static Future<Connection?> _createConnection(
     BuildContext context,
     WidgetRef ref,
     Session session,
     String logLabel,
-  ) {
+  ) async {
     if (session.incomplete) {
       _showIncompleteMessage(context);
       return null;
@@ -58,12 +59,38 @@ class SessionConnect {
       'Opening $logLabel for ${session.label}',
       name: 'Session',
     );
-    final config = session.toSSHConfig();
+    final config = await _resolveConfig(ref, session);
     final manager = ref.read(connectionManagerProvider);
     return manager.connectAsync(
       config,
       label: session.label.isNotEmpty ? session.label : session.displayName,
       sessionId: session.id,
+    );
+  }
+
+  /// Build SSHConfig, resolving keyId from the key store if set.
+  static Future<SSHConfig> _resolveConfig(
+    WidgetRef ref,
+    Session session,
+  ) async {
+    final config = session.toSSHConfig();
+    if (session.keyId.isEmpty) return config;
+
+    final keyStore = ref.read(keyStoreProvider);
+    final entry = await keyStore.get(session.keyId);
+    if (entry == null) {
+      AppLogger.instance.log(
+        'Key ${session.keyId} not found in key store',
+        name: 'Session',
+      );
+      return config;
+    }
+    AppLogger.instance.log(
+      'Resolved keyId ${session.keyId} → "${entry.label}"',
+      name: 'Session',
+    );
+    return config.copyWith(
+      auth: config.auth.copyWith(keyData: entry.privateKey),
     );
   }
 
