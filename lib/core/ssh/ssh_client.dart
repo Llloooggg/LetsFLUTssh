@@ -386,16 +386,7 @@ class SSHConnection {
   Future<String?> _resolvePassphrase(String pemData) async {
     if (config.passphrase.isNotEmpty) return config.passphrase;
 
-    // Try without passphrase first — succeeds for unencrypted keys.
-    try {
-      SSHKeyPair.fromPem(pemData, null);
-      return null;
-    } on SSHKeyDecryptError {
-      // Key is encrypted — need passphrase
-    } on ArgumentError catch (e) {
-      // RSA keys: "passphrase is required for encrypted key"
-      if (!e.message.toString().contains('passphrase')) rethrow;
-    }
+    if (!_isKeyEncrypted(pemData)) return null;
 
     // No callback — can't prompt user.
     if (onPassphraseRequired == null) {
@@ -407,7 +398,25 @@ class SSHConnection {
       );
     }
 
-    // Prompt user up to maxPassphraseAttempts times.
+    return _promptForPassphrase(pemData);
+  }
+
+  /// Check whether the PEM key requires a passphrase.
+  bool _isKeyEncrypted(String pemData) {
+    try {
+      SSHKeyPair.fromPem(pemData, null);
+      return false;
+    } on SSHKeyDecryptError {
+      return true;
+    } on ArgumentError catch (e) {
+      // RSA keys: "passphrase is required for encrypted key"
+      if (e.message.toString().contains('passphrase')) return true;
+      rethrow;
+    }
+  }
+
+  /// Prompt user up to [maxPassphraseAttempts] times for a valid passphrase.
+  Future<String> _promptForPassphrase(String pemData) async {
     for (int attempt = 1; attempt <= maxPassphraseAttempts; attempt++) {
       final passphrase = await onPassphraseRequired!(config.host, attempt);
       if (passphrase == null) {
@@ -419,30 +428,30 @@ class SSHConnection {
         );
       }
 
-      try {
-        SSHKeyPair.fromPem(pemData, passphrase);
-        return passphrase;
-      } on SSHKeyDecryptError {
-        if (attempt == maxPassphraseAttempts) {
-          throw AuthError(
-            'Invalid passphrase after $maxPassphraseAttempts attempts',
-            null,
-            config.user,
-            config.host,
-          );
-        }
-      } on ArgumentError {
-        if (attempt == maxPassphraseAttempts) {
-          throw AuthError(
-            'Invalid passphrase after $maxPassphraseAttempts attempts',
-            null,
-            config.user,
-            config.host,
-          );
-        }
+      if (_isValidPassphrase(pemData, passphrase)) return passphrase;
+
+      if (attempt == maxPassphraseAttempts) {
+        throw AuthError(
+          'Invalid passphrase after $maxPassphraseAttempts attempts',
+          null,
+          config.user,
+          config.host,
+        );
       }
     }
-    return null; // unreachable
+    return ''; // unreachable
+  }
+
+  /// Try to decrypt the PEM key with the given passphrase.
+  bool _isValidPassphrase(String pemData, String passphrase) {
+    try {
+      SSHKeyPair.fromPem(pemData, passphrase);
+      return true;
+    } on SSHKeyDecryptError {
+      return false;
+    } on ArgumentError {
+      return false;
+    }
   }
 
   HostKeyError _hostKeyError(Object cause) => HostKeyError(

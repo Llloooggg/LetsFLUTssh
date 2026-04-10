@@ -101,29 +101,14 @@ class ConnectionManager {
     SSHConfig config,
     int generation,
   ) async {
-    // Inject cached passphrase from a previous interactive prompt (reconnect).
-    if (conn.cachedPassphrase != null && config.passphrase.isEmpty) {
-      config = config.copyWith(
-        auth: config.auth.copyWith(passphrase: conn.cachedPassphrase!),
-      );
-    }
-
-    final sshConn = _connectionFactory(config, knownHosts);
+    final effectiveConfig = _withCachedPassphrase(conn, config);
+    final sshConn = _connectionFactory(effectiveConfig, knownHosts);
     sshConn.onDisconnect = () {
       conn.state = SSHConnectionState.disconnected;
       conn.sshConnection = null;
       _notify();
     };
-
-    // Wire interactive passphrase prompt if the UI layer provided one.
-    if (onPassphraseRequired != null) {
-      sshConn.onPassphraseRequired = (host, attempt) async {
-        final result = await onPassphraseRequired!(host, attempt);
-        if (result == null) return null;
-        if (result.remember) conn.cachedPassphrase = result.passphrase;
-        return result.passphrase;
-      };
-    }
+    _wirePassphrasePrompt(sshConn, conn);
 
     try {
       await sshConn
@@ -131,7 +116,7 @@ class ConnectionManager {
           .timeout(connectionTimeout);
 
       // Check if a newer reconnect has started while we were connecting.
-      if (_connectGeneration[conn.id] != generation) {
+      if (_isStaleGeneration(conn.id, generation)) {
         sshConn.disconnect();
         return;
       }
@@ -140,40 +125,66 @@ class ConnectionManager {
       conn.state = SSHConnectionState.connected;
       AppLogger.instance.log('Connected: ${conn.label}', name: 'Connection');
     } on TimeoutException {
-      if (_connectGeneration[conn.id] != generation) {
+      if (_isStaleGeneration(conn.id, generation)) {
         sshConn.disconnect();
         return;
       }
-      AppLogger.instance.log(
+      _handleConnectionFailure(
+        conn,
+        sshConn,
+        TimeoutException('Connection timed out', connectionTimeout),
         'Connection timed out after ${connectionTimeout.inSeconds}s',
-        name: 'Connection',
-      );
-      sshConn.disconnect();
-      conn.state = SSHConnectionState.disconnected;
-      conn.connectionError = TimeoutException(
-        'Connection timed out',
-        connectionTimeout,
       );
     } catch (e) {
-      if (_connectGeneration[conn.id] != generation) {
+      if (_isStaleGeneration(conn.id, generation)) {
         sshConn.disconnect();
         return;
       }
-      AppLogger.instance.log(
-        'Connection failed: $e',
-        name: 'Connection',
-        error: e,
-      );
-      sshConn.disconnect();
-      conn.state = SSHConnectionState.disconnected;
-      conn.connectionError = e;
+      _handleConnectionFailure(conn, sshConn, e, 'Connection failed: $e');
     } finally {
-      // Only complete ready if this is still the current generation.
-      if (_connectGeneration[conn.id] == generation) {
+      if (!_isStaleGeneration(conn.id, generation)) {
         conn.completeReady();
       }
       _notify();
     }
+  }
+
+  /// Inject cached passphrase from a previous interactive prompt (reconnect).
+  SSHConfig _withCachedPassphrase(Connection conn, SSHConfig config) {
+    if (conn.cachedPassphrase == null || config.passphrase.isNotEmpty) {
+      return config;
+    }
+    return config.copyWith(
+      auth: config.auth.copyWith(passphrase: conn.cachedPassphrase!),
+    );
+  }
+
+  /// Wire interactive passphrase prompt if the UI layer provided one.
+  void _wirePassphrasePrompt(SSHConnection sshConn, Connection conn) {
+    if (onPassphraseRequired == null) return;
+    sshConn.onPassphraseRequired = (host, attempt) async {
+      final result = await onPassphraseRequired!(host, attempt);
+      if (result == null) return null;
+      if (result.remember) conn.cachedPassphrase = result.passphrase;
+      return result.passphrase;
+    };
+  }
+
+  /// Whether a newer reconnect generation has superseded [generation].
+  bool _isStaleGeneration(String id, int generation) =>
+      _connectGeneration[id] != generation;
+
+  /// Log the error, disconnect, and mark the connection as failed.
+  void _handleConnectionFailure(
+    Connection conn,
+    SSHConnection sshConn,
+    Object error,
+    String logMessage,
+  ) {
+    AppLogger.instance.log(logMessage, name: 'Connection', error: error);
+    sshConn.disconnect();
+    conn.state = SSHConnectionState.disconnected;
+    conn.connectionError = error;
   }
 
   /// Reconnect an existing connection.

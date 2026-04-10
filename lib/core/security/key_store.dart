@@ -122,18 +122,6 @@ class KeyStore {
     _cache = null;
   }
 
-  // Keep legacy API for transition period.
-  // TODO(security-refactor): remove after commit 10
-  /// @deprecated Use [setEncryptionKey] instead.
-  void setExternalKey(Uint8List key) {
-    setEncryptionKey(key, SecurityLevel.masterPassword);
-  }
-
-  /// @deprecated Use [clearEncryptionKey] instead.
-  void clearExternalKey() {
-    clearEncryptionKey();
-  }
-
   Future<String> _getBasePath() async {
     if (_basePath != null) return _basePath!;
     final dir = await getApplicationSupportDirectory();

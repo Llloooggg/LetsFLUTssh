@@ -202,11 +202,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         _InfoTile(
           icon: Icons.key,
           title: l10n.keychainStatus,
-          value: _keychainAvailable == true
-              ? l10n.keychainAvailable(_keychainName)
-              : _keychainAvailable == false
-              ? l10n.keychainNotAvailable
-              : '...',
+          value: _keychainStatusLabel(l10n),
         ),
         // Manage master password — single tile.
         _ActionTile(
@@ -223,6 +219,16 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         ),
       ],
     );
+  }
+
+  String _keychainStatusLabel(S l10n) {
+    if (_keychainAvailable == true) {
+      return l10n.keychainAvailable(_keychainName);
+    }
+    if (_keychainAvailable == false) {
+      return l10n.keychainNotAvailable;
+    }
+    return '...';
   }
 
   String _securityLevelLabel(S l10n, SecurityLevel level) {
