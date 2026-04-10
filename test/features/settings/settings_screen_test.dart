@@ -11,7 +11,9 @@ import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
+import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
+import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/update_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
@@ -111,6 +113,9 @@ void main() {
       overrides: [
         configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
         appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
+        masterPasswordProvider.overrideWithValue(
+          MasterPasswordManager(basePath: tempDir.path),
+        ),
       ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
@@ -128,6 +133,9 @@ void main() {
       overrides: [
         configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
         appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
+        masterPasswordProvider.overrideWithValue(
+          MasterPasswordManager(basePath: tempDir.path),
+        ),
         sessionStoreProvider.overrideWithValue(SessionStore()),
         sessionProvider.overrideWith(SessionNotifier.new),
       ],
@@ -860,7 +868,10 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
-      await tester.pumpAndSettle();
+      // Dialog open — pump frames without pumpAndSettle (path_provider
+      // error may trigger a toast with a running animation timer).
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       await tester.enterText(
         find.widgetWithText(TextField, 'Master Password'),
@@ -872,11 +883,9 @@ void main() {
       );
 
       await tester.tap(find.text('Export'));
-      await tester.pumpAndSettle();
-
+      // Drain toast timer (3s display + fade animation).
+      await tester.pump(const Duration(seconds: 4));
       await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
     });
   });
 
@@ -2619,6 +2628,111 @@ void main() {
         find.text('/downloads/letsflutssh-2.0.0.AppImage'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('shows Release Notes button when changelog is available', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.updateAvailable,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+              changelog: '## v2.0.0\n- New feature',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Release notes:'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Release notes:'), findsOneWidget);
+    });
+
+    testWidgets('hides Release Notes button when changelog is null', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.updateAvailable,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Version 2.0.0 available'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Release notes:'), findsNothing);
+    });
+
+    testWidgets('shows Release Notes button in downloaded state', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.downloaded,
+            downloadedPath: '/tmp/letsflutssh-2.0.0.AppImage',
+            progress: 1,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+              changelog: '## v2.0.0\n- Bug fix',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Release notes:'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Release notes:'), findsOneWidget);
+    });
+
+    testWidgets('tapping Release Notes opens dialog with changelog', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        buildUpdateApp(
+          initialUpdateState: const UpdateState(
+            status: UpdateStatus.updateAvailable,
+            info: UpdateInfo(
+              latestVersion: '2.0.0',
+              currentVersion: '1.5.0',
+              releaseUrl: 'https://github.com/releases',
+              changelog: '## v2.0.0\n- Awesome feature',
+            ),
+          ),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Release notes:'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Release notes:'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Awesome feature'), findsOneWidget);
     });
   });
 

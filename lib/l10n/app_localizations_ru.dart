@@ -424,7 +424,7 @@ class SRu extends S {
   String get masterPassword => 'Мастер-пароль';
 
   @override
-  String get confirmPassword => 'Подтвердите пароль';
+  String get confirmPassword => 'Подтверждение пароля';
 
   @override
   String get importModeMergeDescription =>
@@ -1071,122 +1071,122 @@ class SRu extends S {
   String get progressOpeningSftp => 'Открытие SFTP-канала';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'Передачи:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count активных';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return ', $count в очереди';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count в истории';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'Создано: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'Начато: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'Завершено: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'Длительность: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'В очереди';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'Начало загрузки...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'Начало скачивания...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'Копирование...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'Готово';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total файлов';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'ИМЯ ПАПКИ';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'Папка \"$name\" уже существует';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'Перетащите файл ключа сюда';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'У сессии нет учётных данных — отредактируйте её, чтобы добавить пароль или ключ';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count элементов';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'Выбрать все ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'Размер: $size КБ / $max КБ макс.';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'Нет активных терминалов';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'Подключитесь из вкладки Сессии';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'Файл не найден: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'SSH-соединение';
 
   @override
   String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+      'Поддержание SSH-соединений в фоновом режиме.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH активен';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count активных соединений';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count элементов, $size';
   }
 
   @override
@@ -1197,4 +1197,319 @@ class SRu extends S {
 
   @override
   String get duplicateDownShortcut => 'Дублировать вниз (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Безопасность';
+
+  @override
+  String get knownHosts => 'Известные хосты';
+
+  @override
+  String get knownHostsSubtitle =>
+      'Управление доверенными отпечатками SSH-серверов';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count известных хостов',
+      few: '$count известных хоста',
+      one: '1 известный хост',
+      zero: 'Нет известных хостов',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty =>
+      'Нет известных хостов. Подключитесь к серверу, чтобы добавить.';
+
+  @override
+  String get removeHost => 'Удалить хост';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'Удалить $host из известных хостов? При следующем подключении потребуется повторная проверка ключа.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Очистить все известные хосты';
+
+  @override
+  String get clearAllKnownHostsConfirm =>
+      'Удалить все известные хосты? При подключении к каждому серверу потребуется повторная проверка ключа.';
+
+  @override
+  String get importKnownHosts => 'Импорт известных хостов';
+
+  @override
+  String get importKnownHostsSubtitle => 'Импорт из файла OpenSSH known_hosts';
+
+  @override
+  String get exportKnownHosts => 'Экспорт известных хостов';
+
+  @override
+  String importedHosts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Импортировано $count новых хостов',
+      few: 'Импортировано $count новых хоста',
+      one: 'Импортирован 1 новый хост',
+      zero: 'Не добавлено новых хостов',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clearedAllHosts => 'Все известные хосты очищены';
+
+  @override
+  String removedHost(String host) {
+    return 'Удалён $host';
+  }
+
+  @override
+  String get noHostsToExport => 'Нет хостов для экспорта';
+
+  @override
+  String get sshKeys => 'SSH-ключи';
+
+  @override
+  String get sshKeysSubtitle =>
+      'Управление парами SSH-ключей для аутентификации';
+
+  @override
+  String get noKeys => 'Нет SSH-ключей. Импортируйте или сгенерируйте.';
+
+  @override
+  String get generateKey => 'Сгенерировать ключ';
+
+  @override
+  String get importKey => 'Импортировать ключ';
+
+  @override
+  String get keyLabel => 'Название ключа';
+
+  @override
+  String get keyLabelHint => 'напр. Рабочий сервер, GitHub';
+
+  @override
+  String get selectKeyType => 'Тип ключа';
+
+  @override
+  String get generating => 'Генерация...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'Ключ сгенерирован: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'Ключ импортирован: $label';
+  }
+
+  @override
+  String get deleteKey => 'Удалить ключ';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'Удалить ключ \"$label\"? Сессии, использующие его, потеряют доступ.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'Ключ удалён: $label';
+  }
+
+  @override
+  String get publicKey => 'Публичный ключ';
+
+  @override
+  String get publicKeyCopied => 'Публичный ключ скопирован в буфер обмена';
+
+  @override
+  String get pastePrivateKey => 'Вставить приватный ключ (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'Некорректный PEM-ключ';
+
+  @override
+  String get selectFromKeyStore => 'Выбрать из хранилища ключей';
+
+  @override
+  String get noKeySelected => 'Ключ не выбран';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ключей',
+      few: '$count ключа',
+      one: '1 ключ',
+      zero: 'Нет ключей',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'Сгенерирован';
+
+  @override
+  String get passphraseRequired => 'Требуется парольная фраза';
+
+  @override
+  String passphrasePrompt(String host) {
+    return 'SSH-ключ для $host зашифрован. Введите парольную фразу для разблокировки.';
+  }
+
+  @override
+  String get passphraseWrong => 'Неверная парольная фраза. Попробуйте ещё раз.';
+
+  @override
+  String get passphrase => 'Парольная фраза';
+
+  @override
+  String get rememberPassphrase => 'Запомнить для этой сессии';
+
+  @override
+  String get unlock => 'Разблокировать';
+
+  @override
+  String get masterPasswordSubtitle =>
+      'Защита сохранённых учётных данных паролем';
+
+  @override
+  String get setMasterPassword => 'Установить мастер-пароль';
+
+  @override
+  String get changeMasterPassword => 'Изменить мастер-пароль';
+
+  @override
+  String get removeMasterPassword => 'Удалить мастер-пароль';
+
+  @override
+  String get masterPasswordEnabled => 'Учётные данные защищены мастер-паролем';
+
+  @override
+  String get masterPasswordDisabled =>
+      'Учётные данные используют автогенерированный ключ (без пароля)';
+
+  @override
+  String get enterMasterPassword =>
+      'Введите мастер-пароль для доступа к сохранённым учётным данным.';
+
+  @override
+  String get wrongMasterPassword => 'Неверный пароль. Попробуйте ещё раз.';
+
+  @override
+  String get newPassword => 'Новый пароль';
+
+  @override
+  String get currentPassword => 'Текущий пароль';
+
+  @override
+  String get passwordTooShort => 'Пароль должен содержать минимум 8 символов';
+
+  @override
+  String get masterPasswordSet => 'Мастер-пароль установлен';
+
+  @override
+  String get masterPasswordChanged => 'Мастер-пароль изменён';
+
+  @override
+  String get masterPasswordRemoved => 'Мастер-пароль удалён';
+
+  @override
+  String get masterPasswordWarning =>
+      'Если вы забудете этот пароль, все сохранённые пароли и SSH-ключи будут потеряны. Восстановление невозможно.';
+
+  @override
+  String get forgotPassword => 'Забыли пароль?';
+
+  @override
+  String get forgotPasswordWarning =>
+      'Это удалит ВСЕ сохранённые пароли, SSH-ключи и парольные фразы. Сессии и настройки будут сохранены. Это действие необратимо.';
+
+  @override
+  String get resetAndDeleteCredentials => 'Сбросить и удалить данные';
+
+  @override
+  String get credentialsReset => 'Все сохранённые учётные данные удалены';
+
+  @override
+  String get derivingKey => 'Генерация ключа шифрования...';
+
+  @override
+  String get reEncrypting => 'Перешифрование данных...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'Введите текущий пароль для отключения защиты мастер-паролем. Учётные данные будут перешифрованы автогенерированным ключом.';
+
+  @override
+  String get securitySetupTitle => 'Настройка безопасности';
+
+  @override
+  String securitySetupKeychainFound(String keychainName) {
+    return 'Обнаружена связка ключей ОС ($keychainName). Ваши данные будут автоматически зашифрованы с использованием системной связки ключей.';
+  }
+
+  @override
+  String get securitySetupKeychainOptional =>
+      'Вы также можете установить мастер-пароль для дополнительной защиты.';
+
+  @override
+  String get securitySetupNoKeychain =>
+      'Связка ключей ОС не обнаружена. Без неё данные сессий (хосты, пароли, ключи) будут храниться в открытом виде.';
+
+  @override
+  String get securitySetupNoKeychainHint =>
+      'Это нормально для WSL, безголового Linux или минимальных установок. Для включения связки ключей в Linux: установите libsecret и демон связки ключей (напр. gnome-keyring).';
+
+  @override
+  String get securitySetupRecommendMasterPassword =>
+      'Рекомендуем установить мастер-пароль для защиты ваших данных.';
+
+  @override
+  String get continueWithKeychain => 'Продолжить со связкой ключей';
+
+  @override
+  String get continueWithoutEncryption => 'Продолжить без шифрования';
+
+  @override
+  String get securityLevel => 'Уровень безопасности';
+
+  @override
+  String get securityLevelPlaintext => 'Нет (открытый текст)';
+
+  @override
+  String get securityLevelKeychain => 'Связка ключей ОС';
+
+  @override
+  String get securityLevelMasterPassword => 'Мастер-пароль';
+
+  @override
+  String get keychainStatus => 'Связка ключей';
+
+  @override
+  String keychainAvailable(String name) {
+    return 'Доступна ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => 'Недоступна';
+
+  @override
+  String get manageMasterPassword => 'Управление мастер-паролем';
+
+  @override
+  String get manageMasterPasswordSubtitle =>
+      'Установить, изменить или удалить мастер-пароль';
 }

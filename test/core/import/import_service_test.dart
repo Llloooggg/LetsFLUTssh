@@ -1,10 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/import/import_service.dart';
-import 'package:letsflutssh/core/security/credential_store.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/features/settings/export_import.dart';
 
 void main() {
   group('ImportService', () {
@@ -172,16 +171,12 @@ void main() {
     group('replace mode rollback', () {
       late List<Session> restoredSessions;
       late Set<String> restoredFolders;
-      late Map<String, CredentialData> restoredCreds;
       late Set<String> emptyFolders;
-      late Map<String, CredentialData> credentialMap;
 
       setUp(() {
         restoredSessions = [];
         restoredFolders = {};
-        restoredCreds = {};
         emptyFolders = {'FolderA'};
-        credentialMap = {'old1': const CredentialData(password: 'pw1')};
       });
 
       ImportService buildRollbackService({
@@ -196,14 +191,9 @@ void main() {
           getSessions: () => store,
           applyConfig: (config) => appliedConfig = config,
           getEmptyFolders: () => emptyFolders,
-          loadCredentials: (ids) async => {
-            for (final id in ids)
-              if (credentialMap.containsKey(id)) id: credentialMap[id]!,
-          },
-          restoreSnapshot: (sessions, folders, creds) async {
+          restoreSnapshot: (sessions, folders) async {
             restoredSessions = sessions;
             restoredFolders = folders;
-            restoredCreds = creds;
             store
               ..clear()
               ..addAll(sessions);
@@ -238,7 +228,6 @@ void main() {
         expect(restoredSessions, hasLength(1));
         expect(restoredSessions.first.id, 'old1');
         expect(restoredFolders, contains('FolderA'));
-        expect(restoredCreds['old1']?.password, 'pw1');
       });
 
       test('successful replace does not trigger restore', () async {

@@ -5,8 +5,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pointycastle/export.dart';
 
 import '../../core/config/app_config.dart';
@@ -31,12 +29,16 @@ class ExportImport {
 
   /// Export app data to an encrypted .lfs file.
   ///
+  /// [knownHostsContent] is the decrypted known_hosts text (from
+  /// [KnownHostsManager.exportToString]). Pass null to omit known_hosts.
+  ///
   /// Returns the file path of the created archive.
   static Future<String> export({
     required String masterPassword,
     required List<Session> sessions,
     required AppConfig config,
     required String outputPath,
+    String? knownHostsContent,
   }) async {
     // Build ZIP archive in memory
     final archive = Archive();
@@ -65,11 +67,9 @@ class ExportImport {
       ),
     );
 
-    // Known hosts (if exists)
-    final dir = await getApplicationSupportDirectory();
-    final knownHostsFile = File(p.join(dir.path, _knownHostsFile));
-    if (await knownHostsFile.exists()) {
-      final khBytes = await knownHostsFile.readAsBytes();
+    // Known hosts (decrypted plaintext from the manager)
+    if (knownHostsContent != null && knownHostsContent.isNotEmpty) {
+      final khBytes = utf8.encode(knownHostsContent);
       archive.addFile(ArchiveFile(_knownHostsFile, khBytes.length, khBytes));
     }
 
@@ -164,23 +164,21 @@ class ExportImport {
       }
     }
 
-    // Known hosts
-    Uint8List? knownHostsData;
+    // Known hosts — return content for the caller to import via manager
+    String? knownHostsContent;
     if (importKnownHosts) {
       final khFile = archive.findFile(_knownHostsFile);
       if (khFile != null) {
-        knownHostsData = Uint8List.fromList(khFile.content as List<int>);
+        knownHostsContent = utf8.decode(khFile.content as List<int>);
       }
     }
 
-    // Write known_hosts if requested
-    if (knownHostsData != null) {
-      final dir = await getApplicationSupportDirectory();
-      final khFile = File(p.join(dir.path, _knownHostsFile));
-      await khFile.writeAsBytes(knownHostsData);
-    }
-
-    return ImportResult(sessions: sessions, config: config, mode: mode);
+    return ImportResult(
+      sessions: sessions,
+      config: config,
+      mode: mode,
+      knownHostsContent: knownHostsContent,
+    );
   }
 
   // --- Crypto helpers ---
@@ -250,5 +248,14 @@ class ImportResult {
   final AppConfig? config;
   final ImportMode mode;
 
-  const ImportResult({required this.sessions, this.config, required this.mode});
+  /// Decrypted known_hosts content (OpenSSH text format) from the archive.
+  /// Null if known_hosts was not included or not requested.
+  final String? knownHostsContent;
+
+  const ImportResult({
+    required this.sessions,
+    this.config,
+    required this.mode,
+    this.knownHostsContent,
+  });
 }

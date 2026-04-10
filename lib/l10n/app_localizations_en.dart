@@ -400,7 +400,7 @@ class SEn extends S {
   String get host => 'Host';
 
   @override
-  String get keyType => 'Key type';
+  String get keyType => 'Key Type';
 
   @override
   String get fingerprint => 'Fingerprint';
@@ -1194,4 +1194,308 @@ class SEn extends S {
 
   @override
   String get duplicateDownShortcut => 'Duplicate Down (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Security';
+
+  @override
+  String get knownHosts => 'Known Hosts';
+
+  @override
+  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count known hosts',
+      one: '1 known host',
+      zero: 'No known hosts',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty =>
+      'No known hosts yet. Connect to a server to add one.';
+
+  @override
+  String get removeHost => 'Remove Host';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Clear All Known Hosts';
+
+  @override
+  String get clearAllKnownHostsConfirm =>
+      'Remove all known hosts? You will be prompted to verify each server key again.';
+
+  @override
+  String get importKnownHosts => 'Import Known Hosts';
+
+  @override
+  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+
+  @override
+  String get exportKnownHosts => 'Export Known Hosts';
+
+  @override
+  String importedHosts(int count) {
+    return 'Imported $count new hosts';
+  }
+
+  @override
+  String get clearedAllHosts => 'Cleared all known hosts';
+
+  @override
+  String removedHost(String host) {
+    return 'Removed $host';
+  }
+
+  @override
+  String get noHostsToExport => 'No known hosts to export';
+
+  @override
+  String get sshKeys => 'SSH Keys';
+
+  @override
+  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+
+  @override
+  String get noKeys => 'No SSH keys. Import or generate one.';
+
+  @override
+  String get generateKey => 'Generate Key';
+
+  @override
+  String get importKey => 'Import Key';
+
+  @override
+  String get keyLabel => 'Key Label';
+
+  @override
+  String get keyLabelHint => 'e.g. Work Server, GitHub';
+
+  @override
+  String get selectKeyType => 'Key Type';
+
+  @override
+  String get generating => 'Generating...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'Key generated: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'Key imported: $label';
+  }
+
+  @override
+  String get deleteKey => 'Delete Key';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'Delete key \"$label\"? Sessions using it will lose access.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'Key deleted: $label';
+  }
+
+  @override
+  String get publicKey => 'Public Key';
+
+  @override
+  String get publicKeyCopied => 'Public key copied to clipboard';
+
+  @override
+  String get pastePrivateKey => 'Paste Private Key (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'Invalid PEM key data';
+
+  @override
+  String get selectFromKeyStore => 'Select from Key Store';
+
+  @override
+  String get noKeySelected => 'No key selected';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count keys',
+      one: '1 key',
+      zero: 'No keys',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'Generated';
+
+  @override
+  String get passphraseRequired => 'Passphrase Required';
+
+  @override
+  String passphrasePrompt(String host) {
+    return 'The SSH key for $host is encrypted. Enter the passphrase to unlock it.';
+  }
+
+  @override
+  String get passphraseWrong => 'Wrong passphrase. Please try again.';
+
+  @override
+  String get passphrase => 'Passphrase';
+
+  @override
+  String get rememberPassphrase => 'Remember for this session';
+
+  @override
+  String get unlock => 'Unlock';
+
+  @override
+  String get masterPasswordSubtitle =>
+      'Protect saved credentials with a password';
+
+  @override
+  String get setMasterPassword => 'Set Master Password';
+
+  @override
+  String get changeMasterPassword => 'Change Master Password';
+
+  @override
+  String get removeMasterPassword => 'Remove Master Password';
+
+  @override
+  String get masterPasswordEnabled =>
+      'Credentials are protected by master password';
+
+  @override
+  String get masterPasswordDisabled =>
+      'Credentials use auto-generated key (no password)';
+
+  @override
+  String get enterMasterPassword =>
+      'Enter master password to unlock your saved credentials.';
+
+  @override
+  String get wrongMasterPassword => 'Wrong password. Please try again.';
+
+  @override
+  String get newPassword => 'New Password';
+
+  @override
+  String get currentPassword => 'Current Password';
+
+  @override
+  String get passwordTooShort => 'Password must be at least 8 characters';
+
+  @override
+  String get masterPasswordSet => 'Master password enabled';
+
+  @override
+  String get masterPasswordChanged => 'Master password changed';
+
+  @override
+  String get masterPasswordRemoved => 'Master password removed';
+
+  @override
+  String get masterPasswordWarning =>
+      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+
+  @override
+  String get forgotPassword => 'Forgot Password?';
+
+  @override
+  String get forgotPasswordWarning =>
+      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+
+  @override
+  String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
+
+  @override
+  String get credentialsReset => 'All saved credentials have been deleted';
+
+  @override
+  String get derivingKey => 'Deriving encryption key...';
+
+  @override
+  String get reEncrypting => 'Re-encrypting data...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+
+  @override
+  String get securitySetupTitle => 'Security Setup';
+
+  @override
+  String securitySetupKeychainFound(String keychainName) {
+    return 'OS Keychain detected ($keychainName). Your data will be automatically encrypted using your system keychain.';
+  }
+
+  @override
+  String get securitySetupKeychainOptional =>
+      'You can also set a master password for additional protection.';
+
+  @override
+  String get securitySetupNoKeychain =>
+      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+
+  @override
+  String get securitySetupNoKeychainHint =>
+      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+
+  @override
+  String get securitySetupRecommendMasterPassword =>
+      'We recommend setting a master password to protect your data.';
+
+  @override
+  String get continueWithKeychain => 'Continue with Keychain';
+
+  @override
+  String get continueWithoutEncryption => 'Continue without Encryption';
+
+  @override
+  String get securityLevel => 'Security Level';
+
+  @override
+  String get securityLevelPlaintext => 'None (plaintext)';
+
+  @override
+  String get securityLevelKeychain => 'OS Keychain';
+
+  @override
+  String get securityLevelMasterPassword => 'Master Password';
+
+  @override
+  String get keychainStatus => 'Keychain';
+
+  @override
+  String keychainAvailable(String name) {
+    return 'Available ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => 'Not available';
+
+  @override
+  String get manageMasterPassword => 'Manage Master Password';
+
+  @override
+  String get manageMasterPasswordSubtitle =>
+      'Set, change, or remove master password';
 }

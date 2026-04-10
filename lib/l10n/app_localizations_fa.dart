@@ -1067,122 +1067,122 @@ class SFa extends S {
   String get progressOpeningSftp => 'باز کردن کانال SFTP';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'انتقال‌ها:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count فعال';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return '، $count در صف';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count در تاریخچه';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'ایجاد شده: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'شروع شده: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'پایان یافته: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'مدت: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'در صف انتظار';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'شروع آپلود...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'شروع دانلود...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'در حال کپی...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'انجام شد';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total فایل';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'نام پوشه';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'پوشه \"$name\" از قبل وجود دارد';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'فایل کلید را اینجا رها کنید';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'جلسه بدون اعتبارنامه است — آن را ویرایش کنید تا رمز عبور یا کلید اضافه کنید';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count مورد';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'انتخاب همه ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'اندازه: $size کیلوبایت / حداکثر $max کیلوبایت';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'ترمینال فعالی وجود ندارد';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'از تب جلسات متصل شوید';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'فایل یافت نشد: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'اتصال SSH';
 
   @override
   String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+      'اتصالات SSH را در پس‌زمینه فعال نگه می‌دارد.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH فعال';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count اتصال فعال';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count مورد، $size';
   }
 
   @override
@@ -1193,4 +1193,313 @@ class SFa extends S {
 
   @override
   String get duplicateDownShortcut => 'کپی به پایین (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'امنیت';
+
+  @override
+  String get knownHosts => 'میزبان‌های شناخته شده';
+
+  @override
+  String get knownHostsSubtitle => 'مدیریت اثر انگشت سرورهای SSH قابل اعتماد';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count میزبان شناخته شده',
+      zero: 'بدون میزبان شناخته شده',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty =>
+      'میزبان شناخته شده‌ای وجود ندارد. برای افزودن به سروری متصل شوید.';
+
+  @override
+  String get removeHost => 'حذف میزبان';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'حذف $host از میزبان‌های شناخته شده؟ در اتصال بعدی کلید دوباره بررسی می‌شود.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'پاک کردن همه میزبان‌های شناخته شده';
+
+  @override
+  String get clearAllKnownHostsConfirm =>
+      'همه میزبان‌های شناخته شده حذف شوند؟ کلید هر سرور باید دوباره تأیید شود.';
+
+  @override
+  String get importKnownHosts => 'وارد کردن میزبان‌های شناخته شده';
+
+  @override
+  String get importKnownHostsSubtitle =>
+      'وارد کردن از فایل OpenSSH known_hosts';
+
+  @override
+  String get exportKnownHosts => 'صادر کردن میزبان‌های شناخته شده';
+
+  @override
+  String importedHosts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count میزبان جدید وارد شد',
+      zero: 'میزبان جدیدی وارد نشد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clearedAllHosts => 'همه میزبان‌های شناخته شده پاک شدند';
+
+  @override
+  String removedHost(String host) {
+    return '$host حذف شد';
+  }
+
+  @override
+  String get noHostsToExport => 'میزبانی برای صادر کردن وجود ندارد';
+
+  @override
+  String get sshKeys => 'کلیدهای SSH';
+
+  @override
+  String get sshKeysSubtitle => 'مدیریت جفت کلیدهای SSH برای احراز هویت';
+
+  @override
+  String get noKeys => 'کلید SSH وجود ندارد. یکی را وارد کنید یا بسازید.';
+
+  @override
+  String get generateKey => 'ساخت کلید';
+
+  @override
+  String get importKey => 'وارد کردن کلید';
+
+  @override
+  String get keyLabel => 'نام کلید';
+
+  @override
+  String get keyLabelHint => 'مثلاً سرور کاری، GitHub';
+
+  @override
+  String get selectKeyType => 'نوع کلید';
+
+  @override
+  String get generating => 'در حال ساخت...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'کلید ساخته شد: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'کلید وارد شد: $label';
+  }
+
+  @override
+  String get deleteKey => 'حذف کلید';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'حذف کلید \"$label\"؟ جلساتی که از آن استفاده می‌کنند دسترسی را از دست می‌دهند.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'کلید حذف شد: $label';
+  }
+
+  @override
+  String get publicKey => 'کلید عمومی';
+
+  @override
+  String get publicKeyCopied => 'کلید عمومی در کلیپ‌بورد کپی شد';
+
+  @override
+  String get pastePrivateKey => 'چسباندن کلید خصوصی (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'داده کلید PEM نامعتبر';
+
+  @override
+  String get selectFromKeyStore => 'انتخاب از مخزن کلید';
+
+  @override
+  String get noKeySelected => 'کلیدی انتخاب نشده';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count کلید',
+      zero: 'بدون کلید',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'ساخته شده';
+
+  @override
+  String get passphraseRequired => 'عبارت عبور لازم است';
+
+  @override
+  String passphrasePrompt(String host) {
+    return 'کلید SSH برای $host رمزنگاری شده است. عبارت عبور را برای باز کردن وارد کنید.';
+  }
+
+  @override
+  String get passphraseWrong => 'عبارت عبور اشتباه است. دوباره تلاش کنید.';
+
+  @override
+  String get passphrase => 'عبارت عبور';
+
+  @override
+  String get rememberPassphrase => 'در این جلسه به خاطر بسپار';
+
+  @override
+  String get unlock => 'باز کردن قفل';
+
+  @override
+  String get masterPasswordSubtitle =>
+      'محافظت از اعتبارنامه‌های ذخیره شده با رمز عبور';
+
+  @override
+  String get setMasterPassword => 'تنظیم رمز عبور اصلی';
+
+  @override
+  String get changeMasterPassword => 'تغییر رمز عبور اصلی';
+
+  @override
+  String get removeMasterPassword => 'حذف رمز عبور اصلی';
+
+  @override
+  String get masterPasswordEnabled =>
+      'اعتبارنامه‌ها با رمز عبور اصلی محافظت می‌شوند';
+
+  @override
+  String get masterPasswordDisabled =>
+      'اعتبارنامه‌ها از کلید خودکار استفاده می‌کنند (بدون رمز عبور)';
+
+  @override
+  String get enterMasterPassword =>
+      'رمز عبور اصلی را برای دسترسی به اعتبارنامه‌های ذخیره شده وارد کنید.';
+
+  @override
+  String get wrongMasterPassword => 'رمز عبور اشتباه. دوباره تلاش کنید.';
+
+  @override
+  String get newPassword => 'رمز عبور جدید';
+
+  @override
+  String get currentPassword => 'رمز عبور فعلی';
+
+  @override
+  String get passwordTooShort => 'رمز عبور باید حداقل ۸ کاراکتر باشد';
+
+  @override
+  String get masterPasswordSet => 'رمز عبور اصلی فعال شد';
+
+  @override
+  String get masterPasswordChanged => 'رمز عبور اصلی تغییر کرد';
+
+  @override
+  String get masterPasswordRemoved => 'رمز عبور اصلی حذف شد';
+
+  @override
+  String get masterPasswordWarning =>
+      'اگر این رمز عبور را فراموش کنید، تمام رمزهای عبور و کلیدهای SSH ذخیره شده از بین می‌روند. بازیابی ممکن نیست.';
+
+  @override
+  String get forgotPassword => 'رمز عبور را فراموش کرده‌اید؟';
+
+  @override
+  String get forgotPasswordWarning =>
+      'این کار تمام رمزهای عبور، کلیدهای SSH و عبارات عبور ذخیره شده را حذف می‌کند. جلسات و تنظیمات حفظ می‌شوند. این عمل قابل بازگشت نیست.';
+
+  @override
+  String get resetAndDeleteCredentials => 'بازنشانی و حذف داده‌ها';
+
+  @override
+  String get credentialsReset => 'تمام اعتبارنامه‌های ذخیره شده حذف شدند';
+
+  @override
+  String get derivingKey => 'در حال ساخت کلید رمزنگاری...';
+
+  @override
+  String get reEncrypting => 'در حال رمزنگاری مجدد داده‌ها...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'رمز عبور فعلی را برای حذف محافظت رمز عبور اصلی وارد کنید. اعتبارنامه‌ها با کلید خودکار مجدداً رمزنگاری می‌شوند.';
+
+  @override
+  String get securitySetupTitle => 'تنظیمات امنیتی';
+
+  @override
+  String securitySetupKeychainFound(String keychainName) {
+    return 'زنجیره کلید سیستم شناسایی شد ($keychainName). داده‌های شما به طور خودکار با زنجیره کلید سیستم رمزنگاری می‌شوند.';
+  }
+
+  @override
+  String get securitySetupKeychainOptional =>
+      'همچنین می‌توانید رمز عبور اصلی برای محافظت بیشتر تنظیم کنید.';
+
+  @override
+  String get securitySetupNoKeychain =>
+      'زنجیره کلید سیستم شناسایی نشد. بدون آن، داده‌های جلسه (میزبان‌ها، رمزهای عبور، کلیدها) به صورت متن ساده ذخیره می‌شوند.';
+
+  @override
+  String get securitySetupNoKeychainHint =>
+      'این در WSL، لینوکس بدون رابط گرافیکی یا نصب‌های حداقلی عادی است. برای فعال‌سازی زنجیره کلید در لینوکس: libsecret و یک دیمن زنجیره کلید (مثلاً gnome-keyring) نصب کنید.';
+
+  @override
+  String get securitySetupRecommendMasterPassword =>
+      'توصیه می‌کنیم رمز عبور اصلی برای محافظت از داده‌هایتان تنظیم کنید.';
+
+  @override
+  String get continueWithKeychain => 'ادامه با زنجیره کلید';
+
+  @override
+  String get continueWithoutEncryption => 'ادامه بدون رمزنگاری';
+
+  @override
+  String get securityLevel => 'سطح امنیت';
+
+  @override
+  String get securityLevelPlaintext => 'بدون (متن ساده)';
+
+  @override
+  String get securityLevelKeychain => 'زنجیره کلید سیستم';
+
+  @override
+  String get securityLevelMasterPassword => 'رمز عبور اصلی';
+
+  @override
+  String get keychainStatus => 'زنجیره کلید';
+
+  @override
+  String keychainAvailable(String name) {
+    return 'در دسترس ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => 'در دسترس نیست';
+
+  @override
+  String get manageMasterPassword => 'مدیریت رمز عبور اصلی';
+
+  @override
+  String get manageMasterPasswordSubtitle =>
+      'تنظیم، تغییر یا حذف رمز عبور اصلی';
 }

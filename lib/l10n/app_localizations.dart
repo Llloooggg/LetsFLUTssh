@@ -840,7 +840,7 @@ abstract class S {
   /// No description provided for @keyType.
   ///
   /// In en, this message translates to:
-  /// **'Key type'**
+  /// **'Key Type'**
   String get keyType;
 
   /// No description provided for @fingerprint.
@@ -2222,6 +2222,510 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Duplicate Down (Ctrl+Shift+\\)'**
   String get duplicateDownShortcut;
+
+  /// No description provided for @security.
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get security;
+
+  /// No description provided for @knownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Known Hosts'**
+  String get knownHosts;
+
+  /// No description provided for @knownHostsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage trusted SSH server fingerprints'**
+  String get knownHostsSubtitle;
+
+  /// No description provided for @knownHostsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No known hosts} =1{1 known host} other{{count} known hosts}}'**
+  String knownHostsCount(int count);
+
+  /// No description provided for @knownHostsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No known hosts yet. Connect to a server to add one.'**
+  String get knownHostsEmpty;
+
+  /// No description provided for @removeHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Host'**
+  String get removeHost;
+
+  /// No description provided for @removeHostConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {host} from known hosts? You will be prompted to verify its key again on next connection.'**
+  String removeHostConfirm(String host);
+
+  /// No description provided for @clearAllKnownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Known Hosts'**
+  String get clearAllKnownHosts;
+
+  /// No description provided for @clearAllKnownHostsConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all known hosts? You will be prompted to verify each server key again.'**
+  String get clearAllKnownHostsConfirm;
+
+  /// No description provided for @importKnownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Known Hosts'**
+  String get importKnownHosts;
+
+  /// No description provided for @importKnownHostsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from OpenSSH known_hosts file'**
+  String get importKnownHostsSubtitle;
+
+  /// No description provided for @exportKnownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Known Hosts'**
+  String get exportKnownHosts;
+
+  /// No description provided for @importedHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} new hosts'**
+  String importedHosts(int count);
+
+  /// No description provided for @clearedAllHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared all known hosts'**
+  String get clearedAllHosts;
+
+  /// No description provided for @removedHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {host}'**
+  String removedHost(String host);
+
+  /// No description provided for @noHostsToExport.
+  ///
+  /// In en, this message translates to:
+  /// **'No known hosts to export'**
+  String get noHostsToExport;
+
+  /// No description provided for @sshKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH Keys'**
+  String get sshKeys;
+
+  /// No description provided for @sshKeysSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage SSH key pairs for authentication'**
+  String get sshKeysSubtitle;
+
+  /// No description provided for @noKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'No SSH keys. Import or generate one.'**
+  String get noKeys;
+
+  /// No description provided for @generateKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Key'**
+  String get generateKey;
+
+  /// No description provided for @importKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Key'**
+  String get importKey;
+
+  /// No description provided for @keyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Key Label'**
+  String get keyLabel;
+
+  /// No description provided for @keyLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Work Server, GitHub'**
+  String get keyLabelHint;
+
+  /// No description provided for @selectKeyType.
+  ///
+  /// In en, this message translates to:
+  /// **'Key Type'**
+  String get selectKeyType;
+
+  /// No description provided for @generating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating...'**
+  String get generating;
+
+  /// No description provided for @keyGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Key generated: {label}'**
+  String keyGenerated(String label);
+
+  /// No description provided for @keyImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Key imported: {label}'**
+  String keyImported(String label);
+
+  /// No description provided for @deleteKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Key'**
+  String get deleteKey;
+
+  /// No description provided for @deleteKeyConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete key \"{label}\"? Sessions using it will lose access.'**
+  String deleteKeyConfirm(String label);
+
+  /// No description provided for @keyDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Key deleted: {label}'**
+  String keyDeleted(String label);
+
+  /// No description provided for @publicKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Public Key'**
+  String get publicKey;
+
+  /// No description provided for @publicKeyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Public key copied to clipboard'**
+  String get publicKeyCopied;
+
+  /// No description provided for @pastePrivateKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Private Key (PEM)'**
+  String get pastePrivateKey;
+
+  /// No description provided for @pemHint.
+  ///
+  /// In en, this message translates to:
+  /// **'-----BEGIN OPENSSH PRIVATE KEY-----'**
+  String get pemHint;
+
+  /// No description provided for @invalidPem.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid PEM key data'**
+  String get invalidPem;
+
+  /// No description provided for @selectFromKeyStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Select from Key Store'**
+  String get selectFromKeyStore;
+
+  /// No description provided for @noKeySelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No key selected'**
+  String get noKeySelected;
+
+  /// No description provided for @keyCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No keys} =1{1 key} other{{count} keys}}'**
+  String keyCount(int count);
+
+  /// No description provided for @generated.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated'**
+  String get generated;
+
+  /// No description provided for @passphraseRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Passphrase Required'**
+  String get passphraseRequired;
+
+  /// No description provided for @passphrasePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'The SSH key for {host} is encrypted. Enter the passphrase to unlock it.'**
+  String passphrasePrompt(String host);
+
+  /// No description provided for @passphraseWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong passphrase. Please try again.'**
+  String get passphraseWrong;
+
+  /// No description provided for @passphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Passphrase'**
+  String get passphrase;
+
+  /// No description provided for @rememberPassphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember for this session'**
+  String get rememberPassphrase;
+
+  /// No description provided for @unlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlock;
+
+  /// No description provided for @masterPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Protect saved credentials with a password'**
+  String get masterPasswordSubtitle;
+
+  /// No description provided for @setMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Master Password'**
+  String get setMasterPassword;
+
+  /// No description provided for @changeMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Master Password'**
+  String get changeMasterPassword;
+
+  /// No description provided for @removeMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Master Password'**
+  String get removeMasterPassword;
+
+  /// No description provided for @masterPasswordEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials are protected by master password'**
+  String get masterPasswordEnabled;
+
+  /// No description provided for @masterPasswordDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials use auto-generated key (no password)'**
+  String get masterPasswordDisabled;
+
+  /// No description provided for @enterMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter master password to unlock your saved credentials.'**
+  String get enterMasterPassword;
+
+  /// No description provided for @wrongMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password. Please try again.'**
+  String get wrongMasterPassword;
+
+  /// No description provided for @newPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'New Password'**
+  String get newPassword;
+
+  /// No description provided for @currentPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Password'**
+  String get currentPassword;
+
+  /// No description provided for @passwordTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Password must be at least 8 characters'**
+  String get passwordTooShort;
+
+  /// No description provided for @masterPasswordSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password enabled'**
+  String get masterPasswordSet;
+
+  /// No description provided for @masterPasswordChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password changed'**
+  String get masterPasswordChanged;
+
+  /// No description provided for @masterPasswordRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password removed'**
+  String get masterPasswordRemoved;
+
+  /// No description provided for @masterPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.'**
+  String get masterPasswordWarning;
+
+  /// No description provided for @forgotPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot Password?'**
+  String get forgotPassword;
+
+  /// No description provided for @forgotPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.'**
+  String get forgotPasswordWarning;
+
+  /// No description provided for @resetAndDeleteCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset & Delete Credentials'**
+  String get resetAndDeleteCredentials;
+
+  /// No description provided for @credentialsReset.
+  ///
+  /// In en, this message translates to:
+  /// **'All saved credentials have been deleted'**
+  String get credentialsReset;
+
+  /// No description provided for @derivingKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Deriving encryption key...'**
+  String get derivingKey;
+
+  /// No description provided for @reEncrypting.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encrypting data...'**
+  String get reEncrypting;
+
+  /// No description provided for @confirmRemoveMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.'**
+  String get confirmRemoveMasterPassword;
+
+  /// No description provided for @securitySetupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Security Setup'**
+  String get securitySetupTitle;
+
+  /// No description provided for @securitySetupKeychainFound.
+  ///
+  /// In en, this message translates to:
+  /// **'OS Keychain detected ({keychainName}). Your data will be automatically encrypted using your system keychain.'**
+  String securitySetupKeychainFound(String keychainName);
+
+  /// No description provided for @securitySetupKeychainOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'You can also set a master password for additional protection.'**
+  String get securitySetupKeychainOptional;
+
+  /// No description provided for @securitySetupNoKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.'**
+  String get securitySetupNoKeychain;
+
+  /// No description provided for @securitySetupNoKeychainHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).'**
+  String get securitySetupNoKeychainHint;
+
+  /// No description provided for @securitySetupRecommendMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'We recommend setting a master password to protect your data.'**
+  String get securitySetupRecommendMasterPassword;
+
+  /// No description provided for @continueWithKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Keychain'**
+  String get continueWithKeychain;
+
+  /// No description provided for @continueWithoutEncryption.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue without Encryption'**
+  String get continueWithoutEncryption;
+
+  /// No description provided for @securityLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Security Level'**
+  String get securityLevel;
+
+  /// No description provided for @securityLevelPlaintext.
+  ///
+  /// In en, this message translates to:
+  /// **'None (plaintext)'**
+  String get securityLevelPlaintext;
+
+  /// No description provided for @securityLevelKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'OS Keychain'**
+  String get securityLevelKeychain;
+
+  /// No description provided for @securityLevelMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Master Password'**
+  String get securityLevelMasterPassword;
+
+  /// No description provided for @keychainStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain'**
+  String get keychainStatus;
+
+  /// No description provided for @keychainAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available ({name})'**
+  String keychainAvailable(String name);
+
+  /// No description provided for @keychainNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available'**
+  String get keychainNotAvailable;
+
+  /// No description provided for @manageMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Master Password'**
+  String get manageMasterPassword;
+
+  /// No description provided for @manageMasterPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set, change, or remove master password'**
+  String get manageMasterPasswordSubtitle;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

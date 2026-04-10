@@ -109,7 +109,7 @@ For detailed technical documentation see [ARCHITECTURE.md](ARCHITECTURE.md) — 
 - **Font sizes** — use `AppFonts.tiny`/`xxs`/`xs`/`sm`/`md`/`lg`/`xl` (platform-aware), never hardcode `fontSize` — [§8 Theme](ARCHITECTURE.md#8-theme-system)
 - **Border radius** — use `AppTheme.radiusSm`/`radiusMd`/`radiusLg`, never hardcode `BorderRadius.circular(N)` — [§8 Theme](ARCHITECTURE.md#8-theme-system)
 - **Buttons** — `AppIconButton` for icon buttons, `HoverRegion` for custom hover. Never use bare `IconButton` or `InkWell` — [§6 Widgets API](ARCHITECTURE.md#6-widgets--public-api-reference)
-- **Credentials** — `CredentialStore` (AES-256-GCM), never plain JSON — [§3.6 Security](ARCHITECTURE.md#36-security--encryption-coresecurity)
+- **Security** — three-level encryption (plaintext/keychain/master password), all stores use `AesGcm` utility, `flutter_secure_storage` optional (requires `libsecret-1-dev` on Linux) — [§3.6 Security](ARCHITECTURE.md#36-security--encryption-coresecurity)
 - **Testing** — one test file per source file, DI hooks for testability — [§14 Testing Patterns](ARCHITECTURE.md#14-testing-patterns--di-hooks)
 
 ## Commit Messages

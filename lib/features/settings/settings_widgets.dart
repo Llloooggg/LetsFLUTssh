@@ -80,6 +80,42 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
+/// Read-only info tile: icon + title + value (no tap handler).
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppTheme.fgDim),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+            ),
+          ),
+          Text(
+            value,
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Generic settings row: label + control, minHeight 36.
 class _SettingsRow extends StatelessWidget {
   final String label;

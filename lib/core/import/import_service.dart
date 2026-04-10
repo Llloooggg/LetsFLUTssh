@@ -1,7 +1,6 @@
 import '../../utils/logger.dart';
 import '../config/app_config.dart';
 import '../../features/settings/export_import.dart';
-import '../security/credential_store.dart';
 import '../session/session.dart';
 
 /// Applies import results to session and config state.
@@ -18,13 +17,7 @@ class ImportService {
   /// When provided, a snapshot is taken before deleting existing sessions.
   /// If import fails, the snapshot is restored.
   final Set<String> Function()? getEmptyFolders;
-  final Future<Map<String, CredentialData>> Function(Set<String> ids)?
-  loadCredentials;
-  final Future<void> Function(
-    List<Session> sessions,
-    Set<String> emptyFolders,
-    Map<String, CredentialData> credentials,
-  )?
+  final Future<void> Function(List<Session> sessions, Set<String> emptyFolders)?
   restoreSnapshot;
 
   ImportService({
@@ -33,7 +26,6 @@ class ImportService {
     required this.getSessions,
     required this.applyConfig,
     this.getEmptyFolders,
-    this.loadCredentials,
     this.restoreSnapshot,
   });
 
@@ -75,10 +67,7 @@ class ImportService {
       final folders = getEmptyFolders != null
           ? Set.of(getEmptyFolders!())
           : <String>{};
-      final creds = loadCredentials != null
-          ? await loadCredentials!(existing.map((s) => s.id).toSet())
-          : <String, CredentialData>{};
-      snapshot = _Snapshot(existing, folders, creds);
+      snapshot = _Snapshot(existing, folders);
     }
 
     AppLogger.instance.log(
@@ -120,11 +109,7 @@ class ImportService {
   Future<void> _tryRestore(_Snapshot? snapshot) async {
     if (restoreSnapshot == null || snapshot == null) return;
     try {
-      await restoreSnapshot!(
-        snapshot.sessions,
-        snapshot.folders,
-        snapshot.credentials,
-      );
+      await restoreSnapshot!(snapshot.sessions, snapshot.folders);
       AppLogger.instance.log(
         'Restored ${snapshot.sessions.length} sessions after import failure',
         name: 'Import',
@@ -142,7 +127,6 @@ class ImportService {
 class _Snapshot {
   final List<Session> sessions;
   final Set<String> folders;
-  final Map<String, CredentialData> credentials;
 
-  const _Snapshot(this.sessions, this.folders, this.credentials);
+  const _Snapshot(this.sessions, this.folders);
 }

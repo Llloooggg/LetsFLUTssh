@@ -1069,122 +1069,121 @@ class SVi extends S {
   String get progressOpeningSftp => 'Đang mở kênh SFTP';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'Truyền tải:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count đang hoạt động';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return ', $count đang chờ';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count trong lịch sử';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'Tạo lúc: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'Bắt đầu: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'Kết thúc: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'Thời lượng: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'Đang chờ';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'Bắt đầu tải lên...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'Bắt đầu tải xuống...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'Đang sao chép...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'Hoàn tất';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total tệp';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'TÊN THƯ MỤC';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'Thư mục \"$name\" đã tồn tại';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'Kéo thả tệp khóa vào đây';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'Phiên không có thông tin xác thực — chỉnh sửa để thêm mật khẩu hoặc khóa';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count mục';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'Chọn tất cả ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'Kích thước: $size KB / tối đa $max KB';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'Không có terminal hoạt động';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'Kết nối từ tab Phiên';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'Không tìm thấy tệp: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'Kết nối SSH';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'Duy trì kết nối SSH trong nền.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH hoạt động';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count kết nối hoạt động';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count mục, $size';
   }
 
   @override
@@ -1195,4 +1194,311 @@ class SVi extends S {
 
   @override
   String get duplicateDownShortcut => 'Nhân bản xuống (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Bảo mật';
+
+  @override
+  String get knownHosts => 'Máy chủ đã biết';
+
+  @override
+  String get knownHostsSubtitle => 'Quản lý dấu vân tay máy chủ SSH tin cậy';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count máy chủ đã biết',
+      zero: 'Không có máy chủ đã biết',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty =>
+      'Không có máy chủ đã biết. Kết nối tới máy chủ để thêm.';
+
+  @override
+  String get removeHost => 'Xóa máy chủ';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'Xóa $host khỏi máy chủ đã biết? Khóa sẽ được xác minh lại khi kết nối tiếp theo.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Xóa tất cả máy chủ đã biết';
+
+  @override
+  String get clearAllKnownHostsConfirm =>
+      'Xóa tất cả máy chủ đã biết? Mỗi khóa máy chủ sẽ cần xác minh lại.';
+
+  @override
+  String get importKnownHosts => 'Nhập máy chủ đã biết';
+
+  @override
+  String get importKnownHostsSubtitle => 'Nhập từ tệp OpenSSH known_hosts';
+
+  @override
+  String get exportKnownHosts => 'Xuất máy chủ đã biết';
+
+  @override
+  String importedHosts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Đã nhập $count máy chủ mới',
+      zero: 'Không nhập máy chủ mới',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clearedAllHosts => 'Đã xóa tất cả máy chủ đã biết';
+
+  @override
+  String removedHost(String host) {
+    return 'Đã xóa $host';
+  }
+
+  @override
+  String get noHostsToExport => 'Không có máy chủ để xuất';
+
+  @override
+  String get sshKeys => 'Khóa SSH';
+
+  @override
+  String get sshKeysSubtitle => 'Quản lý cặp khóa SSH để xác thực';
+
+  @override
+  String get noKeys => 'Không có khóa SSH. Nhập hoặc tạo một khóa.';
+
+  @override
+  String get generateKey => 'Tạo khóa';
+
+  @override
+  String get importKey => 'Nhập khóa';
+
+  @override
+  String get keyLabel => 'Tên khóa';
+
+  @override
+  String get keyLabelHint => 'VD: Máy chủ công việc, GitHub';
+
+  @override
+  String get selectKeyType => 'Loại khóa';
+
+  @override
+  String get generating => 'Đang tạo...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'Đã tạo khóa: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'Đã nhập khóa: $label';
+  }
+
+  @override
+  String get deleteKey => 'Xóa khóa';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'Xóa khóa \"$label\"? Các phiên sử dụng khóa này sẽ mất quyền truy cập.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'Đã xóa khóa: $label';
+  }
+
+  @override
+  String get publicKey => 'Khóa công khai';
+
+  @override
+  String get publicKeyCopied => 'Đã sao chép khóa công khai vào clipboard';
+
+  @override
+  String get pastePrivateKey => 'Dán khóa riêng tư (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'Dữ liệu khóa PEM không hợp lệ';
+
+  @override
+  String get selectFromKeyStore => 'Chọn từ kho khóa';
+
+  @override
+  String get noKeySelected => 'Chưa chọn khóa';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count khóa',
+      zero: 'Không có khóa',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'Đã tạo';
+
+  @override
+  String get passphraseRequired => 'Cần cụm mật khẩu';
+
+  @override
+  String passphrasePrompt(String host) {
+    return 'Khóa SSH cho $host được mã hóa. Nhập cụm mật khẩu để mở khóa.';
+  }
+
+  @override
+  String get passphraseWrong => 'Cụm mật khẩu sai. Vui lòng thử lại.';
+
+  @override
+  String get passphrase => 'Cụm mật khẩu';
+
+  @override
+  String get rememberPassphrase => 'Ghi nhớ cho phiên này';
+
+  @override
+  String get unlock => 'Mở khóa';
+
+  @override
+  String get masterPasswordSubtitle =>
+      'Bảo vệ thông tin đăng nhập đã lưu bằng mật khẩu';
+
+  @override
+  String get setMasterPassword => 'Đặt mật khẩu chính';
+
+  @override
+  String get changeMasterPassword => 'Đổi mật khẩu chính';
+
+  @override
+  String get removeMasterPassword => 'Xóa mật khẩu chính';
+
+  @override
+  String get masterPasswordEnabled =>
+      'Thông tin đăng nhập được bảo vệ bởi mật khẩu chính';
+
+  @override
+  String get masterPasswordDisabled =>
+      'Thông tin đăng nhập sử dụng khóa tự tạo (không có mật khẩu)';
+
+  @override
+  String get enterMasterPassword =>
+      'Nhập mật khẩu chính để truy cập thông tin đăng nhập đã lưu.';
+
+  @override
+  String get wrongMasterPassword => 'Sai mật khẩu. Vui lòng thử lại.';
+
+  @override
+  String get newPassword => 'Mật khẩu mới';
+
+  @override
+  String get currentPassword => 'Mật khẩu hiện tại';
+
+  @override
+  String get passwordTooShort => 'Mật khẩu phải có ít nhất 8 ký tự';
+
+  @override
+  String get masterPasswordSet => 'Đã bật mật khẩu chính';
+
+  @override
+  String get masterPasswordChanged => 'Đã đổi mật khẩu chính';
+
+  @override
+  String get masterPasswordRemoved => 'Đã xóa mật khẩu chính';
+
+  @override
+  String get masterPasswordWarning =>
+      'Nếu bạn quên mật khẩu này, tất cả mật khẩu và khóa SSH đã lưu sẽ bị mất. Không thể khôi phục.';
+
+  @override
+  String get forgotPassword => 'Quên mật khẩu?';
+
+  @override
+  String get forgotPasswordWarning =>
+      'Thao tác này sẽ xóa TẤT CẢ mật khẩu, khóa SSH và cụm mật khẩu đã lưu. Các phiên và cài đặt sẽ được giữ lại. Không thể hoàn tác.';
+
+  @override
+  String get resetAndDeleteCredentials => 'Đặt lại và xóa dữ liệu';
+
+  @override
+  String get credentialsReset => 'Tất cả thông tin đăng nhập đã lưu đã bị xóa';
+
+  @override
+  String get derivingKey => 'Đang tạo khóa mã hóa...';
+
+  @override
+  String get reEncrypting => 'Đang mã hóa lại dữ liệu...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'Nhập mật khẩu hiện tại để xóa bảo vệ mật khẩu chính. Thông tin đăng nhập sẽ được mã hóa lại bằng khóa tự tạo.';
+
+  @override
+  String get securitySetupTitle => 'Thiết lập bảo mật';
+
+  @override
+  String securitySetupKeychainFound(String keychainName) {
+    return 'Đã phát hiện chuỗi khóa hệ thống ($keychainName). Dữ liệu của bạn sẽ được tự động mã hóa bằng chuỗi khóa hệ thống.';
+  }
+
+  @override
+  String get securitySetupKeychainOptional =>
+      'Bạn cũng có thể đặt mật khẩu chính để bảo vệ thêm.';
+
+  @override
+  String get securitySetupNoKeychain =>
+      'Không phát hiện chuỗi khóa hệ thống. Không có chuỗi khóa, dữ liệu phiên (máy chủ, mật khẩu, khóa) sẽ được lưu dạng văn bản thuần.';
+
+  @override
+  String get securitySetupNoKeychainHint =>
+      'Điều này bình thường trên WSL, Linux không giao diện hoặc cài đặt tối thiểu. Để bật chuỗi khóa trên Linux: cài libsecret và daemon chuỗi khóa (VD: gnome-keyring).';
+
+  @override
+  String get securitySetupRecommendMasterPassword =>
+      'Chúng tôi khuyên bạn nên đặt mật khẩu chính để bảo vệ dữ liệu.';
+
+  @override
+  String get continueWithKeychain => 'Tiếp tục với chuỗi khóa';
+
+  @override
+  String get continueWithoutEncryption => 'Tiếp tục không mã hóa';
+
+  @override
+  String get securityLevel => 'Mức bảo mật';
+
+  @override
+  String get securityLevelPlaintext => 'Không (văn bản thuần)';
+
+  @override
+  String get securityLevelKeychain => 'Chuỗi khóa hệ thống';
+
+  @override
+  String get securityLevelMasterPassword => 'Mật khẩu chính';
+
+  @override
+  String get keychainStatus => 'Chuỗi khóa';
+
+  @override
+  String keychainAvailable(String name) {
+    return 'Khả dụng ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => 'Không khả dụng';
+
+  @override
+  String get manageMasterPassword => 'Quản lý mật khẩu chính';
+
+  @override
+  String get manageMasterPasswordSubtitle => 'Đặt, đổi hoặc xóa mật khẩu chính';
 }

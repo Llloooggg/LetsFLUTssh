@@ -1070,122 +1070,122 @@ class SHi extends S {
   String get progressOpeningSftp => 'SFTP चैनल खोला जा रहा है';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'स्थानांतरण:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count सक्रिय';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return ', $count कतार में';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count इतिहास में';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'बनाया गया: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'शुरू: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'समाप्त: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'अवधि: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'कतार में';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'अपलोड शुरू हो रहा है...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'डाउनलोड शुरू हो रहा है...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'कॉपी हो रहा है...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'पूर्ण';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total फ़ाइलें';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'फ़ोल्डर का नाम';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'फ़ोल्डर \"$name\" पहले से मौजूद है';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'कुंजी फ़ाइल यहाँ छोड़ें';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'सत्र में क्रेडेंशियल नहीं हैं — पासवर्ड या कुंजी जोड़ने के लिए इसे संपादित करें';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count आइटम';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'सभी चुनें ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'आकार: $size KB / अधिकतम $max KB';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'कोई सक्रिय टर्मिनल नहीं';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'सत्र टैब से कनेक्ट करें';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'फ़ाइल नहीं मिली: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'SSH कनेक्शन';
 
   @override
   String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+      'SSH कनेक्शन को पृष्ठभूमि में सक्रिय रखता है।';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH सक्रिय';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count सक्रिय कनेक्शन';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count आइटम, $size';
   }
 
   @override
@@ -1196,4 +1196,318 @@ class SHi extends S {
 
   @override
   String get duplicateDownShortcut => 'नीचे डुप्लिकेट करें (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'सुरक्षा';
+
+  @override
+  String get knownHosts => 'ज्ञात होस्ट';
+
+  @override
+  String get knownHostsSubtitle =>
+      'विश्वसनीय SSH सर्वर फ़िंगरप्रिंट प्रबंधित करें';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ज्ञात होस्ट',
+      one: '1 ज्ञात होस्ट',
+      zero: 'कोई ज्ञात होस्ट नहीं',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty =>
+      'कोई ज्ञात होस्ट नहीं। एक जोड़ने के लिए सर्वर से कनेक्ट करें।';
+
+  @override
+  String get removeHost => 'होस्ट हटाएं';
+
+  @override
+  String removeHostConfirm(String host) {
+    return 'ज्ञात होस्ट से $host हटाएं? अगले कनेक्शन पर कुंजी की पुनः पुष्टि की जाएगी।';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'सभी ज्ञात होस्ट साफ़ करें';
+
+  @override
+  String get clearAllKnownHostsConfirm =>
+      'सभी ज्ञात होस्ट हटाएं? प्रत्येक सर्वर कुंजी की पुनः पुष्टि करनी होगी।';
+
+  @override
+  String get importKnownHosts => 'ज्ञात होस्ट आयात करें';
+
+  @override
+  String get importKnownHostsSubtitle =>
+      'OpenSSH known_hosts फ़ाइल से आयात करें';
+
+  @override
+  String get exportKnownHosts => 'ज्ञात होस्ट निर्यात करें';
+
+  @override
+  String importedHosts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count नए होस्ट आयात हुए',
+      one: '1 नया होस्ट आयात हुआ',
+      zero: 'कोई नया होस्ट आयात नहीं हुआ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clearedAllHosts => 'सभी ज्ञात होस्ट साफ़ किए गए';
+
+  @override
+  String removedHost(String host) {
+    return '$host हटाया गया';
+  }
+
+  @override
+  String get noHostsToExport => 'निर्यात करने के लिए कोई होस्ट नहीं';
+
+  @override
+  String get sshKeys => 'SSH कुंजियाँ';
+
+  @override
+  String get sshKeysSubtitle =>
+      'प्रमाणीकरण के लिए SSH कुंजी जोड़ी प्रबंधित करें';
+
+  @override
+  String get noKeys => 'कोई SSH कुंजी नहीं। आयात करें या जनरेट करें।';
+
+  @override
+  String get generateKey => 'कुंजी जनरेट करें';
+
+  @override
+  String get importKey => 'कुंजी आयात करें';
+
+  @override
+  String get keyLabel => 'कुंजी का नाम';
+
+  @override
+  String get keyLabelHint => 'जैसे कार्य सर्वर, GitHub';
+
+  @override
+  String get selectKeyType => 'कुंजी प्रकार';
+
+  @override
+  String get generating => 'जनरेट हो रहा है...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'कुंजी जनरेट हुई: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'कुंजी आयात हुई: $label';
+  }
+
+  @override
+  String get deleteKey => 'कुंजी हटाएं';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return 'कुंजी \"$label\" हटाएं? इसका उपयोग करने वाले सत्र पहुँच खो देंगे।';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'कुंजी हटाई गई: $label';
+  }
+
+  @override
+  String get publicKey => 'सार्वजनिक कुंजी';
+
+  @override
+  String get publicKeyCopied => 'सार्वजनिक कुंजी क्लिपबोर्ड पर कॉपी की गई';
+
+  @override
+  String get pastePrivateKey => 'निजी कुंजी चिपकाएं (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'अमान्य PEM कुंजी डेटा';
+
+  @override
+  String get selectFromKeyStore => 'कुंजी भंडार से चुनें';
+
+  @override
+  String get noKeySelected => 'कोई कुंजी नहीं चुनी गई';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count कुंजियाँ',
+      one: '1 कुंजी',
+      zero: 'कोई कुंजी नहीं',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'जनरेट की गई';
+
+  @override
+  String get passphraseRequired => 'पासफ़्रेज़ आवश्यक';
+
+  @override
+  String passphrasePrompt(String host) {
+    return '$host की SSH कुंजी एन्क्रिप्टेड है। अनलॉक करने के लिए पासफ़्रेज़ दर्ज करें।';
+  }
+
+  @override
+  String get passphraseWrong => 'गलत पासफ़्रेज़। कृपया पुनः प्रयास करें।';
+
+  @override
+  String get passphrase => 'पासफ़्रेज़';
+
+  @override
+  String get rememberPassphrase => 'इस सत्र के लिए याद रखें';
+
+  @override
+  String get unlock => 'अनलॉक करें';
+
+  @override
+  String get masterPasswordSubtitle =>
+      'सहेजे गए क्रेडेंशियल को पासवर्ड से सुरक्षित करें';
+
+  @override
+  String get setMasterPassword => 'मास्टर पासवर्ड सेट करें';
+
+  @override
+  String get changeMasterPassword => 'मास्टर पासवर्ड बदलें';
+
+  @override
+  String get removeMasterPassword => 'मास्टर पासवर्ड हटाएं';
+
+  @override
+  String get masterPasswordEnabled =>
+      'क्रेडेंशियल मास्टर पासवर्ड से सुरक्षित हैं';
+
+  @override
+  String get masterPasswordDisabled =>
+      'क्रेडेंशियल स्वचालित रूप से जनरेट की गई कुंजी का उपयोग करते हैं (पासवर्ड नहीं)';
+
+  @override
+  String get enterMasterPassword =>
+      'सहेजे गए क्रेडेंशियल तक पहुँचने के लिए मास्टर पासवर्ड दर्ज करें।';
+
+  @override
+  String get wrongMasterPassword => 'गलत पासवर्ड। कृपया पुनः प्रयास करें।';
+
+  @override
+  String get newPassword => 'नया पासवर्ड';
+
+  @override
+  String get currentPassword => 'वर्तमान पासवर्ड';
+
+  @override
+  String get passwordTooShort => 'पासवर्ड कम से कम 8 अक्षर का होना चाहिए';
+
+  @override
+  String get masterPasswordSet => 'मास्टर पासवर्ड सक्रिय किया गया';
+
+  @override
+  String get masterPasswordChanged => 'मास्टर पासवर्ड बदला गया';
+
+  @override
+  String get masterPasswordRemoved => 'मास्टर पासवर्ड हटाया गया';
+
+  @override
+  String get masterPasswordWarning =>
+      'यदि आप यह पासवर्ड भूल जाते हैं, तो सभी सहेजे गए पासवर्ड और SSH कुंजियाँ खो जाएंगी। पुनर्प्राप्ति संभव नहीं है।';
+
+  @override
+  String get forgotPassword => 'पासवर्ड भूल गए?';
+
+  @override
+  String get forgotPasswordWarning =>
+      'यह सभी सहेजे गए पासवर्ड, SSH कुंजियाँ और पासफ़्रेज़ हटा देगा। सत्र और सेटिंग्स बनी रहेंगी। यह क्रिया पूर्ववत नहीं की जा सकती।';
+
+  @override
+  String get resetAndDeleteCredentials => 'रीसेट करें और डेटा हटाएं';
+
+  @override
+  String get credentialsReset => 'सभी सहेजे गए क्रेडेंशियल हटा दिए गए';
+
+  @override
+  String get derivingKey => 'एन्क्रिप्शन कुंजी बनाई जा रही है...';
+
+  @override
+  String get reEncrypting => 'डेटा पुनः एन्क्रिप्ट हो रहा है...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'मास्टर पासवर्ड सुरक्षा हटाने के लिए वर्तमान पासवर्ड दर्ज करें। क्रेडेंशियल स्वचालित कुंजी से पुनः एन्क्रिप्ट होंगे।';
+
+  @override
+  String get securitySetupTitle => 'सुरक्षा सेटअप';
+
+  @override
+  String securitySetupKeychainFound(String keychainName) {
+    return 'OS कीचेन पाया गया ($keychainName)। आपका डेटा सिस्टम कीचेन का उपयोग करके स्वचालित रूप से एन्क्रिप्ट किया जाएगा।';
+  }
+
+  @override
+  String get securitySetupKeychainOptional =>
+      'अतिरिक्त सुरक्षा के लिए मास्टर पासवर्ड भी सेट कर सकते हैं।';
+
+  @override
+  String get securitySetupNoKeychain =>
+      'OS कीचेन नहीं पाया गया। कीचेन के बिना, सत्र डेटा (होस्ट, पासवर्ड, कुंजियाँ) सादे पाठ में संग्रहीत होगा।';
+
+  @override
+  String get securitySetupNoKeychainHint =>
+      'WSL, हेडलेस Linux या न्यूनतम इंस्टॉलेशन में यह सामान्य है। Linux पर कीचेन सक्षम करने के लिए: libsecret और कीरिंग डेमन (जैसे gnome-keyring) इंस्टॉल करें।';
+
+  @override
+  String get securitySetupRecommendMasterPassword =>
+      'अपने डेटा की सुरक्षा के लिए मास्टर पासवर्ड सेट करने की सिफारिश की जाती है।';
+
+  @override
+  String get continueWithKeychain => 'कीचेन के साथ जारी रखें';
+
+  @override
+  String get continueWithoutEncryption => 'एन्क्रिप्शन के बिना जारी रखें';
+
+  @override
+  String get securityLevel => 'सुरक्षा स्तर';
+
+  @override
+  String get securityLevelPlaintext => 'कोई नहीं (सादा पाठ)';
+
+  @override
+  String get securityLevelKeychain => 'OS कीचेन';
+
+  @override
+  String get securityLevelMasterPassword => 'मास्टर पासवर्ड';
+
+  @override
+  String get keychainStatus => 'कीचेन';
+
+  @override
+  String keychainAvailable(String name) {
+    return 'उपलब्ध ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => 'अनुपलब्ध';
+
+  @override
+  String get manageMasterPassword => 'मास्टर पासवर्ड प्रबंधित करें';
+
+  @override
+  String get manageMasterPasswordSubtitle =>
+      'मास्टर पासवर्ड सेट, बदलें या हटाएं';
 }

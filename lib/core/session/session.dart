@@ -10,8 +10,12 @@ enum AuthType { password, key, keyWithPassword }
 class SessionAuth extends SshAuth {
   final AuthType authType;
 
+  /// Reference to a key in the central key store. Empty = not set.
+  final String keyId;
+
   const SessionAuth({
     this.authType = AuthType.password,
+    this.keyId = '',
     super.password,
     super.keyPath,
     super.keyData,
@@ -21,12 +25,14 @@ class SessionAuth extends SshAuth {
   @override
   SessionAuth copyWith({
     AuthType? authType,
+    String? keyId,
     String? password,
     String? keyPath,
     String? keyData,
     String? passphrase,
   }) => SessionAuth(
     authType: authType ?? this.authType,
+    keyId: keyId ?? this.keyId,
     password: password ?? this.password,
     keyPath: keyPath ?? this.keyPath,
     keyData: keyData ?? this.keyData,
@@ -38,6 +44,7 @@ class SessionAuth extends SshAuth {
       identical(this, other) ||
       other is SessionAuth &&
           authType == other.authType &&
+          keyId == other.keyId &&
           password == other.password &&
           keyPath == other.keyPath &&
           keyData == other.keyData &&
@@ -45,7 +52,7 @@ class SessionAuth extends SshAuth {
 
   @override
   int get hashCode =>
-      Object.hash(authType, password, keyPath, keyData, passphrase);
+      Object.hash(authType, keyId, password, keyPath, keyData, passphrase);
 }
 
 /// SSH session model — stored as JSON, credentials in encrypted storage.
@@ -80,6 +87,7 @@ class Session {
   int get port => server.port;
   String get user => server.user;
   AuthType get authType => auth.authType;
+  String get keyId => auth.keyId;
   String get password => auth.password;
   String get keyPath => auth.keyPath;
   String get keyData => auth.keyData;
@@ -151,6 +159,7 @@ class Session {
       server: ServerAddress(host: host, port: port, user: user),
       auth: SessionAuth(
         authType: auth.authType,
+        keyId: keyId,
         password: password,
         keyPath: auth.keyPath,
         keyData: keyData,
@@ -169,6 +178,7 @@ class Session {
     'port': port,
     'user': user,
     'auth_type': authType.name,
+    if (keyId.isNotEmpty) 'key_id': keyId,
     'key_path': keyPath,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
@@ -212,6 +222,7 @@ class Session {
           (e) => e.name == json['auth_type'],
           orElse: () => AuthType.password,
         ),
+        keyId: json['key_id'] as String? ?? '',
         password: json['password'] as String? ?? '',
         keyPath: json['key_path'] as String? ?? '',
         keyData: json['key_data'] as String? ?? '',

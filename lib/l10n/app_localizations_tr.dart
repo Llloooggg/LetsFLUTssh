@@ -1073,122 +1073,122 @@ class STr extends S {
   String get progressOpeningSftp => 'SFTP kanalı açılıyor';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'Aktarımlar:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count aktif';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return ', $count sırada';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count geçmişte';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'Oluşturulma: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'Başlangıç: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'Bitiş: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'Süre: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'Sırada';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'Yükleme başlıyor...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'İndirme başlıyor...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'Kopyalanıyor...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'Tamamlandı';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total dosya';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'KLASÖR ADI';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return '\"$name\" klasörü zaten mevcut';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'Anahtar dosyasını buraya sürükleyin';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'Oturumda kimlik bilgisi yok — şifre veya anahtar eklemek için düzenleyin';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count öğe';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'Tümünü seç ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'Boyut: $size KB / maks. $max KB';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'Aktif terminal yok';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'Oturumlar sekmesinden bağlanın';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'Dosya bulunamadı: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'SSH Bağlantısı';
 
   @override
   String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+      'SSH bağlantılarını arka planda canlı tutar.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH aktif';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count aktif bağlantı';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count öğe, $size';
   }
 
   @override
@@ -1199,4 +1199,317 @@ class STr extends S {
 
   @override
   String get duplicateDownShortcut => 'Aşağı Çoğalt (Ctrl+Shift+\\)';
+
+  @override
+  String get security => 'Güvenlik';
+
+  @override
+  String get knownHosts => 'Bilinen Sunucular';
+
+  @override
+  String get knownHostsSubtitle =>
+      'Güvenilir SSH sunucu parmak izlerini yönetin';
+
+  @override
+  String knownHostsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bilinen sunucu',
+      one: '1 bilinen sunucu',
+      zero: 'Bilinen sunucu yok',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get knownHostsEmpty =>
+      'Bilinen sunucu yok. Eklemek için bir sunucuya bağlanın.';
+
+  @override
+  String get removeHost => 'Sunucuyu kaldır';
+
+  @override
+  String removeHostConfirm(String host) {
+    return '$host bilinen sunuculardan kaldırılsın mı? Sonraki bağlantıda anahtar yeniden doğrulanacak.';
+  }
+
+  @override
+  String get clearAllKnownHosts => 'Tüm bilinen sunucuları temizle';
+
+  @override
+  String get clearAllKnownHostsConfirm =>
+      'Tüm bilinen sunucular kaldırılsın mı? Her sunucu anahtarı yeniden doğrulanmalı.';
+
+  @override
+  String get importKnownHosts => 'Bilinen sunucuları içe aktar';
+
+  @override
+  String get importKnownHostsSubtitle =>
+      'OpenSSH known_hosts dosyasından içe aktar';
+
+  @override
+  String get exportKnownHosts => 'Bilinen sunucuları dışa aktar';
+
+  @override
+  String importedHosts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count yeni sunucu içe aktarıldı',
+      one: '1 yeni sunucu içe aktarıldı',
+      zero: 'Yeni sunucu içe aktarılmadı',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clearedAllHosts => 'Tüm bilinen sunucular temizlendi';
+
+  @override
+  String removedHost(String host) {
+    return '$host kaldırıldı';
+  }
+
+  @override
+  String get noHostsToExport => 'Dışa aktarılacak sunucu yok';
+
+  @override
+  String get sshKeys => 'SSH Anahtarları';
+
+  @override
+  String get sshKeysSubtitle =>
+      'Kimlik doğrulama için SSH anahtar çiftlerini yönetin';
+
+  @override
+  String get noKeys => 'SSH anahtarı yok. İçe aktarın veya oluşturun.';
+
+  @override
+  String get generateKey => 'Anahtar oluştur';
+
+  @override
+  String get importKey => 'Anahtar içe aktar';
+
+  @override
+  String get keyLabel => 'Anahtar adı';
+
+  @override
+  String get keyLabelHint => 'örn. İş Sunucusu, GitHub';
+
+  @override
+  String get selectKeyType => 'Anahtar türü';
+
+  @override
+  String get generating => 'Oluşturuluyor...';
+
+  @override
+  String keyGenerated(String label) {
+    return 'Anahtar oluşturuldu: $label';
+  }
+
+  @override
+  String keyImported(String label) {
+    return 'Anahtar içe aktarıldı: $label';
+  }
+
+  @override
+  String get deleteKey => 'Anahtarı sil';
+
+  @override
+  String deleteKeyConfirm(String label) {
+    return '\"$label\" anahtarı silinsin mi? Bu anahtarı kullanan oturumlar erişimi kaybedecek.';
+  }
+
+  @override
+  String keyDeleted(String label) {
+    return 'Anahtar silindi: $label';
+  }
+
+  @override
+  String get publicKey => 'Genel anahtar';
+
+  @override
+  String get publicKeyCopied => 'Genel anahtar panoya kopyalandı';
+
+  @override
+  String get pastePrivateKey => 'Özel anahtarı yapıştır (PEM)';
+
+  @override
+  String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
+
+  @override
+  String get invalidPem => 'Geçersiz PEM anahtar verisi';
+
+  @override
+  String get selectFromKeyStore => 'Anahtar deposundan seç';
+
+  @override
+  String get noKeySelected => 'Anahtar seçilmedi';
+
+  @override
+  String keyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count anahtar',
+      one: '1 anahtar',
+      zero: 'Anahtar yok',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get generated => 'Oluşturuldu';
+
+  @override
+  String get passphraseRequired => 'Parola gerekli';
+
+  @override
+  String passphrasePrompt(String host) {
+    return '$host için SSH anahtarı şifrelenmiş. Kilidini açmak için parolayı girin.';
+  }
+
+  @override
+  String get passphraseWrong => 'Yanlış parola. Lütfen tekrar deneyin.';
+
+  @override
+  String get passphrase => 'Parola';
+
+  @override
+  String get rememberPassphrase => 'Bu oturum için hatırla';
+
+  @override
+  String get unlock => 'Kilidi aç';
+
+  @override
+  String get masterPasswordSubtitle =>
+      'Kayıtlı kimlik bilgilerini şifreyle koruyun';
+
+  @override
+  String get setMasterPassword => 'Ana şifre belirle';
+
+  @override
+  String get changeMasterPassword => 'Ana şifreyi değiştir';
+
+  @override
+  String get removeMasterPassword => 'Ana şifreyi kaldır';
+
+  @override
+  String get masterPasswordEnabled => 'Kimlik bilgileri ana şifreyle korunuyor';
+
+  @override
+  String get masterPasswordDisabled =>
+      'Kimlik bilgileri otomatik oluşturulan anahtar kullanıyor (şifresiz)';
+
+  @override
+  String get enterMasterPassword =>
+      'Kayıtlı kimlik bilgilerinize erişmek için ana şifreyi girin.';
+
+  @override
+  String get wrongMasterPassword => 'Yanlış şifre. Lütfen tekrar deneyin.';
+
+  @override
+  String get newPassword => 'Yeni şifre';
+
+  @override
+  String get currentPassword => 'Mevcut şifre';
+
+  @override
+  String get passwordTooShort => 'Şifre en az 8 karakter olmalı';
+
+  @override
+  String get masterPasswordSet => 'Ana şifre etkinleştirildi';
+
+  @override
+  String get masterPasswordChanged => 'Ana şifre değiştirildi';
+
+  @override
+  String get masterPasswordRemoved => 'Ana şifre kaldırıldı';
+
+  @override
+  String get masterPasswordWarning =>
+      'Bu şifreyi unutursanız, tüm kayıtlı şifreler ve SSH anahtarları kaybolacak. Kurtarma mümkün değil.';
+
+  @override
+  String get forgotPassword => 'Şifrenizi mi unuttunuz?';
+
+  @override
+  String get forgotPasswordWarning =>
+      'Bu işlem TÜM kayıtlı şifreleri, SSH anahtarlarını ve parolaları silecek. Oturumlar ve ayarlar korunacak. Bu işlem geri alınamaz.';
+
+  @override
+  String get resetAndDeleteCredentials => 'Sıfırla ve verileri sil';
+
+  @override
+  String get credentialsReset => 'Tüm kayıtlı kimlik bilgileri silindi';
+
+  @override
+  String get derivingKey => 'Şifreleme anahtarı türetiliyor...';
+
+  @override
+  String get reEncrypting => 'Veriler yeniden şifreleniyor...';
+
+  @override
+  String get confirmRemoveMasterPassword =>
+      'Ana şifre korumasını kaldırmak için mevcut şifrenizi girin. Kimlik bilgileri otomatik anahtarla yeniden şifrelenecek.';
+
+  @override
+  String get securitySetupTitle => 'Güvenlik ayarları';
+
+  @override
+  String securitySetupKeychainFound(String keychainName) {
+    return 'Sistem anahtar zinciri algılandı ($keychainName). Verileriniz sistem anahtar zinciri kullanılarak otomatik şifrelenecek.';
+  }
+
+  @override
+  String get securitySetupKeychainOptional =>
+      'Ek koruma için ana şifre de belirleyebilirsiniz.';
+
+  @override
+  String get securitySetupNoKeychain =>
+      'Sistem anahtar zinciri algılanmadı. Anahtar zinciri olmadan oturum verileriniz (sunucular, şifreler, anahtarlar) düz metin olarak saklanacak.';
+
+  @override
+  String get securitySetupNoKeychainHint =>
+      'WSL, grafik arayüzsüz Linux veya minimal kurulumlar için normaldir. Linux\'ta anahtar zincirini etkinleştirmek için: libsecret ve bir anahtar zinciri arka plan hizmeti (örn. gnome-keyring) yükleyin.';
+
+  @override
+  String get securitySetupRecommendMasterPassword =>
+      'Verilerinizi korumak için ana şifre belirlemenizi öneriyoruz.';
+
+  @override
+  String get continueWithKeychain => 'Anahtar zinciriyle devam et';
+
+  @override
+  String get continueWithoutEncryption => 'Şifreleme olmadan devam et';
+
+  @override
+  String get securityLevel => 'Güvenlik düzeyi';
+
+  @override
+  String get securityLevelPlaintext => 'Yok (düz metin)';
+
+  @override
+  String get securityLevelKeychain => 'Sistem anahtar zinciri';
+
+  @override
+  String get securityLevelMasterPassword => 'Ana şifre';
+
+  @override
+  String get keychainStatus => 'Anahtar zinciri';
+
+  @override
+  String keychainAvailable(String name) {
+    return 'Kullanılabilir ($name)';
+  }
+
+  @override
+  String get keychainNotAvailable => 'Kullanılamaz';
+
+  @override
+  String get manageMasterPassword => 'Ana şifreyi yönet';
+
+  @override
+  String get manageMasterPasswordSubtitle =>
+      'Ana şifreyi belirle, değiştir veya kaldır';
 }
