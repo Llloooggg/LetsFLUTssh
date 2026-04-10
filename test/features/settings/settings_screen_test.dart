@@ -868,7 +868,10 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Export Data'));
-      await tester.pumpAndSettle();
+      // Dialog open — pump frames without pumpAndSettle (path_provider
+      // error may trigger a toast with a running animation timer).
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       await tester.enterText(
         find.widgetWithText(TextField, 'Master Password'),
@@ -880,11 +883,9 @@ void main() {
       );
 
       await tester.tap(find.text('Export'));
-      await tester.pumpAndSettle();
-
+      // Drain toast timer (3s display + fade animation).
+      await tester.pump(const Duration(seconds: 4));
       await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
     });
   });
 
