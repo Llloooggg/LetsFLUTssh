@@ -3,15 +3,13 @@ version: 2
 secret:
   # Test files contain fake credentials for unit testing (not real secrets)
   # Localization files contain translated UI labels like "password" -> "Passwort"
-  # Security source files reference "password" in code logic / comments (not secrets)
   ignored_paths:
     - 'test/**'
     - 'lib/l10n/**'
-    - 'lib/core/security/**'
-    - 'lib/core/session/session_store.dart'
 
   ignored_detectors:
-    # UI strings and code logic referencing "password" as a concept, not a secret
+    # Security stores reference "password" in code logic / comments, not secrets
     - name: generic_password
       paths:
-        - 'lib/**'
+        - 'lib/core/security/key_store.dart'
+        - 'lib/core/session/session_store.dart'
