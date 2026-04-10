@@ -483,20 +483,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
                 Expanded(
                   child: _hasStoreKey
                       ? _buildSelectedKeyChip()
-                      : OutlinedButton.icon(
-                          onPressed: keyList.isEmpty
-                              ? null
-                              : () => _showKeyPicker(keyList),
-                          icon: const Icon(Icons.vpn_key, size: 18),
-                          label: Text(
-                            s.selectFromKeyStore,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(0, 48),
-                            alignment: Alignment.centerLeft,
-                          ),
-                        ),
+                      : _buildKeyPickerButton(s, keyList),
                 ),
               ],
             ),
@@ -524,6 +511,18 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   String _buildOrDividerLabel() =>
       '${S.of(context).selectFromKeyStore}: $_selectedKeyLabel';
+
+  Widget _buildKeyPickerButton(S s, List<SshKeyEntry> keyList) {
+    return OutlinedButton.icon(
+      onPressed: keyList.isEmpty ? null : () => _showKeyPicker(keyList),
+      icon: const Icon(Icons.vpn_key, size: 18),
+      label: Text(s.selectFromKeyStore, overflow: TextOverflow.ellipsis),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 48),
+        alignment: Alignment.centerLeft,
+      ),
+    );
+  }
 
   Widget _buildSelectedKeyChip() {
     return Container(
