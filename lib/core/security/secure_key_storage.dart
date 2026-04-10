@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -17,16 +18,24 @@ class SecureKeyStorage {
   static const _probeName = 'letsflutssh_keychain_probe';
 
   final FlutterSecureStorage _storage;
+  final bool _skipPlatformCheck;
 
+  /// When [storage] is provided (tests), platform pre-checks are skipped.
   SecureKeyStorage({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage(),
+      _skipPlatformCheck = storage != null;
 
   /// Probe whether OS keychain is available at runtime.
   ///
-  /// Performs a full write → read → delete cycle with a disposable key.
-  /// Returns false if any step fails (no keyring daemon, sandbox restriction,
-  /// missing libsecret on Linux, etc.).
+  /// On Linux, checks for a D-Bus session bus and absence of WSL before
+  /// attempting any libsecret calls — this avoids the native `g_warning()`
+  /// that libsecret emits when the keyring daemon is missing.
+  ///
+  /// On all platforms, performs a full write → read → delete cycle with a
+  /// disposable key. Returns false if any step fails.
   Future<bool> isAvailable() async {
+    if (!_hasKeychainSupport()) return false;
+
     try {
       const probe = 'probe';
       await _storage.write(key: _probeName, value: probe);
@@ -42,10 +51,41 @@ class SecureKeyStorage {
     }
   }
 
+  /// Quick pre-flight check before touching the native keychain API.
+  ///
+  /// On Linux, libsecret requires a running keyring daemon reachable via
+  /// D-Bus. Without it, every call logs a noisy `g_warning` to stderr that
+  /// we cannot suppress from Dart. Detect this early and skip.
+  bool _hasKeychainSupport() {
+    if (_skipPlatformCheck || !Platform.isLinux) return true;
+
+    // WSL has no keyring daemon.
+    if (Platform.environment.containsKey('WSL_DISTRO_NAME')) {
+      AppLogger.instance.log(
+        'WSL detected — skipping keychain probe',
+        name: 'SecureKeyStorage',
+      );
+      return false;
+    }
+
+    // No D-Bus session → no keyring.
+    final dbus = Platform.environment['DBUS_SESSION_BUS_ADDRESS'];
+    if (dbus == null || dbus.isEmpty) {
+      AppLogger.instance.log(
+        'No D-Bus session bus — skipping keychain probe',
+        name: 'SecureKeyStorage',
+      );
+      return false;
+    }
+
+    return true;
+  }
+
   /// Read the encryption key from OS keychain.
   ///
   /// Returns null if the key does not exist or keychain is unavailable.
   Future<Uint8List?> readKey() async {
+    if (!_hasKeychainSupport()) return null;
     try {
       final value = await _storage.read(key: _keyName);
       if (value == null) return null;
@@ -63,6 +103,7 @@ class SecureKeyStorage {
   ///
   /// Returns false if the write fails.
   Future<bool> writeKey(Uint8List key) async {
+    if (!_hasKeychainSupport()) return false;
     try {
       await _storage.write(key: _keyName, value: base64Encode(key));
       return true;
@@ -77,6 +118,7 @@ class SecureKeyStorage {
 
   /// Remove the encryption key from OS keychain.
   Future<void> deleteKey() async {
+    if (!_hasKeychainSupport()) return;
     try {
       await _storage.delete(key: _keyName);
     } catch (e) {
