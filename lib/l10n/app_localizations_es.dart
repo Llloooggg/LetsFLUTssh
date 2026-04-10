@@ -1075,122 +1075,122 @@ class SEs extends S {
   String get progressOpeningSftp => 'Abriendo canal SFTP';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'Transferencias:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count activas';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return ', $count en cola';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count en historial';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'Creado: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'Iniciado: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'Finalizado: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'Duración: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'En cola';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'Iniciando carga...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'Iniciando descarga...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'Copiando...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'Listo';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total archivos';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'NOMBRE DE CARPETA';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'La carpeta \"$name\" ya existe';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'Arrastre el archivo de clave aquí';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'La sesión no tiene credenciales — edítela para agregar una contraseña o clave';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count elementos';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'Seleccionar todo ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'Tamaño: $size KB / $max KB máx.';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'No hay terminales activos';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'Conéctese desde la pestaña Sesiones';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'Archivo no encontrado: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'Conexión SSH';
 
   @override
   String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+      'Mantiene las conexiones SSH activas en segundo plano.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH activo';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count conexión(es) activa(s)';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count elementos, $size';
   }
 
   @override
@@ -1203,306 +1203,320 @@ class SEs extends S {
   String get duplicateDownShortcut => 'Duplicar abajo (Ctrl+Shift+\\)';
 
   @override
-  String get security => 'Security';
+  String get security => 'Seguridad';
 
   @override
-  String get knownHosts => 'Known Hosts';
+  String get knownHosts => 'Hosts conocidos';
 
   @override
-  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+  String get knownHostsSubtitle =>
+      'Gestión de huellas digitales de servidores SSH de confianza';
 
   @override
   String knownHostsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count known hosts',
-      one: '1 known host',
-      zero: 'No known hosts',
+      other: '$count hosts conocidos',
+      one: '1 host conocido',
+      zero: 'Sin hosts conocidos',
     );
     return '$_temp0';
   }
 
   @override
   String get knownHostsEmpty =>
-      'No known hosts yet. Connect to a server to add one.';
+      'Sin hosts conocidos. Conéctese a un servidor para agregar uno.';
 
   @override
-  String get removeHost => 'Remove Host';
+  String get removeHost => 'Eliminar host';
 
   @override
   String removeHostConfirm(String host) {
-    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+    return '¿Eliminar $host de hosts conocidos? La clave se verificará de nuevo en la próxima conexión.';
   }
 
   @override
-  String get clearAllKnownHosts => 'Clear All Known Hosts';
+  String get clearAllKnownHosts => 'Eliminar todos los hosts conocidos';
 
   @override
   String get clearAllKnownHostsConfirm =>
-      'Remove all known hosts? You will be prompted to verify each server key again.';
+      '¿Eliminar todos los hosts conocidos? Cada clave de servidor deberá ser verificada de nuevo.';
 
   @override
-  String get importKnownHosts => 'Import Known Hosts';
+  String get importKnownHosts => 'Importar hosts conocidos';
 
   @override
-  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+  String get importKnownHostsSubtitle =>
+      'Importar desde archivo OpenSSH known_hosts';
 
   @override
-  String get exportKnownHosts => 'Export Known Hosts';
+  String get exportKnownHosts => 'Exportar hosts conocidos';
 
   @override
   String importedHosts(int count) {
-    return 'Imported $count new hosts';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hosts nuevos importados',
+      one: '1 host nuevo importado',
+      zero: 'No se importaron hosts nuevos',
+    );
+    return '$_temp0';
   }
 
   @override
-  String get clearedAllHosts => 'Cleared all known hosts';
+  String get clearedAllHosts => 'Todos los hosts conocidos eliminados';
 
   @override
   String removedHost(String host) {
-    return 'Removed $host';
+    return '$host eliminado';
   }
 
   @override
-  String get noHostsToExport => 'No known hosts to export';
+  String get noHostsToExport => 'No hay hosts para exportar';
 
   @override
-  String get sshKeys => 'SSH Keys';
+  String get sshKeys => 'Claves SSH';
 
   @override
-  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+  String get sshKeysSubtitle =>
+      'Gestión de pares de claves SSH para autenticación';
 
   @override
-  String get noKeys => 'No SSH keys. Import or generate one.';
+  String get noKeys => 'Sin claves SSH. Importe o genere una.';
 
   @override
-  String get generateKey => 'Generate Key';
+  String get generateKey => 'Generar clave';
 
   @override
-  String get importKey => 'Import Key';
+  String get importKey => 'Importar clave';
 
   @override
-  String get keyLabel => 'Key Label';
+  String get keyLabel => 'Nombre de la clave';
 
   @override
-  String get keyLabelHint => 'e.g. Work Server, GitHub';
+  String get keyLabelHint => 'ej. Servidor de trabajo, GitHub';
 
   @override
-  String get selectKeyType => 'Key Type';
+  String get selectKeyType => 'Tipo de clave';
 
   @override
-  String get generating => 'Generating...';
+  String get generating => 'Generando...';
 
   @override
   String keyGenerated(String label) {
-    return 'Key generated: $label';
+    return 'Clave generada: $label';
   }
 
   @override
   String keyImported(String label) {
-    return 'Key imported: $label';
+    return 'Clave importada: $label';
   }
 
   @override
-  String get deleteKey => 'Delete Key';
+  String get deleteKey => 'Eliminar clave';
 
   @override
   String deleteKeyConfirm(String label) {
-    return 'Delete key \"$label\"? Sessions using it will lose access.';
+    return '¿Eliminar clave \"$label\"? Las sesiones que la usen perderán el acceso.';
   }
 
   @override
   String keyDeleted(String label) {
-    return 'Key deleted: $label';
+    return 'Clave eliminada: $label';
   }
 
   @override
-  String get publicKey => 'Public Key';
+  String get publicKey => 'Clave pública';
 
   @override
-  String get publicKeyCopied => 'Public key copied to clipboard';
+  String get publicKeyCopied => 'Clave pública copiada al portapapeles';
 
   @override
-  String get pastePrivateKey => 'Paste Private Key (PEM)';
+  String get pastePrivateKey => 'Pegar clave privada (PEM)';
 
   @override
   String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
 
   @override
-  String get invalidPem => 'Invalid PEM key data';
+  String get invalidPem => 'Datos de clave PEM inválidos';
 
   @override
-  String get selectFromKeyStore => 'Select from Key Store';
+  String get selectFromKeyStore => 'Seleccionar del almacén de claves';
 
   @override
-  String get noKeySelected => 'No key selected';
+  String get noKeySelected => 'Ninguna clave seleccionada';
 
   @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count keys',
-      one: '1 key',
-      zero: 'No keys',
+      other: '$count claves',
+      one: '1 clave',
+      zero: 'Sin claves',
     );
     return '$_temp0';
   }
 
   @override
-  String get generated => 'Generated';
+  String get generated => 'Generada';
 
   @override
-  String get passphraseRequired => 'Passphrase Required';
+  String get passphraseRequired => 'Frase de contraseña requerida';
 
   @override
   String passphrasePrompt(String host) {
-    return 'The SSH key for $host is encrypted. Enter the passphrase to unlock it.';
+    return 'La clave SSH para $host está cifrada. Ingrese la frase de contraseña para desbloquearla.';
   }
 
   @override
-  String get passphraseWrong => 'Wrong passphrase. Please try again.';
+  String get passphraseWrong =>
+      'Frase de contraseña incorrecta. Por favor, inténtelo de nuevo.';
 
   @override
-  String get passphrase => 'Passphrase';
+  String get passphrase => 'Frase de contraseña';
 
   @override
-  String get rememberPassphrase => 'Remember for this session';
+  String get rememberPassphrase => 'Recordar para esta sesión';
 
   @override
-  String get unlock => 'Unlock';
+  String get unlock => 'Desbloquear';
 
   @override
   String get masterPasswordSubtitle =>
-      'Protect saved credentials with a password';
+      'Proteger credenciales guardadas con contraseña';
 
   @override
-  String get setMasterPassword => 'Set Master Password';
+  String get setMasterPassword => 'Establecer contraseña maestra';
 
   @override
-  String get changeMasterPassword => 'Change Master Password';
+  String get changeMasterPassword => 'Cambiar contraseña maestra';
 
   @override
-  String get removeMasterPassword => 'Remove Master Password';
+  String get removeMasterPassword => 'Eliminar contraseña maestra';
 
   @override
   String get masterPasswordEnabled =>
-      'Credentials are protected by master password';
+      'Las credenciales están protegidas por contraseña maestra';
 
   @override
   String get masterPasswordDisabled =>
-      'Credentials use auto-generated key (no password)';
+      'Las credenciales usan clave auto-generada (sin contraseña)';
 
   @override
   String get enterMasterPassword =>
-      'Enter master password to unlock your saved credentials.';
+      'Ingrese la contraseña maestra para acceder a sus credenciales guardadas.';
 
   @override
-  String get wrongMasterPassword => 'Wrong password. Please try again.';
+  String get wrongMasterPassword =>
+      'Contraseña incorrecta. Por favor, inténtelo de nuevo.';
 
   @override
-  String get newPassword => 'New Password';
+  String get newPassword => 'Nueva contraseña';
 
   @override
-  String get currentPassword => 'Current Password';
+  String get currentPassword => 'Contraseña actual';
 
   @override
-  String get passwordTooShort => 'Password must be at least 8 characters';
+  String get passwordTooShort =>
+      'La contraseña debe tener al menos 8 caracteres';
 
   @override
-  String get masterPasswordSet => 'Master password enabled';
+  String get masterPasswordSet => 'Contraseña maestra activada';
 
   @override
-  String get masterPasswordChanged => 'Master password changed';
+  String get masterPasswordChanged => 'Contraseña maestra cambiada';
 
   @override
-  String get masterPasswordRemoved => 'Master password removed';
+  String get masterPasswordRemoved => 'Contraseña maestra eliminada';
 
   @override
   String get masterPasswordWarning =>
-      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+      'Si olvida esta contraseña, todas las contraseñas y claves SSH guardadas se perderán. No hay recuperación posible.';
 
   @override
-  String get forgotPassword => 'Forgot Password?';
+  String get forgotPassword => '¿Olvidó su contraseña?';
 
   @override
   String get forgotPasswordWarning =>
-      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+      'Esto eliminará TODAS las contraseñas, claves SSH y frases de contraseña guardadas. Las sesiones y configuraciones se conservarán. Esta acción es irreversible.';
 
   @override
-  String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
+  String get resetAndDeleteCredentials => 'Restablecer y eliminar datos';
 
   @override
-  String get credentialsReset => 'All saved credentials have been deleted';
+  String get credentialsReset =>
+      'Todas las credenciales guardadas han sido eliminadas';
 
   @override
-  String get derivingKey => 'Deriving encryption key...';
+  String get derivingKey => 'Derivando clave de cifrado...';
 
   @override
-  String get reEncrypting => 'Re-encrypting data...';
+  String get reEncrypting => 'Re-cifrando datos...';
 
   @override
   String get confirmRemoveMasterPassword =>
-      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+      'Ingrese su contraseña actual para eliminar la protección de contraseña maestra. Las credenciales serán re-cifradas con una clave auto-generada.';
 
   @override
-  String get securitySetupTitle => 'Security Setup';
+  String get securitySetupTitle => 'Configuración de seguridad';
 
   @override
   String securitySetupKeychainFound(String keychainName) {
-    return 'OS Keychain detected ($keychainName). Your data will be automatically encrypted using your system keychain.';
+    return 'Llavero del sistema detectado ($keychainName). Sus datos serán cifrados automáticamente usando el llavero del sistema.';
   }
 
   @override
   String get securitySetupKeychainOptional =>
-      'You can also set a master password for additional protection.';
+      'También puede establecer una contraseña maestra para protección adicional.';
 
   @override
   String get securitySetupNoKeychain =>
-      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+      'No se detectó llavero del sistema. Sin llavero, los datos de sesión (hosts, contraseñas, claves) se almacenarán en texto plano.';
 
   @override
   String get securitySetupNoKeychainHint =>
-      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+      'Esto es normal en WSL, Linux sin interfaz gráfica o instalaciones mínimas. Para habilitar el llavero en Linux: instale libsecret y un demonio de llavero (ej. gnome-keyring).';
 
   @override
   String get securitySetupRecommendMasterPassword =>
-      'We recommend setting a master password to protect your data.';
+      'Recomendamos establecer una contraseña maestra para proteger sus datos.';
 
   @override
-  String get continueWithKeychain => 'Continue with Keychain';
+  String get continueWithKeychain => 'Continuar con llavero';
 
   @override
-  String get continueWithoutEncryption => 'Continue without Encryption';
+  String get continueWithoutEncryption => 'Continuar sin cifrado';
 
   @override
-  String get securityLevel => 'Security Level';
+  String get securityLevel => 'Nivel de seguridad';
 
   @override
-  String get securityLevelPlaintext => 'None (plaintext)';
+  String get securityLevelPlaintext => 'Ninguno (texto plano)';
 
   @override
-  String get securityLevelKeychain => 'OS Keychain';
+  String get securityLevelKeychain => 'Llavero del sistema';
 
   @override
-  String get securityLevelMasterPassword => 'Master Password';
+  String get securityLevelMasterPassword => 'Contraseña maestra';
 
   @override
-  String get keychainStatus => 'Keychain';
+  String get keychainStatus => 'Llavero';
 
   @override
   String keychainAvailable(String name) {
-    return 'Available ($name)';
+    return 'Disponible ($name)';
   }
 
   @override
-  String get keychainNotAvailable => 'Not available';
+  String get keychainNotAvailable => 'No disponible';
 
   @override
-  String get manageMasterPassword => 'Manage Master Password';
+  String get manageMasterPassword => 'Gestionar contraseña maestra';
 
   @override
   String get manageMasterPasswordSubtitle =>
-      'Set, change, or remove master password';
+      'Establecer, cambiar o eliminar contraseña maestra';
 }

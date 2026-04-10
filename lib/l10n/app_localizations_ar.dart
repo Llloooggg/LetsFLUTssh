@@ -1066,122 +1066,122 @@ class SAr extends S {
   String get progressOpeningSftp => 'فتح قناة SFTP';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'عمليات النقل:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count نشطة';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return '، $count في الانتظار';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count في السجل';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'تم الإنشاء: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'بدأ: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'انتهى: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'المدة: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'في الانتظار';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'بدء الرفع...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'بدء التنزيل...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'جارٍ النسخ...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'تم';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total ملفات';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'اسم المجلد';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'المجلد \"$name\" موجود بالفعل';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'اسحب ملف المفتاح هنا';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'الجلسة لا تحتوي على بيانات اعتماد — قم بتعديلها لإضافة كلمة مرور أو مفتاح';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count عناصر';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'تحديد الكل ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'الحجم: $size كيلوبايت / $max كيلوبايت كحد أقصى';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'لا توجد أجهزة طرفية نشطة';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'اتصل من علامة تبويب الجلسات';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'الملف غير موجود: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'اتصال SSH';
 
   @override
   String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+      'يحافظ على اتصالات SSH نشطة في الخلفية.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH نشط';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count اتصال(ات) نشطة';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count عناصر، $size';
   }
 
   @override
@@ -1194,306 +1194,313 @@ class SAr extends S {
   String get duplicateDownShortcut => 'تكرار للأسفل (Ctrl+Shift+\\)';
 
   @override
-  String get security => 'Security';
+  String get security => 'الأمان';
 
   @override
-  String get knownHosts => 'Known Hosts';
+  String get knownHosts => 'المضيفون المعروفون';
 
   @override
-  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+  String get knownHostsSubtitle => 'إدارة بصمات خوادم SSH الموثوقة';
 
   @override
   String knownHostsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count known hosts',
-      one: '1 known host',
-      zero: 'No known hosts',
+      other: '$count مضيف معروف',
+      one: 'مضيف معروف واحد',
+      zero: 'لا يوجد مضيفون معروفون',
     );
     return '$_temp0';
   }
 
   @override
   String get knownHostsEmpty =>
-      'No known hosts yet. Connect to a server to add one.';
+      'لا يوجد مضيفون معروفون. اتصل بخادم لإضافة واحد.';
 
   @override
-  String get removeHost => 'Remove Host';
+  String get removeHost => 'إزالة المضيف';
 
   @override
   String removeHostConfirm(String host) {
-    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+    return 'إزالة $host من المضيفين المعروفين؟ سيتم التحقق من المفتاح مرة أخرى عند الاتصال التالي.';
   }
 
   @override
-  String get clearAllKnownHosts => 'Clear All Known Hosts';
+  String get clearAllKnownHosts => 'مسح جميع المضيفين المعروفين';
 
   @override
   String get clearAllKnownHostsConfirm =>
-      'Remove all known hosts? You will be prompted to verify each server key again.';
+      'إزالة جميع المضيفين المعروفين؟ سيحتاج كل مفتاح خادم إلى إعادة التحقق.';
 
   @override
-  String get importKnownHosts => 'Import Known Hosts';
+  String get importKnownHosts => 'استيراد المضيفين المعروفين';
 
   @override
-  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+  String get importKnownHostsSubtitle => 'استيراد من ملف OpenSSH known_hosts';
 
   @override
-  String get exportKnownHosts => 'Export Known Hosts';
+  String get exportKnownHosts => 'تصدير المضيفين المعروفين';
 
   @override
   String importedHosts(int count) {
-    return 'Imported $count new hosts';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تم استيراد $count مضيف جديد',
+      one: 'تم استيراد مضيف جديد واحد',
+      zero: 'لم يتم استيراد مضيفين جدد',
+    );
+    return '$_temp0';
   }
 
   @override
-  String get clearedAllHosts => 'Cleared all known hosts';
+  String get clearedAllHosts => 'تم مسح جميع المضيفين المعروفين';
 
   @override
   String removedHost(String host) {
-    return 'Removed $host';
+    return 'تمت إزالة $host';
   }
 
   @override
-  String get noHostsToExport => 'No known hosts to export';
+  String get noHostsToExport => 'لا يوجد مضيفون للتصدير';
 
   @override
-  String get sshKeys => 'SSH Keys';
+  String get sshKeys => 'مفاتيح SSH';
 
   @override
-  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+  String get sshKeysSubtitle => 'إدارة أزواج مفاتيح SSH للمصادقة';
 
   @override
-  String get noKeys => 'No SSH keys. Import or generate one.';
+  String get noKeys => 'لا توجد مفاتيح SSH. قم بالاستيراد أو التوليد.';
 
   @override
-  String get generateKey => 'Generate Key';
+  String get generateKey => 'توليد مفتاح';
 
   @override
-  String get importKey => 'Import Key';
+  String get importKey => 'استيراد مفتاح';
 
   @override
-  String get keyLabel => 'Key Label';
+  String get keyLabel => 'اسم المفتاح';
 
   @override
-  String get keyLabelHint => 'e.g. Work Server, GitHub';
+  String get keyLabelHint => 'مثال: خادم العمل، GitHub';
 
   @override
-  String get selectKeyType => 'Key Type';
+  String get selectKeyType => 'نوع المفتاح';
 
   @override
-  String get generating => 'Generating...';
+  String get generating => 'جارٍ التوليد...';
 
   @override
   String keyGenerated(String label) {
-    return 'Key generated: $label';
+    return 'تم توليد المفتاح: $label';
   }
 
   @override
   String keyImported(String label) {
-    return 'Key imported: $label';
+    return 'تم استيراد المفتاح: $label';
   }
 
   @override
-  String get deleteKey => 'Delete Key';
+  String get deleteKey => 'حذف المفتاح';
 
   @override
   String deleteKeyConfirm(String label) {
-    return 'Delete key \"$label\"? Sessions using it will lose access.';
+    return 'حذف المفتاح \"$label\"؟ ستفقد الجلسات التي تستخدمه الوصول.';
   }
 
   @override
   String keyDeleted(String label) {
-    return 'Key deleted: $label';
+    return 'تم حذف المفتاح: $label';
   }
 
   @override
-  String get publicKey => 'Public Key';
+  String get publicKey => 'المفتاح العام';
 
   @override
-  String get publicKeyCopied => 'Public key copied to clipboard';
+  String get publicKeyCopied => 'تم نسخ المفتاح العام إلى الحافظة';
 
   @override
-  String get pastePrivateKey => 'Paste Private Key (PEM)';
+  String get pastePrivateKey => 'لصق المفتاح الخاص (PEM)';
 
   @override
   String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
 
   @override
-  String get invalidPem => 'Invalid PEM key data';
+  String get invalidPem => 'بيانات مفتاح PEM غير صالحة';
 
   @override
-  String get selectFromKeyStore => 'Select from Key Store';
+  String get selectFromKeyStore => 'اختر من مخزن المفاتيح';
 
   @override
-  String get noKeySelected => 'No key selected';
+  String get noKeySelected => 'لم يتم اختيار مفتاح';
 
   @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count keys',
-      one: '1 key',
-      zero: 'No keys',
+      other: '$count مفاتيح',
+      one: 'مفتاح واحد',
+      zero: 'لا توجد مفاتيح',
     );
     return '$_temp0';
   }
 
   @override
-  String get generated => 'Generated';
+  String get generated => 'تم التوليد';
 
   @override
-  String get passphraseRequired => 'Passphrase Required';
+  String get passphraseRequired => 'عبارة المرور مطلوبة';
 
   @override
   String passphrasePrompt(String host) {
-    return 'The SSH key for $host is encrypted. Enter the passphrase to unlock it.';
+    return 'مفتاح SSH لـ $host مشفر. أدخل عبارة المرور لفتحه.';
   }
 
   @override
-  String get passphraseWrong => 'Wrong passphrase. Please try again.';
+  String get passphraseWrong => 'عبارة المرور غير صحيحة. حاول مرة أخرى.';
 
   @override
-  String get passphrase => 'Passphrase';
+  String get passphrase => 'عبارة المرور';
 
   @override
-  String get rememberPassphrase => 'Remember for this session';
+  String get rememberPassphrase => 'تذكر لهذه الجلسة';
 
   @override
-  String get unlock => 'Unlock';
+  String get unlock => 'فتح القفل';
 
   @override
   String get masterPasswordSubtitle =>
-      'Protect saved credentials with a password';
+      'حماية بيانات الاعتماد المحفوظة بكلمة مرور';
 
   @override
-  String get setMasterPassword => 'Set Master Password';
+  String get setMasterPassword => 'تعيين كلمة المرور الرئيسية';
 
   @override
-  String get changeMasterPassword => 'Change Master Password';
+  String get changeMasterPassword => 'تغيير كلمة المرور الرئيسية';
 
   @override
-  String get removeMasterPassword => 'Remove Master Password';
+  String get removeMasterPassword => 'إزالة كلمة المرور الرئيسية';
 
   @override
   String get masterPasswordEnabled =>
-      'Credentials are protected by master password';
+      'بيانات الاعتماد محمية بكلمة المرور الرئيسية';
 
   @override
   String get masterPasswordDisabled =>
-      'Credentials use auto-generated key (no password)';
+      'بيانات الاعتماد تستخدم مفتاحاً مولداً تلقائياً (بدون كلمة مرور)';
 
   @override
   String get enterMasterPassword =>
-      'Enter master password to unlock your saved credentials.';
+      'أدخل كلمة المرور الرئيسية للوصول إلى بيانات الاعتماد المحفوظة.';
 
   @override
-  String get wrongMasterPassword => 'Wrong password. Please try again.';
+  String get wrongMasterPassword => 'كلمة مرور خاطئة. حاول مرة أخرى.';
 
   @override
-  String get newPassword => 'New Password';
+  String get newPassword => 'كلمة مرور جديدة';
 
   @override
-  String get currentPassword => 'Current Password';
+  String get currentPassword => 'كلمة المرور الحالية';
 
   @override
-  String get passwordTooShort => 'Password must be at least 8 characters';
+  String get passwordTooShort => 'يجب أن تكون كلمة المرور 8 أحرف على الأقل';
 
   @override
-  String get masterPasswordSet => 'Master password enabled';
+  String get masterPasswordSet => 'تم تفعيل كلمة المرور الرئيسية';
 
   @override
-  String get masterPasswordChanged => 'Master password changed';
+  String get masterPasswordChanged => 'تم تغيير كلمة المرور الرئيسية';
 
   @override
-  String get masterPasswordRemoved => 'Master password removed';
+  String get masterPasswordRemoved => 'تمت إزالة كلمة المرور الرئيسية';
 
   @override
   String get masterPasswordWarning =>
-      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+      'إذا نسيت هذه الكلمة، ستفقد جميع كلمات المرور ومفاتيح SSH المحفوظة. لا يمكن الاسترداد.';
 
   @override
-  String get forgotPassword => 'Forgot Password?';
+  String get forgotPassword => 'نسيت كلمة المرور؟';
 
   @override
   String get forgotPasswordWarning =>
-      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+      'سيؤدي هذا إلى حذف جميع كلمات المرور ومفاتيح SSH وعبارات المرور المحفوظة. سيتم الاحتفاظ بالجلسات والإعدادات. لا يمكن التراجع عن هذا الإجراء.';
 
   @override
-  String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
+  String get resetAndDeleteCredentials => 'إعادة تعيين وحذف البيانات';
 
   @override
-  String get credentialsReset => 'All saved credentials have been deleted';
+  String get credentialsReset => 'تم حذف جميع بيانات الاعتماد المحفوظة';
 
   @override
-  String get derivingKey => 'Deriving encryption key...';
+  String get derivingKey => 'جارٍ اشتقاق مفتاح التشفير...';
 
   @override
-  String get reEncrypting => 'Re-encrypting data...';
+  String get reEncrypting => 'جارٍ إعادة التشفير...';
 
   @override
   String get confirmRemoveMasterPassword =>
-      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+      'أدخل كلمة المرور الحالية لإزالة حماية كلمة المرور الرئيسية. سيتم إعادة تشفير البيانات بمفتاح مولد تلقائياً.';
 
   @override
-  String get securitySetupTitle => 'Security Setup';
+  String get securitySetupTitle => 'إعداد الأمان';
 
   @override
   String securitySetupKeychainFound(String keychainName) {
-    return 'OS Keychain detected ($keychainName). Your data will be automatically encrypted using your system keychain.';
+    return 'تم اكتشاف سلسلة مفاتيح النظام ($keychainName). سيتم تشفير بياناتك تلقائياً باستخدام سلسلة مفاتيح النظام.';
   }
 
   @override
   String get securitySetupKeychainOptional =>
-      'You can also set a master password for additional protection.';
+      'يمكنك أيضاً تعيين كلمة مرور رئيسية لحماية إضافية.';
 
   @override
   String get securitySetupNoKeychain =>
-      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+      'لم يتم اكتشاف سلسلة مفاتيح النظام. بدونها، سيتم تخزين بيانات الجلسة (المضيفون، كلمات المرور، المفاتيح) كنص عادي.';
 
   @override
   String get securitySetupNoKeychainHint =>
-      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+      'هذا طبيعي في WSL أو Linux بدون واجهة رسومية أو التثبيتات المحدودة. لتفعيل سلسلة المفاتيح في Linux: ثبّت libsecret وخفي سلسلة المفاتيح (مثل gnome-keyring).';
 
   @override
   String get securitySetupRecommendMasterPassword =>
-      'We recommend setting a master password to protect your data.';
+      'نوصي بتعيين كلمة مرور رئيسية لحماية بياناتك.';
 
   @override
-  String get continueWithKeychain => 'Continue with Keychain';
+  String get continueWithKeychain => 'المتابعة مع سلسلة المفاتيح';
 
   @override
-  String get continueWithoutEncryption => 'Continue without Encryption';
+  String get continueWithoutEncryption => 'المتابعة بدون تشفير';
 
   @override
-  String get securityLevel => 'Security Level';
+  String get securityLevel => 'مستوى الأمان';
 
   @override
-  String get securityLevelPlaintext => 'None (plaintext)';
+  String get securityLevelPlaintext => 'بدون (نص عادي)';
 
   @override
-  String get securityLevelKeychain => 'OS Keychain';
+  String get securityLevelKeychain => 'سلسلة مفاتيح النظام';
 
   @override
-  String get securityLevelMasterPassword => 'Master Password';
+  String get securityLevelMasterPassword => 'كلمة المرور الرئيسية';
 
   @override
-  String get keychainStatus => 'Keychain';
+  String get keychainStatus => 'سلسلة المفاتيح';
 
   @override
   String keychainAvailable(String name) {
-    return 'Available ($name)';
+    return 'متاحة ($name)';
   }
 
   @override
-  String get keychainNotAvailable => 'Not available';
+  String get keychainNotAvailable => 'غير متاحة';
 
   @override
-  String get manageMasterPassword => 'Manage Master Password';
+  String get manageMasterPassword => 'إدارة كلمة المرور الرئيسية';
 
   @override
   String get manageMasterPasswordSubtitle =>
-      'Set, change, or remove master password';
+      'تعيين أو تغيير أو إزالة كلمة المرور الرئيسية';
 }

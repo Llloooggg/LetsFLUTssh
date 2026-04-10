@@ -623,7 +623,7 @@ class SZh extends S {
   String get setMasterPasswordHint => '设置主密码以加密存档。';
 
   @override
-  String get passwordsDoNotMatch => '密码不一致';
+  String get passwordsDoNotMatch => '密码不匹配';
 
   @override
   String exportedTo(String path) {
@@ -1052,122 +1052,120 @@ class SZh extends S {
   String get progressOpeningSftp => '正在打开 SFTP 通道';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => '传输：';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count 个活跃';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return '，$count 个排队';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count 个历史记录';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return '创建时间：$time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return '开始时间：$time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return '结束时间：$time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return '持续时间：$duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => '排队中';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => '正在开始上传...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => '正在开始下载...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => '正在复制...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => '完成';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total 个文件';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => '文件夹名称';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return '文件夹“$name”已存在';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => '将密钥文件拖放到此处';
 
   @override
-  String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials => '会话没有凭据——请先编辑添加密码或密钥';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count 个项目';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return '全选 ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return '大小：$size KB / 最大 $max KB';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => '没有活跃的终端';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => '从会话标签页连接';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return '文件未找到：$path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'SSH 连接';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => '在后台保持 SSH 连接活跃。';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH 活跃';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count 个活跃连接';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count 个项目，$size';
   }
 
   @override
@@ -1180,306 +1178,299 @@ class SZh extends S {
   String get duplicateDownShortcut => '向下复制 (Ctrl+Shift+\\)';
 
   @override
-  String get security => 'Security';
+  String get security => '安全';
 
   @override
-  String get knownHosts => 'Known Hosts';
+  String get knownHosts => '已知主机';
 
   @override
-  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+  String get knownHostsSubtitle => '管理受信任的 SSH 服务器指纹';
 
   @override
   String knownHostsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count known hosts',
-      one: '1 known host',
-      zero: 'No known hosts',
+      other: '$count 个已知主机',
+      zero: '没有已知主机',
     );
     return '$_temp0';
   }
 
   @override
-  String get knownHostsEmpty =>
-      'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty => '没有已知主机。连接到服务器以添加。';
 
   @override
-  String get removeHost => 'Remove Host';
+  String get removeHost => '移除主机';
 
   @override
   String removeHostConfirm(String host) {
-    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+    return '从已知主机中移除 $host？下次连接时需要重新验证密钥。';
   }
 
   @override
-  String get clearAllKnownHosts => 'Clear All Known Hosts';
+  String get clearAllKnownHosts => '清除所有已知主机';
 
   @override
-  String get clearAllKnownHostsConfirm =>
-      'Remove all known hosts? You will be prompted to verify each server key again.';
+  String get clearAllKnownHostsConfirm => '移除所有已知主机？每个服务器密钥都需要重新验证。';
 
   @override
-  String get importKnownHosts => 'Import Known Hosts';
+  String get importKnownHosts => '导入已知主机';
 
   @override
-  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+  String get importKnownHostsSubtitle => '从 OpenSSH known_hosts 文件导入';
 
   @override
-  String get exportKnownHosts => 'Export Known Hosts';
+  String get exportKnownHosts => '导出已知主机';
 
   @override
   String importedHosts(int count) {
-    return 'Imported $count new hosts';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已导入 $count 个新主机',
+      zero: '未导入新主机',
+    );
+    return '$_temp0';
   }
 
   @override
-  String get clearedAllHosts => 'Cleared all known hosts';
+  String get clearedAllHosts => '已清除所有已知主机';
 
   @override
   String removedHost(String host) {
-    return 'Removed $host';
+    return '已移除 $host';
   }
 
   @override
-  String get noHostsToExport => 'No known hosts to export';
+  String get noHostsToExport => '没有可导出的主机';
 
   @override
-  String get sshKeys => 'SSH Keys';
+  String get sshKeys => 'SSH 密钥';
 
   @override
-  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+  String get sshKeysSubtitle => '管理用于身份验证的 SSH 密钥对';
 
   @override
-  String get noKeys => 'No SSH keys. Import or generate one.';
+  String get noKeys => '没有 SSH 密钥。请导入或生成一个。';
 
   @override
-  String get generateKey => 'Generate Key';
+  String get generateKey => '生成密钥';
 
   @override
-  String get importKey => 'Import Key';
+  String get importKey => '导入密钥';
 
   @override
-  String get keyLabel => 'Key Label';
+  String get keyLabel => '密钥名称';
 
   @override
-  String get keyLabelHint => 'e.g. Work Server, GitHub';
+  String get keyLabelHint => '如：工作服务器、GitHub';
 
   @override
-  String get selectKeyType => 'Key Type';
+  String get selectKeyType => '密钥类型';
 
   @override
-  String get generating => 'Generating...';
+  String get generating => '正在生成...';
 
   @override
   String keyGenerated(String label) {
-    return 'Key generated: $label';
+    return '密钥已生成：$label';
   }
 
   @override
   String keyImported(String label) {
-    return 'Key imported: $label';
+    return '密钥已导入：$label';
   }
 
   @override
-  String get deleteKey => 'Delete Key';
+  String get deleteKey => '删除密钥';
 
   @override
   String deleteKeyConfirm(String label) {
-    return 'Delete key \"$label\"? Sessions using it will lose access.';
+    return '删除密钥“$label”？使用该密钥的会话将失去访问权限。';
   }
 
   @override
   String keyDeleted(String label) {
-    return 'Key deleted: $label';
+    return '密钥已删除：$label';
   }
 
   @override
-  String get publicKey => 'Public Key';
+  String get publicKey => '公钥';
 
   @override
-  String get publicKeyCopied => 'Public key copied to clipboard';
+  String get publicKeyCopied => '公钥已复制到剪贴板';
 
   @override
-  String get pastePrivateKey => 'Paste Private Key (PEM)';
+  String get pastePrivateKey => '粘贴私钥 (PEM)';
 
   @override
   String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
 
   @override
-  String get invalidPem => 'Invalid PEM key data';
+  String get invalidPem => '无效的 PEM 密钥数据';
 
   @override
-  String get selectFromKeyStore => 'Select from Key Store';
+  String get selectFromKeyStore => '从密钥库选择';
 
   @override
-  String get noKeySelected => 'No key selected';
+  String get noKeySelected => '未选择密钥';
 
   @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count keys',
-      one: '1 key',
-      zero: 'No keys',
+      other: '$count 个密钥',
+      zero: '没有密钥',
     );
     return '$_temp0';
   }
 
   @override
-  String get generated => 'Generated';
+  String get generated => '已生成';
 
   @override
-  String get passphraseRequired => 'Passphrase Required';
+  String get passphraseRequired => '需要密码短语';
 
   @override
   String passphrasePrompt(String host) {
-    return 'The SSH key for $host is encrypted. Enter the passphrase to unlock it.';
+    return '$host 的 SSH 密钥已加密。请输入密码短语以解锁。';
   }
 
   @override
-  String get passphraseWrong => 'Wrong passphrase. Please try again.';
+  String get passphraseWrong => '密码短语错误。请重试。';
 
   @override
-  String get passphrase => 'Passphrase';
+  String get passphrase => '密码短语';
 
   @override
-  String get rememberPassphrase => 'Remember for this session';
+  String get rememberPassphrase => '在此会话中记住';
 
   @override
-  String get unlock => 'Unlock';
+  String get unlock => '解锁';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Protect saved credentials with a password';
+  String get masterPasswordSubtitle => '使用密码保护已保存的凭据';
 
   @override
-  String get setMasterPassword => 'Set Master Password';
+  String get setMasterPassword => '设置主密码';
 
   @override
-  String get changeMasterPassword => 'Change Master Password';
+  String get changeMasterPassword => '更改主密码';
 
   @override
-  String get removeMasterPassword => 'Remove Master Password';
+  String get removeMasterPassword => '移除主密码';
 
   @override
-  String get masterPasswordEnabled =>
-      'Credentials are protected by master password';
+  String get masterPasswordEnabled => '凭据受主密码保护';
 
   @override
-  String get masterPasswordDisabled =>
-      'Credentials use auto-generated key (no password)';
+  String get masterPasswordDisabled => '凭据使用自动生成的密钥（无密码）';
 
   @override
-  String get enterMasterPassword =>
-      'Enter master password to unlock your saved credentials.';
+  String get enterMasterPassword => '输入主密码以访问已保存的凭据。';
 
   @override
-  String get wrongMasterPassword => 'Wrong password. Please try again.';
+  String get wrongMasterPassword => '密码错误。请重试。';
 
   @override
-  String get newPassword => 'New Password';
+  String get newPassword => '新密码';
 
   @override
-  String get currentPassword => 'Current Password';
+  String get currentPassword => '当前密码';
 
   @override
-  String get passwordTooShort => 'Password must be at least 8 characters';
+  String get passwordTooShort => '密码至少需要 8 个字符';
 
   @override
-  String get masterPasswordSet => 'Master password enabled';
+  String get masterPasswordSet => '主密码已启用';
 
   @override
-  String get masterPasswordChanged => 'Master password changed';
+  String get masterPasswordChanged => '主密码已更改';
 
   @override
-  String get masterPasswordRemoved => 'Master password removed';
+  String get masterPasswordRemoved => '主密码已移除';
 
   @override
-  String get masterPasswordWarning =>
-      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+  String get masterPasswordWarning => '如果您忘记此密码，所有保存的密码和 SSH 密钥将丢失。无法恢复。';
 
   @override
-  String get forgotPassword => 'Forgot Password?';
+  String get forgotPassword => '忘记密码？';
 
   @override
   String get forgotPasswordWarning =>
-      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+      '这将删除所有已保存的密码、SSH 密钥和密码短语。会话和设置将保留。此操作不可撤销。';
 
   @override
-  String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
+  String get resetAndDeleteCredentials => '重置并删除凭据';
 
   @override
-  String get credentialsReset => 'All saved credentials have been deleted';
+  String get credentialsReset => '所有已保存的凭据已删除';
 
   @override
-  String get derivingKey => 'Deriving encryption key...';
+  String get derivingKey => '正在生成加密密钥...';
 
   @override
-  String get reEncrypting => 'Re-encrypting data...';
+  String get reEncrypting => '正在重新加密数据...';
 
   @override
-  String get confirmRemoveMasterPassword =>
-      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+  String get confirmRemoveMasterPassword => '输入当前密码以移除主密码保护。凭据将使用自动生成的密钥重新加密。';
 
   @override
-  String get securitySetupTitle => 'Security Setup';
+  String get securitySetupTitle => '安全设置';
 
   @override
   String securitySetupKeychainFound(String keychainName) {
-    return 'OS Keychain detected ($keychainName). Your data will be automatically encrypted using your system keychain.';
+    return '检测到系统钥匙串 ($keychainName)。您的数据将使用系统钥匙串自动加密。';
   }
 
   @override
-  String get securitySetupKeychainOptional =>
-      'You can also set a master password for additional protection.';
+  String get securitySetupKeychainOptional => '您还可以设置主密码以获得额外保护。';
 
   @override
   String get securitySetupNoKeychain =>
-      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+      '未检测到系统钥匙串。没有钥匙串，您的会话数据（主机、密码、密钥）将以明文存储。';
 
   @override
   String get securitySetupNoKeychainHint =>
-      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+      '这在 WSL、无头 Linux 或最小安装中是正常的。要在 Linux 上启用钥匙串：安装 libsecret 和钥匙环守护进程（如 gnome-keyring）。';
 
   @override
-  String get securitySetupRecommendMasterPassword =>
-      'We recommend setting a master password to protect your data.';
+  String get securitySetupRecommendMasterPassword => '建议设置主密码以保护您的数据。';
 
   @override
-  String get continueWithKeychain => 'Continue with Keychain';
+  String get continueWithKeychain => '使用钥匙串继续';
 
   @override
-  String get continueWithoutEncryption => 'Continue without Encryption';
+  String get continueWithoutEncryption => '不加密继续';
 
   @override
-  String get securityLevel => 'Security Level';
+  String get securityLevel => '安全级别';
 
   @override
-  String get securityLevelPlaintext => 'None (plaintext)';
+  String get securityLevelPlaintext => '无（明文）';
 
   @override
-  String get securityLevelKeychain => 'OS Keychain';
+  String get securityLevelKeychain => '系统钥匙串';
 
   @override
-  String get securityLevelMasterPassword => 'Master Password';
+  String get securityLevelMasterPassword => '主密码';
 
   @override
-  String get keychainStatus => 'Keychain';
+  String get keychainStatus => '钥匙串';
 
   @override
   String keychainAvailable(String name) {
-    return 'Available ($name)';
+    return '可用 ($name)';
   }
 
   @override
-  String get keychainNotAvailable => 'Not available';
+  String get keychainNotAvailable => '不可用';
 
   @override
-  String get manageMasterPassword => 'Manage Master Password';
+  String get manageMasterPassword => '管理主密码';
 
   @override
-  String get manageMasterPasswordSubtitle =>
-      'Set, change, or remove master password';
+  String get manageMasterPasswordSubtitle => '设置、更改或移除主密码';
 }

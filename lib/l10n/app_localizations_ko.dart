@@ -1054,122 +1054,120 @@ class SKo extends S {
   String get progressOpeningSftp => 'SFTP 채널 열기';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => '전송:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count개 활성';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return ', $count개 대기 중';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count개 기록';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return '생성: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return '시작: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return '종료: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return '소요 시간: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => '대기 중';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => '업로드 시작 중...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => '다운로드 시작 중...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => '복사 중...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => '완료';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total 파일';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => '폴더 이름';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return '폴더 \"$name\"이(가) 이미 존재합니다';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => '키 파일을 여기에 드롭하세요';
 
   @override
-  String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials => '세션에 인증 정보가 없습니다 — 비밀번호 또는 키를 추가하려면 편집하세요';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count개 항목';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return '모두 선택 ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return '크기: $size KB / 최대 $max KB';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => '활성 터미널 없음';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => '세션 탭에서 연결';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return '파일을 찾을 수 없음: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'SSH 연결';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc => 'SSH 연결을 백그라운드에서 유지합니다.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH 활성';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count개 활성 연결';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count개 항목, $size';
   }
 
   @override
@@ -1182,306 +1180,304 @@ class SKo extends S {
   String get duplicateDownShortcut => '아래로 복제 (Ctrl+Shift+\\)';
 
   @override
-  String get security => 'Security';
+  String get security => '보안';
 
   @override
-  String get knownHosts => 'Known Hosts';
+  String get knownHosts => '알려진 호스트';
 
   @override
-  String get knownHostsSubtitle => 'Manage trusted SSH server fingerprints';
+  String get knownHostsSubtitle => '신뢰할 수 있는 SSH 서버 지문 관리';
 
   @override
   String knownHostsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count known hosts',
-      one: '1 known host',
-      zero: 'No known hosts',
+      other: '알려진 호스트 $count개',
+      zero: '알려진 호스트 없음',
     );
     return '$_temp0';
   }
 
   @override
-  String get knownHostsEmpty =>
-      'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty => '알려진 호스트가 없습니다. 서버에 연결하여 추가하세요.';
 
   @override
-  String get removeHost => 'Remove Host';
+  String get removeHost => '호스트 제거';
 
   @override
   String removeHostConfirm(String host) {
-    return 'Remove $host from known hosts? You will be prompted to verify its key again on next connection.';
+    return '알려진 호스트에서 $host을(를) 제거하시겠습니까? 다음 연결 시 키를 다시 확인해야 합니다.';
   }
 
   @override
-  String get clearAllKnownHosts => 'Clear All Known Hosts';
+  String get clearAllKnownHosts => '모든 알려진 호스트 삭제';
 
   @override
   String get clearAllKnownHostsConfirm =>
-      'Remove all known hosts? You will be prompted to verify each server key again.';
+      '모든 알려진 호스트를 제거하시겠습니까? 각 서버 키를 다시 확인해야 합니다.';
 
   @override
-  String get importKnownHosts => 'Import Known Hosts';
+  String get importKnownHosts => '알려진 호스트 가져오기';
 
   @override
-  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
+  String get importKnownHostsSubtitle => 'OpenSSH known_hosts 파일에서 가져오기';
 
   @override
-  String get exportKnownHosts => 'Export Known Hosts';
+  String get exportKnownHosts => '알려진 호스트 내보내기';
 
   @override
   String importedHosts(int count) {
-    return 'Imported $count new hosts';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '새 호스트 $count개 가져옴',
+      zero: '새 호스트를 가져오지 않음',
+    );
+    return '$_temp0';
   }
 
   @override
-  String get clearedAllHosts => 'Cleared all known hosts';
+  String get clearedAllHosts => '모든 알려진 호스트를 삭제했습니다';
 
   @override
   String removedHost(String host) {
-    return 'Removed $host';
+    return '$host 제거됨';
   }
 
   @override
-  String get noHostsToExport => 'No known hosts to export';
+  String get noHostsToExport => '내보낼 호스트가 없습니다';
 
   @override
-  String get sshKeys => 'SSH Keys';
+  String get sshKeys => 'SSH 키';
 
   @override
-  String get sshKeysSubtitle => 'Manage SSH key pairs for authentication';
+  String get sshKeysSubtitle => '인증용 SSH 키 쌍 관리';
 
   @override
-  String get noKeys => 'No SSH keys. Import or generate one.';
+  String get noKeys => 'SSH 키가 없습니다. 가져오거나 생성하세요.';
 
   @override
-  String get generateKey => 'Generate Key';
+  String get generateKey => '키 생성';
 
   @override
-  String get importKey => 'Import Key';
+  String get importKey => '키 가져오기';
 
   @override
-  String get keyLabel => 'Key Label';
+  String get keyLabel => '키 이름';
 
   @override
-  String get keyLabelHint => 'e.g. Work Server, GitHub';
+  String get keyLabelHint => '예: 업무 서버, GitHub';
 
   @override
-  String get selectKeyType => 'Key Type';
+  String get selectKeyType => '키 유형';
 
   @override
-  String get generating => 'Generating...';
+  String get generating => '생성 중...';
 
   @override
   String keyGenerated(String label) {
-    return 'Key generated: $label';
+    return '키 생성됨: $label';
   }
 
   @override
   String keyImported(String label) {
-    return 'Key imported: $label';
+    return '키 가져옴: $label';
   }
 
   @override
-  String get deleteKey => 'Delete Key';
+  String get deleteKey => '키 삭제';
 
   @override
   String deleteKeyConfirm(String label) {
-    return 'Delete key \"$label\"? Sessions using it will lose access.';
+    return '키 \"$label\"을(를) 삭제하시겠습니까? 이 키를 사용하는 세션은 접근할 수 없게 됩니다.';
   }
 
   @override
   String keyDeleted(String label) {
-    return 'Key deleted: $label';
+    return '키 삭제됨: $label';
   }
 
   @override
-  String get publicKey => 'Public Key';
+  String get publicKey => '공개 키';
 
   @override
-  String get publicKeyCopied => 'Public key copied to clipboard';
+  String get publicKeyCopied => '공개 키가 클립보드에 복사되었습니다';
 
   @override
-  String get pastePrivateKey => 'Paste Private Key (PEM)';
+  String get pastePrivateKey => '개인 키 붙여넣기 (PEM)';
 
   @override
   String get pemHint => '-----BEGIN OPENSSH PRIVATE KEY-----';
 
   @override
-  String get invalidPem => 'Invalid PEM key data';
+  String get invalidPem => '잘못된 PEM 키 데이터';
 
   @override
-  String get selectFromKeyStore => 'Select from Key Store';
+  String get selectFromKeyStore => '키 저장소에서 선택';
 
   @override
-  String get noKeySelected => 'No key selected';
+  String get noKeySelected => '선택된 키 없음';
 
   @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count keys',
-      one: '1 key',
-      zero: 'No keys',
+      other: '키 $count개',
+      zero: '키 없음',
     );
     return '$_temp0';
   }
 
   @override
-  String get generated => 'Generated';
+  String get generated => '생성됨';
 
   @override
-  String get passphraseRequired => 'Passphrase Required';
+  String get passphraseRequired => '암호문 필요';
 
   @override
   String passphrasePrompt(String host) {
-    return 'The SSH key for $host is encrypted. Enter the passphrase to unlock it.';
+    return '$host의 SSH 키가 암호화되어 있습니다. 잠금을 해제하려면 암호문을 입력하세요.';
   }
 
   @override
-  String get passphraseWrong => 'Wrong passphrase. Please try again.';
+  String get passphraseWrong => '암호문이 올바르지 않습니다. 다시 시도하세요.';
 
   @override
-  String get passphrase => 'Passphrase';
+  String get passphrase => '암호문';
 
   @override
-  String get rememberPassphrase => 'Remember for this session';
+  String get rememberPassphrase => '이 세션에서 기억';
 
   @override
-  String get unlock => 'Unlock';
+  String get unlock => '잠금 해제';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Protect saved credentials with a password';
+  String get masterPasswordSubtitle => '저장된 인증 정보를 비밀번호로 보호';
 
   @override
-  String get setMasterPassword => 'Set Master Password';
+  String get setMasterPassword => '마스터 비밀번호 설정';
 
   @override
-  String get changeMasterPassword => 'Change Master Password';
+  String get changeMasterPassword => '마스터 비밀번호 변경';
 
   @override
-  String get removeMasterPassword => 'Remove Master Password';
+  String get removeMasterPassword => '마스터 비밀번호 제거';
 
   @override
-  String get masterPasswordEnabled =>
-      'Credentials are protected by master password';
+  String get masterPasswordEnabled => '인증 정보가 마스터 비밀번호로 보호됩니다';
 
   @override
-  String get masterPasswordDisabled =>
-      'Credentials use auto-generated key (no password)';
+  String get masterPasswordDisabled => '인증 정보가 자동 생성 키 사용 (비밀번호 없음)';
 
   @override
-  String get enterMasterPassword =>
-      'Enter master password to unlock your saved credentials.';
+  String get enterMasterPassword => '저장된 인증 정보에 접근하려면 마스터 비밀번호를 입력하세요.';
 
   @override
-  String get wrongMasterPassword => 'Wrong password. Please try again.';
+  String get wrongMasterPassword => '비밀번호가 올바르지 않습니다. 다시 시도하세요.';
 
   @override
-  String get newPassword => 'New Password';
+  String get newPassword => '새 비밀번호';
 
   @override
-  String get currentPassword => 'Current Password';
+  String get currentPassword => '현재 비밀번호';
 
   @override
-  String get passwordTooShort => 'Password must be at least 8 characters';
+  String get passwordTooShort => '비밀번호는 최소 8자 이상이어야 합니다';
 
   @override
-  String get masterPasswordSet => 'Master password enabled';
+  String get masterPasswordSet => '마스터 비밀번호가 활성화되었습니다';
 
   @override
-  String get masterPasswordChanged => 'Master password changed';
+  String get masterPasswordChanged => '마스터 비밀번호가 변경되었습니다';
 
   @override
-  String get masterPasswordRemoved => 'Master password removed';
+  String get masterPasswordRemoved => '마스터 비밀번호가 제거되었습니다';
 
   @override
   String get masterPasswordWarning =>
-      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+      '이 비밀번호를 잊으면 저장된 모든 비밀번호와 SSH 키가 손실됩니다. 복구할 수 없습니다.';
 
   @override
-  String get forgotPassword => 'Forgot Password?';
+  String get forgotPassword => '비밀번호를 잊으셨나요?';
 
   @override
   String get forgotPasswordWarning =>
-      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+      '저장된 모든 비밀번호, SSH 키, 암호문이 삭제됩니다. 세션과 설정은 유지됩니다. 이 작업은 되돌릴 수 없습니다.';
 
   @override
-  String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
+  String get resetAndDeleteCredentials => '재설정 및 데이터 삭제';
 
   @override
-  String get credentialsReset => 'All saved credentials have been deleted';
+  String get credentialsReset => '저장된 모든 인증 정보가 삭제되었습니다';
 
   @override
-  String get derivingKey => 'Deriving encryption key...';
+  String get derivingKey => '암호화 키 생성 중...';
 
   @override
-  String get reEncrypting => 'Re-encrypting data...';
+  String get reEncrypting => '데이터 재암호화 중...';
 
   @override
   String get confirmRemoveMasterPassword =>
-      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+      '마스터 비밀번호 보호를 해제하려면 현재 비밀번호를 입력하세요. 인증 정보는 자동 생성 키로 재암호화됩니다.';
 
   @override
-  String get securitySetupTitle => 'Security Setup';
+  String get securitySetupTitle => '보안 설정';
 
   @override
   String securitySetupKeychainFound(String keychainName) {
-    return 'OS Keychain detected ($keychainName). Your data will be automatically encrypted using your system keychain.';
+    return 'OS 키체인이 감지되었습니다 ($keychainName). 데이터가 시스템 키체인을 사용하여 자동으로 암호화됩니다.';
   }
 
   @override
   String get securitySetupKeychainOptional =>
-      'You can also set a master password for additional protection.';
+      '추가 보호를 위해 마스터 비밀번호를 설정할 수도 있습니다.';
 
   @override
   String get securitySetupNoKeychain =>
-      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+      'OS 키체인이 감지되지 않았습니다. 키체인 없이는 세션 데이터(호스트, 비밀번호, 키)가 평문으로 저장됩니다.';
 
   @override
   String get securitySetupNoKeychainHint =>
-      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+      'WSL, 헤드리스 Linux 또는 최소 설치에서는 정상입니다. Linux에서 키체인을 활성화하려면: libsecret과 키링 데몬(예: gnome-keyring)을 설치하세요.';
 
   @override
   String get securitySetupRecommendMasterPassword =>
-      'We recommend setting a master password to protect your data.';
+      '데이터를 보호하기 위해 마스터 비밀번호 설정을 권장합니다.';
 
   @override
-  String get continueWithKeychain => 'Continue with Keychain';
+  String get continueWithKeychain => '키체인으로 계속';
 
   @override
-  String get continueWithoutEncryption => 'Continue without Encryption';
+  String get continueWithoutEncryption => '암호화 없이 계속';
 
   @override
-  String get securityLevel => 'Security Level';
+  String get securityLevel => '보안 수준';
 
   @override
-  String get securityLevelPlaintext => 'None (plaintext)';
+  String get securityLevelPlaintext => '없음 (평문)';
 
   @override
-  String get securityLevelKeychain => 'OS Keychain';
+  String get securityLevelKeychain => 'OS 키체인';
 
   @override
-  String get securityLevelMasterPassword => 'Master Password';
+  String get securityLevelMasterPassword => '마스터 비밀번호';
 
   @override
-  String get keychainStatus => 'Keychain';
+  String get keychainStatus => '키체인';
 
   @override
   String keychainAvailable(String name) {
-    return 'Available ($name)';
+    return '사용 가능 ($name)';
   }
 
   @override
-  String get keychainNotAvailable => 'Not available';
+  String get keychainNotAvailable => '사용 불가';
 
   @override
-  String get manageMasterPassword => 'Manage Master Password';
+  String get manageMasterPassword => '마스터 비밀번호 관리';
 
   @override
-  String get manageMasterPasswordSubtitle =>
-      'Set, change, or remove master password';
+  String get manageMasterPasswordSubtitle => '마스터 비밀번호 설정, 변경 또는 제거';
 }

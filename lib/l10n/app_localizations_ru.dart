@@ -1071,122 +1071,122 @@ class SRu extends S {
   String get progressOpeningSftp => 'Открытие SFTP-канала';
 
   @override
-  String get transfersLabel => 'Transfers:';
+  String get transfersLabel => 'Передачи:';
 
   @override
   String transferCountActive(int count) {
-    return '$count active';
+    return '$count активных';
   }
 
   @override
   String transferCountQueued(int count) {
-    return ', $count queued';
+    return ', $count в очереди';
   }
 
   @override
   String transferCountInHistory(int count) {
-    return '$count in history';
+    return '$count в истории';
   }
 
   @override
   String transferTooltipCreated(String time) {
-    return 'Created: $time';
+    return 'Создано: $time';
   }
 
   @override
   String transferTooltipStarted(String time) {
-    return 'Started: $time';
+    return 'Начато: $time';
   }
 
   @override
   String transferTooltipEnded(String time) {
-    return 'Ended: $time';
+    return 'Завершено: $time';
   }
 
   @override
   String transferTooltipDuration(String duration) {
-    return 'Duration: $duration';
+    return 'Длительность: $duration';
   }
 
   @override
-  String get transferStatusQueued => 'Queued';
+  String get transferStatusQueued => 'В очереди';
 
   @override
-  String get transferStartingUpload => 'Starting upload...';
+  String get transferStartingUpload => 'Начало загрузки...';
 
   @override
-  String get transferStartingDownload => 'Starting download...';
+  String get transferStartingDownload => 'Начало скачивания...';
 
   @override
-  String get transferCopying => 'Copying...';
+  String get transferCopying => 'Копирование...';
 
   @override
-  String get transferDone => 'Done';
+  String get transferDone => 'Готово';
 
   @override
   String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
+    return '$done/$total файлов';
   }
 
   @override
-  String get folderNameLabel => 'FOLDER NAME';
+  String get folderNameLabel => 'ИМЯ ПАПКИ';
 
   @override
   String folderAlreadyExists(String name) {
-    return 'Folder \"$name\" already exists';
+    return 'Папка \"$name\" уже существует';
   }
 
   @override
-  String get dropKeyFileHere => 'Drop key file here';
+  String get dropKeyFileHere => 'Перетащите файл ключа сюда';
 
   @override
   String get sessionNoCredentials =>
-      'Session has no credentials — edit it first to add a password or key';
+      'У сессии нет учётных данных — отредактируйте её, чтобы добавить пароль или ключ';
 
   @override
   String dragItemCount(int count) {
-    return '$count items';
+    return '$count элементов';
   }
 
   @override
   String qrSelectAll(int selected, int total) {
-    return 'Select All ($selected/$total)';
+    return 'Выбрать все ($selected/$total)';
   }
 
   @override
   String qrPayloadSize(String size, String max) {
-    return 'Payload: $size KB / $max KB max';
+    return 'Размер: $size КБ / $max КБ макс.';
   }
 
   @override
-  String get noActiveTerminals => 'No active terminals';
+  String get noActiveTerminals => 'Нет активных терминалов';
 
   @override
-  String get connectFromSessionsTab => 'Connect from Sessions tab';
+  String get connectFromSessionsTab => 'Подключитесь из вкладки Сессии';
 
   @override
   String fileNotFound(String path) {
-    return 'File not found: $path';
+    return 'Файл не найден: $path';
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
+  String get sshConnectionChannel => 'SSH-соединение';
 
   @override
   String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
+      'Поддержание SSH-соединений в фоновом режиме.';
 
   @override
-  String get sshActive => 'SSH active';
+  String get sshActive => 'SSH активен';
 
   @override
   String activeConnectionCount(int count) {
-    return '$count active connection(s)';
+    return '$count активных соединений';
   }
 
   @override
   String itemCountWithSize(int count, String size) {
-    return '$count items, $size';
+    return '$count элементов, $size';
   }
 
   @override
@@ -1454,62 +1454,62 @@ class SRu extends S {
       'Введите текущий пароль для отключения защиты мастер-паролем. Учётные данные будут перешифрованы автогенерированным ключом.';
 
   @override
-  String get securitySetupTitle => 'Security Setup';
+  String get securitySetupTitle => 'Настройка безопасности';
 
   @override
   String securitySetupKeychainFound(String keychainName) {
-    return 'OS Keychain detected ($keychainName). Your data will be automatically encrypted using your system keychain.';
+    return 'Обнаружена связка ключей ОС ($keychainName). Ваши данные будут автоматически зашифрованы с использованием системной связки ключей.';
   }
 
   @override
   String get securitySetupKeychainOptional =>
-      'You can also set a master password for additional protection.';
+      'Вы также можете установить мастер-пароль для дополнительной защиты.';
 
   @override
   String get securitySetupNoKeychain =>
-      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+      'Связка ключей ОС не обнаружена. Без неё данные сессий (хосты, пароли, ключи) будут храниться в открытом виде.';
 
   @override
   String get securitySetupNoKeychainHint =>
-      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+      'Это нормально для WSL, безголового Linux или минимальных установок. Для включения связки ключей в Linux: установите libsecret и демон связки ключей (напр. gnome-keyring).';
 
   @override
   String get securitySetupRecommendMasterPassword =>
-      'We recommend setting a master password to protect your data.';
+      'Рекомендуем установить мастер-пароль для защиты ваших данных.';
 
   @override
-  String get continueWithKeychain => 'Continue with Keychain';
+  String get continueWithKeychain => 'Продолжить со связкой ключей';
 
   @override
-  String get continueWithoutEncryption => 'Continue without Encryption';
+  String get continueWithoutEncryption => 'Продолжить без шифрования';
 
   @override
-  String get securityLevel => 'Security Level';
+  String get securityLevel => 'Уровень безопасности';
 
   @override
-  String get securityLevelPlaintext => 'None (plaintext)';
+  String get securityLevelPlaintext => 'Нет (открытый текст)';
 
   @override
-  String get securityLevelKeychain => 'OS Keychain';
+  String get securityLevelKeychain => 'Связка ключей ОС';
 
   @override
-  String get securityLevelMasterPassword => 'Master Password';
+  String get securityLevelMasterPassword => 'Мастер-пароль';
 
   @override
-  String get keychainStatus => 'Keychain';
+  String get keychainStatus => 'Связка ключей';
 
   @override
   String keychainAvailable(String name) {
-    return 'Available ($name)';
+    return 'Доступна ($name)';
   }
 
   @override
-  String get keychainNotAvailable => 'Not available';
+  String get keychainNotAvailable => 'Недоступна';
 
   @override
-  String get manageMasterPassword => 'Manage Master Password';
+  String get manageMasterPassword => 'Управление мастер-паролем';
 
   @override
   String get manageMasterPasswordSubtitle =>
-      'Set, change, or remove master password';
+      'Установить, изменить или удалить мастер-пароль';
 }
