@@ -113,7 +113,8 @@ class SEn extends S {
   String get openInBrowser => 'Open in Browser';
 
   @override
-  String get couldNotOpenBrowser => 'Could not open browser — URL copied to clipboard';
+  String get couldNotOpenBrowser =>
+      'Could not open browser — URL copied to clipboard';
 
   @override
   String get checkForUpdates => 'Check for Updates';
@@ -369,7 +370,8 @@ class SEn extends S {
   String get qrGenerationFailed => 'QR generation failed';
 
   @override
-  String get scanWithCameraApp => 'Scan with any camera app on a device\nthat has LetsFLUTssh installed.';
+  String get scanWithCameraApp =>
+      'Scan with any camera app on a device\nthat has LetsFLUTssh installed.';
 
   @override
   String get noPasswordsInQr => 'No passwords or keys are in this QR code';
@@ -387,10 +389,12 @@ class SEn extends S {
   String get unknownHost => 'Unknown Host';
 
   @override
-  String get hostKeyChangedWarning => 'WARNING: The host key for this server has changed. This could indicate a man-in-the-middle attack, or the server may have been reinstalled.';
+  String get hostKeyChangedWarning =>
+      'WARNING: The host key for this server has changed. This could indicate a man-in-the-middle attack, or the server may have been reinstalled.';
 
   @override
-  String get unknownHostMessage => 'The authenticity of this host cannot be established. Are you sure you want to continue connecting?';
+  String get unknownHostMessage =>
+      'The authenticity of this host cannot be established. Are you sure you want to continue connecting?';
 
   @override
   String get host => 'Host';
@@ -426,7 +430,8 @@ class SEn extends S {
   String get importModeMergeDescription => 'Add new sessions, keep existing';
 
   @override
-  String get importModeReplaceDescription => 'Replace all sessions with imported';
+  String get importModeReplaceDescription =>
+      'Replace all sessions with imported';
 
   @override
   String errorPrefix(String error) {
@@ -532,7 +537,8 @@ class SEn extends S {
   String get noActiveSession => 'No active session';
 
   @override
-  String get createConnectionHint => 'Create a new connection or select one from the sidebar';
+  String get createConnectionHint =>
+      'Create a new connection or select one from the sidebar';
 
   @override
   String get hideSidebar => 'Hide Sidebar (Ctrl+B)';
@@ -613,13 +619,15 @@ class SEn extends S {
   String get exportData => 'Export Data';
 
   @override
-  String get exportDataSubtitle => 'Save sessions, config, and keys to encrypted .lfs file';
+  String get exportDataSubtitle =>
+      'Save sessions, config, and keys to encrypted .lfs file';
 
   @override
   String get importDataSubtitle => 'Load data from .lfs file';
 
   @override
-  String get setMasterPasswordHint => 'Set a master password to encrypt the archive.';
+  String get setMasterPasswordHint =>
+      'Set a master password to encrypt the archive.';
 
   @override
   String get passwordsDoNotMatch => 'Passwords do not match';
@@ -647,7 +655,8 @@ class SEn extends S {
   String get shareViaQrCode => 'Share via QR Code';
 
   @override
-  String get shareViaQrSubtitle => 'Export sessions to QR for scanning by another device';
+  String get shareViaQrSubtitle =>
+      'Export sessions to QR for scanning by another device';
 
   @override
   String get dataLocation => 'Data Location';
@@ -731,7 +740,8 @@ class SEn extends S {
   String get useSftpFromSessions => 'Use \"SFTP\" from Sessions';
 
   @override
-  String get anotherInstanceRunning => 'Another instance of LetsFLUTssh is already running.';
+  String get anotherInstanceRunning =>
+      'Another instance of LetsFLUTssh is already running.';
 
   @override
   String importFailedShort(String error) {
@@ -793,13 +803,16 @@ class SEn extends S {
   String get exportSessionsViaQr => 'Export Sessions via QR';
 
   @override
-  String get qrNoCredentialsWarning => 'Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.';
+  String get qrNoCredentialsWarning =>
+      'Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.';
 
   @override
-  String get qrTooManyForSingleCode => 'Too many sessions for a single QR code. Deselect some or use .lfs export.';
+  String get qrTooManyForSingleCode =>
+      'Too many sessions for a single QR code. Deselect some or use .lfs export.';
 
   @override
-  String get qrTooLarge => 'Too large — deselect some sessions or use .lfs file export.';
+  String get qrTooLarge =>
+      'Too large — deselect some sessions or use .lfs file export.';
 
   @override
   String get exportAll => 'Export All';
@@ -846,7 +859,8 @@ class SEn extends S {
   String get errBadFileDescriptor => 'Bad file descriptor';
 
   @override
-  String get errResourceTemporarilyUnavailable => 'Resource temporarily unavailable';
+  String get errResourceTemporarilyUnavailable =>
+      'Resource temporarily unavailable';
 
   @override
   String get errOutOfMemory => 'Out of memory';
@@ -990,7 +1004,8 @@ class SEn extends S {
   }
 
   @override
-  String get errDecryptionFailed => 'Failed to decrypt credentials. Key file may be corrupted.';
+  String get errDecryptionFailed =>
+      'Failed to decrypt credentials. Key file may be corrupted.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1023,13 +1038,15 @@ class SEn extends S {
   String get subitems => 'Items';
 
   @override
-  String get storagePermissionRequired => 'Storage permission required to browse local files';
+  String get storagePermissionRequired =>
+      'Storage permission required to browse local files';
 
   @override
   String get grantPermission => 'Grant Permission';
 
   @override
-  String get storagePermissionLimited => 'Limited access — grant full storage permission for all files';
+  String get storagePermissionLimited =>
+      'Limited access — grant full storage permission for all files';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1120,7 +1137,8 @@ class SEn extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials =>
+      'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1152,7 +1170,8 @@ class SEn extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc =>
+      'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1198,7 +1217,8 @@ class SEn extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty =>
+      'No known hosts yet. Connect to a server to add one.';
 
   @override
   String get removeHost => 'Remove Host';
@@ -1212,7 +1232,8 @@ class SEn extends S {
   String get clearAllKnownHosts => 'Clear All Known Hosts';
 
   @override
-  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+  String get clearAllKnownHostsConfirm =>
+      'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
   String get importKnownHosts => 'Import Known Hosts';
@@ -1346,7 +1367,8 @@ class SEn extends S {
   String get unlock => 'Unlock';
 
   @override
-  String get masterPasswordSubtitle => 'Protect saved credentials with a password';
+  String get masterPasswordSubtitle =>
+      'Protect saved credentials with a password';
 
   @override
   String get setMasterPassword => 'Set Master Password';
@@ -1358,13 +1380,16 @@ class SEn extends S {
   String get removeMasterPassword => 'Remove Master Password';
 
   @override
-  String get masterPasswordEnabled => 'Credentials are protected by master password';
+  String get masterPasswordEnabled =>
+      'Credentials are protected by master password';
 
   @override
-  String get masterPasswordDisabled => 'Credentials use auto-generated key (no password)';
+  String get masterPasswordDisabled =>
+      'Credentials use auto-generated key (no password)';
 
   @override
-  String get enterMasterPassword => 'Enter master password to unlock your saved credentials.';
+  String get enterMasterPassword =>
+      'Enter master password to unlock your saved credentials.';
 
   @override
   String get wrongMasterPassword => 'Wrong password. Please try again.';
@@ -1388,13 +1413,15 @@ class SEn extends S {
   String get masterPasswordRemoved => 'Master password removed';
 
   @override
-  String get masterPasswordWarning => 'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+  String get masterPasswordWarning =>
+      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
 
   @override
   String get forgotPassword => 'Forgot Password?';
 
   @override
-  String get forgotPasswordWarning => 'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+  String get forgotPasswordWarning =>
+      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
 
   @override
   String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
@@ -1409,7 +1436,8 @@ class SEn extends S {
   String get reEncrypting => 'Re-encrypting data...';
 
   @override
-  String get confirmRemoveMasterPassword => 'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+  String get confirmRemoveMasterPassword =>
+      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
 
   @override
   String get securitySetupTitle => 'Security Setup';
@@ -1420,16 +1448,20 @@ class SEn extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional => 'You can also set a master password for additional protection.';
+  String get securitySetupKeychainOptional =>
+      'You can also set a master password for additional protection.';
 
   @override
-  String get securitySetupNoKeychain => 'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+  String get securitySetupNoKeychain =>
+      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
 
   @override
-  String get securitySetupNoKeychainHint => 'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+  String get securitySetupNoKeychainHint =>
+      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
 
   @override
-  String get securitySetupRecommendMasterPassword => 'We recommend setting a master password to protect your data.';
+  String get securitySetupRecommendMasterPassword =>
+      'We recommend setting a master password to protect your data.';
 
   @override
   String get continueWithKeychain => 'Continue with Keychain';
@@ -1464,5 +1496,6 @@ class SEn extends S {
   String get manageMasterPassword => 'Manage Master Password';
 
   @override
-  String get manageMasterPasswordSubtitle => 'Set, change, or remove master password';
+  String get manageMasterPasswordSubtitle =>
+      'Set, change, or remove master password';
 }

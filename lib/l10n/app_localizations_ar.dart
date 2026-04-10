@@ -113,7 +113,8 @@ class SAr extends S {
   String get openInBrowser => 'فتح في المتصفح';
 
   @override
-  String get couldNotOpenBrowser => 'تعذر فتح المتصفح — تم نسخ الرابط إلى الحافظة';
+  String get couldNotOpenBrowser =>
+      'تعذر فتح المتصفح — تم نسخ الرابط إلى الحافظة';
 
   @override
   String get checkForUpdates => 'التحقق من التحديثات';
@@ -369,7 +370,8 @@ class SAr extends S {
   String get qrGenerationFailed => 'فشل إنشاء رمز QR';
 
   @override
-  String get scanWithCameraApp => 'امسح باستخدام أي تطبيق كاميرا على جهاز\nمثبّت عليه LetsFLUTssh.';
+  String get scanWithCameraApp =>
+      'امسح باستخدام أي تطبيق كاميرا على جهاز\nمثبّت عليه LetsFLUTssh.';
 
   @override
   String get noPasswordsInQr => 'لا توجد كلمات مرور أو مفاتيح في رمز QR هذا';
@@ -387,10 +389,12 @@ class SAr extends S {
   String get unknownHost => 'مضيف غير معروف';
 
   @override
-  String get hostKeyChangedWarning => 'تحذير: تغيّر مفتاح المضيف لهذا الخادم. قد يشير ذلك إلى هجوم رجل في المنتصف، أو ربما تمت إعادة تثبيت الخادم.';
+  String get hostKeyChangedWarning =>
+      'تحذير: تغيّر مفتاح المضيف لهذا الخادم. قد يشير ذلك إلى هجوم رجل في المنتصف، أو ربما تمت إعادة تثبيت الخادم.';
 
   @override
-  String get unknownHostMessage => 'لا يمكن التحقق من هوية هذا المضيف. هل أنت متأكد أنك تريد متابعة الاتصال؟';
+  String get unknownHostMessage =>
+      'لا يمكن التحقق من هوية هذا المضيف. هل أنت متأكد أنك تريد متابعة الاتصال؟';
 
   @override
   String get host => 'المضيف';
@@ -423,7 +427,8 @@ class SAr extends S {
   String get confirmPassword => 'تأكيد كلمة المرور';
 
   @override
-  String get importModeMergeDescription => 'إضافة جلسات جديدة والاحتفاظ بالحالية';
+  String get importModeMergeDescription =>
+      'إضافة جلسات جديدة والاحتفاظ بالحالية';
 
   @override
   String get importModeReplaceDescription => 'استبدال جميع الجلسات بالمستوردة';
@@ -532,7 +537,8 @@ class SAr extends S {
   String get noActiveSession => 'لا توجد جلسة نشطة';
 
   @override
-  String get createConnectionHint => 'أنشئ اتصالاً جديداً أو اختر واحداً من الشريط الجانبي';
+  String get createConnectionHint =>
+      'أنشئ اتصالاً جديداً أو اختر واحداً من الشريط الجانبي';
 
   @override
   String get hideSidebar => 'إخفاء الشريط الجانبي (Ctrl+B)';
@@ -613,7 +619,8 @@ class SAr extends S {
   String get exportData => 'تصدير البيانات';
 
   @override
-  String get exportDataSubtitle => 'حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر';
+  String get exportDataSubtitle =>
+      'حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر';
 
   @override
   String get importDataSubtitle => 'تحميل البيانات من ملف .lfs';
@@ -731,7 +738,8 @@ class SAr extends S {
   String get useSftpFromSessions => 'استخدم \"SFTP\" من الجلسات';
 
   @override
-  String get anotherInstanceRunning => 'نسخة أخرى من LetsFLUTssh قيد التشغيل بالفعل.';
+  String get anotherInstanceRunning =>
+      'نسخة أخرى من LetsFLUTssh قيد التشغيل بالفعل.';
 
   @override
   String importFailedShort(String error) {
@@ -793,13 +801,16 @@ class SAr extends S {
   String get exportSessionsViaQr => 'تصدير الجلسات عبر QR';
 
   @override
-  String get qrNoCredentialsWarning => 'كلمات المرور ومفاتيح SSH غير مضمّنة.\nالجلسات المستوردة ستحتاج إلى إدخال بيانات الاعتماد.';
+  String get qrNoCredentialsWarning =>
+      'كلمات المرور ومفاتيح SSH غير مضمّنة.\nالجلسات المستوردة ستحتاج إلى إدخال بيانات الاعتماد.';
 
   @override
-  String get qrTooManyForSingleCode => 'جلسات كثيرة جداً لرمز QR واحد. ألغِ تحديد بعضها أو استخدم تصدير .lfs.';
+  String get qrTooManyForSingleCode =>
+      'جلسات كثيرة جداً لرمز QR واحد. ألغِ تحديد بعضها أو استخدم تصدير .lfs.';
 
   @override
-  String get qrTooLarge => 'كبير جداً — ألغِ تحديد بعض الجلسات أو استخدم تصدير ملف .lfs.';
+  String get qrTooLarge =>
+      'كبير جداً — ألغِ تحديد بعض الجلسات أو استخدم تصدير ملف .lfs.';
 
   @override
   String get exportAll => 'تصدير الكل';
@@ -897,7 +908,8 @@ class SAr extends S {
   String get errNetworkIsUnreachable => 'الشبكة غير قابلة للوصول';
 
   @override
-  String get errConnectionResetByPeer => 'أُعيد تعيين الاتصال من قبل الطرف الآخر';
+  String get errConnectionResetByPeer =>
+      'أُعيد تعيين الاتصال من قبل الطرف الآخر';
 
   @override
   String get errConnectionTimedOut => 'انتهت مهلة الاتصال';
@@ -990,7 +1002,8 @@ class SAr extends S {
   }
 
   @override
-  String get errDecryptionFailed => 'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
+  String get errDecryptionFailed =>
+      'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1023,13 +1036,15 @@ class SAr extends S {
   String get subitems => 'العناصر';
 
   @override
-  String get storagePermissionRequired => 'يلزم إذن التخزين لتصفح الملفات المحلية';
+  String get storagePermissionRequired =>
+      'يلزم إذن التخزين لتصفح الملفات المحلية';
 
   @override
   String get grantPermission => 'منح الإذن';
 
   @override
-  String get storagePermissionLimited => 'وصول محدود — امنح إذن التخزين الكامل لجميع الملفات';
+  String get storagePermissionLimited =>
+      'وصول محدود — امنح إذن التخزين الكامل لجميع الملفات';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1120,7 +1135,8 @@ class SAr extends S {
   String get dropKeyFileHere => 'Drop key file here';
 
   @override
-  String get sessionNoCredentials => 'Session has no credentials — edit it first to add a password or key';
+  String get sessionNoCredentials =>
+      'Session has no credentials — edit it first to add a password or key';
 
   @override
   String dragItemCount(int count) {
@@ -1152,7 +1168,8 @@ class SAr extends S {
   String get sshConnectionChannel => 'SSH Connection';
 
   @override
-  String get sshConnectionChannelDesc => 'Keeps SSH connections alive in the background.';
+  String get sshConnectionChannelDesc =>
+      'Keeps SSH connections alive in the background.';
 
   @override
   String get sshActive => 'SSH active';
@@ -1198,7 +1215,8 @@ class SAr extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'No known hosts yet. Connect to a server to add one.';
+  String get knownHostsEmpty =>
+      'No known hosts yet. Connect to a server to add one.';
 
   @override
   String get removeHost => 'Remove Host';
@@ -1212,7 +1230,8 @@ class SAr extends S {
   String get clearAllKnownHosts => 'Clear All Known Hosts';
 
   @override
-  String get clearAllKnownHostsConfirm => 'Remove all known hosts? You will be prompted to verify each server key again.';
+  String get clearAllKnownHostsConfirm =>
+      'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
   String get importKnownHosts => 'Import Known Hosts';
@@ -1346,7 +1365,8 @@ class SAr extends S {
   String get unlock => 'Unlock';
 
   @override
-  String get masterPasswordSubtitle => 'Protect saved credentials with a password';
+  String get masterPasswordSubtitle =>
+      'Protect saved credentials with a password';
 
   @override
   String get setMasterPassword => 'Set Master Password';
@@ -1358,13 +1378,16 @@ class SAr extends S {
   String get removeMasterPassword => 'Remove Master Password';
 
   @override
-  String get masterPasswordEnabled => 'Credentials are protected by master password';
+  String get masterPasswordEnabled =>
+      'Credentials are protected by master password';
 
   @override
-  String get masterPasswordDisabled => 'Credentials use auto-generated key (no password)';
+  String get masterPasswordDisabled =>
+      'Credentials use auto-generated key (no password)';
 
   @override
-  String get enterMasterPassword => 'Enter master password to unlock your saved credentials.';
+  String get enterMasterPassword =>
+      'Enter master password to unlock your saved credentials.';
 
   @override
   String get wrongMasterPassword => 'Wrong password. Please try again.';
@@ -1388,13 +1411,15 @@ class SAr extends S {
   String get masterPasswordRemoved => 'Master password removed';
 
   @override
-  String get masterPasswordWarning => 'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
+  String get masterPasswordWarning =>
+      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
 
   @override
   String get forgotPassword => 'Forgot Password?';
 
   @override
-  String get forgotPasswordWarning => 'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
+  String get forgotPasswordWarning =>
+      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
 
   @override
   String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
@@ -1409,7 +1434,8 @@ class SAr extends S {
   String get reEncrypting => 'Re-encrypting data...';
 
   @override
-  String get confirmRemoveMasterPassword => 'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
+  String get confirmRemoveMasterPassword =>
+      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
 
   @override
   String get securitySetupTitle => 'Security Setup';
@@ -1420,16 +1446,20 @@ class SAr extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional => 'You can also set a master password for additional protection.';
+  String get securitySetupKeychainOptional =>
+      'You can also set a master password for additional protection.';
 
   @override
-  String get securitySetupNoKeychain => 'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
+  String get securitySetupNoKeychain =>
+      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
 
   @override
-  String get securitySetupNoKeychainHint => 'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
+  String get securitySetupNoKeychainHint =>
+      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
 
   @override
-  String get securitySetupRecommendMasterPassword => 'We recommend setting a master password to protect your data.';
+  String get securitySetupRecommendMasterPassword =>
+      'We recommend setting a master password to protect your data.';
 
   @override
   String get continueWithKeychain => 'Continue with Keychain';
@@ -1464,5 +1494,6 @@ class SAr extends S {
   String get manageMasterPassword => 'Manage Master Password';
 
   @override
-  String get manageMasterPasswordSubtitle => 'Set, change, or remove master password';
+  String get manageMasterPasswordSubtitle =>
+      'Set, change, or remove master password';
 }
