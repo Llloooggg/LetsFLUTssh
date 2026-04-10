@@ -3105,4 +3105,385 @@ void main() {
       expect(find.text('Download & Install'), findsOneWidget);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Set Master Password dialog
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Set Master Password dialog', () {
+    Future<void> openSetDialog(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildApp(height: 3000));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Manage Master Password'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Manage Master Password'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('tap manage password opens set dialog when not enabled', (
+      tester,
+    ) async {
+      await openSetDialog(tester);
+      expect(find.text('Set Master Password'), findsOneWidget);
+    });
+
+    testWidgets('set dialog shows warning text', (tester) async {
+      await openSetDialog(tester);
+      expect(
+        find.text(
+          'If you forget this password, all saved passwords and SSH keys '
+          'will be lost. There is no recovery.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('short password shows toast', (tester) async {
+      await openSetDialog(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New Password'),
+        'short',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirm Password'),
+        'short',
+      );
+
+      await tester.tap(find.text('OK'));
+      await tester.pump();
+
+      expect(
+        find.text('Password must be at least 8 characters'),
+        findsOneWidget,
+      );
+
+      // Dialog stays open
+      expect(find.text('Set Master Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('mismatched passwords shows toast', (tester) async {
+      await openSetDialog(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New Password'),
+        'longpassword1',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirm Password'),
+        'longpassword2',
+      );
+
+      await tester.tap(find.text('OK'));
+      await tester.pump();
+
+      expect(find.text('Passwords do not match'), findsOneWidget);
+
+      // Dialog stays open
+      expect(find.text('Set Master Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('empty password does not close dialog', (tester) async {
+      await openSetDialog(tester);
+
+      // Tap OK with empty fields
+      await tester.tap(find.text('OK'));
+      await tester.pump();
+
+      // Dialog stays open (short password toast shown since empty < 8 chars)
+      expect(find.text('Set Master Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Manage Master Password options (when enabled)
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Manage Master Password options', () {
+    testWidgets('tap manage when enabled shows change/remove options', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // Create salt file so isEnabled() returns true.
+      await File('${tempDir.path}/credentials.salt').writeAsBytes(
+        List.filled(32, 0),
+      );
+
+      await tester.pumpWidget(buildApp(height: 3000));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Manage Master Password'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Manage Master Password'));
+      await tester.pumpAndSettle();
+
+      // SimpleDialog with two options
+      expect(find.text('Change Master Password'), findsOneWidget);
+      expect(find.text('Remove Master Password'), findsOneWidget);
+    });
+
+    testWidgets('change option opens change dialog', (tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await File('${tempDir.path}/credentials.salt').writeAsBytes(
+        List.filled(32, 0),
+      );
+
+      await tester.pumpWidget(buildApp(height: 3000));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Manage Master Password'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Manage Master Password'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Change Master Password'));
+      await tester.pumpAndSettle();
+
+      // Change dialog has three fields
+      expect(find.text('Change Master Password'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Current Password'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'New Password'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Confirm Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('remove option opens remove dialog', (tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await File('${tempDir.path}/credentials.salt').writeAsBytes(
+        List.filled(32, 0),
+      );
+
+      await tester.pumpWidget(buildApp(height: 3000));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Manage Master Password'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Manage Master Password'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Remove Master Password'));
+      await tester.pumpAndSettle();
+
+      // Remove dialog
+      expect(find.text('Remove Master Password'), findsOneWidget);
+      expect(
+        find.text(
+          'Enter your current password to remove master password protection. '
+          'Credentials will be re-encrypted with an auto-generated key.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(TextField, 'Current Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Change Master Password dialog validation
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Change Master Password dialog', () {
+    Future<void> openChangeDialog(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await File('${tempDir.path}/credentials.salt').writeAsBytes(
+        List.filled(32, 0),
+      );
+
+      await tester.pumpWidget(buildApp(height: 3000));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Manage Master Password'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Manage Master Password'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Change Master Password'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('empty current password does not close dialog', (
+      tester,
+    ) async {
+      await openChangeDialog(tester);
+
+      // Enter new passwords but leave current empty
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New Password'),
+        'longpassword',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirm Password'),
+        'longpassword',
+      );
+
+      await tester.tap(find.text('OK'));
+      await tester.pump();
+
+      // Dialog stays open (silent return)
+      expect(find.text('Change Master Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('short new password shows toast', (tester) async {
+      await openChangeDialog(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Current Password'),
+        'oldpassword',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New Password'),
+        'short',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirm Password'),
+        'short',
+      );
+
+      await tester.tap(find.text('OK'));
+      await tester.pump();
+
+      expect(
+        find.text('Password must be at least 8 characters'),
+        findsOneWidget,
+      );
+
+      // Dialog stays open
+      expect(find.text('Change Master Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('mismatched new passwords shows toast', (tester) async {
+      await openChangeDialog(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Current Password'),
+        'oldpassword',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New Password'),
+        'newpassword1',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirm Password'),
+        'newpassword2',
+      );
+
+      await tester.tap(find.text('OK'));
+      await tester.pump();
+
+      expect(find.text('Passwords do not match'), findsOneWidget);
+
+      // Dialog stays open
+      expect(find.text('Change Master Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Remove Master Password dialog validation
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Remove Master Password dialog', () {
+    Future<void> openRemoveDialog(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await File('${tempDir.path}/credentials.salt').writeAsBytes(
+        List.filled(32, 0),
+      );
+
+      await tester.pumpWidget(buildApp(height: 3000));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Manage Master Password'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Manage Master Password'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Remove Master Password'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('empty password does not close dialog', (tester) async {
+      await openRemoveDialog(tester);
+
+      // Tap OK with empty field
+      await tester.tap(find.text('OK'));
+      await tester.pump();
+
+      // Dialog stays open (silent return)
+      expect(find.text('Remove Master Password'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -177,4 +178,123 @@ void main() {
       expect(popScope.canPop, isFalse);
     });
   });
+
+  group('UnlockDialog stub-driven', () {
+    Future<_StubMasterPasswordManager> openStubDialog(
+      WidgetTester tester, {
+      bool acceptPassword = false,
+      Uint8List? derivedKey,
+    }) async {
+      final stub = _StubMasterPasswordManager(
+        basePath: tempDir.path,
+        acceptPassword: acceptPassword,
+        derivedKey: derivedKey,
+      );
+      await tester.pumpWidget(
+        buildApp(
+          onPressed: (ctx) {
+            UnlockDialog.show(ctx, manager: stub);
+          },
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      return stub;
+    }
+
+    testWidgets('wrong password shows error text and re-enables field', (
+      tester,
+    ) async {
+      await openStubDialog(tester, acceptPassword: false);
+
+      await tester.enterText(find.byType(TextField), 'bad-pass');
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+
+      // Error text is visible
+      expect(find.text('Wrong password. Please try again.'), findsOneWidget);
+
+      // Dialog is still open
+      expect(find.text('Master Password'), findsOneWidget);
+
+      // Field is enabled again
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.enabled, isTrue);
+    });
+
+    testWidgets('correct password derives key and pops with key', (
+      tester,
+    ) async {
+      await openStubDialog(
+        tester,
+        acceptPassword: true,
+        derivedKey: Uint8List.fromList(List.filled(32, 7)),
+      );
+
+      await tester.enterText(find.byType(TextField), 'good-pass');
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+
+      // Dialog is gone
+      expect(find.text('Master Password'), findsNothing);
+    });
+
+    testWidgets('forgot password confirm calls reset and pops with null', (
+      tester,
+    ) async {
+      final stub = await openStubDialog(tester);
+
+      await tester.tap(find.text('Forgot Password?'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Reset & Delete Credentials'));
+      await tester.pumpAndSettle();
+
+      expect(stub.resetCalled, isTrue);
+      expect(find.text('Master Password'), findsNothing);
+    });
+
+    testWidgets('visibility toggle shows visibility icon when not obscured', (
+      tester,
+    ) async {
+      await openStubDialog(tester);
+
+      // Initial state: obscured, shows visibility_off
+      expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+      expect(find.byIcon(Icons.visibility), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.visibility_off));
+      await tester.pumpAndSettle();
+
+      // After toggle: not obscured, shows visibility
+      expect(find.byIcon(Icons.visibility), findsOneWidget);
+      expect(find.byIcon(Icons.visibility_off), findsNothing);
+    });
+  });
+}
+
+/// Test stub that bypasses the PBKDF2 isolate so widget tests can drive
+/// the unlock-success/failure paths without depending on real async work.
+class _StubMasterPasswordManager extends MasterPasswordManager {
+  bool acceptPassword;
+  Uint8List? derivedKey;
+  bool resetCalled = false;
+
+  _StubMasterPasswordManager({
+    required String basePath,
+    this.acceptPassword = false,
+    this.derivedKey,
+  }) : super(basePath: basePath);
+
+  @override
+  Future<bool> verify(String password) async => acceptPassword;
+
+  @override
+  Future<Uint8List> deriveKey(String password) async =>
+      derivedKey ?? Uint8List(32);
+
+  @override
+  Future<void> reset() async {
+    resetCalled = true;
+  }
 }

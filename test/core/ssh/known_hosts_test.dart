@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/security_level.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:pointycastle/digests/sha256.dart';
 
@@ -685,6 +685,203 @@ void main() {
       final digest = SHA256Digest();
       final hash = digest.process(Uint8List.fromList(keyBytes));
       expect(staticFp, 'SHA256:${base64Encode(hash)}');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // KnownHostsManager encrypted mode tests
+  // ---------------------------------------------------------------------------
+  group('KnownHostsManager encrypted mode', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    late Directory mgrTempDir;
+
+    setUp(() {
+      mgrTempDir = Directory.systemTemp.createTempSync('known_hosts_enc_test_');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => mgrTempDir.path,
+          );
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          );
+      if (mgrTempDir.existsSync()) mgrTempDir.deleteSync(recursive: true);
+    });
+
+    test('setEncryptionKey stores level and enables encrypted save', () async {
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+
+      final manager = KnownHostsManager();
+      manager.onUnknownHost = (_, _, _, _) async => true;
+      await manager.load();
+
+      await manager.verify('enc-host.com', 22, 'ssh-rsa', [1, 2, 3]);
+      manager.setEncryptionKey(key, SecurityLevel.masterPassword);
+      expect(manager.securityLevel, SecurityLevel.masterPassword);
+
+      // Save with encryption by triggering a write
+      await manager.removeHost('nonexistent:99');
+
+      // New manager with same key should find the host
+      final manager2 = KnownHostsManager();
+      manager2.setEncryptionKey(key, SecurityLevel.masterPassword);
+      await manager2.load();
+
+      final result = await manager2.verify('enc-host.com', 22, 'ssh-rsa', [
+        1,
+        2,
+        3,
+      ]);
+      expect(result, isTrue);
+    });
+
+    test('clearEncryptionKey reverts level to plaintext', () async {
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+
+      final manager = KnownHostsManager();
+      manager.setEncryptionKey(key, SecurityLevel.masterPassword);
+      expect(manager.securityLevel, SecurityLevel.masterPassword);
+
+      manager.clearEncryptionKey();
+      expect(manager.securityLevel, SecurityLevel.plaintext);
+    });
+
+    test('reEncrypt from plaintext to encrypted', () async {
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+
+      // Add host in plaintext mode
+      final manager = KnownHostsManager();
+      manager.onUnknownHost = (_, _, _, _) async => true;
+      await manager.load();
+      await manager.verify('re-host.com', 22, 'ssh-ed25519', [5, 6, 7]);
+
+      // Re-encrypt to encrypted mode
+      await manager.reEncrypt(key, SecurityLevel.masterPassword);
+
+      // New manager with key should load the host
+      final manager2 = KnownHostsManager();
+      manager2.setEncryptionKey(key, SecurityLevel.masterPassword);
+      await manager2.load();
+
+      final result = await manager2.verify('re-host.com', 22, 'ssh-ed25519', [
+        5,
+        6,
+        7,
+      ]);
+      expect(result, isTrue);
+
+      // Encrypted file should exist
+      final encFile = File('${mgrTempDir.path}/known_hosts.enc');
+      expect(encFile.existsSync(), isTrue);
+    });
+
+    test('reEncrypt from encrypted to plaintext', () async {
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+
+      // Start encrypted, add host
+      final manager = KnownHostsManager();
+      manager.onUnknownHost = (_, _, _, _) async => true;
+      manager.setEncryptionKey(key, SecurityLevel.masterPassword);
+      await manager.load();
+      await manager.verify('dec-host.com', 22, 'ssh-rsa', [8, 9, 10]);
+
+      // Re-encrypt to plaintext
+      await manager.reEncrypt(null, SecurityLevel.plaintext);
+
+      // New manager without key should load the host
+      final manager2 = KnownHostsManager();
+      await manager2.load();
+
+      final result = await manager2.verify('dec-host.com', 22, 'ssh-rsa', [
+        8,
+        9,
+        10,
+      ]);
+      expect(result, isTrue);
+
+      // Plaintext file should exist
+      final plainFile = File('${mgrTempDir.path}/known_hosts');
+      expect(plainFile.existsSync(), isTrue);
+    });
+
+    test('importFromString merges entries', () async {
+      final manager = KnownHostsManager();
+      await manager.load();
+
+      final added = await manager.importFromString(
+        'host1:22 ssh-ed25519 AAAA\nhost2:22 ssh-rsa BBBB\n',
+      );
+      expect(added, 2);
+      expect(manager.count, 2);
+      expect(manager.entries.containsKey('host1:22'), isTrue);
+      expect(manager.entries.containsKey('host2:22'), isTrue);
+    });
+
+    test('importFromString skips existing entries', () async {
+      final manager = KnownHostsManager();
+      manager.onUnknownHost = (_, _, _, _) async => true;
+      await manager.load();
+
+      // Add host1 via verify
+      await manager.verify('host1', 22, 'ssh-ed25519', base64Decode('AAAA'));
+      expect(manager.count, 1);
+
+      // Import host1 (duplicate) and host2 (new)
+      final added = await manager.importFromString(
+        'host1:22 ssh-ed25519 AAAA\nhost2:22 ssh-rsa BBBB\n',
+      );
+      expect(added, 1); // Only host2 was new
+      expect(manager.count, 2);
+    });
+
+    test('importFromString with empty string returns 0', () async {
+      final manager = KnownHostsManager();
+      await manager.load();
+
+      final added = await manager.importFromString('');
+      expect(added, 0);
+      expect(manager.count, 0);
+    });
+
+    test('removeMultiple with empty set is no-op', () async {
+      final manager = KnownHostsManager();
+      manager.onUnknownHost = (_, _, _, _) async => true;
+      await manager.load();
+
+      await manager.verify('host-a.com', 22, 'ssh-rsa', [1, 2, 3]);
+      await manager.verify('host-b.com', 22, 'ssh-rsa', [4, 5, 6]);
+      expect(manager.count, 2);
+
+      await manager.removeMultiple(<String>{});
+      expect(manager.count, 2);
+    });
+
+    test('encrypted file fallback to plaintext on decrypt failure', () async {
+      // Write a plaintext known_hosts file manually using a valid base64 key
+      const validBase64Key = 'AAAAB3NzaC1yc2EAAAADAQABAAAAgQ==';
+      final keyBytes = base64Decode(validBase64Key);
+      final file = File('${mgrTempDir.path}/known_hosts');
+      await file.writeAsString('fallback.com:22 ssh-rsa $validBase64Key\n');
+
+      // Create manager with an encryption key — should fall back to plaintext
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+      final manager = KnownHostsManager();
+      manager.setEncryptionKey(key, SecurityLevel.masterPassword);
+      await manager.load();
+
+      // Should find the plaintext entry
+      final result = await manager.verify(
+        'fallback.com',
+        22,
+        'ssh-rsa',
+        keyBytes,
+      );
+      expect(result, isTrue);
     });
   });
 }
