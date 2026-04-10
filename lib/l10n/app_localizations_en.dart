@@ -1493,6 +1493,16 @@ class SEn extends S {
   String get keychainNotAvailable => 'Not available';
 
   @override
+  String get enableKeychain => 'Enable Keychain Encryption';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Re-encrypt stored data using OS keychain';
+
+  @override
+  String get keychainEnabled => 'Keychain encryption enabled';
+
+  @override
   String get manageMasterPassword => 'Manage Master Password';
 
   @override

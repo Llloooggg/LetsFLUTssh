@@ -1507,6 +1507,16 @@ class SRu extends S {
   String get keychainNotAvailable => 'Недоступна';
 
   @override
+  String get enableKeychain => 'Включить шифрование через связку ключей';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Перешифровать сохранённые данные с помощью связки ключей ОС';
+
+  @override
+  String get keychainEnabled => 'Шифрование через связку ключей включено';
+
+  @override
   String get manageMasterPassword => 'Управление мастер-паролем';
 
   @override

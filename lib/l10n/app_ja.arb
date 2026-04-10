@@ -445,6 +445,9 @@
   "keychainStatus": "キーチェーン",
   "keychainAvailable": "利用可能 ({name})",
   "keychainNotAvailable": "利用不可",
+  "enableKeychain": "キーチェーン暗号化を有効にする",
+  "enableKeychainSubtitle": "OS キーチェーンを使用して保存データを再暗号化",
+  "keychainEnabled": "キーチェーン暗号化が有効になりました",
   "manageMasterPassword": "マスターパスワード管理",
   "manageMasterPasswordSubtitle": "マスターパスワードの設定、変更、削除"
 }

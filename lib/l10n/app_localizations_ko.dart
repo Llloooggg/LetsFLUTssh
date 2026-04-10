@@ -1476,6 +1476,15 @@ class SKo extends S {
   String get keychainNotAvailable => '사용 불가';
 
   @override
+  String get enableKeychain => '키체인 암호화 활성화';
+
+  @override
+  String get enableKeychainSubtitle => 'OS 키체인을 사용하여 저장된 데이터 재암호화';
+
+  @override
+  String get keychainEnabled => '키체인 암호화 활성화됨';
+
+  @override
   String get manageMasterPassword => '마스터 비밀번호 관리';
 
   @override

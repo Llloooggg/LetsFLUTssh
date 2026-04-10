@@ -1501,6 +1501,16 @@ class SId extends S {
   String get keychainNotAvailable => 'Tidak tersedia';
 
   @override
+  String get enableKeychain => 'Aktifkan enkripsi rantai kunci';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Enkripsi ulang data tersimpan menggunakan rantai kunci sistem';
+
+  @override
+  String get keychainEnabled => 'Enkripsi rantai kunci diaktifkan';
+
+  @override
   String get manageMasterPassword => 'Kelola kata sandi utama';
 
   @override

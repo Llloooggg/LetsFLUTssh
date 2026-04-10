@@ -445,6 +445,9 @@
   "keychainStatus": "Schlüsselbund",
   "keychainAvailable": "Verfügbar ({name})",
   "keychainNotAvailable": "Nicht verfügbar",
+  "enableKeychain": "Schlüsselbund-Verschlüsselung aktivieren",
+  "enableKeychainSubtitle": "Gespeicherte Daten mit OS-Schlüsselbund neu verschlüsseln",
+  "keychainEnabled": "Schlüsselbund-Verschlüsselung aktiviert",
   "manageMasterPassword": "Master-Passwort verwalten",
   "manageMasterPasswordSubtitle": "Master-Passwort festlegen, ändern oder entfernen"
 }

@@ -1505,6 +1505,16 @@ class SHi extends S {
   String get keychainNotAvailable => 'अनुपलब्ध';
 
   @override
+  String get enableKeychain => 'कीचेन एन्क्रिप्शन सक्षम करें';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'OS कीचेन का उपयोग करके संग्रहीत डेटा को पुनः एन्क्रिप्ट करें';
+
+  @override
+  String get keychainEnabled => 'कीचेन एन्क्रिप्शन सक्षम';
+
+  @override
   String get manageMasterPassword => 'मास्टर पासवर्ड प्रबंधित करें';
 
   @override

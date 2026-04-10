@@ -2715,6 +2715,24 @@ abstract class S {
   /// **'Not available'**
   String get keychainNotAvailable;
 
+  /// No description provided for @enableKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Keychain Encryption'**
+  String get enableKeychain;
+
+  /// No description provided for @enableKeychainSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encrypt stored data using OS keychain'**
+  String get enableKeychainSubtitle;
+
+  /// No description provided for @keychainEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain encryption enabled'**
+  String get keychainEnabled;
+
   /// No description provided for @manageMasterPassword.
   ///
   /// In en, this message translates to:

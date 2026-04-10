@@ -1520,6 +1520,16 @@ class SFr extends S {
   String get keychainNotAvailable => 'Non disponible';
 
   @override
+  String get enableKeychain => 'Activer le chiffrement par trousseau';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Rechiffrer les données stockées avec le trousseau système';
+
+  @override
+  String get keychainEnabled => 'Chiffrement par trousseau activé';
+
+  @override
   String get manageMasterPassword => 'Gérer le mot de passe principal';
 
   @override

@@ -439,6 +439,9 @@
   "keychainStatus": "Rantai kunci",
   "keychainAvailable": "Tersedia ({name})",
   "keychainNotAvailable": "Tidak tersedia",
+  "enableKeychain": "Aktifkan enkripsi rantai kunci",
+  "enableKeychainSubtitle": "Enkripsi ulang data tersimpan menggunakan rantai kunci sistem",
+  "keychainEnabled": "Enkripsi rantai kunci diaktifkan",
   "manageMasterPassword": "Kelola kata sandi utama",
   "manageMasterPasswordSubtitle": "Atur, ubah, atau hapus kata sandi utama"
 }

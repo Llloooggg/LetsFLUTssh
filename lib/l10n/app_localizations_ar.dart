@@ -1498,6 +1498,16 @@ class SAr extends S {
   String get keychainNotAvailable => 'غير متاحة';
 
   @override
+  String get enableKeychain => 'تفعيل تشفير سلسلة المفاتيح';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'إعادة تشفير البيانات المخزنة باستخدام سلسلة مفاتيح النظام';
+
+  @override
+  String get keychainEnabled => 'تم تفعيل تشفير سلسلة المفاتيح';
+
+  @override
   String get manageMasterPassword => 'إدارة كلمة المرور الرئيسية';
 
   @override

@@ -1507,6 +1507,16 @@ class STr extends S {
   String get keychainNotAvailable => 'Kullanılamaz';
 
   @override
+  String get enableKeychain => 'Anahtar zinciri şifrelemesini etkinleştir';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Sistem anahtar zincirini kullanarak saklanan verileri yeniden şifrele';
+
+  @override
+  String get keychainEnabled => 'Anahtar zinciri şifrelemesi etkinleştirildi';
+
+  @override
   String get manageMasterPassword => 'Ana şifreyi yönet';
 
   @override

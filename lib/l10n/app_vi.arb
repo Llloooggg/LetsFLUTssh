@@ -439,6 +439,9 @@
   "keychainStatus": "Chuỗi khóa",
   "keychainAvailable": "Khả dụng ({name})",
   "keychainNotAvailable": "Không khả dụng",
+  "enableKeychain": "Bật mã hóa chuỗi khóa",
+  "enableKeychainSubtitle": "Mã hóa lại dữ liệu được lưu bằng chuỗi khóa hệ thống",
+  "keychainEnabled": "Mã hóa chuỗi khóa đã được bật",
   "manageMasterPassword": "Quản lý mật khẩu chính",
   "manageMasterPasswordSubtitle": "Đặt, đổi hoặc xóa mật khẩu chính"
 }

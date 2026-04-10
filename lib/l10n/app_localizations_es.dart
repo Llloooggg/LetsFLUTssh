@@ -1514,6 +1514,16 @@ class SEs extends S {
   String get keychainNotAvailable => 'No disponible';
 
   @override
+  String get enableKeychain => 'Activar cifrado de llavero';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Volver a cifrar datos almacenados usando llavero del sistema';
+
+  @override
+  String get keychainEnabled => 'Cifrado de llavero activado';
+
+  @override
   String get manageMasterPassword => 'Gestionar contraseña maestra';
 
   @override

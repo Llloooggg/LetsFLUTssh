@@ -439,6 +439,9 @@
   "keychainStatus": "Anahtar zinciri",
   "keychainAvailable": "Kullanılabilir ({name})",
   "keychainNotAvailable": "Kullanılamaz",
+  "enableKeychain": "Anahtar zinciri şifrelemesini etkinleştir",
+  "enableKeychainSubtitle": "Sistem anahtar zincirini kullanarak saklanan verileri yeniden şifrele",
+  "keychainEnabled": "Anahtar zinciri şifrelemesi etkinleştirildi",
   "manageMasterPassword": "Ana şifreyi yönet",
   "manageMasterPasswordSubtitle": "Ana şifreyi belirle, değiştir veya kaldır"
 }

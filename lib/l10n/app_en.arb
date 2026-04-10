@@ -973,6 +973,9 @@
     }
   },
   "keychainNotAvailable": "Not available",
+  "enableKeychain": "Enable Keychain Encryption",
+  "enableKeychainSubtitle": "Re-encrypt stored data using OS keychain",
+  "keychainEnabled": "Keychain encryption enabled",
   "manageMasterPassword": "Manage Master Password",
   "manageMasterPasswordSubtitle": "Set, change, or remove master password"
 }

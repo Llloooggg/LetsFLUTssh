@@ -439,6 +439,9 @@
   "keychainStatus": "कीचेन",
   "keychainAvailable": "उपलब्ध ({name})",
   "keychainNotAvailable": "अनुपलब्ध",
+  "enableKeychain": "कीचेन एन्क्रिप्शन सक्षम करें",
+  "enableKeychainSubtitle": "OS कीचेन का उपयोग करके संग्रहीत डेटा को पुनः एन्क्रिप्ट करें",
+  "keychainEnabled": "कीचेन एन्क्रिप्शन सक्षम",
   "manageMasterPassword": "मास्टर पासवर्ड प्रबंधित करें",
   "manageMasterPasswordSubtitle": "मास्टर पासवर्ड सेट, बदलें या हटाएं"
 }

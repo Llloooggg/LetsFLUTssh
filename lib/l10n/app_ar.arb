@@ -439,6 +439,9 @@
   "keychainStatus": "سلسلة المفاتيح",
   "keychainAvailable": "متاحة ({name})",
   "keychainNotAvailable": "غير متاحة",
+  "enableKeychain": "تفعيل تشفير سلسلة المفاتيح",
+  "enableKeychainSubtitle": "إعادة تشفير البيانات المخزنة باستخدام سلسلة مفاتيح النظام",
+  "keychainEnabled": "تم تفعيل تشفير سلسلة المفاتيح",
   "manageMasterPassword": "إدارة كلمة المرور الرئيسية",
   "manageMasterPasswordSubtitle": "تعيين أو تغيير أو إزالة كلمة المرور الرئيسية"
 }

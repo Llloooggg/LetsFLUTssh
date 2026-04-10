@@ -448,6 +448,9 @@
   "keychainStatus": "Связка ключей",
   "keychainAvailable": "Доступна ({name})",
   "keychainNotAvailable": "Недоступна",
+  "enableKeychain": "Включить шифрование через связку ключей",
+  "enableKeychainSubtitle": "Перешифровать сохранённые данные с помощью связки ключей ОС",
+  "keychainEnabled": "Шифрование через связку ключей включено",
   "manageMasterPassword": "Управление мастер-паролем",
   "manageMasterPasswordSubtitle": "Установить, изменить или удалить мастер-пароль"
 }

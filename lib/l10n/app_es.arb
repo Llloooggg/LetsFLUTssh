@@ -445,6 +445,9 @@
   "keychainStatus": "Llavero",
   "keychainAvailable": "Disponible ({name})",
   "keychainNotAvailable": "No disponible",
+  "enableKeychain": "Activar cifrado de llavero",
+  "enableKeychainSubtitle": "Volver a cifrar datos almacenados usando llavero del sistema",
+  "keychainEnabled": "Cifrado de llavero activado",
   "manageMasterPassword": "Gestionar contraseña maestra",
   "manageMasterPasswordSubtitle": "Establecer, cambiar o eliminar contraseña maestra"
 }

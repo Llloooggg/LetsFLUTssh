@@ -439,6 +439,9 @@
   "keychainStatus": "زنجیره کلید",
   "keychainAvailable": "در دسترس ({name})",
   "keychainNotAvailable": "در دسترس نیست",
+  "enableKeychain": "فعال‌سازی رمزنگاری زنجیره کلید",
+  "enableKeychainSubtitle": "دوباره‌رمزنگاری داده‌های ذخیره‌شده با استفاده از زنجیره کلید سیستم",
+  "keychainEnabled": "رمزنگاری زنجیره کلید فعال شد",
   "manageMasterPassword": "مدیریت رمز عبور اصلی",
   "manageMasterPasswordSubtitle": "تنظیم، تغییر یا حذف رمز عبور اصلی"
 }

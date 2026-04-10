@@ -445,6 +445,9 @@
   "keychainStatus": "키체인",
   "keychainAvailable": "사용 가능 ({name})",
   "keychainNotAvailable": "사용 불가",
+  "enableKeychain": "키체인 암호화 활성화",
+  "enableKeychainSubtitle": "OS 키체인을 사용하여 저장된 데이터 재암호화",
+  "keychainEnabled": "키체인 암호화 활성화됨",
   "manageMasterPassword": "마스터 비밀번호 관리",
   "manageMasterPasswordSubtitle": "마스터 비밀번호 설정, 변경 또는 제거"
 }

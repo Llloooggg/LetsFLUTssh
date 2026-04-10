@@ -1518,6 +1518,16 @@ class SDe extends S {
   String get keychainNotAvailable => 'Nicht verfügbar';
 
   @override
+  String get enableKeychain => 'Schlüsselbund-Verschlüsselung aktivieren';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Gespeicherte Daten mit OS-Schlüsselbund neu verschlüsseln';
+
+  @override
+  String get keychainEnabled => 'Schlüsselbund-Verschlüsselung aktiviert';
+
+  @override
   String get manageMasterPassword => 'Master-Passwort verwalten';
 
   @override

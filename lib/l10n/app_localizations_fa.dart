@@ -1497,6 +1497,16 @@ class SFa extends S {
   String get keychainNotAvailable => 'در دسترس نیست';
 
   @override
+  String get enableKeychain => 'فعال‌سازی رمزنگاری زنجیره کلید';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'دوباره‌رمزنگاری داده‌های ذخیره‌شده با استفاده از زنجیره کلید سیستم';
+
+  @override
+  String get keychainEnabled => 'رمزنگاری زنجیره کلید فعال شد';
+
+  @override
   String get manageMasterPassword => 'مدیریت رمز عبور اصلی';
 
   @override

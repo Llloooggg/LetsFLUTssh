@@ -1478,6 +1478,15 @@ class SJa extends S {
   String get keychainNotAvailable => '利用不可';
 
   @override
+  String get enableKeychain => 'キーチェーン暗号化を有効にする';
+
+  @override
+  String get enableKeychainSubtitle => 'OS キーチェーンを使用して保存データを再暗号化';
+
+  @override
+  String get keychainEnabled => 'キーチェーン暗号化が有効になりました';
+
+  @override
   String get manageMasterPassword => 'マスターパスワード管理';
 
   @override

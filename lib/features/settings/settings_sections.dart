@@ -211,6 +211,14 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           subtitle: l10n.manageMasterPasswordSubtitle,
           onTap: () => _manageMasterPassword(context),
         ),
+        if (_keychainAvailable == true &&
+            secState.level == SecurityLevel.plaintext)
+          _ActionTile(
+            icon: Icons.enhanced_encryption,
+            title: l10n.enableKeychain,
+            subtitle: l10n.enableKeychainSubtitle,
+            onTap: () => _enableKeychain(context),
+          ),
         _ActionTile(
           icon: Icons.verified_user,
           title: l10n.knownHosts,
@@ -495,6 +503,48 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // No keychain — fall back to plaintext.
     await _reEncryptAll(null, SecurityLevel.plaintext);
     await manager.disable();
+  }
+
+  Future<void> _enableKeychain(BuildContext context) async {
+    final l10n = S.of(context);
+    final keyStorage = ref.read(secureKeyStorageProvider);
+
+    if (!context.mounted) return;
+
+    try {
+      final key = AesGcm.generateKey();
+      final stored = await keyStorage.writeKey(key);
+      if (!stored) {
+        throw Exception('Failed to store key in keychain');
+      }
+
+      if (!context.mounted) return;
+      AppProgressDialog.show(context);
+      try {
+        await _reEncryptAll(key, SecurityLevel.keychain);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          Toast.show(
+            context,
+            message: l10n.keychainEnabled,
+            level: ToastLevel.success,
+          );
+          _checkState();
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop();
+        rethrow;
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Enable keychain failed: $e',
+        name: 'Security',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+      }
+    }
   }
 
   /// Re-encrypt all three data stores and update global security state.

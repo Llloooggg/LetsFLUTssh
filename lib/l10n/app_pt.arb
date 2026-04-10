@@ -445,6 +445,9 @@
   "keychainStatus": "Chaveiro",
   "keychainAvailable": "Disponível ({name})",
   "keychainNotAvailable": "Não disponível",
+  "enableKeychain": "Ativar criptografia do chaveiro",
+  "enableKeychainSubtitle": "Recriptografar dados armazenados usando chaveiro do sistema",
+  "keychainEnabled": "Criptografia do chaveiro ativada",
   "manageMasterPassword": "Gerenciar senha mestra",
   "manageMasterPasswordSubtitle": "Definir, alterar ou remover senha mestra"
 }

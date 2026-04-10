@@ -445,6 +445,9 @@
   "keychainStatus": "Trousseau",
   "keychainAvailable": "Disponible ({name})",
   "keychainNotAvailable": "Non disponible",
+  "enableKeychain": "Activer le chiffrement par trousseau",
+  "enableKeychainSubtitle": "Rechiffrer les données stockées avec le trousseau système",
+  "keychainEnabled": "Chiffrement par trousseau activé",
   "manageMasterPassword": "Gérer le mot de passe principal",
   "manageMasterPasswordSubtitle": "Définir, modifier ou supprimer le mot de passe principal"
 }

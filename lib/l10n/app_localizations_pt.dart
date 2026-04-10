@@ -1509,6 +1509,16 @@ class SPt extends S {
   String get keychainNotAvailable => 'Não disponível';
 
   @override
+  String get enableKeychain => 'Ativar criptografia do chaveiro';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Recriptografar dados armazenados usando chaveiro do sistema';
+
+  @override
+  String get keychainEnabled => 'Criptografia do chaveiro ativada';
+
+  @override
   String get manageMasterPassword => 'Gerenciar senha mestra';
 
   @override

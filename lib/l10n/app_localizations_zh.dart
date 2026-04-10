@@ -1469,6 +1469,15 @@ class SZh extends S {
   String get keychainNotAvailable => '不可用';
 
   @override
+  String get enableKeychain => '启用钥匙串加密';
+
+  @override
+  String get enableKeychainSubtitle => '使用系统钥匙串重新加密存储的数据';
+
+  @override
+  String get keychainEnabled => '钥匙串加密已启用';
+
+  @override
   String get manageMasterPassword => '管理主密码';
 
   @override

@@ -1497,6 +1497,16 @@ class SVi extends S {
   String get keychainNotAvailable => 'Không khả dụng';
 
   @override
+  String get enableKeychain => 'Bật mã hóa chuỗi khóa';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Mã hóa lại dữ liệu được lưu bằng chuỗi khóa hệ thống';
+
+  @override
+  String get keychainEnabled => 'Mã hóa chuỗi khóa đã được bật';
+
+  @override
   String get manageMasterPassword => 'Quản lý mật khẩu chính';
 
   @override
