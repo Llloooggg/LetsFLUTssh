@@ -76,7 +76,7 @@ jobs:
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev lld
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev lld
 
       - name: Build Linux x64
         run: flutter build linux --release
@@ -144,7 +144,7 @@ jobs:
           Description: Lightweight cross-platform SSH/SFTP client
            A full-featured SSH terminal and SFTP file browser with session
            management, encrypted credential storage, and tiling terminal layout.
-          Depends: libgtk-3-0
+          Depends: libgtk-3-0, libsecret-1-0
           Section: net
           Priority: optional
           EOF

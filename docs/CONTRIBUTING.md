@@ -11,7 +11,7 @@
 
 ```bash
 # System dependencies
-sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev lld
+sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev lld
 
 # If using LLVM-based clang (e.g. clang-19), install matching lld:
 sudo apt-get install lld-19
@@ -28,13 +28,13 @@ Build output: `build/linux/x64/release/bundle/`
 ### Linux (Fedora/RHEL)
 
 ```bash
-sudo dnf install clang cmake ninja-build gtk3-devel lld pkg-config
+sudo dnf install clang cmake ninja-build gtk3-devel libsecret-devel lld pkg-config
 ```
 
 ### Linux (Arch)
 
 ```bash
-sudo pacman -S clang cmake ninja gtk3 lld pkg-config
+sudo pacman -S clang cmake ninja gtk3 libsecret lld pkg-config
 ```
 
 ### Windows
