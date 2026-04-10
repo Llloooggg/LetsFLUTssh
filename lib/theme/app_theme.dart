@@ -444,6 +444,7 @@ abstract final class AppTheme {
         scrolledUnderElevation: 0,
       ),
       popupMenuTheme: PopupMenuThemeData(
+        elevation: 0,
         color: popupColor,
         shape: RoundedRectangleBorder(
           borderRadius: radiusSm,
