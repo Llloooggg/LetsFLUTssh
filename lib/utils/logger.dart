@@ -77,7 +77,12 @@ class AppLogger {
 
   /// Log a message. Also forwards to dart:developer log (DevTools).
   /// File write only happens if logging is [enabled].
-  void log(String message, {String? name, Object? error}) {
+  void log(
+    String message, {
+    String? name,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
     final tag = name ?? 'App';
     dev.log(message, name: tag, error: error);
 
@@ -92,6 +97,10 @@ class AppLogger {
       _sink!.writeln('$ts [$tag] $message');
       if (error != null) {
         _sink!.writeln('  Error: $error');
+      }
+      if (stackTrace != null) {
+        _sink!.writeln('  Stack trace:');
+        _sink!.writeln('$stackTrace');
       }
     } catch (_) {
       // Don't crash the app for logging failures.

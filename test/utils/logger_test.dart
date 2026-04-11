@@ -118,6 +118,25 @@ void main() {
       expect(content, contains('Error: DetailedError'));
     });
 
+    test('log() with stackTrace writes stack trace lines', () async {
+      await AppLogger.instance.init();
+      await AppLogger.instance.setEnabled(true);
+
+      final stack = StackTrace.fromString('TestStack:\n#0 main\n#1 helper');
+      AppLogger.instance.log(
+        'crash info',
+        name: 'Trace',
+        error: 'Boom',
+        stackTrace: stack,
+      );
+
+      final content = await AppLogger.instance.readLog();
+      expect(content, contains('[Trace] crash info'));
+      expect(content, contains('Error: Boom'));
+      expect(content, contains('Stack trace:'));
+      expect(content, contains('TestStack:'));
+    });
+
     test('log() uses default tag when name is null', () async {
       await AppLogger.instance.init();
       await AppLogger.instance.setEnabled(true);
