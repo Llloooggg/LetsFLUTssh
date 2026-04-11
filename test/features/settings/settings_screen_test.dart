@@ -11,8 +11,11 @@ import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
+import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
+import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/update_provider.dart';
@@ -66,10 +69,95 @@ class _MockFilePickerPlatform extends FilePickerPlatform
   }) async => null;
 }
 
+/// In-memory fake that mirrors FlutterSecureStorage API.
+class _FakeFlutterSecureStorage implements FlutterSecureStorage {
+  final Map<String, String> _store = {};
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (value == null) {
+      _store.remove(key);
+    } else {
+      _store[key] = value;
+    }
+  }
+
+  @override
+  Future<String?> read({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => _store[key];
+
+  @override
+  Future<void> delete({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    _store.remove(key);
+  }
+
+  @override
+  Future<bool> containsKey({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => _store.containsKey(key);
+
+  @override
+  Future<Map<String, String>> readAll({
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => Map.of(_store);
+
+  @override
+  Future<void> deleteAll({
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    _store.clear();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory tempDir;
   late _MockFilePickerPlatform mockFilePicker;
+  late _FakeFlutterSecureStorage fakeSecureStorage;
+  late SecureKeyStorage fakeKeyStorage;
 
   setUp(() async {
     // Force mobile layout so existing tests (written for flat ListView) keep working.
@@ -81,6 +169,9 @@ void main() {
     // Mock FilePicker to prevent native dialog launches in tests.
     mockFilePicker = _MockFilePickerPlatform()..directoryPath = tempDir.path;
     FilePickerPlatform.instance = mockFilePicker;
+    // Fake secure storage so _SecuritySection's keyStorage.isAvailable() works.
+    fakeSecureStorage = _FakeFlutterSecureStorage();
+    fakeKeyStorage = SecureKeyStorage(storage: fakeSecureStorage);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/path_provider'),
@@ -116,6 +207,7 @@ void main() {
         masterPasswordProvider.overrideWithValue(
           MasterPasswordManager(basePath: tempDir.path),
         ),
+        secureKeyStorageProvider.overrideWithValue(fakeKeyStorage),
       ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
@@ -138,6 +230,7 @@ void main() {
         ),
         sessionStoreProvider.overrideWithValue(SessionStore()),
         sessionProvider.overrideWith(SessionNotifier.new),
+        secureKeyStorageProvider.overrideWithValue(fakeKeyStorage),
       ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
