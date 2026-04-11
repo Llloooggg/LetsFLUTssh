@@ -1584,7 +1584,7 @@ class AppLogger {
 
   Future<void> setEnabled(bool value);
   Future<void> init();
-  void log(String message, {String? name, Object? error});
+  void log(String message, {String? name, Object? error, StackTrace? stackTrace});
   Future<String> readLog();
   Future<void> dispose();   // sets enabled=false, closes sink
   Future<void> clearLogs(); // deletes all log files, reopens if enabled
@@ -1593,7 +1593,19 @@ class AppLogger {
 File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
 `dispose()` sets `_enabled = false` so no writes occur after disposal.
 
-**Rule:** `AppLogger.instance.log(message, name: 'Tag')` everywhere. Never `print()` / `debugPrint()`. Never log sensitive data.
+**Rule:** `AppLogger.instance.log(message, name: 'Tag')` everywhere. Never `print()` / `debugPrint()`. Never log sensitive data. Use `stackTrace` parameter for full stack traces.
+
+### Sanitize
+
+```dart
+String sanitizeErrorMessage(String message);
+// Redacts: user@host → <user>@host, IPv4 → <ip>, port → :<port>,
+// file paths with usernames → <path>/ or /<user>/
+```
+
+Use `sanitizeErrorMessage()` before logging any error message that may contain connection details, usernames, IPs, or file paths. The global error handler in `main.dart` applies this automatically.
+
+**Rule:** Always sanitize error messages that may contain user data, server addresses, or file paths.
 
 ### FileUtils
 

@@ -54,6 +54,7 @@ import 'features/mobile/mobile_shell.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
 import 'utils/platform.dart' as plat;
+import 'utils/sanitize.dart';
 
 /// Global navigator key for showing dialogs from non-UI contexts
 /// (e.g., host key verification during SSH handshake).
@@ -88,6 +89,7 @@ Future<void> main() async {
       'Unhandled async error: $error',
       name: 'ErrorBoundary',
       error: error,
+      stackTrace: stack,
     );
     // Show user-friendly error dialog if app is visible
     final ctx = navigatorKey.currentContext;
@@ -144,23 +146,26 @@ Future<void> main() async {
 }
 
 /// Shows a user-friendly error dialog for unhandled async errors.
-/// Logs the full error + stack trace, shows a short message to the user.
+/// Logs full details (sanitized), shows a brief message to the user.
 void _showGlobalErrorDialog(
   BuildContext context,
   Object error,
   StackTrace stack,
 ) {
   final errorType = error.runtimeType.toString();
-  final errorMessage = error.toString();
+  final errorMessage = _sanitizeErrorMessage(error.toString());
 
-  // Log full details for debugging
+  // Log sanitized details for debugging
   AppLogger.instance.log(
     'Global error handler caught: $errorType\n'
     'Message: $errorMessage\n'
     'Stack trace:\n$stack',
     name: 'ErrorBoundary',
     error: error,
+    stackTrace: stack,
   );
+
+  final loggingEnabled = AppLogger.instance.enabled;
 
   // Show user-friendly dialog
   showDialog<void>(
@@ -174,50 +179,53 @@ void _showGlobalErrorDialog(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Something went wrong. The app will continue running.',
+              'An unexpected error occurred. The app will continue running.',
               style: TextStyle(
                 fontSize: AppFonts.sm,
                 color: AppTheme.fg,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
-              'Error type: $errorType',
+              loggingEnabled
+                  ? 'Full details have been saved to the log file.'
+                  : 'Enable logging in Settings to save error details.',
               style: TextStyle(
                 fontSize: AppFonts.xs,
                 color: AppTheme.fgFaint,
-                fontFamily: 'JetBrains Mono',
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
-              errorMessage.length > 200
-                  ? '${errorMessage.substring(0, 200)}...'
-                  : errorMessage,
+              'Error: $errorType',
               style: TextStyle(
-                fontSize: AppFonts.xs,
+                fontSize: AppFonts.xxs,
                 color: AppTheme.fgFaint,
                 fontFamily: 'JetBrains Mono',
               ),
-              maxLines: 5,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
         actions: [
-          AppDialogAction.secondary(
-            label: 'Copy Details',
-            onTap: () {
-              final fullError = '$errorType: $errorMessage\n\nStack trace:\n$stack';
-              Clipboard.setData(ClipboardData(text: fullError));
-              Navigator.of(ctx).pop();
-              Toast.show(
-                ctx,
-                message: 'Error details copied to clipboard',
-                level: ToastLevel.success,
-              );
-            },
-          ),
+          if (!loggingEnabled)
+            AppDialogAction.secondary(
+              label: 'Enable Logging',
+              onTap: () {
+                AppLogger.instance.setEnabled(true);
+                AppLogger.instance.log(
+                  'Logging enabled after error: $errorType: $errorMessage',
+                  name: 'ErrorBoundary',
+                );
+                Navigator.of(ctx).pop();
+                Toast.show(
+                  ctx,
+                  message: 'Logging enabled — errors will be saved to log file',
+                  level: ToastLevel.success,
+                );
+              },
+            ),
           AppDialogAction.primary(
             label: 'OK',
             onTap: () => Navigator.of(ctx).pop(),
@@ -227,6 +235,10 @@ void _showGlobalErrorDialog(
     },
   );
 }
+
+/// Remove sensitive data from error messages before logging.
+/// Uses [sanitizeErrorMessage] from utils/sanitize.dart.
+String _sanitizeErrorMessage(String message) => sanitizeErrorMessage(message);
 
 class LetsFLUTsshApp extends ConsumerStatefulWidget {
   const LetsFLUTsshApp({super.key});
