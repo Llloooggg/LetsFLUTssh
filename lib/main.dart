@@ -1,3 +1,4 @@
+import 'dart:async' show runZonedGuarded;
 import 'dart:io' show File, exit;
 import 'dart:ui' show PlatformDispatcher;
 
@@ -73,30 +74,33 @@ Future<void> main() async {
   final loggerInit = AppLogger.instance.init();
 
   // Global error boundary — catch unhandled Flutter framework errors
+  // (build, layout, paint errors — logged but don't show dialog)
   FlutterError.onError = (details) {
+    final sanitizedMsg = sanitizeErrorMessage(details.exceptionAsString());
     AppLogger.instance.log(
-      'FlutterError: ${details.exceptionAsString()}',
+      'FlutterError: $sanitizedMsg',
       name: 'ErrorBoundary',
       error: details.exception,
+      stackTrace: details.stack,
     );
-    // Forward to default handler (logs to console in debug mode)
-    FlutterError.presentError(details);
   };
 
-  // Catch all unhandled async errors (e.g. from onPressed, Futures, streams)
+  // Catch errors that escape the Flutter zone entirely (timers, isolate messages)
   PlatformDispatcher.instance.onError = (error, stack) {
+    final sanitizedMsg = sanitizeErrorMessage(error.toString());
     AppLogger.instance.log(
-      'Unhandled async error: $error',
+      'Unhandled platform error: $sanitizedMsg',
       name: 'ErrorBoundary',
       error: error,
       stackTrace: stack,
     );
-    // Show user-friendly error dialog if app is visible
-    final ctx = navigatorKey.currentContext;
-    if (ctx != null && ctx.mounted) {
-      _showGlobalErrorDialog(ctx, error, stack);
-    }
-    return true; // Mark as handled to prevent default crash behavior
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        _showGlobalErrorDialog(ctx, error);
+      }
+    });
+    return true;
   };
 
   // Replace the red error screen with a user-friendly widget
@@ -137,108 +141,118 @@ Future<void> main() async {
   await loggerInit; // ensure log path resolved before enabling file logging
   AppLogger.instance.setEnabled(config.enableLogging);
 
-  runApp(
-    ProviderScope(
-      overrides: [configStoreProvider.overrideWithValue(configStore)],
-      child: const LetsFLUTsshApp(),
-    ),
-  );
+  // Wrap the entire app in runZonedGuarded to catch all async errors.
+  // This catches errors from onPressed, Futures, streams, timers, etc.
+  runZonedGuarded(() {
+    runApp(
+      ProviderScope(
+        overrides: [configStoreProvider.overrideWithValue(configStore)],
+        child: const LetsFLUTsshApp(),
+      ),
+    );
+  }, (error, stack) {
+    final sanitizedMsg = sanitizeErrorMessage(error.toString());
+    AppLogger.instance.log(
+      'Unhandled async error: $sanitizedMsg',
+      name: 'ErrorBoundary',
+      error: error,
+      stackTrace: stack,
+    );
+    // Show dialog after next frame — ensures Navigator is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        _showGlobalErrorDialog(ctx, error);
+      }
+    });
+  });
 }
 
 /// Shows a user-friendly error dialog for unhandled async errors.
-/// Logs full details (sanitized), shows a brief message to the user.
+/// Error is already logged by the global error handler — this just shows a brief message.
 void _showGlobalErrorDialog(
   BuildContext context,
   Object error,
-  StackTrace stack,
 ) {
   final errorType = error.runtimeType.toString();
-  final errorMessage = _sanitizeErrorMessage(error.toString());
-
-  // Log sanitized details for debugging
-  AppLogger.instance.log(
-    'Global error handler caught: $errorType\n'
-    'Message: $errorMessage\n'
-    'Stack trace:\n$stack',
-    name: 'ErrorBoundary',
-    error: error,
-    stackTrace: stack,
-  );
-
   final loggingEnabled = AppLogger.instance.enabled;
 
-  // Show user-friendly dialog
-  showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (ctx) {
-      return AppDialog(
-        title: 'Unexpected Error',
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'An unexpected error occurred. The app will continue running.',
-              style: TextStyle(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fg,
+  try {
+    showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AppDialog(
+          title: 'Unexpected Error',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'An unexpected error occurred. The app will continue running.',
+                style: TextStyle(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fg,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              loggingEnabled
-                  ? 'Full details have been saved to the log file.'
-                  : 'Enable logging in Settings to save error details.',
-              style: TextStyle(
-                fontSize: AppFonts.xs,
-                color: AppTheme.fgFaint,
+              const SizedBox(height: 8),
+              Text(
+                loggingEnabled
+                    ? 'Full details have been saved to the log file.'
+                    : 'Enable logging in Settings to save error details.',
+                style: TextStyle(
+                  fontSize: AppFonts.xs,
+                  color: AppTheme.fgFaint,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Error: $errorType',
-              style: TextStyle(
-                fontSize: AppFonts.xxs,
-                color: AppTheme.fgFaint,
-                fontFamily: 'JetBrains Mono',
+              const SizedBox(height: 8),
+              Text(
+                'Error: $errorType',
+                style: TextStyle(
+                  fontSize: AppFonts.xxs,
+                  color: AppTheme.fgFaint,
+                  fontFamily: 'JetBrains Mono',
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            ],
+          ),
+          actions: [
+            if (!loggingEnabled)
+              AppDialogAction.secondary(
+                label: 'Enable Logging',
+                onTap: () {
+                  AppLogger.instance.setEnabled(true);
+                  AppLogger.instance.log(
+                    'Logging enabled after error: $errorType',
+                    name: 'ErrorBoundary',
+                  );
+                  Navigator.of(ctx).pop();
+                  Toast.show(
+                    ctx,
+                    message: 'Logging enabled — errors will be saved to log file',
+                    level: ToastLevel.success,
+                  );
+                },
+              ),
+            AppDialogAction.primary(
+              label: 'OK',
+              onTap: () => Navigator.of(ctx).pop(),
             ),
           ],
-        ),
-        actions: [
-          if (!loggingEnabled)
-            AppDialogAction.secondary(
-              label: 'Enable Logging',
-              onTap: () {
-                AppLogger.instance.setEnabled(true);
-                AppLogger.instance.log(
-                  'Logging enabled after error: $errorType: $errorMessage',
-                  name: 'ErrorBoundary',
-                );
-                Navigator.of(ctx).pop();
-                Toast.show(
-                  ctx,
-                  message: 'Logging enabled — errors will be saved to log file',
-                  level: ToastLevel.success,
-                );
-              },
-            ),
-          AppDialogAction.primary(
-            label: 'OK',
-            onTap: () => Navigator.of(ctx).pop(),
-          ),
-        ],
-      );
-    },
-  );
+        );
+      },
+    );
+  } catch (e) {
+    // If dialog fails to show, at least log it
+    AppLogger.instance.log(
+      'Failed to show error dialog: $e',
+      name: 'ErrorBoundary',
+    );
+  }
 }
-
-/// Remove sensitive data from error messages before logging.
-/// Uses [sanitizeErrorMessage] from utils/sanitize.dart.
-String _sanitizeErrorMessage(String message) => sanitizeErrorMessage(message);
 
 class LetsFLUTsshApp extends ConsumerStatefulWidget {
   const LetsFLUTsshApp({super.key});

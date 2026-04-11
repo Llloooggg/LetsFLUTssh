@@ -36,6 +36,15 @@ void main() {
       );
     });
 
+    test('redacts user@<ip>:<port> pattern', () {
+      // This is the real-world case: admin@192.168.1.100:22
+      final result = sanitizeErrorMessage('admin@192.168.1.100:22');
+      expect(result, contains('<user>@'));
+      expect(result, contains(':<port>'));
+      expect(result, isNot(contains('admin')));
+      expect(result, isNot(contains('192.168.1.100')));
+    });
+
     test('redacts Windows file paths with usernames', () {
       expect(
         sanitizeErrorMessage('C:\\Users\\john\\Documents\\key.pem'),
@@ -72,6 +81,17 @@ void main() {
     test('leaves non-sensitive messages unchanged', () {
       const input = 'Failed to load SSH key file';
       expect(sanitizeErrorMessage(input), input);
+    });
+
+    test('redacts DBus errors without leaking paths', () {
+      // Real Linux desktop error
+      const input =
+          'org.freedesktop.DBus.Error.ServiceUnknown: '
+          'The name org.freedesktop.portal.Desktop was not provided by any .service files';
+      final result = sanitizeErrorMessage(input);
+      // DBus errors don't contain sensitive data, so should pass through unchanged
+      expect(result, contains('DBus.Error.ServiceUnknown'));
+      expect(result, contains('freedesktop.portal.Desktop'));
     });
   });
 }
