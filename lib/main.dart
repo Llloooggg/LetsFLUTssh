@@ -1,4 +1,5 @@
 import 'dart:io' show File, exit;
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -81,6 +82,21 @@ Future<void> main() async {
     FlutterError.presentError(details);
   };
 
+  // Catch all unhandled async errors (e.g. from onPressed, Futures, streams)
+  PlatformDispatcher.instance.onError = (error, stack) {
+    AppLogger.instance.log(
+      'Unhandled async error: $error',
+      name: 'ErrorBoundary',
+      error: error,
+    );
+    // Show user-friendly error dialog if app is visible
+    final ctx = navigatorKey.currentContext;
+    if (ctx != null && ctx.mounted) {
+      _showGlobalErrorDialog(ctx, error, stack);
+    }
+    return true; // Mark as handled to prevent default crash behavior
+  };
+
   // Replace the red error screen with a user-friendly widget
   ErrorWidget.builder = (details) {
     return Container(
@@ -124,6 +140,91 @@ Future<void> main() async {
       overrides: [configStoreProvider.overrideWithValue(configStore)],
       child: const LetsFLUTsshApp(),
     ),
+  );
+}
+
+/// Shows a user-friendly error dialog for unhandled async errors.
+/// Logs the full error + stack trace, shows a short message to the user.
+void _showGlobalErrorDialog(
+  BuildContext context,
+  Object error,
+  StackTrace stack,
+) {
+  final errorType = error.runtimeType.toString();
+  final errorMessage = error.toString();
+
+  // Log full details for debugging
+  AppLogger.instance.log(
+    'Global error handler caught: $errorType\n'
+    'Message: $errorMessage\n'
+    'Stack trace:\n$stack',
+    name: 'ErrorBoundary',
+    error: error,
+  );
+
+  // Show user-friendly dialog
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) {
+      return AppDialog(
+        title: 'Unexpected Error',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Something went wrong. The app will continue running.',
+              style: TextStyle(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fg,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Error type: $errorType',
+              style: TextStyle(
+                fontSize: AppFonts.xs,
+                color: AppTheme.fgFaint,
+                fontFamily: 'JetBrains Mono',
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              errorMessage.length > 200
+                  ? '${errorMessage.substring(0, 200)}...'
+                  : errorMessage,
+              style: TextStyle(
+                fontSize: AppFonts.xs,
+                color: AppTheme.fgFaint,
+                fontFamily: 'JetBrains Mono',
+              ),
+              maxLines: 5,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+        actions: [
+          AppDialogAction.secondary(
+            label: 'Copy Details',
+            onTap: () {
+              final fullError = '$errorType: $errorMessage\n\nStack trace:\n$stack';
+              Clipboard.setData(ClipboardData(text: fullError));
+              Navigator.of(ctx).pop();
+              Toast.show(
+                ctx,
+                message: 'Error details copied to clipboard',
+                level: ToastLevel.success,
+              );
+            },
+          ),
+          AppDialogAction.primary(
+            label: 'OK',
+            onTap: () => Navigator.of(ctx).pop(),
+          ),
+        ],
+      );
+    },
   );
 }
 
