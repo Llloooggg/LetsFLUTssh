@@ -1584,7 +1584,7 @@ class AppLogger {
 
   Future<void> setEnabled(bool value);
   Future<void> init();
-  void log(String message, {String? name, Object? error});
+  void log(String message, {String? name, Object? error, StackTrace? stackTrace});
   Future<String> readLog();
   Future<void> dispose();   // sets enabled=false, closes sink
   Future<void> clearLogs(); // deletes all log files, reopens if enabled
@@ -1593,7 +1593,19 @@ class AppLogger {
 File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
 `dispose()` sets `_enabled = false` so no writes occur after disposal.
 
-**Rule:** `AppLogger.instance.log(message, name: 'Tag')` everywhere. Never `print()` / `debugPrint()`. Never log sensitive data.
+**Rule:** `AppLogger.instance.log(message, name: 'Tag')` everywhere. Never `print()` / `debugPrint()`. Never log sensitive data. Use `stackTrace` parameter for full stack traces.
+
+### Sanitize
+
+```dart
+String sanitizeErrorMessage(String message);
+// Redacts: user@host → <user>@host, IPv4 → <ip>, port → :<port>,
+// file paths with usernames → <path>/ or /<user>/
+```
+
+Use `sanitizeErrorMessage()` before logging any error message that may contain connection details, usernames, IPs, or file paths. The global error handler in `main.dart` applies this automatically.
+
+**Rule:** Always sanitize error messages that may contain user data, server addresses, or file paths.
 
 ### FileUtils
 
@@ -2260,6 +2272,81 @@ Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import ret
 - `Connection.connectionError` stores raw `Object?` — localized at display time with `localizeError`
 - Unknown errno → original OS text preserved as-is
 - Applied in: `ConnectionManager`, `TerminalTab.reconnect()`, `TransferManager` (+ path stripping, inline error in transfer panel)
+
+### Error Handling Architecture
+
+#### Global Error Boundary (`main.dart`)
+
+Three-layer error handling catches all errors at appropriate levels:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   runZonedGuarded                       │
+│  Catches: async errors from onPressed, Future, Stream   │
+│  Action: Log (sanitized) + show user dialog             │
+└─────────────────────────────────────────────────────────┘
+                          │
+┌─────────────────────────────────────────────────────────┐
+│              FlutterError.onError                       │
+│  Catches: build, layout, render errors                  │
+│  Action: Log only (not user-facing)                     │
+└─────────────────────────────────────────────────────────┘
+                          │
+┌─────────────────────────────────────────────────────────┐
+│           PlatformDispatcher.onError                    │
+│  Catches: errors that escape Flutter zone entirely      │
+│  Action: Log (sanitized) + show user dialog             │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Error dialog behavior:**
+- Shows via `WidgetsBinding.instance.addPostFrameCallback` — ensures Navigator is available
+- Uses `useRootNavigator: true` — works even if current Navigator is broken
+- Wrapped in `try/catch` — if dialog fails to show, error is logged
+- User sees brief message; full details saved to log file (if logging enabled)
+
+#### Sensitive Data Sanitization (`utils/sanitize.dart`)
+
+All error messages are sanitized before logging to prevent accidental exposure of:
+
+| Pattern | Redacted to | Example |
+|---------|-------------|---------|
+| `user@host` | `<user>@host` | `admin@example.com` → `<user>@example.com` |
+| IPv4 | `<ip>` | `192.168.1.100` → `<ip>` |
+| `host:port` | `host:<port>` | `example.com:2222` → `example.com:<port>` |
+| Windows paths | `<path>\` | `C:\Users\john\...` → `<path>\` |
+| Unix paths | `/<user>/` | `/Users/john/.ssh/...` → `/<user>/.ssh/...` |
+
+Usage: `sanitizeErrorMessage(message)` before logging any error that may contain connection details or file paths.
+
+#### AppLogger (`utils/logger.dart`)
+
+```dart
+void log(String message, {String? name, Object? error, StackTrace? stackTrace});
+```
+
+- File logging is **disabled by default** — user enables via Settings → Enable Logging
+- Auto-rotation at 5 MB, keeps 3 rotated files
+- **Never** log sensitive data — use `sanitizeErrorMessage()` for error messages
+- `stackTrace` parameter writes full stack trace to log file for debugging
+
+#### Local Error Handling
+
+Global handler is a safety net. Expected errors should be caught locally with `try/catch`:
+
+```dart
+try {
+  await FilePicker.pickFiles(...);
+} catch (e, stack) {
+  AppLogger.instance.log('Failed to pick file: $e', name: 'Tag', error: e, stackTrace: stack);
+  // Show user-friendly message or fallback
+}
+```
+
+This provides:
+- Immediate, context-aware error handling
+- Graceful fallback (e.g., show "file picker unavailable" instead of crash)
+- Clearer log messages with operation context
 
 ---
 
