@@ -9,7 +9,7 @@ import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
   final testPayload = wrapInDeepLink(
-    encodeSessionsForQr([
+    encodeExportPayload([
       Session(
         label: 'test-server',
         server: const ServerAddress(host: 'example.com', user: 'root'),
@@ -70,7 +70,11 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () => QrDisplayScreen.show(context, data: testPayload, sessionCount: 5),
+                onPressed: () => QrDisplayScreen.show(
+                  context,
+                  data: testPayload,
+                  sessionCount: 5,
+                ),
                 child: const Text('Show'),
               ),
             ),
@@ -123,12 +127,15 @@ void main() {
 
     testWidgets('Copy Link button copies data to clipboard', (tester) async {
       String? clipboardContent;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-        if (call.method == 'Clipboard.setData') {
-          clipboardContent = (call.arguments as Map)['text'] as String;
-        }
-        return null;
-      });
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardContent = (call.arguments as Map)['text'] as String;
+          }
+          return null;
+        },
+      );
 
       await tester.pumpWidget(buildApp(data: testPayload));
       await tester.pumpAndSettle();

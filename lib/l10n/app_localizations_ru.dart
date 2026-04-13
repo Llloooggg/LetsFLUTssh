@@ -63,6 +63,59 @@ class SRu extends S {
   String get settings => 'Настройки';
 
   @override
+  String get appSettings => 'Настройки приложения';
+
+  @override
+  String get yes => 'Да';
+
+  @override
+  String get no => 'Нет';
+
+  @override
+  String get importWhatToImport => 'Что импортировать:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Введите мастер-пароль:';
+
+  @override
+  String get nextStep => 'Далее';
+
+  @override
+  String get includeCredentials => 'Включить пароли и SSH ключи';
+
+  @override
+  String get includePasswords => 'Пароли сессий';
+
+  @override
+  String get embeddedKeys => 'Встроенные ключи';
+
+  @override
+  String get managerKeys => 'Ключи из менеджера';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'Ключи из менеджера могут превысить размер QR';
+
+  @override
+  String get qrPasswordWarning =>
+      'Пароли будут незашифрованы в QR-коде. Любой, кто его отсканирует, сможет их увидеть.';
+
+  @override
+  String get sshKeysMayBeLarge => 'Ключи могут превысить размер QR';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Общий размер: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning => 'Пароли и SSH ключи БУДУТ видны в QR-коде';
+
+  @override
+  String get qrCredentialsTooLarge =>
+      'Учётные данные делают QR-код слишком большим';
+
+  @override
   String get terminal => 'Терминал';
 
   @override
@@ -180,6 +233,9 @@ class SRu extends S {
 
   @override
   String get sessions => 'Сессии';
+
+  @override
+  String get emptyFolders => 'Пустые папки';
 
   @override
   String get sessionsHeader => 'СЕССИИ';

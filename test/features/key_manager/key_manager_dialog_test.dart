@@ -19,10 +19,16 @@ class FakeKeyStore extends KeyStore {
     : _keys = {for (final e in initial ?? []) e.id: e};
 
   @override
+  Future<Map<String, SshKeyEntry>> loadAll() async => Map.of(_keys);
+
+  @override
   Future<Map<String, SshKeyEntry>> loadAllSafe() async => Map.of(_keys);
 
   @override
   Future<void> save(SshKeyEntry entry) async => _keys[entry.id] = entry;
+
+  @override
+  Future<SshKeyEntry?> get(String id) async => _keys[id];
 
   @override
   Future<void> delete(String id) async => _keys.remove(id);

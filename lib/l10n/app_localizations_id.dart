@@ -63,6 +63,60 @@ class SId extends S {
   String get settings => 'Pengaturan';
 
   @override
+  String get appSettings => 'Pengaturan Aplikasi';
+
+  @override
+  String get yes => 'Ya';
+
+  @override
+  String get no => 'Tidak';
+
+  @override
+  String get importWhatToImport => 'Apa yang akan diimpor:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Masukkan kata sandi utama:';
+
+  @override
+  String get nextStep => 'Berikutnya';
+
+  @override
+  String get includeCredentials => 'Sertakan kata sandi dan kunci SSH';
+
+  @override
+  String get includePasswords => 'Kata sandi sesi';
+
+  @override
+  String get embeddedKeys => 'Kunci tertanam';
+
+  @override
+  String get managerKeys => 'Kunci dari pengelola';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'Kunci pengelola dapat melebihi ukuran QR';
+
+  @override
+  String get qrPasswordWarning =>
+      'Kata sandi akan tidak terenkripsi dalam kode QR. Siapa pun yang memindai dapat melihatnya.';
+
+  @override
+  String get sshKeysMayBeLarge => 'Kunci dapat melebihi ukuran QR';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Ukuran total: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'Kata sandi dan kunci SSH AKAN terlihat di kode QR';
+
+  @override
+  String get qrCredentialsTooLarge =>
+      'Kredensial membuat kode QR terlalu besar';
+
+  @override
   String get terminal => 'Terminal';
 
   @override
@@ -180,6 +234,9 @@ class SId extends S {
 
   @override
   String get sessions => 'Sesi';
+
+  @override
+  String get emptyFolders => 'Folder kosong';
 
   @override
   String get sessionsHeader => 'SESI';

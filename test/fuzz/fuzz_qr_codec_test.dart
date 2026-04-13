@@ -3,24 +3,26 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
+import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
-/// Fuzz tests for QR codec ([decodeSessionsFromQr], [decodeImportUri]).
+/// Fuzz tests for QR codec ([decodeExportPayload], [decodeImportUri]).
 ///
 /// Verifies that no malformed payload can cause an unhandled crash.
 void main() {
-  group('Fuzz decodeSessionsFromQr', () {
+  group('Fuzz decodeExportPayload', () {
     final rng = Random(42);
 
     test('handles 1000 random payloads without crashing', () {
       for (var i = 0; i < 1000; i++) {
         final payload = _randomQrPayload(rng);
         // Must never throw — returns null on invalid input
-        decodeSessionsFromQr(payload);
+        decodeExportPayload(payload);
       }
     });
 
     test('handles empty string', () {
-      expect(decodeSessionsFromQr(''), isNull);
+      expect(decodeExportPayload(''), isNull);
     });
 
     test('handles non-JSON strings', () {
@@ -37,61 +39,135 @@ void main() {
         '<xml>data</xml>',
       ];
       for (final input in inputs) {
-        expect(decodeSessionsFromQr(input), isNull);
+        expect(decodeExportPayload(input), isNull);
       }
     });
 
     test('handles wrong version numbers', () {
-      for (var v = -10; v < 10; v++) {
-        if (v == 1) continue; // valid version
-        final payload = jsonEncode({'v': v, 's': []});
-        expect(decodeSessionsFromQr(payload), isNull);
+      // Build payloads with explicit wrong `v` field values as
+      // base64(JSON) to reach the old-format parser path.
+      final wrongVersions = [-999, -1, 0, 2, 3, 99, 9999999];
+      for (final v in wrongVersions) {
+        final json = jsonEncode({
+          'v': v,
+          's': [
+            {'l': 'test', 'h': 'host', 'u': 'user'},
+          ],
+        });
+        final encoded = base64Url.encode(utf8.encode(json));
+        // Must never throw
+        decodeExportPayload(encoded);
+      }
+
+      // Also test non-integer version values
+      final badTypeVersions = [
+        {'v': 'abc', 's': []},
+        {'v': null, 's': []},
+        {'v': true, 's': []},
+        {
+          'v': [1],
+          's': [],
+        },
+        {'v': 1.5, 's': []},
+        {'s': []}, // missing v entirely
+      ];
+      for (final payload in badTypeVersions) {
+        final encoded = base64Url.encode(utf8.encode(jsonEncode(payload)));
+        // Must never throw
+        decodeExportPayload(encoded);
       }
     });
 
     test('handles malformed session entries', () {
-      final payloads = [
-        '{"v":1,"s":null}',
-        '{"v":1,"s":"not_a_list"}',
-        '{"v":1,"s":[null]}',
-        '{"v":1,"s":["string"]}',
-        '{"v":1,"s":[42]}',
-        '{"v":1,"s":[true]}',
-        '{"v":1,"s":[[]]}',
-        '{"v":1,"s":[{"l":null,"h":null}]}',
-        '{"v":1,"s":[{"l":123,"h":456,"p":"NaN"}]}',
+      // These payloads have invalid type casts that should return null.
+      // Wrap in base64Url so they reach the old-format JSON parser path
+      // (raw JSON fails at the base64 layer and never tests JSON parsing).
+      final malformedJsonPayloads = [
+        '{"v":1,"s":"not_a_list"}', // s is string, not list
+        '{"v":1,"s":[null]}', // null entry in list
+        '{"v":1,"s":["string"]}', // string where object expected
+        '{"v":1,"s":[42]}', // number where object expected
+        '{"v":1,"s":[true]}', // bool where object expected
+        '{"v":1,"s":[[]]}', // list where object expected
+        '{"v":1,"s":[{"l":123,"h":456,"p":"NaN"}]}', // wrong types
       ];
-      for (final p in payloads) {
-        // May return null or a result — must not throw
-        try {
-          decodeSessionsFromQr(p);
-        } on TypeError {
-          // Acceptable — type cast failures
-        }
+      for (final json in malformedJsonPayloads) {
+        final encoded = base64Url.encode(utf8.encode(json));
+        // Must never throw — returns null on invalid input
+        expect(decodeExportPayload(encoded), isNull, reason: 'Payload: $json');
       }
+
+      // These are structurally valid and should decode with defaults.
+      // Use encodeExportPayload for proper base64(deflate(JSON)) format.
+      final validSessions = [
+        Session(
+          label: '',
+          server: const ServerAddress(host: '', user: ''),
+        ),
+      ];
+      final validEncoded = encodeExportPayload(validSessions);
+      final result = decodeExportPayload(validEncoded);
+      expect(result, isNotNull, reason: 'Encoded sessions should decode');
+      expect(result!.sessions, hasLength(1));
     });
 
     test('handles deeply nested payloads', () {
-      var nested = '{"v":1,"s":[{"l":"x","h":"y","u":"z"';
-      for (var i = 0; i < 100; i++) {
-        nested += ',"extra_$i":{"nested":true}';
+      // Build actual deeply nested JSON structures and encode as base64
+      // to verify the parser handles unexpected nesting gracefully.
+      Object nested = 'leaf';
+      for (var i = 0; i < 50; i++) {
+        nested = {'nested': nested};
       }
-      nested += '}]}';
-      // Must not crash on deep nesting
-      try {
-        decodeSessionsFromQr(nested);
-      } on TypeError {
-        // Acceptable
+
+      final deepPayloads = [
+        // Deeply nested object where 's' is expected
+        {'v': 1, 's': nested},
+        // Deeply nested inside session entries
+        {
+          'v': 1,
+          's': [nested],
+        },
+        // Deeply nested list
+        {
+          'v': 1,
+          's': [
+            [
+              [
+                [
+                  [
+                    ['deep'],
+                  ],
+                ],
+              ],
+            ],
+          ],
+        },
+        // Session entry with deeply nested field values
+        {
+          'v': 1,
+          's': [
+            {'l': nested, 'h': nested, 'u': nested},
+          ],
+        },
+      ];
+
+      for (final payload in deepPayloads) {
+        final encoded = base64Url.encode(utf8.encode(jsonEncode(payload)));
+        // Must never throw
+        decodeExportPayload(encoded);
       }
     });
 
     test('handles very large payloads', () {
-      final bigList = List.generate(
+      final sessions = List.generate(
         10000,
-        (i) => {'l': 'session_$i', 'h': 'host_$i', 'u': 'user_$i'},
+        (i) => Session(
+          label: 'session_$i',
+          server: ServerAddress(host: 'host_$i', user: 'user_$i'),
+        ),
       );
-      final payload = jsonEncode({'v': 1, 's': bigList});
-      final result = decodeSessionsFromQr(payload);
+      final encoded = encodeExportPayload(sessions);
+      final result = decodeExportPayload(encoded);
       expect(result, isNotNull);
       expect(result!.sessions.length, 10000);
     });

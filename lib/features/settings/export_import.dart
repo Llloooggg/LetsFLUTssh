@@ -8,7 +8,9 @@ import 'package:archive/archive.dart';
 import 'package:pointycastle/export.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
+import '../../utils/logger.dart';
 
 /// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM.
 ///
@@ -24,11 +26,14 @@ class ExportImport {
   static const _ivLen = 12;
   static const _pbkdf2Iterations = 600000;
   static const _sessionsFile = 'sessions.json';
+  static const _emptyFoldersFile = 'empty_folders.json';
   static const _configFile = 'config.json';
   static const _knownHostsFile = 'known_hosts';
 
   /// Export app data to an encrypted .lfs file.
   ///
+  /// [options] controls what data to include in the export.
+  /// [emptyFolders] set of empty folder paths to preserve.
   /// [knownHostsContent] is the decrypted known_hosts text (from
   /// [KnownHostsManager.exportToString]). Pass null to omit known_hosts.
   ///
@@ -38,47 +43,71 @@ class ExportImport {
     required List<Session> sessions,
     required AppConfig config,
     required String outputPath,
+    ExportOptions options = const ExportOptions(),
+    Set<String> emptyFolders = const {},
     String? knownHostsContent,
   }) async {
     // Build ZIP archive in memory
     final archive = Archive();
 
-    // Sessions with credentials
-    final sessionsJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(sessions.map((s) => s.toJsonWithCredentials()).toList());
-    archive.addFile(
-      ArchiveFile(
-        _sessionsFile,
-        utf8.encode(sessionsJson).length,
-        utf8.encode(sessionsJson),
-      ),
-    );
+    // Sessions with credentials (if included)
+    if (options.includeSessions) {
+      final sessionsJson = const JsonEncoder.withIndent(
+        '  ',
+      ).convert(sessions.map((s) => s.toJsonWithCredentials()).toList());
+      final sessionsBytes = utf8.encode(sessionsJson);
+      archive.addFile(
+        ArchiveFile(_sessionsFile, sessionsBytes.length, sessionsBytes),
+      );
 
-    // Config
-    final configJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(config.toJson());
-    archive.addFile(
-      ArchiveFile(
-        _configFile,
-        utf8.encode(configJson).length,
-        utf8.encode(configJson),
-      ),
-    );
+      // Empty folders (if sessions included)
+      if (emptyFolders.isNotEmpty) {
+        final foldersJson = const JsonEncoder.withIndent(
+          '  ',
+        ).convert(emptyFolders.toList());
+        final foldersBytes = utf8.encode(foldersJson);
+        archive.addFile(
+          ArchiveFile(_emptyFoldersFile, foldersBytes.length, foldersBytes),
+        );
+      }
+    }
 
-    // Known hosts (decrypted plaintext from the manager)
-    if (knownHostsContent != null && knownHostsContent.isNotEmpty) {
+    // Config (if included)
+    if (options.includeConfig) {
+      final configJson = const JsonEncoder.withIndent(
+        '  ',
+      ).convert(config.toJson());
+      final configBytes = utf8.encode(configJson);
+      archive.addFile(
+        ArchiveFile(_configFile, configBytes.length, configBytes),
+      );
+    }
+
+    // Known hosts (if included)
+    if (options.includeKnownHosts &&
+        knownHostsContent != null &&
+        knownHostsContent.isNotEmpty) {
       final khBytes = utf8.encode(knownHostsContent);
       archive.addFile(ArchiveFile(_knownHostsFile, khBytes.length, khBytes));
     }
 
     // Encode ZIP
     final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
+    AppLogger.instance.log(
+      'Export: ZIP archive ${zipBytes.length} bytes, '
+      '${sessions.length} sessions, '
+      'config=${options.includeConfig}, '
+      'knownHosts=${options.includeKnownHosts && knownHostsContent != null}',
+      name: 'ExportImport',
+    );
 
     // Encrypt with master password (runs in isolate — PBKDF2 600k is CPU-heavy)
     final encrypted = await Isolate.run(
       () => _encryptWithPassword(zipBytes, masterPassword),
+    );
+    AppLogger.instance.log(
+      'Export: encrypted ${encrypted.length} bytes',
+      name: 'ExportImport',
     );
 
     // Write to file
@@ -90,7 +119,9 @@ class ExportImport {
   }
 
   /// Decrypt an .lfs file and parse the archive + sessions.
-  static Future<({Archive archive, List<Session> sessions})>
+  static Future<
+    ({Archive archive, List<Session> sessions, Set<String> emptyFolders})
+  >
   _decryptAndParseArchive({
     required String filePath,
     required String masterPassword,
@@ -114,7 +145,21 @@ class ExportImport {
           .toList();
     }
 
-    return (archive: archive, sessions: sessions);
+    Set<String> emptyFolders = {};
+    final foldersFile = archive.findFile(_emptyFoldersFile);
+    if (foldersFile != null) {
+      final json = utf8.decode(foldersFile.content as List<int>);
+      final list = jsonDecode(json) as List;
+      emptyFolders = list.cast<String>().toSet();
+    }
+
+    AppLogger.instance.log(
+      'Import: decrypted ${encData.length} bytes, '
+      '${sessions.length} sessions, '
+      '${emptyFolders.length} empty folders',
+      name: 'ExportImport',
+    );
+    return (archive: archive, sessions: sessions, emptyFolders: emptyFolders);
   }
 
   /// Preview contents of an .lfs archive without full import.
@@ -122,7 +167,7 @@ class ExportImport {
     required String filePath,
     required String masterPassword,
   }) async {
-    final (:archive, :sessions) = await _decryptAndParseArchive(
+    final (:archive, :sessions, :emptyFolders) = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
     );
@@ -134,11 +179,13 @@ class ExportImport {
       sessions: sessions,
       hasConfig: hasConfig,
       hasKnownHosts: hasKnownHosts,
+      emptyFolders: emptyFolders,
     );
   }
 
   /// Import data from an .lfs archive.
   ///
+  /// [options] controls what data to import (only imports what's present).
   /// [mode] controls how sessions are merged:
   /// - `ImportMode.merge` — add new sessions, skip existing (by ID)
   /// - `ImportMode.replace` — replace all sessions with imported ones
@@ -146,17 +193,16 @@ class ExportImport {
     required String filePath,
     required String masterPassword,
     required ImportMode mode,
-    required bool importConfig,
-    required bool importKnownHosts,
+    ExportOptions options = const ExportOptions(),
   }) async {
-    final (:archive, :sessions) = await _decryptAndParseArchive(
+    final (:archive, :sessions, :emptyFolders) = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
     );
 
-    // Parse config
+    // Parse config (only if requested and present)
     AppConfig? config;
-    if (importConfig) {
+    if (options.includeConfig) {
       final configFile = archive.findFile(_configFile);
       if (configFile != null) {
         final json = utf8.decode(configFile.content as List<int>);
@@ -164,9 +210,9 @@ class ExportImport {
       }
     }
 
-    // Known hosts — return content for the caller to import via manager
+    // Known hosts — return content only if requested
     String? knownHostsContent;
-    if (importKnownHosts) {
+    if (options.includeKnownHosts) {
       final khFile = archive.findFile(_knownHostsFile);
       if (khFile != null) {
         knownHostsContent = utf8.decode(khFile.content as List<int>);
@@ -174,7 +220,8 @@ class ExportImport {
     }
 
     return ImportResult(
-      sessions: sessions,
+      sessions: options.includeSessions ? sessions : [],
+      emptyFolders: options.includeSessions ? emptyFolders : {},
       config: config,
       mode: mode,
       knownHostsContent: knownHostsContent,
@@ -231,12 +278,18 @@ class LfsPreview {
   final List<Session> sessions;
   final bool hasConfig;
   final bool hasKnownHosts;
+  final Set<String> emptyFolders;
 
   const LfsPreview({
     required this.sessions,
-    required this.hasConfig,
-    required this.hasKnownHosts,
+    this.hasConfig = false,
+    this.hasKnownHosts = false,
+    this.emptyFolders = const {},
   });
+
+  /// Derived from [sessions] to prevent stale/inconsistent state.
+  bool get hasSessions => sessions.isNotEmpty;
+  int get emptyFoldersCount => emptyFolders.length;
 }
 
 /// Import mode for sessions.
@@ -245,6 +298,7 @@ enum ImportMode { merge, replace }
 /// Result of importing an .lfs archive.
 class ImportResult {
   final List<Session> sessions;
+  final Set<String> emptyFolders;
   final AppConfig? config;
   final ImportMode mode;
 
@@ -254,6 +308,7 @@ class ImportResult {
 
   const ImportResult({
     required this.sessions,
+    this.emptyFolders = const {},
     this.config,
     required this.mode,
     this.knownHostsContent,

@@ -5,6 +5,29 @@ part of 'settings_screen.dart';
 // transfer, data (export/import/QR), updates, about
 // ═══════════════════════════════════════════════════════════════════
 
+/// Resolve keyId → keyData for sessions that reference the key store.
+/// Returns new list with resolved sessions (original list unchanged).
+Future<List<Session>> _resolveSessionKeys(
+  WidgetRef ref,
+  List<Session> sessions,
+) async {
+  final keyStore = ref.read(keyStoreProvider);
+  final resolved = <Session>[];
+  for (final s in sessions) {
+    if (s.keyId.isNotEmpty) {
+      final entry = await keyStore.get(s.keyId);
+      if (entry != null && entry.privateKey.isNotEmpty) {
+        resolved.add(
+          s.copyWith(auth: s.auth.copyWith(keyData: entry.privateKey)),
+        );
+        continue;
+      }
+    }
+    resolved.add(s);
+  }
+  return resolved;
+}
+
 /// Data section — groups export, import, QR, and data path tiles.
 class _DataSection extends ConsumerWidget {
   @override
@@ -629,6 +652,34 @@ class _ExportImportTile extends ConsumerWidget {
   }
 
   Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
+    final sessions = ref.read(sessionProvider);
+    final store = ref.read(sessionStoreProvider);
+    final l10n = S.of(context);
+
+    // Load all manager keys for size calculation (before resolving sessions)
+    final keyStore = ref.read(keyStoreProvider);
+    final allKeys = await keyStore.loadAll();
+    if (!context.mounted) return;
+    final managerKeys = Map<String, String>.fromEntries(
+      allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
+    );
+
+    // Show export dialog with original sessions (keyId preserved, not resolved)
+    // Sessions are resolved later during actual export to include manager keys
+    final exportResult = await UnifiedExportDialog.show(
+      context,
+      sessions: sessions,
+      emptyFolders: store.emptyFolders,
+      config: ref.read(configProvider),
+      knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+      isQrMode: false,
+      knownHostsLabel: l10n.knownHosts,
+      managerKeys: managerKeys,
+    );
+
+    if (exportResult == null || !context.mounted) return;
+
+    // Show password dialog
     final passwordCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
 
@@ -655,7 +706,7 @@ class _ExportImportTile extends ConsumerWidget {
       );
       if (outputPath == null || !context.mounted) return;
 
-      await _runExport(context, ref, password, outputPath);
+      await _runExport(context, ref, password, outputPath, exportResult);
     } catch (e) {
       AppLogger.instance.log('Export failed: $e', name: 'Settings', error: e);
       if (context.mounted) {
@@ -676,16 +727,31 @@ class _ExportImportTile extends ConsumerWidget {
     WidgetRef ref,
     String password,
     String outputPath,
+    UnifiedExportResult exportResult,
   ) async {
+    // Resolve keyId → keyData for actual export
+    final resolvedSessions = await _resolveSessionKeys(
+      ref,
+      exportResult.selectedSessions,
+    );
+
+    if (!context.mounted) return;
+
     // Show progress indicator while PBKDF2 + encryption runs in isolate
     AppProgressDialog.show(context);
     try {
       await ExportImport.export(
         masterPassword: password,
-        sessions: ref.read(sessionProvider),
+        sessions: resolvedSessions,
         config: ref.read(configProvider),
         outputPath: outputPath,
-        knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+        options: exportResult.options,
+        emptyFolders: exportResult.options.includeSessions
+            ? exportResult.selectedEmptyFolders
+            : {},
+        knownHostsContent: exportResult.options.includeKnownHosts
+            ? ref.read(knownHostsProvider).exportToString()
+            : null,
       );
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -729,95 +795,139 @@ class _ExportImportTile extends ConsumerWidget {
   }
 
   Future<void> _showImportDialog(BuildContext context, WidgetRef ref) async {
-    final pathCtrl = TextEditingController();
+    // Pick file
+    final title = S.of(context).pathToLfsFile;
+    final initDir = await _defaultDirectory();
+    final result = await FilePicker.pickFiles(
+      dialogTitle: title,
+      initialDirectory: initDir,
+      type: FileType.custom,
+      allowedExtensions: ['lfs'],
+    );
+    final path = result?.files.single.path;
+    if (path == null || !context.mounted) return;
+
+    // Preview archive
     final passwordCtrl = TextEditingController();
-    final modeHolder = _ValueHolder(ImportMode.merge);
 
     try {
-      final result =
-          await AppDialog.show<
-            ({String path, String password, ImportMode mode})
-          >(
-            context,
-            builder: (ctx) => _ImportDataDialog(
-              pathCtrl: pathCtrl,
-              passwordCtrl: passwordCtrl,
-              modeHolder: modeHolder,
-            ),
-          );
+      // Get password first
+      final password = await AppDialog.show<String>(
+        context,
+        builder: (ctx) => _ImportPasswordDialog(passwordCtrl: passwordCtrl),
+      );
 
-      if (result == null || !context.mounted) return;
-      await _executeImport(context, ref, result);
+      if (password == null || !context.mounted) return;
+
+      // Decrypt once — reuse for both preview and import to avoid running
+      // the expensive PBKDF2 key derivation (600k iterations) twice.
+      AppProgressDialog.show(context);
+      final fullImport = await ExportImport.import_(
+        filePath: path,
+        masterPassword: password,
+        mode: ImportMode.merge, // placeholder — user picks mode in preview
+        options: const ExportOptions(
+          includeSessions: true,
+          includeConfig: true,
+          includeKnownHosts: true,
+        ),
+      );
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // close progress
+
+      final preview = LfsPreview(
+        sessions: fullImport.sessions,
+        hasConfig: fullImport.config != null,
+        hasKnownHosts:
+            fullImport.knownHostsContent != null &&
+            fullImport.knownHostsContent!.isNotEmpty,
+        emptyFolders: fullImport.emptyFolders,
+      );
+
+      final importConfig = await LfsImportPreviewDialog.show(
+        context,
+        filePath: path,
+        preview: preview,
+      );
+
+      if (importConfig == null || !context.mounted) return;
+
+      // Filter the already-decrypted data by user's choices
+      final filteredResult = ImportResult(
+        sessions: importConfig.options.includeSessions
+            ? fullImport.sessions
+            : [],
+        emptyFolders: importConfig.options.includeSessions
+            ? fullImport.emptyFolders
+            : {},
+        config: importConfig.options.includeConfig ? fullImport.config : null,
+        mode: importConfig.mode,
+        knownHostsContent: importConfig.options.includeKnownHosts
+            ? fullImport.knownHostsContent
+            : null,
+      );
+
+      await _applyFilteredImport(context, ref, filteredResult);
+    } catch (e) {
+      AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).importFailed(localizeError(S.of(context), e)),
+          level: ToastLevel.error,
+        );
+      }
     } finally {
-      pathCtrl.dispose();
       passwordCtrl.dispose();
     }
   }
 
-  Future<void> _executeImport(
+  /// Apply an already-decrypted [ImportResult] to state.
+  ///
+  /// Called after the archive has been decrypted once (for preview) and
+  /// filtered by the user's data-type selections.
+  Future<void> _applyFilteredImport(
     BuildContext context,
     WidgetRef ref,
-    ({String path, String password, ImportMode mode}) result,
+    ImportResult importResult,
   ) async {
     try {
-      final file = File(result.path);
-      if (!await file.exists()) {
-        if (context.mounted) {
-          Toast.show(
-            context,
-            message: S.of(context).fileNotFound(result.path),
-            level: ToastLevel.error,
-          );
-        }
-        return;
-      }
+      final store = ref.read(sessionStoreProvider);
+      final importService = ImportService(
+        addSession: (s) => ref.read(sessionProvider.notifier).add(s),
+        addEmptyFolder: (f) =>
+            ref.read(sessionProvider.notifier).addEmptyFolder(f),
+        deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
+        getSessions: () => ref.read(sessionProvider),
+        applyConfig: (config) =>
+            ref.read(configProvider.notifier).update((_) => config),
+        getEmptyFolders: () => store.emptyFolders,
+        restoreSnapshot: (sessions, folders) =>
+            store.restoreSnapshot(sessions, folders),
+      );
+      await importService.applyResult(importResult);
 
-      // Show progress indicator while PBKDF2 + decryption runs in isolate
-      if (context.mounted) {
-        AppProgressDialog.show(context);
-      }
-
-      try {
-        final importResult = await ExportImport.import_(
-          filePath: result.path,
-          masterPassword: result.password,
-          mode: result.mode,
-          importConfig: true,
-          importKnownHosts: true,
-        );
-
-        final store = ref.read(sessionStoreProvider);
-        final importService = ImportService(
-          addSession: (s) => ref.read(sessionProvider.notifier).add(s),
-          deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
-          getSessions: () => ref.read(sessionProvider),
-          applyConfig: (config) =>
-              ref.read(configProvider.notifier).update((_) => config),
-          getEmptyFolders: () => store.emptyFolders,
-          restoreSnapshot: (sessions, folders) =>
-              store.restoreSnapshot(sessions, folders),
-        );
-        await importService.applyResult(importResult);
-
-        // Import known hosts via the manager (handles encryption).
-        if (importResult.knownHostsContent != null) {
+      // Import known hosts via the manager (handles encryption).
+      if (importResult.knownHostsContent != null) {
+        try {
           final knownHosts = ref.read(knownHostsProvider);
           await knownHosts.importFromString(importResult.knownHostsContent!);
-        }
-
-        if (context.mounted) {
-          Navigator.of(context).pop(); // close progress
-          Toast.show(
-            context,
-            message: S
-                .of(context)
-                .importedSessions(importResult.sessions.length),
-            level: ToastLevel.success,
+        } catch (e) {
+          AppLogger.instance.log(
+            'Failed to import known_hosts from LFS: $e',
+            name: 'Settings',
+            error: e,
           );
+          // Continue — known_hosts failure shouldn't fail entire import
         }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop(); // close progress
-        rethrow;
+      }
+
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).importedSessions(importResult.sessions.length),
+          level: ToastLevel.success,
+        );
       }
     } catch (e) {
       AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);
@@ -1205,16 +1315,58 @@ class _QrExportTile extends ConsumerWidget {
       return;
     }
     final store = ref.read(sessionStoreProvider);
-    final deepLink = await QrExportDialog.show(
+    final l10n = S.of(context);
+
+    // Load all manager keys for size calculation (before resolving sessions)
+    final keyStore = ref.read(keyStoreProvider);
+    final allKeys = await keyStore.loadAll();
+    if (!context.mounted) return;
+    final managerKeys = Map<String, String>.fromEntries(
+      allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
+    );
+
+    // Use unified export dialog with original sessions (keyId preserved)
+    final exportResult = await UnifiedExportDialog.show(
       context,
       sessions: sessions,
       emptyFolders: store.emptyFolders,
+      config: ref.read(configProvider),
+      knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+      isQrMode: true,
+      knownHostsLabel: l10n.knownHosts,
+      managerKeys: managerKeys,
     );
-    if (deepLink == null || !context.mounted) return;
 
+    if (exportResult == null || !context.mounted) return;
+
+    // Resolve keyId → keyData after dialog closes, for QR generation
+    final resolvedSessions = await _resolveSessionKeys(
+      ref,
+      exportResult.selectedSessions,
+    );
+    if (!context.mounted) return;
+
+    // Generate QR payload
+    final payload = encodeExportPayload(
+      resolvedSessions,
+      emptyFolders: exportResult.selectedEmptyFolders,
+      options: exportResult.options,
+      config: exportResult.options.includeConfig
+          ? ref.read(configProvider)
+          : null,
+      knownHostsContent: exportResult.options.includeKnownHosts
+          ? ref.read(knownHostsProvider).exportToString()
+          : null,
+    );
+
+    final deepLink = wrapInDeepLink(payload);
     final data = decodeImportUri(Uri.parse(deepLink));
-    final count = data?.sessions.length ?? 0;
-    await QrDisplayScreen.show(context, data: deepLink, sessionCount: count);
+    final sessionCount = data?.sessions.length ?? 0;
+    await QrDisplayScreen.show(
+      context,
+      data: deepLink,
+      sessionCount: sessionCount,
+    );
   }
 }
 

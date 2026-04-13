@@ -63,6 +63,59 @@ class SEn extends S {
   String get settings => 'Settings';
 
   @override
+  String get appSettings => 'App Settings';
+
+  @override
+  String get yes => 'Yes';
+
+  @override
+  String get no => 'No';
+
+  @override
+  String get importWhatToImport => 'What to import:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Enter master password:';
+
+  @override
+  String get nextStep => 'Next';
+
+  @override
+  String get includeCredentials => 'Include passwords and SSH keys';
+
+  @override
+  String get includePasswords => 'Session passwords';
+
+  @override
+  String get embeddedKeys => 'Session keys';
+
+  @override
+  String get managerKeys => 'Keys from manager';
+
+  @override
+  String get managerKeysMayBeLarge => 'Manager keys may exceed QR size limit';
+
+  @override
+  String get qrPasswordWarning =>
+      'Passwords will be unencrypted in the QR code. Anyone who scans it can see them.';
+
+  @override
+  String get sshKeysMayBeLarge => 'Keys may exceed QR size limit';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Total size: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'Passwords and SSH keys WILL be visible in the QR code. Only share in trusted environments.';
+
+  @override
+  String get qrCredentialsTooLarge =>
+      'Credentials make the QR code too large. Remove some sessions or disable credentials.';
+
+  @override
   String get terminal => 'Terminal';
 
   @override
@@ -180,6 +233,9 @@ class SEn extends S {
 
   @override
   String get sessions => 'Sessions';
+
+  @override
+  String get emptyFolders => 'Empty Folders';
 
   @override
   String get sessionsHeader => 'SESSIONS';

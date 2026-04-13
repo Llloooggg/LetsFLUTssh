@@ -65,10 +65,6 @@ class Session {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  /// True when session was imported without credentials (e.g. via QR code).
-  /// Automatically set to false when auth is filled in via [copyWith].
-  final bool incomplete;
-
   Session({
     String? id,
     required this.label,
@@ -77,7 +73,6 @@ class Session {
     this.auth = const SessionAuth(),
     DateTime? createdAt,
     DateTime? updatedAt,
-    this.incomplete = false,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
@@ -93,7 +88,26 @@ class Session {
   String get keyData => auth.keyData;
   String get passphrase => auth.passphrase;
 
-  /// Validate required fields. Returns error message or null.
+  /// True if session has credentials (password, keyData, keyPath, or keyId).
+  bool get hasCredentials =>
+      password.isNotEmpty ||
+      keyData.isNotEmpty ||
+      keyId.isNotEmpty ||
+      keyPath.isNotEmpty;
+
+  /// True if session has all required fields (host, port, user, and credentials).
+  bool get isValid =>
+      host.trim().isNotEmpty &&
+      port >= 1 &&
+      port <= 65535 &&
+      user.trim().isNotEmpty &&
+      hasCredentials;
+
+  /// Validate minimum required fields for storage. Returns error message or null.
+  ///
+  /// Unlike [isValid], this does NOT require credentials — a session can be
+  /// stored without credentials and completed later. Use [isValid] to check
+  /// if the session is ready to connect.
   String? validate() {
     if (host.trim().isEmpty) return 'Host is required';
     if (port < 1 || port > 65535) return 'Port must be 1-65535';
@@ -134,20 +148,15 @@ class Session {
     String? folder,
     ServerAddress? server,
     SessionAuth? auth,
-    bool? incomplete,
   }) {
-    final newAuth = auth ?? this.auth;
-    // Auto-reset incomplete when credentials are filled in
-    final newIncomplete = incomplete ?? (this.incomplete && !newAuth.hasAuth);
     return Session(
       id: id,
       label: label ?? this.label,
       folder: folder ?? this.folder,
       server: server ?? this.server,
-      auth: newAuth,
+      auth: auth ?? this.auth,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
-      incomplete: newIncomplete,
     );
   }
 
@@ -165,7 +174,6 @@ class Session {
         keyData: keyData,
         passphrase: passphrase,
       ),
-      incomplete: incomplete,
     );
   }
 
@@ -182,7 +190,6 @@ class Session {
     'key_path': keyPath,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
-    if (incomplete) 'incomplete': true,
   };
 
   /// Serialize with secrets — for encrypted export only.
@@ -201,11 +208,10 @@ class Session {
           label == other.label &&
           folder == other.folder &&
           server == other.server &&
-          auth == other.auth &&
-          incomplete == other.incomplete;
+          auth == other.auth;
 
   @override
-  int get hashCode => Object.hash(id, label, folder, server, auth, incomplete);
+  int get hashCode => Object.hash(id, label, folder, server, auth);
 
   factory Session.fromJson(Map<String, dynamic> json) {
     return Session(
@@ -234,7 +240,6 @@ class Session {
       updatedAt:
           DateTime.tryParse(json['updated_at'] as String? ?? '') ??
           DateTime.now(),
-      incomplete: json['incomplete'] as bool? ?? false,
     );
   }
 }

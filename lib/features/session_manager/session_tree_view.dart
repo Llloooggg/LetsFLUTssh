@@ -956,7 +956,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           depth: depth,
           icon: Icon(Icons.terminal, size: _authIconSize, color: iconColor),
         ),
-      if (session.incomplete)
+      if (!session.isValid)
         Padding(
           padding: const EdgeInsets.only(right: 4),
           child: Tooltip(

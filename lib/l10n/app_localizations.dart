@@ -231,6 +231,102 @@ abstract class S {
   /// **'Settings'**
   String get settings;
 
+  /// No description provided for @appSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'App Settings'**
+  String get appSettings;
+
+  /// No description provided for @yes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get yes;
+
+  /// No description provided for @no.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get no;
+
+  /// No description provided for @importWhatToImport.
+  ///
+  /// In en, this message translates to:
+  /// **'What to import:'**
+  String get importWhatToImport;
+
+  /// No description provided for @enterMasterPasswordPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter master password:'**
+  String get enterMasterPasswordPrompt;
+
+  /// No description provided for @nextStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get nextStep;
+
+  /// No description provided for @includeCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Include passwords and SSH keys'**
+  String get includeCredentials;
+
+  /// No description provided for @includePasswords.
+  ///
+  /// In en, this message translates to:
+  /// **'Session passwords'**
+  String get includePasswords;
+
+  /// No description provided for @embeddedKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Session keys'**
+  String get embeddedKeys;
+
+  /// No description provided for @managerKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys from manager'**
+  String get managerKeys;
+
+  /// No description provided for @managerKeysMayBeLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Manager keys may exceed QR size limit'**
+  String get managerKeysMayBeLarge;
+
+  /// No description provided for @qrPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords will be unencrypted in the QR code. Anyone who scans it can see them.'**
+  String get qrPasswordWarning;
+
+  /// No description provided for @sshKeysMayBeLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys may exceed QR size limit'**
+  String get sshKeysMayBeLarge;
+
+  /// No description provided for @exportTotalSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Total size: {size}'**
+  String exportTotalSize(String size);
+
+  /// No description provided for @qrCredentialsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords and SSH keys WILL be visible in the QR code. Only share in trusted environments.'**
+  String get qrCredentialsWarning;
+
+  /// No description provided for @qrCredentialsTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials make the QR code too large. Remove some sessions or disable credentials.'**
+  String get qrCredentialsTooLarge;
+
   /// No description provided for @terminal.
   ///
   /// In en, this message translates to:
@@ -434,6 +530,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Sessions'**
   String get sessions;
+
+  /// No description provided for @emptyFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty Folders'**
+  String get emptyFolders;
 
   /// No description provided for @sessionsHeader.
   ///

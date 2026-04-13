@@ -63,6 +63,58 @@ class SAr extends S {
   String get settings => 'الإعدادات';
 
   @override
+  String get appSettings => 'إعدادات التطبيق';
+
+  @override
+  String get yes => 'نعم';
+
+  @override
+  String get no => 'لا';
+
+  @override
+  String get importWhatToImport => 'ماذا تريد أن تستورد:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'أدخل كلمة المرور الرئيسية:';
+
+  @override
+  String get nextStep => 'التالي';
+
+  @override
+  String get includeCredentials => 'تضمين كلمات المرور ومفاتيح SSH';
+
+  @override
+  String get includePasswords => 'كلمات مرور الجلسات';
+
+  @override
+  String get embeddedKeys => 'المفاتيح المضمنة';
+
+  @override
+  String get managerKeys => 'المفاتيح من المدير';
+
+  @override
+  String get managerKeysMayBeLarge => 'قد تتجاوز مفاتيح المدير حجم رمز QR';
+
+  @override
+  String get qrPasswordWarning =>
+      'ستكون كلمات المرور غير مشفرة في رمز QR. يمكن لأي شخص مسحه رؤيتها.';
+
+  @override
+  String get sshKeysMayBeLarge => 'قد تتجاوز المفاتيح حجم رمز QR';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'الحجم الإجمالي: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'ستكون كلمات المرور ومفاتيح SSH مرئية في رمز QR';
+
+  @override
+  String get qrCredentialsTooLarge => 'بيانات الاعتماد تجعل رمز QR كبيرًا جدًا';
+
+  @override
   String get terminal => 'الطرفية';
 
   @override
@@ -180,6 +232,9 @@ class SAr extends S {
 
   @override
   String get sessions => 'الجلسات';
+
+  @override
+  String get emptyFolders => 'مجلدات فارغة';
 
   @override
   String get sessionsHeader => 'الجلسات';

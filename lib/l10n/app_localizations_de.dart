@@ -63,6 +63,59 @@ class SDe extends S {
   String get settings => 'Einstellungen';
 
   @override
+  String get appSettings => 'App-Einstellungen';
+
+  @override
+  String get yes => 'Ja';
+
+  @override
+  String get no => 'Nein';
+
+  @override
+  String get importWhatToImport => 'Was importieren:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Master-Passwort eingeben:';
+
+  @override
+  String get nextStep => 'Weiter';
+
+  @override
+  String get includeCredentials => 'Passwörter und SSH-Schlüssel einbeziehen';
+
+  @override
+  String get includePasswords => 'Sitzungs-Passwörter';
+
+  @override
+  String get embeddedKeys => 'Eingebettete Schlüssel';
+
+  @override
+  String get managerKeys => 'Schlüssel aus dem Manager';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'Manager-Schlüssel können die QR-Größe überschreiten';
+
+  @override
+  String get qrPasswordWarning =>
+      'Passwörter sind im QR-Code unverschlüsselt. Jeder, der ihn scannt, kann sie sehen.';
+
+  @override
+  String get sshKeysMayBeLarge => 'Schlüssel können die QR-Größe überschreiten';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Gesamtgröße: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'Passwörter und SSH-Schlüssel SIND im QR-Code sichtbar';
+
+  @override
+  String get qrCredentialsTooLarge => 'Anmeldedaten machen den QR-Code zu groß';
+
+  @override
   String get terminal => 'Terminal';
 
   @override
@@ -181,6 +234,9 @@ class SDe extends S {
 
   @override
   String get sessions => 'Sitzungen';
+
+  @override
+  String get emptyFolders => 'Leere Ordner';
 
   @override
   String get sessionsHeader => 'SITZUNGEN';

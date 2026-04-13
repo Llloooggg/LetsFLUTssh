@@ -131,6 +131,7 @@ lib/
 │   ├── unlock_dialog.dart          # Master password unlock dialog (startup)
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
+│   ├── lfs_import_preview_dialog.dart # .lfs archive preview before import
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
 │   ├── mobile_selection_bar.dart    # Mobile bulk-action toolbar
 │   ├── mode_button.dart             # Shared pill-shaped toggle button (import mode)
@@ -140,7 +141,8 @@ lib/
 │   ├── status_indicator.dart        # Icon + count indicator with tooltip
 │   ├── styled_form_field.dart       # Shared form field (StyledFormField, FieldLabel, StyledInput)
 │   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
-│   └── toast.dart                   # Stacked notification toasts
+│   ├── toast.dart                   # Stacked notification toasts
+│   └── unified_export_dialog.dart   # Unified QR and .lfs export dialog
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -366,7 +368,7 @@ The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsib
 | `session_store.dart` | `SessionStore` | CRUD, JSON persistence, search, folders, plaintext→encrypted migration |
 | `session_tree.dart` | `SessionTree`, `TreeNode` | Hierarchical tree built from flat session list |
 | `session_history.dart` | `SessionHistory` | Undo/redo snapshots (stores credentials separately) |
-| `qr_codec.dart` | `QrCodec` | Session encoding/decoding for QR (no secrets, max ~2000 bytes) |
+| `qr_codec.dart` | Free functions | Export payload encoding/decoding (QR, `.lfs` files). Versioned format (`v: 2`), deflate compressed, key map deduplication. Public API: `encodeExportPayload()`, `decodeExportPayload()`, `calculateExportPayloadSize()`, `encodeSessionCompact()`, `wrapInDeepLink()`, `decodeImportUri()`. Supports sessions, empty folders, passwords, SSH keys, config, known_hosts. Max ~2000 bytes for QR. |
 
 #### Session model
 
@@ -379,7 +381,8 @@ class Session {
   final SessionAuth auth;     // authType, password, keyPath, keyData, passphrase
   final DateTime createdAt;
   final DateTime updatedAt;
-  final bool incomplete;      // true when imported via QR without credentials
+  bool get hasCredentials;    // true if password, keyData, keyId, or keyPath is set
+  bool get isValid;           // true if host, port, user, and hasCredentials (highlighted orange when false)
 
   SSHConfig toSSHConfig();    // conversion for connection
   Session copyWith({...});    // preserves id, updates updatedAt
@@ -665,14 +668,17 @@ class ConfigStore {
 ```dart
 class DeepLinkHandler {
   // Scheme: letsflutssh://connect?host=X&user=Y&port=Z
-  // Scheme: letsflutssh://import?d=BASE64URL (QR import)
+  // Scheme: letsflutssh://import?d=BASE64URL (QR import, deflate compressed)
   // .lfs files: app_links file open intent
   // .pem/.key files: file open intent
 
   // Validation:
-  // - path traversal rejection (../)
-  // - scheme whitelist
-  // - host/port validation
+  // - host/port sanitization, null byte rejection
+  // - scheme whitelist (letsflutssh, file, content)
+
+  // Callbacks:
+  //   onConnect(ConnectUri data) — host, port, user from connect URI
+  //   onQrImport(ExportPayloadData data) — sessions, config, known_hosts from QR
 
   // Deduplication: time-limited (2 s) to cover the cold-start race
   // (getInitialLink + uriLinkStream). After the window, the same URI
@@ -701,8 +707,10 @@ class DeepLinkHandler {
 [salt 32B] [IV 12B] [encrypted payload + GCM tag 16B]
 
 payload = ZIP archive:
-  sessions.json    ← session metadata
-  credentials.json ← credentials in plaintext (inside the encrypted zip)
+  sessions.json        ← session metadata with credentials (toJsonWithCredentials)
+  empty_folders.json   ← list of empty folder paths
+  config.json          ← app configuration
+  known_hosts          ← TOFU host key database (OpenSSH format)
 
 Encryption: AES-256-GCM
 Key: PBKDF2-SHA256(password, salt, 600000 iterations)
@@ -713,7 +721,16 @@ Key: PBKDF2-SHA256(password, salt, 600000 iterations)
 | Mode | Behavior |
 |------|----------|
 | **Merge** | Adds new sessions, skips existing ones (by id) |
-| **Replace** | Full replacement of all sessions from archive |
+| **Replace** | Full replacement of all sessions from archive, with rollback on failure |
+
+#### Import service
+
+`ImportService` applies import results with:
+- Session import with graceful skip on failure
+- Empty folder restoration
+- Config application via typed `AppConfig` callback
+- Known hosts import via `KnownHostsManager.importFromString()`
+- Rollback support in replace mode via `restoreSnapshot` callback
 
 ---
 
@@ -1058,7 +1075,9 @@ class FilePaneController extends ChangeNotifier {
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionManager. Async to support key store lookup |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link) |
-| `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export |
+| `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export (legacy, replaced by UnifiedExportDialog) |
+| `unified_export_dialog.dart` | `UnifiedExportDialog` | Unified export dialog for both QR and .lfs. Session tree with checkboxes, data type selection (passwords, embedded keys, manager keys, config, known_hosts), QR size indicator |
+| `lfs_import_preview_dialog.dart` | `LfsImportPreviewDialog` | Preview .lfs archive contents before import. Shows session count, config/known_hosts presence, data type checkboxes, mode selector |
 
 #### SessionConnect — flow
 
@@ -2241,12 +2260,14 @@ User password → PBKDF2-SHA256(600k iterations, random salt) → 256-bit key
 ### .lfs export
 
 ```
-[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions.json + config.json + known_hosts))]
+[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions.json + empty_folders.json + config.json + known_hosts))]
 
 Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 ```
 
 Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
+
+Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths.
 
 ### TOFU (Trust On First Use)
 
@@ -2394,7 +2415,7 @@ Two layers of fuzz testing:
 | Test file | Fuzzed function | Input type |
 |-----------|----------------|------------|
 | `fuzz_session_json_test.dart` | `Session.fromJson()` | Random JSON maps |
-| `fuzz_qr_codec_test.dart` | `decodeSessionsFromQr()`, `decodeImportUri()` | Random strings, URIs |
+| `fuzz_qr_codec_test.dart` | `decodeExportPayload()`, `decodeImportUri()` | Random strings, URIs |
 | `fuzz_app_config_test.dart` | `AppConfig.fromJson()` + sub-configs | Random JSON maps |
 | `fuzz_deeplink_test.dart` | `DeepLinkHandler.parseConnectUri()` | Random URIs |
 | `fuzz_format_test.dart` | `sanitizeError()`, `formatSize()`, `formatDuration()` | Random strings, errno patterns, objects |

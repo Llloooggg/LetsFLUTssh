@@ -63,6 +63,56 @@ class SKo extends S {
   String get settings => '설정';
 
   @override
+  String get appSettings => '앱 설정';
+
+  @override
+  String get yes => '예';
+
+  @override
+  String get no => '아니요';
+
+  @override
+  String get importWhatToImport => '가져올 내용:';
+
+  @override
+  String get enterMasterPasswordPrompt => '마스터 비밀번호 입력:';
+
+  @override
+  String get nextStep => '다음';
+
+  @override
+  String get includeCredentials => '비밀번호 및 SSH 키 포함';
+
+  @override
+  String get includePasswords => '세션 비밀번호';
+
+  @override
+  String get embeddedKeys => '내장 키';
+
+  @override
+  String get managerKeys => '관리자의 키';
+
+  @override
+  String get managerKeysMayBeLarge => '관리자 키는 QR 크기 제한을 초과할 수 있습니다';
+
+  @override
+  String get qrPasswordWarning => '비밀번호가 QR 코드에서 암호화되지 않습니다. 스캔한 누구나 볼 수 있습니다.';
+
+  @override
+  String get sshKeysMayBeLarge => '키가 QR 크기 제한을 초과할 수 있습니다';
+
+  @override
+  String exportTotalSize(String size) {
+    return '총 크기: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning => '비밀번호와 SSH 키가 QR 코드에 표시됩니다';
+
+  @override
+  String get qrCredentialsTooLarge => '인증 정보로 QR 코드가 너무 큽니다';
+
+  @override
   String get terminal => '터미널';
 
   @override
@@ -179,6 +229,9 @@ class SKo extends S {
 
   @override
   String get sessions => '세션';
+
+  @override
+  String get emptyFolders => '빈 폴더';
 
   @override
   String get sessionsHeader => '세션';

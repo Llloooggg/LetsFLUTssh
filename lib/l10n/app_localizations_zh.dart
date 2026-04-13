@@ -63,6 +63,56 @@ class SZh extends S {
   String get settings => '设置';
 
   @override
+  String get appSettings => '应用设置';
+
+  @override
+  String get yes => '是';
+
+  @override
+  String get no => '否';
+
+  @override
+  String get importWhatToImport => '导入内容：';
+
+  @override
+  String get enterMasterPasswordPrompt => '输入主密码:';
+
+  @override
+  String get nextStep => '下一步';
+
+  @override
+  String get includeCredentials => '包含密码和 SSH 密钥';
+
+  @override
+  String get includePasswords => '会话密码';
+
+  @override
+  String get embeddedKeys => '内置密钥';
+
+  @override
+  String get managerKeys => '管理器中的密钥';
+
+  @override
+  String get managerKeysMayBeLarge => '管理器密钥可能超出 QR 大小限制';
+
+  @override
+  String get qrPasswordWarning => '密码在 QR 码中未加密。任何扫描的人都可以看到。';
+
+  @override
+  String get sshKeysMayBeLarge => '密钥可能超出 QR 大小';
+
+  @override
+  String exportTotalSize(String size) {
+    return '总大小: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning => '密码和 SSH 密钥将在 QR 码中可见';
+
+  @override
+  String get qrCredentialsTooLarge => '凭证使 QR 码过大';
+
+  @override
   String get terminal => '终端';
 
   @override
@@ -179,6 +229,9 @@ class SZh extends S {
 
   @override
   String get sessions => '会话';
+
+  @override
+  String get emptyFolders => '空文件夹';
 
   @override
   String get sessionsHeader => '会话';

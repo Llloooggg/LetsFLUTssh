@@ -63,6 +63,60 @@ class SHi extends S {
   String get settings => 'सेटिंग्स';
 
   @override
+  String get appSettings => 'ऐप सेटिंग्स';
+
+  @override
+  String get yes => 'हाँ';
+
+  @override
+  String get no => 'नहीं';
+
+  @override
+  String get importWhatToImport => 'क्या आयात करें:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'मास्टर पासवर्ड दर्ज करें:';
+
+  @override
+  String get nextStep => 'अगला';
+
+  @override
+  String get includeCredentials => 'पासवर्ड और SSH कुंजियां शामिल करें';
+
+  @override
+  String get includePasswords => 'सेशन पासवर्ड';
+
+  @override
+  String get embeddedKeys => 'एम्बेडेड कुंजियाँ';
+
+  @override
+  String get managerKeys => 'मैनेजर से कुंजियाँ';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'मैनेजर कुंजियाँ QR आकार सीमा से अधिक हो सकती हैं';
+
+  @override
+  String get qrPasswordWarning =>
+      'पासवर्ड QR कोड में बिना एन्क्रिप्शन के होंगे। इसे स्कैन करने वाला कोई भी देख सकता है।';
+
+  @override
+  String get sshKeysMayBeLarge => 'कुंजियां QR आकार से अधिक हो सकती हैं';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'कुल आकार: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'पासवर्ड और SSH कुंजियां QR कोड में दिखेंगी';
+
+  @override
+  String get qrCredentialsTooLarge =>
+      'क्रेडेंशियल QR कोड को बहुत बड़ा बनाते हैं';
+
+  @override
   String get terminal => 'टर्मिनल';
 
   @override
@@ -180,6 +234,9 @@ class SHi extends S {
 
   @override
   String get sessions => 'सत्र';
+
+  @override
+  String get emptyFolders => 'खाली फ़ोल्डर';
 
   @override
   String get sessionsHeader => 'सत्र';

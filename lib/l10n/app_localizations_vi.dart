@@ -63,6 +63,59 @@ class SVi extends S {
   String get settings => 'Cài đặt';
 
   @override
+  String get appSettings => 'Cài đặt ứng dụng';
+
+  @override
+  String get yes => 'Có';
+
+  @override
+  String get no => 'Không';
+
+  @override
+  String get importWhatToImport => 'Những gì cần nhập:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Nhập mật khẩu chính:';
+
+  @override
+  String get nextStep => 'Tiếp theo';
+
+  @override
+  String get includeCredentials => 'Bao gồm mật khẩu và khóa SSH';
+
+  @override
+  String get includePasswords => 'Mật khẩu phiên';
+
+  @override
+  String get embeddedKeys => 'Khóa nhúng';
+
+  @override
+  String get managerKeys => 'Khóa từ trình quản lý';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'Khóa trình quản lý có thể vượt quá kích thước QR';
+
+  @override
+  String get qrPasswordWarning =>
+      'Mật khẩu sẽ không được mã hóa trong mã QR. Bất kỳ ai quét đều có thể nhìn thấy.';
+
+  @override
+  String get sshKeysMayBeLarge => 'Khóa có thể vượt quá kích thước QR';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Tổng kích thước: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'Mật khẩu và khóa SSH SẼ hiển thị trong mã QR';
+
+  @override
+  String get qrCredentialsTooLarge => 'Thông tin xác thực làm mã QR quá lớn';
+
+  @override
   String get terminal => 'Terminal';
 
   @override
@@ -180,6 +233,9 @@ class SVi extends S {
 
   @override
   String get sessions => 'Phiên';
+
+  @override
+  String get emptyFolders => 'Thư mục trống';
 
   @override
   String get sessionsHeader => 'PHIÊN';

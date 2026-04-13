@@ -18,6 +18,29 @@
   "select": "Select",
   "required": "Required",
   "settings": "Settings",
+  "appSettings": "App Settings",
+  "yes": "Yes",
+  "no": "No",
+  "importWhatToImport": "What to import:",
+  "enterMasterPasswordPrompt": "Enter master password:",
+  "nextStep": "Next",
+  "includeCredentials": "Include passwords and SSH keys",
+  "includePasswords": "Session passwords",
+  "embeddedKeys": "Session keys",
+  "managerKeys": "Keys from manager",
+  "managerKeysMayBeLarge": "Manager keys may exceed QR size limit",
+  "qrPasswordWarning": "Passwords will be unencrypted in the QR code. Anyone who scans it can see them.",
+  "sshKeysMayBeLarge": "Keys may exceed QR size limit",
+  "exportTotalSize": "Total size: {size}",
+  "@exportTotalSize": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "qrCredentialsWarning": "Passwords and SSH keys WILL be visible in the QR code. Only share in trusted environments.",
+  "qrCredentialsTooLarge": "Credentials make the QR code too large. Remove some sessions or disable credentials.",
   "terminal": "Terminal",
   "files": "Files",
   "transfer": "Transfer",
@@ -111,6 +134,7 @@
     }
   },
   "sessions": "Sessions",
+  "emptyFolders": "Empty Folders",
   "sessionsHeader": "SESSIONS",
   "savedSessions": "Saved sessions",
   "activeConnections": "Active connections",

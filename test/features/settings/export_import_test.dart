@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -65,6 +66,7 @@ void main() {
         sessions: sessions,
         config: config,
         outputPath: outputPath,
+        options: const ExportOptions(includeConfig: true),
       );
 
       expect(await File(outputPath).exists(), isTrue);
@@ -73,8 +75,7 @@ void main() {
         filePath: outputPath,
         masterPassword: 'test-password',
         mode: ImportMode.merge,
-        importConfig: true,
-        importKnownHosts: false,
+        options: const ExportOptions(includeConfig: true),
       );
 
       expect(result.sessions, hasLength(2));
@@ -99,20 +100,56 @@ void main() {
         sessions: [],
         config: config,
         outputPath: outputPath,
+        options: const ExportOptions(includeConfig: true),
       );
 
       final result = await ExportImport.import_(
         filePath: outputPath,
         masterPassword: 'pw',
         mode: ImportMode.replace,
-        importConfig: true,
-        importKnownHosts: false,
+        options: const ExportOptions(includeConfig: true),
       );
 
       expect(result.config, isNotNull);
       expect(result.config!.fontSize, 18);
       expect(result.config!.scrollback, 10000);
       expect(result.mode, ImportMode.replace);
+    });
+
+    test('export with selective options exports only selected data', () async {
+      final sessions = [
+        makeSession(id: 'sel-1', label: 'server1', password: 'pw1'),
+      ];
+      final outputPath = '${tempDir.path}/selective.lfs';
+
+      // Export only sessions + known_hosts, no config
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: sessions,
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+        options: const ExportOptions(
+          includeSessions: true,
+          includeConfig: false,
+          includeKnownHosts: false,
+        ),
+      );
+
+      // Import only config (should be null since not exported)
+      final result = await ExportImport.import_(
+        filePath: outputPath,
+        masterPassword: 'pw',
+        mode: ImportMode.merge,
+        options: const ExportOptions(
+          includeSessions: false,
+          includeConfig: true,
+          includeKnownHosts: true,
+        ),
+      );
+
+      expect(result.sessions, isEmpty);
+      expect(result.config, isNull);
+      expect(result.knownHostsContent, isNull);
     });
 
     test('import with importConfig=false skips config', () async {
@@ -129,8 +166,7 @@ void main() {
         filePath: outputPath,
         masterPassword: 'pw',
         mode: ImportMode.merge,
-        importConfig: false,
-        importKnownHosts: false,
+        options: const ExportOptions(includeConfig: false),
       );
 
       expect(result.config, isNull);
@@ -152,8 +188,10 @@ void main() {
         filePath: outputPath,
         masterPassword: 'pw',
         mode: ImportMode.merge,
-        importConfig: false,
-        importKnownHosts: true,
+        options: const ExportOptions(
+          includeConfig: false,
+          includeKnownHosts: true,
+        ),
       );
 
       // known_hosts content should be returned for caller to import
@@ -173,8 +211,10 @@ void main() {
         filePath: outputPath,
         masterPassword: 'pw',
         mode: ImportMode.merge,
-        importConfig: false,
-        importKnownHosts: true,
+        options: const ExportOptions(
+          includeConfig: false,
+          includeKnownHosts: true,
+        ),
       );
 
       // No known_hosts was included in the export
@@ -192,6 +232,7 @@ void main() {
         sessions: sessions,
         config: AppConfig.defaults,
         outputPath: outputPath,
+        options: const ExportOptions(includeConfig: true),
       );
 
       final preview = await ExportImport.preview(
@@ -221,11 +262,169 @@ void main() {
           filePath: outputPath,
           masterPassword: 'wrong',
           mode: ImportMode.merge,
-          importConfig: true,
-          importKnownHosts: false,
+          options: const ExportOptions(includeConfig: true),
         ),
         throwsA(anything),
       );
+    });
+  });
+
+  group('ExportImport — empty folders roundtrip', () {
+    test('export and import preserves empty folders', () async {
+      final sessions = [makeSession(id: 's1', label: 'srv')];
+      final outputPath = '${tempDir.path}/folders.lfs';
+      const emptyFolders = {'EmptyFolder', 'AnotherEmpty'};
+
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: sessions,
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+        emptyFolders: emptyFolders,
+      );
+
+      final result = await ExportImport.import_(
+        filePath: outputPath,
+        masterPassword: 'pw',
+        mode: ImportMode.merge,
+      );
+
+      expect(result.emptyFolders, containsAll(['EmptyFolder', 'AnotherEmpty']));
+      expect(result.emptyFolders, hasLength(2));
+    });
+
+    test('empty folders omitted when set is empty', () async {
+      final sessions = [makeSession(id: 's1', label: 'srv')];
+      final outputPath = '${tempDir.path}/nofolders.lfs';
+
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: sessions,
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+        emptyFolders: const {},
+      );
+
+      final result = await ExportImport.import_(
+        filePath: outputPath,
+        masterPassword: 'pw',
+        mode: ImportMode.merge,
+      );
+
+      expect(result.emptyFolders, isEmpty);
+    });
+  });
+
+  group('ExportImport — selective data export', () {
+    test('exclude known_hosts from export', () async {
+      final sessions = [makeSession(id: 's1', label: 'srv')];
+      final outputPath = '${tempDir.path}/nokh_export.lfs';
+
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: sessions,
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+        knownHostsContent: 'host ssh-rsa AAA',
+        options: const ExportOptions(includeKnownHosts: false),
+      );
+
+      final result = await ExportImport.import_(
+        filePath: outputPath,
+        masterPassword: 'pw',
+        mode: ImportMode.merge,
+        options: const ExportOptions(includeKnownHosts: true),
+      );
+
+      expect(result.knownHostsContent, isNull);
+    });
+
+    test('passwords preserved in full export/import roundtrip', () async {
+      final sessions = [
+        makeSession(id: 's1', label: 'srv', password: 'secret'),
+      ];
+      final outputPath = '${tempDir.path}/nopw.lfs';
+
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: sessions,
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+        // Note: ExportImport.export always uses toJsonWithCredentials,
+        // so passwords are in sessions.json. The selectivity is at the
+        // import level — if includeSessions=false, sessions aren't read.
+      );
+
+      final result = await ExportImport.import_(
+        filePath: outputPath,
+        masterPassword: 'pw',
+        mode: ImportMode.merge,
+        options: const ExportOptions(includeSessions: true),
+      );
+
+      // Sessions are imported with credentials (as designed for .lfs)
+      expect(result.sessions[0].password, 'secret');
+    });
+  });
+
+  group('ExportImport — preview', () {
+    test('preview shows empty folders count', () async {
+      final sessions = [makeSession(id: 's1', label: 'srv')];
+      final outputPath = '${tempDir.path}/preview_folders.lfs';
+
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: sessions,
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+        emptyFolders: {'A', 'B', 'C'},
+      );
+
+      final preview = await ExportImport.preview(
+        filePath: outputPath,
+        masterPassword: 'pw',
+      );
+
+      expect(preview.emptyFolders, hasLength(3));
+      expect(preview.emptyFoldersCount, 3);
+    });
+
+    test('preview.hasSessions derived from sessions list', () async {
+      final sessions = [makeSession(id: 's1', label: 'srv')];
+      final outputPath = '${tempDir.path}/preview_has_sessions.lfs';
+
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: sessions,
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+      );
+
+      final preview = await ExportImport.preview(
+        filePath: outputPath,
+        masterPassword: 'pw',
+      );
+
+      expect(preview.hasSessions, isTrue);
+      expect(preview.sessions, isNotEmpty);
+    });
+
+    test('preview.hasSessions false when no sessions', () async {
+      final outputPath = '${tempDir.path}/preview_nosessions.lfs';
+
+      await ExportImport.export(
+        masterPassword: 'pw',
+        sessions: [],
+        config: AppConfig.defaults,
+        outputPath: outputPath,
+      );
+
+      final preview = await ExportImport.preview(
+        filePath: outputPath,
+        masterPassword: 'pw',
+      );
+
+      expect(preview.hasSessions, isFalse);
     });
   });
 
@@ -250,6 +449,7 @@ void main() {
         hasKnownHosts: false,
       );
       expect(preview.sessions, isEmpty);
+      expect(preview.hasSessions, isFalse); // derived from empty sessions list
       expect(preview.hasConfig, isTrue);
       expect(preview.hasKnownHosts, isFalse);
     });

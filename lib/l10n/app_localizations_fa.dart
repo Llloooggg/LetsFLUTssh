@@ -63,6 +63,60 @@ class SFa extends S {
   String get settings => 'تنظیمات';
 
   @override
+  String get appSettings => 'تنظیمات برنامه';
+
+  @override
+  String get yes => 'بله';
+
+  @override
+  String get no => 'خیر';
+
+  @override
+  String get importWhatToImport => 'چه چیزی وارد شود:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'رمز عبور اصلی را وارد کنید:';
+
+  @override
+  String get nextStep => 'بعدی';
+
+  @override
+  String get includeCredentials => 'شامل رمزهای عبور و کلیدهای SSH';
+
+  @override
+  String get includePasswords => 'رمزهای عبور نشست‌ها';
+
+  @override
+  String get embeddedKeys => 'کلیدهای جاسازی‌شده';
+
+  @override
+  String get managerKeys => 'کلیدها از مدیر';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'کلیدهای مدیر ممکن است از اندازه QR فراتر رود';
+
+  @override
+  String get qrPasswordWarning =>
+      'رمزهای عبور در کد QR رمزگذاری نشده خواهند بود. هر کسی که اسکن کند می‌تواند آنها را ببیند.';
+
+  @override
+  String get sshKeysMayBeLarge => 'کلیدها ممکن است از اندازه QR فراتر رود';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'حجم کل: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'رمزهای عبور و کلیدهای SSH در کد QR قابل مشاهده خواهند بود';
+
+  @override
+  String get qrCredentialsTooLarge =>
+      'اعتبارنامه‌ها کد QR را خیلی بزرگ می‌کنند';
+
+  @override
   String get terminal => 'ترمینال';
 
   @override
@@ -179,6 +233,9 @@ class SFa extends S {
 
   @override
   String get sessions => 'جلسات';
+
+  @override
+  String get emptyFolders => 'پوشه‌های خالی';
 
   @override
   String get sessionsHeader => 'جلسات';

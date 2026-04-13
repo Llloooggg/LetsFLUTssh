@@ -9,6 +9,7 @@ import '../session/session.dart';
 /// duplication and enable testing without Riverpod/UI context.
 class ImportService {
   final Future<void> Function(Session session) addSession;
+  final Future<void> Function(String folderPath) addEmptyFolder;
   final Future<void> Function(String id) deleteSession;
   final List<Session> Function() getSessions;
   final void Function(AppConfig config) applyConfig;
@@ -22,6 +23,7 @@ class ImportService {
 
   ImportService({
     required this.addSession,
+    required this.addEmptyFolder,
     required this.deleteSession,
     required this.getSessions,
     required this.applyConfig,
@@ -47,12 +49,43 @@ class ImportService {
 
     final imported = await _importSessions(result, snapshot);
 
+    // Import empty folders.
+    // NOTE: in replace mode this code is never reached if _importSessions
+    // throws — the entire import is rolled back (including folders) to
+    // prevent partial state.
+    var foldersImported = 0;
+    for (final folder in result.emptyFolders) {
+      try {
+        await addEmptyFolder(folder);
+        foldersImported++;
+      } catch (e) {
+        if (result.mode == ImportMode.replace) {
+          await _tryRestore(snapshot);
+          rethrow;
+        }
+        AppLogger.instance.log(
+          'Skipped empty folder $folder: $e',
+          name: 'Import',
+        );
+      }
+    }
+
+    // Apply config
     if (result.config != null) {
-      applyConfig(result.config!);
+      try {
+        applyConfig(result.config!);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to apply config: $e',
+          name: 'Import',
+          error: e,
+        );
+      }
     }
 
     AppLogger.instance.log(
-      'Import complete: $imported/${result.sessions.length} sessions imported',
+      'Import complete: $imported/${result.sessions.length} sessions, '
+      '$foldersImported/${result.emptyFolders.length} folders imported',
       name: 'Import',
     );
   }

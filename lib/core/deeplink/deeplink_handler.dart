@@ -31,7 +31,7 @@ class DeepLinkHandler {
   void Function(SSHConfig config)? onConnect;
 
   /// Callback invoked when a QR import link is received.
-  void Function(QrImportData data)? onQrImport;
+  void Function(ExportPayloadData data)? onQrImport;
 
   /// Callback invoked when an SSH key file is opened (.pem, .key).
   void Function(String filePath)? onKeyFileOpened;

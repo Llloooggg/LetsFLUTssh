@@ -383,4 +383,108 @@ void main() {
       expect(a == Object(), isFalse);
     });
   });
+
+  group('Session hasCredentials', () {
+    test('true with password only', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(password: 'pw'),
+      );
+      expect(s.hasCredentials, isTrue);
+    });
+
+    test('true with keyData only', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(keyData: 'ssh-rsa AAA'),
+      );
+      expect(s.hasCredentials, isTrue);
+    });
+
+    test('true with keyId only', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(keyId: 'k1'),
+      );
+      expect(s.hasCredentials, isTrue);
+    });
+
+    test('true with keyPath only', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(keyPath: '/home/user/.ssh/id_rsa'),
+      );
+      expect(s.hasCredentials, isTrue);
+    });
+
+    test('false when all credential fields are empty', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+      );
+      expect(s.hasCredentials, isFalse);
+    });
+  });
+
+  group('Session isValid', () {
+    test('true with all required fields and password', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(password: 'pw'),
+      );
+      expect(s.isValid, isTrue);
+    });
+
+    test('true with keyPath credential', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(
+          authType: AuthType.key,
+          keyPath: '/home/.ssh/id_rsa',
+        ),
+      );
+      expect(s.isValid, isTrue);
+    });
+
+    test('false when host is empty', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: '', user: 'u'),
+        auth: const SessionAuth(password: 'pw'),
+      );
+      expect(s.isValid, isFalse);
+    });
+
+    test('false when user is empty', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: ''),
+        auth: const SessionAuth(password: 'pw'),
+      );
+      expect(s.isValid, isFalse);
+    });
+
+    test('false when port out of range', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', port: 0, user: 'u'),
+        auth: const SessionAuth(password: 'pw'),
+      );
+      expect(s.isValid, isFalse);
+    });
+
+    test('false when no credentials', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+      );
+      expect(s.isValid, isFalse);
+    });
+  });
 }

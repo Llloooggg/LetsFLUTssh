@@ -63,6 +63,60 @@ class SPt extends S {
   String get settings => 'Configurações';
 
   @override
+  String get appSettings => 'Configurações do Aplicativo';
+
+  @override
+  String get yes => 'Sim';
+
+  @override
+  String get no => 'Não';
+
+  @override
+  String get importWhatToImport => 'O que importar:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Digite a senha mestra:';
+
+  @override
+  String get nextStep => 'Próximo';
+
+  @override
+  String get includeCredentials => 'Incluir senhas e chaves SSH';
+
+  @override
+  String get includePasswords => 'Senhas de sessões';
+
+  @override
+  String get embeddedKeys => 'Chaves integradas';
+
+  @override
+  String get managerKeys => 'Chaves do gerenciador';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'Chaves do gerenciador podem exceder o tamanho do QR';
+
+  @override
+  String get qrPasswordWarning =>
+      'As senhas ficarão descriptografadas no código QR. Qualquer pessoa que escanear poderá vê-las.';
+
+  @override
+  String get sshKeysMayBeLarge => 'As chaves podem exceder o tamanho do QR';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Tamanho total: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'Senhas e chaves SSH FICARÃO visíveis no código QR';
+
+  @override
+  String get qrCredentialsTooLarge =>
+      'As credenciais tornam o código QR muito grande';
+
+  @override
   String get terminal => 'Terminal';
 
   @override
@@ -180,6 +234,9 @@ class SPt extends S {
 
   @override
   String get sessions => 'Sessões';
+
+  @override
+  String get emptyFolders => 'Pastas vazias';
 
   @override
   String get sessionsHeader => 'SESSÕES';

@@ -63,6 +63,60 @@ class STr extends S {
   String get settings => 'Ayarlar';
 
   @override
+  String get appSettings => 'Uygulama Ayarları';
+
+  @override
+  String get yes => 'Evet';
+
+  @override
+  String get no => 'Hayır';
+
+  @override
+  String get importWhatToImport => 'Ne içe aktarılacak:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Ana şifreyi girin:';
+
+  @override
+  String get nextStep => 'İleri';
+
+  @override
+  String get includeCredentials => 'Şifreleri ve SSH anahtarlarını dahil et';
+
+  @override
+  String get includePasswords => 'Oturum parolaları';
+
+  @override
+  String get embeddedKeys => 'Gömülü anahtarlar';
+
+  @override
+  String get managerKeys => 'Yöneticideki anahtarlar';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'Yönetici anahtarları QR boyutunu aşabilir';
+
+  @override
+  String get qrPasswordWarning =>
+      'Parolalar QR kodunda şifresiz olacaktır. Taranan herkes görebilir.';
+
+  @override
+  String get sshKeysMayBeLarge => 'Anahtarlar QR boyutunu aşabilir';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Toplam boyut: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'Şifreler ve SSH anahtarları QR kodunda GÖRÜNECEK';
+
+  @override
+  String get qrCredentialsTooLarge =>
+      'Kimlik bilgileri QR kodunu çok büyük yapıyor';
+
+  @override
   String get terminal => 'Terminal';
 
   @override
@@ -181,6 +235,9 @@ class STr extends S {
 
   @override
   String get sessions => 'Oturumlar';
+
+  @override
+  String get emptyFolders => 'Boş klasörler';
 
   @override
   String get sessionsHeader => 'OTURUMLAR';

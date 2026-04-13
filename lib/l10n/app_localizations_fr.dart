@@ -63,6 +63,60 @@ class SFr extends S {
   String get settings => 'Paramètres';
 
   @override
+  String get appSettings => 'Paramètres de l\'application';
+
+  @override
+  String get yes => 'Oui';
+
+  @override
+  String get no => 'Non';
+
+  @override
+  String get importWhatToImport => 'Éléments à importer :';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Entrez le mot de passe principal:';
+
+  @override
+  String get nextStep => 'Suivant';
+
+  @override
+  String get includeCredentials => 'Inclure mots de passe et clés SSH';
+
+  @override
+  String get includePasswords => 'Mots de passe des sessions';
+
+  @override
+  String get embeddedKeys => 'Clés intégrées';
+
+  @override
+  String get managerKeys => 'Clés du gestionnaire';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'Les clés du gestionnaire peuvent dépasser la taille QR';
+
+  @override
+  String get qrPasswordWarning =>
+      'Les mots de passe seront non chiffrés dans le code QR. Quiconque le scanne peut les voir.';
+
+  @override
+  String get sshKeysMayBeLarge => 'Les clés peuvent dépasser la taille QR';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Taille totale: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'Les mots de passe et clés SSH SERONT visibles dans le QR code';
+
+  @override
+  String get qrCredentialsTooLarge =>
+      'Les identifiants rendent le code QR trop grand';
+
+  @override
   String get terminal => 'Terminal';
 
   @override
@@ -181,6 +235,9 @@ class SFr extends S {
 
   @override
   String get sessions => 'Sessions';
+
+  @override
+  String get emptyFolders => 'Dossiers vides';
 
   @override
   String get sessionsHeader => 'SESSIONS';

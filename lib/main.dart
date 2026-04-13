@@ -143,37 +143,37 @@ Future<void> main() async {
 
   // Wrap the entire app in runZonedGuarded to catch all async errors.
   // This catches errors from onPressed, Futures, streams, timers, etc.
-  runZonedGuarded(() {
-    runApp(
-      ProviderScope(
-        overrides: [configStoreProvider.overrideWithValue(configStore)],
-        child: const LetsFLUTsshApp(),
-      ),
-    );
-  }, (error, stack) {
-    final sanitizedMsg = sanitizeErrorMessage(error.toString());
-    AppLogger.instance.log(
-      'Unhandled async error: $sanitizedMsg',
-      name: 'ErrorBoundary',
-      error: error,
-      stackTrace: stack,
-    );
-    // Show dialog after next frame — ensures Navigator is available
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = navigatorKey.currentContext;
-      if (ctx != null && ctx.mounted) {
-        _showGlobalErrorDialog(ctx, error);
-      }
-    });
-  });
+  runZonedGuarded(
+    () {
+      runApp(
+        ProviderScope(
+          overrides: [configStoreProvider.overrideWithValue(configStore)],
+          child: const LetsFLUTsshApp(),
+        ),
+      );
+    },
+    (error, stack) {
+      final sanitizedMsg = sanitizeErrorMessage(error.toString());
+      AppLogger.instance.log(
+        'Unhandled async error: $sanitizedMsg',
+        name: 'ErrorBoundary',
+        error: error,
+        stackTrace: stack,
+      );
+      // Show dialog after next frame — ensures Navigator is available
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          _showGlobalErrorDialog(ctx, error);
+        }
+      });
+    },
+  );
 }
 
 /// Shows a user-friendly error dialog for unhandled async errors.
 /// Error is already logged by the global error handler — this just shows a brief message.
-void _showGlobalErrorDialog(
-  BuildContext context,
-  Object error,
-) {
+void _showGlobalErrorDialog(BuildContext context, Object error) {
   final errorType = error.runtimeType.toString();
   final loggingEnabled = AppLogger.instance.enabled;
 
@@ -191,10 +191,7 @@ void _showGlobalErrorDialog(
             children: [
               Text(
                 'An unexpected error occurred. The app will continue running.',
-                style: TextStyle(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fg,
-                ),
+                style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
               ),
               const SizedBox(height: 8),
               Text(
@@ -232,7 +229,8 @@ void _showGlobalErrorDialog(
                   Navigator.of(ctx).pop();
                   Toast.show(
                     ctx,
-                    message: 'Logging enabled — errors will be saved to log file',
+                    message:
+                        'Logging enabled — errors will be saved to log file',
                     level: ToastLevel.success,
                   );
                 },
@@ -946,7 +944,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
   }
 
-  Future<void> _handleQrImport(QrImportData data) async {
+  Future<void> _handleQrImport(ExportPayloadData data) async {
     // Data operations don't need UI context — always execute, even when
     // the app is still resuming from background.
     for (final session in data.sessions) {
@@ -993,17 +991,29 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         filePath: filePath,
         masterPassword: result.password,
         mode: result.mode,
-        importConfig: true,
-        importKnownHosts: true,
+        options: const ExportOptions(
+          includeSessions: true,
+          includeConfig: true,
+          includeKnownHosts: true,
+        ),
       );
 
       await _buildImportService().applyResult(importResult);
 
       // Import known hosts via the manager (handles encryption).
       if (importResult.knownHostsContent != null) {
-        ref
-            .read(knownHostsProvider)
-            .importFromString(importResult.knownHostsContent!);
+        try {
+          await ref
+              .read(knownHostsProvider)
+              .importFromString(importResult.knownHostsContent!);
+        } catch (e) {
+          AppLogger.instance.log(
+            'Failed to import known_hosts from LFS: $e',
+            name: 'App',
+            error: e,
+          );
+          // Continue — known_hosts failure shouldn't fail entire import
+        }
       }
 
       AppLogger.instance.log(
@@ -1035,6 +1045,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final store = ref.read(sessionStoreProvider);
     return ImportService(
       addSession: (s) => ref.read(sessionProvider.notifier).add(s),
+      addEmptyFolder: (f) => store.addEmptyFolder(f),
       deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
       getSessions: () => ref.read(sessionProvider),
       applyConfig: (config) =>

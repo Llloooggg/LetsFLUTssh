@@ -63,6 +63,56 @@ class SJa extends S {
   String get settings => '設定';
 
   @override
+  String get appSettings => 'アプリ設定';
+
+  @override
+  String get yes => 'はい';
+
+  @override
+  String get no => 'いいえ';
+
+  @override
+  String get importWhatToImport => 'インポートする内容：';
+
+  @override
+  String get enterMasterPasswordPrompt => 'マスターパスワードを入力:';
+
+  @override
+  String get nextStep => '次へ';
+
+  @override
+  String get includeCredentials => 'パスワードとSSH鍵を含む';
+
+  @override
+  String get includePasswords => 'セッションパスワード';
+
+  @override
+  String get embeddedKeys => '埋め込みキー';
+
+  @override
+  String get managerKeys => 'マネージャーのキー';
+
+  @override
+  String get managerKeysMayBeLarge => 'マネージャーキーはQRサイズ制限を超える可能性があります';
+
+  @override
+  String get qrPasswordWarning => 'パスワードはQRコード内で暗号化されません。スキャンした誰でも見ることができます。';
+
+  @override
+  String get sshKeysMayBeLarge => '鍵がQRサイズ制限を超える可能性があります';
+
+  @override
+  String exportTotalSize(String size) {
+    return '合計サイズ: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning => 'パスワードとSSH鍵はQRコードに表示されます';
+
+  @override
+  String get qrCredentialsTooLarge => '認証情報でQRコードが大きすぎます';
+
+  @override
   String get terminal => 'ターミナル';
 
   @override
@@ -179,6 +229,9 @@ class SJa extends S {
 
   @override
   String get sessions => 'セッション';
+
+  @override
+  String get emptyFolders => '空のフォルダ';
 
   @override
   String get sessionsHeader => 'セッション';
