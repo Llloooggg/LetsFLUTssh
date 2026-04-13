@@ -54,7 +54,7 @@ dependencies:
   intl: any
   flutter_secure_storage: ^10.0.0
 
-  # Database (drift = typed SQLite ORM with codegen + migrations)
+  # Database (drift = typed SQLite ORM with codegen)
   drift: ^2.32.0
   drift_flutter: ^0.3.0
 
