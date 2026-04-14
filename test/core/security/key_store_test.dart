@@ -188,6 +188,52 @@ void main() {
       final result = await emptyStore.loadAllSafe();
       expect(result, isEmpty);
     });
+
+    test('save on existing id updates in place (not duplicate)', () async {
+      final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'before');
+      await store.save(entry);
+
+      final renamed = entry.copyWith(label: 'after');
+      await store.save(renamed);
+
+      final loaded = await store.loadAll();
+      expect(loaded, hasLength(1));
+      expect(loaded[entry.id]!.label, 'after');
+    });
+
+    test('saveAll replaces the entire store atomically', () async {
+      final a = KeyStore.generateKeyPair(SshKeyType.ed25519, 'a');
+      final b = KeyStore.generateKeyPair(SshKeyType.ed25519, 'b');
+      await store.save(a);
+      await store.save(b);
+      expect((await store.loadAll()), hasLength(2));
+
+      final c = KeyStore.generateKeyPair(SshKeyType.ed25519, 'c');
+      await store.saveAll({c.id: c});
+
+      final loaded = await store.loadAll();
+      expect(loaded, hasLength(1));
+      expect(loaded[c.id]!.label, 'c');
+      expect(loaded.containsKey(a.id), isFalse);
+    });
+
+    test('saveAll with empty map clears the store', () async {
+      final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'tmp');
+      await store.save(entry);
+      expect(await store.loadAll(), isNotEmpty);
+
+      await store.saveAll({});
+      expect(await store.loadAll(), isEmpty);
+    });
+
+    test('save/delete/saveAll no-op when no database attached', () async {
+      final detached = KeyStore();
+      final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'orphan');
+      // Must not throw even though there is no backing DB.
+      await detached.save(entry);
+      await detached.delete(entry.id);
+      await detached.saveAll({entry.id: entry});
+    });
   });
 
   group('SshKeyType', () {
@@ -195,6 +241,21 @@ void main() {
       for (final t in SshKeyType.values) {
         expect(t.label, isNotEmpty);
       }
+    });
+  });
+
+  group('KeyStoreException', () {
+    test('toString includes message', () {
+      const ex = KeyStoreException('boom');
+      expect(ex.toString(), contains('boom'));
+      expect(ex.toString(), startsWith('KeyStoreException'));
+    });
+
+    test('preserves cause', () {
+      final cause = StateError('inner');
+      final ex = KeyStoreException('wrap', cause: cause);
+      expect(ex.message, 'wrap');
+      expect(ex.cause, same(cause));
     });
   });
 }
