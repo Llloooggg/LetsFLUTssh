@@ -915,21 +915,44 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Future<void> _handleQrImport(ExportPayloadData data) async {
-    // Data operations don't need UI context — always execute, even when
-    // the app is still resuming from background.
-    for (final session in data.sessions) {
-      await ref.read(sessionProvider.notifier).add(session);
+    // Use ImportService for full import (keys, sessions, tags, snippets).
+    final importResult = ImportResult(
+      sessions: data.sessions,
+      emptyFolders: data.emptyFolders,
+      managerKeys: data.managerKeys,
+      tags: data.tags,
+      sessionTags: data.sessionTags,
+      folderTags: data.folderTags,
+      snippets: data.snippets,
+      sessionSnippets: data.sessionSnippets,
+      config: data.config,
+      mode: ImportMode.merge,
+      knownHostsContent: data.knownHostsContent,
+    );
+    await _buildImportService().applyResult(importResult);
+
+    // Import known hosts if present.
+    if (data.knownHostsContent != null) {
+      try {
+        await ref
+            .read(knownHostsProvider)
+            .importFromString(data.knownHostsContent!);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to import known_hosts from QR: $e',
+          name: 'App',
+        );
+      }
     }
-    for (final folder in data.emptyFolders) {
-      await ref.read(sessionProvider.notifier).addEmptyFolder(folder);
-    }
+
     AppLogger.instance.log(
       'QR import complete: ${data.sessions.length} session(s), '
-      '${data.emptyFolders.length} folder(s)',
+      '${data.managerKeys.length} key(s), '
+      '${data.tags.length} tag(s), '
+      '${data.snippets.length} snippet(s)',
       name: 'App',
     );
 
-    // Toast is best-effort — show when the navigator context is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = navigatorKey.currentContext;
       if (ctx != null && ctx.mounted) {
@@ -965,6 +988,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           includeSessions: true,
           includeConfig: true,
           includeKnownHosts: true,
+          includeManagerKeys: true,
+          includeTags: true,
+          includeSnippets: true,
         ),
       );
 
