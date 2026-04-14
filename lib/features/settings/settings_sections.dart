@@ -684,8 +684,8 @@ class _ExportImportTile extends ConsumerWidget {
       knownHostsContent: ref.read(knownHostsProvider).exportToString(),
       isQrMode: false,
       managerKeys: managerKeys,
-      tagCount: allTags.length,
-      snippetCount: allSnippets.length,
+      tags: allTags,
+      snippets: allSnippets,
     );
 
     if (exportResult == null || !context.mounted) return;
@@ -1414,8 +1414,8 @@ class _QrExportTile extends ConsumerWidget {
       knownHostsContent: ref.read(knownHostsProvider).exportToString(),
       isQrMode: true,
       managerKeys: managerKeys,
-      tagCount: allTags.length,
-      snippetCount: allSnippets.length,
+      tags: allTags,
+      snippets: allSnippets,
     );
 
     if (exportResult == null || !context.mounted) return;

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../core/config/app_config.dart';
 import '../core/session/qr_codec.dart';
 import '../core/session/session.dart';
+import '../core/snippets/snippet.dart';
+import '../core/tags/tag.dart';
 import '../core/session/session_tree.dart';
 import '../core/shortcut_registry.dart';
 import '../core/ssh/ssh_config.dart';
@@ -27,11 +29,11 @@ class UnifiedExportDialog extends StatefulWidget {
   /// Used to calculate export size for manager keys separately from embedded keys.
   final Map<String, String> managerKeys;
 
-  /// Number of tags available for export.
-  final int tagCount;
+  /// All tags for size calculation and export.
+  final List<Tag> tags;
 
-  /// Number of snippets available for export.
-  final int snippetCount;
+  /// All snippets for size calculation and export.
+  final List<Snippet> snippets;
 
   const UnifiedExportDialog({
     super.key,
@@ -41,8 +43,8 @@ class UnifiedExportDialog extends StatefulWidget {
     this.knownHostsContent,
     this.isQrMode = false,
     this.managerKeys = const {},
-    this.tagCount = 0,
-    this.snippetCount = 0,
+    this.tags = const [],
+    this.snippets = const [],
   });
 
   static Future<UnifiedExportResult?> show(
@@ -53,8 +55,8 @@ class UnifiedExportDialog extends StatefulWidget {
     String? knownHostsContent,
     bool isQrMode = false,
     Map<String, String> managerKeys = const {},
-    int tagCount = 0,
-    int snippetCount = 0,
+    List<Tag> tags = const [],
+    List<Snippet> snippets = const [],
   }) {
     return AppDialog.show<UnifiedExportResult>(
       context,
@@ -65,8 +67,8 @@ class UnifiedExportDialog extends StatefulWidget {
         knownHostsContent: knownHostsContent,
         isQrMode: isQrMode,
         managerKeys: managerKeys,
-        tagCount: tagCount,
-        snippetCount: snippetCount,
+        tags: tags,
+        snippets: snippets,
       ),
     );
   }
@@ -88,6 +90,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
   int? _cachedManagerKeysExtra;
   int? _cachedConfigSize;
   int? _cachedKnownHostsSize;
+  int? _cachedTagsSize;
+  int? _cachedSnippetsSize;
   ExportOptions? _cachedPayloadOptions;
   Set<String>? _cachedPayloadSelectedIds;
   String? _cachedPayloadKnownHosts;
@@ -158,6 +162,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     _cachedManagerKeysExtra = null;
     _cachedConfigSize = null;
     _cachedKnownHostsSize = null;
+    _cachedTagsSize = null;
+    _cachedSnippetsSize = null;
     _cachedPayloadOptions = null;
     _cachedPayloadSelectedIds = null;
     _cachedPayloadKnownHosts = null;
@@ -386,14 +392,42 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     );
   }
 
+  int _tagsSize() {
+    if (_cachedTagsSize != null) return _cachedTagsSize!;
+    if (widget.tags.isEmpty) return _cachedTagsSize = 0;
+    return _cachedTagsSize = calculateExportPayloadSize(
+      [],
+      options: const ExportOptions(
+        includeSessions: false,
+        includeConfig: false,
+        includeTags: true,
+      ),
+      tags: widget.tags,
+    );
+  }
+
+  int _snippetsSize() {
+    if (_cachedSnippetsSize != null) return _cachedSnippetsSize!;
+    if (widget.snippets.isEmpty) return _cachedSnippetsSize = 0;
+    return _cachedSnippetsSize = calculateExportPayloadSize(
+      [],
+      options: const ExportOptions(
+        includeSessions: false,
+        includeConfig: false,
+        includeSnippets: true,
+      ),
+      snippets: widget.snippets,
+    );
+  }
+
   bool get _fitsInQr => !widget.isQrMode || _payloadSize <= qrMaxPayloadBytes;
   bool get _hasSelection =>
       _selectedIds.isNotEmpty ||
       _options.includeConfig ||
       _options.includeKnownHosts ||
       _options.includeAllManagerKeys ||
-      (_options.includeTags && widget.tagCount > 0) ||
-      (_options.includeSnippets && widget.snippetCount > 0);
+      (_options.includeTags && widget.tags.isNotEmpty) ||
+      (_options.includeSnippets && widget.snippets.isNotEmpty);
   bool get _allSelected => _selectedIds.length == widget.sessions.length;
   bool? get _tristateValue {
     if (_allSelected) return true;
@@ -714,7 +748,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             _invalidatePayloadCache();
             _options = _options.copyWith(includeTags: !_options.includeTags);
           }),
-          _formatSize(0),
+          _formatSize(_tagsSize()),
         ),
         _buildCheckboxRow(
           Icons.code,
@@ -726,7 +760,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
               includeSnippets: !_options.includeSnippets,
             );
           }),
-          _formatSize(0),
+          _formatSize(_snippetsSize()),
         ),
       ],
     );
