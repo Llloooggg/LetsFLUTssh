@@ -1735,4 +1735,18 @@ class SId extends S {
   String exportSnippets(int count) {
     return 'Cuplikan ($count)';
   }
+
+  @override
+  String get disableKeychain => 'Nonaktifkan enkripsi keychain';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'Beralih ke penyimpanan teks biasa (tidak disarankan)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'Basis data akan dienkripsi ulang tanpa kunci. Sesi dan kunci akan disimpan dalam teks biasa di disk. Lanjutkan?';
+
+  @override
+  String get keychainDisabled => 'Enkripsi keychain dinonaktifkan';
 }

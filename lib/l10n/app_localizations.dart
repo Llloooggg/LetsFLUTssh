@@ -3110,6 +3110,30 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Snippets ({count})'**
   String exportSnippets(int count);
+
+  /// No description provided for @disableKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable keychain encryption'**
+  String get disableKeychain;
+
+  /// No description provided for @disableKeychainSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to plaintext storage (not recommended)'**
+  String get disableKeychainSubtitle;
+
+  /// No description provided for @disableKeychainConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'The database will be re-encrypted without a key. Sessions and keys will be stored in plaintext on disk. Continue?'**
+  String get disableKeychainConfirm;
+
+  /// No description provided for @keychainDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain encryption disabled'**
+  String get keychainDisabled;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

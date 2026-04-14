@@ -254,6 +254,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
             subtitle: l10n.enableKeychainSubtitle,
             onTap: () => _enableKeychain(context),
           ),
+        if (secState.level == SecurityLevel.keychain)
+          _ActionTile(
+            icon: Icons.no_encryption_gmailerrorred,
+            title: l10n.disableKeychain,
+            subtitle: l10n.disableKeychainSubtitle,
+            onTap: () => _disableKeychain(context),
+          ),
         // Known Hosts — only on mobile (desktop has it in Tools dialog).
         if (plat.isMobilePlatform)
           _ActionTile(
@@ -575,6 +582,55 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     } catch (e) {
       AppLogger.instance.log(
         'Enable keychain failed: $e',
+        name: 'Security',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+      }
+    }
+  }
+
+  Future<void> _disableKeychain(BuildContext context) async {
+    final l10n = S.of(context);
+    final confirmed = await AppDialog.show<bool>(
+      context,
+      builder: (ctx) => AppDialog(
+        title: l10n.disableKeychain,
+        content: Text(l10n.disableKeychainConfirm),
+        actions: [
+          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
+          AppDialogAction.destructive(
+            label: l10n.disableKeychain,
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    try {
+      AppProgressDialog.show(context);
+      try {
+        await keyStorage.deleteKey();
+        await _reEncryptAll(null, SecurityLevel.plaintext);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          Toast.show(
+            context,
+            message: l10n.keychainDisabled,
+            level: ToastLevel.success,
+          );
+          _checkState();
+        }
+      } catch (e) {
+        if (context.mounted) Navigator.of(context).pop();
+        rethrow;
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Disable keychain failed: $e',
         name: 'Security',
         error: e,
       );

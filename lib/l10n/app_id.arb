@@ -467,5 +467,9 @@
   "sessionKeysFromManager": "Kunci sesi dari manajer",
   "allKeysFromManager": "Semua kunci dari manajer",
   "exportTags": "Tag ({count})",
-  "exportSnippets": "Cuplikan ({count})"
+  "exportSnippets": "Cuplikan ({count})",
+  "disableKeychain": "Nonaktifkan enkripsi keychain",
+  "disableKeychainSubtitle": "Beralih ke penyimpanan teks biasa (tidak disarankan)",
+  "disableKeychainConfirm": "Basis data akan dienkripsi ulang tanpa kunci. Sesi dan kunci akan disimpan dalam teks biasa di disk. Lanjutkan?",
+  "keychainDisabled": "Enkripsi keychain dinonaktifkan"
 }

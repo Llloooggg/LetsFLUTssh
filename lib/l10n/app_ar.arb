@@ -467,5 +467,9 @@
   "sessionKeysFromManager": "مفاتيح الجلسات من المدير",
   "allKeysFromManager": "جميع المفاتيح من المدير",
   "exportTags": "الوسوم ({count})",
-  "exportSnippets": "القصاصات ({count})"
+  "exportSnippets": "القصاصات ({count})",
+  "disableKeychain": "تعطيل تشفير سلسلة المفاتيح",
+  "disableKeychainSubtitle": "التبديل إلى التخزين بنص عادي (غير موصى به)",
+  "disableKeychainConfirm": "ستتم إعادة تشفير قاعدة البيانات بدون مفتاح. سيتم تخزين الجلسات والمفاتيح بنص عادي على القرص. هل تريد المتابعة؟",
+  "keychainDisabled": "تم تعطيل تشفير سلسلة المفاتيح"
 }

@@ -1739,4 +1739,18 @@ class SHi extends S {
   String exportSnippets(int count) {
     return 'स्निपेट ($count)';
   }
+
+  @override
+  String get disableKeychain => 'कीचेन एन्क्रिप्शन अक्षम करें';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'सादा पाठ संग्रहण पर स्विच करें (अनुशंसित नहीं)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'डेटाबेस को बिना कुंजी के फिर से एन्क्रिप्ट किया जाएगा। सत्र और कुंजियाँ डिस्क पर सादे पाठ में संग्रहीत की जाएँगी। जारी रखें?';
+
+  @override
+  String get keychainDisabled => 'कीचेन एन्क्रिप्शन अक्षम किया गया';
 }

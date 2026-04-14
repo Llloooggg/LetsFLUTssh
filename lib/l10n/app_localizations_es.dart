@@ -1748,4 +1748,18 @@ class SEs extends S {
   String exportSnippets(int count) {
     return 'Fragmentos ($count)';
   }
+
+  @override
+  String get disableKeychain => 'Desactivar cifrado del llavero';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'Cambiar a almacenamiento en texto plano (no recomendado)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'La base de datos se volverá a cifrar sin clave. Las sesiones y claves se almacenarán en texto plano en el disco. ¿Continuar?';
+
+  @override
+  String get keychainDisabled => 'Cifrado del llavero desactivado';
 }

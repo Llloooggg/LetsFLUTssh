@@ -1706,4 +1706,17 @@ class SJa extends S {
   String exportSnippets(int count) {
     return 'スニペット ($count)';
   }
+
+  @override
+  String get disableKeychain => 'キーチェーン暗号化を無効にする';
+
+  @override
+  String get disableKeychainSubtitle => '平文保存に切り替える（非推奨）';
+
+  @override
+  String get disableKeychainConfirm =>
+      'データベースは鍵なしで再暗号化されます。セッションと鍵はディスクに平文で保存されます。続行しますか？';
+
+  @override
+  String get keychainDisabled => 'キーチェーン暗号化が無効になりました';
 }

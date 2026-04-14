@@ -1697,4 +1697,17 @@ class SZh extends S {
   String exportSnippets(int count) {
     return '代码片段 ($count)';
   }
+
+  @override
+  String get disableKeychain => '禁用钥匙串加密';
+
+  @override
+  String get disableKeychainSubtitle => '切换到明文存储（不推荐）';
+
+  @override
+  String get disableKeychainConfirm =>
+      '数据库将在无密钥的情况下重新加密。会话和密钥将以明文形式存储在磁盘上。是否继续？';
+
+  @override
+  String get keychainDisabled => '钥匙串加密已禁用';
 }

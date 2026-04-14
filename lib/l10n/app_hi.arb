@@ -467,5 +467,9 @@
   "sessionKeysFromManager": "प्रबंधक से सत्र कुंजियाँ",
   "allKeysFromManager": "प्रबंधक से सभी कुंजियाँ",
   "exportTags": "टैग ({count})",
-  "exportSnippets": "स्निपेट ({count})"
+  "exportSnippets": "स्निपेट ({count})",
+  "disableKeychain": "कीचेन एन्क्रिप्शन अक्षम करें",
+  "disableKeychainSubtitle": "सादा पाठ संग्रहण पर स्विच करें (अनुशंसित नहीं)",
+  "disableKeychainConfirm": "डेटाबेस को बिना कुंजी के फिर से एन्क्रिप्ट किया जाएगा। सत्र और कुंजियाँ डिस्क पर सादे पाठ में संग्रहीत की जाएँगी। जारी रखें?",
+  "keychainDisabled": "कीचेन एन्क्रिप्शन अक्षम किया गया"
 }

@@ -1729,4 +1729,18 @@ class SVi extends S {
   String exportSnippets(int count) {
     return 'Đoạn mã ($count)';
   }
+
+  @override
+  String get disableKeychain => 'Tắt mã hóa keychain';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'Chuyển sang lưu trữ văn bản thuần (không khuyến nghị)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'Cơ sở dữ liệu sẽ được mã hóa lại mà không có khóa. Các phiên và khóa sẽ được lưu trữ dưới dạng văn bản thuần trên đĩa. Tiếp tục?';
+
+  @override
+  String get keychainDisabled => 'Đã tắt mã hóa keychain';
 }

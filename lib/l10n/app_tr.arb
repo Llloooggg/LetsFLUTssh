@@ -467,5 +467,9 @@
   "sessionKeysFromManager": "Yöneticiden oturum anahtarları",
   "allKeysFromManager": "Yöneticiden tüm anahtarlar",
   "exportTags": "Etiketler ({count})",
-  "exportSnippets": "Kod parçacıkları ({count})"
+  "exportSnippets": "Kod parçacıkları ({count})",
+  "disableKeychain": "Anahtar zinciri şifrelemesini devre dışı bırak",
+  "disableKeychainSubtitle": "Düz metin depolamaya geç (önerilmez)",
+  "disableKeychainConfirm": "Veritabanı anahtarsız olarak yeniden şifrelenecek. Oturumlar ve anahtarlar diskte düz metin olarak saklanacak. Devam edilsin mi?",
+  "keychainDisabled": "Anahtar zinciri şifrelemesi devre dışı bırakıldı"
 }

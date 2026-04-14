@@ -1704,4 +1704,17 @@ class SKo extends S {
   String exportSnippets(int count) {
     return '스니펫 ($count)';
   }
+
+  @override
+  String get disableKeychain => '키체인 암호화 비활성화';
+
+  @override
+  String get disableKeychainSubtitle => '일반 텍스트 저장으로 전환 (권장하지 않음)';
+
+  @override
+  String get disableKeychainConfirm =>
+      '데이터베이스가 키 없이 다시 암호화됩니다. 세션과 키가 디스크에 일반 텍스트로 저장됩니다. 계속하시겠습니까?';
+
+  @override
+  String get keychainDisabled => '키체인 암호화가 비활성화되었습니다';
 }

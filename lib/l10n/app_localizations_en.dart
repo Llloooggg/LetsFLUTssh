@@ -1726,4 +1726,18 @@ class SEn extends S {
   String exportSnippets(int count) {
     return 'Snippets ($count)';
   }
+
+  @override
+  String get disableKeychain => 'Disable keychain encryption';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'Switch to plaintext storage (not recommended)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'The database will be re-encrypted without a key. Sessions and keys will be stored in plaintext on disk. Continue?';
+
+  @override
+  String get keychainDisabled => 'Keychain encryption disabled';
 }
