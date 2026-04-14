@@ -258,7 +258,7 @@
   "exportSessionsViaQr": "Exportar sesiones vía QR",
   "qrNoCredentialsWarning": "Las contraseñas y claves SSH NO están incluidas.\nLas sesiones importadas necesitarán que se completen las credenciales.",
   "qrTooManyForSingleCode": "Demasiadas sesiones para un solo código QR. Deseleccione algunas o use la exportación .lfs.",
-  "qrTooLarge": "Demasiado grande — deseleccione algunas sesiones o use la exportación en archivo .lfs.",
+  "qrTooLarge": "Demasiado grande — deseleccione algunos elementos o use la exportación en archivo .lfs.",
   "exportAll": "Exportar todo",
   "showQr": "Mostrar QR",
   "sort": "Ordenar",
@@ -467,5 +467,11 @@
   "manageMasterPasswordSubtitle": "Establecer, cambiar o eliminar contraseña maestra",
   "emptyFolders": "Carpetas vacías",
   "enterMasterPasswordPrompt": "Ingrese contraseña maestra:",
-  "nextStep": "Siguiente"
+  "nextStep": "Siguiente",
+  "fullBackup": "Copia de seguridad completa",
+  "sessionsOnly": "Sesiones",
+  "sessionKeysFromManager": "Claves de sesión del gestor",
+  "allKeysFromManager": "Todas las claves del gestor",
+  "exportTags": "Etiquetas ({count})",
+  "exportSnippets": "Fragmentos ({count})"
 }

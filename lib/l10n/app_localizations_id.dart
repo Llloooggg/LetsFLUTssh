@@ -873,7 +873,7 @@ class SId extends S {
 
   @override
   String get qrTooLarge =>
-      'Terlalu besar — batalkan beberapa sesi atau gunakan ekspor file .lfs.';
+      'Terlalu besar — batalkan beberapa item atau gunakan ekspor file .lfs.';
 
   @override
   String get exportAll => 'Ekspor Semua';
@@ -1713,4 +1713,26 @@ class SId extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Cadangan lengkap';
+
+  @override
+  String get sessionsOnly => 'Sesi';
+
+  @override
+  String get sessionKeysFromManager => 'Kunci sesi dari manajer';
+
+  @override
+  String get allKeysFromManager => 'Semua kunci dari manajer';
+
+  @override
+  String exportTags(int count) {
+    return 'Tag ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Cuplikan ($count)';
+  }
 }

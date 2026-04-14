@@ -258,7 +258,7 @@
   "exportSessionsViaQr": "Xuất phiên qua QR",
   "qrNoCredentialsWarning": "Mật khẩu và khóa SSH KHÔNG được bao gồm.\nCác phiên nhập vào sẽ cần điền thông tin xác thực.",
   "qrTooManyForSingleCode": "Quá nhiều phiên cho một mã QR. Bỏ chọn một số hoặc sử dụng xuất .lfs.",
-  "qrTooLarge": "Quá lớn — bỏ chọn một số phiên hoặc sử dụng xuất tệp .lfs.",
+  "qrTooLarge": "Quá lớn — bỏ chọn một số mục hoặc sử dụng xuất tệp .lfs.",
   "exportAll": "Xuất tất cả",
   "showQr": "Hiện QR",
   "sort": "Sắp xếp",
@@ -461,5 +461,11 @@
   "manageMasterPasswordSubtitle": "Đặt, đổi hoặc xóa mật khẩu chính",
   "emptyFolders": "Thư mục trống",
   "enterMasterPasswordPrompt": "Nhập mật khẩu chính:",
-  "nextStep": "Tiếp theo"
+  "nextStep": "Tiếp theo",
+  "fullBackup": "Sao lưu đầy đủ",
+  "sessionsOnly": "Phiên",
+  "sessionKeysFromManager": "Khóa phiên từ trình quản lý",
+  "allKeysFromManager": "Tất cả khóa từ trình quản lý",
+  "exportTags": "Thẻ ({count})",
+  "exportSnippets": "Đoạn mã ({count})"
 }

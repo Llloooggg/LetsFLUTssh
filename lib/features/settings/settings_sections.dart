@@ -587,7 +587,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   /// Re-encrypt the database and update global security state.
   ///
   /// With drift, encryption is at the DB file level — no per-store re-encryption.
-  /// TODO: Implement PRAGMA rekey for live re-encryption.
+  /// PRAGMA rekey for live re-encryption is planned for a future release.
   Future<void> _reEncryptAll(Uint8List? key, SecurityLevel level) async {
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
@@ -663,18 +663,19 @@ class _ExportImportTile extends ConsumerWidget {
   Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
     final sessions = ref.read(sessionProvider);
     final store = ref.read(sessionStoreProvider);
-    final l10n = S.of(context);
 
-    // Load all manager keys for size calculation (before resolving sessions)
+    // Load counts for export dialog
     final keyStore = ref.read(keyStoreProvider);
+    final tagStore = ref.read(tagStoreProvider);
+    final snippetStore = ref.read(snippetStoreProvider);
     final allKeys = await keyStore.loadAll();
+    final allTags = await tagStore.loadAll();
+    final allSnippets = await snippetStore.loadAll();
     if (!context.mounted) return;
     final managerKeys = Map<String, String>.fromEntries(
       allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
     );
 
-    // Show export dialog with original sessions (keyId preserved, not resolved)
-    // Sessions are resolved later during actual export to include manager keys
     final exportResult = await UnifiedExportDialog.show(
       context,
       sessions: sessions,
@@ -682,8 +683,9 @@ class _ExportImportTile extends ConsumerWidget {
       config: ref.read(configProvider),
       knownHostsContent: ref.read(knownHostsProvider).exportToString(),
       isQrMode: false,
-      knownHostsLabel: l10n.knownHosts,
       managerKeys: managerKeys,
+      tags: allTags,
+      snippets: allSnippets,
     );
 
     if (exportResult == null || !context.mounted) return;
@@ -749,6 +751,57 @@ class _ExportImportTile extends ConsumerWidget {
     // Show progress indicator while PBKDF2 + encryption runs in isolate
     AppProgressDialog.show(context);
     try {
+      // Collect manager key entries
+      final managerKeyEntries = <SshKeyEntry>[];
+      if (exportResult.options.hasManagerKeys) {
+        final keyStore = ref.read(keyStoreProvider);
+        final allKeys = await keyStore.loadAll();
+        if (exportResult.options.includeAllManagerKeys) {
+          managerKeyEntries.addAll(allKeys.values);
+        } else {
+          final usedKeyIds = exportResult.selectedSessions
+              .where((s) => s.keyId.isNotEmpty)
+              .map((s) => s.keyId)
+              .toSet();
+          managerKeyEntries.addAll(
+            allKeys.entries
+                .where((e) => usedKeyIds.contains(e.key))
+                .map((e) => e.value),
+          );
+        }
+      }
+
+      // Collect tags and their links
+      final tagStore = ref.read(tagStoreProvider);
+      final snippetStore = ref.read(snippetStoreProvider);
+      final tags = exportResult.options.includeTags
+          ? await tagStore.loadAll()
+          : <Tag>[];
+      final sessionTags = <ExportLink>[];
+      final folderTags = <ExportFolderTagLink>[];
+      if (tags.isNotEmpty) {
+        for (final s in exportResult.selectedSessions) {
+          final sTags = await tagStore.getForSession(s.id);
+          for (final t in sTags) {
+            sessionTags.add(ExportLink(sessionId: s.id, targetId: t.id));
+          }
+        }
+      }
+
+      // Collect snippets and their links
+      final snippets = exportResult.options.includeSnippets
+          ? await snippetStore.loadAll()
+          : <Snippet>[];
+      final sessionSnippets = <ExportLink>[];
+      if (snippets.isNotEmpty) {
+        for (final s in exportResult.selectedSessions) {
+          final sSnippets = await snippetStore.loadForSession(s.id);
+          for (final sn in sSnippets) {
+            sessionSnippets.add(ExportLink(sessionId: s.id, targetId: sn.id));
+          }
+        }
+      }
+
       await ExportImport.export(
         masterPassword: password,
         sessions: resolvedSessions,
@@ -761,6 +814,12 @@ class _ExportImportTile extends ConsumerWidget {
         knownHostsContent: exportResult.options.includeKnownHosts
             ? ref.read(knownHostsProvider).exportToString()
             : null,
+        managerKeyEntries: managerKeyEntries,
+        tags: tags,
+        sessionTags: sessionTags,
+        folderTags: folderTags,
+        snippets: snippets,
+        sessionSnippets: sessionSnippets,
       );
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -902,6 +961,9 @@ class _ExportImportTile extends ConsumerWidget {
   ) async {
     try {
       final store = ref.read(sessionStoreProvider);
+      final keyStore = ref.read(keyStoreProvider);
+      final tagStore = ref.read(tagStoreProvider);
+      final snippetStore = ref.read(snippetStoreProvider);
       final importService = ImportService(
         addSession: (s) => ref.read(sessionProvider.notifier).add(s),
         addEmptyFolder: (f) =>
@@ -910,6 +972,21 @@ class _ExportImportTile extends ConsumerWidget {
         getSessions: () => ref.read(sessionProvider),
         applyConfig: (config) =>
             ref.read(configProvider.notifier).update((_) => config),
+        saveManagerKey: (entry) async {
+          await keyStore.save(entry);
+          return entry.id;
+        },
+        saveTag: (tag) async {
+          await tagStore.add(tag);
+          return tag.id;
+        },
+        tagSession: tagStore.tagSession,
+        tagFolder: (folderId, tagId) => tagStore.tagFolder(folderId, tagId),
+        saveSnippet: (snippet) async {
+          await snippetStore.add(snippet);
+          return snippet.id;
+        },
+        linkSnippetToSession: snippetStore.linkToSession,
         getEmptyFolders: () => store.emptyFolders,
         restoreSnapshot: (sessions, folders) =>
             store.restoreSnapshot(sessions, folders),
@@ -1315,26 +1392,20 @@ class _QrExportTile extends ConsumerWidget {
 
   Future<void> _showQrExport(BuildContext context, WidgetRef ref) async {
     final sessions = ref.read(sessionProvider);
-    if (sessions.isEmpty) {
-      Toast.show(
-        context,
-        message: S.of(context).noSessionsToExport,
-        level: ToastLevel.warning,
-      );
-      return;
-    }
     final store = ref.read(sessionStoreProvider);
-    final l10n = S.of(context);
 
-    // Load all manager keys for size calculation (before resolving sessions)
+    // Load counts for export dialog
     final keyStore = ref.read(keyStoreProvider);
+    final tagStore = ref.read(tagStoreProvider);
+    final snippetStore = ref.read(snippetStoreProvider);
     final allKeys = await keyStore.loadAll();
+    final allTags = await tagStore.loadAll();
+    final allSnippets = await snippetStore.loadAll();
     if (!context.mounted) return;
     final managerKeys = Map<String, String>.fromEntries(
       allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
     );
 
-    // Use unified export dialog with original sessions (keyId preserved)
     final exportResult = await UnifiedExportDialog.show(
       context,
       sessions: sessions,
@@ -1342,20 +1413,45 @@ class _QrExportTile extends ConsumerWidget {
       config: ref.read(configProvider),
       knownHostsContent: ref.read(knownHostsProvider).exportToString(),
       isQrMode: true,
-      knownHostsLabel: l10n.knownHosts,
       managerKeys: managerKeys,
+      tags: allTags,
+      snippets: allSnippets,
     );
 
     if (exportResult == null || !context.mounted) return;
 
-    // Resolve keyId → keyData after dialog closes, for QR generation
+    // Resolve keyId → keyData after dialog closes
     final resolvedSessions = await _resolveSessionKeys(
       ref,
       exportResult.selectedSessions,
     );
     if (!context.mounted) return;
 
-    // Generate QR payload
+    // Collect tags/snippets data for QR payload
+    final tags = exportResult.options.includeTags ? allTags : <Tag>[];
+    final sessionTags = <ExportLink>[];
+    final snippets = exportResult.options.includeSnippets
+        ? allSnippets
+        : <Snippet>[];
+    final sessionSnippets = <ExportLink>[];
+
+    if (tags.isNotEmpty) {
+      for (final s in exportResult.selectedSessions) {
+        final sTags = await tagStore.getForSession(s.id);
+        for (final t in sTags) {
+          sessionTags.add(ExportLink(sessionId: s.id, targetId: t.id));
+        }
+      }
+    }
+    if (snippets.isNotEmpty) {
+      for (final s in exportResult.selectedSessions) {
+        final sSnippets = await snippetStore.loadForSession(s.id);
+        for (final sn in sSnippets) {
+          sessionSnippets.add(ExportLink(sessionId: s.id, targetId: sn.id));
+        }
+      }
+    }
+
     final payload = encodeExportPayload(
       resolvedSessions,
       emptyFolders: exportResult.selectedEmptyFolders,
@@ -1366,11 +1462,17 @@ class _QrExportTile extends ConsumerWidget {
       knownHostsContent: exportResult.options.includeKnownHosts
           ? ref.read(knownHostsProvider).exportToString()
           : null,
+      managerKeyEntries: allKeys,
+      tags: tags,
+      sessionTags: sessionTags,
+      snippets: snippets,
+      sessionSnippets: sessionSnippets,
     );
 
     final deepLink = wrapInDeepLink(payload);
     final data = decodeImportUri(Uri.parse(deepLink));
     final sessionCount = data?.sessions.length ?? 0;
+    if (!context.mounted) return;
     await QrDisplayScreen.show(
       context,
       data: deepLink,

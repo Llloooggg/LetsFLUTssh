@@ -868,7 +868,7 @@ class SEn extends S {
 
   @override
   String get qrTooLarge =>
-      'Too large — deselect some sessions or use .lfs file export.';
+      'Too large — deselect some items or use .lfs file export.';
 
   @override
   String get exportAll => 'Export All';
@@ -1704,4 +1704,26 @@ class SEn extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Full backup';
+
+  @override
+  String get sessionsOnly => 'Sessions';
+
+  @override
+  String get sessionKeysFromManager => 'Session keys from manager';
+
+  @override
+  String get allKeysFromManager => 'All keys from manager';
+
+  @override
+  String exportTags(int count) {
+    return 'Tags ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Snippets ($count)';
+  }
 }

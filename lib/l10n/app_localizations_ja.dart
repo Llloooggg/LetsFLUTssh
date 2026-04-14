@@ -1684,4 +1684,26 @@ class SJa extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'フルバックアップ';
+
+  @override
+  String get sessionsOnly => 'セッション';
+
+  @override
+  String get sessionKeysFromManager => 'マネージャーのセッション鍵';
+
+  @override
+  String get allKeysFromManager => 'マネージャーの全ての鍵';
+
+  @override
+  String exportTags(int count) {
+    return 'タグ ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'スニペット ($count)';
+  }
 }

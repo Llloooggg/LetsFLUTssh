@@ -1,12 +1,11 @@
 import 'dart:async' show runZonedGuarded;
-import 'dart:io' show File, exit;
+import 'dart:io' show exit;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'l10n/app_localizations.dart';
 import 'core/config/config_store.dart';
@@ -105,6 +104,7 @@ Future<void> main() async {
         _showGlobalErrorDialog(ctx, error);
       }
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
     return true;
   };
 
@@ -172,6 +172,7 @@ Future<void> main() async {
           _showGlobalErrorDialog(ctx, error);
         }
       });
+      WidgetsBinding.instance.ensureVisualUpdate();
     },
   );
 }
@@ -330,52 +331,45 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Future<void> _initSecurity() async {
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
+    final dbExists = await databaseFileExists();
 
-    // 1. Master password — show unlock dialog.
-    if (await manager.isEnabled()) {
-      if (!mounted) return;
-      final derivedKey = await _showUnlockDialog(manager);
-      if (derivedKey != null) {
-        _injectDatabase(key: derivedKey, level: SecurityLevel.masterPassword);
-        AppLogger.instance.log('Master password unlocked', name: 'App');
-      } else {
-        _credentialsWereReset = true;
-        _injectDatabase(); // Open DB without encryption after reset
-        AppLogger.instance.log(
-          'Master password reset — credentials cleared',
-          name: 'App',
-        );
+    if (dbExists) {
+      // Existing v4 install — unlock with stored credentials.
+
+      // 1. Master password — show unlock dialog.
+      if (await manager.isEnabled()) {
+        if (!mounted) return;
+        final derivedKey = await _showUnlockDialog(manager);
+        if (derivedKey != null) {
+          _injectDatabase(key: derivedKey, level: SecurityLevel.masterPassword);
+          AppLogger.instance.log('Master password unlocked', name: 'App');
+        } else {
+          _credentialsWereReset = true;
+          _injectDatabase(); // Open DB without encryption after reset
+          AppLogger.instance.log(
+            'Master password reset — credentials cleared',
+            name: 'App',
+          );
+        }
+        return;
       }
-      return;
-    }
 
-    // 2. Keychain key exists — use it.
-    final keychainKey = await keyStorage.readKey();
-    if (keychainKey != null) {
-      _injectDatabase(key: keychainKey, level: SecurityLevel.keychain);
-      AppLogger.instance.log('Keychain key loaded', name: 'App');
-      return;
-    }
+      // 2. Keychain key exists — use it.
+      final keychainKey = await keyStorage.readKey();
+      if (keychainKey != null) {
+        _injectDatabase(key: keychainKey, level: SecurityLevel.keychain);
+        AppLogger.instance.log('Keychain key loaded', name: 'App');
+        return;
+      }
 
-    // 3. Existing plaintext install — open DB without encryption.
-    if (await _hasAnyData()) {
+      // 3. DB exists but no encryption credentials — plaintext mode.
       _injectDatabase();
-      AppLogger.instance.log('Plaintext mode (no encryption)', name: 'App');
+      AppLogger.instance.log('Plaintext mode (existing DB)', name: 'App');
       return;
     }
 
-    // 4. First launch — show security setup wizard.
+    // No DB file — first launch. Show security setup wizard.
     await _firstLaunchSetup(manager, keyStorage);
-  }
-
-  /// Check whether any session/key data exists on disk.
-  Future<bool> _hasAnyData() async {
-    final dir = await getApplicationSupportDirectory();
-    final files = ['sessions.json', 'sessions.enc', 'keys.json', 'keys.enc'];
-    for (final name in files) {
-      if (await File('${dir.path}/$name').exists()) return true;
-    }
-    return false;
   }
 
   /// First-launch flow: show wizard, configure security.
@@ -921,21 +915,44 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Future<void> _handleQrImport(ExportPayloadData data) async {
-    // Data operations don't need UI context — always execute, even when
-    // the app is still resuming from background.
-    for (final session in data.sessions) {
-      await ref.read(sessionProvider.notifier).add(session);
+    // Use ImportService for full import (keys, sessions, tags, snippets).
+    final importResult = ImportResult(
+      sessions: data.sessions,
+      emptyFolders: data.emptyFolders,
+      managerKeys: data.managerKeys,
+      tags: data.tags,
+      sessionTags: data.sessionTags,
+      folderTags: data.folderTags,
+      snippets: data.snippets,
+      sessionSnippets: data.sessionSnippets,
+      config: data.config,
+      mode: ImportMode.merge,
+      knownHostsContent: data.knownHostsContent,
+    );
+    await _buildImportService().applyResult(importResult);
+
+    // Import known hosts if present.
+    if (data.knownHostsContent != null) {
+      try {
+        await ref
+            .read(knownHostsProvider)
+            .importFromString(data.knownHostsContent!);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to import known_hosts from QR: $e',
+          name: 'App',
+        );
+      }
     }
-    for (final folder in data.emptyFolders) {
-      await ref.read(sessionProvider.notifier).addEmptyFolder(folder);
-    }
+
     AppLogger.instance.log(
       'QR import complete: ${data.sessions.length} session(s), '
-      '${data.emptyFolders.length} folder(s)',
+      '${data.managerKeys.length} key(s), '
+      '${data.tags.length} tag(s), '
+      '${data.snippets.length} snippet(s)',
       name: 'App',
     );
 
-    // Toast is best-effort — show when the navigator context is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = navigatorKey.currentContext;
       if (ctx != null && ctx.mounted) {
@@ -971,6 +988,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           includeSessions: true,
           includeConfig: true,
           includeKnownHosts: true,
+          includeManagerKeys: true,
+          includeTags: true,
+          includeSnippets: true,
         ),
       );
 
@@ -1019,6 +1039,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   ImportService _buildImportService() {
     final store = ref.read(sessionStoreProvider);
+    final keyStore = ref.read(keyStoreProvider);
+    final tagStore = ref.read(tagStoreProvider);
+    final snippetStore = ref.read(snippetStoreProvider);
     return ImportService(
       addSession: (s) => ref.read(sessionProvider.notifier).add(s),
       addEmptyFolder: (f) => store.addEmptyFolder(f),
@@ -1026,6 +1049,21 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       getSessions: () => ref.read(sessionProvider),
       applyConfig: (config) =>
           ref.read(configProvider.notifier).update((_) => config),
+      saveManagerKey: (entry) async {
+        await keyStore.save(entry);
+        return entry.id;
+      },
+      saveTag: (tag) async {
+        await tagStore.add(tag);
+        return tag.id;
+      },
+      tagSession: tagStore.tagSession,
+      tagFolder: (folderId, tagId) => tagStore.tagFolder(folderId, tagId),
+      saveSnippet: (snippet) async {
+        await snippetStore.add(snippet);
+        return snippet.id;
+      },
+      linkSnippetToSession: snippetStore.linkToSession,
       getEmptyFolders: () => store.emptyFolders,
       restoreSnapshot: (sessions, folders) =>
           store.restoreSnapshot(sessions, folders),

@@ -874,7 +874,7 @@ class SDe extends S {
 
   @override
   String get qrTooLarge =>
-      'Zu groß — reduzieren Sie die Auswahl oder nutzen Sie den .lfs-Dateiexport.';
+      'Zu groß — wählen Sie einige Elemente ab oder nutzen Sie den .lfs-Dateiexport.';
 
   @override
   String get exportAll => 'Alle exportieren';
@@ -1729,4 +1729,26 @@ class SDe extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Vollständige Sicherung';
+
+  @override
+  String get sessionsOnly => 'Sitzungen';
+
+  @override
+  String get sessionKeysFromManager => 'Sitzungsschlüssel aus dem Manager';
+
+  @override
+  String get allKeysFromManager => 'Alle Schlüssel aus dem Manager';
+
+  @override
+  String exportTags(int count) {
+    return 'Tags ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Snippets ($count)';
+  }
 }

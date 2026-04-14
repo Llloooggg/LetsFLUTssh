@@ -282,6 +282,11 @@ void main() {
     testWidgets('deselecting all sessions disables Export in QR mode', (
       tester,
     ) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final sessions = [makeSession('1', 'A'), makeSession('2', 'B')];
 
       await tester.pumpWidget(

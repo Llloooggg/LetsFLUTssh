@@ -258,7 +258,7 @@
   "exportSessionsViaQr": "QR से सत्र निर्यात करें",
   "qrNoCredentialsWarning": "पासवर्ड और SSH कुंजियां शामिल नहीं हैं।\nआयातित सत्रों में क्रेडेंशियल भरने की आवश्यकता होगी।",
   "qrTooManyForSingleCode": "एक QR कोड के लिए बहुत अधिक सत्र। कुछ अचयनित करें या .lfs निर्यात का उपयोग करें।",
-  "qrTooLarge": "बहुत बड़ा — कुछ सत्र अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।",
+  "qrTooLarge": "बहुत बड़ा — कुछ आइटम अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।",
   "exportAll": "सभी निर्यात करें",
   "showQr": "QR दिखाएं",
   "sort": "क्रमबद्ध करें",
@@ -461,5 +461,11 @@
   "manageMasterPasswordSubtitle": "मास्टर पासवर्ड सेट, बदलें या हटाएं",
   "emptyFolders": "खाली फ़ोल्डर",
   "enterMasterPasswordPrompt": "मास्टर पासवर्ड दर्ज करें:",
-  "nextStep": "अगला"
+  "nextStep": "अगला",
+  "fullBackup": "पूर्ण बैकअप",
+  "sessionsOnly": "सत्र",
+  "sessionKeysFromManager": "प्रबंधक से सत्र कुंजियाँ",
+  "allKeysFromManager": "प्रबंधक से सभी कुंजियाँ",
+  "exportTags": "टैग ({count})",
+  "exportSnippets": "स्निपेट ({count})"
 }

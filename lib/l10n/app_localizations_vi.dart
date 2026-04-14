@@ -868,7 +868,7 @@ class SVi extends S {
 
   @override
   String get qrTooLarge =>
-      'Quá lớn — bỏ chọn một số phiên hoặc sử dụng xuất tệp .lfs.';
+      'Quá lớn — bỏ chọn một số mục hoặc sử dụng xuất tệp .lfs.';
 
   @override
   String get exportAll => 'Xuất tất cả';
@@ -1707,4 +1707,26 @@ class SVi extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Sao lưu đầy đủ';
+
+  @override
+  String get sessionsOnly => 'Phiên';
+
+  @override
+  String get sessionKeysFromManager => 'Khóa phiên từ trình quản lý';
+
+  @override
+  String get allKeysFromManager => 'Tất cả khóa từ trình quản lý';
+
+  @override
+  String exportTags(int count) {
+    return 'Thẻ ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Đoạn mã ($count)';
+  }
 }

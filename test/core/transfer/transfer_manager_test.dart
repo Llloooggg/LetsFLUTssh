@@ -633,6 +633,42 @@ void main() {
       await _waitForIdle(manager);
     });
 
+    test('rapid progress updates are throttled in onChange stream', () async {
+      final finish = Completer<void>();
+      int streamEvents = 0;
+      final sub = manager.onChange.listen((_) => streamEvents++);
+
+      manager.enqueue(
+        TransferTask(
+          name: 'rapid.bin',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/rapid.bin',
+          targetPath: '/remote/rapid.bin',
+          run: (update) async {
+            // Simulate 50 rapid progress callbacks (like 50 chunks)
+            for (var i = 1; i <= 50; i++) {
+              update(i * 2.0, 'chunk $i');
+            }
+            finish.complete();
+          },
+        ),
+      );
+
+      await finish.future;
+      // Wait for trailing timer to fire (150ms throttle + margin)
+      await Future.delayed(const Duration(milliseconds: 250));
+      await _waitForHistory(manager, 1);
+
+      // Without throttling we'd see ~50 progress events + queue events.
+      // With throttling, progress emits are capped — total events should
+      // be significantly fewer than 50.
+      expect(streamEvents, lessThan(50));
+      // But at least some events fired (enqueue, progress, completion)
+      expect(streamEvents, greaterThan(0));
+
+      await sub.cancel();
+    });
+
     test('activeEntries is empty after running task is cancelled', () async {
       final started = Completer<void>();
 

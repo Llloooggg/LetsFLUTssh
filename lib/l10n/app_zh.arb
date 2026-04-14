@@ -467,5 +467,11 @@
   "manageMasterPasswordSubtitle": "设置、更改或移除主密码",
   "emptyFolders": "空文件夹",
   "enterMasterPasswordPrompt": "输入主密码:",
-  "nextStep": "下一步"
+  "nextStep": "下一步",
+  "fullBackup": "完整备份",
+  "sessionsOnly": "会话",
+  "sessionKeysFromManager": "管理器中的会话密钥",
+  "allKeysFromManager": "管理器中的所有密钥",
+  "exportTags": "标签 ({count})",
+  "exportSnippets": "代码片段 ({count})"
 }

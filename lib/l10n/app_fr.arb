@@ -258,7 +258,7 @@
   "exportSessionsViaQr": "Exporter les sessions via QR",
   "qrNoCredentialsWarning": "Les mots de passe et clés SSH ne sont PAS inclus.\nLes sessions importées devront être complétées avec les identifiants.",
   "qrTooManyForSingleCode": "Trop de sessions pour un seul QR code. Désélectionnez-en ou utilisez l'export .lfs.",
-  "qrTooLarge": "Trop volumineux — désélectionnez des sessions ou utilisez l'export en fichier .lfs.",
+  "qrTooLarge": "Trop volumineux — désélectionnez des éléments ou utilisez l'export en fichier .lfs.",
   "exportAll": "Tout exporter",
   "showQr": "Afficher le QR",
   "sort": "Trier",
@@ -467,5 +467,11 @@
   "manageMasterPasswordSubtitle": "Définir, modifier ou supprimer le mot de passe principal",
   "emptyFolders": "Dossiers vides",
   "enterMasterPasswordPrompt": "Entrez le mot de passe principal:",
-  "nextStep": "Suivant"
+  "nextStep": "Suivant",
+  "fullBackup": "Sauvegarde complète",
+  "sessionsOnly": "Sessions",
+  "sessionKeysFromManager": "Clés de session du gestionnaire",
+  "allKeysFromManager": "Toutes les clés du gestionnaire",
+  "exportTags": "Étiquettes ({count})",
+  "exportSnippets": "Extraits ({count})"
 }

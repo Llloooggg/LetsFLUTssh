@@ -1,8 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/import/import_service.dart';
+import 'package:letsflutssh/core/session/qr_codec.dart'
+    show ExportLink, ExportFolderTagLink;
 import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
 
 void main() {
@@ -344,6 +348,272 @@ void main() {
           expect(store.first.id, 'old1');
         },
       );
+    });
+
+    group('tag and snippet import', () {
+      late List<Tag> savedTags;
+      late List<({String sessionId, String tagId})> taggedSessions;
+      late List<({String folderId, String tagId})> taggedFolders;
+      late List<Snippet> savedSnippets;
+      late List<({String snippetId, String sessionId})> linkedSnippets;
+
+      ImportService buildTagSnippetService({
+        Future<String> Function(Tag)? onSaveTag,
+        Future<void> Function(String, String)? onTagSession,
+        Future<void> Function(String, String)? onTagFolder,
+        Future<String> Function(Snippet)? onSaveSnippet,
+        Future<void> Function(String, String)? onLinkSnippet,
+      }) {
+        return ImportService(
+          addEmptyFolder: (f) async {},
+          addSession: (s) async => store.add(s),
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => store,
+          applyConfig: (config) => appliedConfig = config,
+          saveTag: onSaveTag,
+          tagSession: onTagSession,
+          tagFolder: onTagFolder,
+          saveSnippet: onSaveSnippet,
+          linkSnippetToSession: onLinkSnippet,
+        );
+      }
+
+      setUp(() {
+        savedTags = [];
+        taggedSessions = [];
+        taggedFolders = [];
+        savedSnippets = [];
+        linkedSnippets = [];
+      });
+
+      test('imports tags and builds ID remap', () async {
+        final tag1 = Tag(id: 'old-t1', name: 'Web');
+        final tag2 = Tag(id: 'old-t2', name: 'DB', color: '#FF5722');
+
+        final svc = buildTagSnippetService(
+          onSaveTag: (tag) async {
+            savedTags.add(tag);
+            return 'new-${tag.id}';
+          },
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [],
+            tags: [tag1, tag2],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(savedTags, hasLength(2));
+        expect(savedTags[0].name, 'Web');
+        expect(savedTags[1].name, 'DB');
+      });
+
+      test('imports session-tag links with remapped IDs', () async {
+        final tag = Tag(id: 'old-t1', name: 'Web');
+        final sessionTagLinks = [
+          const ExportLink(sessionId: 's1', targetId: 'old-t1'),
+          const ExportLink(sessionId: 's2', targetId: 'old-t1'),
+        ];
+
+        final svc = buildTagSnippetService(
+          onSaveTag: (t) async {
+            savedTags.add(t);
+            return 'new-${t.id}';
+          },
+          onTagSession: (sessionId, tagId) async {
+            taggedSessions.add((sessionId: sessionId, tagId: tagId));
+          },
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [],
+            tags: [tag],
+            sessionTags: sessionTagLinks,
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(taggedSessions, hasLength(2));
+        expect(taggedSessions[0].sessionId, 's1');
+        expect(taggedSessions[0].tagId, 'new-old-t1');
+        expect(taggedSessions[1].sessionId, 's2');
+        expect(taggedSessions[1].tagId, 'new-old-t1');
+      });
+
+      test('imports folder-tag links with remapped IDs', () async {
+        final tag = Tag(id: 'old-t1', name: 'Prod');
+        final folderTagLinks = [
+          const ExportFolderTagLink(folderPath: '/servers', tagId: 'old-t1'),
+        ];
+
+        final svc = buildTagSnippetService(
+          onSaveTag: (t) async {
+            savedTags.add(t);
+            return 'new-${t.id}';
+          },
+          onTagFolder: (folderId, tagId) async {
+            taggedFolders.add((folderId: folderId, tagId: tagId));
+          },
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [],
+            tags: [tag],
+            folderTags: folderTagLinks,
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(taggedFolders, hasLength(1));
+        expect(taggedFolders[0].folderId, '/servers');
+        expect(taggedFolders[0].tagId, 'new-old-t1');
+      });
+
+      test('imports snippets and builds ID remap', () async {
+        final snippet1 = Snippet(
+          id: 'old-sn1',
+          title: 'List files',
+          command: 'ls -la',
+        );
+        final snippet2 = Snippet(
+          id: 'old-sn2',
+          title: 'Disk usage',
+          command: 'df -h',
+          description: 'Show disk usage',
+        );
+
+        final svc = buildTagSnippetService(
+          onSaveSnippet: (snippet) async {
+            savedSnippets.add(snippet);
+            return 'new-${snippet.id}';
+          },
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [],
+            snippets: [snippet1, snippet2],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(savedSnippets, hasLength(2));
+        expect(savedSnippets[0].title, 'List files');
+        expect(savedSnippets[1].title, 'Disk usage');
+      });
+
+      test('imports session-snippet links with remapped IDs', () async {
+        final snippet = Snippet(
+          id: 'old-sn1',
+          title: 'List files',
+          command: 'ls -la',
+        );
+        final snippetLinks = [
+          const ExportLink(sessionId: 's1', targetId: 'old-sn1'),
+          const ExportLink(sessionId: 's2', targetId: 'old-sn1'),
+        ];
+
+        final svc = buildTagSnippetService(
+          onSaveSnippet: (s) async {
+            savedSnippets.add(s);
+            return 'new-${s.id}';
+          },
+          onLinkSnippet: (snippetId, sessionId) async {
+            linkedSnippets.add((snippetId: snippetId, sessionId: sessionId));
+          },
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [],
+            snippets: [snippet],
+            sessionSnippets: snippetLinks,
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(linkedSnippets, hasLength(2));
+        expect(linkedSnippets[0].snippetId, 'new-old-sn1');
+        expect(linkedSnippets[0].sessionId, 's1');
+        expect(linkedSnippets[1].snippetId, 'new-old-sn1');
+        expect(linkedSnippets[1].sessionId, 's2');
+      });
+
+      test('skips tags/snippets when callbacks not provided', () async {
+        final tag = Tag(id: 't1', name: 'Web');
+        final snippet = Snippet(id: 'sn1', title: 'List', command: 'ls');
+
+        // Service with no tag/snippet callbacks (all null)
+        final svc = buildTagSnippetService();
+
+        // Should not throw
+        await svc.applyResult(
+          ImportResult(
+            sessions: [],
+            tags: [tag],
+            sessionTags: [const ExportLink(sessionId: 's1', targetId: 't1')],
+            folderTags: [
+              const ExportFolderTagLink(folderPath: '/f', tagId: 't1'),
+            ],
+            snippets: [snippet],
+            sessionSnippets: [
+              const ExportLink(sessionId: 's1', targetId: 'sn1'),
+            ],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        // Nothing saved — callbacks were null
+        expect(savedTags, isEmpty);
+        expect(savedSnippets, isEmpty);
+      });
+
+      test('tag import failure skips individual tag', () async {
+        final tag1 = Tag(id: 'good', name: 'Good');
+        final tag2 = Tag(id: 'bad', name: 'Bad');
+        final tag3 = Tag(id: 'also-good', name: 'Also Good');
+
+        final svc = buildTagSnippetService(
+          onSaveTag: (tag) async {
+            if (tag.id == 'bad') throw Exception('DB error');
+            savedTags.add(tag);
+            return 'new-${tag.id}';
+          },
+          onTagSession: (sessionId, tagId) async {
+            taggedSessions.add((sessionId: sessionId, tagId: tagId));
+          },
+        );
+
+        // Should not throw — individual tag errors are caught
+        await svc.applyResult(
+          ImportResult(
+            sessions: [],
+            tags: [tag1, tag2, tag3],
+            sessionTags: [
+              const ExportLink(sessionId: 's1', targetId: 'good'),
+              const ExportLink(sessionId: 's1', targetId: 'bad'),
+              const ExportLink(sessionId: 's1', targetId: 'also-good'),
+            ],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        // Only 2 of 3 tags were saved
+        expect(savedTags, hasLength(2));
+        expect(savedTags[0].name, 'Good');
+        expect(savedTags[1].name, 'Also Good');
+
+        // Session-tag links: 'good' and 'also-good' are remapped,
+        // 'bad' falls back to original ID (not in remap map)
+        expect(taggedSessions, hasLength(3));
+        expect(taggedSessions[0].tagId, 'new-good');
+        expect(taggedSessions[1].tagId, 'bad'); // fallback — not remapped
+        expect(taggedSessions[2].tagId, 'new-also-good');
+      });
     });
 
     test('applyConfig failure does not abort import', () async {

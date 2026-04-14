@@ -258,7 +258,7 @@
   "exportSessionsViaQr": "خروجی جلسات از طریق QR",
   "qrNoCredentialsWarning": "رمزهای عبور و کلیدهای SSH شامل نمی‌شوند.\nجلسات وارد شده نیاز به تکمیل اعتبارنامه دارند.",
   "qrTooManyForSingleCode": "تعداد جلسات برای یک کد QR بیش از حد است. برخی را حذف انتخاب کنید یا از خروجی .lfs استفاده کنید.",
-  "qrTooLarge": "حجم بیش از حد است — برخی جلسات را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.",
+  "qrTooLarge": "حجم بیش از حد است — برخی موارد را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.",
   "exportAll": "خروجی همه",
   "showQr": "نمایش QR",
   "sort": "مرتب‌سازی",
@@ -461,5 +461,11 @@
   "manageMasterPasswordSubtitle": "تنظیم، تغییر یا حذف رمز عبور اصلی",
   "emptyFolders": "پوشه‌های خالی",
   "enterMasterPasswordPrompt": "رمز عبور اصلی را وارد کنید:",
-  "nextStep": "بعدی"
+  "nextStep": "بعدی",
+  "fullBackup": "پشتیبان‌گیری کامل",
+  "sessionsOnly": "نشست‌ها",
+  "sessionKeysFromManager": "کلیدهای نشست از مدیر",
+  "allKeysFromManager": "همه کلیدها از مدیر",
+  "exportTags": "برچسب‌ها ({count})",
+  "exportSnippets": "قطعه‌ها ({count})"
 }

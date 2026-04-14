@@ -258,7 +258,7 @@
   "exportSessionsViaQr": "Oturumları QR ile Dışa Aktar",
   "qrNoCredentialsWarning": "Şifreler ve SSH anahtarları DAHİL DEĞİLDİR.\nİçe aktarılan oturumların kimlik bilgilerinin doldurulması gerekecektir.",
   "qrTooManyForSingleCode": "Tek bir QR kodu için çok fazla oturum. Bazılarının seçimini kaldırın veya .lfs dışa aktarımını kullanın.",
-  "qrTooLarge": "Çok büyük — bazı oturumların seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.",
+  "qrTooLarge": "Çok büyük — bazı öğelerin seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.",
   "exportAll": "Tümünü Dışa Aktar",
   "showQr": "QR Göster",
   "sort": "Sırala",
@@ -461,5 +461,11 @@
   "manageMasterPasswordSubtitle": "Ana şifreyi belirle, değiştir veya kaldır",
   "emptyFolders": "Boş klasörler",
   "enterMasterPasswordPrompt": "Ana şifreyi girin:",
-  "nextStep": "İleri"
+  "nextStep": "İleri",
+  "fullBackup": "Tam yedekleme",
+  "sessionsOnly": "Oturumlar",
+  "sessionKeysFromManager": "Yöneticiden oturum anahtarları",
+  "allKeysFromManager": "Yöneticiden tüm anahtarlar",
+  "exportTags": "Etiketler ({count})",
+  "exportSnippets": "Kod parçacıkları ({count})"
 }

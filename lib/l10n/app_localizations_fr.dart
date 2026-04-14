@@ -876,7 +876,7 @@ class SFr extends S {
 
   @override
   String get qrTooLarge =>
-      'Trop volumineux — désélectionnez des sessions ou utilisez l\'export en fichier .lfs.';
+      'Trop volumineux — désélectionnez des éléments ou utilisez l\'export en fichier .lfs.';
 
   @override
   String get exportAll => 'Tout exporter';
@@ -1732,4 +1732,26 @@ class SFr extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Sauvegarde complète';
+
+  @override
+  String get sessionsOnly => 'Sessions';
+
+  @override
+  String get sessionKeysFromManager => 'Clés de session du gestionnaire';
+
+  @override
+  String get allKeysFromManager => 'Toutes les clés du gestionnaire';
+
+  @override
+  String exportTags(int count) {
+    return 'Étiquettes ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Extraits ($count)';
+  }
 }

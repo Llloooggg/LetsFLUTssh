@@ -10,6 +10,15 @@ import 'database.dart';
 
 const _dbFileName = 'letsflutssh.db';
 
+/// Whether the database file already exists on disk.
+///
+/// Returns false on first launch (before any DB has been created).
+Future<bool> databaseFileExists() async {
+  final dir = await getApplicationSupportDirectory();
+  final file = File(p.join(dir.path, _dbFileName));
+  return file.exists();
+}
+
 /// Open the app database with optional encryption.
 ///
 /// [encryptionKey] — 32-byte key for SQLite3MultipleCiphers.
@@ -29,9 +38,8 @@ AppDatabase openTestDatabase() {
 
 LazyDatabase _openConnection({Uint8List? encryptionKey}) {
   return LazyDatabase(() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'LetsFLUTssh', _dbFileName));
-    await file.parent.create(recursive: true);
+    final dir = await getApplicationSupportDirectory();
+    final file = File(p.join(dir.path, _dbFileName));
 
     AppLogger.instance.log(
       'Opening database: ${file.path}, '

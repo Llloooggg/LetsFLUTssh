@@ -1692,7 +1692,7 @@ abstract class S {
   /// No description provided for @qrTooLarge.
   ///
   /// In en, this message translates to:
-  /// **'Too large — deselect some sessions or use .lfs file export.'**
+  /// **'Too large — deselect some items or use .lfs file export.'**
   String get qrTooLarge;
 
   /// No description provided for @exportAll.
@@ -3074,6 +3074,42 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Edit Tags'**
   String get editTags;
+
+  /// No description provided for @fullBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Full backup'**
+  String get fullBackup;
+
+  /// No description provided for @sessionsOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get sessionsOnly;
+
+  /// No description provided for @sessionKeysFromManager.
+  ///
+  /// In en, this message translates to:
+  /// **'Session keys from manager'**
+  String get sessionKeysFromManager;
+
+  /// No description provided for @allKeysFromManager.
+  ///
+  /// In en, this message translates to:
+  /// **'All keys from manager'**
+  String get allKeysFromManager;
+
+  /// No description provided for @exportTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags ({count})'**
+  String exportTags(int count);
+
+  /// No description provided for @exportSnippets.
+  ///
+  /// In en, this message translates to:
+  /// **'Snippets ({count})'**
+  String exportSnippets(int count);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

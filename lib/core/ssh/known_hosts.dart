@@ -263,34 +263,12 @@ class KnownHostsManager {
     final db = _db;
     var added = 0;
     for (final line in content.split('\n')) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
-      final parts = trimmed.split(' ');
-      if (parts.length >= 3) {
-        final hostPort = parts[0];
-        final keyString = '${parts[1]} ${parts[2]}';
-        if (!_hosts.containsKey(hostPort)) {
-          _hosts[hostPort] = keyString;
+      final entry = _parseLine(line);
+      if (entry == null || _hosts.containsKey(entry.hostPort)) continue;
 
-          if (db != null) {
-            final hpParts = hostPort.split(':');
-            final host = hpParts[0];
-            final port = hpParts.length > 1
-                ? int.tryParse(hpParts[1]) ?? 22
-                : 22;
-            await db.knownHostDao.insert(
-              KnownHostsCompanion.insert(
-                host: host,
-                port: Value(port),
-                keyType: parts[1],
-                keyBase64: parts[2],
-                addedAt: DateTime.now(),
-              ),
-            );
-          }
-          added++;
-        }
-      }
+      _hosts[entry.hostPort] = entry.keyString;
+      if (db != null) await _persistEntry(db, entry);
+      added++;
     }
     if (added > 0) {
       AppLogger.instance.log(
@@ -299,6 +277,21 @@ class KnownHostsManager {
       );
     }
     return added;
+  }
+
+  Future<void> _persistEntry(AppDatabase db, _ParsedHostEntry entry) async {
+    final hpParts = entry.hostPort.split(':');
+    final host = hpParts[0];
+    final port = hpParts.length > 1 ? int.tryParse(hpParts[1]) ?? 22 : 22;
+    await db.knownHostDao.insert(
+      KnownHostsCompanion.insert(
+        host: host,
+        port: Value(port),
+        keyType: entry.keyType,
+        keyBase64: entry.keyBase64,
+        addedAt: DateTime.now(),
+      ),
+    );
   }
 
   /// Export all entries to OpenSSH known_hosts format.
@@ -318,4 +311,31 @@ class KnownHostsManager {
   }
 
   String _fingerprint(List<int> keyBytes) => fingerprint(keyBytes);
+
+  static _ParsedHostEntry? _parseLine(String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty || trimmed.startsWith('#')) return null;
+    final parts = trimmed.split(' ');
+    if (parts.length < 3) return null;
+    return _ParsedHostEntry(
+      hostPort: parts[0],
+      keyType: parts[1],
+      keyBase64: parts[2],
+      keyString: '${parts[1]} ${parts[2]}',
+    );
+  }
+}
+
+class _ParsedHostEntry {
+  final String hostPort;
+  final String keyType;
+  final String keyBase64;
+  final String keyString;
+
+  const _ParsedHostEntry({
+    required this.hostPort,
+    required this.keyType,
+    required this.keyBase64,
+    required this.keyString,
+  });
 }

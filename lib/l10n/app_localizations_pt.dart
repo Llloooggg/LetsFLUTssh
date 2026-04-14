@@ -872,7 +872,7 @@ class SPt extends S {
 
   @override
   String get qrTooLarge =>
-      'Muito grande — desmarque algumas sessões ou use a exportação em arquivo .lfs.';
+      'Muito grande — desmarque alguns itens ou use a exportação em arquivo .lfs.';
 
   @override
   String get exportAll => 'Exportar Tudo';
@@ -1721,4 +1721,26 @@ class SPt extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Backup completo';
+
+  @override
+  String get sessionsOnly => 'Sessões';
+
+  @override
+  String get sessionKeysFromManager => 'Chaves de sessão do gerenciador';
+
+  @override
+  String get allKeysFromManager => 'Todas as chaves do gerenciador';
+
+  @override
+  String exportTags(int count) {
+    return 'Tags ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Snippets ($count)';
+  }
 }

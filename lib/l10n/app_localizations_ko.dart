@@ -855,7 +855,7 @@ class SKo extends S {
       '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
 
   @override
-  String get qrTooLarge => '너무 큽니다 — 일부 세션을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.';
+  String get qrTooLarge => '너무 큽니다 — 일부 항목을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.';
 
   @override
   String get exportAll => '모두 내보내기';
@@ -1682,4 +1682,26 @@ class SKo extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => '전체 백업';
+
+  @override
+  String get sessionsOnly => '세션';
+
+  @override
+  String get sessionKeysFromManager => '관리자의 세션 키';
+
+  @override
+  String get allKeysFromManager => '관리자의 모든 키';
+
+  @override
+  String exportTags(int count) {
+    return '태그 ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return '스니펫 ($count)';
+  }
 }

@@ -54,6 +54,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
 
 - **Linux:** AppImage, .deb, tar.gz
+  > Optional: `libsecret-1-0` for OS keychain encryption (`sudo apt install libsecret-1-0`). Without it the app works fine — only plaintext and master password modes are available.
 - **Windows:** EXE installer, portable zip
 - **macOS:** dmg, tar.gz
 - **Android:** APK (arm64, arm, x64)

@@ -3,9 +3,12 @@ import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/core/tags/tag.dart';
 
 void main() {
   Session makeSession({
@@ -381,7 +384,7 @@ void main() {
       expect(result!.sessions[0].keyData, '');
     });
 
-    test('includeManagerKeys=true includes manager key data', () {
+    test('includeManagerKeys=true exports key in km and sets mg flag', () {
       final session = Session(
         label: 'mgr-key',
         server: const ServerAddress(host: 'example.com', user: 'admin'),
@@ -391,12 +394,29 @@ void main() {
           keyData: 'ssh-rsa MANAGER...',
         ),
       );
-      final result = decodeExportPayload(
-        encodeExportPayload([
-          session,
-        ], options: const ExportOptions(includeManagerKeys: true)),
+      final keyEntry = SshKeyEntry(
+        id: 'mgr-123',
+        label: 'My Manager Key',
+        privateKey: 'ssh-rsa MANAGER...',
+        publicKey: 'ssh-rsa AAAA...',
+        keyType: 'rsa',
+        createdAt: DateTime(2024),
       );
-      expect(result!.sessions[0].keyData, 'ssh-rsa MANAGER...');
+      final result = decodeExportPayload(
+        encodeExportPayload(
+          [session],
+          options: const ExportOptions(includeManagerKeys: true),
+          managerKeyEntries: {'mgr-123': keyEntry},
+        ),
+      );
+      // Manager key: keyData empty (loaded from KeyStore on import),
+      // keyId set to short id for remapping.
+      expect(result!.sessions[0].keyData, isEmpty);
+      expect(result.sessions[0].keyId, isNotEmpty);
+      // Key appears in managerKeys for insertion into KeyStore.
+      expect(result.managerKeys, hasLength(1));
+      expect(result.managerKeys[0].privateKey, 'ssh-rsa MANAGER...');
+      expect(result.managerKeys[0].label, 'My Manager Key');
     });
 
     test('includeManagerKeys=false excludes manager key data', () {
@@ -576,14 +596,14 @@ void main() {
   });
 
   group('format versioning', () {
-    test('v2 payload includes version field', () {
+    test('v4 payload includes version field', () {
       final sessions = [makeSession(label: 'test', host: 'h', user: 'u')];
       final encoded = encodeExportPayload(sessions);
       // Decode the raw payload to inspect the JSON
       final compressed = base64Url.decode(encoded);
       final inflated = Inflate(compressed).getBytes();
       final json = jsonDecode(utf8.decode(inflated)) as Map<String, dynamic>;
-      expect(json['v'], 2);
+      expect(json['v'], 4);
     });
 
     test('decodes payload with unknown future version', () {
@@ -636,6 +656,128 @@ void main() {
       // With passwords
       final withPw = encodeSessionCompact(session, includePasswords: true);
       expect(withPw['pw'], 'secret');
+    });
+  });
+
+  group('tags and snippets in payload', () {
+    test('tags roundtrip through encode/decode', () {
+      final sessions = [makeSession(label: 's1')];
+      final tags = [
+        Tag(id: 't1', name: 'Production', color: '#EF5350'),
+        Tag(id: 't2', name: 'Staging'),
+      ];
+      final sessionTags = [const ExportLink(sessionId: 's1', targetId: 't1')];
+      final folderTags = [
+        const ExportFolderTagLink(folderPath: 'Servers', tagId: 't2'),
+      ];
+      final result = decodeExportPayload(
+        encodeExportPayload(
+          sessions,
+          options: const ExportOptions(includeTags: true),
+          tags: tags,
+          sessionTags: sessionTags,
+          folderTags: folderTags,
+        ),
+      );
+      expect(result!.tags, hasLength(2));
+      expect(result.tags[0].name, 'Production');
+      expect(result.tags[0].color, '#EF5350');
+      expect(result.tags[1].name, 'Staging');
+      expect(result.sessionTags, hasLength(1));
+      expect(result.sessionTags[0].sessionId, 's1');
+      expect(result.sessionTags[0].targetId, 't1');
+      expect(result.folderTags, hasLength(1));
+      expect(result.folderTags[0].folderPath, 'Servers');
+      expect(result.folderTags[0].tagId, 't2');
+    });
+
+    test('snippets roundtrip through encode/decode', () {
+      final sessions = [makeSession(label: 's1')];
+      final snippets = [
+        Snippet(
+          id: 'sn1',
+          title: 'Restart',
+          command: 'systemctl restart nginx',
+        ),
+        Snippet(
+          id: 'sn2',
+          title: 'Logs',
+          command: 'tail -f /var/log/syslog',
+          description: 'Follow system log',
+        ),
+      ];
+      final sessionSnippets = [
+        const ExportLink(sessionId: 's1', targetId: 'sn1'),
+      ];
+      final result = decodeExportPayload(
+        encodeExportPayload(
+          sessions,
+          options: const ExportOptions(includeSnippets: true),
+          snippets: snippets,
+          sessionSnippets: sessionSnippets,
+        ),
+      );
+      expect(result!.snippets, hasLength(2));
+      expect(result.snippets[0].title, 'Restart');
+      expect(result.snippets[0].command, 'systemctl restart nginx');
+      expect(result.snippets[1].description, 'Follow system log');
+      expect(result.sessionSnippets, hasLength(1));
+      expect(result.sessionSnippets[0].sessionId, 's1');
+      expect(result.sessionSnippets[0].targetId, 'sn1');
+    });
+
+    test('tags and snippets excluded when options are false', () {
+      final sessions = [makeSession(label: 's1')];
+      final result = decodeExportPayload(
+        encodeExportPayload(
+          sessions,
+          tags: [Tag(id: 't1', name: 'Prod')],
+          snippets: [Snippet(id: 'sn1', title: 'X', command: 'x')],
+        ),
+      );
+      expect(result!.tags, isEmpty);
+      expect(result.snippets, isEmpty);
+    });
+
+    test('includeAllManagerKeys adds unreferenced keys', () {
+      final session = Session(
+        label: 'srv',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(
+          authType: AuthType.key,
+          keyId: 'k-used',
+          keyData: 'KEY-A',
+        ),
+      );
+      final allKeys = {
+        'k-used': SshKeyEntry(
+          id: 'k-used',
+          label: 'Used',
+          privateKey: 'KEY-A',
+          publicKey: 'pub-a',
+          keyType: 'ed25519',
+          createdAt: DateTime(2024),
+        ),
+        'k-extra': SshKeyEntry(
+          id: 'k-extra',
+          label: 'Extra',
+          privateKey: 'KEY-B',
+          publicKey: 'pub-b',
+          keyType: 'rsa',
+          createdAt: DateTime(2024),
+        ),
+      };
+      final result = decodeExportPayload(
+        encodeExportPayload(
+          [session],
+          options: const ExportOptions(includeAllManagerKeys: true),
+          managerKeyEntries: allKeys,
+        ),
+      );
+      // Both keys should be in managerKeys (one from session, one extra).
+      expect(result!.managerKeys, hasLength(2));
+      final labels = result.managerKeys.map((k) => k.label).toSet();
+      expect(labels, containsAll(['Used', 'Extra']));
     });
   });
 

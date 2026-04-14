@@ -128,6 +128,11 @@ void main() {
     });
 
     testWidgets('Replace mode shows replace description', (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final preview = makePreview();
 
       await tester.pumpWidget(
@@ -153,11 +158,16 @@ void main() {
       expect(find.text('Import'), findsOneWidget);
     });
 
-    testWidgets('Import button is disabled with empty password', (tester) async {
+    testWidgets('Import button is disabled with empty password', (
+      tester,
+    ) async {
       final preview = makePreview();
 
       await tester.pumpWidget(
-        buildDialog(filePath: '${tempDir.path}/empty_pass.lfs', preview: preview),
+        buildDialog(
+          filePath: '${tempDir.path}/empty_pass.lfs',
+          preview: preview,
+        ),
       );
       await tester.pump();
 
@@ -174,7 +184,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        buildDialog(filePath: '${tempDir.path}/no_selection.lfs', preview: preview),
+        buildDialog(
+          filePath: '${tempDir.path}/no_selection.lfs',
+          preview: preview,
+        ),
       );
       await tester.pump();
 
@@ -258,6 +271,11 @@ void main() {
     });
 
     testWidgets('switches between Merge and Replace modes', (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final preview = makePreview();
 
       await tester.pumpWidget(
@@ -316,7 +334,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        buildDialog(filePath: '${tempDir.path}/nofolders.lfs', preview: preview),
+        buildDialog(
+          filePath: '${tempDir.path}/nofolders.lfs',
+          preview: preview,
+        ),
       );
       await tester.pump();
 

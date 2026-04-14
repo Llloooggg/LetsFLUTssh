@@ -32,6 +32,12 @@ class TransferManager {
   /// IDs of tasks that have been cancelled — checked during execution.
   final _cancelledIds = <String>{};
 
+  /// Throttle interval for progress UI updates.
+  /// State is always updated in memory; only stream emit is throttled.
+  static const _progressThrottleInterval = Duration(milliseconds: 150);
+  DateTime _lastProgressEmit = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _pendingProgressTimer;
+
   /// Current active transfer info (name + percent) for status bar.
   /// Shows the most recently updated active transfer.
   String? get currentTransferInfo =>
@@ -192,7 +198,7 @@ class TransferManager {
           progress.percent = percent;
           progress.message = message;
         }
-        _notify();
+        _notifyProgress();
       });
 
       await _awaitWithTimeout(taskFuture, entry.id);
@@ -258,6 +264,8 @@ class TransferManager {
     } finally {
       _cancelledIds.remove(entry.id);
       _timeoutTimers.remove(entry.id)?.cancel();
+      _pendingProgressTimer?.cancel();
+      _pendingProgressTimer = null;
       _running--;
       _activeTransfers.remove(entry.id);
       _activeProgress.remove(entry.id);
@@ -315,8 +323,33 @@ class TransferManager {
     }
   }
 
+  /// Throttled notify for progress updates only.
+  /// In-memory state is always current; this limits stream emits so the UI
+  /// rebuilds at most once per [_progressThrottleInterval].
+  void _notifyProgress() {
+    if (_disposed) return;
+    final now = DateTime.now();
+    if (now.difference(_lastProgressEmit) >= _progressThrottleInterval) {
+      _lastProgressEmit = now;
+      _pendingProgressTimer?.cancel();
+      _pendingProgressTimer = null;
+      _controller.add(null);
+    } else {
+      // Schedule a trailing emit so the final update is never lost.
+      _pendingProgressTimer ??= Timer(_progressThrottleInterval, () {
+        _pendingProgressTimer = null;
+        if (!_disposed) {
+          _lastProgressEmit = DateTime.now();
+          _controller.add(null);
+        }
+      });
+    }
+  }
+
   void dispose() {
     _disposed = true;
+    _pendingProgressTimer?.cancel();
+    _pendingProgressTimer = null;
     cancelAll();
     _history.clear();
     for (final timer in _timeoutTimers.values) {
