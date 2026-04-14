@@ -100,40 +100,17 @@ class ImportService {
   }
 
   Future<void> _applyCore(ImportResult result, _Snapshot? snapshot) async {
-    // Import manager keys first — build oldId→newId map for session remapping.
-    // The saveManagerKey callback itself dedups by fingerprint (see KeyStore),
-    // so this map will resolve incoming keys to either a brand-new or an
-    // existing stored key id.
+    // Import manager keys first — the saveManagerKey callback dedups by
+    // fingerprint (see KeyStore), so the returned map resolves incoming keys
+    // to either a brand-new or an existing stored key id.
     final keyIdMap = await _importManagerKeys(result.managerKeys);
-
-    // Remap session keyIds to the newly inserted key IDs
-    var sessions = keyIdMap.isEmpty
-        ? result.sessions
-        : result.sessions.map((s) {
-            final newKeyId = keyIdMap[s.keyId];
-            if (newKeyId == null) return s;
-            return s.copyWith(auth: s.auth.copyWith(keyId: newKeyId));
-          }).toList();
+    final rekeyedSessions = _remapSessionKeyIds(result.sessions, keyIdMap);
 
     // Merge mode: remap colliding session ids to fresh UUIDs + "(copy)" label.
     // Replace mode: existing was cleared, no collisions possible.
-    final sessionIdMap = <String, String>{};
-    if (result.mode == ImportMode.merge) {
-      final existing = getSessions().map((s) => s.id).toSet();
-      sessions = sessions.map((s) {
-        if (!existing.contains(s.id)) return s;
-        final newId = const Uuid().v4();
-        sessionIdMap[s.id] = newId;
-        return Session(
-          id: newId,
-          label: s.label.isNotEmpty ? '${s.label} (copy)' : '',
-          folder: s.folder,
-          server: s.server,
-          auth: s.auth,
-          createdAt: s.createdAt,
-        );
-      }).toList();
-    }
+    final (sessions, sessionIdMap) = result.mode == ImportMode.merge
+        ? _resolveSessionCollisions(rekeyedSessions)
+        : (rekeyedSessions, const <String, String>{});
 
     final imported = await _importSessions(
       ImportResult(
@@ -144,19 +121,11 @@ class ImportService {
       snapshot,
     );
 
-    // Import empty folders
-    var foldersImported = 0;
-    for (final folder in result.emptyFolders) {
-      try {
-        await addEmptyFolder(folder);
-        foldersImported++;
-      } catch (e) {
-        if (result.mode == ImportMode.replace) rethrow;
-        AppLogger.instance.log('Skipped empty folder: $e', name: 'Import');
-      }
-    }
+    final foldersImported = await _importEmptyFolders(
+      result.emptyFolders,
+      result.mode,
+    );
 
-    // Import tags and their session/folder assignments
     final tagIdMap = await _importTags(result.tags, result.mode);
     await _importTagLinks(
       result.sessionTags,
@@ -165,7 +134,6 @@ class ImportService {
       sessionIdMap,
     );
 
-    // Import snippets and their session links
     final snippetIdMap = await _importSnippets(result.snippets, result.mode);
     await _importSnippetLinks(
       result.sessionSnippets,
@@ -173,24 +141,7 @@ class ImportService {
       sessionIdMap,
     );
 
-    // Apply config last. Merge mode: log and continue (config is independent
-    // of imported sessions). Replace mode: propagate so the outer catch in
-    // applyResult rolls back sessions/folders/config atomically.
-    if (result.config != null) {
-      if (result.mode == ImportMode.replace) {
-        applyConfig(result.config!);
-      } else {
-        try {
-          applyConfig(result.config!);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to apply config: $e',
-            name: 'Import',
-            error: e,
-          );
-        }
-      }
-    }
+    _applyImportedConfig(result);
 
     AppLogger.instance.log(
       'Import complete: $imported/${result.sessions.length} sessions, '
@@ -199,6 +150,82 @@ class ImportService {
       '${snippetIdMap.length}/${result.snippets.length} snippets imported',
       name: 'Import',
     );
+  }
+
+  /// Rewrite session `keyId` fields using the manager-key id map. Returns
+  /// the original list unchanged when the map is empty.
+  List<Session> _remapSessionKeyIds(
+    List<Session> sessions,
+    Map<String, String> keyIdMap,
+  ) {
+    if (keyIdMap.isEmpty) return sessions;
+    return sessions.map((s) {
+      final newKeyId = keyIdMap[s.keyId];
+      if (newKeyId == null) return s;
+      return s.copyWith(auth: s.auth.copyWith(keyId: newKeyId));
+    }).toList();
+  }
+
+  /// Resolve merge-mode session id collisions by minting a fresh UUID and
+  /// suffixing the label with `(copy)`. Returns the remapped list and an
+  /// oldId→newId map for downstream link rewriting.
+  (List<Session>, Map<String, String>) _resolveSessionCollisions(
+    List<Session> sessions,
+  ) {
+    final existing = getSessions().map((s) => s.id).toSet();
+    final idMap = <String, String>{};
+    final remapped = sessions.map((s) {
+      if (!existing.contains(s.id)) return s;
+      final newId = const Uuid().v4();
+      idMap[s.id] = newId;
+      return Session(
+        id: newId,
+        label: s.label.isNotEmpty ? '${s.label} (copy)' : '',
+        folder: s.folder,
+        server: s.server,
+        auth: s.auth,
+        createdAt: s.createdAt,
+      );
+    }).toList();
+    return (remapped, idMap);
+  }
+
+  /// Import the empty-folder set, counting successes. In replace mode a
+  /// single failure aborts the import so the outer catch can roll back;
+  /// merge mode logs and continues.
+  Future<int> _importEmptyFolders(Set<String> folders, ImportMode mode) async {
+    var imported = 0;
+    for (final folder in folders) {
+      try {
+        await addEmptyFolder(folder);
+        imported++;
+      } catch (e) {
+        if (mode == ImportMode.replace) rethrow;
+        AppLogger.instance.log('Skipped empty folder: $e', name: 'Import');
+      }
+    }
+    return imported;
+  }
+
+  /// Apply the imported config. Merge mode logs and swallows failures (config
+  /// is independent of sessions); replace mode lets them propagate so the
+  /// outer catch in [applyResult] rolls back atomically.
+  void _applyImportedConfig(ImportResult result) {
+    final config = result.config;
+    if (config == null) return;
+    if (result.mode == ImportMode.replace) {
+      applyConfig(config);
+      return;
+    }
+    try {
+      applyConfig(config);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to apply config: $e',
+        name: 'Import',
+        error: e,
+      );
+    }
   }
 
   /// Import manager keys into KeyStore. Returns a map of oldId→newId
