@@ -93,6 +93,37 @@ class ExportOptions {
 /// Format: `{"km":{"k0":"ssh-rsa..."},"s":[...],"eg":[...],"c":{...},"kh":"..."}`
 /// Keys are deduplicated in `km` (key map), sessions reference via `ki`.
 /// The entire JSON is deflate-compressed before base64 encoding.
+/// Deduplicate SSH keys across sessions and return a short-id map.
+///
+/// Returns `(keyMap: shortId→keyData, sessionKeyIds: sessionId→shortId)`.
+({Map<String, String> keyMap, Map<String, String?> sessionKeyIds})
+_deduplicateKeys(List<Session> sessions, ExportOptions options) {
+  final sessionKeyIds = <String, String?>{};
+  if (!options.includeEmbeddedKeys && !options.includeManagerKeys) {
+    return (keyMap: <String, String>{}, sessionKeyIds: sessionKeyIds);
+  }
+
+  final keyToShortId = <String, String>{};
+  var counter = 0;
+  for (final s in sessions) {
+    if (s.keyData.isEmpty) continue;
+    final isFromManager = s.keyId.isNotEmpty;
+    if (isFromManager && !options.includeManagerKeys) continue;
+    if (!isFromManager && !options.includeEmbeddedKeys) continue;
+
+    final shortId = keyToShortId.putIfAbsent(s.keyData, () {
+      final id = 'k$counter';
+      counter++;
+      return id;
+    });
+    sessionKeyIds[s.id] = shortId;
+  }
+
+  final keyMap = <String, String>{};
+  keyToShortId.forEach((keyData, shortId) => keyMap[shortId] = keyData);
+  return (keyMap: keyMap, sessionKeyIds: sessionKeyIds);
+}
+
 String encodeExportPayload(
   List<Session> sessions, {
   Set<String> emptyFolders = const {},
@@ -100,33 +131,7 @@ String encodeExportPayload(
   AppConfig? config,
   String? knownHostsContent,
 }) {
-  final keyMap = <String, String>{};
-  final sessionKeyIds = <String, String?>{};
-
-  // Key deduplication: Map<keyData, shortId> for O(1) lookup
-  final keyToShortId = <String, String>{};
-  var keyCounter = 0;
-
-  if (options.includeEmbeddedKeys || options.includeManagerKeys) {
-    for (final s in sessions) {
-      final isFromManager = s.keyId.isNotEmpty;
-      final hasKey = s.keyData.isNotEmpty;
-      if (!hasKey) continue;
-
-      // Only include if the corresponding option is enabled
-      if (isFromManager && !options.includeManagerKeys) continue;
-      if (!isFromManager && !options.includeEmbeddedKeys) continue;
-
-      final shortId = keyToShortId.putIfAbsent(s.keyData, () {
-        final id = 'k$keyCounter';
-        keyCounter++;
-        return id;
-      });
-      sessionKeyIds[s.id] = shortId;
-    }
-    // Build keyMap for payload: shortId → keyData
-    keyToShortId.forEach((keyData, shortId) => keyMap[shortId] = keyData);
-  }
+  final (:keyMap, :sessionKeyIds) = _deduplicateKeys(sessions, options);
 
   final payload = <String, dynamic>{'v': _currentFormatVersion};
   if (keyMap.isNotEmpty) payload['km'] = keyMap;

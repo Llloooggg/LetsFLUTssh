@@ -22,7 +22,6 @@ class UnifiedExportDialog extends StatefulWidget {
   final AppConfig? config;
   final String? knownHostsContent;
   final bool isQrMode;
-  final String? knownHostsLabel;
 
   /// Map of keyId -> keyData for keys stored in the manager.
   /// Used to calculate export size for manager keys separately from embedded keys.
@@ -35,7 +34,6 @@ class UnifiedExportDialog extends StatefulWidget {
     this.config,
     this.knownHostsContent,
     this.isQrMode = false,
-    this.knownHostsLabel,
     this.managerKeys = const {},
   });
 
@@ -46,7 +44,6 @@ class UnifiedExportDialog extends StatefulWidget {
     AppConfig? config,
     String? knownHostsContent,
     bool isQrMode = false,
-    String? knownHostsLabel,
     Map<String, String> managerKeys = const {},
   }) {
     return AppDialog.show<UnifiedExportResult>(
@@ -57,7 +54,6 @@ class UnifiedExportDialog extends StatefulWidget {
         config: config,
         knownHostsContent: knownHostsContent,
         isQrMode: isQrMode,
-        knownHostsLabel: knownHostsLabel,
         managerKeys: managerKeys,
       ),
     );
@@ -576,7 +572,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
         if (widget.knownHostsContent?.isNotEmpty == true)
           _buildCheckboxRow(
             Icons.verified_user,
-            widget.knownHostsLabel ?? S.of(context).knownHosts,
+            S.of(context).knownHosts,
             _options.includeKnownHosts,
             () => setState(() {
               _invalidatePayloadCache();

@@ -282,35 +282,8 @@ class SessionStore {
       }
     }
 
-    // Update empty folders
-    final toRemove = <String>[];
-    final toAdd = <String>[];
-    for (final g in _emptyFolders) {
-      if (g == oldPath) {
-        toRemove.add(g);
-        toAdd.add(newPath);
-      } else if (g.startsWith('$oldPath/')) {
-        toRemove.add(g);
-        toAdd.add(newPath + g.substring(oldPath.length));
-      }
-    }
-    _emptyFolders.removeAll(toRemove);
-    _emptyFolders.addAll(toAdd);
-
-    // Update collapsed folders
-    final colToRemove = <String>[];
-    final colToAdd = <String>[];
-    for (final c in _collapsedFolders) {
-      if (c == oldPath) {
-        colToRemove.add(c);
-        colToAdd.add(newPath);
-      } else if (c.startsWith('$oldPath/')) {
-        colToRemove.add(c);
-        colToAdd.add(newPath + c.substring(oldPath.length));
-      }
-    }
-    _collapsedFolders.removeAll(colToRemove);
-    _collapsedFolders.addAll(colToAdd);
+    _renamePaths(_emptyFolders, oldPath, newPath);
+    _renamePaths(_collapsedFolders, oldPath, newPath);
 
     // Update DB: rename the folder node
     final db = _db;
@@ -326,6 +299,23 @@ class SessionStore {
         _folderMap = buildFolderMap(folders);
       }
     }
+  }
+
+  /// Rename paths in a set: exact match and children under oldPath/.
+  static void _renamePaths(Set<String> paths, String oldPath, String newPath) {
+    final toRemove = <String>[];
+    final toAdd = <String>[];
+    for (final p in paths) {
+      if (p == oldPath) {
+        toRemove.add(p);
+        toAdd.add(newPath);
+      } else if (p.startsWith('$oldPath/')) {
+        toRemove.add(p);
+        toAdd.add(newPath + p.substring(oldPath.length));
+      }
+    }
+    paths.removeAll(toRemove);
+    paths.addAll(toAdd);
   }
 
   Future<void> deleteFolder(String folderPath) async {

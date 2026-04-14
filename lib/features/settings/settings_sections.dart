@@ -587,7 +587,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   /// Re-encrypt the database and update global security state.
   ///
   /// With drift, encryption is at the DB file level — no per-store re-encryption.
-  /// TODO: Implement PRAGMA rekey for live re-encryption.
+  /// PRAGMA rekey for live re-encryption is planned for a future release.
   Future<void> _reEncryptAll(Uint8List? key, SecurityLevel level) async {
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
@@ -663,7 +663,6 @@ class _ExportImportTile extends ConsumerWidget {
   Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
     final sessions = ref.read(sessionProvider);
     final store = ref.read(sessionStoreProvider);
-    final l10n = S.of(context);
 
     // Load all manager keys for size calculation (before resolving sessions)
     final keyStore = ref.read(keyStoreProvider);
@@ -682,7 +681,6 @@ class _ExportImportTile extends ConsumerWidget {
       config: ref.read(configProvider),
       knownHostsContent: ref.read(knownHostsProvider).exportToString(),
       isQrMode: false,
-      knownHostsLabel: l10n.knownHosts,
       managerKeys: managerKeys,
     );
 
@@ -1324,7 +1322,6 @@ class _QrExportTile extends ConsumerWidget {
       return;
     }
     final store = ref.read(sessionStoreProvider);
-    final l10n = S.of(context);
 
     // Load all manager keys for size calculation (before resolving sessions)
     final keyStore = ref.read(keyStoreProvider);
@@ -1342,7 +1339,6 @@ class _QrExportTile extends ConsumerWidget {
       config: ref.read(configProvider),
       knownHostsContent: ref.read(knownHostsProvider).exportToString(),
       isQrMode: true,
-      knownHostsLabel: l10n.knownHosts,
       managerKeys: managerKeys,
     );
 
