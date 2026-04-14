@@ -456,11 +456,17 @@ class ExportImport {
       final json = utf8.decode(file.content as List<int>);
       final decoded = jsonDecode(json);
       if (decoded is! Map<String, dynamic>) return const LfsManifest.legacy();
-      final version = decoded['schema_version'];
+      final versionRaw = decoded['schema_version'];
+      final int schemaVersion;
+      if (versionRaw is int) {
+        schemaVersion = versionRaw;
+      } else if (versionRaw is num) {
+        schemaVersion = versionRaw.toInt();
+      } else {
+        schemaVersion = 1;
+      }
       return LfsManifest(
-        schemaVersion: version is int
-            ? version
-            : (version is num ? version.toInt() : 1),
+        schemaVersion: schemaVersion,
         appVersion: decoded['app_version'] is String
             ? decoded['app_version'] as String
             : null,

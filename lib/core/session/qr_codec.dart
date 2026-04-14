@@ -522,6 +522,14 @@ ExportPayloadData? _decodePayload(String b64) {
   return null;
 }
 
+/// Coerce a JSON-decoded value to [int] — accepts `int`, `num`, else
+/// returns [fallback]. Extracted to keep version/field parsers flat.
+int _asInt(Object? raw, {required int fallback}) {
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  return fallback;
+}
+
 ExportPayloadData? _parsePayload(String payload) {
   try {
     final json = jsonDecode(payload) as Map<String, dynamic>;
@@ -530,10 +538,7 @@ ExportPayloadData? _parsePayload(String payload) {
     // carry data this build cannot interpret, and silently dropping them
     // would cause partial/incorrect imports. Missing `v` is treated as v1
     // (legacy payloads predate the version marker).
-    final versionRaw = json['v'];
-    final version = versionRaw is int
-        ? versionRaw
-        : (versionRaw is num ? versionRaw.toInt() : 1);
+    final version = _asInt(json['v'], fallback: 1);
     if (version > _currentFormatVersion) {
       AppLogger.instance.log(
         'Rejected payload: schema v$version is newer than supported '

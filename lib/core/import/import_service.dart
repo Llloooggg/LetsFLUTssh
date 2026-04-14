@@ -180,7 +180,7 @@ class ImportService {
       idMap[s.id] = newId;
       return Session(
         id: newId,
-        label: s.label.isNotEmpty ? '${s.label} (copy)' : '',
+        label: _withCopySuffix(s.label),
         folder: s.folder,
         server: s.server,
         auth: s.auth,
@@ -262,14 +262,17 @@ class ImportService {
     final idMap = <String, String>{};
     for (final tag in tags) {
       try {
-        final effective = existing.contains(tag.id)
-            ? Tag(
-                id: const Uuid().v4(),
-                name: tag.name.isNotEmpty ? '${tag.name} (copy)' : tag.name,
-                color: tag.color,
-                createdAt: tag.createdAt,
-              )
-            : tag;
+        final Tag effective;
+        if (existing.contains(tag.id)) {
+          effective = Tag(
+            id: const Uuid().v4(),
+            name: _withCopySuffix(tag.name),
+            color: tag.color,
+            createdAt: tag.createdAt,
+          );
+        } else {
+          effective = tag;
+        }
         final newId = await saveTag!(effective);
         idMap[tag.id] = newId;
       } catch (e) {
@@ -278,6 +281,11 @@ class ImportService {
     }
     return idMap;
   }
+
+  /// Append `(copy)` to a non-empty label. Returns the input unchanged if
+  /// empty so we never produce a lone `(copy)` string.
+  static String _withCopySuffix(String label) =>
+      label.isEmpty ? label : '$label (copy)';
 
   /// Apply session→tag and folder→tag links with remapped IDs.
   Future<void> _importTagLinks(
@@ -325,18 +333,19 @@ class ImportService {
     final idMap = <String, String>{};
     for (final snippet in snippets) {
       try {
-        final effective = existing.contains(snippet.id)
-            ? Snippet(
-                id: const Uuid().v4(),
-                title: snippet.title.isNotEmpty
-                    ? '${snippet.title} (copy)'
-                    : snippet.title,
-                command: snippet.command,
-                description: snippet.description,
-                createdAt: snippet.createdAt,
-                updatedAt: snippet.updatedAt,
-              )
-            : snippet;
+        final Snippet effective;
+        if (existing.contains(snippet.id)) {
+          effective = Snippet(
+            id: const Uuid().v4(),
+            title: _withCopySuffix(snippet.title),
+            command: snippet.command,
+            description: snippet.description,
+            createdAt: snippet.createdAt,
+            updatedAt: snippet.updatedAt,
+          );
+        } else {
+          effective = snippet;
+        }
         final newId = await saveSnippet!(effective);
         idMap[snippet.id] = newId;
       } catch (e) {
