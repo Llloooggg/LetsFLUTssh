@@ -171,18 +171,22 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     if (_payloadSizeCacheValid && _cachedPayloadSize != null) {
       return _cachedPayloadSize!;
     }
-    // Base size without manager keys (sessions have unresolved keyId).
+    // Base size without any manager keys (sessions have unresolved keyId,
+    // so encodeExportPayload can't calculate manager key sizes).
     final base = calculateExportPayloadSize(
       _selectedSessions,
       emptyFolders: _relevantEmptyFolders,
-      options: _options.copyWith(includeManagerKeys: false),
+      options: _options.copyWith(
+        includeManagerKeys: false,
+        includeAllManagerKeys: false,
+      ),
       config: _options.includeConfig ? widget.config : null,
       knownHostsContent: _options.includeKnownHosts
           ? widget.knownHostsContent
           : null,
     );
     // Add manager keys size separately (uses actual key data from widget).
-    final result = _options.includeManagerKeys
+    final result = _options.hasManagerKeys
         ? base + _managerKeysExtraSize()
         : base;
     _cachedPayloadSize = result;
@@ -255,9 +259,20 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
 
   int _managerKeysExtraSize() {
     if (_cachedManagerKeysExtra != null) return _cachedManagerKeysExtra!;
-    // Sum of all unique manager keys (regardless of selected sessions)
-    final managerKeys = widget.managerKeys;
+    var managerKeys = widget.managerKeys;
     if (managerKeys.isEmpty) return _cachedManagerKeysExtra = 0;
+
+    // For "session keys" mode, filter to keys referenced by selected sessions.
+    if (_options.includeManagerKeys && !_options.includeAllManagerKeys) {
+      final usedKeyIds = _selectedSessions
+          .where((s) => s.keyId.isNotEmpty)
+          .map((s) => s.keyId)
+          .toSet();
+      managerKeys = Map.fromEntries(
+        managerKeys.entries.where((e) => usedKeyIds.contains(e.key)),
+      );
+      if (managerKeys.isEmpty) return _cachedManagerKeysExtra = 0;
+    }
 
     // Calculate size of all manager keys as if they were in the payload
     // Using a single dummy session to measure key-only payload size
