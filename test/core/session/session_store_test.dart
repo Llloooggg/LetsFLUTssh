@@ -172,6 +172,21 @@ void main() {
       expect(store.get('s2')!.folder, 'New/Sub');
     });
 
+    test('renameFolder updates empty and collapsed folders', () async {
+      await store.load();
+      await store.addEmptyFolder('Old');
+      await store.addEmptyFolder('Old/Sub');
+      await store.toggleFolderCollapsed('Old');
+      await store.toggleFolderCollapsed('Old/Sub');
+
+      await store.renameFolder('Old', 'New');
+
+      expect(store.emptyFolders, containsAll(['New', 'New/Sub']));
+      expect(store.emptyFolders, isNot(contains('Old')));
+      expect(store.collapsedFolders, containsAll(['New', 'New/Sub']));
+      expect(store.collapsedFolders, isNot(contains('Old')));
+    });
+
     test('deleteFolder removes sessions in folder', () async {
       await store.load();
       await store.add(makeSession(id: 's1', folder: 'Del'));
