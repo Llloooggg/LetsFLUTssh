@@ -63,6 +63,56 @@ class SZh extends S {
   String get settings => '设置';
 
   @override
+  String get appSettings => '应用设置';
+
+  @override
+  String get yes => '是';
+
+  @override
+  String get no => '否';
+
+  @override
+  String get importWhatToImport => '导入内容：';
+
+  @override
+  String get enterMasterPasswordPrompt => '输入主密码:';
+
+  @override
+  String get nextStep => '下一步';
+
+  @override
+  String get includeCredentials => '包含密码和 SSH 密钥';
+
+  @override
+  String get includePasswords => '会话密码';
+
+  @override
+  String get embeddedKeys => '内置密钥';
+
+  @override
+  String get managerKeys => '管理器中的密钥';
+
+  @override
+  String get managerKeysMayBeLarge => '管理器密钥可能超出 QR 大小限制';
+
+  @override
+  String get qrPasswordWarning => '密码在 QR 码中未加密。任何扫描的人都可以看到。';
+
+  @override
+  String get sshKeysMayBeLarge => '密钥可能超出 QR 大小';
+
+  @override
+  String exportTotalSize(String size) {
+    return '总大小: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning => '密码和 SSH 密钥将在 QR 码中可见';
+
+  @override
+  String get qrCredentialsTooLarge => '凭证使 QR 码过大';
+
+  @override
   String get terminal => '终端';
 
   @override
@@ -179,6 +229,9 @@ class SZh extends S {
 
   @override
   String get sessions => '会话';
+
+  @override
+  String get emptyFolders => '空文件夹';
 
   @override
   String get sessionsHeader => '会话';
@@ -1246,6 +1299,9 @@ class SZh extends S {
   String get noHostsToExport => '没有可导出的主机';
 
   @override
+  String get tools => '工具';
+
+  @override
   String get sshKeys => 'SSH 密钥';
 
   @override
@@ -1469,8 +1525,154 @@ class SZh extends S {
   String get keychainNotAvailable => '不可用';
 
   @override
+  String get enableKeychain => '启用钥匙串加密';
+
+  @override
+  String get enableKeychainSubtitle => '使用系统钥匙串重新加密存储的数据';
+
+  @override
+  String get keychainEnabled => '钥匙串加密已启用';
+
+  @override
   String get manageMasterPassword => '管理主密码';
 
   @override
   String get manageMasterPasswordSubtitle => '设置、更改或移除主密码';
+
+  @override
+  String get snippets => 'Snippets';
+
+  @override
+  String get snippetsSubtitle => 'Manage reusable command snippets';
+
+  @override
+  String get noSnippets => 'No snippets yet';
+
+  @override
+  String get addSnippet => 'Add Snippet';
+
+  @override
+  String get editSnippet => 'Edit Snippet';
+
+  @override
+  String get deleteSnippet => 'Delete Snippet';
+
+  @override
+  String deleteSnippetConfirm(String title) {
+    return 'Delete snippet \"$title\"?';
+  }
+
+  @override
+  String get snippetTitle => 'Title';
+
+  @override
+  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+
+  @override
+  String get snippetCommand => 'Command';
+
+  @override
+  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+
+  @override
+  String get snippetDescription => 'Description (optional)';
+
+  @override
+  String get snippetDescriptionHint => 'What does this command do?';
+
+  @override
+  String get snippetSaved => 'Snippet saved';
+
+  @override
+  String snippetDeleted(String title) {
+    return 'Snippet \"$title\" deleted';
+  }
+
+  @override
+  String snippetCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count snippets',
+      one: '1 snippet',
+      zero: 'No snippets',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get runSnippet => 'Run';
+
+  @override
+  String get pinToSession => 'Pin to this session';
+
+  @override
+  String get unpinFromSession => 'Unpin from this session';
+
+  @override
+  String get pinnedSnippets => 'Pinned';
+
+  @override
+  String get allSnippets => 'All';
+
+  @override
+  String get sendToTerminal => 'Send to terminal';
+
+  @override
+  String get commandCopied => 'Command copied to clipboard';
+
+  @override
+  String get tags => 'Tags';
+
+  @override
+  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+
+  @override
+  String get noTags => 'No tags yet';
+
+  @override
+  String get addTag => 'Add Tag';
+
+  @override
+  String get deleteTag => 'Delete Tag';
+
+  @override
+  String deleteTagConfirm(String name) {
+    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+  }
+
+  @override
+  String get tagName => 'Tag Name';
+
+  @override
+  String get tagNameHint => 'e.g. Production, Staging';
+
+  @override
+  String get tagColor => 'Color';
+
+  @override
+  String get tagCreated => 'Tag created';
+
+  @override
+  String tagDeleted(String name) {
+    return 'Tag \"$name\" deleted';
+  }
+
+  @override
+  String tagCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+      zero: 'No tags',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageTags => 'Manage Tags';
+
+  @override
+  String get editTags => 'Edit Tags';
 }

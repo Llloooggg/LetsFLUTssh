@@ -63,6 +63,56 @@ class SJa extends S {
   String get settings => '設定';
 
   @override
+  String get appSettings => 'アプリ設定';
+
+  @override
+  String get yes => 'はい';
+
+  @override
+  String get no => 'いいえ';
+
+  @override
+  String get importWhatToImport => 'インポートする内容：';
+
+  @override
+  String get enterMasterPasswordPrompt => 'マスターパスワードを入力:';
+
+  @override
+  String get nextStep => '次へ';
+
+  @override
+  String get includeCredentials => 'パスワードとSSH鍵を含む';
+
+  @override
+  String get includePasswords => 'セッションパスワード';
+
+  @override
+  String get embeddedKeys => '埋め込みキー';
+
+  @override
+  String get managerKeys => 'マネージャーのキー';
+
+  @override
+  String get managerKeysMayBeLarge => 'マネージャーキーはQRサイズ制限を超える可能性があります';
+
+  @override
+  String get qrPasswordWarning => 'パスワードはQRコード内で暗号化されません。スキャンした誰でも見ることができます。';
+
+  @override
+  String get sshKeysMayBeLarge => '鍵がQRサイズ制限を超える可能性があります';
+
+  @override
+  String exportTotalSize(String size) {
+    return '合計サイズ: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning => 'パスワードとSSH鍵はQRコードに表示されます';
+
+  @override
+  String get qrCredentialsTooLarge => '認証情報でQRコードが大きすぎます';
+
+  @override
   String get terminal => 'ターミナル';
 
   @override
@@ -179,6 +229,9 @@ class SJa extends S {
 
   @override
   String get sessions => 'セッション';
+
+  @override
+  String get emptyFolders => '空のフォルダ';
 
   @override
   String get sessionsHeader => 'セッション';
@@ -1252,6 +1305,9 @@ class SJa extends S {
   String get noHostsToExport => 'エクスポートするホストがありません';
 
   @override
+  String get tools => 'ツール';
+
+  @override
   String get sshKeys => 'SSH キー';
 
   @override
@@ -1478,8 +1534,154 @@ class SJa extends S {
   String get keychainNotAvailable => '利用不可';
 
   @override
+  String get enableKeychain => 'キーチェーン暗号化を有効にする';
+
+  @override
+  String get enableKeychainSubtitle => 'OS キーチェーンを使用して保存データを再暗号化';
+
+  @override
+  String get keychainEnabled => 'キーチェーン暗号化が有効になりました';
+
+  @override
   String get manageMasterPassword => 'マスターパスワード管理';
 
   @override
   String get manageMasterPasswordSubtitle => 'マスターパスワードの設定、変更、削除';
+
+  @override
+  String get snippets => 'Snippets';
+
+  @override
+  String get snippetsSubtitle => 'Manage reusable command snippets';
+
+  @override
+  String get noSnippets => 'No snippets yet';
+
+  @override
+  String get addSnippet => 'Add Snippet';
+
+  @override
+  String get editSnippet => 'Edit Snippet';
+
+  @override
+  String get deleteSnippet => 'Delete Snippet';
+
+  @override
+  String deleteSnippetConfirm(String title) {
+    return 'Delete snippet \"$title\"?';
+  }
+
+  @override
+  String get snippetTitle => 'Title';
+
+  @override
+  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+
+  @override
+  String get snippetCommand => 'Command';
+
+  @override
+  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+
+  @override
+  String get snippetDescription => 'Description (optional)';
+
+  @override
+  String get snippetDescriptionHint => 'What does this command do?';
+
+  @override
+  String get snippetSaved => 'Snippet saved';
+
+  @override
+  String snippetDeleted(String title) {
+    return 'Snippet \"$title\" deleted';
+  }
+
+  @override
+  String snippetCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count snippets',
+      one: '1 snippet',
+      zero: 'No snippets',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get runSnippet => 'Run';
+
+  @override
+  String get pinToSession => 'Pin to this session';
+
+  @override
+  String get unpinFromSession => 'Unpin from this session';
+
+  @override
+  String get pinnedSnippets => 'Pinned';
+
+  @override
+  String get allSnippets => 'All';
+
+  @override
+  String get sendToTerminal => 'Send to terminal';
+
+  @override
+  String get commandCopied => 'Command copied to clipboard';
+
+  @override
+  String get tags => 'Tags';
+
+  @override
+  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+
+  @override
+  String get noTags => 'No tags yet';
+
+  @override
+  String get addTag => 'Add Tag';
+
+  @override
+  String get deleteTag => 'Delete Tag';
+
+  @override
+  String deleteTagConfirm(String name) {
+    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+  }
+
+  @override
+  String get tagName => 'Tag Name';
+
+  @override
+  String get tagNameHint => 'e.g. Production, Staging';
+
+  @override
+  String get tagColor => 'Color';
+
+  @override
+  String get tagCreated => 'Tag created';
+
+  @override
+  String tagDeleted(String name) {
+    return 'Tag \"$name\" deleted';
+  }
+
+  @override
+  String tagCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+      zero: 'No tags',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageTags => 'Manage Tags';
+
+  @override
+  String get editTags => 'Edit Tags';
 }

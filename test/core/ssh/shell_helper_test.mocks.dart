@@ -96,6 +96,12 @@ class MockSSHConnection extends _i1.Mock implements _i6.SSHConnection {
   );
 
   @override
+  set onPassphraseRequired(_i6.PassphraseCallback? value) => super.noSuchMethod(
+    Invocation.setter(#onPassphraseRequired, value),
+    returnValueForMissingStub: null,
+  );
+
+  @override
   _i5.Future<void> connect({_i6.ConnectionProgressCallback? onProgress}) =>
       (super.noSuchMethod(
             Invocation.method(#connect, [], {#onProgress: onProgress}),

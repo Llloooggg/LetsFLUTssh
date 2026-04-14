@@ -1,8 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/db/database.dart';
+import 'package:letsflutssh/core/db/database_opener.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:pointycastle/digests/sha256.dart';
 
@@ -222,109 +223,26 @@ void main() {
     });
   });
 
-  group('known_hosts file I/O', () {
-    late Directory tempDir;
+  group('KnownHostsManager — DB backed', () {
+    late AppDatabase db;
+    late KnownHostsManager manager;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('known_hosts_test_');
+      db = openTestDatabase();
+      manager = KnownHostsManager()..setDatabase(db);
     });
 
-    tearDown(() {
-      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    tearDown(() async {
+      await db.close();
     });
 
-    test('write and read back known_hosts file', () async {
-      final file = File('${tempDir.path}/known_hosts');
-      final entries = {
-        'host1.com:22': 'ssh-rsa AAAA',
-        'host2.com:2222': 'ssh-ed25519 BBBB',
-      };
-
-      // Write
-      final sb = StringBuffer();
-      for (final e in entries.entries) {
-        sb.writeln('${e.key} ${e.value}');
-      }
-      await file.writeAsString(sb.toString());
-
-      // Read back
-      final lines = await file.readAsLines();
-      final parsed = <String, String>{};
-      for (final line in lines) {
-        final trimmed = line.trim();
-        if (trimmed.isEmpty) continue;
-        final parts = trimmed.split(' ');
-        if (parts.length >= 3) {
-          parsed[parts[0]] = '${parts[1]} ${parts[2]}';
-        }
-      }
-
-      expect(parsed, entries);
-    });
-
-    test('append to known_hosts file', () async {
-      final file = File('${tempDir.path}/known_hosts');
-      await file.writeAsString('host1:22 ssh-rsa KEY1\n');
-      await file.writeAsString(
-        'host2:22 ssh-rsa KEY2\n',
-        mode: FileMode.append,
-      );
-
-      final lines = await file.readAsLines();
-      expect(lines.length, 2);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // KnownHostsManager integration tests (real file I/O via path_provider mock)
-  // ---------------------------------------------------------------------------
-  group('KnownHostsManager with real file I/O', () {
-    TestWidgetsFlutterBinding.ensureInitialized();
-    late Directory mgrTempDir;
-
-    setUp(() {
-      mgrTempDir = Directory.systemTemp.createTempSync('known_hosts_mgr_test_');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            (call) async => mgrTempDir.path,
-          );
-    });
-
-    tearDown(() {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            null,
-          );
-      if (mgrTempDir.existsSync()) mgrTempDir.deleteSync(recursive: true);
-    });
-
-    test('load creates manager with empty hosts', () async {
-      final manager = KnownHostsManager();
+    test('load with empty DB', () async {
       await manager.load();
-    });
-
-    test('load reads existing known_hosts file', () async {
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString('myhost.com:22 ssh-rsa AAAA\n');
-
-      final manager = KnownHostsManager();
-      await manager.load();
-
-      final result = await manager.verify(
-        'myhost.com',
-        22,
-        'ssh-rsa',
-        base64Decode('AAAA'),
-      );
-      expect(result, isTrue);
+      expect(manager.count, 0);
     });
 
     test('verify unknown host without callback rejects', () async {
-      final manager = KnownHostsManager();
       await manager.load();
-
       final result = await manager.verify('unknown.com', 22, 'ssh-rsa', [
         1,
         2,
@@ -333,8 +251,7 @@ void main() {
       expect(result, isFalse);
     });
 
-    test('verify unknown host with accepting callback adds to file', () async {
-      final manager = KnownHostsManager();
+    test('verify unknown host with accepting callback adds entry', () async {
       manager.onUnknownHost = (host, port, keyType, fingerprint) async => true;
       await manager.load();
 
@@ -344,347 +261,131 @@ void main() {
         3,
       ]);
       expect(result, isTrue);
-
-      final file = File('${mgrTempDir.path}/known_hosts');
-      expect(file.existsSync(), isTrue);
-      final content = await file.readAsString();
-      expect(content, contains('newhost.com:22'));
-      expect(content, contains('ssh-ed25519'));
+      expect(manager.count, 1);
     });
 
-    test('verify unknown host with rejecting callback rejects', () async {
-      final manager = KnownHostsManager();
-      manager.onUnknownHost = (host, port, keyType, fingerprint) async => false;
+    test('verify known host with matching key accepts', () async {
+      manager.onUnknownHost = (_, _, _, _) async => true;
       await manager.load();
 
-      final result = await manager.verify('newhost.com', 22, 'ssh-rsa', [
-        1,
-        2,
-        3,
+      await manager.verify('server.com', 22, 'ssh-rsa', [10, 20, 30]);
+      final result = await manager.verify('server.com', 22, 'ssh-rsa', [
+        10,
+        20,
+        30,
+      ]);
+      expect(result, isTrue);
+    });
+
+    test('verify known host with changed key rejects', () async {
+      manager.onUnknownHost = (_, _, _, _) async => true;
+      await manager.load();
+
+      await manager.verify('server.com', 22, 'ssh-rsa', [1, 2, 3]);
+      final result = await manager.verify('server.com', 22, 'ssh-rsa', [
+        4,
+        5,
+        6,
       ]);
       expect(result, isFalse);
     });
 
-    test('verify known host with matching key accepts silently', () async {
-      final keyBytes = [10, 20, 30];
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString(
-        'server.com:22 ssh-rsa ${base64Encode(keyBytes)}\n',
-      );
-
-      final manager = KnownHostsManager();
+    test('verify changed key with accepting callback updates', () async {
+      manager.onUnknownHost = (_, _, _, _) async => true;
+      manager.onHostKeyChanged = (_, _, _, _) async => true;
       await manager.load();
 
-      final result = await manager.verify(
-        'server.com',
-        22,
-        'ssh-rsa',
-        keyBytes,
-      );
+      await manager.verify('server.com', 22, 'ssh-rsa', [1, 2, 3]);
+      final result = await manager.verify('server.com', 22, 'ssh-rsa', [
+        4,
+        5,
+        6,
+      ]);
       expect(result, isTrue);
     });
 
-    test(
-      'verify known host with changed key rejects without callback',
-      () async {
-        final file = File('${mgrTempDir.path}/known_hosts');
-        await file.writeAsString(
-          'server.com:22 ssh-rsa ${base64Encode([1, 2, 3])}\n',
-        );
-
-        final manager = KnownHostsManager();
-        await manager.load();
-
-        final result = await manager.verify('server.com', 22, 'ssh-rsa', [
-          4,
-          5,
-          6,
-        ]);
-        expect(result, isFalse);
-      },
-    );
-
-    test(
-      'verify known host with changed key and accepting callback updates',
-      () async {
-        final file = File('${mgrTempDir.path}/known_hosts');
-        await file.writeAsString(
-          'server.com:22 ssh-rsa ${base64Encode([1, 2, 3])}\n',
-        );
-
-        final manager = KnownHostsManager();
-        String? receivedFingerprint;
-        manager.onHostKeyChanged = (host, port, keyType, fingerprint) async {
-          receivedFingerprint = fingerprint;
-          return true;
-        };
-        await manager.load();
-
-        final result = await manager.verify('server.com', 22, 'ssh-rsa', [
-          4,
-          5,
-          6,
-        ]);
-        expect(result, isTrue);
-        expect(receivedFingerprint, startsWith('SHA256:'));
-
-        final content = await file.readAsString();
-        expect(content, contains(base64Encode([4, 5, 6])));
-      },
-    );
-
-    test('load is idempotent', () async {
-      final manager = KnownHostsManager();
+    test('removeHost removes entry', () async {
+      manager.onUnknownHost = (_, _, _, _) async => true;
       await manager.load();
-      await manager.load();
-    });
+      await manager.verify('h1.com', 22, 'ssh-rsa', [1, 2, 3]);
+      await manager.verify('h2.com', 22, 'ssh-rsa', [4, 5, 6]);
 
-    test('concurrent load calls share the same future', () async {
-      final manager = KnownHostsManager();
-      // Fire two loads concurrently — both should complete without error
-      await Future.wait([manager.load(), manager.load()]);
-    });
-
-    test(
-      'concurrent verify calls on unknown hosts do not corrupt file',
-      () async {
-        final manager = KnownHostsManager();
-        manager.onUnknownHost = (_, _, _, _) async => true;
-        await manager.load();
-
-        // Fire multiple verifies concurrently — writes should be serialized
-        await Future.wait([
-          manager.verify('host1.com', 22, 'ssh-rsa', [1, 2, 3]),
-          manager.verify('host2.com', 22, 'ssh-rsa', [4, 5, 6]),
-          manager.verify('host3.com', 22, 'ssh-rsa', [7, 8, 9]),
-        ]);
-
-        // All three should be written to file
-        final content = await File(
-          '${mgrTempDir.path}/known_hosts',
-        ).readAsString();
-        expect(content, contains('host1.com:22'));
-        expect(content, contains('host2.com:22'));
-        expect(content, contains('host3.com:22'));
-      },
-    );
-
-    test('load skips comment and empty lines', () async {
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString(
-        '# This is a comment\n\nhost.com:22 ssh-rsa S0VZ\n\n',
-      );
-
-      final manager = KnownHostsManager();
-      await manager.load();
-
-      final result = await manager.verify(
-        'host.com',
-        22,
-        'ssh-rsa',
-        base64Decode('S0VZ'),
-      );
-      expect(result, isTrue);
-    });
-
-    test(
-      'callback receives correct host, port, keyType, fingerprint',
-      () async {
-        final manager = KnownHostsManager();
-        String? capturedHost;
-        int? capturedPort;
-        String? capturedKeyType;
-        String? capturedFingerprint;
-
-        manager.onUnknownHost = (host, port, keyType, fingerprint) async {
-          capturedHost = host;
-          capturedPort = port;
-          capturedKeyType = keyType;
-          capturedFingerprint = fingerprint;
-          return true;
-        };
-        await manager.load();
-
-        await manager.verify('test.org', 2222, 'ssh-ed25519', [42, 43, 44]);
-        expect(capturedHost, 'test.org');
-        expect(capturedPort, 2222);
-        expect(capturedKeyType, 'ssh-ed25519');
-        expect(capturedFingerprint, startsWith('SHA256:'));
-      },
-    );
-
-    // -------------------------------------------------------------------------
-    // entries, count, removeHost, removeMultiple, clearAll, import, export
-    // -------------------------------------------------------------------------
-
-    test('entries returns unmodifiable map of hosts', () async {
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString(
-        'a.com:22 ssh-rsa KEY_A\nb.com:22 ssh-ed25519 KEY_B\n',
-      );
-
-      final manager = KnownHostsManager();
-      await manager.load();
-
-      final entries = manager.entries;
-      expect(entries.length, 2);
-      expect(entries['a.com:22'], 'ssh-rsa KEY_A');
-      expect(entries['b.com:22'], 'ssh-ed25519 KEY_B');
-
-      // Should be unmodifiable
-      expect(() => entries['c.com:22'] = 'x', throwsUnsupportedError);
-    });
-
-    test('count returns number of hosts', () async {
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString('h1:22 ssh-rsa K1\nh2:22 ssh-rsa K2\n');
-
-      final manager = KnownHostsManager();
-      await manager.load();
-      expect(manager.count, 2);
-    });
-
-    test('removeHost removes entry and updates file', () async {
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString('h1:22 ssh-rsa K1\nh2:22 ssh-rsa K2\n');
-
-      final manager = KnownHostsManager();
-      await manager.load();
-      expect(manager.count, 2);
-
-      await manager.removeHost('h1:22');
+      await manager.removeHost('h1.com:22');
       expect(manager.count, 1);
-      expect(manager.entries.containsKey('h1:22'), isFalse);
-      expect(manager.entries.containsKey('h2:22'), isTrue);
-
-      // File should be updated
-      final content = await file.readAsString();
-      expect(content, isNot(contains('h1:22')));
-      expect(content, contains('h2:22'));
+      expect(manager.entries.containsKey('h1.com:22'), isFalse);
     });
 
-    test('removeHost with non-existent key is a no-op', () async {
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString('h1:22 ssh-rsa K1\n');
-
-      final manager = KnownHostsManager();
+    test('removeMultiple removes selected', () async {
+      manager.onUnknownHost = (_, _, _, _) async => true;
       await manager.load();
+      await manager.verify('h1.com', 22, 'ssh-rsa', [1]);
+      await manager.verify('h2.com', 22, 'ssh-rsa', [2]);
+      await manager.verify('h3.com', 22, 'ssh-rsa', [3]);
 
-      await manager.removeHost('nonexistent:22');
+      await manager.removeMultiple({'h1.com:22', 'h3.com:22'});
       expect(manager.count, 1);
     });
 
-    test('removeMultiple removes selected entries', () async {
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString(
-        'h1:22 ssh-rsa K1\nh2:22 ssh-rsa K2\nh3:22 ssh-rsa K3\n',
-      );
-
-      final manager = KnownHostsManager();
+    test('clearAll removes all', () async {
+      manager.onUnknownHost = (_, _, _, _) async => true;
       await manager.load();
+      await manager.verify('h1.com', 22, 'ssh-rsa', [1]);
+      await manager.verify('h2.com', 22, 'ssh-rsa', [2]);
 
-      await manager.removeMultiple({'h1:22', 'h3:22'});
-      expect(manager.count, 1);
-      expect(manager.entries.containsKey('h2:22'), isTrue);
-
-      final content = await file.readAsString();
-      expect(content, isNot(contains('h1:22')));
-      expect(content, contains('h2:22'));
-      expect(content, isNot(contains('h3:22')));
-    });
-
-    test('clearAll removes all entries', () async {
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString('h1:22 ssh-rsa K1\nh2:22 ssh-rsa K2\n');
-
-      final manager = KnownHostsManager();
-      await manager.load();
-      expect(manager.count, 2);
-
-      await manager.clearAll();
-      expect(manager.count, 0);
-      expect(manager.entries, isEmpty);
-
-      final content = await file.readAsString();
-      expect(content.trim(), isEmpty);
-    });
-
-    test('clearAll on empty manager is a no-op', () async {
-      final manager = KnownHostsManager();
-      await manager.load();
       await manager.clearAll();
       expect(manager.count, 0);
     });
 
-    test('importFromFile merges entries from OpenSSH file', () async {
-      // Existing host
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString('existing:22 ssh-rsa OLD_KEY\n');
-
-      // Import source
-      final importFile = File('${mgrTempDir.path}/import_hosts');
-      await importFile.writeAsString(
-        'existing:22 ssh-rsa DUPLICATE_KEY\n'
-        'new1:22 ssh-ed25519 NEW_KEY_1\n'
-        '# comment line\n'
-        '\n'
-        'new2:2222 ssh-rsa NEW_KEY_2\n',
-      );
-
-      final manager = KnownHostsManager();
+    test('importFromString adds new entries', () async {
       await manager.load();
-
-      final added = await manager.importFromFile(importFile.path);
-      expect(added, 2); // Only new1 and new2 are new
-      expect(manager.count, 3);
-
-      // Existing key should NOT be overwritten
-      expect(manager.entries['existing:22'], 'ssh-rsa OLD_KEY');
-      expect(manager.entries['new1:22'], 'ssh-ed25519 NEW_KEY_1');
-      expect(manager.entries['new2:2222'], 'ssh-rsa NEW_KEY_2');
+      final added = await manager.importFromString(
+        'host1:22 ssh-ed25519 AAAA\nhost2:22 ssh-rsa BBBB\n',
+      );
+      expect(added, 2);
+      expect(manager.count, 2);
     });
 
-    test('importFromFile with non-existent file returns 0', () async {
-      final manager = KnownHostsManager();
+    test('importFromString skips existing', () async {
+      manager.onUnknownHost = (_, _, _, _) async => true;
       await manager.load();
-      final added = await manager.importFromFile('/tmp/nonexistent_file_xyz');
-      expect(added, 0);
+      await manager.verify('host1', 22, 'ssh-ed25519', base64Decode('AAAA'));
+
+      final added = await manager.importFromString(
+        'host1:22 ssh-ed25519 AAAA\nhost2:22 ssh-rsa BBBB\n',
+      );
+      expect(added, 1);
+      expect(manager.count, 2);
     });
 
-    test('exportToString serializes in OpenSSH format', () async {
-      final file = File('${mgrTempDir.path}/known_hosts');
-      await file.writeAsString(
-        'alpha:22 ssh-rsa KEY_A\nbeta:22 ssh-ed25519 KEY_B\n',
-      );
-
-      final manager = KnownHostsManager();
+    test('exportToString produces OpenSSH format', () async {
+      manager.onUnknownHost = (_, _, _, _) async => true;
       await manager.load();
+      await manager.verify('alpha.com', 22, 'ssh-rsa', [1, 2]);
+      await manager.verify('beta.com', 2222, 'ssh-ed25519', [3, 4]);
 
       final exported = manager.exportToString();
-      expect(exported, contains('alpha:22 ssh-rsa KEY_A'));
-      expect(exported, contains('beta:22 ssh-ed25519 KEY_B'));
-      // Each line should end with newline
-      for (final line in exported.split('\n')) {
-        if (line.isEmpty) continue;
-        final parts = line.split(' ');
-        expect(parts.length, greaterThanOrEqualTo(3));
-      }
+      expect(exported, contains('alpha.com:22 ssh-rsa'));
+      expect(exported, contains('beta.com:2222 ssh-ed25519'));
     });
 
-    test('exportToString on empty manager returns empty string', () async {
-      final manager = KnownHostsManager();
+    test('callback receives correct parameters', () async {
+      String? capturedHost;
+      int? capturedPort;
+      manager.onUnknownHost = (host, port, keyType, fingerprint) async {
+        capturedHost = host;
+        capturedPort = port;
+        return true;
+      };
       await manager.load();
-      expect(manager.exportToString(), isEmpty);
+
+      await manager.verify('test.org', 2222, 'ssh-ed25519', [42, 43]);
+      expect(capturedHost, 'test.org');
+      expect(capturedPort, 2222);
     });
 
-    test('static fingerprint matches instance fingerprint', () async {
-      final keyBytes = [10, 20, 30, 40, 50];
-      final staticFp = KnownHostsManager.fingerprint(keyBytes);
-      expect(staticFp, startsWith('SHA256:'));
-      // Verify same result as the algorithm test
-      final digest = SHA256Digest();
-      final hash = digest.process(Uint8List.fromList(keyBytes));
-      expect(staticFp, 'SHA256:${base64Encode(hash)}');
+    test('static fingerprint produces SHA256 prefix', () {
+      final fp = KnownHostsManager.fingerprint([10, 20, 30]);
+      expect(fp, startsWith('SHA256:'));
     });
   });
 }

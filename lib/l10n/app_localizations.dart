@@ -231,6 +231,102 @@ abstract class S {
   /// **'Settings'**
   String get settings;
 
+  /// No description provided for @appSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'App Settings'**
+  String get appSettings;
+
+  /// No description provided for @yes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get yes;
+
+  /// No description provided for @no.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get no;
+
+  /// No description provided for @importWhatToImport.
+  ///
+  /// In en, this message translates to:
+  /// **'What to import:'**
+  String get importWhatToImport;
+
+  /// No description provided for @enterMasterPasswordPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter master password:'**
+  String get enterMasterPasswordPrompt;
+
+  /// No description provided for @nextStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get nextStep;
+
+  /// No description provided for @includeCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Include passwords and SSH keys'**
+  String get includeCredentials;
+
+  /// No description provided for @includePasswords.
+  ///
+  /// In en, this message translates to:
+  /// **'Session passwords'**
+  String get includePasswords;
+
+  /// No description provided for @embeddedKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Session keys'**
+  String get embeddedKeys;
+
+  /// No description provided for @managerKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys from manager'**
+  String get managerKeys;
+
+  /// No description provided for @managerKeysMayBeLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Manager keys may exceed QR size limit'**
+  String get managerKeysMayBeLarge;
+
+  /// No description provided for @qrPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords will be unencrypted in the QR code. Anyone who scans it can see them.'**
+  String get qrPasswordWarning;
+
+  /// No description provided for @sshKeysMayBeLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys may exceed QR size limit'**
+  String get sshKeysMayBeLarge;
+
+  /// No description provided for @exportTotalSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Total size: {size}'**
+  String exportTotalSize(String size);
+
+  /// No description provided for @qrCredentialsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords and SSH keys WILL be visible in the QR code. Only share in trusted environments.'**
+  String get qrCredentialsWarning;
+
+  /// No description provided for @qrCredentialsTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials make the QR code too large. Remove some sessions or disable credentials.'**
+  String get qrCredentialsTooLarge;
+
   /// No description provided for @terminal.
   ///
   /// In en, this message translates to:
@@ -434,6 +530,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Sessions'**
   String get sessions;
+
+  /// No description provided for @emptyFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty Folders'**
+  String get emptyFolders;
 
   /// No description provided for @sessionsHeader.
   ///
@@ -2319,6 +2421,12 @@ abstract class S {
   /// **'No known hosts to export'**
   String get noHostsToExport;
 
+  /// No description provided for @tools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get tools;
+
   /// No description provided for @sshKeys.
   ///
   /// In en, this message translates to:
@@ -2715,6 +2823,24 @@ abstract class S {
   /// **'Not available'**
   String get keychainNotAvailable;
 
+  /// No description provided for @enableKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Keychain Encryption'**
+  String get enableKeychain;
+
+  /// No description provided for @enableKeychainSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encrypt stored data using OS keychain'**
+  String get enableKeychainSubtitle;
+
+  /// No description provided for @keychainEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain encryption enabled'**
+  String get keychainEnabled;
+
   /// No description provided for @manageMasterPassword.
   ///
   /// In en, this message translates to:
@@ -2726,6 +2852,228 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Set, change, or remove master password'**
   String get manageMasterPasswordSubtitle;
+
+  /// No description provided for @snippets.
+  ///
+  /// In en, this message translates to:
+  /// **'Snippets'**
+  String get snippets;
+
+  /// No description provided for @snippetsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage reusable command snippets'**
+  String get snippetsSubtitle;
+
+  /// No description provided for @noSnippets.
+  ///
+  /// In en, this message translates to:
+  /// **'No snippets yet'**
+  String get noSnippets;
+
+  /// No description provided for @addSnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Snippet'**
+  String get addSnippet;
+
+  /// No description provided for @editSnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Snippet'**
+  String get editSnippet;
+
+  /// No description provided for @deleteSnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Snippet'**
+  String get deleteSnippet;
+
+  /// No description provided for @deleteSnippetConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete snippet \"{title}\"?'**
+  String deleteSnippetConfirm(String title);
+
+  /// No description provided for @snippetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get snippetTitle;
+
+  /// No description provided for @snippetTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Deploy, Restart Service'**
+  String get snippetTitleHint;
+
+  /// No description provided for @snippetCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Command'**
+  String get snippetCommand;
+
+  /// No description provided for @snippetCommandHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. sudo systemctl restart nginx'**
+  String get snippetCommandHint;
+
+  /// No description provided for @snippetDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get snippetDescription;
+
+  /// No description provided for @snippetDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this command do?'**
+  String get snippetDescriptionHint;
+
+  /// No description provided for @snippetSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Snippet saved'**
+  String get snippetSaved;
+
+  /// No description provided for @snippetDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Snippet \"{title}\" deleted'**
+  String snippetDeleted(String title);
+
+  /// No description provided for @snippetCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No snippets} =1{1 snippet} other{{count} snippets}}'**
+  String snippetCount(int count);
+
+  /// No description provided for @runSnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get runSnippet;
+
+  /// No description provided for @pinToSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin to this session'**
+  String get pinToSession;
+
+  /// No description provided for @unpinFromSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin from this session'**
+  String get unpinFromSession;
+
+  /// No description provided for @pinnedSnippets.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned'**
+  String get pinnedSnippets;
+
+  /// No description provided for @allSnippets.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allSnippets;
+
+  /// No description provided for @sendToTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to terminal'**
+  String get sendToTerminal;
+
+  /// No description provided for @commandCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Command copied to clipboard'**
+  String get commandCopied;
+
+  /// No description provided for @tags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get tags;
+
+  /// No description provided for @tagsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize sessions and folders with color tags'**
+  String get tagsSubtitle;
+
+  /// No description provided for @noTags.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags yet'**
+  String get noTags;
+
+  /// No description provided for @addTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Tag'**
+  String get addTag;
+
+  /// No description provided for @deleteTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Tag'**
+  String get deleteTag;
+
+  /// No description provided for @deleteTagConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tag \"{name}\"? It will be removed from all sessions and folders.'**
+  String deleteTagConfirm(String name);
+
+  /// No description provided for @tagName.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag Name'**
+  String get tagName;
+
+  /// No description provided for @tagNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Production, Staging'**
+  String get tagNameHint;
+
+  /// No description provided for @tagColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get tagColor;
+
+  /// No description provided for @tagCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag created'**
+  String get tagCreated;
+
+  /// No description provided for @tagDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag \"{name}\" deleted'**
+  String tagDeleted(String name);
+
+  /// No description provided for @tagCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No tags} =1{1 tag} other{{count} tags}}'**
+  String tagCount(int count);
+
+  /// No description provided for @manageTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Tags'**
+  String get manageTags;
+
+  /// No description provided for @editTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Tags'**
+  String get editTags;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

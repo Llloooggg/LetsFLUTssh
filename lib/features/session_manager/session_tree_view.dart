@@ -8,6 +8,7 @@ import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/marquee_mixin.dart';
+import '../../widgets/tag_dots.dart';
 import '../../widgets/threshold_draggable.dart';
 
 /// Drag data: either a session, a folder path, or a bulk selection.
@@ -956,7 +957,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           depth: depth,
           icon: Icon(Icons.terminal, size: _authIconSize, color: iconColor),
         ),
-      if (session.incomplete)
+      if (!session.isValid)
         Padding(
           padding: const EdgeInsets.only(right: 4),
           child: Tooltip(
@@ -969,14 +970,21 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
           ),
         ),
       Expanded(
-        child: Text(
-          node.name,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: _fontSize,
-            color: isActive ? AppTheme.fg : AppTheme.fgDim,
-          ),
-          overflow: TextOverflow.ellipsis,
+        child: Row(
+          children: [
+            Flexible(
+              child: Text(
+                node.name,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: _fontSize,
+                  color: isActive ? AppTheme.fg : AppTheme.fgDim,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            SessionTagDots(sessionId: session.id),
+          ],
         ),
       ),
     ];

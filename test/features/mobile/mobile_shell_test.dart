@@ -725,6 +725,7 @@ void main() {
         id: 'sess-1',
         label: 'Test Server',
         server: const ServerAddress(host: 'example.com', user: 'root'),
+        auth: const SessionAuth(password: 'secret'),
       );
       await tester.pumpWidget(
         buildWithSession(
@@ -746,6 +747,7 @@ void main() {
         id: 'sess-fail',
         label: 'Fail Server',
         server: const ServerAddress(host: 'fail.com', user: 'root'),
+        auth: const SessionAuth(password: 'secret'),
       );
       await tester.pumpWidget(
         buildWithSession(
@@ -766,6 +768,7 @@ void main() {
         id: 'sess-sftp',
         label: 'SFTP Target',
         server: const ServerAddress(host: 'sftp.example.com', user: 'admin'),
+        auth: const SessionAuth(password: 'secret'),
       );
       await tester.pumpWidget(
         buildWithSession(
@@ -803,7 +806,7 @@ void main() {
         id: 'sess-incomplete',
         label: 'Incomplete Server',
         server: const ServerAddress(host: 'example.com', user: 'root'),
-        incomplete: true,
+        // No credentials → isValid = false
       );
       await tester.pumpWidget(
         buildWithSession(
@@ -830,7 +833,7 @@ void main() {
           id: 'sess-incomplete-sftp',
           label: 'Incomplete SFTP',
           server: const ServerAddress(host: 'example.com', user: 'root'),
-          incomplete: true,
+          // No credentials → isValid = false
         );
         await tester.pumpWidget(
           buildWithSession(

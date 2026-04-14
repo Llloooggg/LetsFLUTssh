@@ -91,13 +91,30 @@
 lib/
 ├── main.dart                         # Entry point
 ├── core/                             # Business logic (no Flutter imports)
+│   ├── db/                           # Drift database (SQLite + SQLite3MultipleCiphers)
+│   │   ├── database.dart             # AppDatabase definition + lazy DAO getters
+│   │   ├── database.g.dart           # Drift codegen (do not edit)
+│   │   ├── database_opener.dart      # Database initialization + encryption setup
+│   │   ├── tables.dart               # All table definitions
+│   │   ├── mappers.dart              # Domain ↔ DB conversion, folder path↔tree
+│   │   └── dao/                      # Data Access Objects
+│   │       ├── session_dao.dart      # Session CRUD
+│   │       ├── folder_dao.dart       # Folder tree CRUD
+│   │       ├── ssh_key_dao.dart      # SSH key CRUD
+│   │       ├── known_host_dao.dart   # Known hosts CRUD
+│   │       ├── config_dao.dart       # Single-row config blob
+│   │       ├── tag_dao.dart          # Tags + M2M junctions
+│   │       ├── snippet_dao.dart      # Snippets + session linking
+│   │       └── sftp_bookmark_dao.dart # SFTP path bookmarks
 │   ├── ssh/                          # SSH client, config, TOFU, errors
 │   ├── sftp/                         # SFTP operations, file models, FileSystem
 │   ├── transfer/                     # File transfer queue
 │   ├── session/                      # Session model, persistence, tree, QR, history
 │   ├── connection/                   # Connection lifecycle, progress tracking
-│   ├── security/                     # AES-256-GCM credential storage + master password
-│   ├── config/                       # App configuration
+│   ├── security/                     # AES-256-GCM, master password, keychain
+│   ├── config/                       # App configuration (file-based, loaded before DB)
+│   ├── snippets/                     # Snippet model + SnippetStore
+│   ├── tags/                         # Tag model + TagStore
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
 │   ├── single_instance/              # Single-instance lock (desktop)
@@ -107,6 +124,9 @@ lib/
 │   ├── terminal/                     # Terminal with tiling
 │   ├── file_browser/                 # Dual-pane SFTP browser
 │   ├── session_manager/              # Session management panel
+│   ├── snippets/                     # Snippet manager + terminal picker
+│   ├── tags/                         # Tag manager + assignment dialog
+│   ├── tools/                        # Desktop Tools dialog (SSH Keys, Snippets, Tags)
 │   ├── tabs/                         # Tab model (TabEntry, TabKind)
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
@@ -131,6 +151,7 @@ lib/
 │   ├── unlock_dialog.dart          # Master password unlock dialog (startup)
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
+│   ├── lfs_import_preview_dialog.dart # .lfs archive preview before import
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
 │   ├── mobile_selection_bar.dart    # Mobile bulk-action toolbar
 │   ├── mode_button.dart             # Shared pill-shaped toggle button (import mode)
@@ -140,7 +161,9 @@ lib/
 │   ├── status_indicator.dart        # Icon + count indicator with tooltip
 │   ├── styled_form_field.dart       # Shared form field (StyledFormField, FieldLabel, StyledInput)
 │   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
-│   └── toast.dart                   # Stacked notification toasts
+│   ├── tag_dots.dart                # Colored tag dots for session/folder tree rows
+│   ├── toast.dart                   # Stacked notification toasts
+│   └── unified_export_dialog.dart   # Unified QR and .lfs export dialog
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -363,10 +386,10 @@ The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsib
 | File | Class | Purpose |
 |------|-------|---------|
 | `session.dart` | `Session`, `ServerAddress`, `SessionAuth`, `AuthType` | Session model with all fields |
-| `session_store.dart` | `SessionStore` | CRUD, JSON persistence, search, folders, plaintext→encrypted migration |
+| `session_store.dart` | `SessionStore` | CRUD via drift DAOs, search, folder tree management |
 | `session_tree.dart` | `SessionTree`, `TreeNode` | Hierarchical tree built from flat session list |
 | `session_history.dart` | `SessionHistory` | Undo/redo snapshots (stores credentials separately) |
-| `qr_codec.dart` | `QrCodec` | Session encoding/decoding for QR (no secrets, max ~2000 bytes) |
+| `qr_codec.dart` | Free functions | Export payload encoding/decoding (QR, `.lfs` files). Versioned format (`v: 2`), deflate compressed, key map deduplication. Public API: `encodeExportPayload()`, `decodeExportPayload()`, `calculateExportPayloadSize()`, `encodeSessionCompact()`, `wrapInDeepLink()`, `decodeImportUri()`. Supports sessions, empty folders, passwords, SSH keys, config, known_hosts. Max ~2000 bytes for QR. |
 
 #### Session model
 
@@ -379,7 +402,8 @@ class Session {
   final SessionAuth auth;     // authType, password, keyPath, keyData, passphrase
   final DateTime createdAt;
   final DateTime updatedAt;
-  final bool incomplete;      // true when imported via QR without credentials
+  bool get hasCredentials;    // true if password, keyData, keyId, or keyPath is set
+  bool get isValid;           // true if host, port, user, and hasCredentials (highlighted orange when false)
 
   SSHConfig toSSHConfig();    // conversion for connection
   Session copyWith({...});    // preserves id, updates updatedAt
@@ -389,41 +413,33 @@ class Session {
 }
 ```
 
-#### SessionStore — persistence
+#### SessionStore — drift-backed persistence
 
-```
-sessions.json  ← metadata (label, folder, host, port, user, timestamps)
-                  Does NOT contain passwords/keys
-credentials.enc ← encrypted credentials (AES-256-GCM)
-                  Keyed by session.id
-```
+All session data (including credentials) is stored in a single drift (SQLite) database. Encryption is handled at the DB level via SQLite3MultipleCiphers — stores no longer manage encryption themselves.
 
 ```dart
 class SessionStore {
-  SessionStore(String dataDir, CredentialStore credentialStore);
+  void setDatabase(AppDatabase db); // injected at startup
 
-  Future<void> load();           // reads both files, merges
-  Future<void> save();           // atomic write of both
-
-  void add(Session session);
-  void update(Session session);
-  void delete(String id);
-  void bulkDelete(List<String> ids);
+  Future<List<Session>> load();     // reads from SessionDao + FolderDao
+  Future<void> add(Session session);
+  Future<void> update(Session session);
+  Future<void> delete(String id);
   List<Session> search(String query);  // by label, folder, host, user
 
-  List<String> get folders;       // all unique folders
-  List<String> get emptyFolders;  // folders without sessions
-  void addEmptyFolder(String path);
-  void renameFolder(String oldPath, String newPath);
-  void deleteFolder(String path);
+  Set<String> get emptyFolders;
+  Future<void> addEmptyFolder(String path);
+  Future<void> renameFolder(String oldPath, String newPath);
+  Future<void> deleteFolder(String path);
+  String? folderIdByPath(String path); // resolve path to DB folder ID
 }
 ```
 
-**Concurrent load guard:** `load()` uses a `_loadFuture` guard — if a load is already in progress, concurrent callers await the same future instead of starting a second load. Prevents race conditions where multiple lifecycle events (e.g., `onResume`/`onRestart`) clear and repopulate `_sessions` simultaneously, causing credential loss.
+**Folder tree:** UI uses string paths ("Production/EU"), DB uses a `Folders` table with self-referencing `parentId`. `mappers.dart` handles conversion: `resolveFolderPath()` creates missing folder nodes, `findFolderIdByPath()` resolves path → ID. In-memory `_folderMap` cache rebuilt on `load()`.
 
-**Safety on load:** If CredentialStore fails to decrypt — skips credential merge and sets `_credentialsMerged = false`. Subsequent `_saveCredentials()` calls are skipped entirely to prevent overwriting valid encrypted data with empty in-memory credentials.
+**Concurrent load guard:** `load()` uses a `_loadFuture` guard — concurrent callers await the same future instead of starting a second load.
 
-**Save order:** `_save()` writes credentials (encrypted) FIRST, then session metadata (JSON). This prevents a crash from leaving sessions.json ahead of credentials.enc. If credential save fails, session file is still persisted and credentials retry on next save.
+**Atomicity:** Handled by SQLite transactions. No separate save order — all data is in one DB file.
 
 #### SessionTree
 
@@ -539,15 +555,17 @@ class ForegroundServiceManager {
 
 #### Three-Level Security Model
 
-All data stores (SessionStore, KeyStore, KnownHostsManager) support three security levels:
+All data is stored in a single drift (SQLite) database. Encryption is applied at the database level via SQLite3MultipleCiphers:
 
-| Level | When | Files on disk | Key source |
-|-------|------|---------------|------------|
-| **Plaintext** | No keychain AND no master password | `sessions.json`, `keys.json`, `known_hosts` | None |
-| **Keychain** | OS keychain available, no master password | `sessions.enc`, `keys.enc`, `known_hosts.enc` | OS keychain via `flutter_secure_storage` |
-| **Master Password** | User set master password | `sessions.enc`, `keys.enc`, `known_hosts.enc` + `credentials.salt` + `credentials.verify` | PBKDF2-derived |
+| Level | When | Database | Key source |
+|-------|------|----------|------------|
+| **Plaintext** | No keychain AND no master password | `letsflutssh.db` (unencrypted SQLite) | None |
+| **Keychain** | OS keychain available, no master password | `letsflutssh.db` (encrypted via PRAGMA key) | OS keychain via `flutter_secure_storage` |
+| **Master Password** | User set master password | `letsflutssh.db` (encrypted via PRAGMA key) + `credentials.salt` + `credentials.verify` | PBKDF2-derived |
 
-First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. First launch is detected by the absence of any data files (no master password salt, no keychain key, no session files).
+Stores (SessionStore, KeyStore, KnownHostsManager, SnippetStore, TagStore) receive the opened `AppDatabase` via `setDatabase()` and delegate persistence to DAOs. They do not handle encryption.
+
+First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. First launch is detected by the absence of any data files (no master password salt, no keychain key, no database file).
 
 #### AesGcm
 
@@ -581,15 +599,14 @@ OS keychain backends: Keychain (macOS/iOS), Credential Manager (Windows), libsec
 
 #### KeyStore
 
-Central SSH key store with three-level encryption.
+Central SSH key store backed by drift DAO.
 
 ```dart
 class KeyStore {
-  // Storage: keys.json (plaintext) or keys.enc (encrypted)
-  void setEncryptionKey(Uint8List key, SecurityLevel level);
-  void clearEncryptionKey();
-  Future<void> reEncrypt(Uint8List? newKey, SecurityLevel newLevel);
+  void setDatabase(AppDatabase db);   // injected at startup
   Future<Map<String, SshKeyEntry>> loadAll();
+  Future<Map<String, SshKeyEntry>> loadAllSafe(); // returns {} on error
+  Future<SshKeyEntry?> get(String id);
   Future<void> save(SshKeyEntry entry);
   Future<void> delete(String id);
   SshKeyEntry importKey(String pem, String label);
@@ -665,14 +682,17 @@ class ConfigStore {
 ```dart
 class DeepLinkHandler {
   // Scheme: letsflutssh://connect?host=X&user=Y&port=Z
-  // Scheme: letsflutssh://import?d=BASE64URL (QR import)
+  // Scheme: letsflutssh://import?d=BASE64URL (QR import, deflate compressed)
   // .lfs files: app_links file open intent
   // .pem/.key files: file open intent
 
   // Validation:
-  // - path traversal rejection (../)
-  // - scheme whitelist
-  // - host/port validation
+  // - host/port sanitization, null byte rejection
+  // - scheme whitelist (letsflutssh, file, content)
+
+  // Callbacks:
+  //   onConnect(ConnectUri data) — host, port, user from connect URI
+  //   onQrImport(ExportPayloadData data) — sessions, config, known_hosts from QR
 
   // Deduplication: time-limited (2 s) to cover the cold-start race
   // (getInitialLink + uriLinkStream). After the window, the same URI
@@ -701,8 +721,10 @@ class DeepLinkHandler {
 [salt 32B] [IV 12B] [encrypted payload + GCM tag 16B]
 
 payload = ZIP archive:
-  sessions.json    ← session metadata
-  credentials.json ← credentials in plaintext (inside the encrypted zip)
+  sessions.json        ← session metadata with credentials (toJsonWithCredentials)
+  empty_folders.json   ← list of empty folder paths
+  config.json          ← app configuration
+  known_hosts          ← TOFU host key database (OpenSSH format)
 
 Encryption: AES-256-GCM
 Key: PBKDF2-SHA256(password, salt, 600000 iterations)
@@ -713,7 +735,16 @@ Key: PBKDF2-SHA256(password, salt, 600000 iterations)
 | Mode | Behavior |
 |------|----------|
 | **Merge** | Adds new sessions, skips existing ones (by id) |
-| **Replace** | Full replacement of all sessions from archive |
+| **Replace** | Full replacement of all sessions from archive, with rollback on failure |
+
+#### Import service
+
+`ImportService` applies import results with:
+- Session import with graceful skip on failure
+- Empty folder restoration
+- Config application via typed `AppConfig` callback
+- Known hosts import via `KnownHostsManager.importFromString()`
+- Rollback support in replace mode via `restoreSnapshot` callback
 
 ---
 
@@ -826,20 +857,26 @@ class AppShortcutRegistry {
 
 | Provider | Type | Depends on | Description |
 |----------|------|-----------|-------------|
-| `credentialStoreProvider` | Provider | — | Singleton CredentialStore (shared with SessionStore + master password flow) |
 | `masterPasswordProvider` | Provider | — | MasterPasswordManager singleton |
-| `sessionStoreProvider` | Provider | credentialStoreProvider | Singleton SessionStore |
+| `sessionStoreProvider` | Provider | — | Singleton SessionStore (drift-backed) |
 | `sessionProvider` | NotifierProvider | sessionStoreProvider | Session CRUD + undo/redo |
 | `sessionTreeProvider` | Provider | sessionProvider | Hierarchical tree |
 | `filteredSessionsProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered session list |
 | `sessionSearchProvider` | NotifierProvider<SessionSearchNotifier, String> | — | Search query string |
-| `configStoreProvider` | Provider | — | Singleton ConfigStore |
+| `configStoreProvider` | Provider | — | Singleton ConfigStore (file-based) |
 | `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger (sequential save lock via `_pendingSave`) |
 | `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
 | `localeProvider` | Provider | configProvider | Locale? (null = system default) |
-| `knownHostsProvider` | Provider | — | KnownHostsManager |
-| `keyStoreProvider` | Provider | — | KeyStore |
-| `sshKeysProvider` | FutureProvider | — | List\<SshKeyEntry\> |
+| `knownHostsProvider` | Provider | — | KnownHostsManager (drift-backed) |
+| `keyStoreProvider` | Provider | — | KeyStore (drift-backed) |
+| `sshKeysProvider` | FutureProvider | keyStoreProvider | List\<SshKeyEntry\> |
+| `snippetStoreProvider` | Provider | — | SnippetStore (drift-backed) |
+| `snippetsProvider` | FutureProvider | snippetStoreProvider | All snippets |
+| `sessionSnippetsProvider` | FutureProvider.family | snippetStoreProvider | Snippets pinned to a session |
+| `tagStoreProvider` | Provider | — | TagStore (drift-backed) |
+| `tagsProvider` | FutureProvider | tagStoreProvider | All tags |
+| `sessionTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a session |
+| `folderTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a folder |
 | `connectionManagerProvider` | Provider | knownHostsProvider | ConnectionManager singleton |
 | `connectionsProvider` | StreamProvider | connectionManagerProvider | Real-time connection list |
 | `transferManagerProvider` | Provider | — | TransferManager singleton |
@@ -1058,7 +1095,9 @@ class FilePaneController extends ChangeNotifier {
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionManager. Async to support key store lookup |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link) |
-| `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export |
+| `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export (legacy, replaced by UnifiedExportDialog) |
+| `unified_export_dialog.dart` | `UnifiedExportDialog` | Unified export dialog for both QR and .lfs. Session tree with checkboxes, data type selection (passwords, embedded keys, manager keys, config, known_hosts), QR size indicator |
+| `lfs_import_preview_dialog.dart` | `LfsImportPreviewDialog` | Preview .lfs archive contents before import. Shows session count, config/known_hosts presence, data type checkboxes, mode selector |
 
 #### SessionConnect — flow
 
@@ -1151,21 +1190,23 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | File | Class | Purpose |
 |------|-------|---------|
 | `settings_screen.dart` | `SettingsScreen` | Mobile-only route (collapsible sections in a scrollable list) |
-| `settings_screen.dart` | `SettingsSidebar` | Desktop nav panel — embedded in `AppShell`'s sidebar slot |
-| `settings_screen.dart` | `SettingsContent` | Desktop content pane — embedded in `AppShell`'s body slot |
+| `settings_screen.dart` | `SettingsDialog` | Desktop full-screen modal (VS Code style) — sidebar nav + content pane |
 | `settings_dialogs.dart` | — | Dialog helpers (part of `settings_screen.dart`) |
 | `settings_logging.dart` | — | Logging section widgets (part of `settings_screen.dart`) |
 | `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
 | `settings_sections.dart` | — | Section-specific build methods (part of `settings_screen.dart`) |
 | `known_hosts_manager.dart` | `KnownHostsManagerDialog` | Known hosts management dialog (search, delete, import, export, clear) |
-| `key_manager/key_manager_dialog.dart` | `KeyManagerDialog` | SSH key management dialog (list, generate, import, delete, copy public key) |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
+| `tools/tools_dialog.dart` | `ToolsDialog` | Desktop full-screen modal — SSH Keys, Snippets, Tags |
+| `key_manager/key_manager_dialog.dart` | `KeyManagerPanel` / `KeyManagerDialog` | SSH key panel (embeddable) + dialog wrapper |
+| `snippets/snippet_manager_dialog.dart` | `SnippetManagerPanel` / `SnippetManagerDialog` | Snippet panel (embeddable) + dialog wrapper |
+| `tags/tag_manager_dialog.dart` | `TagManagerPanel` / `TagManagerDialog` | Tag panel (embeddable) + dialog wrapper |
 
-**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Security (known hosts manager), SSH Keys (key manager), Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
+**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Security (known hosts manager), Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
 
-**Desktop:** Settings are embedded directly in `MainScreen` via `ShellMode`. The toolbar settings button toggles between `ShellMode.sessions` and `ShellMode.settings` — no route navigation. `SettingsSidebar` + `SettingsContent` replace the session panel and tab area while sharing the same `AppShell` frame (sidebar width preserved).
+**Desktop:** Toolbar has two buttons — **Tools** (wrench icon, opens `ToolsDialog` with SSH Keys / Snippets / Tags) and **Settings** (gear icon, opens `SettingsDialog`). Both are full-screen modal dialogs with sidebar navigation and content pane (VS Code style). Sessions and terminals remain visible behind the dialog overlay.
 
-**Mobile:** `SettingsScreen` is pushed as a route with collapsible `ExpansionTile` sections.
+**Mobile:** `SettingsScreen` is pushed as a route with collapsible `ExpansionTile` sections. SSH Keys, Snippets, and Tags are accessible from the SSH Keys section within settings.
 
 ---
 
@@ -2097,16 +2138,44 @@ AppConfig {
 
 ## 11. Persistence & Storage
 
-| Data | File | Encryption | Format | Atomic write |
-|------|------|-----------|--------|-------------|
-| Sessions (metadata) | `sessions.json` | No | JSON | Yes |
-| Credentials | `credentials.enc` | AES-256-GCM | JSON → encrypted | Yes |
-| Encryption key | `credential.key` | No (file permissions) | 32 raw bytes | Yes |
-| Config | `config.json` | No | JSON | Yes |
-| Known hosts | `known_hosts` | No | SSH standard | Yes |
-| Logs | `logs/letsflutssh.log` | No | Text | No |
-| Transfer history | In-memory | N/A | — | — |
-| Instance lock | `app.lock` | No | PID text | No (OS-managed) |
+### Drift (SQLite) database
+
+All application data is stored in a single SQLite database via the drift ORM:
+
+| Table | Purpose | Key relationships |
+|-------|---------|-------------------|
+| `Sessions` | SSH sessions (metadata + credentials) | FK → Folders, FK → SshKeys |
+| `Folders` | Folder tree (self-referencing `parentId`) | self-ref FK |
+| `SshKeys` | SSH key pairs | — |
+| `KnownHosts` | TOFU host key database | unique(host, port) |
+| `AppConfigs` | Single-row config JSON blob | — |
+| `Tags` | User-defined color tags | unique(name) |
+| `SessionTags` | M2M: sessions ↔ tags | cascade on delete |
+| `FolderTags` | M2M: folders ↔ tags | cascade on delete |
+| `Snippets` | Reusable command snippets | — |
+| `SessionSnippets` | M2M: sessions ↔ snippets | cascade on delete |
+| `SftpBookmarks` | Saved remote paths per session | FK → Sessions, cascade |
+
+### Files on disk
+
+| File | Encryption | Format | Purpose |
+|------|-----------|--------|---------|
+| `letsflutssh.db` | SQLite3MultipleCiphers (PRAGMA key) | SQLite | All app data |
+| `config.json` | No | JSON | App config (loaded before DB opens) |
+| `credentials.salt` | No | 32 raw bytes | Master password salt (needed before DB) |
+| `credentials.verify` | No | AES-256-GCM | Master password verifier |
+| `logs/letsflutssh.log` | No | Text | Debug logs |
+| `app.lock` | No | PID text | Single-instance lock (desktop) |
+
+### Database initialization
+
+`database_opener.dart` opens the database with optional encryption:
+- `openDatabase(encryptionKey: null)` → plain SQLite
+- `openDatabase(encryptionKey: key)` → SQLite3MultipleCiphers with `PRAGMA key = "x'hex'"`
+- `openTestDatabase()` → in-memory SQLite for tests
+- Foreign keys enabled via `PRAGMA foreign_keys = ON` in setup callback
+
+**Config stays file-based:** `config.json` is loaded before the database opens because it contains the theme (needed for splash screen) and security preferences. Will migrate to DB in a future release.
 
 **Location:** `path_provider` → `getApplicationSupportDirectory()`
 - Linux: `~/.local/share/letsflutssh/`
@@ -2115,9 +2184,22 @@ AppConfig {
 - Android: app internal storage
 - iOS: app sandbox
 
-**Atomic write pattern:** Writes to a temporary file, then `rename()`. Prevents data loss on crash.
+**Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed.
 
-**File permissions:** `restrictFilePermissions()` → chmod 600 on Unix platforms for credentials and known_hosts.
+### Store → DAO pattern
+
+Each store wraps a drift DAO and is injected with the database at startup:
+
+```
+main.dart → _injectDatabase()
+  → sessionStoreProvider.setDatabase(db)
+  → keyStoreProvider.setDatabase(db)
+  → knownHostsProvider.setDatabase(db)
+  → snippetStoreProvider.setDatabase(db)
+  → tagStoreProvider.setDatabase(db)
+```
+
+Stores keep domain model APIs unchanged; DAOs handle SQL. Mappers (`mappers.dart`) translate between domain objects and drift companions.
 
 ---
 
@@ -2168,7 +2250,7 @@ Additionally, internal resizable elements (sidebar, file browser columns, split 
 
 ### Single-instance protection (desktop only)
 
-Prevents multiple app instances from running simultaneously, which would corrupt shared config/session files.
+Prevents multiple app instances from running simultaneously, which would corrupt the shared database.
 
 **Mechanism:** exclusive file lock via `RandomAccessFile.lock(FileLock.exclusive)` on `app.lock` in the app data directory (`getApplicationSupportDirectory()`). The OS kernel automatically releases the lock when the process exits (even on crash), so there are no stale lock files.
 
@@ -2195,15 +2277,13 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 
 All data stores support three security levels (see §3.6):
 
-| Level | Key source | Encrypted files |
-|-------|-----------|----------------|
-| Plaintext | None | `sessions.json`, `keys.json`, `known_hosts` |
-| Keychain | OS keychain (`flutter_secure_storage`) | `sessions.enc`, `keys.enc`, `known_hosts.enc` |
-| Master Password | PBKDF2-derived | `sessions.enc`, `keys.enc`, `known_hosts.enc` + `credentials.salt` + `credentials.verify` |
+| Level | Key source | Database encryption |
+|-------|-----------|---------------------|
+| Plaintext | None | `letsflutssh.db` — unencrypted SQLite |
+| Keychain | OS keychain (`flutter_secure_storage`) | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) |
+| Master Password | PBKDF2-derived | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) + `credentials.salt` + `credentials.verify` |
 
-All encrypted files use AES-256-GCM via `AesGcm` utility. Wire format: `[IV 12B] [ciphertext + GCM tag]`.
-
-No `credentials.key` file — the old pattern of storing a key next to the ciphertext is eliminated.
+Encryption is applied at the database level via SQLite3MultipleCiphers — a single encrypted DB file replaces the old per-store AES-256-GCM files.
 
 ### First-launch wizard
 
@@ -2217,43 +2297,45 @@ No `credentials.key` file — the old pattern of storing a key next to the ciphe
 `_initSecurity()` in `main.dart`:
 1. `credentials.salt` exists → show `UnlockDialog` → derive key
 2. Keychain has key → read from keychain
-3. Data files exist but no encryption → plaintext mode
+3. Database exists but no encryption → plaintext mode
 4. No data at all → first launch → show `SecuritySetupDialog` wizard
-5. Inject key into all three stores via `_injectKey()` + update `securityStateProvider`
+5. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
 
 ### Master password
 
 ```
 User password → PBKDF2-SHA256(600k iterations, random salt) → 256-bit key
                                                                    │
-                               ┌───────────────┬──────────────────┤
-                               ▼               ▼                  ▼
-                        sessions.enc      keys.enc       known_hosts.enc
+                                                                   ▼
+                                                          letsflutssh.db
+                                                     (PRAGMA key = "x'hex'")
 ```
 
 - **Detection:** `credentials.salt` exists = master password enabled
 - **Verification:** `credentials.verify` = AES-256-GCM(known plaintext "LetsFLUTssh-verify")
-- **Enable flow:** derive key → `reEncrypt()` all three stores → delete keychain key if present
-- **Disable flow:** try keychain → generate random key → `reEncrypt()` all stores → delete salt/verifier. No keychain → plaintext fallback
-- **Change flow:** verify old → derive new → `reEncrypt()` all three stores
-- **Forgot password:** deletes all encrypted files (salt, verifier, all `.enc` files)
+- **Enable flow:** derive key → re-open database with new key → delete keychain key if present
+- **Disable flow:** try keychain → generate random key → re-open database → delete salt/verifier. No keychain → plaintext fallback
+- **Change flow:** verify old → derive new → re-open database with new key
+- **Forgot password:** deletes encrypted database + salt/verifier files
 
 ### .lfs export
 
 ```
-[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions.json + config.json + known_hosts))]
+[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions.json + empty_folders.json + config.json + known_hosts))]
 
 Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 ```
 
 Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
 
+Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths.
+
 ### TOFU (Trust On First Use)
 
 - New host → dialog with SHA256 fingerprint → user accepts/rejects
 - Changed key → warning dialog → user accepts/rejects
 - Without callback → reject (fail-safe)
-- known_hosts encrypted when security level > plaintext
+- Known hosts stored in DB `KnownHosts` table (encrypted with rest of DB)
 
 ### Deep link validation
 
@@ -2394,7 +2476,7 @@ Two layers of fuzz testing:
 | Test file | Fuzzed function | Input type |
 |-----------|----------------|------------|
 | `fuzz_session_json_test.dart` | `Session.fromJson()` | Random JSON maps |
-| `fuzz_qr_codec_test.dart` | `decodeSessionsFromQr()`, `decodeImportUri()` | Random strings, URIs |
+| `fuzz_qr_codec_test.dart` | `decodeExportPayload()`, `decodeImportUri()` | Random strings, URIs |
 | `fuzz_app_config_test.dart` | `AppConfig.fromJson()` + sub-configs | Random JSON maps |
 | `fuzz_deeplink_test.dart` | `DeepLinkHandler.parseConnectUri()` | Random URIs |
 | `fuzz_format_test.dart` | `sanitizeError()`, `formatSize()`, `formatDuration()` | Random strings, errno patterns, objects |
@@ -2531,8 +2613,11 @@ Manual build
 
 | Decision | Why |
 |----------|-----|
+| drift (SQLite) instead of JSON files | Referential integrity, folder tree with FK, M2M tags/snippets, single encrypted DB file via SQLite3MultipleCiphers |
+| SQLite3MultipleCiphers (build hooks) | DB-level encryption replaces per-store AES-GCM. Bundled via `hooks: user_defines: sqlite3: source: sqlite3mc` — no external native libs needed |
+| Config stays file-based | Theme/locale needed before DB opens (chicken-and-egg with encryption key) |
 | `pointycastle` instead of `encrypt` | Version conflict with dartssh2 |
-| Three-level security (plaintext/keychain/master password) | Honest security: no key-file next to ciphertext. OS keychain optional with graceful fallback |
+| Three-level security (plaintext/keychain/master password) | Honest security: DB-level encryption via PRAGMA key. OS keychain optional with graceful fallback |
 | `flutter_secure_storage` as optional dep | OS keychain for automatic encryption; app works without it (libsecret on Linux is optional) |
 | `app_links` instead of `uni_links` | Desktop support |
 | `FilePaneController` as `ChangeNotifier` | Lightweight per-pane state, Riverpod overhead not justified |
@@ -2598,6 +2683,8 @@ Manual build
 | `dartssh2` | SSH2 protocol (auth, shell, SFTP) |
 | `xterm` | Terminal emulator widget |
 | `flutter_riverpod` | State management |
+| `drift` | Typed SQLite ORM (database, DAOs, codegen) |
+| `drift_flutter` | Flutter integration for drift (NativeDatabase) |
 | `pointycastle` | AES-256-GCM encryption (transitive via dartssh2) |
 | `path_provider` | App data directories |
 | `archive` | ZIP for .lfs export/import |
@@ -2619,6 +2706,7 @@ Manual build
 | `flutter_lints` | Lint rules |
 | `mockito` | Test mocking |
 | `build_runner` | Code generation |
+| `drift_dev` | Drift code generator |
 | `json_serializable` | JSON code gen |
 | `build_verify` | Verifies build_runner output is up-to-date |
 | `plugin_platform_interface` | Platform interface for plugin packages |

@@ -161,8 +161,8 @@ void main() {
 
       // Sidebar toggle (chevron_left when open)
       expect(find.byIcon(Icons.chevron_left), findsOneWidget);
-      // Settings button
-      expect(find.byIcon(Icons.settings), findsOneWidget);
+      // Settings text button
+      expect(find.text('Settings'), findsOneWidget);
     });
 
     testWidgets('toggle sidebar hides and shows it', (tester) async {
@@ -183,31 +183,14 @@ void main() {
       expect(find.byIcon(Icons.chevron_left), findsOneWidget);
     });
 
-    testWidgets('settings button switches to settings mode', (tester) async {
+    testWidgets('toolbar shows tools and settings text buttons', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.settings));
-      await tester.pumpAndSettle();
-
-      // In settings mode, the button shows arrow_back
-      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
-    });
-
-    testWidgets('arrow_back returns from settings to sessions', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pumpAndSettle();
-
-      // Enter settings
-      await tester.tap(find.byIcon(Icons.settings));
-      await tester.pumpAndSettle();
-
-      // Go back
-      await tester.tap(find.byIcon(Icons.arrow_back));
-      await tester.pumpAndSettle();
-
-      // Should be back to sessions mode
-      expect(find.byIcon(Icons.settings), findsOneWidget);
+      expect(find.text('Tools'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
     });
 
     testWidgets('shows duplicate/split buttons when terminal tab is active', (
@@ -284,20 +267,8 @@ void main() {
     );
   });
 
-  group('ShellMode', () {
-    test('has sessions and settings values', () {
-      expect(ShellMode.values, contains(ShellMode.sessions));
-      expect(ShellMode.values, contains(ShellMode.settings));
-      expect(ShellMode.values.length, 2);
-    });
-  });
-
-  group('_AlreadyRunningApp', () {
-    testWidgets('renders blocker message', (tester) async {
-      // _AlreadyRunningApp is private, but we can test it via running the
-      // widget tree it produces — need to access it differently.
-      // Since it's private, we test the public-facing effect indirectly.
-      // We can at least verify the ShellMode enum and navigatorKey.
+  group('navigatorKey', () {
+    test('is a GlobalKey<NavigatorState>', () {
       expect(navigatorKey, isA<GlobalKey<NavigatorState>>());
     });
   });
@@ -400,12 +371,15 @@ void main() {
   });
 
   group('_Toolbar', () {
-    testWidgets('renders divider between buttons', (tester) async {
+    testWidgets('renders sidebar toggle and text buttons', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      // AppIconButton for settings and sidebar toggle should exist
+      // AppIconButton for sidebar toggle
       expect(find.byType(AppIconButton), findsWidgets);
+      // Text buttons for Tools and Settings
+      expect(find.text('Tools'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
     });
   });
 

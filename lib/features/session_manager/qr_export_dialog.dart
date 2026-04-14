@@ -72,7 +72,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
 
   int get _payloadSize => _selectedSessions.isEmpty
       ? 0
-      : calculateQrPayloadSize(
+      : calculateExportPayloadSize(
           _selectedSessions,
           emptyFolders: _relevantEmptyFolders,
         );
@@ -148,7 +148,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
   }
 
   void _popWithDeepLink(Set<String> folders) {
-    final payload = encodeSessionsForQr(
+    final payload = encodeExportPayload(
       _selectedSessions,
       emptyFolders: folders,
     );

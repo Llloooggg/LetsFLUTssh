@@ -18,6 +18,29 @@
   "select": "Select",
   "required": "Required",
   "settings": "Settings",
+  "appSettings": "App Settings",
+  "yes": "Yes",
+  "no": "No",
+  "importWhatToImport": "What to import:",
+  "enterMasterPasswordPrompt": "Enter master password:",
+  "nextStep": "Next",
+  "includeCredentials": "Include passwords and SSH keys",
+  "includePasswords": "Session passwords",
+  "embeddedKeys": "Session keys",
+  "managerKeys": "Keys from manager",
+  "managerKeysMayBeLarge": "Manager keys may exceed QR size limit",
+  "qrPasswordWarning": "Passwords will be unencrypted in the QR code. Anyone who scans it can see them.",
+  "sshKeysMayBeLarge": "Keys may exceed QR size limit",
+  "exportTotalSize": "Total size: {size}",
+  "@exportTotalSize": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "qrCredentialsWarning": "Passwords and SSH keys WILL be visible in the QR code. Only share in trusted environments.",
+  "qrCredentialsTooLarge": "Credentials make the QR code too large. Remove some sessions or disable credentials.",
   "terminal": "Terminal",
   "files": "Files",
   "transfer": "Transfer",
@@ -111,6 +134,7 @@
     }
   },
   "sessions": "Sessions",
+  "emptyFolders": "Empty Folders",
   "sessionsHeader": "SESSIONS",
   "savedSessions": "Saved sessions",
   "activeConnections": "Active connections",
@@ -848,6 +872,7 @@
   "noHostsToExport": "No known hosts to export",
   "keyType": "Key Type",
   "fingerprint": "Fingerprint",
+  "tools": "Tools",
   "sshKeys": "SSH Keys",
   "sshKeysSubtitle": "Manage SSH key pairs for authentication",
   "noKeys": "No SSH keys. Import or generate one.",
@@ -973,6 +998,90 @@
     }
   },
   "keychainNotAvailable": "Not available",
+  "enableKeychain": "Enable Keychain Encryption",
+  "enableKeychainSubtitle": "Re-encrypt stored data using OS keychain",
+  "keychainEnabled": "Keychain encryption enabled",
   "manageMasterPassword": "Manage Master Password",
-  "manageMasterPasswordSubtitle": "Set, change, or remove master password"
+  "manageMasterPasswordSubtitle": "Set, change, or remove master password",
+
+  "snippets": "Snippets",
+  "snippetsSubtitle": "Manage reusable command snippets",
+  "noSnippets": "No snippets yet",
+  "addSnippet": "Add Snippet",
+  "editSnippet": "Edit Snippet",
+  "deleteSnippet": "Delete Snippet",
+  "deleteSnippetConfirm": "Delete snippet \"{title}\"?",
+  "@deleteSnippetConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "snippetTitle": "Title",
+  "snippetTitleHint": "e.g. Deploy, Restart Service",
+  "snippetCommand": "Command",
+  "snippetCommandHint": "e.g. sudo systemctl restart nginx",
+  "snippetDescription": "Description (optional)",
+  "snippetDescriptionHint": "What does this command do?",
+  "snippetSaved": "Snippet saved",
+  "snippetDeleted": "Snippet \"{title}\" deleted",
+  "@snippetDeleted": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "snippetCount": "{count, plural, =0{No snippets} =1{1 snippet} other{{count} snippets}}",
+  "@snippetCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runSnippet": "Run",
+  "pinToSession": "Pin to this session",
+  "unpinFromSession": "Unpin from this session",
+  "pinnedSnippets": "Pinned",
+  "allSnippets": "All",
+  "sendToTerminal": "Send to terminal",
+  "commandCopied": "Command copied to clipboard",
+
+  "tags": "Tags",
+  "tagsSubtitle": "Organize sessions and folders with color tags",
+  "noTags": "No tags yet",
+  "addTag": "Add Tag",
+  "deleteTag": "Delete Tag",
+  "deleteTagConfirm": "Delete tag \"{name}\"? It will be removed from all sessions and folders.",
+  "@deleteTagConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tagName": "Tag Name",
+  "tagNameHint": "e.g. Production, Staging",
+  "tagColor": "Color",
+  "tagCreated": "Tag created",
+  "tagDeleted": "Tag \"{name}\" deleted",
+  "@tagDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tagCount": "{count, plural, =0{No tags} =1{1 tag} other{{count} tags}}",
+  "@tagCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "manageTags": "Manage Tags",
+  "editTags": "Edit Tags"
 }

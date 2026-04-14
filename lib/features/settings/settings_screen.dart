@@ -11,10 +11,12 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
+import '../../core/shortcut_registry.dart';
 import '../../core/security/aes_gcm.dart';
 import '../../core/security/master_password.dart';
 import '../../core/security/security_level.dart';
 import '../../core/session/qr_codec.dart';
+import '../../core/session/session.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/key_provider.dart';
@@ -32,12 +34,14 @@ import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
-import '../../widgets/mode_button.dart';
 import '../../widgets/toast.dart';
+import '../../widgets/unified_export_dialog.dart';
+import '../../widgets/lfs_import_preview_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
-import '../session_manager/qr_export_dialog.dart';
 import 'export_import.dart';
 import '../key_manager/key_manager_dialog.dart';
+import '../snippets/snippet_manager_dialog.dart';
+import '../tags/tag_manager_dialog.dart';
 import 'known_hosts_manager.dart';
 
 part 'settings_dialogs.dart';
@@ -75,7 +79,7 @@ class _Section {
   });
 }
 
-/// Ordered list of all settings sections.
+/// Ordered list of all settings sections (mobile — includes SSH Keys/tools).
 List<_Section> _buildSections(BuildContext context) => [
   _Section(
     title: S.of(context).appearance,
@@ -129,6 +133,55 @@ List<_Section> _buildSections(BuildContext context) => [
   ),
 ];
 
+/// Desktop sections — excludes SSH Keys/Snippets/Tags (moved to Tools dialog).
+List<_Section> _buildDesktopSections(BuildContext context) => [
+  _Section(
+    title: S.of(context).appearance,
+    icon: Icons.palette,
+    builder: _AppearanceSection.new,
+  ),
+  _Section(
+    title: S.of(context).terminal,
+    icon: Icons.terminal,
+    builder: _TerminalSection.new,
+  ),
+  _Section(
+    title: S.of(context).connectionSection,
+    icon: Icons.lan,
+    builder: _ConnectionSection.new,
+  ),
+  _Section(
+    title: S.of(context).transfers,
+    icon: Icons.swap_horiz,
+    builder: _TransferSection.new,
+  ),
+  _Section(
+    title: S.of(context).security,
+    icon: Icons.security,
+    builder: _SecuritySection.new,
+  ),
+  _Section(
+    title: S.of(context).data,
+    icon: Icons.storage,
+    builder: _DataSection.new,
+  ),
+  _Section(
+    title: S.of(context).logging,
+    icon: Icons.description,
+    builder: _LoggingSection.new,
+  ),
+  _Section(
+    title: S.of(context).updates,
+    icon: Icons.system_update,
+    builder: _UpdateSection.new,
+  ),
+  _Section(
+    title: S.of(context).about,
+    icon: Icons.info_outline,
+    builder: _AboutSection.new,
+  ),
+];
+
 /// Settings screen with config editing.
 ///
 /// Desktop: two-column layout (nav rail + content pane).
@@ -138,8 +191,7 @@ List<_Section> _buildSections(BuildContext context) => [
 /// unnecessary rebuilds when unrelated settings change.
 /// Settings screen — mobile only (pushed as a route).
 ///
-/// On desktop, settings are embedded directly in [AppShell] via
-/// [SettingsSidebar] and [SettingsContent] — no route navigation needed.
+/// On desktop, settings are shown via [SettingsDialog] (full-screen modal).
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -248,119 +300,129 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
   }
 }
 
-/// Desktop settings sidebar — nav items + reset button.
+/// Full-screen Settings dialog (VS Code style) — desktop only.
 ///
-/// Designed to be embedded in [AppShell]'s sidebar slot so it shares
-/// the same resizable panel and visual frame as the sessions sidebar.
-class SettingsSidebar extends ConsumerWidget {
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
+/// Shows all settings sections except SSH Keys/Snippets/Tags (those
+/// are in the Tools dialog). Sidebar nav on the left, content on the right.
+class SettingsDialog extends ConsumerStatefulWidget {
+  const SettingsDialog({super.key});
 
-  const SettingsSidebar({
-    super.key,
-    required this.selectedIndex,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sections = _buildSections(context);
-    final theme = Theme.of(context);
-    return Container(
-      color: theme.colorScheme.surfaceContainerLow,
-      child: Column(
-        children: [
-          // Header — matches SessionPanel _PanelHeader style
-          Container(
-            height: AppTheme.barHeightSm,
-            padding: const EdgeInsets.only(left: 12, right: 2),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: theme.dividerColor)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    S.of(context).settings.toUpperCase(),
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: AppFonts.sm,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.45,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              itemCount: sections.length,
-              itemBuilder: (context, index) {
-                final section = sections[index];
-                return _NavItem(
-                  icon: section.icon,
-                  label: section.title,
-                  selected: index == selectedIndex,
-                  onTap: () => onSelect(index),
-                );
-              },
-            ),
-          ),
-          _ResetButton(
-            onTap: () => ref
-                .read(configProvider.notifier)
-                .update((_) => AppConfig.defaults),
-          ),
-        ],
-      ),
+  static Future<void> show(BuildContext context) {
+    return showDialog(
+      context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      builder: (_) => const SettingsDialog(),
     );
   }
+
+  @override
+  ConsumerState<SettingsDialog> createState() => _SettingsDialogState();
 }
 
-/// Desktop settings content pane — shows the selected section.
-///
-/// Designed to be embedded in [AppShell]'s body slot.
-class SettingsContent extends StatelessWidget {
-  final int selectedIndex;
-
-  const SettingsContent({super.key, required this.selectedIndex});
+class _SettingsDialogState extends ConsumerState<SettingsDialog> {
+  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    final sections = _buildSections(context);
-    final scheme = Theme.of(context).colorScheme;
-    return ListTileTheme(
-      data: ListTileThemeData(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        titleTextStyle: AppFonts.inter(
-          fontSize: AppFonts.sm,
-          color: scheme.onSurface,
-        ),
-        subtitleTextStyle: AppFonts.inter(
-          fontSize: AppFonts.xs,
-          color: scheme.onSurfaceVariant,
-        ),
-        leadingAndTrailingTextStyle: AppFonts.inter(
-          fontSize: AppFonts.xs,
-          color: scheme.onSurface.withValues(alpha: 0.45),
-        ),
-      ),
-      child: DefaultTextStyle(
-        style: AppFonts.inter(fontSize: AppFonts.sm, color: scheme.onSurface),
-        child: ListView(
-          key: ValueKey(selectedIndex),
-          padding: const EdgeInsets.all(24),
-          children: [
-            _SectionHeader(title: sections[selectedIndex].title),
-            sections[selectedIndex].builder(),
-          ],
+    final sections = _buildDesktopSections(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(32),
+      backgroundColor: AppTheme.bg1,
+      child: CallbackShortcuts(
+        bindings: AppShortcutRegistry.instance.buildCallbackMap({
+          AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
+        }),
+        child: Focus(
+          autofocus: true,
+          child: Column(
+            children: [
+              AppDialogHeader(
+                title: S.of(context).settings,
+                onClose: () => Navigator.pop(context),
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    // Sidebar
+                    SizedBox(
+                      width: 200,
+                      child: Container(
+                        color: scheme.surfaceContainerLow,
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                itemCount: sections.length,
+                                itemBuilder: (context, index) {
+                                  final section = sections[index];
+                                  return _NavItem(
+                                    icon: section.icon,
+                                    label: section.title,
+                                    selected: index == _selectedIndex,
+                                    onTap: () =>
+                                        setState(() => _selectedIndex = index),
+                                  );
+                                },
+                              ),
+                            ),
+                            _ResetButton(
+                              onTap: () => ref
+                                  .read(configProvider.notifier)
+                                  .update((_) => AppConfig.defaults),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    VerticalDivider(width: 1, color: theme.dividerColor),
+                    // Content
+                    Expanded(
+                      child: ListTileTheme(
+                        data: ListTileThemeData(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          titleTextStyle: AppFonts.inter(
+                            fontSize: AppFonts.sm,
+                            color: scheme.onSurface,
+                          ),
+                          subtitleTextStyle: AppFonts.inter(
+                            fontSize: AppFonts.xs,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          leadingAndTrailingTextStyle: AppFonts.inter(
+                            fontSize: AppFonts.xs,
+                            color: scheme.onSurface.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        child: DefaultTextStyle(
+                          style: AppFonts.inter(
+                            fontSize: AppFonts.sm,
+                            color: scheme.onSurface,
+                          ),
+                          child: ListView(
+                            key: ValueKey(_selectedIndex),
+                            padding: const EdgeInsets.all(24),
+                            children: [
+                              _SectionHeader(
+                                title: sections[_selectedIndex].title,
+                              ),
+                              sections[_selectedIndex].builder(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

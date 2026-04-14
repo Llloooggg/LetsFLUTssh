@@ -9,6 +9,7 @@ void main() {
   group('ImportService', () {
     late List<Session> store;
     late List<String> deletedIds;
+    late List<String> importedFolders;
     late dynamic appliedConfig;
 
     late ImportService service;
@@ -16,9 +17,11 @@ void main() {
     setUp(() {
       store = [];
       deletedIds = [];
+      importedFolders = [];
       appliedConfig = null;
 
       service = ImportService(
+        addEmptyFolder: (f) async => importedFolders.add(f),
         addSession: (s) async => store.add(s),
         deleteSession: (id) async => deletedIds.add(id),
         getSessions: () => store,
@@ -50,6 +53,7 @@ void main() {
       final s1 = makeSession('1', 'A');
 
       final errorService = ImportService(
+        addEmptyFolder: (f) async => importedFolders.add(f),
         addSession: (s) async => throw Exception('duplicate'),
         deleteSession: (id) async => deletedIds.add(id),
         getSessions: () => store,
@@ -86,6 +90,7 @@ void main() {
       store.addAll([existing1, existing2]);
 
       final mutatingService = ImportService(
+        addEmptyFolder: (f) async => importedFolders.add(f),
         addSession: (s) async => store.add(s),
         deleteSession: (id) async {
           deletedIds.add(id);
@@ -108,6 +113,7 @@ void main() {
 
     test('replace mode rethrows on add error', () async {
       final errorService = ImportService(
+        addEmptyFolder: (f) async => importedFolders.add(f),
         addSession: (s) async => throw Exception('failed'),
         deleteSession: (id) async => deletedIds.add(id),
         getSessions: () => [],
@@ -138,6 +144,19 @@ void main() {
 
       expect(appliedConfig, isNotNull);
       expect((appliedConfig as AppConfig).fontSize, 18.0);
+    });
+
+    test('config is applied after sessions in same import', () async {
+      final s1 = makeSession('1', 'A');
+      const config = AppConfig(terminal: TerminalConfig(fontSize: 14.0));
+
+      await service.applyResult(
+        ImportResult(sessions: [s1], config: config, mode: ImportMode.merge),
+      );
+
+      expect(store, hasLength(1));
+      expect(appliedConfig, isNotNull);
+      expect((appliedConfig as AppConfig).fontSize, 14.0);
     });
 
     test('skips config when null', () async {
@@ -183,6 +202,7 @@ void main() {
         required Future<void> Function(Session) onAdd,
       }) {
         return ImportService(
+          addEmptyFolder: (f) async => importedFolders.add(f),
           addSession: onAdd,
           deleteSession: (id) async {
             deletedIds.add(id);
@@ -248,6 +268,7 @@ void main() {
       test('rollback without callbacks does not crash', () async {
         // Use the basic service (no rollback callbacks)
         final errorService = ImportService(
+          addEmptyFolder: (f) async => importedFolders.add(f),
           addSession: (s) async => throw Exception('fail'),
           deleteSession: (id) async => deletedIds.add(id),
           getSessions: () => [],
@@ -263,6 +284,171 @@ void main() {
           ),
           throwsException,
         );
+      });
+
+      test(
+        'config is NOT applied when session import fails (correct behavior)',
+        () async {
+          final existing = makeSession('old1', 'Old1');
+          store.add(existing);
+
+          // Track the order of operations
+          final operationOrder = <String>[];
+
+          final svc = ImportService(
+            addEmptyFolder: (f) async => importedFolders.add(f),
+            addSession: (s) async {
+              operationOrder.add('addSession:${s.id}');
+              if (s.id == 'new2') throw Exception('disk full');
+              store.add(s);
+            },
+            deleteSession: (id) async {
+              operationOrder.add('deleteSession:$id');
+              store.removeWhere((s) => s.id == id);
+            },
+            getSessions: () => store,
+            applyConfig: (config) {
+              operationOrder.add('applyConfig');
+              appliedConfig = config;
+            },
+            getEmptyFolders: () => {'FolderA'},
+            restoreSnapshot: (sessions, folders) async {
+              operationOrder.add('restoreSnapshot');
+              store
+                ..clear()
+                ..addAll(sessions);
+            },
+          );
+
+          const config = AppConfig(terminal: TerminalConfig(fontSize: 12.0));
+          final s1 = makeSession('new1', 'New1');
+          final s2 = makeSession('new2', 'New2');
+
+          await expectLater(
+            () => svc.applyResult(
+              ImportResult(
+                sessions: [s1, s2],
+                config: config,
+                mode: ImportMode.replace,
+              ),
+            ),
+            throwsException,
+          );
+
+          // Config is applied AFTER sessions succeed — so on failure it is NOT applied.
+          // This is correct: config shouldn't be applied if the overall import failed.
+          expect(operationOrder, isNot(contains('applyConfig')));
+          expect(appliedConfig, isNull);
+          // Sessions were rolled back
+          expect(store, hasLength(1));
+          expect(store.first.id, 'old1');
+        },
+      );
+    });
+
+    test('applyConfig failure does not abort import', () async {
+      final s1 = makeSession('1', 'A');
+      const config = AppConfig(terminal: TerminalConfig(fontSize: 18.0));
+
+      final configErrorService = ImportService(
+        addEmptyFolder: (f) async => importedFolders.add(f),
+        addSession: (s) async => store.add(s),
+        deleteSession: (id) async => deletedIds.add(id),
+        getSessions: () => store,
+        applyConfig: (_) => throw Exception('config write failed'),
+      );
+
+      // Should not throw — config failure is caught and logged
+      await configErrorService.applyResult(
+        ImportResult(sessions: [s1], config: config, mode: ImportMode.merge),
+      );
+
+      // Session was still imported despite config failure
+      expect(store, hasLength(1));
+      expect(store.first.label, 'A');
+    });
+
+    group('empty folder import', () {
+      test('imports empty folders from result', () async {
+        await service.applyResult(
+          const ImportResult(
+            sessions: [],
+            emptyFolders: {'FolderA', 'FolderB'},
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(importedFolders, containsAll(['FolderA', 'FolderB']));
+        expect(importedFolders, hasLength(2));
+      });
+
+      test('empty folder failure in replace mode triggers rollback', () async {
+        final existing = makeSession('old1', 'Old1');
+        store.add(existing);
+
+        var restored = false;
+        final svc = ImportService(
+          addEmptyFolder: (f) async => throw Exception('folder write failed'),
+          addSession: (s) async => store.add(s),
+          deleteSession: (id) async {
+            deletedIds.add(id);
+            store.removeWhere((s) => s.id == id);
+          },
+          getSessions: () => store,
+          applyConfig: (config) => appliedConfig = config,
+          getEmptyFolders: () => {'ExistingFolder'},
+          restoreSnapshot: (sessions, folders) async {
+            restored = true;
+            store
+              ..clear()
+              ..addAll(sessions);
+          },
+        );
+
+        final s1 = makeSession('new1', 'New1');
+
+        await expectLater(
+          () => svc.applyResult(
+            ImportResult(
+              sessions: [s1],
+              emptyFolders: {'BadFolder'},
+              mode: ImportMode.replace,
+            ),
+          ),
+          throwsException,
+        );
+
+        // Rollback was triggered
+        expect(restored, isTrue);
+        // Original session was restored
+        expect(store, hasLength(1));
+        expect(store.first.id, 'old1');
+      });
+
+      test('skips folder that throws error', () async {
+        final errorFolders = <String>[];
+        final svc = ImportService(
+          addEmptyFolder: (f) async {
+            if (f == 'BadFolder') throw Exception('cannot create');
+            errorFolders.add(f);
+          },
+          addSession: (s) async => store.add(s),
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => store,
+          applyConfig: (config) => appliedConfig = config,
+        );
+
+        // Should not throw — folder errors are caught and logged
+        await svc.applyResult(
+          const ImportResult(
+            sessions: [],
+            emptyFolders: {'GoodFolder', 'BadFolder'},
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(errorFolders, contains('GoodFolder'));
+        expect(errorFolders, isNot(contains('BadFolder')));
       });
     });
   });

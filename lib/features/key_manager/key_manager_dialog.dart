@@ -12,19 +12,18 @@ import '../../utils/logger.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
 
-/// Dialog for managing SSH key pairs — list, generate, import, delete.
-class KeyManagerDialog extends ConsumerStatefulWidget {
-  const KeyManagerDialog({super.key});
-
-  static Future<void> show(BuildContext context) {
-    return AppDialog.show(context, builder: (_) => const KeyManagerDialog());
-  }
+/// Embeddable SSH key manager — toolbar + list with CRUD.
+///
+/// Used standalone inside [KeyManagerDialog] (mobile) and embedded in
+/// the desktop Tools dialog.
+class KeyManagerPanel extends ConsumerStatefulWidget {
+  const KeyManagerPanel({super.key});
 
   @override
-  ConsumerState<KeyManagerDialog> createState() => _KeyManagerDialogState();
+  ConsumerState<KeyManagerPanel> createState() => _KeyManagerPanelState();
 }
 
-class _KeyManagerDialogState extends ConsumerState<KeyManagerDialog> {
+class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   List<SshKeyEntry> _keys = [];
   bool _loading = true;
 
@@ -49,22 +48,12 @@ class _KeyManagerDialogState extends ConsumerState<KeyManagerDialog> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return AppDialog(
-      title: s.sshKeys,
-      maxWidth: 640,
-      scrollable: false,
-      contentPadding: EdgeInsets.zero,
-      content: SizedBox(
-        height: 400,
-        child: Column(
-          children: [
-            _buildToolbar(s),
-            const Divider(height: 1),
-            Expanded(child: _buildBody(s)),
-          ],
-        ),
-      ),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+    return Column(
+      children: [
+        _buildToolbar(s),
+        const Divider(height: 1),
+        Expanded(child: _buildBody(s)),
+      ],
     );
   }
 
@@ -251,6 +240,27 @@ class _KeyManagerDialogState extends ConsumerState<KeyManagerDialog> {
   String _formatDate(DateTime dt) {
     return '${dt.year}-${dt.month.toString().padLeft(2, '0')}'
         '-${dt.day.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Dialog wrapper for standalone use (mobile settings).
+class KeyManagerDialog extends StatelessWidget {
+  const KeyManagerDialog({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return AppDialog.show(context, builder: (_) => const KeyManagerDialog());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDialog(
+      title: S.of(context).sshKeys,
+      maxWidth: 640,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      content: const SizedBox(height: 400, child: KeyManagerPanel()),
+      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+    );
   }
 }
 

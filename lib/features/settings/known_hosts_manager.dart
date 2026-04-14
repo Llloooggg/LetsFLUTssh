@@ -14,27 +14,20 @@ import '../../utils/platform.dart' as plat;
 import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
 
-/// Full-screen dialog for managing known SSH host entries.
+/// Embeddable known hosts manager — search + list with CRUD.
 ///
-/// Shows a searchable list of known hosts with delete, import, export,
-/// and clear-all actions.
-class KnownHostsManagerDialog extends ConsumerStatefulWidget {
-  const KnownHostsManagerDialog({super.key});
-
-  static Future<void> show(BuildContext context) {
-    return AppDialog.show(
-      context,
-      builder: (_) => const KnownHostsManagerDialog(),
-    );
-  }
+/// Used standalone inside [KnownHostsManagerDialog] (mobile) and embedded
+/// in the desktop Tools dialog.
+class KnownHostsManagerPanel extends ConsumerStatefulWidget {
+  const KnownHostsManagerPanel({super.key});
 
   @override
-  ConsumerState<KnownHostsManagerDialog> createState() =>
-      _KnownHostsManagerDialogState();
+  ConsumerState<KnownHostsManagerPanel> createState() =>
+      _KnownHostsManagerPanelState();
 }
 
-class _KnownHostsManagerDialogState
-    extends ConsumerState<KnownHostsManagerDialog> {
+class _KnownHostsManagerPanelState
+    extends ConsumerState<KnownHostsManagerPanel> {
   String _filter = '';
   bool _loading = true;
 
@@ -68,22 +61,12 @@ class _KnownHostsManagerDialogState
     final entries = _filteredEntries;
     final totalCount = _manager.count;
 
-    return AppDialog(
-      title: s.knownHosts,
-      maxWidth: 640,
-      scrollable: false,
-      contentPadding: EdgeInsets.zero,
-      content: SizedBox(
-        height: 400,
-        child: Column(
-          children: [
-            _buildToolbar(s, totalCount),
-            const Divider(height: 1),
-            Expanded(child: _buildBody(s, entries, totalCount)),
-          ],
-        ),
-      ),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+    return Column(
+      children: [
+        _buildToolbar(s, totalCount),
+        const Divider(height: 1),
+        Expanded(child: _buildBody(s, entries, totalCount)),
+      ],
     );
   }
 
@@ -370,6 +353,30 @@ class _KnownHostsManagerDialogState
   Future<void> _writeFile(String path, String content) async {
     final file = File(path);
     await file.writeAsString(content);
+  }
+}
+
+/// Dialog wrapper for standalone use (mobile settings).
+class KnownHostsManagerDialog extends StatelessWidget {
+  const KnownHostsManagerDialog({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return AppDialog.show(
+      context,
+      builder: (_) => const KnownHostsManagerDialog(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDialog(
+      title: S.of(context).knownHosts,
+      maxWidth: 640,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      content: const SizedBox(height: 400, child: KnownHostsManagerPanel()),
+      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+    );
   }
 }
 

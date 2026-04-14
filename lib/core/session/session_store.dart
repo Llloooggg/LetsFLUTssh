@@ -1,80 +1,43 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
+import 'package:drift/drift.dart';
 
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-
-import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
-import '../security/aes_gcm.dart';
-import '../security/security_level.dart';
+import '../db/database.dart';
+import '../db/mappers.dart';
 import 'session.dart';
 
-/// CRUD + persistence for sessions.
+/// CRUD + persistence for sessions, backed by drift database.
 ///
-/// Supports three security levels:
-/// - [SecurityLevel.plaintext]: `sessions.json` with credentials in cleartext.
-/// - [SecurityLevel.keychain]: `sessions.enc` encrypted with OS keychain key.
-/// - [SecurityLevel.masterPassword]: `sessions.enc` encrypted with PBKDF2 key.
+/// Keeps the same public API as the old file-based store. Internally delegates
+/// to [SessionDao] and [FolderDao]. The folder string paths ("Production/EU")
+/// are translated to/from the DB folder tree transparently.
+///
+/// Call [setDatabase] before [load] — without a database, all reads return
+/// empty data and writes are no-ops.
 class SessionStore {
-  static const _jsonFileName = 'sessions.json';
-  static const _encFileName = 'sessions.enc';
+  AppDatabase? _db;
 
   final List<Session> _sessions = [];
   final Set<String> _emptyFolders = {};
   final Set<String> _collapsedFolders = {};
 
-  SecurityLevel _level;
-  Uint8List? _encryptionKey;
-
-  /// [directory] is the base directory for session files; resolved lazily
-  /// from [getApplicationSupportDirectory] when not provided.
-  SessionStore({
-    String? directory,
-    SecurityLevel level = SecurityLevel.plaintext,
-  }) : _directory = directory,
-       _level = level;
-
-  final String? _directory;
-  String? _basePath;
-  String? _groupsFilePath;
-  String? _collapsedFoldersFilePath;
+  /// Folder tree cache (id → DbFolder). Rebuilt on [load].
+  Map<String, DbFolder> _folderMap = {};
 
   List<Session> get sessions => List.unmodifiable(_sessions);
   Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);
   Set<String> get collapsedFolders => Set.unmodifiable(_collapsedFolders);
 
-  /// Current security level.
-  SecurityLevel get securityLevel => _level;
+  /// Resolve a folder path string to its DB folder ID.
+  /// Returns null if the path is empty or not found.
+  String? folderIdByPath(String path) => findFolderIdByPath(path, _folderMap);
 
-  /// Set the encryption key (from keychain or master password derivation).
-  void setEncryptionKey(Uint8List key, SecurityLevel level) {
-    _encryptionKey = key;
-    _level = level;
+  /// Inject the opened database. Replaces the old `setEncryptionKey()`.
+  void setDatabase(AppDatabase db) {
+    _db = db;
   }
 
-  /// Clear the encryption key (revert to plaintext).
-  void clearEncryptionKey() {
-    _encryptionKey = null;
-    _level = SecurityLevel.plaintext;
-  }
-
-  /// Guards concurrent [load] calls — second caller awaits the first.
+  /// Guards concurrent [load] calls.
   Future<List<Session>>? _loadFuture;
-
-  /// Ensure file paths are resolved. Safe to call multiple times.
-  Future<void> init() async {
-    if (_basePath != null) return;
-    final dirPath = _directory ?? (await getApplicationSupportDirectory()).path;
-    _basePath = dirPath;
-    _groupsFilePath = p.join(dirPath, 'empty_groups.json');
-    _collapsedFoldersFilePath = p.join(dirPath, 'collapsed_folders.json');
-  }
-
-  String get _base => _basePath!;
-  String get _groupsPath => _groupsFilePath!;
-  String get _collapsedPath => _collapsedFoldersFilePath!;
 
   Future<List<Session>> load() async {
     if (_loadFuture != null) return _loadFuture!;
@@ -88,294 +51,55 @@ class SessionStore {
   }
 
   Future<List<Session>> _doLoad() async {
-    await init();
+    final db = _db;
+    if (db == null) return [];
 
     try {
-      await _loadSessions();
+      // Load folder tree
+      final folders = await db.folderDao.getAll();
+      _folderMap = buildFolderMap(folders);
+
+      // Load sessions, convert to domain model
+      final dbSessions = await db.sessionDao.getAll();
+      _sessions
+        ..clear()
+        ..addAll(dbSessions.map((s) => dbSessionToSession(s, _folderMap)));
+
+      // Empty folders = folders in tree that have no sessions pointing to them
+      final usedFolderIds = dbSessions
+          .map((s) => s.folderId)
+          .whereType<String>()
+          .toSet();
+      _emptyFolders.clear();
+      for (final folder in _folderMap.values) {
+        if (!usedFolderIds.contains(folder.id)) {
+          final path = _pathForId(folder.id);
+          if (path.isNotEmpty) _emptyFolders.add(path);
+        }
+      }
+
+      // Collapsed state from folder tree
+      _collapsedFolders.clear();
+      for (final folder in _folderMap.values) {
+        if (folder.collapsed) {
+          final path = _pathForId(folder.id);
+          if (path.isNotEmpty) _collapsedFolders.add(path);
+        }
+      }
+
+      AppLogger.instance.log(
+        'Loaded ${_sessions.length} sessions, '
+        '${_folderMap.length} folders',
+        name: 'SessionStore',
+      );
     } catch (e) {
       AppLogger.instance.log(
-        'Failed to load sessions — backing up corrupt file',
+        'Failed to load sessions',
         name: 'SessionStore',
         error: e,
       );
-      // Try to back up whichever file exists.
-      final encFile = File('$_base/$_encFileName');
-      final jsonFile = File('$_base/$_jsonFileName');
-      if (await encFile.exists()) {
-        await _backupCorruptFile(encFile);
-      } else if (await jsonFile.exists()) {
-        await _backupCorruptFile(jsonFile);
-      }
     }
-
-    await _loadEmptyFolders();
-    await _loadCollapsedFolders();
-
-    // Return a copy so Riverpod detects state changes (identity check).
     return List.of(_sessions);
-  }
-
-  /// Load sessions from the appropriate file based on security level.
-  Future<void> _loadSessions() async {
-    if (_encryptionKey != null) {
-      final encFile = File('$_base/$_encFileName');
-      if (!await encFile.exists()) return;
-      final encData = await encFile.readAsBytes();
-      final json = AesGcm.decrypt(encData, _encryptionKey!);
-      _parseSessions(json);
-    } else {
-      final jsonFile = File('$_base/$_jsonFileName');
-      if (!await jsonFile.exists()) return;
-      final json = await jsonFile.readAsString();
-      _parseSessions(json);
-    }
-  }
-
-  void _parseSessions(String json) {
-    final list = jsonDecode(json) as List;
-    _sessions
-      ..clear()
-      ..addAll(list.map((e) => Session.fromJson(e as Map<String, dynamic>)));
-  }
-
-  /// Save sessions to the appropriate file based on security level.
-  Future<void> _save() async {
-    await init();
-    final json = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(_sessions.map((s) => s.toJsonWithCredentials()).toList());
-
-    if (_encryptionKey != null) {
-      final encData = AesGcm.encrypt(json, _encryptionKey!);
-      await writeBytesAtomic('$_base/$_encFileName', encData);
-    } else {
-      await writeFileAtomic('$_base/$_jsonFileName', json);
-    }
-  }
-
-  /// Re-encrypt all data with a new key and security level.
-  ///
-  /// Used when enabling/disabling/changing master password or switching
-  /// between keychain and plaintext.
-  Future<void> reEncrypt(Uint8List? newKey, SecurityLevel newLevel) async {
-    await init();
-
-    // Delete old files (both formats).
-    final oldEnc = File('$_base/$_encFileName');
-    final oldJson = File('$_base/$_jsonFileName');
-
-    // Update key and level, then save in new format.
-    _encryptionKey = newKey;
-    _level = newLevel;
-    await _save();
-
-    // Clean up the opposite format file.
-    if (newKey != null) {
-      // Switched to encrypted — delete plaintext.
-      if (await oldJson.exists()) await oldJson.delete();
-    } else {
-      // Switched to plaintext — delete encrypted.
-      if (await oldEnc.exists()) await oldEnc.delete();
-    }
-  }
-
-  // ── Corrupt file backup ──────────────────────────────────────────
-
-  Future<void> _backupCorruptFile(File file) async {
-    try {
-      final backupPath = '${file.path}.corrupt';
-      await file.copy(backupPath);
-      AppLogger.instance.log(
-        'Corrupt file backed up to $backupPath',
-        name: 'SessionStore',
-      );
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to back up corrupt file',
-        name: 'SessionStore',
-        error: e,
-      );
-    }
-  }
-
-  // ── Empty folders persistence ────────────────────────────────────
-
-  Future<void> _loadEmptyFolders() async {
-    await init();
-    final file = File(_groupsPath);
-    if (!await file.exists()) return;
-    try {
-      final content = await file.readAsString();
-      final list = jsonDecode(content) as List;
-      _emptyFolders
-        ..clear()
-        ..addAll(list.cast<String>());
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to load empty folders',
-        name: 'SessionStore',
-        error: e,
-      );
-    }
-  }
-
-  Future<void> _saveEmptyFolders() async {
-    await init();
-    await writeFileAtomic(_groupsPath, jsonEncode(_emptyFolders.toList()));
-  }
-
-  Future<void> addEmptyFolder(String folderPath) async {
-    if (folderPath.isEmpty) return;
-    _emptyFolders.add(folderPath);
-    AppLogger.instance.log(
-      'Added empty folder: $folderPath',
-      name: 'SessionStore',
-    );
-    await _saveEmptyFolders();
-  }
-
-  Future<void> removeEmptyFolder(String folderPath) async {
-    _emptyFolders.remove(folderPath);
-    AppLogger.instance.log(
-      'Removed empty folder: $folderPath',
-      name: 'SessionStore',
-    );
-    await _saveEmptyFolders();
-  }
-
-  // ── Collapsed folders persistence ────────────────────────────────
-
-  Future<void> _loadCollapsedFolders() async {
-    await init();
-    final file = File(_collapsedPath);
-    if (!await file.exists()) return;
-    try {
-      final content = await file.readAsString();
-      final list = jsonDecode(content) as List;
-      _collapsedFolders
-        ..clear()
-        ..addAll(list.cast<String>());
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to load collapsed folders',
-        name: 'SessionStore',
-        error: e,
-      );
-    }
-  }
-
-  Future<void> _saveCollapsedFolders() async {
-    await init();
-    await writeFileAtomic(
-      _collapsedPath,
-      jsonEncode(_collapsedFolders.toList()),
-    );
-  }
-
-  Future<void> toggleFolderCollapsed(String folderPath) async {
-    final wasCollapsed = _collapsedFolders.contains(folderPath);
-    if (wasCollapsed) {
-      _collapsedFolders.remove(folderPath);
-    } else {
-      _collapsedFolders.add(folderPath);
-    }
-    AppLogger.instance.log(
-      'Folder ${wasCollapsed ? 'expanded' : 'collapsed'}: $folderPath',
-      name: 'SessionStore',
-    );
-    await _saveCollapsedFolders();
-  }
-
-  /// Count sessions in a folder and its subfolders.
-  int countSessionsInFolder(String folderPath) {
-    return _sessions
-        .where(
-          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
-        )
-        .length;
-  }
-
-  // ── Folder operations ────────────────────────────────────────────
-
-  Future<void> renameFolder(String oldPath, String newPath) async {
-    if (oldPath.isEmpty || newPath.isEmpty || oldPath == newPath) return;
-
-    for (int i = 0; i < _sessions.length; i++) {
-      final s = _sessions[i];
-      if (s.folder == oldPath) {
-        _sessions[i] = s.copyWith(folder: newPath);
-      } else if (s.folder.startsWith('$oldPath/')) {
-        _sessions[i] = s.copyWith(
-          folder: newPath + s.folder.substring(oldPath.length),
-        );
-      }
-    }
-
-    final toRemove = <String>[];
-    final toAdd = <String>[];
-    for (final g in _emptyFolders) {
-      if (g == oldPath) {
-        toRemove.add(g);
-        toAdd.add(newPath);
-      } else if (g.startsWith('$oldPath/')) {
-        toRemove.add(g);
-        toAdd.add(newPath + g.substring(oldPath.length));
-      }
-    }
-    _emptyFolders.removeAll(toRemove);
-    _emptyFolders.addAll(toAdd);
-
-    final colToRemove = <String>[];
-    final colToAdd = <String>[];
-    for (final c in _collapsedFolders) {
-      if (c == oldPath) {
-        colToRemove.add(c);
-        colToAdd.add(newPath);
-      } else if (c.startsWith('$oldPath/')) {
-        colToRemove.add(c);
-        colToAdd.add(newPath + c.substring(oldPath.length));
-      }
-    }
-    _collapsedFolders.removeAll(colToRemove);
-    _collapsedFolders.addAll(colToAdd);
-
-    await Future.wait([_save(), _saveEmptyFolders(), _saveCollapsedFolders()]);
-  }
-
-  Future<void> deleteFolder(String folderPath) async {
-    if (folderPath.isEmpty) return;
-    _sessions.removeWhere(
-      (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
-    );
-    _emptyFolders.removeWhere(
-      (g) => g == folderPath || g.startsWith('$folderPath/'),
-    );
-    _collapsedFolders.removeWhere(
-      (c) => c == folderPath || c.startsWith('$folderPath/'),
-    );
-    await Future.wait([_save(), _saveEmptyFolders(), _saveCollapsedFolders()]);
-  }
-
-  Future<void> deleteAll() async {
-    _sessions.clear();
-    _emptyFolders.clear();
-    _collapsedFolders.clear();
-    await Future.wait([_save(), _saveEmptyFolders(), _saveCollapsedFolders()]);
-  }
-
-  // ── Snapshot / restore (for undo) ────────────────────────────────
-
-  Future<void> restoreSnapshot(
-    List<Session> sessions,
-    Set<String> emptyFolders,
-  ) async {
-    _sessions
-      ..clear()
-      ..addAll(sessions);
-    _emptyFolders
-      ..clear()
-      ..addAll(emptyFolders);
-    await Future.wait([_save(), _saveEmptyFolders()]);
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────
@@ -384,7 +108,17 @@ class SessionStore {
     final error = session.validate();
     if (error != null) throw ArgumentError(error);
     _sessions.add(session);
-    await _save();
+    final db = _db;
+    if (db != null) {
+      final folderId = await resolveFolderPath(
+        session.folder,
+        db.folderDao,
+        _folderMap,
+      );
+      await db.sessionDao.insert(
+        sessionToCompanion(session, folderId: folderId),
+      );
+    }
   }
 
   Future<void> update(Session session) async {
@@ -393,28 +127,44 @@ class SessionStore {
     final idx = _sessions.indexWhere((s) => s.id == session.id);
     if (idx < 0) throw ArgumentError('Session not found: ${session.id}');
     _sessions[idx] = session;
-    await _save();
+    final db = _db;
+    if (db != null) {
+      final folderId = await resolveFolderPath(
+        session.folder,
+        db.folderDao,
+        _folderMap,
+      );
+      await db.sessionDao.update(
+        sessionToCompanion(session, folderId: folderId),
+      );
+    }
   }
 
   Future<void> delete(String id) async {
     _sessions.removeWhere((s) => s.id == id);
-    await _save();
+    await _db?.sessionDao.deleteById(id);
   }
 
   Future<void> deleteMultiple(Set<String> ids) async {
     if (ids.isEmpty) return;
     _sessions.removeWhere((s) => ids.contains(s.id));
-    await _save();
+    await _db?.sessionDao.deleteMultiple(ids);
   }
 
-  Future<void> moveMultiple(Set<String> ids, String newFolder) async {
-    if (ids.isEmpty) return;
-    for (var i = 0; i < _sessions.length; i++) {
-      if (ids.contains(_sessions[i].id)) {
-        _sessions[i] = _sessions[i].copyWith(folder: newFolder);
+  Future<void> deleteAll() async {
+    _sessions.clear();
+    _emptyFolders.clear();
+    _collapsedFolders.clear();
+    final db = _db;
+    if (db != null) {
+      await db.sessionDao.deleteAll();
+      // Delete all folders (empty + non-empty)
+      final allFolders = await db.folderDao.getAll();
+      for (final f in allFolders) {
+        await db.folderDao.deleteById(f.id);
       }
+      _folderMap.clear();
     }
-    await _save();
   }
 
   Session? get(String id) {
@@ -436,7 +186,168 @@ class SessionStore {
     final idx = _sessions.indexWhere((s) => s.id == sessionId);
     if (idx < 0) return;
     _sessions[idx] = _sessions[idx].copyWith(folder: newFolder);
-    await _save();
+    final db = _db;
+    if (db != null) {
+      final folderId = await resolveFolderPath(
+        newFolder,
+        db.folderDao,
+        _folderMap,
+      );
+      await db.sessionDao.moveToFolder(sessionId, folderId);
+    }
+  }
+
+  Future<void> moveMultiple(Set<String> ids, String newFolder) async {
+    if (ids.isEmpty) return;
+    for (var i = 0; i < _sessions.length; i++) {
+      if (ids.contains(_sessions[i].id)) {
+        _sessions[i] = _sessions[i].copyWith(folder: newFolder);
+      }
+    }
+    final db = _db;
+    if (db != null) {
+      final folderId = await resolveFolderPath(
+        newFolder,
+        db.folderDao,
+        _folderMap,
+      );
+      await db.sessionDao.moveMultiple(ids, folderId);
+    }
+  }
+
+  // ── Empty folders ───────────────────────────────────────────────
+
+  Future<void> addEmptyFolder(String folderPath) async {
+    if (folderPath.isEmpty) return;
+    _emptyFolders.add(folderPath);
+    AppLogger.instance.log(
+      'Added empty folder: $folderPath',
+      name: 'SessionStore',
+    );
+    final db = _db;
+    if (db != null) {
+      await resolveFolderPath(folderPath, db.folderDao, _folderMap);
+    }
+  }
+
+  Future<void> removeEmptyFolder(String folderPath) async {
+    _emptyFolders.remove(folderPath);
+    // Folder stays in tree — will be cleaned up naturally when it gets sessions
+  }
+
+  // ── Collapsed folders ───────────────────────────────────────────
+
+  Future<void> toggleFolderCollapsed(String folderPath) async {
+    final wasCollapsed = _collapsedFolders.contains(folderPath);
+    if (wasCollapsed) {
+      _collapsedFolders.remove(folderPath);
+    } else {
+      _collapsedFolders.add(folderPath);
+    }
+    AppLogger.instance.log(
+      'Folder ${wasCollapsed ? 'expanded' : 'collapsed'}: $folderPath',
+      name: 'SessionStore',
+    );
+    final db = _db;
+    if (db != null) {
+      final folderId = findFolderIdByPath(folderPath, _folderMap);
+      if (folderId != null) {
+        await db.folderDao.toggleCollapsed(folderId);
+      }
+    }
+  }
+
+  int countSessionsInFolder(String folderPath) {
+    return _sessions
+        .where(
+          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+        )
+        .length;
+  }
+
+  // ── Folder operations ───────────────────────────────────────────
+
+  Future<void> renameFolder(String oldPath, String newPath) async {
+    if (oldPath.isEmpty || newPath.isEmpty || oldPath == newPath) return;
+
+    // Update in-memory sessions
+    for (int i = 0; i < _sessions.length; i++) {
+      final s = _sessions[i];
+      if (s.folder == oldPath) {
+        _sessions[i] = s.copyWith(folder: newPath);
+      } else if (s.folder.startsWith('$oldPath/')) {
+        _sessions[i] = s.copyWith(
+          folder: newPath + s.folder.substring(oldPath.length),
+        );
+      }
+    }
+
+    // Update empty folders
+    final toRemove = <String>[];
+    final toAdd = <String>[];
+    for (final g in _emptyFolders) {
+      if (g == oldPath) {
+        toRemove.add(g);
+        toAdd.add(newPath);
+      } else if (g.startsWith('$oldPath/')) {
+        toRemove.add(g);
+        toAdd.add(newPath + g.substring(oldPath.length));
+      }
+    }
+    _emptyFolders.removeAll(toRemove);
+    _emptyFolders.addAll(toAdd);
+
+    // Update collapsed folders
+    final colToRemove = <String>[];
+    final colToAdd = <String>[];
+    for (final c in _collapsedFolders) {
+      if (c == oldPath) {
+        colToRemove.add(c);
+        colToAdd.add(newPath);
+      } else if (c.startsWith('$oldPath/')) {
+        colToRemove.add(c);
+        colToAdd.add(newPath + c.substring(oldPath.length));
+      }
+    }
+    _collapsedFolders.removeAll(colToRemove);
+    _collapsedFolders.addAll(colToAdd);
+
+    // Update DB: rename the folder node
+    final db = _db;
+    if (db != null) {
+      final folderId = findFolderIdByPath(oldPath, _folderMap);
+      if (folderId != null) {
+        final newName = newPath.split('/').last;
+        await db.folderDao.update(
+          FoldersCompanion(id: Value(folderId), name: Value(newName)),
+        );
+        // Rebuild cache
+        final folders = await db.folderDao.getAll();
+        _folderMap = buildFolderMap(folders);
+      }
+    }
+  }
+
+  Future<void> deleteFolder(String folderPath) async {
+    if (folderPath.isEmpty) return;
+    _sessions.removeWhere(
+      (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+    );
+    _emptyFolders.removeWhere(
+      (g) => g == folderPath || g.startsWith('$folderPath/'),
+    );
+    _collapsedFolders.removeWhere(
+      (c) => c == folderPath || c.startsWith('$folderPath/'),
+    );
+    final db = _db;
+    if (db != null) {
+      final folderId = findFolderIdByPath(folderPath, _folderMap);
+      if (folderId != null) {
+        await db.folderDao.deleteRecursive(folderId);
+        final folders = await db.folderDao.getAll();
+        _folderMap = buildFolderMap(folders);
+      }
+    }
   }
 
   Future<void> moveFolder(String folderPath, String newParent) async {
@@ -448,7 +359,49 @@ class SessionStore {
     await renameFolder(folderPath, newPath);
   }
 
-  // ── Query ────────────────────────────────────────────────────────
+  // ── Snapshot / restore (for undo) ───────────────────────────────
+
+  Future<void> restoreSnapshot(
+    List<Session> sessions,
+    Set<String> emptyFolders,
+  ) async {
+    _sessions
+      ..clear()
+      ..addAll(sessions);
+    _emptyFolders
+      ..clear()
+      ..addAll(emptyFolders);
+
+    final db = _db;
+    if (db != null) {
+      // Clear and rebuild
+      await db.sessionDao.deleteAll();
+      final allFolders = await db.folderDao.getAll();
+      for (final f in allFolders) {
+        await db.folderDao.deleteById(f.id);
+      }
+      _folderMap.clear();
+
+      // Re-insert sessions with folder resolution
+      for (final session in sessions) {
+        final folderId = await resolveFolderPath(
+          session.folder,
+          db.folderDao,
+          _folderMap,
+        );
+        await db.sessionDao.insert(
+          sessionToCompanion(session, folderId: folderId),
+        );
+      }
+
+      // Re-create empty folders
+      for (final path in emptyFolders) {
+        await resolveFolderPath(path, db.folderDao, _folderMap);
+      }
+    }
+  }
+
+  // ── Query ───────────────────────────────────────────────────────
 
   List<String> folders() {
     final g = _sessions
@@ -475,5 +428,20 @@ class SessionStore {
           s.host.toLowerCase().contains(q) ||
           s.user.toLowerCase().contains(q);
     }).toList();
+  }
+
+  // ── Internals ───────────────────────────────────────────────────
+
+  String _pathForId(String? folderId) {
+    if (folderId == null) return '';
+    final parts = <String>[];
+    String? current = folderId;
+    while (current != null) {
+      final folder = _folderMap[current];
+      if (folder == null) break;
+      parts.add(folder.name);
+      current = folder.parentId;
+    }
+    return parts.reversed.join('/');
   }
 }

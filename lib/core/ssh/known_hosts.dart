@@ -1,35 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'package:drift/drift.dart';
 import 'package:pointycastle/digests/sha256.dart';
 
-import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
-import '../security/aes_gcm.dart';
-import '../security/security_level.dart';
+import '../db/database.dart';
 
-/// TOFU (Trust On First Use) host key verification + persistent storage.
+/// TOFU (Trust On First Use) host key verification backed by drift database.
 ///
-/// Stores keys in OpenSSH-like format: `host:port keytype base64key`.
-/// Supports three security levels:
-/// - [SecurityLevel.plaintext]: `known_hosts` in cleartext.
-/// - [SecurityLevel.keychain] / [SecurityLevel.masterPassword]:
-///   `known_hosts.enc` encrypted with AES-256-GCM.
+/// Keeps the same public API as the old file-based manager. Call [setDatabase]
+/// before [load] — without a database, all reads return empty data and writes
+/// are no-ops.
 class KnownHostsManager {
-  static const _plaintextFileName = 'known_hosts';
-  static const _encryptedFileName = 'known_hosts.enc';
+  AppDatabase? _db;
 
   final Map<String, String> _hosts = {};
-  String? _basePath;
-
-  SecurityLevel _level = SecurityLevel.plaintext;
-  Uint8List? _encryptionKey;
-
-  /// Current security level.
-  SecurityLevel get securityLevel => _level;
 
   /// Read-only view of all known host entries.
   ///
@@ -39,24 +25,13 @@ class KnownHostsManager {
   /// Number of known hosts.
   int get count => _hosts.length;
 
-  /// Set the encryption key (from keychain or master password).
-  void setEncryptionKey(Uint8List key, SecurityLevel level) {
-    _encryptionKey = key;
-    _level = level;
-  }
-
-  /// Clear the encryption key (revert to plaintext).
-  void clearEncryptionKey() {
-    _encryptionKey = null;
-    _level = SecurityLevel.plaintext;
+  /// Inject the opened database. Replaces the old `setEncryptionKey()`.
+  void setDatabase(AppDatabase db) {
+    _db = db;
   }
 
   /// Cached load future — ensures concurrent calls to [load] don't race.
   Future<void>? _loadFuture;
-
-  /// Sequential write lock — prevents concurrent file writes from corrupting
-  /// the known_hosts file.
-  Future<void> _pendingWrite = Future.value();
 
   /// Callback invoked when an unknown host is encountered.
   /// Return true to accept the key, false to reject.
@@ -80,74 +55,36 @@ class KnownHostsManager {
   )?
   onHostKeyChanged;
 
-  Future<String> _getBasePath() async {
-    if (_basePath != null) return _basePath!;
-    final dir = await getApplicationSupportDirectory();
-    _basePath = dir.path;
-    return _basePath!;
-  }
-
-  /// Initialize and load known_hosts from app support directory.
+  /// Initialize and load known hosts from database.
   ///
   /// Safe to call concurrently — the first call does the actual I/O,
   /// subsequent calls await the same future.
   Future<void> load() => _loadFuture ??= _doLoad();
 
   Future<void> _doLoad() async {
-    final basePath = await _getBasePath();
+    final db = _db;
+    if (db == null) return;
 
-    // Try encrypted file first, then plaintext.
-    String? content;
-    if (_encryptionKey != null) {
-      final encFile = File(p.join(basePath, _encryptedFileName));
-      if (await encFile.exists()) {
-        try {
-          final encData = await encFile.readAsBytes();
-          content = AesGcm.decrypt(encData, _encryptionKey!);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to decrypt known_hosts: $e',
-            name: 'KnownHosts',
-            error: e,
-          );
-        }
+    try {
+      final entries = await db.knownHostDao.getAll();
+      _hosts.clear();
+      for (final e in entries) {
+        _hosts['${e.host}:${e.port}'] = '${e.keyType} ${e.keyBase64}';
       }
-    }
-
-    // Fallback to plaintext (or plaintext mode).
-    if (content == null) {
-      final textFile = File(p.join(basePath, _plaintextFileName));
-      if (await textFile.exists()) {
-        content = await textFile.readAsString();
-      }
-    }
-
-    if (content != null) {
-      _parseContent(content);
-    }
-
-    AppLogger.instance.log(
-      'Loaded ${_hosts.length} known hosts',
-      name: 'KnownHosts',
-    );
-  }
-
-  void _parseContent(String content) {
-    for (final line in content.split('\n')) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
-      final parts = trimmed.split(' ');
-      if (parts.length >= 3) {
-        _hosts[parts[0]] = '${parts[1]} ${parts[2]}';
-      }
+      AppLogger.instance.log(
+        'Loaded ${_hosts.length} known hosts',
+        name: 'KnownHosts',
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to load known hosts',
+        name: 'KnownHosts',
+        error: e,
+      );
     }
   }
 
   /// Verify host key. Returns true if accepted.
-  ///
-  /// - Known host, key matches → accept
-  /// - Known host, key changed → reject (HostKeyError)
-  /// - Unknown host → ask via callback or auto-accept (TOFU)
   Future<bool> verify(
     String host,
     int port,
@@ -180,7 +117,7 @@ class KnownHostsManager {
             'Changed host key accepted: $hostPort',
             name: 'KnownHosts',
           );
-          await _updateHost(hostPort, keyString);
+          await _updateHost(host, port, keyType, keyData);
           return true;
         }
       }
@@ -204,7 +141,7 @@ class KnownHostsManager {
           'Unknown host accepted (TOFU): $hostPort',
           name: 'KnownHosts',
         );
-        await _addHost(hostPort, keyString);
+        await _addHost(host, port, keyType, keyData);
         return true;
       }
       AppLogger.instance.log(
@@ -221,61 +158,46 @@ class KnownHostsManager {
     return false;
   }
 
-  Future<void> _addHost(String hostPort, String keyString) async {
-    _hosts[hostPort] = keyString;
-    await _saveAll();
-  }
-
-  Future<void> _updateHost(String hostPort, String keyString) async {
-    _hosts[hostPort] = keyString;
-    await _saveAll();
-  }
-
-  Future<void> _saveAll() => _withWriteLock(() async {
-    final basePath = await _getBasePath();
-    final content = _serializeContent();
-
-    if (_encryptionKey != null) {
-      final encData = AesGcm.encrypt(content, _encryptionKey!);
-      await writeBytesAtomic(p.join(basePath, _encryptedFileName), encData);
-    } else {
-      final filePath = p.join(basePath, _plaintextFileName);
-      await writeFileAtomic(filePath, content);
-      await restrictFilePermissions(filePath);
+  Future<void> _addHost(
+    String host,
+    int port,
+    String keyType,
+    String keyBase64,
+  ) async {
+    _hosts['$host:$port'] = '$keyType $keyBase64';
+    final db = _db;
+    if (db != null) {
+      await db.knownHostDao.insert(
+        KnownHostsCompanion.insert(
+          host: host,
+          port: Value(port),
+          keyType: keyType,
+          keyBase64: keyBase64,
+          addedAt: DateTime.now(),
+        ),
+      );
     }
-  });
-
-  String _serializeContent() {
-    final sb = StringBuffer();
-    for (final entry in _hosts.entries) {
-      sb.writeln('${entry.key} ${entry.value}');
-    }
-    return sb.toString();
   }
 
-  /// Serialize file writes — each write waits for the previous one.
-  Future<void> _withWriteLock(Future<void> Function() fn) {
-    _pendingWrite = _pendingWrite.then((_) => fn(), onError: (_) => fn());
-    return _pendingWrite;
-  }
-
-  /// Re-encrypt all data with a new key and security level.
-  Future<void> reEncrypt(Uint8List? newKey, SecurityLevel newLevel) async {
-    final basePath = await _getBasePath();
-
-    _encryptionKey = newKey;
-    _level = newLevel;
-    if (_hosts.isNotEmpty) {
-      await _saveAll();
-    }
-
-    // Clean up opposite format file.
-    if (newKey != null) {
-      final textFile = File(p.join(basePath, _plaintextFileName));
-      if (await textFile.exists()) await textFile.delete();
-    } else {
-      final encFile = File(p.join(basePath, _encryptedFileName));
-      if (await encFile.exists()) await encFile.delete();
+  Future<void> _updateHost(
+    String host,
+    int port,
+    String keyType,
+    String keyBase64,
+  ) async {
+    _hosts['$host:$port'] = '$keyType $keyBase64';
+    final db = _db;
+    if (db != null) {
+      await db.knownHostDao.deleteByHostPort(host, port);
+      await db.knownHostDao.insert(
+        KnownHostsCompanion.insert(
+          host: host,
+          port: Value(port),
+          keyType: keyType,
+          keyBase64: keyBase64,
+          addedAt: DateTime.now(),
+        ),
+      );
     }
   }
 
@@ -283,7 +205,13 @@ class KnownHostsManager {
   Future<void> removeHost(String hostPort) async {
     await load();
     if (_hosts.remove(hostPort) != null) {
-      await _saveAll();
+      final db = _db;
+      if (db != null) {
+        final parts = hostPort.split(':');
+        final host = parts[0];
+        final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
+        await db.knownHostDao.deleteByHostPort(host, port);
+      }
       AppLogger.instance.log(
         'Removed known host: $hostPort',
         name: 'KnownHosts',
@@ -294,16 +222,17 @@ class KnownHostsManager {
   /// Remove multiple known host entries.
   Future<void> removeMultiple(Set<String> hostPorts) async {
     await load();
-    var removed = 0;
     for (final hp in hostPorts) {
-      if (_hosts.remove(hp) != null) removed++;
+      _hosts.remove(hp);
     }
-    if (removed > 0) {
-      await _saveAll();
-      AppLogger.instance.log(
-        'Removed $removed known hosts',
-        name: 'KnownHosts',
-      );
+    final db = _db;
+    if (db != null) {
+      for (final hp in hostPorts) {
+        final parts = hp.split(':');
+        final host = parts[0];
+        final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
+        await db.knownHostDao.deleteByHostPort(host, port);
+      }
     }
   }
 
@@ -311,47 +240,19 @@ class KnownHostsManager {
   Future<void> clearAll() async {
     await load();
     if (_hosts.isEmpty) return;
-    final count = _hosts.length;
     _hosts.clear();
-    await _saveAll();
-    AppLogger.instance.log(
-      'Cleared all $count known hosts',
-      name: 'KnownHosts',
-    );
+    await _db?.knownHostDao.clearAll();
+    AppLogger.instance.log('Cleared all known hosts', name: 'KnownHosts');
   }
 
   /// Import entries from an OpenSSH-format known_hosts file.
   ///
   /// Returns the number of new entries added (existing hosts are skipped).
   Future<int> importFromFile(String path) async {
-    await load();
     final file = File(path);
     if (!await file.exists()) return 0;
-
     final content = await file.readAsString();
-    var added = 0;
-    for (final line in content.split('\n')) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
-      final parts = trimmed.split(' ');
-      if (parts.length >= 3) {
-        final hostPort = parts[0];
-        final keyString = '${parts[1]} ${parts[2]}';
-        if (!_hosts.containsKey(hostPort)) {
-          _hosts[hostPort] = keyString;
-          added++;
-        }
-      }
-    }
-
-    if (added > 0) {
-      await _saveAll();
-      AppLogger.instance.log(
-        'Imported $added known hosts from $path',
-        name: 'KnownHosts',
-      );
-    }
-    return added;
+    return importFromString(content);
   }
 
   /// Import entries from an OpenSSH-format known_hosts string.
@@ -359,6 +260,7 @@ class KnownHostsManager {
   /// Returns the number of new entries added (existing hosts are skipped).
   Future<int> importFromString(String content) async {
     await load();
+    final db = _db;
     var added = 0;
     for (final line in content.split('\n')) {
       final trimmed = line.trim();
@@ -369,13 +271,28 @@ class KnownHostsManager {
         final keyString = '${parts[1]} ${parts[2]}';
         if (!_hosts.containsKey(hostPort)) {
           _hosts[hostPort] = keyString;
+
+          if (db != null) {
+            final hpParts = hostPort.split(':');
+            final host = hpParts[0];
+            final port = hpParts.length > 1
+                ? int.tryParse(hpParts[1]) ?? 22
+                : 22;
+            await db.knownHostDao.insert(
+              KnownHostsCompanion.insert(
+                host: host,
+                port: Value(port),
+                keyType: parts[1],
+                keyBase64: parts[2],
+                addedAt: DateTime.now(),
+              ),
+            );
+          }
           added++;
         }
       }
     }
-
     if (added > 0) {
-      await _saveAll();
       AppLogger.instance.log(
         'Imported $added known hosts from string',
         name: 'KnownHosts',
@@ -385,7 +302,13 @@ class KnownHostsManager {
   }
 
   /// Export all entries to OpenSSH known_hosts format.
-  String exportToString() => _serializeContent();
+  String exportToString() {
+    final sb = StringBuffer();
+    for (final entry in _hosts.entries) {
+      sb.writeln('${entry.key} ${entry.value}');
+    }
+    return sb.toString();
+  }
 
   /// Compute SHA256 fingerprint of host key bytes.
   static String fingerprint(List<int> keyBytes) {

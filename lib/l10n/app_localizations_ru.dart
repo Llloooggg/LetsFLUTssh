@@ -63,6 +63,59 @@ class SRu extends S {
   String get settings => 'Настройки';
 
   @override
+  String get appSettings => 'Настройки приложения';
+
+  @override
+  String get yes => 'Да';
+
+  @override
+  String get no => 'Нет';
+
+  @override
+  String get importWhatToImport => 'Что импортировать:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Введите мастер-пароль:';
+
+  @override
+  String get nextStep => 'Далее';
+
+  @override
+  String get includeCredentials => 'Включить пароли и SSH ключи';
+
+  @override
+  String get includePasswords => 'Пароли сессий';
+
+  @override
+  String get embeddedKeys => 'Встроенные ключи';
+
+  @override
+  String get managerKeys => 'Ключи из менеджера';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'Ключи из менеджера могут превысить размер QR';
+
+  @override
+  String get qrPasswordWarning =>
+      'Пароли будут незашифрованы в QR-коде. Любой, кто его отсканирует, сможет их увидеть.';
+
+  @override
+  String get sshKeysMayBeLarge => 'Ключи могут превысить размер QR';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Общий размер: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning => 'Пароли и SSH ключи БУДУТ видны в QR-коде';
+
+  @override
+  String get qrCredentialsTooLarge =>
+      'Учётные данные делают QR-код слишком большим';
+
+  @override
   String get terminal => 'Терминал';
 
   @override
@@ -180,6 +233,9 @@ class SRu extends S {
 
   @override
   String get sessions => 'Сессии';
+
+  @override
+  String get emptyFolders => 'Пустые папки';
 
   @override
   String get sessionsHeader => 'СЕССИИ';
@@ -1274,6 +1330,9 @@ class SRu extends S {
   String get noHostsToExport => 'Нет хостов для экспорта';
 
   @override
+  String get tools => 'Инструменты';
+
+  @override
   String get sshKeys => 'SSH-ключи';
 
   @override
@@ -1507,9 +1566,156 @@ class SRu extends S {
   String get keychainNotAvailable => 'Недоступна';
 
   @override
+  String get enableKeychain => 'Включить шифрование через связку ключей';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Перешифровать сохранённые данные с помощью связки ключей ОС';
+
+  @override
+  String get keychainEnabled => 'Шифрование через связку ключей включено';
+
+  @override
   String get manageMasterPassword => 'Управление мастер-паролем';
 
   @override
   String get manageMasterPasswordSubtitle =>
       'Установить, изменить или удалить мастер-пароль';
+
+  @override
+  String get snippets => 'Snippets';
+
+  @override
+  String get snippetsSubtitle => 'Manage reusable command snippets';
+
+  @override
+  String get noSnippets => 'No snippets yet';
+
+  @override
+  String get addSnippet => 'Add Snippet';
+
+  @override
+  String get editSnippet => 'Edit Snippet';
+
+  @override
+  String get deleteSnippet => 'Delete Snippet';
+
+  @override
+  String deleteSnippetConfirm(String title) {
+    return 'Delete snippet \"$title\"?';
+  }
+
+  @override
+  String get snippetTitle => 'Title';
+
+  @override
+  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+
+  @override
+  String get snippetCommand => 'Command';
+
+  @override
+  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+
+  @override
+  String get snippetDescription => 'Description (optional)';
+
+  @override
+  String get snippetDescriptionHint => 'What does this command do?';
+
+  @override
+  String get snippetSaved => 'Snippet saved';
+
+  @override
+  String snippetDeleted(String title) {
+    return 'Snippet \"$title\" deleted';
+  }
+
+  @override
+  String snippetCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count snippets',
+      one: '1 snippet',
+      zero: 'No snippets',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get runSnippet => 'Run';
+
+  @override
+  String get pinToSession => 'Pin to this session';
+
+  @override
+  String get unpinFromSession => 'Unpin from this session';
+
+  @override
+  String get pinnedSnippets => 'Pinned';
+
+  @override
+  String get allSnippets => 'All';
+
+  @override
+  String get sendToTerminal => 'Send to terminal';
+
+  @override
+  String get commandCopied => 'Command copied to clipboard';
+
+  @override
+  String get tags => 'Tags';
+
+  @override
+  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+
+  @override
+  String get noTags => 'No tags yet';
+
+  @override
+  String get addTag => 'Add Tag';
+
+  @override
+  String get deleteTag => 'Delete Tag';
+
+  @override
+  String deleteTagConfirm(String name) {
+    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+  }
+
+  @override
+  String get tagName => 'Tag Name';
+
+  @override
+  String get tagNameHint => 'e.g. Production, Staging';
+
+  @override
+  String get tagColor => 'Color';
+
+  @override
+  String get tagCreated => 'Tag created';
+
+  @override
+  String tagDeleted(String name) {
+    return 'Tag \"$name\" deleted';
+  }
+
+  @override
+  String tagCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+      zero: 'No tags',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageTags => 'Manage Tags';
+
+  @override
+  String get editTags => 'Edit Tags';
 }

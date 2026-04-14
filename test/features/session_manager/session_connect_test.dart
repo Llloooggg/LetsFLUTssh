@@ -127,6 +127,7 @@ void main() {
                           port: 22,
                           user: 'root',
                         ),
+                        auth: const SessionAuth(password: 'secret'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -171,6 +172,7 @@ void main() {
                           port: 22,
                           user: 'root',
                         ),
+                        auth: const SessionAuth(password: 'secret'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -215,6 +217,7 @@ void main() {
                           host: '10.0.0.1',
                           user: 'root',
                         ),
+                        auth: const SessionAuth(password: 'secret'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -259,6 +262,7 @@ void main() {
                           port: 22,
                           user: 'root',
                         ),
+                        auth: const SessionAuth(password: 'secret'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -305,6 +309,7 @@ void main() {
                           host: '10.0.0.1',
                           user: 'root',
                         ),
+                        auth: const SessionAuth(password: 'secret'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -355,6 +360,7 @@ void main() {
                           host: '10.0.0.1',
                           user: 'test',
                         ),
+                        auth: const SessionAuth(password: 'secret'),
                       );
                       SessionConnect.connectSftp(context, ref, session);
                     },
@@ -403,6 +409,7 @@ void main() {
                           host: '10.0.0.1',
                           user: 'admin',
                         ),
+                        auth: const SessionAuth(password: 'secret'),
                       );
                       SessionConnect.connectSftp(context, ref, session);
                     },
@@ -454,6 +461,7 @@ void main() {
                           host: '10.0.0.1',
                           user: 'root',
                         ),
+                        auth: const SessionAuth(password: 'secret'),
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },
@@ -505,6 +513,7 @@ void main() {
                           host: '10.0.0.1',
                           user: 'root',
                         ),
+                        auth: const SessionAuth(password: 'secret'),
                       );
                       SessionConnect.connectSftp(context, ref, session);
                     },
@@ -688,10 +697,10 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () async {
+                      // Session without credentials → isValid = false
                       final session = Session(
                         label: 'incomplete',
                         server: const ServerAddress(host: 'h', user: 'u'),
-                        incomplete: true,
                       );
                       result = await SessionConnect.connectTerminal(
                         context,
@@ -735,10 +744,10 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () async {
+                      // Session without credentials → isValid = false
                       final session = Session(
                         label: 'incomplete',
                         server: const ServerAddress(host: 'h', user: 'u'),
-                        incomplete: true,
                       );
                       result = await SessionConnect.connectSftp(
                         context,
@@ -825,10 +834,10 @@ void main() {
                 return Scaffold(
                   body: ElevatedButton(
                     onPressed: () {
+                      // Session without credentials → isValid = false
                       final session = Session(
                         label: 'inc',
                         server: const ServerAddress(host: 'h', user: 'u'),
-                        incomplete: true,
                       );
                       SessionConnect.connectTerminal(context, ref, session);
                     },

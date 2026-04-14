@@ -63,6 +63,59 @@ class SVi extends S {
   String get settings => 'Cài đặt';
 
   @override
+  String get appSettings => 'Cài đặt ứng dụng';
+
+  @override
+  String get yes => 'Có';
+
+  @override
+  String get no => 'Không';
+
+  @override
+  String get importWhatToImport => 'Những gì cần nhập:';
+
+  @override
+  String get enterMasterPasswordPrompt => 'Nhập mật khẩu chính:';
+
+  @override
+  String get nextStep => 'Tiếp theo';
+
+  @override
+  String get includeCredentials => 'Bao gồm mật khẩu và khóa SSH';
+
+  @override
+  String get includePasswords => 'Mật khẩu phiên';
+
+  @override
+  String get embeddedKeys => 'Khóa nhúng';
+
+  @override
+  String get managerKeys => 'Khóa từ trình quản lý';
+
+  @override
+  String get managerKeysMayBeLarge =>
+      'Khóa trình quản lý có thể vượt quá kích thước QR';
+
+  @override
+  String get qrPasswordWarning =>
+      'Mật khẩu sẽ không được mã hóa trong mã QR. Bất kỳ ai quét đều có thể nhìn thấy.';
+
+  @override
+  String get sshKeysMayBeLarge => 'Khóa có thể vượt quá kích thước QR';
+
+  @override
+  String exportTotalSize(String size) {
+    return 'Tổng kích thước: $size';
+  }
+
+  @override
+  String get qrCredentialsWarning =>
+      'Mật khẩu và khóa SSH SẼ hiển thị trong mã QR';
+
+  @override
+  String get qrCredentialsTooLarge => 'Thông tin xác thực làm mã QR quá lớn';
+
+  @override
   String get terminal => 'Terminal';
 
   @override
@@ -180,6 +233,9 @@ class SVi extends S {
 
   @override
   String get sessions => 'Phiên';
+
+  @override
+  String get emptyFolders => 'Thư mục trống';
 
   @override
   String get sessionsHeader => 'PHIÊN';
@@ -1266,6 +1322,9 @@ class SVi extends S {
   String get noHostsToExport => 'Không có máy chủ để xuất';
 
   @override
+  String get tools => 'Công cụ';
+
+  @override
   String get sshKeys => 'Khóa SSH';
 
   @override
@@ -1497,8 +1556,155 @@ class SVi extends S {
   String get keychainNotAvailable => 'Không khả dụng';
 
   @override
+  String get enableKeychain => 'Bật mã hóa chuỗi khóa';
+
+  @override
+  String get enableKeychainSubtitle =>
+      'Mã hóa lại dữ liệu được lưu bằng chuỗi khóa hệ thống';
+
+  @override
+  String get keychainEnabled => 'Mã hóa chuỗi khóa đã được bật';
+
+  @override
   String get manageMasterPassword => 'Quản lý mật khẩu chính';
 
   @override
   String get manageMasterPasswordSubtitle => 'Đặt, đổi hoặc xóa mật khẩu chính';
+
+  @override
+  String get snippets => 'Snippets';
+
+  @override
+  String get snippetsSubtitle => 'Manage reusable command snippets';
+
+  @override
+  String get noSnippets => 'No snippets yet';
+
+  @override
+  String get addSnippet => 'Add Snippet';
+
+  @override
+  String get editSnippet => 'Edit Snippet';
+
+  @override
+  String get deleteSnippet => 'Delete Snippet';
+
+  @override
+  String deleteSnippetConfirm(String title) {
+    return 'Delete snippet \"$title\"?';
+  }
+
+  @override
+  String get snippetTitle => 'Title';
+
+  @override
+  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+
+  @override
+  String get snippetCommand => 'Command';
+
+  @override
+  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+
+  @override
+  String get snippetDescription => 'Description (optional)';
+
+  @override
+  String get snippetDescriptionHint => 'What does this command do?';
+
+  @override
+  String get snippetSaved => 'Snippet saved';
+
+  @override
+  String snippetDeleted(String title) {
+    return 'Snippet \"$title\" deleted';
+  }
+
+  @override
+  String snippetCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count snippets',
+      one: '1 snippet',
+      zero: 'No snippets',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get runSnippet => 'Run';
+
+  @override
+  String get pinToSession => 'Pin to this session';
+
+  @override
+  String get unpinFromSession => 'Unpin from this session';
+
+  @override
+  String get pinnedSnippets => 'Pinned';
+
+  @override
+  String get allSnippets => 'All';
+
+  @override
+  String get sendToTerminal => 'Send to terminal';
+
+  @override
+  String get commandCopied => 'Command copied to clipboard';
+
+  @override
+  String get tags => 'Tags';
+
+  @override
+  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+
+  @override
+  String get noTags => 'No tags yet';
+
+  @override
+  String get addTag => 'Add Tag';
+
+  @override
+  String get deleteTag => 'Delete Tag';
+
+  @override
+  String deleteTagConfirm(String name) {
+    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+  }
+
+  @override
+  String get tagName => 'Tag Name';
+
+  @override
+  String get tagNameHint => 'e.g. Production, Staging';
+
+  @override
+  String get tagColor => 'Color';
+
+  @override
+  String get tagCreated => 'Tag created';
+
+  @override
+  String tagDeleted(String name) {
+    return 'Tag \"$name\" deleted';
+  }
+
+  @override
+  String tagCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+      zero: 'No tags',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageTags => 'Manage Tags';
+
+  @override
+  String get editTags => 'Edit Tags';
 }

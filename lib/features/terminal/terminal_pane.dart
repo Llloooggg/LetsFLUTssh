@@ -24,6 +24,7 @@ import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart' as plat;
+import '../snippets/snippet_picker.dart';
 
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
 ///
@@ -110,6 +111,15 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   void zoomOut() => _zoomOut();
   @visibleForTesting
   void zoomReset() => _zoomReset();
+
+  /// Send a command string to the SSH shell.
+  ///
+  /// Appends a newline if not already present. No-op if shell is not open.
+  void sendCommand(String command) {
+    if (_shellConn == null) return;
+    final cmd = command.endsWith('\n') ? command : '$command\n';
+    _terminal.textInput(cmd);
+  }
 
   @override
   void initState() {
@@ -328,6 +338,11 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
           shortcut: 'Ctrl+V',
           onTap: _pasteClipboard,
         ),
+        ContextMenuItem(
+          label: S.of(context).snippets,
+          icon: Icons.code,
+          onTap: () => _showSnippetPicker(context),
+        ),
       ],
     );
   }
@@ -360,6 +375,16 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       TerminalClipboard.copy(_terminal, _terminalController);
 
   Future<void> _pasteClipboard() => TerminalClipboard.paste(_terminal);
+
+  Future<void> _showSnippetPicker(BuildContext context) async {
+    final command = await SnippetPicker.show(
+      context,
+      sessionId: widget.connection.sessionId,
+    );
+    if (command != null) {
+      sendCommand(command);
+    }
+  }
 
   void _zoomIn() => _adjustFontSize(1);
 

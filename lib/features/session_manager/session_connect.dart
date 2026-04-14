@@ -19,7 +19,7 @@ class SessionConnect {
   SessionConnect._();
 
   /// Open a terminal tab and connect to session in background.
-  /// Returns false if session is incomplete (missing credentials).
+  /// Returns false if session is invalid (missing credentials).
   static Future<bool> connectTerminal(
     BuildContext context,
     WidgetRef ref,
@@ -32,7 +32,7 @@ class SessionConnect {
   }
 
   /// Open an SFTP tab and connect to session in background.
-  /// Returns false if session is incomplete (missing credentials).
+  /// Returns false if session is invalid (missing credentials).
   static Future<bool> connectSftp(
     BuildContext context,
     WidgetRef ref,
@@ -51,7 +51,7 @@ class SessionConnect {
     Session session,
     String logLabel,
   ) async {
-    if (session.incomplete) {
+    if (!session.isValid) {
       _showIncompleteMessage(context);
       return null;
     }

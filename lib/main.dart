@@ -14,6 +14,7 @@ import 'core/shortcut_registry.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
+import 'core/db/database_opener.dart';
 import 'core/security/aes_gcm.dart';
 import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
@@ -31,8 +32,10 @@ import 'widgets/lfs_import_dialog.dart';
 import 'widgets/cross_marquee_controller.dart';
 import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
+import 'widgets/hover_region.dart';
 import 'widgets/toast.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/tools/tools_dialog.dart';
 import 'features/session_manager/session_panel.dart';
 import 'features/tabs/tab_model.dart';
 import 'features/workspace/workspace_controller.dart';
@@ -44,6 +47,8 @@ import 'providers/key_provider.dart';
 import 'providers/master_password_provider.dart';
 import 'providers/security_provider.dart';
 import 'providers/session_provider.dart';
+import 'providers/snippet_provider.dart';
+import 'providers/tag_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/theme_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -143,37 +148,37 @@ Future<void> main() async {
 
   // Wrap the entire app in runZonedGuarded to catch all async errors.
   // This catches errors from onPressed, Futures, streams, timers, etc.
-  runZonedGuarded(() {
-    runApp(
-      ProviderScope(
-        overrides: [configStoreProvider.overrideWithValue(configStore)],
-        child: const LetsFLUTsshApp(),
-      ),
-    );
-  }, (error, stack) {
-    final sanitizedMsg = sanitizeErrorMessage(error.toString());
-    AppLogger.instance.log(
-      'Unhandled async error: $sanitizedMsg',
-      name: 'ErrorBoundary',
-      error: error,
-      stackTrace: stack,
-    );
-    // Show dialog after next frame — ensures Navigator is available
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = navigatorKey.currentContext;
-      if (ctx != null && ctx.mounted) {
-        _showGlobalErrorDialog(ctx, error);
-      }
-    });
-  });
+  runZonedGuarded(
+    () {
+      runApp(
+        ProviderScope(
+          overrides: [configStoreProvider.overrideWithValue(configStore)],
+          child: const LetsFLUTsshApp(),
+        ),
+      );
+    },
+    (error, stack) {
+      final sanitizedMsg = sanitizeErrorMessage(error.toString());
+      AppLogger.instance.log(
+        'Unhandled async error: $sanitizedMsg',
+        name: 'ErrorBoundary',
+        error: error,
+        stackTrace: stack,
+      );
+      // Show dialog after next frame — ensures Navigator is available
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          _showGlobalErrorDialog(ctx, error);
+        }
+      });
+    },
+  );
 }
 
 /// Shows a user-friendly error dialog for unhandled async errors.
 /// Error is already logged by the global error handler — this just shows a brief message.
-void _showGlobalErrorDialog(
-  BuildContext context,
-  Object error,
-) {
+void _showGlobalErrorDialog(BuildContext context, Object error) {
   final errorType = error.runtimeType.toString();
   final loggingEnabled = AppLogger.instance.enabled;
 
@@ -191,10 +196,7 @@ void _showGlobalErrorDialog(
             children: [
               Text(
                 'An unexpected error occurred. The app will continue running.',
-                style: TextStyle(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fg,
-                ),
+                style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
               ),
               const SizedBox(height: 8),
               Text(
@@ -232,7 +234,8 @@ void _showGlobalErrorDialog(
                   Navigator.of(ctx).pop();
                   Toast.show(
                     ctx,
-                    message: 'Logging enabled — errors will be saved to log file',
+                    message:
+                        'Logging enabled — errors will be saved to log file',
                     level: ToastLevel.success,
                   );
                 },
@@ -333,10 +336,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       if (!mounted) return;
       final derivedKey = await _showUnlockDialog(manager);
       if (derivedKey != null) {
-        _injectKey(derivedKey, SecurityLevel.masterPassword);
+        _injectDatabase(key: derivedKey, level: SecurityLevel.masterPassword);
         AppLogger.instance.log('Master password unlocked', name: 'App');
       } else {
         _credentialsWereReset = true;
+        _injectDatabase(); // Open DB without encryption after reset
         AppLogger.instance.log(
           'Master password reset — credentials cleared',
           name: 'App',
@@ -348,13 +352,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // 2. Keychain key exists — use it.
     final keychainKey = await keyStorage.readKey();
     if (keychainKey != null) {
-      _injectKey(keychainKey, SecurityLevel.keychain);
+      _injectDatabase(key: keychainKey, level: SecurityLevel.keychain);
       AppLogger.instance.log('Keychain key loaded', name: 'App');
       return;
     }
 
-    // 3. Existing plaintext install — nothing to do.
+    // 3. Existing plaintext install — open DB without encryption.
     if (await _hasAnyData()) {
+      _injectDatabase();
       AppLogger.instance.log('Plaintext mode (no encryption)', name: 'App');
       return;
     }
@@ -387,7 +392,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
     if (result.masterPassword != null) {
       final key = await manager.enable(result.masterPassword!);
-      _injectKey(key, SecurityLevel.masterPassword);
+      _injectDatabase(key: key, level: SecurityLevel.masterPassword);
       AppLogger.instance.log(
         'First launch: master password enabled',
         name: 'App',
@@ -396,18 +401,20 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       final key = AesGcm.generateKey();
       final stored = await keyStorage.writeKey(key);
       if (stored) {
-        _injectKey(key, SecurityLevel.keychain);
+        _injectDatabase(key: key, level: SecurityLevel.keychain);
         AppLogger.instance.log(
           'First launch: keychain encryption enabled',
           name: 'App',
         );
       } else {
+        _injectDatabase();
         AppLogger.instance.log(
           'First launch: keychain write failed, falling back to plaintext',
           name: 'App',
         );
       }
     } else {
+      _injectDatabase();
       AppLogger.instance.log(
         'First launch: plaintext mode (no keychain, no master password)',
         name: 'App',
@@ -415,12 +422,20 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     }
   }
 
-  /// Inject the encryption key into all data stores and update global state.
-  void _injectKey(Uint8List key, SecurityLevel level) {
-    ref.read(sessionStoreProvider).setEncryptionKey(key, level);
-    ref.read(keyStoreProvider).setEncryptionKey(key, level);
-    ref.read(knownHostsProvider).setEncryptionKey(key, level);
-    ref.read(securityStateProvider.notifier).set(level, key);
+  /// Open the database (with optional encryption) and inject into all stores.
+  void _injectDatabase({
+    Uint8List? key,
+    SecurityLevel level = SecurityLevel.plaintext,
+  }) {
+    final db = openDatabase(encryptionKey: key);
+    ref.read(sessionStoreProvider).setDatabase(db);
+    ref.read(keyStoreProvider).setDatabase(db);
+    ref.read(knownHostsProvider).setDatabase(db);
+    ref.read(snippetStoreProvider).setDatabase(db);
+    ref.read(tagStoreProvider).setDatabase(db);
+    if (key != null) {
+      ref.read(securityStateProvider.notifier).set(level, key);
+    }
   }
 
   /// Show unlock dialog using the navigator key context.
@@ -514,9 +529,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   }
 }
 
-/// Which content the desktop shell is currently showing.
-enum ShellMode { sessions, settings }
-
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
@@ -530,8 +542,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final _reverseCrossMarquee = CrossMarqueeController();
   bool _updateDialogShown = false;
   bool _sidebarOpen = true;
-  ShellMode _mode = ShellMode.sessions;
-  int _settingsIndex = 0;
   final _workspaceKey = GlobalKey<WorkspaceViewState>();
   final _sessionPanelKey = GlobalKey<SessionPanelState>();
   final _sidebarActivated = ValueNotifier<int>(0);
@@ -798,12 +808,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       AppShortcut.maximizePanel: () {
         notifier.toggleMaximizePanel(ws.focusedPanelId);
       },
-      AppShortcut.openSettings: () => _toggleSettings(),
-      AppShortcut.closeSettings: () {
-        if (_mode == ShellMode.settings) {
-          _toggleSettings();
-        }
-      },
+      AppShortcut.openSettings: () => SettingsDialog.show(context),
     });
   }
 
@@ -826,64 +831,34 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
   }
 
-  void _toggleSettings() {
-    setState(() {
-      _mode = _mode == ShellMode.settings
-          ? ShellMode.sessions
-          : ShellMode.settings;
-    });
-  }
-
   Widget _buildDesktopLayout(
     BuildContext context,
     BoxConstraints constraints,
     WorkspaceState ws,
   ) {
     final isNarrow = constraints.maxWidth < 600;
-    final inSettings = _mode == ShellMode.settings;
     final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
     final activeTab = focusedPanel?.activeTab;
 
-    final Widget sidebar;
-    final Widget body;
+    final sidebar = SessionPanel(
+      key: _sessionPanelKey,
+      onConnect: (session) => _connectSession(context, ref, session),
+      onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+      crossMarquee: _crossMarquee,
+      reverseCrossMarquee: _reverseCrossMarquee,
+      onActivated: () => _sidebarActivated.value++,
+    );
 
-    final sessionBody = WorkspaceView(
+    final body = WorkspaceView(
       key: _workspaceKey,
       crossMarquee: _crossMarquee,
       reverseCrossMarquee: _reverseCrossMarquee,
       sidebarActivated: _sidebarActivated,
       onActivated: () => _sessionPanelKey.currentState?.clearDesktopSelection(),
     );
-    if (inSettings) {
-      sidebar = SettingsSidebar(
-        selectedIndex: _settingsIndex,
-        onSelect: (i) => setState(() => _settingsIndex = i),
-      );
-      // Keep terminal tabs alive (Offstage) so SSH shells survive settings.
-      body = Stack(
-        children: [
-          Offstage(child: sessionBody),
-          SettingsContent(selectedIndex: _settingsIndex),
-        ],
-      );
-    } else {
-      sidebar = SessionPanel(
-        key: _sessionPanelKey,
-        onConnect: (session) => _connectSession(context, ref, session),
-        onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-        crossMarquee: _crossMarquee,
-        reverseCrossMarquee: _reverseCrossMarquee,
-        onActivated: () => _sidebarActivated.value++,
-      );
-      body = sessionBody;
-    }
 
     return AppShell(
-      toolbar: _buildToolbar(
-        isNarrow: isNarrow,
-        inSettings: inSettings,
-        activeTab: activeTab,
-      ),
+      toolbar: _buildToolbar(isNarrow: isNarrow, activeTab: activeTab),
       sidebar: sidebar,
       sidebarOpen: _sidebarOpen,
       useDrawer: isNarrow,
@@ -894,11 +869,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   _Toolbar _buildToolbar({
     required bool isNarrow,
-    required bool inSettings,
     required TabEntry? activeTab,
   }) {
     final tab = activeTab;
-    final hasTab = !inSettings && tab != null;
+    final hasTab = tab != null;
     return _Toolbar(
       sidebarOpen: _sidebarOpen,
       onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
@@ -920,8 +894,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   .copyToNewPanel(ws.focusedPanelId, Axis.vertical);
             }
           : null,
-      onSettings: _toggleSettings,
-      inSettings: inSettings,
+      onTools: () => ToolsDialog.show(context),
+      onSettings: () => SettingsDialog.show(context),
     );
   }
 
@@ -946,7 +920,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
   }
 
-  Future<void> _handleQrImport(QrImportData data) async {
+  Future<void> _handleQrImport(ExportPayloadData data) async {
     // Data operations don't need UI context — always execute, even when
     // the app is still resuming from background.
     for (final session in data.sessions) {
@@ -993,17 +967,29 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         filePath: filePath,
         masterPassword: result.password,
         mode: result.mode,
-        importConfig: true,
-        importKnownHosts: true,
+        options: const ExportOptions(
+          includeSessions: true,
+          includeConfig: true,
+          includeKnownHosts: true,
+        ),
       );
 
       await _buildImportService().applyResult(importResult);
 
       // Import known hosts via the manager (handles encryption).
       if (importResult.knownHostsContent != null) {
-        ref
-            .read(knownHostsProvider)
-            .importFromString(importResult.knownHostsContent!);
+        try {
+          await ref
+              .read(knownHostsProvider)
+              .importFromString(importResult.knownHostsContent!);
+        } catch (e) {
+          AppLogger.instance.log(
+            'Failed to import known_hosts from LFS: $e',
+            name: 'App',
+            error: e,
+          );
+          // Continue — known_hosts failure shouldn't fail entire import
+        }
       }
 
       AppLogger.instance.log(
@@ -1035,6 +1021,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final store = ref.read(sessionStoreProvider);
     return ImportService(
       addSession: (s) => ref.read(sessionProvider.notifier).add(s),
+      addEmptyFolder: (f) => store.addEmptyFolder(f),
       deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
       getSessions: () => ref.read(sessionProvider),
       applyConfig: (config) =>
@@ -1053,8 +1040,8 @@ class _Toolbar extends StatelessWidget {
   final bool isTerminalTab;
   final VoidCallback? onDuplicateTab;
   final VoidCallback? onDuplicateDown;
+  final VoidCallback onTools;
   final VoidCallback onSettings;
-  final bool inSettings;
 
   const _Toolbar({
     required this.sidebarOpen,
@@ -1063,8 +1050,8 @@ class _Toolbar extends StatelessWidget {
     this.isTerminalTab = false,
     this.onDuplicateTab,
     this.onDuplicateDown,
+    required this.onTools,
     required this.onSettings,
-    this.inSettings = false,
   });
 
   @override
@@ -1087,6 +1074,8 @@ class _Toolbar extends StatelessWidget {
                 ? S.of(context).hideSidebar
                 : S.of(context).showSidebar,
           ),
+        _TextButton(label: S.of(context).tools, onTap: onTools),
+        _TextButton(label: S.of(context).settings, onTap: onSettings),
         const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
@@ -1099,28 +1088,34 @@ class _Toolbar extends StatelessWidget {
             onTap: onDuplicateDown,
             tooltip: S.of(context).duplicateDownShortcut,
           ),
-          _Divider(),
-        ] else
-          _Divider(),
-        AppIconButton(
-          icon: inSettings ? Icons.arrow_back : Icons.settings,
-          onTap: onSettings,
-          tooltip: inSettings ? S.of(context).back : S.of(context).settings,
-        ),
+        ],
         const SizedBox(width: 2),
       ],
     );
   }
 }
 
-class _Divider extends StatelessWidget {
+/// VS Code-style text button for the toolbar.
+class _TextButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _TextButton({required this.label, required this.onTap});
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 16,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: Theme.of(context).colorScheme.outlineVariant,
+    return HoverRegion(
+      onTap: onTap,
+      builder: (hovered) => Container(
+        height: AppTheme.controlHeightXs,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        color: hovered ? AppTheme.hover : Colors.transparent,
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+        ),
+      ),
     );
   }
 }
