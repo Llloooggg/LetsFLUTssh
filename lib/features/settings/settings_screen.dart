@@ -44,10 +44,6 @@ import '../../widgets/unified_export_dialog.dart';
 import '../../widgets/lfs_import_preview_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
 import 'export_import.dart';
-import '../key_manager/key_manager_dialog.dart';
-import '../snippets/snippet_manager_dialog.dart';
-import '../tags/tag_manager_dialog.dart';
-import 'known_hosts_manager.dart';
 
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';
@@ -110,11 +106,6 @@ List<_Section> _buildSections(BuildContext context) => [
     title: S.of(context).security,
     icon: Icons.security,
     builder: _SecuritySection.new,
-  ),
-  _Section(
-    title: S.of(context).sshKeys,
-    icon: Icons.vpn_key,
-    builder: _SshKeysSection.new,
   ),
   _Section(
     title: S.of(context).data,

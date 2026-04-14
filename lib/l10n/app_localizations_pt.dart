@@ -1736,12 +1736,12 @@ class SPt extends S {
 
   @override
   String exportTags(int count) {
-    return 'Tags ($count)';
+    return 'Etiquetas ($count)';
   }
 
   @override
   String exportSnippets(int count) {
-    return 'Snippets ($count)';
+    return 'Trechos ($count)';
   }
 
   @override

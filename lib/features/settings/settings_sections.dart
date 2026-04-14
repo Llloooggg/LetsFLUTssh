@@ -158,36 +158,6 @@ class _ConnectionSection extends ConsumerWidget {
   }
 }
 
-class _SshKeysSection extends ConsumerWidget {
-  const _SshKeysSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        _ActionTile(
-          icon: Icons.vpn_key,
-          title: S.of(context).sshKeys,
-          subtitle: S.of(context).sshKeysSubtitle,
-          onTap: () => KeyManagerDialog.show(context),
-        ),
-        _ActionTile(
-          icon: Icons.code,
-          title: S.of(context).snippets,
-          subtitle: S.of(context).snippetsSubtitle,
-          onTap: () => SnippetManagerDialog.show(context),
-        ),
-        _ActionTile(
-          icon: Icons.label_outline,
-          title: S.of(context).tags,
-          subtitle: S.of(context).tagsSubtitle,
-          onTap: () => TagManagerDialog.show(context),
-        ),
-      ],
-    );
-  }
-}
-
 class _SecuritySection extends ConsumerStatefulWidget {
   const _SecuritySection();
 
@@ -260,14 +230,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
             title: l10n.disableKeychain,
             subtitle: l10n.disableKeychainSubtitle,
             onTap: () => _disableKeychain(context),
-          ),
-        // Known Hosts — only on mobile (desktop has it in Tools dialog).
-        if (plat.isMobilePlatform)
-          _ActionTile(
-            icon: Icons.verified_user,
-            title: l10n.knownHosts,
-            subtitle: l10n.knownHostsSubtitle,
-            onTap: () => KnownHostsManagerDialog.show(context),
           ),
       ],
     );

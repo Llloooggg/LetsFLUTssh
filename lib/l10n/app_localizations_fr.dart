@@ -1737,7 +1737,7 @@ class SFr extends S {
   String get fullBackup => 'Sauvegarde complète';
 
   @override
-  String get sessionsOnly => 'Sessions';
+  String get sessionsOnly => 'Sessions uniquement';
 
   @override
   String get sessionKeysFromManager => 'Clés de session du gestionnaire';

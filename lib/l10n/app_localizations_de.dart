@@ -1744,12 +1744,12 @@ class SDe extends S {
 
   @override
   String exportTags(int count) {
-    return 'Tags ($count)';
+    return 'Schlagwörter ($count)';
   }
 
   @override
   String exportSnippets(int count) {
-    return 'Snippets ($count)';
+    return 'Codeschnipsel ($count)';
   }
 
   @override
