@@ -1413,6 +1413,54 @@ abstract class S {
   /// **'~/.ssh {date}'**
   String sshConfigImportFolderName(String date);
 
+  /// No description provided for @exportArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Export archive'**
+  String get exportArchive;
+
+  /// No description provided for @exportArchiveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save sessions, config, and keys to encrypted .lfs file'**
+  String get exportArchiveSubtitle;
+
+  /// No description provided for @exportQrCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Export QR code'**
+  String get exportQrCode;
+
+  /// No description provided for @exportQrCodeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share selected sessions and keys via QR code'**
+  String get exportQrCodeSubtitle;
+
+  /// No description provided for @importArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Import archive'**
+  String get importArchive;
+
+  /// No description provided for @importArchiveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Load data from .lfs file'**
+  String get importArchiveSubtitle;
+
+  /// No description provided for @importOpensshConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Import OpenSSH config'**
+  String get importOpensshConfig;
+
+  /// No description provided for @importOpensshConfigSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'One-time import of hosts from ~/.ssh/config'**
+  String get importOpensshConfigSubtitle;
+
   /// No description provided for @importSshKeys.
   ///
   /// In en, this message translates to:

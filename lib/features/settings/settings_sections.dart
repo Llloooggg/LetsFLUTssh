@@ -32,13 +32,7 @@ Future<List<Session>> _resolveSessionKeys(
 class _DataSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        _ExportImportTile(),
-        const _QrExportTile(),
-        const _DataPathTile(),
-      ],
-    );
+    return Column(children: [_ExportImportTile(), const _DataPathTile()]);
   }
 }
 
@@ -664,20 +658,21 @@ class _ExportImportTile extends ConsumerWidget {
       children: [
         _ActionTile(
           icon: Icons.upload_file,
-          title: S.of(context).exportData,
-          subtitle: S.of(context).exportDataSubtitle,
+          title: S.of(context).exportArchive,
+          subtitle: S.of(context).exportArchiveSubtitle,
           onTap: () => _showExportDialog(context, ref),
         ),
+        const _QrExportTile(),
         _ActionTile(
           icon: Icons.download,
-          title: S.of(context).importData,
-          subtitle: S.of(context).importDataSubtitle,
+          title: S.of(context).importArchive,
+          subtitle: S.of(context).importArchiveSubtitle,
           onTap: () => _showImportDialog(context, ref),
         ),
         _ActionTile(
           icon: Icons.settings_ethernet,
-          title: S.of(context).importFromSshConfig,
-          subtitle: S.of(context).importFromSshConfigSubtitle,
+          title: S.of(context).importOpensshConfig,
+          subtitle: S.of(context).importOpensshConfigSubtitle,
           onTap: () => _showSshConfigImportDialog(context, ref),
         ),
         _ActionTile(
@@ -1539,8 +1534,8 @@ class _QrExportTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _ActionTile(
       icon: Icons.qr_code,
-      title: S.of(context).shareViaQrCode,
-      subtitle: S.of(context).shareViaQrSubtitle,
+      title: S.of(context).exportQrCode,
+      subtitle: S.of(context).exportQrCodeSubtitle,
       onTap: () => _showQrExport(context, ref),
     );
   }

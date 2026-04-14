@@ -728,6 +728,33 @@ class SEs extends S {
   }
 
   @override
+  String get exportArchive => 'Export archive';
+
+  @override
+  String get exportArchiveSubtitle =>
+      'Save sessions, config, and keys to encrypted .lfs file';
+
+  @override
+  String get exportQrCode => 'Export QR code';
+
+  @override
+  String get exportQrCodeSubtitle =>
+      'Share selected sessions and keys via QR code';
+
+  @override
+  String get importArchive => 'Import archive';
+
+  @override
+  String get importArchiveSubtitle => 'Load data from .lfs file';
+
+  @override
+  String get importOpensshConfig => 'Import OpenSSH config';
+
+  @override
+  String get importOpensshConfigSubtitle =>
+      'One-time import of hosts from ~/.ssh/config';
+
+  @override
   String get importSshKeys => 'Import SSH keys from ~/.ssh';
 
   @override
