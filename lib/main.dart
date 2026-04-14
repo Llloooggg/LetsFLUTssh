@@ -1,12 +1,11 @@
 import 'dart:async' show runZonedGuarded;
-import 'dart:io' show File, exit;
+import 'dart:io' show exit;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'l10n/app_localizations.dart';
 import 'core/config/config_store.dart';
@@ -357,25 +356,8 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       return;
     }
 
-    // 3. Existing plaintext install — open DB without encryption.
-    if (await _hasAnyData()) {
-      _injectDatabase();
-      AppLogger.instance.log('Plaintext mode (no encryption)', name: 'App');
-      return;
-    }
-
-    // 4. First launch — show security setup wizard.
+    // 3. First launch (or clean install) — show security setup wizard.
     await _firstLaunchSetup(manager, keyStorage);
-  }
-
-  /// Check whether any session/key data exists on disk.
-  Future<bool> _hasAnyData() async {
-    final dir = await getApplicationSupportDirectory();
-    final files = ['sessions.json', 'sessions.enc', 'keys.json', 'keys.enc'];
-    for (final name in files) {
-      if (await File('${dir.path}/$name').exists()) return true;
-    }
-    return false;
   }
 
   /// First-launch flow: show wizard, configure security.
