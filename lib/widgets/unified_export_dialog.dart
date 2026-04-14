@@ -179,10 +179,9 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
       _selectedSessions,
       input: ExportPayloadInput(
         emptyFolders: _relevantEmptyFolders,
-        options: _options.copyWith(
-          includeManagerKeys: false,
-          includeAllManagerKeys: false,
-        ),
+        options: _options
+            .withIncludeManagerKeys(false)
+            .withIncludeAllManagerKeys(false),
         config: _options.includeConfig ? widget.data.config : null,
         knownHostsContent: _options.includeKnownHosts
             ? widget.data.knownHostsContent
@@ -212,11 +211,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     required bool includeManagerKeys,
   }) {
     if (_selectedSessions.isEmpty) return 0;
-    final baselineOptions = _options.copyWith(
-      includePasswords: false,
-      includeEmbeddedKeys: false,
-      includeManagerKeys: false,
-    );
+    final baselineOptions = _options
+        .withIncludePasswords(false)
+        .withIncludeEmbeddedKeys(false)
+        .withIncludeManagerKeys(false);
     final baseline = calculateExportPayloadSize(
       _selectedSessions,
       input: ExportPayloadInput(options: baselineOptions),
@@ -224,11 +222,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     final withCred = calculateExportPayloadSize(
       _selectedSessions,
       input: ExportPayloadInput(
-        options: _options.copyWith(
-          includePasswords: includePasswords,
-          includeEmbeddedKeys: includeEmbeddedKeys,
-          includeManagerKeys: includeManagerKeys,
-        ),
+        options: _options
+            .withIncludePasswords(includePasswords)
+            .withIncludeEmbeddedKeys(includeEmbeddedKeys)
+            .withIncludeManagerKeys(includeManagerKeys),
       ),
     );
     return (withCred - baseline).clamp(0, withCred);
@@ -666,9 +663,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             _options.includeConfig,
             () => setState(() {
               _invalidatePayloadCache();
-              _options = _options.copyWith(
-                includeConfig: !_options.includeConfig,
-              );
+              _options = _options.withIncludeConfig(!_options.includeConfig);
             }),
             _formatSize(_configSize()),
           ),
@@ -678,8 +673,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includePasswords,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includePasswords: !_options.includePasswords,
+            _options = _options.withIncludePasswords(
+              !_options.includePasswords,
             );
           }),
           _formatSize(_passwordsExtraSize()),
@@ -690,8 +685,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeEmbeddedKeys,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includeEmbeddedKeys: !_options.includeEmbeddedKeys,
+            _options = _options.withIncludeEmbeddedKeys(
+              !_options.includeEmbeddedKeys,
             );
           }),
           _formatSize(_embeddedKeysExtraSize()),
@@ -703,10 +698,9 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeManagerKeys,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includeManagerKeys: !_options.includeManagerKeys,
-              includeAllManagerKeys: false,
-            );
+            _options = _options
+                .withIncludeManagerKeys(!_options.includeManagerKeys)
+                .withIncludeAllManagerKeys(false);
           }),
           _formatSize(_managerKeysExtraSize()),
           warningText: _managerKeysWarningText,
@@ -717,10 +711,9 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeAllManagerKeys,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includeAllManagerKeys: !_options.includeAllManagerKeys,
-              includeManagerKeys: false,
-            );
+            _options = _options
+                .withIncludeAllManagerKeys(!_options.includeAllManagerKeys)
+                .withIncludeManagerKeys(false);
           }),
           _formatSize(_managerKeysExtraSize()),
           warningText: _allManagerKeysWarningText,
@@ -732,8 +725,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             _options.includeKnownHosts,
             () => setState(() {
               _invalidatePayloadCache();
-              _options = _options.copyWith(
-                includeKnownHosts: !_options.includeKnownHosts,
+              _options = _options.withIncludeKnownHosts(
+                !_options.includeKnownHosts,
               );
             }),
             _formatSize(_knownHostsSize()),
@@ -744,7 +737,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeTags,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(includeTags: !_options.includeTags);
+            _options = _options.withIncludeTags(!_options.includeTags);
           }),
           _formatSize(_tagsSize()),
         ),
@@ -754,9 +747,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeSnippets,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includeSnippets: !_options.includeSnippets,
-            );
+            _options = _options.withIncludeSnippets(!_options.includeSnippets);
           }),
           _formatSize(_snippetsSize()),
         ),

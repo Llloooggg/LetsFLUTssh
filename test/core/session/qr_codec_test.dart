@@ -524,7 +524,7 @@ void main() {
   });
 
   group('ExportOptions', () {
-    test('copyWith overrides values', () {
+    test('withX methods override single values and chain', () {
       const opts = ExportOptions(
         includeSessions: true,
         includeConfig: false,
@@ -533,10 +533,7 @@ void main() {
         includeEmbeddedKeys: true,
         includeManagerKeys: false,
       );
-      final copied = opts.copyWith(
-        includeConfig: true,
-        includeManagerKeys: true,
-      );
+      final copied = opts.withIncludeConfig(true).withIncludeManagerKeys(true);
       expect(copied.includeSessions, isTrue);
       expect(copied.includeConfig, isTrue);
       expect(copied.includeKnownHosts, isTrue);
@@ -545,7 +542,7 @@ void main() {
       expect(copied.includeManagerKeys, isTrue);
     });
 
-    test('copyWith without args returns same values', () {
+    test('withX methods preserve all other values', () {
       const opts = ExportOptions(
         includeSessions: false,
         includeConfig: true,
@@ -553,14 +550,30 @@ void main() {
         includePasswords: false,
         includeEmbeddedKeys: true,
         includeManagerKeys: true,
+        includeAllManagerKeys: true,
+        includeTags: true,
+        includeSnippets: true,
       );
-      final copied = opts.copyWith();
+      // Apply each withX as a no-op (same value) and verify all fields preserved.
+      final copied = opts
+          .withIncludeSessions(false)
+          .withIncludeConfig(true)
+          .withIncludeKnownHosts(false)
+          .withIncludePasswords(false)
+          .withIncludeEmbeddedKeys(true)
+          .withIncludeManagerKeys(true)
+          .withIncludeAllManagerKeys(true)
+          .withIncludeTags(true)
+          .withIncludeSnippets(true);
       expect(copied.includeSessions, isFalse);
       expect(copied.includeConfig, isTrue);
       expect(copied.includeKnownHosts, isFalse);
       expect(copied.includePasswords, isFalse);
       expect(copied.includeEmbeddedKeys, isTrue);
       expect(copied.includeManagerKeys, isTrue);
+      expect(copied.includeAllManagerKeys, isTrue);
+      expect(copied.includeTags, isTrue);
+      expect(copied.includeSnippets, isTrue);
     });
 
     test('hasAnySelection is true when any flag is set', () {

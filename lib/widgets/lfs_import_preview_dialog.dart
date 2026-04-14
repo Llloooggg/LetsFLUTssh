@@ -257,47 +257,39 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
             Icons.computer,
             S.of(context).sessions,
             _options.includeSessions,
-            (v) => setState(
-              () => _options = _options.copyWith(includeSessions: v),
-            ),
+            (v) => setState(() => _options = _options.withIncludeSessions(v)),
           ),
         if (widget.preview.hasConfig)
           _buildCheckbox(
             Icons.settings,
             S.of(context).appSettings,
             _options.includeConfig,
-            (v) =>
-                setState(() => _options = _options.copyWith(includeConfig: v)),
+            (v) => setState(() => _options = _options.withIncludeConfig(v)),
           ),
         _buildCheckbox(
           Icons.vpn_key,
           S.of(context).sshKeys,
           _options.includeManagerKeys,
-          (v) => setState(
-            () => _options = _options.copyWith(includeManagerKeys: v),
-          ),
+          (v) => setState(() => _options = _options.withIncludeManagerKeys(v)),
         ),
         _buildCheckbox(
           Icons.label_outline,
           S.of(context).tags,
           _options.includeTags,
-          (v) => setState(() => _options = _options.copyWith(includeTags: v)),
+          (v) => setState(() => _options = _options.withIncludeTags(v)),
         ),
         _buildCheckbox(
           Icons.code,
           S.of(context).snippets,
           _options.includeSnippets,
-          (v) =>
-              setState(() => _options = _options.copyWith(includeSnippets: v)),
+          (v) => setState(() => _options = _options.withIncludeSnippets(v)),
         ),
         if (widget.preview.hasKnownHosts)
           _buildCheckbox(
             Icons.verified_user,
             S.of(context).knownHosts,
             _options.includeKnownHosts,
-            (v) => setState(
-              () => _options = _options.copyWith(includeKnownHosts: v),
-            ),
+            (v) => setState(() => _options = _options.withIncludeKnownHosts(v)),
           ),
       ],
     );
