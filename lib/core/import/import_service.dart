@@ -1,5 +1,6 @@
 import '../../utils/logger.dart';
 import '../config/app_config.dart';
+import '../security/key_store.dart';
 import '../../features/settings/export_import.dart';
 import '../session/session.dart';
 
@@ -14,6 +15,9 @@ class ImportService {
   final List<Session> Function() getSessions;
   final void Function(AppConfig config) applyConfig;
 
+  /// Save a manager key and return its new ID (may differ from the original).
+  final Future<String> Function(SshKeyEntry entry)? saveManagerKey;
+
   /// Optional callbacks for rollback support in replace mode.
   /// When provided, a snapshot is taken before deleting existing sessions.
   /// If import fails, the snapshot is restored.
@@ -27,6 +31,7 @@ class ImportService {
     required this.deleteSession,
     required this.getSessions,
     required this.applyConfig,
+    this.saveManagerKey,
     this.getEmptyFolders,
     this.restoreSnapshot,
   });
@@ -39,6 +44,7 @@ class ImportService {
     AppLogger.instance.log(
       'Applying import: mode=${result.mode.name}, '
       'sessions=${result.sessions.length}, '
+      'managerKeys=${result.managerKeys.length}, '
       'hasConfig=${result.config != null}',
       name: 'Import',
     );
@@ -47,7 +53,26 @@ class ImportService {
         ? await _snapshotAndDeleteExisting()
         : null;
 
-    final imported = await _importSessions(result, snapshot);
+    // Import manager keys first — build oldId→newId map for session remapping
+    final keyIdMap = await _importManagerKeys(result.managerKeys);
+
+    // Remap session keyIds to the newly inserted key IDs
+    final remappedResult = keyIdMap.isEmpty
+        ? result
+        : ImportResult(
+            sessions: result.sessions.map((s) {
+              final newKeyId = keyIdMap[s.keyId];
+              if (newKeyId == null) return s;
+              return s.copyWith(auth: s.auth.copyWith(keyId: newKeyId));
+            }).toList(),
+            emptyFolders: result.emptyFolders,
+            managerKeys: result.managerKeys,
+            config: result.config,
+            mode: result.mode,
+            knownHostsContent: result.knownHostsContent,
+          );
+
+    final imported = await _importSessions(remappedResult, snapshot);
 
     // Import empty folders.
     // NOTE: in replace mode this code is never reached if _importSessions
@@ -88,6 +113,29 @@ class ImportService {
       '$foldersImported/${result.emptyFolders.length} folders imported',
       name: 'Import',
     );
+  }
+
+  /// Import manager keys into KeyStore. Returns a map of oldId→newId
+  /// for remapping session keyIds.
+  Future<Map<String, String>> _importManagerKeys(List<SshKeyEntry> keys) async {
+    if (keys.isEmpty || saveManagerKey == null) return {};
+    final idMap = <String, String>{};
+    for (final key in keys) {
+      try {
+        final newId = await saveManagerKey!(key);
+        idMap[key.id] = newId;
+      } catch (e) {
+        AppLogger.instance.log(
+          'Skipped manager key ${key.label}: $e',
+          name: 'Import',
+        );
+      }
+    }
+    AppLogger.instance.log(
+      'Imported ${idMap.length}/${keys.length} manager keys',
+      name: 'Import',
+    );
+    return idMap;
   }
 
   /// Takes a snapshot of existing sessions (when rollback callbacks are

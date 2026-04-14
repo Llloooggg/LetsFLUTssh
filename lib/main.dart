@@ -1011,6 +1011,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   ImportService _buildImportService() {
     final store = ref.read(sessionStoreProvider);
+    final keyStore = ref.read(keyStoreProvider);
     return ImportService(
       addSession: (s) => ref.read(sessionProvider.notifier).add(s),
       addEmptyFolder: (f) => store.addEmptyFolder(f),
@@ -1018,6 +1019,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       getSessions: () => ref.read(sessionProvider),
       applyConfig: (config) =>
           ref.read(configProvider.notifier).update((_) => config),
+      saveManagerKey: (entry) async {
+        await keyStore.save(entry);
+        return entry.id;
+      },
       getEmptyFolders: () => store.emptyFolders,
       restoreSnapshot: (sessions, folders) =>
           store.restoreSnapshot(sessions, folders),

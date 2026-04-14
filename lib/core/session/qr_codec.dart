@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:archive/archive.dart';
 
 import '../../utils/logger.dart';
+import '../security/key_store.dart';
 import 'session.dart';
 import '../config/app_config.dart';
 import '../ssh/ssh_config.dart';
@@ -10,8 +11,9 @@ import '../ssh/ssh_config.dart';
 /// Current payload format version.
 ///
 /// v1 — legacy: base64(JSON) without compression
-/// v2 — current: base64(deflate(JSON)) with key deduplication
-const _currentFormatVersion = 2;
+/// v2 — base64(deflate(JSON)) with key deduplication
+/// v3 — manager key metadata (mk) + per-session mg flag
+const _currentFormatVersion = 3;
 
 /// Maximum payload size in bytes (before deep link wrapping).
 ///
@@ -92,15 +94,27 @@ class ExportOptions {
 ///
 /// Format: `{"km":{"k0":"ssh-rsa..."},"s":[...],"eg":[...],"c":{...},"kh":"..."}`
 /// Keys are deduplicated in `km` (key map), sessions reference via `ki`.
+/// Manager keys carry metadata in `mk` and sessions flag `mg:1`.
 /// The entire JSON is deflate-compressed before base64 encoding.
+
 /// Deduplicate SSH keys across sessions and return a short-id map.
 ///
-/// Returns `(keyMap: shortId→keyData, sessionKeyIds: sessionId→shortId)`.
-({Map<String, String> keyMap, Map<String, String?> sessionKeyIds})
+/// Keys are deduplicated by content — the same physical key used both
+/// as embedded and as manager key appears once in `km`.
+({
+  Map<String, String> keyMap,
+  Map<String, String?> sessionKeyIds,
+  Set<String> managerShortIds,
+})
 _deduplicateKeys(List<Session> sessions, ExportOptions options) {
   final sessionKeyIds = <String, String?>{};
+  final managerShortIds = <String>{};
   if (!options.includeEmbeddedKeys && !options.includeManagerKeys) {
-    return (keyMap: <String, String>{}, sessionKeyIds: sessionKeyIds);
+    return (
+      keyMap: <String, String>{},
+      sessionKeyIds: sessionKeyIds,
+      managerShortIds: managerShortIds,
+    );
   }
 
   final keyToShortId = <String, String>{};
@@ -117,30 +131,72 @@ _deduplicateKeys(List<Session> sessions, ExportOptions options) {
       return id;
     });
     sessionKeyIds[s.id] = shortId;
+    if (isFromManager) managerShortIds.add(shortId);
   }
 
   final keyMap = <String, String>{};
   keyToShortId.forEach((keyData, shortId) => keyMap[shortId] = keyData);
-  return (keyMap: keyMap, sessionKeyIds: sessionKeyIds);
+  return (
+    keyMap: keyMap,
+    sessionKeyIds: sessionKeyIds,
+    managerShortIds: managerShortIds,
+  );
 }
 
+/// Encode sessions into a compact JSON, compress with deflate, return base64url.
+///
+/// [managerKeyEntries] maps keyId → [SshKeyEntry] for manager key metadata.
+/// Pass empty map when manager keys are not included.
 String encodeExportPayload(
   List<Session> sessions, {
   Set<String> emptyFolders = const {},
   ExportOptions options = const ExportOptions(),
   AppConfig? config,
   String? knownHostsContent,
+  Map<String, SshKeyEntry> managerKeyEntries = const {},
 }) {
-  final (:keyMap, :sessionKeyIds) = _deduplicateKeys(sessions, options);
+  final (:keyMap, :sessionKeyIds, :managerShortIds) = _deduplicateKeys(
+    sessions,
+    options,
+  );
 
   final payload = <String, dynamic>{'v': _currentFormatVersion};
   if (keyMap.isNotEmpty) payload['km'] = keyMap;
+
+  // Manager key metadata: shortId → {label, type, publicKey}
+  if (managerShortIds.isNotEmpty) {
+    final mk = <String, dynamic>{};
+    for (final shortId in managerShortIds) {
+      // Find the SshKeyEntry for this shortId via session keyId
+      final session = sessions.firstWhere(
+        (s) =>
+            sessionKeyIds[s.id] == shortId &&
+            s.keyId.isNotEmpty &&
+            managerKeyEntries.containsKey(s.keyId),
+        orElse: () => sessions.first,
+      );
+      final entry = managerKeyEntries[session.keyId];
+      if (entry != null) {
+        mk[shortId] = {
+          'l': entry.label,
+          't': entry.keyType,
+          'p': entry.publicKey,
+        };
+      }
+    }
+    if (mk.isNotEmpty) payload['mk'] = mk;
+  }
+
   if (options.includeSessions) {
     payload['s'] = sessions
         .map(
           (s) => encodeSessionCompact(
             s,
             keyId: sessionKeyIds[s.id],
+            isManagerKey:
+                s.keyId.isNotEmpty &&
+                sessionKeyIds.containsKey(s.id) &&
+                managerShortIds.contains(sessionKeyIds[s.id]),
             includePasswords: options.includePasswords,
           ),
         )
@@ -260,6 +316,15 @@ ExportPayloadData? _parsePayload(String payload) {
       keyMap.addAll(km.cast<String, String>());
     }
 
+    // Manager key metadata (v3+): shortId → {label, type, publicKey}
+    final managerKeyMeta = <String, Map<String, dynamic>>{};
+    if (json.containsKey('mk')) {
+      final mk = json['mk'] as Map<String, dynamic>;
+      for (final entry in mk.entries) {
+        managerKeyMeta[entry.key] = entry.value as Map<String, dynamic>;
+      }
+    }
+
     final sessions = <Session>[];
     final emptyFolders = <String>{};
     if (json.containsKey('s')) {
@@ -268,6 +333,25 @@ ExportPayloadData? _parsePayload(String payload) {
       }
       final ef = json['eg'] as List?;
       if (ef != null) emptyFolders.addAll(ef.cast<String>());
+    }
+
+    // Build SshKeyEntry list for manager keys
+    final managerKeys = <SshKeyEntry>[];
+    for (final entry in managerKeyMeta.entries) {
+      final shortId = entry.key;
+      final meta = entry.value;
+      final keyData = keyMap[shortId];
+      if (keyData == null) continue;
+      managerKeys.add(
+        SshKeyEntry(
+          id: shortId,
+          label: meta['l'] as String? ?? '',
+          privateKey: keyData,
+          publicKey: meta['p'] as String? ?? '',
+          keyType: meta['t'] as String? ?? '',
+          createdAt: DateTime.now(),
+        ),
+      );
     }
 
     AppConfig? config;
@@ -282,12 +366,14 @@ ExportPayloadData? _parsePayload(String payload) {
     AppLogger.instance.log(
       'Decoded payload: ${sessions.length} sessions, '
       '${emptyFolders.length} folders, '
+      '${managerKeys.length} manager keys, '
       'config=${config != null}, knownHosts=${knownHostsContent != null}',
       name: 'QrCodec',
     );
     return ExportPayloadData(
       sessions: sessions,
       emptyFolders: emptyFolders,
+      managerKeys: managerKeys,
       config: config,
       knownHostsContent: knownHostsContent,
     );
@@ -308,6 +394,7 @@ ExportPayloadData? _parsePayload(String payload) {
 Map<String, dynamic> encodeSessionCompact(
   Session s, {
   String? keyId,
+  bool isManagerKey = false,
   bool includePasswords = false,
 }) {
   final m = <String, dynamic>{'l': s.label, 'h': s.host, 'u': s.user};
@@ -315,6 +402,7 @@ Map<String, dynamic> encodeSessionCompact(
   if (s.folder.isNotEmpty) m['g'] = s.folder;
   if (s.authType != AuthType.password) m['a'] = s.authType.name;
   if (keyId != null) m['ki'] = keyId;
+  if (isManagerKey) m['mg'] = 1;
   // SECURITY: passwords stored in plaintext in QR payload — only enable when
   // user explicitly opts in via includePasswords. QR codes can be scanned by
   // anyone with camera access to the screen.
@@ -328,8 +416,16 @@ Session _decodeSession(Map<String, dynamic> m, Map<String, String> keyMap) {
     orElse: () => AuthType.password,
   );
   final password = m['pw'] as String? ?? '';
-  final keyId = m['ki'] as String?;
-  final keyData = keyId != null ? (keyMap[keyId] ?? '') : '';
+  final shortKeyId = m['ki'] as String?;
+  final isManagerKey = m['mg'] == 1;
+
+  // Manager keys: keyId = shortId (remapped to real ID during import),
+  // keyData stays empty (loaded from KeyStore after import).
+  // Embedded keys: keyData inline, keyId empty.
+  final keyData = (!isManagerKey && shortKeyId != null)
+      ? (keyMap[shortKeyId] ?? '')
+      : '';
+  final keyId = isManagerKey ? (shortKeyId ?? '') : '';
 
   return Session(
     label: m['l'] as String? ?? '',
@@ -343,7 +439,7 @@ Session _decodeSession(Map<String, dynamic> m, Map<String, String> keyMap) {
       authType: authType,
       password: password,
       keyData: keyData,
-      keyId: keyId ?? '',
+      keyId: keyId,
     ),
   );
 }
@@ -352,12 +448,18 @@ Session _decodeSession(Map<String, dynamic> m, Map<String, String> keyMap) {
 class ExportPayloadData {
   final List<Session> sessions;
   final Set<String> emptyFolders;
+
+  /// Manager keys to insert into KeyStore on import.
+  /// The [SshKeyEntry.id] is the short id from the payload — import code
+  /// must remap session keyIds after inserting into the real KeyStore.
+  final List<SshKeyEntry> managerKeys;
   final AppConfig? config;
   final String? knownHostsContent;
 
   const ExportPayloadData({
     required this.sessions,
     required this.emptyFolders,
+    this.managerKeys = const [],
     this.config,
     this.knownHostsContent,
   });

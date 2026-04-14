@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -381,7 +382,7 @@ void main() {
       expect(result!.sessions[0].keyData, '');
     });
 
-    test('includeManagerKeys=true includes manager key data', () {
+    test('includeManagerKeys=true exports key in km and sets mg flag', () {
       final session = Session(
         label: 'mgr-key',
         server: const ServerAddress(host: 'example.com', user: 'admin'),
@@ -391,12 +392,29 @@ void main() {
           keyData: 'ssh-rsa MANAGER...',
         ),
       );
-      final result = decodeExportPayload(
-        encodeExportPayload([
-          session,
-        ], options: const ExportOptions(includeManagerKeys: true)),
+      final keyEntry = SshKeyEntry(
+        id: 'mgr-123',
+        label: 'My Manager Key',
+        privateKey: 'ssh-rsa MANAGER...',
+        publicKey: 'ssh-rsa AAAA...',
+        keyType: 'rsa',
+        createdAt: DateTime(2024),
       );
-      expect(result!.sessions[0].keyData, 'ssh-rsa MANAGER...');
+      final result = decodeExportPayload(
+        encodeExportPayload(
+          [session],
+          options: const ExportOptions(includeManagerKeys: true),
+          managerKeyEntries: {'mgr-123': keyEntry},
+        ),
+      );
+      // Manager key: keyData empty (loaded from KeyStore on import),
+      // keyId set to short id for remapping.
+      expect(result!.sessions[0].keyData, isEmpty);
+      expect(result.sessions[0].keyId, isNotEmpty);
+      // Key appears in managerKeys for insertion into KeyStore.
+      expect(result.managerKeys, hasLength(1));
+      expect(result.managerKeys[0].privateKey, 'ssh-rsa MANAGER...');
+      expect(result.managerKeys[0].label, 'My Manager Key');
     });
 
     test('includeManagerKeys=false excludes manager key data', () {
@@ -576,14 +594,14 @@ void main() {
   });
 
   group('format versioning', () {
-    test('v2 payload includes version field', () {
+    test('v3 payload includes version field', () {
       final sessions = [makeSession(label: 'test', host: 'h', user: 'u')];
       final encoded = encodeExportPayload(sessions);
       // Decode the raw payload to inspect the JSON
       final compressed = base64Url.decode(encoded);
       final inflated = Inflate(compressed).getBytes();
       final json = jsonDecode(utf8.decode(inflated)) as Map<String, dynamic>;
-      expect(json['v'], 2);
+      expect(json['v'], 3);
     });
 
     test('decodes payload with unknown future version', () {

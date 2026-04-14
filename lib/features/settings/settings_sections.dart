@@ -747,6 +747,23 @@ class _ExportImportTile extends ConsumerWidget {
     // Show progress indicator while PBKDF2 + encryption runs in isolate
     AppProgressDialog.show(context);
     try {
+      // Collect manager key entries for keys.json in the archive
+      final managerKeyEntries = <SshKeyEntry>[];
+      if (exportResult.options.includeManagerKeys) {
+        final keyStore = ref.read(keyStoreProvider);
+        final allKeys = await keyStore.loadAll();
+        // Only include keys referenced by exported sessions
+        final usedKeyIds = exportResult.selectedSessions
+            .where((s) => s.keyId.isNotEmpty)
+            .map((s) => s.keyId)
+            .toSet();
+        managerKeyEntries.addAll(
+          allKeys.entries
+              .where((e) => usedKeyIds.contains(e.key))
+              .map((e) => e.value),
+        );
+      }
+
       await ExportImport.export(
         masterPassword: password,
         sessions: resolvedSessions,
@@ -759,6 +776,7 @@ class _ExportImportTile extends ConsumerWidget {
         knownHostsContent: exportResult.options.includeKnownHosts
             ? ref.read(knownHostsProvider).exportToString()
             : null,
+        managerKeyEntries: managerKeyEntries,
       );
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -900,6 +918,7 @@ class _ExportImportTile extends ConsumerWidget {
   ) async {
     try {
       final store = ref.read(sessionStoreProvider);
+      final keyStore = ref.read(keyStoreProvider);
       final importService = ImportService(
         addSession: (s) => ref.read(sessionProvider.notifier).add(s),
         addEmptyFolder: (f) =>
@@ -908,6 +927,10 @@ class _ExportImportTile extends ConsumerWidget {
         getSessions: () => ref.read(sessionProvider),
         applyConfig: (config) =>
             ref.read(configProvider.notifier).update((_) => config),
+        saveManagerKey: (entry) async {
+          await keyStore.save(entry);
+          return entry.id;
+        },
         getEmptyFolders: () => store.emptyFolders,
         restoreSnapshot: (sessions, folders) =>
             store.restoreSnapshot(sessions, folders),
@@ -1354,6 +1377,7 @@ class _QrExportTile extends ConsumerWidget {
       knownHostsContent: exportResult.options.includeKnownHosts
           ? ref.read(knownHostsProvider).exportToString()
           : null,
+      managerKeyEntries: allKeys,
     );
 
     final deepLink = wrapInDeepLink(payload);

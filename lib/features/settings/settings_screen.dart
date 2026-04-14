@@ -19,6 +19,7 @@ import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
+import '../../core/security/key_store.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/master_password_provider.dart';
 import '../../providers/security_provider.dart';

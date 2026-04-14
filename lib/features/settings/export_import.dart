@@ -8,6 +8,7 @@ import 'package:archive/archive.dart';
 import 'package:pointycastle/export.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/security/key_store.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../utils/logger.dart';
@@ -26,6 +27,7 @@ class ExportImport {
   static const _ivLen = 12;
   static const _pbkdf2Iterations = 600000;
   static const _sessionsFile = 'sessions.json';
+  static const _keysFile = 'keys.json';
   static const _emptyFoldersFile = 'empty_folders.json';
   static const _configFile = 'config.json';
   static const _knownHostsFile = 'known_hosts';
@@ -46,6 +48,7 @@ class ExportImport {
     ExportOptions options = const ExportOptions(),
     Set<String> emptyFolders = const {},
     String? knownHostsContent,
+    List<SshKeyEntry> managerKeyEntries = const [],
   }) async {
     // Build ZIP archive in memory
     final archive = Archive();
@@ -70,6 +73,27 @@ class ExportImport {
           ArchiveFile(_emptyFoldersFile, foldersBytes.length, foldersBytes),
         );
       }
+    }
+
+    // Manager keys (if included)
+    if (options.includeManagerKeys && managerKeyEntries.isNotEmpty) {
+      final keysJson = const JsonEncoder.withIndent('  ').convert(
+        managerKeyEntries
+            .map(
+              (e) => {
+                'id': e.id,
+                'label': e.label,
+                'private_key': e.privateKey,
+                'public_key': e.publicKey,
+                'key_type': e.keyType,
+                'is_generated': e.isGenerated,
+                'created_at': e.createdAt.toIso8601String(),
+              },
+            )
+            .toList(),
+      );
+      final keysBytes = utf8.encode(keysJson);
+      archive.addFile(ArchiveFile(_keysFile, keysBytes.length, keysBytes));
     }
 
     // Config (if included)
@@ -118,9 +142,14 @@ class ExportImport {
     return outputPath;
   }
 
-  /// Decrypt an .lfs file and parse the archive + sessions.
+  /// Decrypt an .lfs file and parse the archive contents.
   static Future<
-    ({Archive archive, List<Session> sessions, Set<String> emptyFolders})
+    ({
+      Archive archive,
+      List<Session> sessions,
+      Set<String> emptyFolders,
+      List<SshKeyEntry> managerKeys,
+    })
   >
   _decryptAndParseArchive({
     required String filePath,
@@ -153,13 +182,40 @@ class ExportImport {
       emptyFolders = list.cast<String>().toSet();
     }
 
+    List<SshKeyEntry> managerKeys = [];
+    final keysFile = archive.findFile(_keysFile);
+    if (keysFile != null) {
+      final json = utf8.decode(keysFile.content as List<int>);
+      final list = jsonDecode(json) as List;
+      managerKeys = list.map((e) {
+        final m = e as Map<String, dynamic>;
+        return SshKeyEntry(
+          id: m['id'] as String? ?? '',
+          label: m['label'] as String? ?? '',
+          privateKey: m['private_key'] as String? ?? '',
+          publicKey: m['public_key'] as String? ?? '',
+          keyType: m['key_type'] as String? ?? '',
+          isGenerated: m['is_generated'] as bool? ?? false,
+          createdAt:
+              DateTime.tryParse(m['created_at'] as String? ?? '') ??
+              DateTime.now(),
+        );
+      }).toList();
+    }
+
     AppLogger.instance.log(
       'Import: decrypted ${encData.length} bytes, '
       '${sessions.length} sessions, '
+      '${managerKeys.length} manager keys, '
       '${emptyFolders.length} empty folders',
       name: 'ExportImport',
     );
-    return (archive: archive, sessions: sessions, emptyFolders: emptyFolders);
+    return (
+      archive: archive,
+      sessions: sessions,
+      emptyFolders: emptyFolders,
+      managerKeys: managerKeys,
+    );
   }
 
   /// Preview contents of an .lfs archive without full import.
@@ -167,7 +223,12 @@ class ExportImport {
     required String filePath,
     required String masterPassword,
   }) async {
-    final (:archive, :sessions, :emptyFolders) = await _decryptAndParseArchive(
+    final (
+      :archive,
+      :sessions,
+      :emptyFolders,
+      :managerKeys,
+    ) = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
     );
@@ -180,6 +241,7 @@ class ExportImport {
       hasConfig: hasConfig,
       hasKnownHosts: hasKnownHosts,
       emptyFolders: emptyFolders,
+      managerKeyCount: managerKeys.length,
     );
   }
 
@@ -195,7 +257,12 @@ class ExportImport {
     required ImportMode mode,
     ExportOptions options = const ExportOptions(),
   }) async {
-    final (:archive, :sessions, :emptyFolders) = await _decryptAndParseArchive(
+    final (
+      :archive,
+      :sessions,
+      :emptyFolders,
+      :managerKeys,
+    ) = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
     );
@@ -222,6 +289,7 @@ class ExportImport {
     return ImportResult(
       sessions: options.includeSessions ? sessions : [],
       emptyFolders: options.includeSessions ? emptyFolders : {},
+      managerKeys: options.includeManagerKeys ? managerKeys : [],
       config: config,
       mode: mode,
       knownHostsContent: knownHostsContent,
@@ -279,12 +347,14 @@ class LfsPreview {
   final bool hasConfig;
   final bool hasKnownHosts;
   final Set<String> emptyFolders;
+  final int managerKeyCount;
 
   const LfsPreview({
     required this.sessions,
     this.hasConfig = false,
     this.hasKnownHosts = false,
     this.emptyFolders = const {},
+    this.managerKeyCount = 0,
   });
 
   /// Derived from [sessions] to prevent stale/inconsistent state.
@@ -299,6 +369,10 @@ enum ImportMode { merge, replace }
 class ImportResult {
   final List<Session> sessions;
   final Set<String> emptyFolders;
+
+  /// Manager keys to insert into KeyStore. Sessions with matching keyId
+  /// should be linked after keys are saved.
+  final List<SshKeyEntry> managerKeys;
   final AppConfig? config;
   final ImportMode mode;
 
@@ -309,6 +383,7 @@ class ImportResult {
   const ImportResult({
     required this.sessions,
     this.emptyFolders = const {},
+    this.managerKeys = const [],
     this.config,
     required this.mode,
     this.knownHostsContent,
