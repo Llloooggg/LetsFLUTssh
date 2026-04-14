@@ -14,8 +14,8 @@ const _dbFileName = 'letsflutssh.db';
 ///
 /// Returns false on first launch (before any DB has been created).
 Future<bool> databaseFileExists() async {
-  final dir = await getApplicationDocumentsDirectory();
-  final file = File(p.join(dir.path, 'LetsFLUTssh', _dbFileName));
+  final dir = await getApplicationSupportDirectory();
+  final file = File(p.join(dir.path, _dbFileName));
   return file.exists();
 }
 
@@ -38,9 +38,8 @@ AppDatabase openTestDatabase() {
 
 LazyDatabase _openConnection({Uint8List? encryptionKey}) {
   return LazyDatabase(() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'LetsFLUTssh', _dbFileName));
-    await file.parent.create(recursive: true);
+    final dir = await getApplicationSupportDirectory();
+    final file = File(p.join(dir.path, _dbFileName));
 
     AppLogger.instance.log(
       'Opening database: ${file.path}, '
