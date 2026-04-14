@@ -696,14 +696,16 @@ class _ExportImportTile extends ConsumerWidget {
 
     final exportResult = await UnifiedExportDialog.show(
       context,
-      sessions: sessions,
-      emptyFolders: store.emptyFolders,
-      config: ref.read(configProvider),
-      knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+      data: UnifiedExportDialogData(
+        sessions: sessions,
+        emptyFolders: store.emptyFolders,
+        config: ref.read(configProvider),
+        knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+        managerKeys: managerKeys,
+        tags: allTags,
+        snippets: allSnippets,
+      ),
       isQrMode: false,
-      managerKeys: managerKeys,
-      tags: allTags,
-      snippets: allSnippets,
     );
 
     if (exportResult == null || !context.mounted) return;
@@ -769,75 +771,32 @@ class _ExportImportTile extends ConsumerWidget {
     // Show progress indicator while PBKDF2 + encryption runs in isolate
     AppProgressDialog.show(context);
     try {
-      // Collect manager key entries
-      final managerKeyEntries = <SshKeyEntry>[];
-      if (exportResult.options.hasManagerKeys) {
-        final keyStore = ref.read(keyStoreProvider);
-        final allKeys = await keyStore.loadAll();
-        if (exportResult.options.includeAllManagerKeys) {
-          managerKeyEntries.addAll(allKeys.values);
-        } else {
-          final usedKeyIds = exportResult.selectedSessions
-              .where((s) => s.keyId.isNotEmpty)
-              .map((s) => s.keyId)
-              .toSet();
-          managerKeyEntries.addAll(
-            allKeys.entries
-                .where((e) => usedKeyIds.contains(e.key))
-                .map((e) => e.value),
-          );
-        }
-      }
-
-      // Collect tags and their links
-      final tagStore = ref.read(tagStoreProvider);
-      final snippetStore = ref.read(snippetStoreProvider);
-      final tags = exportResult.options.includeTags
-          ? await tagStore.loadAll()
-          : <Tag>[];
-      final sessionTags = <ExportLink>[];
-      final folderTags = <ExportFolderTagLink>[];
-      if (tags.isNotEmpty) {
-        for (final s in exportResult.selectedSessions) {
-          final sTags = await tagStore.getForSession(s.id);
-          for (final t in sTags) {
-            sessionTags.add(ExportLink(sessionId: s.id, targetId: t.id));
-          }
-        }
-      }
-
-      // Collect snippets and their links
-      final snippets = exportResult.options.includeSnippets
-          ? await snippetStore.loadAll()
-          : <Snippet>[];
-      final sessionSnippets = <ExportLink>[];
-      if (snippets.isNotEmpty) {
-        for (final s in exportResult.selectedSessions) {
-          final sSnippets = await snippetStore.loadForSession(s.id);
-          for (final sn in sSnippets) {
-            sessionSnippets.add(ExportLink(sessionId: s.id, targetId: sn.id));
-          }
-        }
-      }
+      final managerKeyEntries = await _collectManagerKeys(ref, exportResult);
+      final (tags, sessionTags) = await _collectTags(ref, exportResult);
+      final (snippets, sessionSnippets) = await _collectSnippets(
+        ref,
+        exportResult,
+      );
 
       await ExportImport.export(
         masterPassword: password,
-        sessions: resolvedSessions,
-        config: ref.read(configProvider),
         outputPath: outputPath,
-        options: exportResult.options,
-        emptyFolders: exportResult.options.includeSessions
-            ? exportResult.selectedEmptyFolders
-            : {},
-        knownHostsContent: exportResult.options.includeKnownHosts
-            ? ref.read(knownHostsProvider).exportToString()
-            : null,
-        managerKeyEntries: managerKeyEntries,
-        tags: tags,
-        sessionTags: sessionTags,
-        folderTags: folderTags,
-        snippets: snippets,
-        sessionSnippets: sessionSnippets,
+        input: LfsExportInput(
+          sessions: resolvedSessions,
+          config: ref.read(configProvider),
+          options: exportResult.options,
+          emptyFolders: exportResult.options.includeSessions
+              ? exportResult.selectedEmptyFolders
+              : {},
+          knownHostsContent: exportResult.options.includeKnownHosts
+              ? ref.read(knownHostsProvider).exportToString()
+              : null,
+          managerKeyEntries: managerKeyEntries,
+          tags: tags,
+          sessionTags: sessionTags,
+          snippets: snippets,
+          sessionSnippets: sessionSnippets,
+        ),
       );
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -851,6 +810,68 @@ class _ExportImportTile extends ConsumerWidget {
       if (context.mounted) Navigator.of(context).pop();
       rethrow;
     }
+  }
+
+  Future<List<SshKeyEntry>> _collectManagerKeys(
+    WidgetRef ref,
+    UnifiedExportResult exportResult,
+  ) async {
+    final managerKeyEntries = <SshKeyEntry>[];
+    if (!exportResult.options.hasManagerKeys) return managerKeyEntries;
+    final keyStore = ref.read(keyStoreProvider);
+    final allKeys = await keyStore.loadAll();
+    if (exportResult.options.includeAllManagerKeys) {
+      managerKeyEntries.addAll(allKeys.values);
+    } else {
+      final usedKeyIds = exportResult.selectedSessions
+          .where((s) => s.keyId.isNotEmpty)
+          .map((s) => s.keyId)
+          .toSet();
+      managerKeyEntries.addAll(
+        allKeys.entries
+            .where((e) => usedKeyIds.contains(e.key))
+            .map((e) => e.value),
+      );
+    }
+    return managerKeyEntries;
+  }
+
+  Future<(List<Tag>, List<ExportLink>)> _collectTags(
+    WidgetRef ref,
+    UnifiedExportResult exportResult,
+  ) async {
+    final tagStore = ref.read(tagStoreProvider);
+    final tags = exportResult.options.includeTags
+        ? await tagStore.loadAll()
+        : <Tag>[];
+    final sessionTags = <ExportLink>[];
+    if (tags.isEmpty) return (tags, sessionTags);
+    for (final s in exportResult.selectedSessions) {
+      final sTags = await tagStore.getForSession(s.id);
+      for (final t in sTags) {
+        sessionTags.add(ExportLink(sessionId: s.id, targetId: t.id));
+      }
+    }
+    return (tags, sessionTags);
+  }
+
+  Future<(List<Snippet>, List<ExportLink>)> _collectSnippets(
+    WidgetRef ref,
+    UnifiedExportResult exportResult,
+  ) async {
+    final snippetStore = ref.read(snippetStoreProvider);
+    final snippets = exportResult.options.includeSnippets
+        ? await snippetStore.loadAll()
+        : <Snippet>[];
+    final sessionSnippets = <ExportLink>[];
+    if (snippets.isEmpty) return (snippets, sessionSnippets);
+    for (final s in exportResult.selectedSessions) {
+      final sSnippets = await snippetStore.loadForSession(s.id);
+      for (final sn in sSnippets) {
+        sessionSnippets.add(ExportLink(sessionId: s.id, targetId: sn.id));
+      }
+    }
+    return (snippets, sessionSnippets);
   }
 
   /// Opens a save-file picker. Desktop uses native save dialog,
@@ -1426,14 +1447,16 @@ class _QrExportTile extends ConsumerWidget {
 
     final exportResult = await UnifiedExportDialog.show(
       context,
-      sessions: sessions,
-      emptyFolders: store.emptyFolders,
-      config: ref.read(configProvider),
-      knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+      data: UnifiedExportDialogData(
+        sessions: sessions,
+        emptyFolders: store.emptyFolders,
+        config: ref.read(configProvider),
+        knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+        managerKeys: managerKeys,
+        tags: allTags,
+        snippets: allSnippets,
+      ),
       isQrMode: true,
-      managerKeys: managerKeys,
-      tags: allTags,
-      snippets: allSnippets,
     );
 
     if (exportResult == null || !context.mounted) return;
@@ -1447,44 +1470,37 @@ class _QrExportTile extends ConsumerWidget {
 
     // Collect tags/snippets data for QR payload
     final tags = exportResult.options.includeTags ? allTags : <Tag>[];
-    final sessionTags = <ExportLink>[];
     final snippets = exportResult.options.includeSnippets
         ? allSnippets
         : <Snippet>[];
-    final sessionSnippets = <ExportLink>[];
-
-    if (tags.isNotEmpty) {
-      for (final s in exportResult.selectedSessions) {
-        final sTags = await tagStore.getForSession(s.id);
-        for (final t in sTags) {
-          sessionTags.add(ExportLink(sessionId: s.id, targetId: t.id));
-        }
-      }
-    }
-    if (snippets.isNotEmpty) {
-      for (final s in exportResult.selectedSessions) {
-        final sSnippets = await snippetStore.loadForSession(s.id);
-        for (final sn in sSnippets) {
-          sessionSnippets.add(ExportLink(sessionId: s.id, targetId: sn.id));
-        }
-      }
-    }
+    final sessionTags = await _collectQrSessionTags(
+      tagStore,
+      exportResult.selectedSessions,
+      includeTags: tags.isNotEmpty,
+    );
+    final sessionSnippets = await _collectQrSessionSnippets(
+      snippetStore,
+      exportResult.selectedSessions,
+      includeSnippets: snippets.isNotEmpty,
+    );
 
     final payload = encodeExportPayload(
       resolvedSessions,
-      emptyFolders: exportResult.selectedEmptyFolders,
-      options: exportResult.options,
-      config: exportResult.options.includeConfig
-          ? ref.read(configProvider)
-          : null,
-      knownHostsContent: exportResult.options.includeKnownHosts
-          ? ref.read(knownHostsProvider).exportToString()
-          : null,
-      managerKeyEntries: allKeys,
-      tags: tags,
-      sessionTags: sessionTags,
-      snippets: snippets,
-      sessionSnippets: sessionSnippets,
+      input: ExportPayloadInput(
+        emptyFolders: exportResult.selectedEmptyFolders,
+        options: exportResult.options,
+        config: exportResult.options.includeConfig
+            ? ref.read(configProvider)
+            : null,
+        knownHostsContent: exportResult.options.includeKnownHosts
+            ? ref.read(knownHostsProvider).exportToString()
+            : null,
+        managerKeyEntries: allKeys,
+        tags: tags,
+        sessionTags: sessionTags,
+        snippets: snippets,
+        sessionSnippets: sessionSnippets,
+      ),
     );
 
     final deepLink = wrapInDeepLink(payload);
@@ -1496,6 +1512,38 @@ class _QrExportTile extends ConsumerWidget {
       data: deepLink,
       sessionCount: sessionCount,
     );
+  }
+
+  Future<List<ExportLink>> _collectQrSessionTags(
+    TagStore tagStore,
+    List<Session> selectedSessions, {
+    required bool includeTags,
+  }) async {
+    final sessionTags = <ExportLink>[];
+    if (!includeTags) return sessionTags;
+    for (final s in selectedSessions) {
+      final sTags = await tagStore.getForSession(s.id);
+      for (final t in sTags) {
+        sessionTags.add(ExportLink(sessionId: s.id, targetId: t.id));
+      }
+    }
+    return sessionTags;
+  }
+
+  Future<List<ExportLink>> _collectQrSessionSnippets(
+    SnippetStore snippetStore,
+    List<Session> selectedSessions, {
+    required bool includeSnippets,
+  }) async {
+    final sessionSnippets = <ExportLink>[];
+    if (!includeSnippets) return sessionSnippets;
+    for (final s in selectedSessions) {
+      final sSnippets = await snippetStore.loadForSession(s.id);
+      for (final sn in sSnippets) {
+        sessionSnippets.add(ExportLink(sessionId: s.id, targetId: sn.id));
+      }
+    }
+    return sessionSnippets;
   }
 }
 

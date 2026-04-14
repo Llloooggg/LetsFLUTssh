@@ -74,7 +74,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
       ? 0
       : calculateExportPayloadSize(
           _selectedSessions,
-          emptyFolders: _relevantEmptyFolders,
+          input: ExportPayloadInput(emptyFolders: _relevantEmptyFolders),
         );
 
   bool get _fitsInQr => _payloadSize <= qrMaxPayloadBytes;
@@ -150,7 +150,7 @@ class _QrExportDialogState extends State<QrExportDialog> {
   void _popWithDeepLink(Set<String> folders) {
     final payload = encodeExportPayload(
       _selectedSessions,
-      emptyFolders: folders,
+      input: ExportPayloadInput(emptyFolders: folders),
     );
     Navigator.of(context).pop(wrapInDeepLink(payload));
   }

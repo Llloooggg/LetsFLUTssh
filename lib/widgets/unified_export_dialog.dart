@@ -17,16 +17,17 @@ import 'app_dialog.dart';
 import 'app_divider.dart';
 import 'hover_region.dart';
 
-/// Unified export dialog for both QR code and .lfs archive export.
-class UnifiedExportDialog extends StatefulWidget {
+/// Bundle of data displayed by [UnifiedExportDialog]. Groups related
+/// optional parameters so the dialog's `show()` stays small.
+class UnifiedExportDialogData {
   final List<Session> sessions;
   final Set<String> emptyFolders;
   final AppConfig? config;
   final String? knownHostsContent;
-  final bool isQrMode;
 
   /// Map of keyId -> keyData for keys stored in the manager.
-  /// Used to calculate export size for manager keys separately from embedded keys.
+  /// Used to calculate export size for manager keys separately from
+  /// embedded keys.
   final Map<String, String> managerKeys;
 
   /// All tags for size calculation and export.
@@ -35,41 +36,36 @@ class UnifiedExportDialog extends StatefulWidget {
   /// All snippets for size calculation and export.
   final List<Snippet> snippets;
 
-  const UnifiedExportDialog({
-    super.key,
+  const UnifiedExportDialogData({
     required this.sessions,
     required this.emptyFolders,
     this.config,
     this.knownHostsContent,
-    this.isQrMode = false,
     this.managerKeys = const {},
     this.tags = const [],
     this.snippets = const [],
   });
+}
+
+/// Unified export dialog for both QR code and .lfs archive export.
+class UnifiedExportDialog extends StatefulWidget {
+  final UnifiedExportDialogData data;
+  final bool isQrMode;
+
+  const UnifiedExportDialog({
+    super.key,
+    required this.data,
+    this.isQrMode = false,
+  });
 
   static Future<UnifiedExportResult?> show(
     BuildContext context, {
-    required List<Session> sessions,
-    required Set<String> emptyFolders,
-    AppConfig? config,
-    String? knownHostsContent,
+    required UnifiedExportDialogData data,
     bool isQrMode = false,
-    Map<String, String> managerKeys = const {},
-    List<Tag> tags = const [],
-    List<Snippet> snippets = const [],
   }) {
     return AppDialog.show<UnifiedExportResult>(
       context,
-      builder: (_) => UnifiedExportDialog(
-        sessions: sessions,
-        emptyFolders: emptyFolders,
-        config: config,
-        knownHostsContent: knownHostsContent,
-        isQrMode: isQrMode,
-        managerKeys: managerKeys,
-        tags: tags,
-        snippets: snippets,
-      ),
+      builder: (_) => UnifiedExportDialog(data: data, isQrMode: isQrMode),
     );
   }
 
@@ -117,11 +113,11 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             includeTags: true,
             includeSnippets: true,
           );
-    _selectedIds = widget.sessions.map((s) => s.id).toSet();
+    _selectedIds = widget.data.sessions.map((s) => s.id).toSet();
   }
 
   List<Session> get _selectedSessions =>
-      widget.sessions.where((s) => _selectedIds.contains(s.id)).toList();
+      widget.data.sessions.where((s) => _selectedIds.contains(s.id)).toList();
 
   Set<String> get _relevantEmptyFolders {
     final selectedFolders = _selectedSessions.map((s) => s.folder).toSet();
@@ -131,14 +127,14 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     //   3. All sessions are selected (export full structure).
     // This ensures the folder hierarchy is preserved on import even when
     // empty folders contain no sessions.
-    return widget.emptyFolders.where((folder) {
+    return widget.data.emptyFolders.where((folder) {
       return selectedFolders.any(
             (selected) =>
                 selected == folder ||
                 selected.startsWith('$folder/') ||
                 folder.startsWith('$selected/'),
           ) ||
-          _selectedIds.length == widget.sessions.length;
+          _selectedIds.length == widget.data.sessions.length;
     }).toSet();
   }
 
@@ -152,7 +148,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
         _cachedPayloadSelectedIds != null &&
         _cachedPayloadSelectedIds!.length == _selectedIds.length &&
         _cachedPayloadSelectedIds!.containsAll(_selectedIds) &&
-        _cachedPayloadKnownHosts == widget.knownHostsContent;
+        _cachedPayloadKnownHosts == widget.data.knownHostsContent;
   }
 
   void _invalidatePayloadCache() {
@@ -181,15 +177,17 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     // so encodeExportPayload can't calculate manager key sizes).
     final base = calculateExportPayloadSize(
       _selectedSessions,
-      emptyFolders: _relevantEmptyFolders,
-      options: _options.copyWith(
-        includeManagerKeys: false,
-        includeAllManagerKeys: false,
+      input: ExportPayloadInput(
+        emptyFolders: _relevantEmptyFolders,
+        options: _options.copyWith(
+          includeManagerKeys: false,
+          includeAllManagerKeys: false,
+        ),
+        config: _options.includeConfig ? widget.data.config : null,
+        knownHostsContent: _options.includeKnownHosts
+            ? widget.data.knownHostsContent
+            : null,
       ),
-      config: _options.includeConfig ? widget.config : null,
-      knownHostsContent: _options.includeKnownHosts
-          ? widget.knownHostsContent
-          : null,
     );
     // Add manager keys size separately (uses actual key data from widget).
     final result = _options.hasManagerKeys
@@ -198,7 +196,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     _cachedPayloadSize = result;
     _cachedPayloadOptions = _options;
     _cachedPayloadSelectedIds = Set.of(_selectedIds);
-    _cachedPayloadKnownHosts = widget.knownHostsContent;
+    _cachedPayloadKnownHosts = widget.data.knownHostsContent;
     return result;
   }
 
@@ -221,19 +219,17 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     );
     final baseline = calculateExportPayloadSize(
       _selectedSessions,
-      emptyFolders: {},
-      options: baselineOptions,
-      knownHostsContent: null,
+      input: ExportPayloadInput(options: baselineOptions),
     );
     final withCred = calculateExportPayloadSize(
       _selectedSessions,
-      emptyFolders: {},
-      options: _options.copyWith(
-        includePasswords: includePasswords,
-        includeEmbeddedKeys: includeEmbeddedKeys,
-        includeManagerKeys: includeManagerKeys,
+      input: ExportPayloadInput(
+        options: _options.copyWith(
+          includePasswords: includePasswords,
+          includeEmbeddedKeys: includeEmbeddedKeys,
+          includeManagerKeys: includeManagerKeys,
+        ),
       ),
-      knownHostsContent: null,
     );
     return (withCred - baseline).clamp(0, withCred);
   }
@@ -265,7 +261,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
 
   int _managerKeysExtraSize() {
     if (_cachedManagerKeysExtra != null) return _cachedManagerKeysExtra!;
-    var managerKeys = widget.managerKeys;
+    var managerKeys = widget.data.managerKeys;
     if (managerKeys.isEmpty) return _cachedManagerKeysExtra = 0;
 
     // For "session keys" mode, filter to keys referenced by selected sessions.
@@ -314,12 +310,9 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
       includeEmbeddedKeys: false,
       includeManagerKeys: false,
     );
-    final baselineSize = calculateExportPayloadSize(
-      [dummySession],
-      emptyFolders: {},
-      options: baselineOptions,
-      knownHostsContent: null,
-    );
+    final baselineSize = calculateExportPayloadSize([
+      dummySession,
+    ], input: const ExportPayloadInput(options: baselineOptions));
 
     return _cachedManagerKeysExtra = (withKeysSize - baselineSize).clamp(
       0,
@@ -344,79 +337,84 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     );
     final baseline = calculateExportPayloadSize(
       sessions,
-      emptyFolders: {},
-      options: baselineOptions,
-      knownHostsContent: null,
+      input: const ExportPayloadInput(options: baselineOptions),
     );
     final withCred = calculateExportPayloadSize(
       sessions,
-      emptyFolders: {},
-      options: ExportOptions(
-        includeSessions: true,
-        includeConfig: false,
-        includeKnownHosts: false,
-        includePasswords: includePasswords,
-        includeEmbeddedKeys: includeEmbeddedKeys,
-        includeManagerKeys: includeManagerKeys,
+      input: ExportPayloadInput(
+        options: ExportOptions(
+          includeSessions: true,
+          includeConfig: false,
+          includeKnownHosts: false,
+          includePasswords: includePasswords,
+          includeEmbeddedKeys: includeEmbeddedKeys,
+          includeManagerKeys: includeManagerKeys,
+        ),
       ),
-      knownHostsContent: null,
     );
     return (withCred - baseline).clamp(0, withCred);
   }
 
   int _configSize() {
     if (_cachedConfigSize != null) return _cachedConfigSize!;
-    if (widget.config == null) return _cachedConfigSize = 0;
+    if (widget.data.config == null) return _cachedConfigSize = 0;
     return _cachedConfigSize = calculateExportPayloadSize(
       [],
-      options: const ExportOptions(includeSessions: false),
-      config: widget.config,
-      knownHostsContent: null,
+      input: ExportPayloadInput(
+        options: const ExportOptions(includeSessions: false),
+        config: widget.data.config,
+      ),
     );
   }
 
   int _knownHostsSize() {
     if (_cachedKnownHostsSize != null) return _cachedKnownHostsSize!;
-    final content = widget.knownHostsContent;
+    final content = widget.data.knownHostsContent;
     if (content?.isNotEmpty != true) return _cachedKnownHostsSize = 0;
     return _cachedKnownHostsSize = calculateExportPayloadSize(
       [],
-      options: const ExportOptions(
-        includeSessions: false,
-        includeConfig: false,
-        includePasswords: false,
-        includeEmbeddedKeys: false,
-        includeManagerKeys: false,
+      input: ExportPayloadInput(
+        options: const ExportOptions(
+          includeSessions: false,
+          includeConfig: false,
+          includePasswords: false,
+          includeEmbeddedKeys: false,
+          includeManagerKeys: false,
+        ),
+        knownHostsContent: content,
       ),
-      knownHostsContent: content,
     );
   }
 
   int _tagsSize() {
     if (_cachedTagsSize != null) return _cachedTagsSize!;
-    if (widget.tags.isEmpty) return _cachedTagsSize = 0;
+    if (widget.data.tags.isEmpty) return _cachedTagsSize = 0;
     return _cachedTagsSize = calculateExportPayloadSize(
       [],
-      options: const ExportOptions(
-        includeSessions: false,
-        includeConfig: false,
-        includeTags: true,
+      input: ExportPayloadInput(
+        options: const ExportOptions(
+          includeSessions: false,
+          includeConfig: false,
+          includeTags: true,
+        ),
+        tags: widget.data.tags,
       ),
-      tags: widget.tags,
     );
   }
 
   int _snippetsSize() {
     if (_cachedSnippetsSize != null) return _cachedSnippetsSize!;
-    if (widget.snippets.isEmpty) return _cachedSnippetsSize = 0;
+    if (widget.data.snippets.isEmpty) return _cachedSnippetsSize = 0;
     return _cachedSnippetsSize = calculateExportPayloadSize(
       [],
-      options: const ExportOptions(
-        includeSessions: false,
-        includeConfig: false,
-        includeSnippets: true,
+      input: ExportPayloadInput(
+        options: const ExportOptions(
+          includeSessions: false,
+          includeConfig: false,
+          includeSnippets: true,
+        ),
+        snippets: widget.data.snippets,
       ),
-      snippets: widget.snippets,
     );
   }
 
@@ -426,9 +424,9 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
       _options.includeConfig ||
       _options.includeKnownHosts ||
       _options.includeAllManagerKeys ||
-      (_options.includeTags && widget.tags.isNotEmpty) ||
-      (_options.includeSnippets && widget.snippets.isNotEmpty);
-  bool get _allSelected => _selectedIds.length == widget.sessions.length;
+      (_options.includeTags && widget.data.tags.isNotEmpty) ||
+      (_options.includeSnippets && widget.data.snippets.isNotEmpty);
+  bool get _allSelected => _selectedIds.length == widget.data.sessions.length;
   bool? get _tristateValue {
     if (_allSelected) return true;
     if (_selectedIds.isEmpty) return false;
@@ -439,7 +437,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     setState(() {
       _invalidatePayloadCache();
       if (select) {
-        _selectedIds.addAll(widget.sessions.map((s) => s.id));
+        _selectedIds.addAll(widget.data.sessions.map((s) => s.id));
       } else {
         _selectedIds.clear();
       }
@@ -458,7 +456,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
   }
 
   void _toggleFolder(String folderPath) {
-    final folderSessionIds = widget.sessions
+    final folderSessionIds = widget.data.sessions
         .where(
           (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
         )
@@ -476,7 +474,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
   }
 
   bool? _isFolderPartial(String folderPath) {
-    final folderSessionIds = widget.sessions
+    final folderSessionIds = widget.data.sessions
         .where(
           (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
         )
@@ -511,8 +509,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
   @override
   Widget build(BuildContext context) {
     final tree = SessionTree.build(
-      widget.sessions,
-      emptyFolders: widget.emptyFolders,
+      widget.data.sessions,
+      emptyFolders: widget.data.emptyFolders,
     );
     final sizePercent = widget.isQrMode && qrMaxPayloadBytes > 0
         ? (_payloadSize / qrMaxPayloadBytes).clamp(0.0, 1.0)
@@ -637,7 +635,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
               onSelected: (_) => setState(() {
                 _invalidatePayloadCache();
                 _options = _fullBackupPreset;
-                _selectedIds.addAll(widget.sessions.map((s) => s.id));
+                _selectedIds.addAll(widget.data.sessions.map((s) => s.id));
               }),
             ),
             ChoiceChip(
@@ -661,7 +659,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (widget.config != null)
+        if (widget.data.config != null)
           _buildCheckboxRow(
             Icons.settings,
             S.of(context).appSettings,
@@ -727,7 +725,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _formatSize(_managerKeysExtraSize()),
           warningText: _allManagerKeysWarningText,
         ),
-        if (widget.knownHostsContent?.isNotEmpty == true)
+        if (widget.data.knownHostsContent?.isNotEmpty == true)
           _buildCheckboxRow(
             Icons.verified_user,
             S.of(context).knownHosts,
@@ -878,7 +876,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             Text(
               S
                   .of(context)
-                  .qrSelectAll(_selectedIds.length, widget.sessions.length),
+                  .qrSelectAll(
+                    _selectedIds.length,
+                    widget.data.sessions.length,
+                  ),
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: AppFonts.md,

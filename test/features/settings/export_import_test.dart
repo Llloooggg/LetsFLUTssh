@@ -63,10 +63,12 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'test-password',
-        sessions: sessions,
-        config: config,
         outputPath: outputPath,
-        options: const ExportOptions(includeConfig: true),
+        input: LfsExportInput(
+          sessions: sessions,
+          config: config,
+          options: const ExportOptions(includeConfig: true),
+        ),
       );
 
       expect(await File(outputPath).exists(), isTrue);
@@ -97,10 +99,12 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: [],
-        config: config,
         outputPath: outputPath,
-        options: const ExportOptions(includeConfig: true),
+        input: LfsExportInput(
+          sessions: const [],
+          config: config,
+          options: const ExportOptions(includeConfig: true),
+        ),
       );
 
       final result = await ExportImport.import_(
@@ -125,13 +129,15 @@ void main() {
       // Export only sessions + known_hosts, no config
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: sessions,
-        config: AppConfig.defaults,
         outputPath: outputPath,
-        options: const ExportOptions(
-          includeSessions: true,
-          includeConfig: false,
-          includeKnownHosts: false,
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          options: const ExportOptions(
+            includeSessions: true,
+            includeConfig: false,
+            includeKnownHosts: false,
+          ),
         ),
       );
 
@@ -157,9 +163,8 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: [],
-        config: AppConfig.defaults,
         outputPath: outputPath,
+        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
       );
 
       final result = await ExportImport.import_(
@@ -178,10 +183,12 @@ void main() {
       final outputPath = '${tempDir.path}/withkh.lfs';
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: [],
-        config: AppConfig.defaults,
         outputPath: outputPath,
-        knownHostsContent: knownHostsContent,
+        input: const LfsExportInput(
+          sessions: [],
+          config: AppConfig.defaults,
+          knownHostsContent: knownHostsContent,
+        ),
       );
 
       final result = await ExportImport.import_(
@@ -202,9 +209,8 @@ void main() {
       final outputPath = '${tempDir.path}/nokh.lfs';
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: [],
-        config: AppConfig.defaults,
         outputPath: outputPath,
+        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
       );
 
       final result = await ExportImport.import_(
@@ -229,10 +235,12 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: sessions,
-        config: AppConfig.defaults,
         outputPath: outputPath,
-        options: const ExportOptions(includeConfig: true),
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          options: const ExportOptions(includeConfig: true),
+        ),
       );
 
       final preview = await ExportImport.preview(
@@ -252,9 +260,8 @@ void main() {
       final outputPath = '${tempDir.path}/encrypted.lfs';
       await ExportImport.export(
         masterPassword: 'correct',
-        sessions: [],
-        config: AppConfig.defaults,
         outputPath: outputPath,
+        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
       );
 
       expect(
@@ -277,10 +284,12 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: sessions,
-        config: AppConfig.defaults,
         outputPath: outputPath,
-        emptyFolders: emptyFolders,
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          emptyFolders: emptyFolders,
+        ),
       );
 
       final result = await ExportImport.import_(
@@ -299,10 +308,12 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: sessions,
-        config: AppConfig.defaults,
         outputPath: outputPath,
-        emptyFolders: const {},
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          emptyFolders: const {},
+        ),
       );
 
       final result = await ExportImport.import_(
@@ -322,11 +333,13 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: sessions,
-        config: AppConfig.defaults,
         outputPath: outputPath,
-        knownHostsContent: 'host ssh-rsa AAA',
-        options: const ExportOptions(includeKnownHosts: false),
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          knownHostsContent: 'host ssh-rsa AAA',
+          options: const ExportOptions(includeKnownHosts: false),
+        ),
       );
 
       final result = await ExportImport.import_(
@@ -347,12 +360,11 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: sessions,
-        config: AppConfig.defaults,
         outputPath: outputPath,
         // Note: ExportImport.export always uses toJsonWithCredentials,
         // so passwords are in sessions.json. The selectivity is at the
         // import level — if includeSessions=false, sessions aren't read.
+        input: LfsExportInput(sessions: sessions, config: AppConfig.defaults),
       );
 
       final result = await ExportImport.import_(
@@ -374,10 +386,12 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: sessions,
-        config: AppConfig.defaults,
         outputPath: outputPath,
-        emptyFolders: {'A', 'B', 'C'},
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          emptyFolders: const {'A', 'B', 'C'},
+        ),
       );
 
       final preview = await ExportImport.preview(
@@ -395,9 +409,8 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: sessions,
-        config: AppConfig.defaults,
         outputPath: outputPath,
+        input: LfsExportInput(sessions: sessions, config: AppConfig.defaults),
       );
 
       final preview = await ExportImport.preview(
@@ -414,9 +427,8 @@ void main() {
 
       await ExportImport.export(
         masterPassword: 'pw',
-        sessions: [],
-        config: AppConfig.defaults,
         outputPath: outputPath,
+        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
       );
 
       final preview = await ExportImport.preview(

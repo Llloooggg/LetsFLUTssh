@@ -80,7 +80,10 @@ void main() {
     test('encodes empty folders', () {
       final sessions = [makeSession()];
       final result = decodeExportPayload(
-        encodeExportPayload(sessions, emptyFolders: {'Staging', 'Dev'}),
+        encodeExportPayload(
+          sessions,
+          input: const ExportPayloadInput(emptyFolders: {'Staging', 'Dev'}),
+        ),
       );
       expect(result!.emptyFolders, containsAll(['Staging', 'Dev']));
     });
@@ -96,7 +99,9 @@ void main() {
       final result = decodeExportPayload(
         encodeExportPayload(
           sessions,
-          options: const ExportOptions(includePasswords: true),
+          input: const ExportPayloadInput(
+            options: ExportOptions(includePasswords: true),
+          ),
         ),
       );
       expect(result!.sessions[0].password, 'supersecret');
@@ -130,7 +135,10 @@ void main() {
         makeSession(label: 'api', host: 'api.com', user: 'admin'),
       ];
       final result = decodeExportPayload(
-        encodeExportPayload(sessions, emptyFolders: {'Staging'}),
+        encodeExportPayload(
+          sessions,
+          input: const ExportPayloadInput(emptyFolders: {'Staging'}),
+        ),
       );
       expect(result, isNotNull);
       expect(result!.sessions, hasLength(2));
@@ -151,7 +159,9 @@ void main() {
       final result = decodeExportPayload(
         encodeExportPayload(
           sessions,
-          options: const ExportOptions(includePasswords: true),
+          input: const ExportPayloadInput(
+            options: ExportOptions(includePasswords: true),
+          ),
         ),
       );
       expect(result!.sessions[0].password, 'secret');
@@ -298,7 +308,9 @@ void main() {
       // 3 sessions with 2KB keys should fit in 2KB after dedup + deflate
       final size = calculateExportPayloadSize(
         sessions,
-        options: const ExportOptions(includeEmbeddedKeys: true),
+        input: const ExportPayloadInput(
+          options: ExportOptions(includeEmbeddedKeys: true),
+        ),
       );
       expect(size, lessThan(qrMaxPayloadBytes));
     });
@@ -308,7 +320,10 @@ void main() {
     test('includes config in QR payload', () {
       final sessions = [makeSession()];
       final result = decodeExportPayload(
-        encodeExportPayload(sessions, config: AppConfig.defaults),
+        encodeExportPayload(
+          sessions,
+          input: const ExportPayloadInput(config: AppConfig.defaults),
+        ),
       );
       expect(result, isNotNull);
       expect(result!.config, isNotNull);
@@ -318,7 +333,10 @@ void main() {
       final sessions = [makeSession()];
       const khContent = 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI';
       final result = decodeExportPayload(
-        encodeExportPayload(sessions, knownHostsContent: khContent),
+        encodeExportPayload(
+          sessions,
+          input: const ExportPayloadInput(knownHostsContent: khContent),
+        ),
       );
       expect(result, isNotNull);
       expect(result!.knownHostsContent, khContent);
@@ -329,8 +347,10 @@ void main() {
       final result = decodeExportPayload(
         encodeExportPayload(
           sessions,
-          config: AppConfig.defaults,
-          knownHostsContent: 'host ssh-rsa AAA',
+          input: const ExportPayloadInput(
+            config: AppConfig.defaults,
+            knownHostsContent: 'host ssh-rsa AAA',
+          ),
         ),
       );
       expect(result, isNotNull);
@@ -343,9 +363,12 @@ void main() {
     test('includePasswords=false excludes password', () {
       final session = makeSession(password: 'secret123');
       final result = decodeExportPayload(
-        encodeExportPayload([
-          session,
-        ], options: const ExportOptions(includePasswords: false)),
+        encodeExportPayload(
+          [session],
+          input: const ExportPayloadInput(
+            options: ExportOptions(includePasswords: false),
+          ),
+        ),
       );
       expect(result!.sessions[0].password, '');
     });
@@ -360,9 +383,12 @@ void main() {
         ),
       );
       final result = decodeExportPayload(
-        encodeExportPayload([
-          session,
-        ], options: const ExportOptions(includeEmbeddedKeys: true)),
+        encodeExportPayload(
+          [session],
+          input: const ExportPayloadInput(
+            options: ExportOptions(includeEmbeddedKeys: true),
+          ),
+        ),
       );
       expect(result!.sessions[0].keyData, 'ssh-rsa AAAAB3...');
     });
@@ -377,9 +403,12 @@ void main() {
         ),
       );
       final result = decodeExportPayload(
-        encodeExportPayload([
-          session,
-        ], options: const ExportOptions(includeEmbeddedKeys: false)),
+        encodeExportPayload(
+          [session],
+          input: const ExportPayloadInput(
+            options: ExportOptions(includeEmbeddedKeys: false),
+          ),
+        ),
       );
       expect(result!.sessions[0].keyData, '');
     });
@@ -405,8 +434,10 @@ void main() {
       final result = decodeExportPayload(
         encodeExportPayload(
           [session],
-          options: const ExportOptions(includeManagerKeys: true),
-          managerKeyEntries: {'mgr-123': keyEntry},
+          input: ExportPayloadInput(
+            options: const ExportOptions(includeManagerKeys: true),
+            managerKeyEntries: {'mgr-123': keyEntry},
+          ),
         ),
       );
       // Manager key: keyData empty (loaded from KeyStore on import),
@@ -430,9 +461,12 @@ void main() {
         ),
       );
       final result = decodeExportPayload(
-        encodeExportPayload([
-          session,
-        ], options: const ExportOptions(includeManagerKeys: false)),
+        encodeExportPayload(
+          [session],
+          input: const ExportPayloadInput(
+            options: ExportOptions(includeManagerKeys: false),
+          ),
+        ),
       );
       expect(result!.sessions[0].keyData, '');
     });
@@ -447,7 +481,9 @@ void main() {
       final result = decodeExportPayload(
         encodeExportPayload(
           sessions,
-          options: const ExportOptions(includeEmbeddedKeys: true),
+          input: const ExportPayloadInput(
+            options: ExportOptions(includeEmbeddedKeys: true),
+          ),
         ),
       );
       expect(result!.sessions, hasLength(3));
@@ -463,9 +499,12 @@ void main() {
         auth: const SessionAuth(authType: AuthType.key, keyData: 'ssh-rsa AAA'),
       );
       final result = decodeExportPayload(
-        encodeExportPayload([
-          session,
-        ], options: const ExportOptions(includeEmbeddedKeys: true)),
+        encodeExportPayload(
+          [session],
+          input: const ExportPayloadInput(
+            options: ExportOptions(includeEmbeddedKeys: true),
+          ),
+        ),
       );
       expect(result!.sessions[0].isValid, isTrue);
     });
@@ -473,9 +512,12 @@ void main() {
     test('decoded sessions without credentials are incomplete', () {
       final session = makeSession();
       final result = decodeExportPayload(
-        encodeExportPayload([
-          session,
-        ], options: const ExportOptions(includePasswords: false)),
+        encodeExportPayload(
+          [session],
+          input: const ExportPayloadInput(
+            options: ExportOptions(includePasswords: false),
+          ),
+        ),
       );
       expect(result!.sessions[0].isValid, isFalse);
     });
@@ -673,10 +715,12 @@ void main() {
       final result = decodeExportPayload(
         encodeExportPayload(
           sessions,
-          options: const ExportOptions(includeTags: true),
-          tags: tags,
-          sessionTags: sessionTags,
-          folderTags: folderTags,
+          input: ExportPayloadInput(
+            options: const ExportOptions(includeTags: true),
+            tags: tags,
+            sessionTags: sessionTags,
+            folderTags: folderTags,
+          ),
         ),
       );
       expect(result!.tags, hasLength(2));
@@ -712,9 +756,11 @@ void main() {
       final result = decodeExportPayload(
         encodeExportPayload(
           sessions,
-          options: const ExportOptions(includeSnippets: true),
-          snippets: snippets,
-          sessionSnippets: sessionSnippets,
+          input: ExportPayloadInput(
+            options: const ExportOptions(includeSnippets: true),
+            snippets: snippets,
+            sessionSnippets: sessionSnippets,
+          ),
         ),
       );
       expect(result!.snippets, hasLength(2));
@@ -731,8 +777,10 @@ void main() {
       final result = decodeExportPayload(
         encodeExportPayload(
           sessions,
-          tags: [Tag(id: 't1', name: 'Prod')],
-          snippets: [Snippet(id: 'sn1', title: 'X', command: 'x')],
+          input: ExportPayloadInput(
+            tags: [Tag(id: 't1', name: 'Prod')],
+            snippets: [Snippet(id: 'sn1', title: 'X', command: 'x')],
+          ),
         ),
       );
       expect(result!.tags, isEmpty);
@@ -770,8 +818,10 @@ void main() {
       final result = decodeExportPayload(
         encodeExportPayload(
           [session],
-          options: const ExportOptions(includeAllManagerKeys: true),
-          managerKeyEntries: allKeys,
+          input: ExportPayloadInput(
+            options: const ExportOptions(includeAllManagerKeys: true),
+            managerKeyEntries: allKeys,
+          ),
         ),
       );
       // Both keys should be in managerKeys (one from session, one extra).
@@ -788,7 +838,10 @@ void main() {
       final sessions = [makeSession(folder: 'Production/Web')];
       final emptyFolders = {'Production', 'Staging'};
       final result = decodeExportPayload(
-        encodeExportPayload(sessions, emptyFolders: emptyFolders),
+        encodeExportPayload(
+          sessions,
+          input: ExportPayloadInput(emptyFolders: emptyFolders),
+        ),
       );
       expect(result!.emptyFolders, containsAll(['Production', 'Staging']));
       expect(result.emptyFolders, isNot(contains('Prod')));
