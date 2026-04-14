@@ -1,7 +1,10 @@
 import '../../utils/logger.dart';
 import '../config/app_config.dart';
 import '../security/key_store.dart';
+import '../snippets/snippet.dart';
+import '../tags/tag.dart';
 import '../../features/settings/export_import.dart';
+import '../session/qr_codec.dart' show ExportLink, ExportFolderTagLink;
 import '../session/session.dart';
 
 /// Applies import results to session and config state.
@@ -18,6 +21,16 @@ class ImportService {
   /// Save a manager key and return its new ID (may differ from the original).
   final Future<String> Function(SshKeyEntry entry)? saveManagerKey;
 
+  /// Tag import callbacks.
+  final Future<String> Function(Tag tag)? saveTag;
+  final Future<void> Function(String sessionId, String tagId)? tagSession;
+  final Future<void> Function(String folderId, String tagId)? tagFolder;
+
+  /// Snippet import callbacks.
+  final Future<String> Function(Snippet snippet)? saveSnippet;
+  final Future<void> Function(String snippetId, String sessionId)?
+  linkSnippetToSession;
+
   /// Optional callbacks for rollback support in replace mode.
   /// When provided, a snapshot is taken before deleting existing sessions.
   /// If import fails, the snapshot is restored.
@@ -32,6 +45,11 @@ class ImportService {
     required this.getSessions,
     required this.applyConfig,
     this.saveManagerKey,
+    this.saveTag,
+    this.tagSession,
+    this.tagFolder,
+    this.saveSnippet,
+    this.linkSnippetToSession,
     this.getEmptyFolders,
     this.restoreSnapshot,
   });
@@ -57,27 +75,24 @@ class ImportService {
     final keyIdMap = await _importManagerKeys(result.managerKeys);
 
     // Remap session keyIds to the newly inserted key IDs
-    final remappedResult = keyIdMap.isEmpty
-        ? result
-        : ImportResult(
-            sessions: result.sessions.map((s) {
-              final newKeyId = keyIdMap[s.keyId];
-              if (newKeyId == null) return s;
-              return s.copyWith(auth: s.auth.copyWith(keyId: newKeyId));
-            }).toList(),
-            emptyFolders: result.emptyFolders,
-            managerKeys: result.managerKeys,
-            config: result.config,
-            mode: result.mode,
-            knownHostsContent: result.knownHostsContent,
-          );
+    final sessions = keyIdMap.isEmpty
+        ? result.sessions
+        : result.sessions.map((s) {
+            final newKeyId = keyIdMap[s.keyId];
+            if (newKeyId == null) return s;
+            return s.copyWith(auth: s.auth.copyWith(keyId: newKeyId));
+          }).toList();
 
-    final imported = await _importSessions(remappedResult, snapshot);
+    final imported = await _importSessions(
+      ImportResult(
+        sessions: sessions,
+        emptyFolders: result.emptyFolders,
+        mode: result.mode,
+      ),
+      snapshot,
+    );
 
-    // Import empty folders.
-    // NOTE: in replace mode this code is never reached if _importSessions
-    // throws — the entire import is rolled back (including folders) to
-    // prevent partial state.
+    // Import empty folders
     var foldersImported = 0;
     for (final folder in result.emptyFolders) {
       try {
@@ -95,6 +110,14 @@ class ImportService {
       }
     }
 
+    // Import tags and their session/folder assignments
+    final tagIdMap = await _importTags(result.tags);
+    await _importTagLinks(result.sessionTags, result.folderTags, tagIdMap);
+
+    // Import snippets and their session links
+    final snippetIdMap = await _importSnippets(result.snippets);
+    await _importSnippetLinks(result.sessionSnippets, snippetIdMap);
+
     // Apply config
     if (result.config != null) {
       try {
@@ -110,7 +133,9 @@ class ImportService {
 
     AppLogger.instance.log(
       'Import complete: $imported/${result.sessions.length} sessions, '
-      '$foldersImported/${result.emptyFolders.length} folders imported',
+      '$foldersImported/${result.emptyFolders.length} folders, '
+      '${tagIdMap.length}/${result.tags.length} tags, '
+      '${snippetIdMap.length}/${result.snippets.length} snippets imported',
       name: 'Import',
     );
   }
@@ -136,6 +161,89 @@ class ImportService {
       name: 'Import',
     );
     return idMap;
+  }
+
+  /// Import tags. Returns oldId→newId map.
+  Future<Map<String, String>> _importTags(List<Tag> tags) async {
+    if (tags.isEmpty || saveTag == null) return {};
+    final idMap = <String, String>{};
+    for (final tag in tags) {
+      try {
+        final newId = await saveTag!(tag);
+        idMap[tag.id] = newId;
+      } catch (e) {
+        AppLogger.instance.log('Skipped tag ${tag.name}: $e', name: 'Import');
+      }
+    }
+    return idMap;
+  }
+
+  /// Apply session→tag and folder→tag links with remapped IDs.
+  Future<void> _importTagLinks(
+    List<ExportLink> sessionLinks,
+    List<ExportFolderTagLink> folderLinks,
+    Map<String, String> tagIdMap,
+  ) async {
+    if (tagSession != null) {
+      for (final link in sessionLinks) {
+        final newTagId = tagIdMap[link.targetId] ?? link.targetId;
+        try {
+          await tagSession!(link.sessionId, newTagId);
+        } catch (e) {
+          AppLogger.instance.log(
+            'Skipped session-tag link: $e',
+            name: 'Import',
+          );
+        }
+      }
+    }
+    if (tagFolder != null) {
+      for (final link in folderLinks) {
+        final newTagId = tagIdMap[link.tagId] ?? link.tagId;
+        try {
+          await tagFolder!(link.folderPath, newTagId);
+        } catch (e) {
+          AppLogger.instance.log('Skipped folder-tag link: $e', name: 'Import');
+        }
+      }
+    }
+  }
+
+  /// Import snippets. Returns oldId→newId map.
+  Future<Map<String, String>> _importSnippets(List<Snippet> snippets) async {
+    if (snippets.isEmpty || saveSnippet == null) return {};
+    final idMap = <String, String>{};
+    for (final snippet in snippets) {
+      try {
+        final newId = await saveSnippet!(snippet);
+        idMap[snippet.id] = newId;
+      } catch (e) {
+        AppLogger.instance.log(
+          'Skipped snippet ${snippet.title}: $e',
+          name: 'Import',
+        );
+      }
+    }
+    return idMap;
+  }
+
+  /// Apply session→snippet links with remapped IDs.
+  Future<void> _importSnippetLinks(
+    List<ExportLink> links,
+    Map<String, String> snippetIdMap,
+  ) async {
+    if (linkSnippetToSession == null) return;
+    for (final link in links) {
+      final newSnippetId = snippetIdMap[link.targetId] ?? link.targetId;
+      try {
+        await linkSnippetToSession!(newSnippetId, link.sessionId);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Skipped session-snippet link: $e',
+          name: 'Import',
+        );
+      }
+    }
   }
 
   /// Takes a snapshot of existing sessions (when rollback callbacks are
