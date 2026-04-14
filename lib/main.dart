@@ -329,34 +329,44 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Future<void> _initSecurity() async {
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
+    final dbExists = await databaseFileExists();
 
-    // 1. Master password — show unlock dialog.
-    if (await manager.isEnabled()) {
-      if (!mounted) return;
-      final derivedKey = await _showUnlockDialog(manager);
-      if (derivedKey != null) {
-        _injectDatabase(key: derivedKey, level: SecurityLevel.masterPassword);
-        AppLogger.instance.log('Master password unlocked', name: 'App');
-      } else {
-        _credentialsWereReset = true;
-        _injectDatabase(); // Open DB without encryption after reset
-        AppLogger.instance.log(
-          'Master password reset — credentials cleared',
-          name: 'App',
-        );
+    if (dbExists) {
+      // Existing v4 install — unlock with stored credentials.
+
+      // 1. Master password — show unlock dialog.
+      if (await manager.isEnabled()) {
+        if (!mounted) return;
+        final derivedKey = await _showUnlockDialog(manager);
+        if (derivedKey != null) {
+          _injectDatabase(key: derivedKey, level: SecurityLevel.masterPassword);
+          AppLogger.instance.log('Master password unlocked', name: 'App');
+        } else {
+          _credentialsWereReset = true;
+          _injectDatabase(); // Open DB without encryption after reset
+          AppLogger.instance.log(
+            'Master password reset — credentials cleared',
+            name: 'App',
+          );
+        }
+        return;
       }
+
+      // 2. Keychain key exists — use it.
+      final keychainKey = await keyStorage.readKey();
+      if (keychainKey != null) {
+        _injectDatabase(key: keychainKey, level: SecurityLevel.keychain);
+        AppLogger.instance.log('Keychain key loaded', name: 'App');
+        return;
+      }
+
+      // 3. DB exists but no encryption credentials — plaintext mode.
+      _injectDatabase();
+      AppLogger.instance.log('Plaintext mode (existing DB)', name: 'App');
       return;
     }
 
-    // 2. Keychain key exists — use it.
-    final keychainKey = await keyStorage.readKey();
-    if (keychainKey != null) {
-      _injectDatabase(key: keychainKey, level: SecurityLevel.keychain);
-      AppLogger.instance.log('Keychain key loaded', name: 'App');
-      return;
-    }
-
-    // 3. First launch (or clean install) — show security setup wizard.
+    // No DB file — first launch. Show security setup wizard.
     await _firstLaunchSetup(manager, keyStorage);
   }
 

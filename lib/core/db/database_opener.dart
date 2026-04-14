@@ -10,6 +10,15 @@ import 'database.dart';
 
 const _dbFileName = 'letsflutssh.db';
 
+/// Whether the database file already exists on disk.
+///
+/// Returns false on first launch (before any DB has been created).
+Future<bool> databaseFileExists() async {
+  final dir = await getApplicationDocumentsDirectory();
+  final file = File(p.join(dir.path, 'LetsFLUTssh', _dbFileName));
+  return file.exists();
+}
+
 /// Open the app database with optional encryption.
 ///
 /// [encryptionKey] — 32-byte key for SQLite3MultipleCiphers.
