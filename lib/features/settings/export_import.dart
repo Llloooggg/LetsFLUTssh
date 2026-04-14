@@ -218,6 +218,17 @@ class ExportImport {
     }
   }
 
+  /// Estimate the final .lfs file size (bytes) for given inputs without
+  /// actually writing to disk or running PBKDF2.
+  ///
+  /// Builds the ZIP archive in memory and adds fixed encryption overhead:
+  /// salt (32) + IV (12) + GCM tag (16) = 60 bytes.
+  static int calculateLfsSize(LfsExportInput input) {
+    final archive = _buildArchive(input);
+    final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
+    return zipBytes.length + _saltLen + _ivLen + 16;
+  }
+
   /// Decrypt an .lfs file and parse the archive contents.
   static Future<_ParsedArchive> _decryptAndParseArchive({
     required String filePath,

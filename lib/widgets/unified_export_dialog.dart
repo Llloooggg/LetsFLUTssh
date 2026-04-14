@@ -4,7 +4,9 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 
 import '../core/config/app_config.dart';
+import '../core/security/key_store.dart';
 import '../core/session/qr_codec.dart';
+import '../../features/settings/export_import.dart';
 import '../core/session/session.dart';
 import '../core/snippets/snippet.dart';
 import '../core/tags/tag.dart';
@@ -26,9 +28,11 @@ class UnifiedExportDialogData {
   final String? knownHostsContent;
 
   /// Map of keyId -> keyData for keys stored in the manager.
-  /// Used to calculate export size for manager keys separately from
-  /// embedded keys.
+  /// Used for QR-mode manager key size estimation.
   final Map<String, String> managerKeys;
+
+  /// Full SshKeyEntry map for .lfs archive size estimation.
+  final Map<String, SshKeyEntry> managerKeyEntries;
 
   /// All tags for size calculation and export.
   final List<Tag> tags;
@@ -42,6 +46,7 @@ class UnifiedExportDialogData {
     this.config,
     this.knownHostsContent,
     this.managerKeys = const {},
+    this.managerKeyEntries = const {},
     this.tags = const [],
     this.snippets = const [],
   });
@@ -173,8 +178,16 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     if (_payloadSizeCacheValid && _cachedPayloadSize != null) {
       return _cachedPayloadSize!;
     }
-    // Base size without any manager keys (sessions have unresolved keyId,
-    // so encodeExportPayload can't calculate manager key sizes).
+    final result = widget.isQrMode ? _qrPayloadSize() : _lfsArchiveSize();
+    _cachedPayloadSize = result;
+    _cachedPayloadOptions = _options;
+    _cachedPayloadSelectedIds = Set.of(_selectedIds);
+    _cachedPayloadKnownHosts = widget.data.knownHostsContent;
+    return result;
+  }
+
+  /// QR payload size: deflate-compressed JSON, base64url-encoded.
+  int _qrPayloadSize() {
     final base = calculateExportPayloadSize(
       _selectedSessions,
       input: ExportPayloadInput(
@@ -188,15 +201,53 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             : null,
       ),
     );
-    // Add manager keys size separately (uses actual key data from widget).
-    final result = _options.hasManagerKeys
-        ? base + _managerKeysExtraSize()
-        : base;
-    _cachedPayloadSize = result;
-    _cachedPayloadOptions = _options;
-    _cachedPayloadSelectedIds = Set.of(_selectedIds);
-    _cachedPayloadKnownHosts = widget.data.knownHostsContent;
-    return result;
+    return _options.hasManagerKeys ? base + _managerKeysExtraSize() : base;
+  }
+
+  /// .lfs archive size: ZIP + AES-GCM overhead (salt+IV+tag = 60 bytes).
+  int _lfsArchiveSize() {
+    final resolvedSessions = _resolveSessionsForLfsSize();
+    final keyEntries = _selectedManagerKeyEntries();
+    return ExportImport.calculateLfsSize(
+      LfsExportInput(
+        sessions: resolvedSessions,
+        config: widget.data.config ?? AppConfig.defaults,
+        options: _options,
+        emptyFolders: _relevantEmptyFolders,
+        knownHostsContent: widget.data.knownHostsContent,
+        managerKeyEntries: keyEntries,
+        tags: _options.includeTags ? widget.data.tags : const [],
+        snippets: _options.includeSnippets ? widget.data.snippets : const [],
+      ),
+    );
+  }
+
+  /// Resolve manager-key sessions with their keyData for accurate size calc.
+  List<Session> _resolveSessionsForLfsSize() {
+    final entries = widget.data.managerKeyEntries;
+    if (entries.isEmpty) return _selectedSessions;
+    return _selectedSessions.map((s) {
+      if (s.keyId.isEmpty || s.keyData.isNotEmpty) return s;
+      final entry = entries[s.keyId];
+      if (entry == null) return s;
+      return s.copyWith(auth: s.auth.copyWith(keyData: entry.privateKey));
+    }).toList();
+  }
+
+  /// Pick manager key entries to include in .lfs archive per current options.
+  List<SshKeyEntry> _selectedManagerKeyEntries() {
+    if (!_options.hasManagerKeys) return const [];
+    final all = widget.data.managerKeyEntries;
+    if (all.isEmpty) return const [];
+    if (_options.includeAllManagerKeys) return all.values.toList();
+    final usedIds = _selectedSessions
+        .where((s) => s.keyId.isNotEmpty)
+        .map((s) => s.keyId)
+        .toSet();
+    return all.entries
+        .where((e) => usedIds.contains(e.key))
+        .map((e) => e.value)
+        .toList();
   }
 
   /// Size contribution of one credential type, measured against a baseline
