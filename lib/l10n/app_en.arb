@@ -1083,5 +1083,25 @@
     }
   },
   "manageTags": "Manage Tags",
-  "editTags": "Edit Tags"
+  "editTags": "Edit Tags",
+  "fullBackup": "Full backup",
+  "sessionsOnly": "Sessions",
+  "sessionKeysFromManager": "Session keys from manager",
+  "allKeysFromManager": "All keys from manager",
+  "exportTags": "Tags ({count})",
+  "@exportTags": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportSnippets": "Snippets ({count})",
+  "@exportSnippets": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

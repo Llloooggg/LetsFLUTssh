@@ -467,5 +467,11 @@
   "manageMasterPasswordSubtitle": "Définir, modifier ou supprimer le mot de passe principal",
   "emptyFolders": "Dossiers vides",
   "enterMasterPasswordPrompt": "Entrez le mot de passe principal:",
-  "nextStep": "Suivant"
+  "nextStep": "Suivant",
+  "fullBackup": "Sauvegarde complète",
+  "sessionsOnly": "Sessions",
+  "sessionKeysFromManager": "Clés de session du gestionnaire",
+  "allKeysFromManager": "Toutes les clés du gestionnaire",
+  "exportTags": "Étiquettes ({count})",
+  "exportSnippets": "Extraits ({count})"
 }

@@ -1708,4 +1708,26 @@ class SAr extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'نسخة احتياطية كاملة';
+
+  @override
+  String get sessionsOnly => 'الجلسات';
+
+  @override
+  String get sessionKeysFromManager => 'مفاتيح الجلسات من المدير';
+
+  @override
+  String get allKeysFromManager => 'جميع المفاتيح من المدير';
+
+  @override
+  String exportTags(int count) {
+    return 'الوسوم ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'القصاصات ($count)';
+  }
 }

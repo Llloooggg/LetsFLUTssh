@@ -461,5 +461,11 @@
   "manageMasterPasswordSubtitle": "تعيين أو تغيير أو إزالة كلمة المرور الرئيسية",
   "emptyFolders": "مجلدات فارغة",
   "enterMasterPasswordPrompt": "أدخل كلمة المرور الرئيسية:",
-  "nextStep": "التالي"
+  "nextStep": "التالي",
+  "fullBackup": "نسخة احتياطية كاملة",
+  "sessionsOnly": "الجلسات",
+  "sessionKeysFromManager": "مفاتيح الجلسات من المدير",
+  "allKeysFromManager": "جميع المفاتيح من المدير",
+  "exportTags": "الوسوم ({count})",
+  "exportSnippets": "القصاصات ({count})"
 }

@@ -467,5 +467,11 @@
   "manageMasterPasswordSubtitle": "마스터 비밀번호 설정, 변경 또는 제거",
   "emptyFolders": "빈 폴더",
   "enterMasterPasswordPrompt": "마스터 비밀번호 입력:",
-  "nextStep": "다음"
+  "nextStep": "다음",
+  "fullBackup": "전체 백업",
+  "sessionsOnly": "세션",
+  "sessionKeysFromManager": "관리자의 세션 키",
+  "allKeysFromManager": "관리자의 모든 키",
+  "exportTags": "태그 ({count})",
+  "exportSnippets": "스니펫 ({count})"
 }

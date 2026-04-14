@@ -467,5 +467,11 @@
   "manageMasterPasswordSubtitle": "Master-Passwort festlegen, ändern oder entfernen",
   "emptyFolders": "Leere Ordner",
   "enterMasterPasswordPrompt": "Master-Passwort eingeben:",
-  "nextStep": "Weiter"
+  "nextStep": "Weiter",
+  "fullBackup": "Vollständige Sicherung",
+  "sessionsOnly": "Sitzungen",
+  "sessionKeysFromManager": "Sitzungsschlüssel aus dem Manager",
+  "allKeysFromManager": "Alle Schlüssel aus dem Manager",
+  "exportTags": "Tags ({count})",
+  "exportSnippets": "Snippets ({count})"
 }

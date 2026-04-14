@@ -1729,4 +1729,26 @@ class SDe extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Vollständige Sicherung';
+
+  @override
+  String get sessionsOnly => 'Sitzungen';
+
+  @override
+  String get sessionKeysFromManager => 'Sitzungsschlüssel aus dem Manager';
+
+  @override
+  String get allKeysFromManager => 'Alle Schlüssel aus dem Manager';
+
+  @override
+  String exportTags(int count) {
+    return 'Tags ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Snippets ($count)';
+  }
 }

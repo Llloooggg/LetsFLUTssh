@@ -1717,4 +1717,26 @@ class SHi extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'पूर्ण बैकअप';
+
+  @override
+  String get sessionsOnly => 'सत्र';
+
+  @override
+  String get sessionKeysFromManager => 'प्रबंधक से सत्र कुंजियाँ';
+
+  @override
+  String get allKeysFromManager => 'प्रबंधक से सभी कुंजियाँ';
+
+  @override
+  String exportTags(int count) {
+    return 'टैग ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'स्निपेट ($count)';
+  }
 }

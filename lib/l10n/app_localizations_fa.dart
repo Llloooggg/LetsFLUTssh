@@ -1709,4 +1709,26 @@ class SFa extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'پشتیبان‌گیری کامل';
+
+  @override
+  String get sessionsOnly => 'نشست‌ها';
+
+  @override
+  String get sessionKeysFromManager => 'کلیدهای نشست از مدیر';
+
+  @override
+  String get allKeysFromManager => 'همه کلیدها از مدیر';
+
+  @override
+  String exportTags(int count) {
+    return 'برچسب‌ها ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'قطعه‌ها ($count)';
+  }
 }

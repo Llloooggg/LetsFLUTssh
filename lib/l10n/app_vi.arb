@@ -461,5 +461,11 @@
   "manageMasterPasswordSubtitle": "Đặt, đổi hoặc xóa mật khẩu chính",
   "emptyFolders": "Thư mục trống",
   "enterMasterPasswordPrompt": "Nhập mật khẩu chính:",
-  "nextStep": "Tiếp theo"
+  "nextStep": "Tiếp theo",
+  "fullBackup": "Sao lưu đầy đủ",
+  "sessionsOnly": "Phiên",
+  "sessionKeysFromManager": "Khóa phiên từ trình quản lý",
+  "allKeysFromManager": "Tất cả khóa từ trình quản lý",
+  "exportTags": "Thẻ ({count})",
+  "exportSnippets": "Đoạn mã ({count})"
 }

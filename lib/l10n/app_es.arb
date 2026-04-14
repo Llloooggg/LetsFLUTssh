@@ -467,5 +467,11 @@
   "manageMasterPasswordSubtitle": "Establecer, cambiar o eliminar contraseña maestra",
   "emptyFolders": "Carpetas vacías",
   "enterMasterPasswordPrompt": "Ingrese contraseña maestra:",
-  "nextStep": "Siguiente"
+  "nextStep": "Siguiente",
+  "fullBackup": "Copia de seguridad completa",
+  "sessionsOnly": "Sesiones",
+  "sessionKeysFromManager": "Claves de sesión del gestor",
+  "allKeysFromManager": "Todas las claves del gestor",
+  "exportTags": "Etiquetas ({count})",
+  "exportSnippets": "Fragmentos ({count})"
 }

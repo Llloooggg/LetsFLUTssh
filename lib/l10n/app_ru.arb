@@ -470,5 +470,11 @@
   "manageMasterPasswordSubtitle": "Установить, изменить или удалить мастер-пароль",
   "emptyFolders": "Пустые папки",
   "enterMasterPasswordPrompt": "Введите мастер-пароль:",
-  "nextStep": "Далее"
+  "nextStep": "Далее",
+  "fullBackup": "Полная резервная копия",
+  "sessionsOnly": "Сессии",
+  "sessionKeysFromManager": "Ключи сессий из менеджера",
+  "allKeysFromManager": "Все ключи из менеджера",
+  "exportTags": "Теги ({count})",
+  "exportSnippets": "Сниппеты ({count})"
 }

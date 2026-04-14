@@ -467,5 +467,11 @@
   "manageMasterPasswordSubtitle": "Definir, alterar ou remover senha mestra",
   "emptyFolders": "Pastas vazias",
   "enterMasterPasswordPrompt": "Digite a senha mestra:",
-  "nextStep": "Próximo"
+  "nextStep": "Próximo",
+  "fullBackup": "Backup completo",
+  "sessionsOnly": "Sessões",
+  "sessionKeysFromManager": "Chaves de sessão do gerenciador",
+  "allKeysFromManager": "Todas as chaves do gerenciador",
+  "exportTags": "Tags ({count})",
+  "exportSnippets": "Snippets ({count})"
 }

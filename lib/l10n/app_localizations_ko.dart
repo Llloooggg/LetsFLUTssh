@@ -1682,4 +1682,26 @@ class SKo extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => '전체 백업';
+
+  @override
+  String get sessionsOnly => '세션';
+
+  @override
+  String get sessionKeysFromManager => '관리자의 세션 키';
+
+  @override
+  String get allKeysFromManager => '관리자의 모든 키';
+
+  @override
+  String exportTags(int count) {
+    return '태그 ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return '스니펫 ($count)';
+  }
 }

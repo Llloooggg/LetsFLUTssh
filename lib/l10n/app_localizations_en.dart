@@ -1704,4 +1704,26 @@ class SEn extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Full backup';
+
+  @override
+  String get sessionsOnly => 'Sessions';
+
+  @override
+  String get sessionKeysFromManager => 'Session keys from manager';
+
+  @override
+  String get allKeysFromManager => 'All keys from manager';
+
+  @override
+  String exportTags(int count) {
+    return 'Tags ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Snippets ($count)';
+  }
 }

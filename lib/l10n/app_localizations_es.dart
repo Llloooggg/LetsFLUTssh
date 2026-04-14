@@ -1726,4 +1726,26 @@ class SEs extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Copia de seguridad completa';
+
+  @override
+  String get sessionsOnly => 'Sesiones';
+
+  @override
+  String get sessionKeysFromManager => 'Claves de sesión del gestor';
+
+  @override
+  String get allKeysFromManager => 'Todas las claves del gestor';
+
+  @override
+  String exportTags(int count) {
+    return 'Etiquetas ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Fragmentos ($count)';
+  }
 }

@@ -461,5 +461,11 @@
   "manageMasterPasswordSubtitle": "मास्टर पासवर्ड सेट, बदलें या हटाएं",
   "emptyFolders": "खाली फ़ोल्डर",
   "enterMasterPasswordPrompt": "मास्टर पासवर्ड दर्ज करें:",
-  "nextStep": "अगला"
+  "nextStep": "अगला",
+  "fullBackup": "पूर्ण बैकअप",
+  "sessionsOnly": "सत्र",
+  "sessionKeysFromManager": "प्रबंधक से सत्र कुंजियाँ",
+  "allKeysFromManager": "प्रबंधक से सभी कुंजियाँ",
+  "exportTags": "टैग ({count})",
+  "exportSnippets": "स्निपेट ({count})"
 }

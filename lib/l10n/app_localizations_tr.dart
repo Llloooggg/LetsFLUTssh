@@ -1719,4 +1719,26 @@ class STr extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Tam yedekleme';
+
+  @override
+  String get sessionsOnly => 'Oturumlar';
+
+  @override
+  String get sessionKeysFromManager => 'Yöneticiden oturum anahtarları';
+
+  @override
+  String get allKeysFromManager => 'Yöneticiden tüm anahtarlar';
+
+  @override
+  String exportTags(int count) {
+    return 'Etiketler ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Kod parçacıkları ($count)';
+  }
 }

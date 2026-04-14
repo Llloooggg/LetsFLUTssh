@@ -1718,4 +1718,26 @@ class SRu extends S {
 
   @override
   String get editTags => 'Edit Tags';
+
+  @override
+  String get fullBackup => 'Полная резервная копия';
+
+  @override
+  String get sessionsOnly => 'Сессии';
+
+  @override
+  String get sessionKeysFromManager => 'Ключи сессий из менеджера';
+
+  @override
+  String get allKeysFromManager => 'Все ключи из менеджера';
+
+  @override
+  String exportTags(int count) {
+    return 'Теги ($count)';
+  }
+
+  @override
+  String exportSnippets(int count) {
+    return 'Сниппеты ($count)';
+  }
 }
