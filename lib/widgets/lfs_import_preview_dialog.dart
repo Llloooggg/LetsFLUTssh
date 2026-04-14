@@ -58,14 +58,16 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
   void initState() {
     super.initState();
     // Initialize options based on what's available in the archive.
-    // Sessions and known_hosts default to enabled (user expects data).
+    // Sessions, keys, tags, snippets, known_hosts default to enabled.
     // Config defaults to disabled — importing config would overwrite the
-    // user's local app settings (theme, locale, font size, etc.) which
-    // is usually not what they want when importing sessions.
+    // user's local app settings (theme, locale, font size, etc.).
     _options = ExportOptions(
       includeSessions: widget.preview.hasSessions,
       includeConfig: false,
       includeKnownHosts: widget.preview.hasKnownHosts,
+      includeManagerKeys: widget.preview.managerKeyCount > 0,
+      includeTags: widget.preview.tagCount > 0,
+      includeSnippets: widget.preview.snippetCount > 0,
     );
     _passwordCtrl.addListener(_onPasswordChanged);
   }
@@ -179,6 +181,24 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
               S.of(context).emptyFolders,
               '${widget.preview.emptyFoldersCount}',
             ),
+          if (widget.preview.managerKeyCount > 0)
+            _buildInfoRow(
+              Icons.vpn_key,
+              S.of(context).sshKeys,
+              '${widget.preview.managerKeyCount}',
+            ),
+          if (widget.preview.tagCount > 0)
+            _buildInfoRow(
+              Icons.label_outline,
+              S.of(context).tags,
+              '${widget.preview.tagCount}',
+            ),
+          if (widget.preview.snippetCount > 0)
+            _buildInfoRow(
+              Icons.code,
+              S.of(context).snippets,
+              '${widget.preview.snippetCount}',
+            ),
           _buildInfoRow(
             Icons.settings,
             S.of(context).appSettings,
@@ -251,6 +271,31 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
             _options.includeConfig,
             (v) =>
                 setState(() => _options = _options.copyWith(includeConfig: v)),
+          ),
+        if (widget.preview.managerKeyCount > 0)
+          _buildCheckbox(
+            Icons.vpn_key,
+            S.of(context).sshKeys,
+            _options.includeManagerKeys,
+            (v) => setState(
+              () => _options = _options.copyWith(includeManagerKeys: v),
+            ),
+          ),
+        if (widget.preview.tagCount > 0)
+          _buildCheckbox(
+            Icons.label_outline,
+            S.of(context).tags,
+            _options.includeTags,
+            (v) => setState(() => _options = _options.copyWith(includeTags: v)),
+          ),
+        if (widget.preview.snippetCount > 0)
+          _buildCheckbox(
+            Icons.code,
+            S.of(context).snippets,
+            _options.includeSnippets,
+            (v) => setState(
+              () => _options = _options.copyWith(includeSnippets: v),
+            ),
           ),
         if (widget.preview.hasKnownHosts)
           _buildCheckbox(

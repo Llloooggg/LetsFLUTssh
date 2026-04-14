@@ -1014,6 +1014,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   ImportService _buildImportService() {
     final store = ref.read(sessionStoreProvider);
     final keyStore = ref.read(keyStoreProvider);
+    final tagStore = ref.read(tagStoreProvider);
+    final snippetStore = ref.read(snippetStoreProvider);
     return ImportService(
       addSession: (s) => ref.read(sessionProvider.notifier).add(s),
       addEmptyFolder: (f) => store.addEmptyFolder(f),
@@ -1025,6 +1027,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         await keyStore.save(entry);
         return entry.id;
       },
+      saveTag: (tag) async {
+        await tagStore.add(tag);
+        return tag.id;
+      },
+      tagSession: tagStore.tagSession,
+      tagFolder: (folderId, tagId) => tagStore.tagFolder(folderId, tagId),
+      saveSnippet: (snippet) async {
+        await snippetStore.add(snippet);
+        return snippet.id;
+      },
+      linkSnippetToSession: snippetStore.linkToSession,
       getEmptyFolders: () => store.emptyFolders,
       restoreSnapshot: (sessions, folders) =>
           store.restoreSnapshot(sessions, folders),
