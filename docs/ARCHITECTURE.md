@@ -389,7 +389,28 @@ The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsib
 | `session_store.dart` | `SessionStore` | CRUD via drift DAOs, search, folder tree management |
 | `session_tree.dart` | `SessionTree`, `TreeNode` | Hierarchical tree built from flat session list |
 | `session_history.dart` | `SessionHistory` | Undo/redo snapshots (stores credentials separately) |
-| `qr_codec.dart` | Free functions | Export payload encoding/decoding (QR, `.lfs` files). Versioned format (`v: 2`), deflate compressed, key map deduplication. Public API: `encodeExportPayload()`, `decodeExportPayload()`, `calculateExportPayloadSize()`, `encodeSessionCompact()`, `wrapInDeepLink()`, `decodeImportUri()`. Supports sessions, empty folders, passwords, SSH keys, config, known_hosts. Max ~2000 bytes for QR. |
+| `qr_codec.dart` | Free functions | Export payload encoding/decoding (QR, `.lfs` files). Versioned format (`v: 4`), deflate compressed, key map deduplication. Public API: `encodeExportPayload()`, `decodeExportPayload()`, `calculateExportPayloadSize()`, `encodeSessionCompact()`, `wrapInDeepLink()`, `decodeImportUri()`. Supports sessions, empty folders, passwords, SSH keys (embedded + manager), config, known_hosts, tags, snippets. Max ~2000 bytes for QR. |
+
+#### QR payload format (v4)
+
+JSON → deflate → base64url. Top-level keys:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `v` | `int` | Format version (`4`) |
+| `km` | `Map<shortId, PEM>` | Deduplicated key map (embedded + manager private keys) |
+| `mk` | `Map<shortId, {l, t, p}>` | Manager key metadata: label, keyType, publicKey |
+| `s` | `List<Map>` | Sessions (compact encoding). Manager-key sessions have `mg: 1` flag, `ki` = shortId |
+| `eg` | `List<String>` | Empty folder paths |
+| `c` | `Map` | App config JSON |
+| `kh` | `String` | Known hosts (OpenSSH format) |
+| `tg` | `List<{i, n, cl?}>` | Tags (id, name, optional color) |
+| `st` | `List<{si, ti}>` | Session→tag links |
+| `ft` | `List<{fi, ti}>` | Folder→tag links (folderPath, tagId) |
+| `sn` | `List<{i, t, cm, d?}>` | Snippets (id, title, command, optional description) |
+| `ss` | `List<{si, ni}>` | Session→snippet links |
+
+`ExportOptions` controls which keys are emitted: `includeSessions`, `includePasswords`, `includeEmbeddedKeys`, `includeManagerKeys` (session-bound only), `includeAllManagerKeys` (entire key store), `includeConfig`, `includeKnownHosts`, `includeTags`, `includeSnippets`.
 
 #### Session model
 
@@ -692,7 +713,7 @@ class DeepLinkHandler {
 
   // Callbacks:
   //   onConnect(ConnectUri data) — host, port, user from connect URI
-  //   onQrImport(ExportPayloadData data) — sessions, config, known_hosts from QR
+  //   onQrImport(ExportPayloadData data) — sessions, config, known_hosts, tags, snippets from QR
 
   // Deduplication: time-limited (2 s) to cover the cold-start race
   // (getInitialLink + uriLinkStream). After the window, the same URI
@@ -712,7 +733,7 @@ class DeepLinkHandler {
 
 | File | Purpose |
 |------|---------|
-| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`) |
+| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps |
 | `key_file_helper.dart` | SSH key file parsing (PEM, OpenSSH formats) |
 
 #### .lfs format
@@ -721,10 +742,16 @@ class DeepLinkHandler {
 [salt 32B] [IV 12B] [encrypted payload + GCM tag 16B]
 
 payload = ZIP archive:
-  sessions.json        ← session metadata with credentials (toJsonWithCredentials)
-  empty_folders.json   ← list of empty folder paths
-  config.json          ← app configuration
-  known_hosts          ← TOFU host key database (OpenSSH format)
+  sessions.json           ← session metadata with credentials (toJsonWithCredentials)
+  empty_folders.json      ← list of empty folder paths
+  keys.json               ← manager SSH keys (label, type, public/private key)
+  config.json             ← app configuration
+  known_hosts             ← TOFU host key database (OpenSSH format)
+  tags.json               ← tag definitions (id, name, color)
+  session_tags.json       ← session→tag assignments
+  folder_tags.json        ← folder→tag assignments
+  snippets.json           ← snippet definitions (id, title, command, description)
+  session_snippets.json   ← session→snippet links
 
 Encryption: AES-256-GCM
 Key: PBKDF2-SHA256(password, salt, 600000 iterations)
@@ -740,8 +767,11 @@ Key: PBKDF2-SHA256(password, salt, 600000 iterations)
 #### Import service
 
 `ImportService` applies import results with:
+- Manager key import first — builds oldId→newId map, remaps session `keyId` fields
 - Session import with graceful skip on failure
 - Empty folder restoration
+- Tag import with ID remapping, then session→tag and folder→tag link creation
+- Snippet import with ID remapping, then session→snippet link creation
 - Config application via typed `AppConfig` callback
 - Known hosts import via `KnownHostsManager.importFromString()`
 - Rollback support in replace mode via `restoreSnapshot` callback
@@ -1096,8 +1126,8 @@ class FilePaneController extends ChangeNotifier {
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link) |
 | `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export (legacy, replaced by UnifiedExportDialog) |
-| `unified_export_dialog.dart` | `UnifiedExportDialog` | Unified export dialog for both QR and .lfs. Session tree with checkboxes, data type selection (passwords, embedded keys, manager keys, config, known_hosts), QR size indicator |
-| `lfs_import_preview_dialog.dart` | `LfsImportPreviewDialog` | Preview .lfs archive contents before import. Shows session count, config/known_hosts presence, data type checkboxes, mode selector |
+| `unified_export_dialog.dart` | `UnifiedExportDialog` | Unified export dialog for both QR and .lfs. Preset chips ("Full backup" / "Sessions"), session tree with checkboxes, data type selection (passwords, embedded keys, session-bound manager keys, all manager keys, config, known_hosts, tags, snippets), QR size indicator |
+| `lfs_import_preview_dialog.dart` | `LfsImportPreviewDialog` | Preview .lfs archive contents before import. Shows session count, config/known_hosts/tags/snippets presence, data type checkboxes, mode selector |
 
 #### SessionConnect — flow
 
@@ -2294,11 +2324,11 @@ Encryption is applied at the database level via SQLite3MultipleCiphers — a sin
 
 ### Startup security flow
 
-`_initSecurity()` in `main.dart`:
-1. `credentials.salt` exists → show `UnlockDialog` → derive key
-2. Keychain has key → read from keychain
-3. Database exists but no encryption → plaintext mode
-4. No data at all → first launch → show `SecuritySetupDialog` wizard
+`_initSecurity()` in `main.dart` — database file is the sole source of truth for detecting existing installs (no legacy file detection):
+1. DB file exists + `credentials.salt` exists → show `UnlockDialog` → derive key
+2. DB file exists + keychain has key → read from keychain
+3. DB file exists but no encryption → plaintext mode
+4. No DB file → first launch → show `SecuritySetupDialog` wizard
 5. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
 
 ### Master password
@@ -2321,14 +2351,14 @@ User password → PBKDF2-SHA256(600k iterations, random salt) → 256-bit key
 ### .lfs export
 
 ```
-[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions.json + empty_folders.json + config.json + known_hosts))]
+[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions + keys + config + known_hosts + tags + snippets))]
 
 Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 ```
 
 Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
 
-Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths.
+Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths. Manager keys, tags (with session/folder assignments), and snippets (with session links) are each stored in separate JSON files inside the ZIP archive (see [§3.9](#39-import-coreimport) for full file list).
 
 ### TOFU (Trust On First Use)
 
