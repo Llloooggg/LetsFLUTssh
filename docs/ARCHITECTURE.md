@@ -126,6 +126,7 @@ lib/
 │   ├── session_manager/              # Session management panel
 │   ├── snippets/                     # Snippet manager + terminal picker
 │   ├── tags/                         # Tag manager + assignment dialog
+│   ├── tools/                        # Desktop Tools dialog (SSH Keys, Snippets, Tags)
 │   ├── tabs/                         # Tab model (TabEntry, TabKind)
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
@@ -1189,21 +1190,23 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | File | Class | Purpose |
 |------|-------|---------|
 | `settings_screen.dart` | `SettingsScreen` | Mobile-only route (collapsible sections in a scrollable list) |
-| `settings_screen.dart` | `SettingsSidebar` | Desktop nav panel — embedded in `AppShell`'s sidebar slot |
-| `settings_screen.dart` | `SettingsContent` | Desktop content pane — embedded in `AppShell`'s body slot |
+| `settings_screen.dart` | `SettingsDialog` | Desktop full-screen modal (VS Code style) — sidebar nav + content pane |
 | `settings_dialogs.dart` | — | Dialog helpers (part of `settings_screen.dart`) |
 | `settings_logging.dart` | — | Logging section widgets (part of `settings_screen.dart`) |
 | `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
 | `settings_sections.dart` | — | Section-specific build methods (part of `settings_screen.dart`) |
 | `known_hosts_manager.dart` | `KnownHostsManagerDialog` | Known hosts management dialog (search, delete, import, export, clear) |
-| `key_manager/key_manager_dialog.dart` | `KeyManagerDialog` | SSH key management dialog (list, generate, import, delete, copy public key) |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
+| `tools/tools_dialog.dart` | `ToolsDialog` | Desktop full-screen modal — SSH Keys, Snippets, Tags |
+| `key_manager/key_manager_dialog.dart` | `KeyManagerPanel` / `KeyManagerDialog` | SSH key panel (embeddable) + dialog wrapper |
+| `snippets/snippet_manager_dialog.dart` | `SnippetManagerPanel` / `SnippetManagerDialog` | Snippet panel (embeddable) + dialog wrapper |
+| `tags/tag_manager_dialog.dart` | `TagManagerPanel` / `TagManagerDialog` | Tag panel (embeddable) + dialog wrapper |
 
-**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Security (known hosts manager), SSH Keys (key manager), Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
+**Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Security (known hosts manager), Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
 
-**Desktop:** Settings are embedded directly in `MainScreen` via `ShellMode`. The toolbar settings button toggles between `ShellMode.sessions` and `ShellMode.settings` — no route navigation. `SettingsSidebar` + `SettingsContent` replace the session panel and tab area while sharing the same `AppShell` frame (sidebar width preserved).
+**Desktop:** Toolbar has two buttons — **Tools** (wrench icon, opens `ToolsDialog` with SSH Keys / Snippets / Tags) and **Settings** (gear icon, opens `SettingsDialog`). Both are full-screen modal dialogs with sidebar navigation and content pane (VS Code style). Sessions and terminals remain visible behind the dialog overlay.
 
-**Mobile:** `SettingsScreen` is pushed as a route with collapsible `ExpansionTile` sections.
+**Mobile:** `SettingsScreen` is pushed as a route with collapsible `ExpansionTile` sections. SSH Keys, Snippets, and Tags are accessible from the SSH Keys section within settings.
 
 ---
 

@@ -93,10 +93,12 @@ class SFa extends S {
   String get managerKeys => 'کلیدها از مدیر';
 
   @override
-  String get managerKeysMayBeLarge => 'کلیدهای مدیر ممکن است از اندازه QR فراتر رود';
+  String get managerKeysMayBeLarge =>
+      'کلیدهای مدیر ممکن است از اندازه QR فراتر رود';
 
   @override
-  String get qrPasswordWarning => 'رمزهای عبور در کد QR رمزگذاری نشده خواهند بود. هر کسی که اسکن کند می‌تواند آنها را ببیند.';
+  String get qrPasswordWarning =>
+      'رمزهای عبور در کد QR رمزگذاری نشده خواهند بود. هر کسی که اسکن کند می‌تواند آنها را ببیند.';
 
   @override
   String get sshKeysMayBeLarge => 'کلیدها ممکن است از اندازه QR فراتر رود';
@@ -107,10 +109,12 @@ class SFa extends S {
   }
 
   @override
-  String get qrCredentialsWarning => 'رمزهای عبور و کلیدهای SSH در کد QR قابل مشاهده خواهند بود';
+  String get qrCredentialsWarning =>
+      'رمزهای عبور و کلیدهای SSH در کد QR قابل مشاهده خواهند بود';
 
   @override
-  String get qrCredentialsTooLarge => 'اعتبارنامه‌ها کد QR را خیلی بزرگ می‌کنند';
+  String get qrCredentialsTooLarge =>
+      'اعتبارنامه‌ها کد QR را خیلی بزرگ می‌کنند';
 
   @override
   String get terminal => 'ترمینال';
@@ -422,7 +426,8 @@ class SFa extends S {
   String get qrGenerationFailed => 'تولید QR ناموفق بود';
 
   @override
-  String get scanWithCameraApp => 'با هر برنامه دوربینی روی دستگاهی که LetsFLUTssh نصب است اسکن کنید.';
+  String get scanWithCameraApp =>
+      'با هر برنامه دوربینی روی دستگاهی که LetsFLUTssh نصب است اسکن کنید.';
 
   @override
   String get noPasswordsInQr => 'رمز عبور یا کلیدی در این کد QR وجود ندارد';
@@ -440,10 +445,12 @@ class SFa extends S {
   String get unknownHost => 'میزبان ناشناخته';
 
   @override
-  String get hostKeyChangedWarning => 'هشدار: کلید میزبان این سرور تغییر کرده است. این ممکن است نشانه حمله مرد میانی باشد، یا سرور مجدداً نصب شده باشد.';
+  String get hostKeyChangedWarning =>
+      'هشدار: کلید میزبان این سرور تغییر کرده است. این ممکن است نشانه حمله مرد میانی باشد، یا سرور مجدداً نصب شده باشد.';
 
   @override
-  String get unknownHostMessage => 'اصالت این میزبان قابل تأیید نیست. آیا مطمئنید که می‌خواهید اتصال را ادامه دهید؟';
+  String get unknownHostMessage =>
+      'اصالت این میزبان قابل تأیید نیست. آیا مطمئنید که می‌خواهید اتصال را ادامه دهید؟';
 
   @override
   String get host => 'میزبان';
@@ -479,7 +486,8 @@ class SFa extends S {
   String get importModeMergeDescription => 'افزودن جلسات جدید، حفظ موجودها';
 
   @override
-  String get importModeReplaceDescription => 'جایگزینی همه جلسات با موارد وارد شده';
+  String get importModeReplaceDescription =>
+      'جایگزینی همه جلسات با موارد وارد شده';
 
   @override
   String errorPrefix(String error) {
@@ -585,7 +593,8 @@ class SFa extends S {
   String get noActiveSession => 'جلسه فعالی وجود ندارد';
 
   @override
-  String get createConnectionHint => 'یک اتصال جدید ایجاد کنید یا از نوار کناری انتخاب کنید';
+  String get createConnectionHint =>
+      'یک اتصال جدید ایجاد کنید یا از نوار کناری انتخاب کنید';
 
   @override
   String get hideSidebar => 'پنهان کردن نوار کناری (Ctrl+B)';
@@ -666,13 +675,15 @@ class SFa extends S {
   String get exportData => 'خروجی گرفتن از داده';
 
   @override
-  String get exportDataSubtitle => 'ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs';
+  String get exportDataSubtitle =>
+      'ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs';
 
   @override
   String get importDataSubtitle => 'بارگذاری داده از فایل .lfs';
 
   @override
-  String get setMasterPasswordHint => 'یک رمز عبور اصلی برای رمزگذاری آرشیو تعیین کنید.';
+  String get setMasterPasswordHint =>
+      'یک رمز عبور اصلی برای رمزگذاری آرشیو تعیین کنید.';
 
   @override
   String get passwordsDoNotMatch => 'رمزهای عبور مطابقت ندارند';
@@ -700,7 +711,8 @@ class SFa extends S {
   String get shareViaQrCode => 'اشتراک‌گذاری از طریق کد QR';
 
   @override
-  String get shareViaQrSubtitle => 'خروجی گرفتن از جلسات به QR برای اسکن توسط دستگاه دیگر';
+  String get shareViaQrSubtitle =>
+      'خروجی گرفتن از جلسات به QR برای اسکن توسط دستگاه دیگر';
 
   @override
   String get dataLocation => 'محل داده';
@@ -784,7 +796,8 @@ class SFa extends S {
   String get useSftpFromSessions => 'از «SFTP» در جلسات استفاده کنید';
 
   @override
-  String get anotherInstanceRunning => 'نسخه دیگری از LetsFLUTssh در حال اجرا است.';
+  String get anotherInstanceRunning =>
+      'نسخه دیگری از LetsFLUTssh در حال اجرا است.';
 
   @override
   String importFailedShort(String error) {
@@ -819,7 +832,8 @@ class SFa extends S {
   String get connectionError => 'خطای اتصال';
 
   @override
-  String get resizeWindowToViewFiles => 'اندازه پنجره را برای مشاهده فایل‌ها تغییر دهید';
+  String get resizeWindowToViewFiles =>
+      'اندازه پنجره را برای مشاهده فایل‌ها تغییر دهید';
 
   @override
   String get completed => 'تکمیل شد';
@@ -846,13 +860,16 @@ class SFa extends S {
   String get exportSessionsViaQr => 'خروجی جلسات از طریق QR';
 
   @override
-  String get qrNoCredentialsWarning => 'رمزهای عبور و کلیدهای SSH شامل نمی‌شوند.\nجلسات وارد شده نیاز به تکمیل اعتبارنامه دارند.';
+  String get qrNoCredentialsWarning =>
+      'رمزهای عبور و کلیدهای SSH شامل نمی‌شوند.\nجلسات وارد شده نیاز به تکمیل اعتبارنامه دارند.';
 
   @override
-  String get qrTooManyForSingleCode => 'تعداد جلسات برای یک کد QR بیش از حد است. برخی را حذف انتخاب کنید یا از خروجی .lfs استفاده کنید.';
+  String get qrTooManyForSingleCode =>
+      'تعداد جلسات برای یک کد QR بیش از حد است. برخی را حذف انتخاب کنید یا از خروجی .lfs استفاده کنید.';
 
   @override
-  String get qrTooLarge => 'حجم بیش از حد است — برخی جلسات را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.';
+  String get qrTooLarge =>
+      'حجم بیش از حد است — برخی جلسات را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.';
 
   @override
   String get exportAll => 'خروجی همه';
@@ -1043,7 +1060,8 @@ class SFa extends S {
   }
 
   @override
-  String get errDecryptionFailed => 'رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.';
+  String get errDecryptionFailed =>
+      'رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1076,13 +1094,15 @@ class SFa extends S {
   String get subitems => 'موارد';
 
   @override
-  String get storagePermissionRequired => 'برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است';
+  String get storagePermissionRequired =>
+      'برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است';
 
   @override
   String get grantPermission => 'اعطای مجوز';
 
   @override
-  String get storagePermissionLimited => 'دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید';
+  String get storagePermissionLimited =>
+      'دسترسی محدود — مجوز ذخیره‌سازی کامل برای همه فایل‌ها را اعطا کنید';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1173,7 +1193,8 @@ class SFa extends S {
   String get dropKeyFileHere => 'فایل کلید را اینجا رها کنید';
 
   @override
-  String get sessionNoCredentials => 'جلسه بدون اعتبارنامه است — آن را ویرایش کنید تا رمز عبور یا کلید اضافه کنید';
+  String get sessionNoCredentials =>
+      'جلسه بدون اعتبارنامه است — آن را ویرایش کنید تا رمز عبور یا کلید اضافه کنید';
 
   @override
   String dragItemCount(int count) {
@@ -1205,7 +1226,8 @@ class SFa extends S {
   String get sshConnectionChannel => 'اتصال SSH';
 
   @override
-  String get sshConnectionChannelDesc => 'اتصالات SSH را در پس‌زمینه فعال نگه می‌دارد.';
+  String get sshConnectionChannelDesc =>
+      'اتصالات SSH را در پس‌زمینه فعال نگه می‌دارد.';
 
   @override
   String get sshActive => 'SSH فعال';
@@ -1250,7 +1272,8 @@ class SFa extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'میزبان شناخته شده‌ای وجود ندارد. برای افزودن به سروری متصل شوید.';
+  String get knownHostsEmpty =>
+      'میزبان شناخته شده‌ای وجود ندارد. برای افزودن به سروری متصل شوید.';
 
   @override
   String get removeHost => 'حذف میزبان';
@@ -1264,13 +1287,15 @@ class SFa extends S {
   String get clearAllKnownHosts => 'پاک کردن همه میزبان‌های شناخته شده';
 
   @override
-  String get clearAllKnownHostsConfirm => 'همه میزبان‌های شناخته شده حذف شوند؟ کلید هر سرور باید دوباره تأیید شود.';
+  String get clearAllKnownHostsConfirm =>
+      'همه میزبان‌های شناخته شده حذف شوند؟ کلید هر سرور باید دوباره تأیید شود.';
 
   @override
   String get importKnownHosts => 'وارد کردن میزبان‌های شناخته شده';
 
   @override
-  String get importKnownHostsSubtitle => 'وارد کردن از فایل OpenSSH known_hosts';
+  String get importKnownHostsSubtitle =>
+      'وارد کردن از فایل OpenSSH known_hosts';
 
   @override
   String get exportKnownHosts => 'صادر کردن میزبان‌های شناخته شده';
@@ -1296,6 +1321,9 @@ class SFa extends S {
 
   @override
   String get noHostsToExport => 'میزبانی برای صادر کردن وجود ندارد';
+
+  @override
+  String get tools => 'ابزارها';
 
   @override
   String get sshKeys => 'کلیدهای SSH';
@@ -1403,7 +1431,8 @@ class SFa extends S {
   String get unlock => 'باز کردن قفل';
 
   @override
-  String get masterPasswordSubtitle => 'محافظت از اعتبارنامه‌های ذخیره شده با رمز عبور';
+  String get masterPasswordSubtitle =>
+      'محافظت از اعتبارنامه‌های ذخیره شده با رمز عبور';
 
   @override
   String get setMasterPassword => 'تنظیم رمز عبور اصلی';
@@ -1415,13 +1444,16 @@ class SFa extends S {
   String get removeMasterPassword => 'حذف رمز عبور اصلی';
 
   @override
-  String get masterPasswordEnabled => 'اعتبارنامه‌ها با رمز عبور اصلی محافظت می‌شوند';
+  String get masterPasswordEnabled =>
+      'اعتبارنامه‌ها با رمز عبور اصلی محافظت می‌شوند';
 
   @override
-  String get masterPasswordDisabled => 'اعتبارنامه‌ها از کلید خودکار استفاده می‌کنند (بدون رمز عبور)';
+  String get masterPasswordDisabled =>
+      'اعتبارنامه‌ها از کلید خودکار استفاده می‌کنند (بدون رمز عبور)';
 
   @override
-  String get enterMasterPassword => 'رمز عبور اصلی را برای دسترسی به اعتبارنامه‌های ذخیره شده وارد کنید.';
+  String get enterMasterPassword =>
+      'رمز عبور اصلی را برای دسترسی به اعتبارنامه‌های ذخیره شده وارد کنید.';
 
   @override
   String get wrongMasterPassword => 'رمز عبور اشتباه. دوباره تلاش کنید.';
@@ -1445,13 +1477,15 @@ class SFa extends S {
   String get masterPasswordRemoved => 'رمز عبور اصلی حذف شد';
 
   @override
-  String get masterPasswordWarning => 'اگر این رمز عبور را فراموش کنید، تمام رمزهای عبور و کلیدهای SSH ذخیره شده از بین می‌روند. بازیابی ممکن نیست.';
+  String get masterPasswordWarning =>
+      'اگر این رمز عبور را فراموش کنید، تمام رمزهای عبور و کلیدهای SSH ذخیره شده از بین می‌روند. بازیابی ممکن نیست.';
 
   @override
   String get forgotPassword => 'رمز عبور را فراموش کرده‌اید؟';
 
   @override
-  String get forgotPasswordWarning => 'این کار تمام رمزهای عبور، کلیدهای SSH و عبارات عبور ذخیره شده را حذف می‌کند. جلسات و تنظیمات حفظ می‌شوند. این عمل قابل بازگشت نیست.';
+  String get forgotPasswordWarning =>
+      'این کار تمام رمزهای عبور، کلیدهای SSH و عبارات عبور ذخیره شده را حذف می‌کند. جلسات و تنظیمات حفظ می‌شوند. این عمل قابل بازگشت نیست.';
 
   @override
   String get resetAndDeleteCredentials => 'بازنشانی و حذف داده‌ها';
@@ -1466,7 +1500,8 @@ class SFa extends S {
   String get reEncrypting => 'در حال رمزنگاری مجدد داده‌ها...';
 
   @override
-  String get confirmRemoveMasterPassword => 'رمز عبور فعلی را برای حذف محافظت رمز عبور اصلی وارد کنید. اعتبارنامه‌ها با کلید خودکار مجدداً رمزنگاری می‌شوند.';
+  String get confirmRemoveMasterPassword =>
+      'رمز عبور فعلی را برای حذف محافظت رمز عبور اصلی وارد کنید. اعتبارنامه‌ها با کلید خودکار مجدداً رمزنگاری می‌شوند.';
 
   @override
   String get securitySetupTitle => 'تنظیمات امنیتی';
@@ -1477,16 +1512,20 @@ class SFa extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional => 'همچنین می‌توانید رمز عبور اصلی برای محافظت بیشتر تنظیم کنید.';
+  String get securitySetupKeychainOptional =>
+      'همچنین می‌توانید رمز عبور اصلی برای محافظت بیشتر تنظیم کنید.';
 
   @override
-  String get securitySetupNoKeychain => 'زنجیره کلید سیستم شناسایی نشد. بدون آن، داده‌های جلسه (میزبان‌ها، رمزهای عبور، کلیدها) به صورت متن ساده ذخیره می‌شوند.';
+  String get securitySetupNoKeychain =>
+      'زنجیره کلید سیستم شناسایی نشد. بدون آن، داده‌های جلسه (میزبان‌ها، رمزهای عبور، کلیدها) به صورت متن ساده ذخیره می‌شوند.';
 
   @override
-  String get securitySetupNoKeychainHint => 'این در WSL، لینوکس بدون رابط گرافیکی یا نصب‌های حداقلی عادی است. برای فعال‌سازی زنجیره کلید در لینوکس: libsecret و یک دیمن زنجیره کلید (مثلاً gnome-keyring) نصب کنید.';
+  String get securitySetupNoKeychainHint =>
+      'این در WSL، لینوکس بدون رابط گرافیکی یا نصب‌های حداقلی عادی است. برای فعال‌سازی زنجیره کلید در لینوکس: libsecret و یک دیمن زنجیره کلید (مثلاً gnome-keyring) نصب کنید.';
 
   @override
-  String get securitySetupRecommendMasterPassword => 'توصیه می‌کنیم رمز عبور اصلی برای محافظت از داده‌هایتان تنظیم کنید.';
+  String get securitySetupRecommendMasterPassword =>
+      'توصیه می‌کنیم رمز عبور اصلی برای محافظت از داده‌هایتان تنظیم کنید.';
 
   @override
   String get continueWithKeychain => 'ادامه با زنجیره کلید';
@@ -1521,7 +1560,8 @@ class SFa extends S {
   String get enableKeychain => 'فعال‌سازی رمزنگاری زنجیره کلید';
 
   @override
-  String get enableKeychainSubtitle => 'دوباره‌رمزنگاری داده‌های ذخیره‌شده با استفاده از زنجیره کلید سیستم';
+  String get enableKeychainSubtitle =>
+      'دوباره‌رمزنگاری داده‌های ذخیره‌شده با استفاده از زنجیره کلید سیستم';
 
   @override
   String get keychainEnabled => 'رمزنگاری زنجیره کلید فعال شد';
@@ -1530,7 +1570,8 @@ class SFa extends S {
   String get manageMasterPassword => 'مدیریت رمز عبور اصلی';
 
   @override
-  String get manageMasterPasswordSubtitle => 'تنظیم، تغییر یا حذف رمز عبور اصلی';
+  String get manageMasterPasswordSubtitle =>
+      'تنظیم، تغییر یا حذف رمز عبور اصلی';
 
   @override
   String get snippets => 'Snippets';

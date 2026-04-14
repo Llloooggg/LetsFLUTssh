@@ -387,6 +387,7 @@
   "clearedAllHosts": "Semua host dikenal telah dihapus",
   "removedHost": "{host} dihapus",
   "noHostsToExport": "Tidak ada host untuk diekspor",
+  "tools": "Alat",
   "sshKeys": "Kunci SSH",
   "sshKeysSubtitle": "Kelola pasangan kunci SSH untuk autentikasi",
   "noKeys": "Tidak ada kunci SSH. Impor atau buat satu.",

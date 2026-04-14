@@ -32,8 +32,10 @@ import 'widgets/lfs_import_dialog.dart';
 import 'widgets/cross_marquee_controller.dart';
 import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
+import 'widgets/hover_region.dart';
 import 'widgets/toast.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/tools/tools_dialog.dart';
 import 'features/session_manager/session_panel.dart';
 import 'features/tabs/tab_model.dart';
 import 'features/workspace/workspace_controller.dart';
@@ -527,9 +529,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   }
 }
 
-/// Which content the desktop shell is currently showing.
-enum ShellMode { sessions, settings }
-
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
@@ -543,8 +542,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final _reverseCrossMarquee = CrossMarqueeController();
   bool _updateDialogShown = false;
   bool _sidebarOpen = true;
-  ShellMode _mode = ShellMode.sessions;
-  int _settingsIndex = 0;
   final _workspaceKey = GlobalKey<WorkspaceViewState>();
   final _sessionPanelKey = GlobalKey<SessionPanelState>();
   final _sidebarActivated = ValueNotifier<int>(0);
@@ -811,12 +808,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       AppShortcut.maximizePanel: () {
         notifier.toggleMaximizePanel(ws.focusedPanelId);
       },
-      AppShortcut.openSettings: () => _toggleSettings(),
-      AppShortcut.closeSettings: () {
-        if (_mode == ShellMode.settings) {
-          _toggleSettings();
-        }
-      },
+      AppShortcut.openSettings: () => SettingsDialog.show(context),
     });
   }
 
@@ -839,64 +831,34 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
   }
 
-  void _toggleSettings() {
-    setState(() {
-      _mode = _mode == ShellMode.settings
-          ? ShellMode.sessions
-          : ShellMode.settings;
-    });
-  }
-
   Widget _buildDesktopLayout(
     BuildContext context,
     BoxConstraints constraints,
     WorkspaceState ws,
   ) {
     final isNarrow = constraints.maxWidth < 600;
-    final inSettings = _mode == ShellMode.settings;
     final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
     final activeTab = focusedPanel?.activeTab;
 
-    final Widget sidebar;
-    final Widget body;
+    final sidebar = SessionPanel(
+      key: _sessionPanelKey,
+      onConnect: (session) => _connectSession(context, ref, session),
+      onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
+      crossMarquee: _crossMarquee,
+      reverseCrossMarquee: _reverseCrossMarquee,
+      onActivated: () => _sidebarActivated.value++,
+    );
 
-    final sessionBody = WorkspaceView(
+    final body = WorkspaceView(
       key: _workspaceKey,
       crossMarquee: _crossMarquee,
       reverseCrossMarquee: _reverseCrossMarquee,
       sidebarActivated: _sidebarActivated,
       onActivated: () => _sessionPanelKey.currentState?.clearDesktopSelection(),
     );
-    if (inSettings) {
-      sidebar = SettingsSidebar(
-        selectedIndex: _settingsIndex,
-        onSelect: (i) => setState(() => _settingsIndex = i),
-      );
-      // Keep terminal tabs alive (Offstage) so SSH shells survive settings.
-      body = Stack(
-        children: [
-          Offstage(child: sessionBody),
-          SettingsContent(selectedIndex: _settingsIndex),
-        ],
-      );
-    } else {
-      sidebar = SessionPanel(
-        key: _sessionPanelKey,
-        onConnect: (session) => _connectSession(context, ref, session),
-        onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-        crossMarquee: _crossMarquee,
-        reverseCrossMarquee: _reverseCrossMarquee,
-        onActivated: () => _sidebarActivated.value++,
-      );
-      body = sessionBody;
-    }
 
     return AppShell(
-      toolbar: _buildToolbar(
-        isNarrow: isNarrow,
-        inSettings: inSettings,
-        activeTab: activeTab,
-      ),
+      toolbar: _buildToolbar(isNarrow: isNarrow, activeTab: activeTab),
       sidebar: sidebar,
       sidebarOpen: _sidebarOpen,
       useDrawer: isNarrow,
@@ -907,11 +869,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   _Toolbar _buildToolbar({
     required bool isNarrow,
-    required bool inSettings,
     required TabEntry? activeTab,
   }) {
     final tab = activeTab;
-    final hasTab = !inSettings && tab != null;
+    final hasTab = tab != null;
     return _Toolbar(
       sidebarOpen: _sidebarOpen,
       onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
@@ -933,8 +894,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   .copyToNewPanel(ws.focusedPanelId, Axis.vertical);
             }
           : null,
-      onSettings: _toggleSettings,
-      inSettings: inSettings,
+      onTools: () => ToolsDialog.show(context),
+      onSettings: () => SettingsDialog.show(context),
     );
   }
 
@@ -1079,8 +1040,8 @@ class _Toolbar extends StatelessWidget {
   final bool isTerminalTab;
   final VoidCallback? onDuplicateTab;
   final VoidCallback? onDuplicateDown;
+  final VoidCallback onTools;
   final VoidCallback onSettings;
-  final bool inSettings;
 
   const _Toolbar({
     required this.sidebarOpen,
@@ -1089,8 +1050,8 @@ class _Toolbar extends StatelessWidget {
     this.isTerminalTab = false,
     this.onDuplicateTab,
     this.onDuplicateDown,
+    required this.onTools,
     required this.onSettings,
-    this.inSettings = false,
   });
 
   @override
@@ -1113,6 +1074,8 @@ class _Toolbar extends StatelessWidget {
                 ? S.of(context).hideSidebar
                 : S.of(context).showSidebar,
           ),
+        _TextButton(label: S.of(context).tools, onTap: onTools),
+        _TextButton(label: S.of(context).settings, onTap: onSettings),
         const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
@@ -1125,28 +1088,34 @@ class _Toolbar extends StatelessWidget {
             onTap: onDuplicateDown,
             tooltip: S.of(context).duplicateDownShortcut,
           ),
-          _Divider(),
-        ] else
-          _Divider(),
-        AppIconButton(
-          icon: inSettings ? Icons.arrow_back : Icons.settings,
-          onTap: onSettings,
-          tooltip: inSettings ? S.of(context).back : S.of(context).settings,
-        ),
+        ],
         const SizedBox(width: 2),
       ],
     );
   }
 }
 
-class _Divider extends StatelessWidget {
+/// VS Code-style text button for the toolbar.
+class _TextButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _TextButton({required this.label, required this.onTap});
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 16,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: Theme.of(context).colorScheme.outlineVariant,
+    return HoverRegion(
+      onTap: onTap,
+      builder: (hovered) => Container(
+        height: AppTheme.controlHeightXs,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        color: hovered ? AppTheme.hover : Colors.transparent,
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+        ),
+      ),
     );
   }
 }

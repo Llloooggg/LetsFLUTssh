@@ -2675,9 +2675,7 @@ void main() {
   // ---------------------------------------------------------------------------
   // Desktop two-column layout
   // ---------------------------------------------------------------------------
-  group('SettingsSidebar + SettingsContent — desktop embedded widgets', () {
-    int selectedIndex = 0;
-
+  group('SettingsDialog — desktop full-screen modal', () {
     Widget buildDesktopApp({AppConfig? initialConfig}) {
       final config = initialConfig ?? AppConfig.defaults;
       return ProviderScope(
@@ -2689,21 +2687,13 @@ void main() {
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
           theme: AppTheme.dark(),
-          home: StatefulBuilder(
-            builder: (context, setState) => Scaffold(
-              body: Row(
-                children: [
-                  SizedBox(
-                    width: 200,
-                    child: SettingsSidebar(
-                      selectedIndex: selectedIndex,
-                      onSelect: (i) => setState(() => selectedIndex = i),
-                    ),
-                  ),
-                  Expanded(
-                    child: SettingsContent(selectedIndex: selectedIndex),
-                  ),
-                ],
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => SettingsDialog.show(context),
+                  child: const Text('Open'),
+                ),
               ),
             ),
           ),
@@ -2714,14 +2704,16 @@ void main() {
     setUp(() {
       plat.debugMobilePlatformOverride = false;
       plat.debugDesktopPlatformOverride = true;
-      selectedIndex = 0;
     });
 
-    testWidgets('renders nav rail with all section labels', (tester) async {
+    testWidgets('renders nav rail with section labels', (tester) async {
       await tester.pumpWidget(buildDesktopApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
       // "Appearance" appears in both nav + content header = 2
       expect(find.text('Appearance'), findsNWidgets(2));
-      // Others appear once in nav only (content shows Appearance by default)
+      // Others appear once in nav only
       expect(find.text('Terminal'), findsOneWidget);
       expect(find.text('Connection'), findsOneWidget);
       expect(find.text('Transfers'), findsOneWidget);
@@ -2729,10 +2721,15 @@ void main() {
       expect(find.text('Logging'), findsOneWidget);
       expect(find.text('Updates'), findsOneWidget);
       expect(find.text('About'), findsOneWidget);
+      // SSH Keys is NOT in the desktop settings dialog (moved to Tools)
+      expect(find.text('SSH Keys'), findsNothing);
     });
 
     testWidgets('first section is selected by default', (tester) async {
       await tester.pumpWidget(buildDesktopApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Appearance'), findsNWidgets(2));
       expect(find.text('Theme'), findsOneWidget);
       expect(find.text('Terminal Font Size'), findsOneWidget);
@@ -2740,22 +2737,23 @@ void main() {
 
     testWidgets('tapping nav item switches content pane', (tester) async {
       await tester.pumpWidget(buildDesktopApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
 
-      // Initially shows Appearance
       expect(find.text('Theme'), findsOneWidget);
 
-      // Tap Terminal nav item
       await tester.tap(find.text('Terminal'));
       await tester.pumpAndSettle();
 
-      // Terminal content visible (header + nav = 2), Appearance content gone
       expect(find.text('Terminal'), findsNWidgets(2));
       expect(find.text('Scrollback Lines'), findsOneWidget);
-      expect(find.text('Font Size'), findsNothing);
     });
 
     testWidgets('tapping Connection shows connection fields', (tester) async {
       await tester.pumpWidget(buildDesktopApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.text('Connection'));
       await tester.pumpAndSettle();
 
@@ -2767,12 +2765,23 @@ void main() {
 
     testWidgets('renders Reset to Defaults button', (tester) async {
       await tester.pumpWidget(buildDesktopApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Reset to Defaults'), findsOneWidget);
     });
 
-    testWidgets('renders SETTINGS header in sidebar', (tester) async {
+    testWidgets('close button dismisses dialog', (tester) async {
       await tester.pumpWidget(buildDesktopApp());
-      expect(find.text('SETTINGS'), findsOneWidget);
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Appearance'), findsNWidgets(2));
+      // Tap close button (X icon)
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Appearance'), findsNothing);
     });
   });
 

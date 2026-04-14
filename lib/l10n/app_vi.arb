@@ -387,6 +387,7 @@
   "clearedAllHosts": "Đã xóa tất cả máy chủ đã biết",
   "removedHost": "Đã xóa {host}",
   "noHostsToExport": "Không có máy chủ để xuất",
+  "tools": "Công cụ",
   "sshKeys": "Khóa SSH",
   "sshKeysSubtitle": "Quản lý cặp khóa SSH để xác thực",
   "noKeys": "Không có khóa SSH. Nhập hoặc tạo một khóa.",

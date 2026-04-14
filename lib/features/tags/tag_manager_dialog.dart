@@ -8,19 +8,18 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
 
-/// Dialog for managing tags — list, add, delete.
-class TagManagerDialog extends ConsumerStatefulWidget {
-  const TagManagerDialog({super.key});
-
-  static Future<void> show(BuildContext context) {
-    return AppDialog.show(context, builder: (_) => const TagManagerDialog());
-  }
+/// Embeddable tag manager — toolbar + list with CRUD.
+///
+/// Used standalone inside [TagManagerDialog] (mobile) and embedded in
+/// the desktop Tools dialog.
+class TagManagerPanel extends ConsumerStatefulWidget {
+  const TagManagerPanel({super.key});
 
   @override
-  ConsumerState<TagManagerDialog> createState() => _TagManagerDialogState();
+  ConsumerState<TagManagerPanel> createState() => _TagManagerPanelState();
 }
 
-class _TagManagerDialogState extends ConsumerState<TagManagerDialog> {
+class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
   List<Tag> _tags = [];
   bool _loading = true;
 
@@ -44,22 +43,12 @@ class _TagManagerDialogState extends ConsumerState<TagManagerDialog> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return AppDialog(
-      title: s.tags,
-      maxWidth: 480,
-      scrollable: false,
-      contentPadding: EdgeInsets.zero,
-      content: SizedBox(
-        height: 350,
-        child: Column(
-          children: [
-            _buildToolbar(s),
-            const Divider(height: 1),
-            Expanded(child: _buildBody(s)),
-          ],
-        ),
-      ),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+    return Column(
+      children: [
+        _buildToolbar(s),
+        const Divider(height: 1),
+        Expanded(child: _buildBody(s)),
+      ],
     );
   }
 
@@ -177,6 +166,27 @@ class _TagManagerDialogState extends ConsumerState<TagManagerDialog> {
     if (mounted) {
       Toast.show(context, message: s.tagDeleted(tag.name));
     }
+  }
+}
+
+/// Dialog wrapper for standalone use (mobile settings).
+class TagManagerDialog extends StatelessWidget {
+  const TagManagerDialog({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return AppDialog.show(context, builder: (_) => const TagManagerDialog());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDialog(
+      title: S.of(context).tags,
+      maxWidth: 480,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      content: const SizedBox(height: 350, child: TagManagerPanel()),
+      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+    );
   }
 }
 

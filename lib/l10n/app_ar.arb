@@ -387,6 +387,7 @@
   "clearedAllHosts": "تم مسح جميع المضيفين المعروفين",
   "removedHost": "تمت إزالة {host}",
   "noHostsToExport": "لا يوجد مضيفون للتصدير",
+  "tools": "أدوات",
   "sshKeys": "مفاتيح SSH",
   "sshKeysSubtitle": "إدارة أزواج مفاتيح SSH للمصادقة",
   "noKeys": "لا توجد مفاتيح SSH. قم بالاستيراد أو التوليد.",

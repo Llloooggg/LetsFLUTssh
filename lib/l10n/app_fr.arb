@@ -389,6 +389,7 @@
   "noHostsToExport": "Aucun hôte à exporter",
   "keyType": "Type de clé",
   "fingerprint": "Empreinte",
+  "tools": "Outils",
   "sshKeys": "Clés SSH",
   "sshKeysSubtitle": "Gestion des paires de clés SSH pour l'authentification",
   "noKeys": "Aucune clé SSH. Importez ou générez-en une.",

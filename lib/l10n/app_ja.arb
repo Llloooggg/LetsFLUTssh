@@ -389,6 +389,7 @@
   "noHostsToExport": "エクスポートするホストがありません",
   "keyType": "キータイプ",
   "fingerprint": "フィンガープリント",
+  "tools": "ツール",
   "sshKeys": "SSH キー",
   "sshKeysSubtitle": "認証用 SSH キーペアの管理",
   "noKeys": "SSH キーがありません。インポートまたは生成してください。",

@@ -872,6 +872,7 @@
   "noHostsToExport": "No known hosts to export",
   "keyType": "Key Type",
   "fingerprint": "Fingerprint",
+  "tools": "Tools",
   "sshKeys": "SSH Keys",
   "sshKeysSubtitle": "Manage SSH key pairs for authentication",
   "noKeys": "No SSH keys. Import or generate one.",

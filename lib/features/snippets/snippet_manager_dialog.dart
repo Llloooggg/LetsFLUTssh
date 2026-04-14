@@ -9,23 +9,19 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
 
-/// Dialog for managing command snippets — list, add, edit, delete.
-class SnippetManagerDialog extends ConsumerStatefulWidget {
-  const SnippetManagerDialog({super.key});
-
-  static Future<void> show(BuildContext context) {
-    return AppDialog.show(
-      context,
-      builder: (_) => const SnippetManagerDialog(),
-    );
-  }
+/// Embeddable snippet manager — toolbar + list with CRUD.
+///
+/// Used standalone inside [SnippetManagerDialog] (mobile) and embedded in
+/// the desktop Tools dialog.
+class SnippetManagerPanel extends ConsumerStatefulWidget {
+  const SnippetManagerPanel({super.key});
 
   @override
-  ConsumerState<SnippetManagerDialog> createState() =>
-      _SnippetManagerDialogState();
+  ConsumerState<SnippetManagerPanel> createState() =>
+      _SnippetManagerPanelState();
 }
 
-class _SnippetManagerDialogState extends ConsumerState<SnippetManagerDialog> {
+class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
   List<Snippet> _snippets = [];
   bool _loading = true;
 
@@ -49,22 +45,12 @@ class _SnippetManagerDialogState extends ConsumerState<SnippetManagerDialog> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return AppDialog(
-      title: s.snippets,
-      maxWidth: 640,
-      scrollable: false,
-      contentPadding: EdgeInsets.zero,
-      content: SizedBox(
-        height: 400,
-        child: Column(
-          children: [
-            _buildToolbar(s),
-            const Divider(height: 1),
-            Expanded(child: _buildBody(s)),
-          ],
-        ),
-      ),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+    return Column(
+      children: [
+        _buildToolbar(s),
+        const Divider(height: 1),
+        Expanded(child: _buildBody(s)),
+      ],
     );
   }
 
@@ -242,6 +228,30 @@ class _SnippetManagerDialogState extends ConsumerState<SnippetManagerDialog> {
     if (mounted) {
       Toast.show(context, message: s.snippetDeleted(snippet.title));
     }
+  }
+}
+
+/// Dialog wrapper for standalone use (mobile settings).
+class SnippetManagerDialog extends StatelessWidget {
+  const SnippetManagerDialog({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return AppDialog.show(
+      context,
+      builder: (_) => const SnippetManagerDialog(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDialog(
+      title: S.of(context).snippets,
+      maxWidth: 640,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      content: const SizedBox(height: 400, child: SnippetManagerPanel()),
+      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+    );
   }
 }
 

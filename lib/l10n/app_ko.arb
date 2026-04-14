@@ -389,6 +389,7 @@
   "noHostsToExport": "내보낼 호스트가 없습니다",
   "keyType": "키 유형",
   "fingerprint": "지문",
+  "tools": "도구",
   "sshKeys": "SSH 키",
   "sshKeysSubtitle": "인증용 SSH 키 쌍 관리",
   "noKeys": "SSH 키가 없습니다. 가져오거나 생성하세요.",

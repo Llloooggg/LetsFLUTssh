@@ -387,6 +387,7 @@
   "clearedAllHosts": "Tüm bilinen sunucular temizlendi",
   "removedHost": "{host} kaldırıldı",
   "noHostsToExport": "Dışa aktarılacak sunucu yok",
+  "tools": "Araçlar",
   "sshKeys": "SSH Anahtarları",
   "sshKeysSubtitle": "Kimlik doğrulama için SSH anahtar çiftlerini yönetin",
   "noKeys": "SSH anahtarı yok. İçe aktarın veya oluşturun.",

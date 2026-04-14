@@ -440,7 +440,8 @@ class SKo extends S {
   String get unknownHost => '알 수 없는 호스트';
 
   @override
-  String get hostKeyChangedWarning => '경고: 이 서버의 호스트 키가 변경되었습니다. 이는 중간자 공격을 나타낼 수 있으며, 서버가 재설치되었을 수도 있습니다.';
+  String get hostKeyChangedWarning =>
+      '경고: 이 서버의 호스트 키가 변경되었습니다. 이는 중간자 공격을 나타낼 수 있으며, 서버가 재설치되었을 수도 있습니다.';
 
   @override
   String get unknownHostMessage => '이 호스트의 신뢰성을 확인할 수 없습니다. 연결을 계속하시겠습니까?';
@@ -846,10 +847,12 @@ class SKo extends S {
   String get exportSessionsViaQr => 'QR로 세션 내보내기';
 
   @override
-  String get qrNoCredentialsWarning => '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
+  String get qrNoCredentialsWarning =>
+      '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
 
   @override
-  String get qrTooManyForSingleCode => '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
+  String get qrTooManyForSingleCode =>
+      '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
 
   @override
   String get qrTooLarge => '너무 큽니다 — 일부 세션을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.';
@@ -1264,7 +1267,8 @@ class SKo extends S {
   String get clearAllKnownHosts => '모든 알려진 호스트 삭제';
 
   @override
-  String get clearAllKnownHostsConfirm => '모든 알려진 호스트를 제거하시겠습니까? 각 서버 키를 다시 확인해야 합니다.';
+  String get clearAllKnownHostsConfirm =>
+      '모든 알려진 호스트를 제거하시겠습니까? 각 서버 키를 다시 확인해야 합니다.';
 
   @override
   String get importKnownHosts => '알려진 호스트 가져오기';
@@ -1296,6 +1300,9 @@ class SKo extends S {
 
   @override
   String get noHostsToExport => '내보낼 호스트가 없습니다';
+
+  @override
+  String get tools => '도구';
 
   @override
   String get sshKeys => 'SSH 키';
@@ -1445,13 +1452,15 @@ class SKo extends S {
   String get masterPasswordRemoved => '마스터 비밀번호가 제거되었습니다';
 
   @override
-  String get masterPasswordWarning => '이 비밀번호를 잊으면 저장된 모든 비밀번호와 SSH 키가 손실됩니다. 복구할 수 없습니다.';
+  String get masterPasswordWarning =>
+      '이 비밀번호를 잊으면 저장된 모든 비밀번호와 SSH 키가 손실됩니다. 복구할 수 없습니다.';
 
   @override
   String get forgotPassword => '비밀번호를 잊으셨나요?';
 
   @override
-  String get forgotPasswordWarning => '저장된 모든 비밀번호, SSH 키, 암호문이 삭제됩니다. 세션과 설정은 유지됩니다. 이 작업은 되돌릴 수 없습니다.';
+  String get forgotPasswordWarning =>
+      '저장된 모든 비밀번호, SSH 키, 암호문이 삭제됩니다. 세션과 설정은 유지됩니다. 이 작업은 되돌릴 수 없습니다.';
 
   @override
   String get resetAndDeleteCredentials => '재설정 및 데이터 삭제';
@@ -1466,7 +1475,8 @@ class SKo extends S {
   String get reEncrypting => '데이터 재암호화 중...';
 
   @override
-  String get confirmRemoveMasterPassword => '마스터 비밀번호 보호를 해제하려면 현재 비밀번호를 입력하세요. 인증 정보는 자동 생성 키로 재암호화됩니다.';
+  String get confirmRemoveMasterPassword =>
+      '마스터 비밀번호 보호를 해제하려면 현재 비밀번호를 입력하세요. 인증 정보는 자동 생성 키로 재암호화됩니다.';
 
   @override
   String get securitySetupTitle => '보안 설정';
@@ -1477,16 +1487,20 @@ class SKo extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional => '추가 보호를 위해 마스터 비밀번호를 설정할 수도 있습니다.';
+  String get securitySetupKeychainOptional =>
+      '추가 보호를 위해 마스터 비밀번호를 설정할 수도 있습니다.';
 
   @override
-  String get securitySetupNoKeychain => 'OS 키체인이 감지되지 않았습니다. 키체인 없이는 세션 데이터(호스트, 비밀번호, 키)가 평문으로 저장됩니다.';
+  String get securitySetupNoKeychain =>
+      'OS 키체인이 감지되지 않았습니다. 키체인 없이는 세션 데이터(호스트, 비밀번호, 키)가 평문으로 저장됩니다.';
 
   @override
-  String get securitySetupNoKeychainHint => 'WSL, 헤드리스 Linux 또는 최소 설치에서는 정상입니다. Linux에서 키체인을 활성화하려면: libsecret과 키링 데몬(예: gnome-keyring)을 설치하세요.';
+  String get securitySetupNoKeychainHint =>
+      'WSL, 헤드리스 Linux 또는 최소 설치에서는 정상입니다. Linux에서 키체인을 활성화하려면: libsecret과 키링 데몬(예: gnome-keyring)을 설치하세요.';
 
   @override
-  String get securitySetupRecommendMasterPassword => '데이터를 보호하기 위해 마스터 비밀번호 설정을 권장합니다.';
+  String get securitySetupRecommendMasterPassword =>
+      '데이터를 보호하기 위해 마스터 비밀번호 설정을 권장합니다.';
 
   @override
   String get continueWithKeychain => '키체인으로 계속';

@@ -389,6 +389,7 @@
   "noHostsToExport": "没有可导出的主机",
   "keyType": "密钥类型",
   "fingerprint": "指纹",
+  "tools": "工具",
   "sshKeys": "SSH 密钥",
   "sshKeysSubtitle": "管理用于身份验证的 SSH 密钥对",
   "noKeys": "没有 SSH 密钥。请导入或生成一个。",

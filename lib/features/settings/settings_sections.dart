@@ -254,12 +254,14 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
             subtitle: l10n.enableKeychainSubtitle,
             onTap: () => _enableKeychain(context),
           ),
-        _ActionTile(
-          icon: Icons.verified_user,
-          title: l10n.knownHosts,
-          subtitle: l10n.knownHostsSubtitle,
-          onTap: () => KnownHostsManagerDialog.show(context),
-        ),
+        // Known Hosts — only on mobile (desktop has it in Tools dialog).
+        if (plat.isMobilePlatform)
+          _ActionTile(
+            icon: Icons.verified_user,
+            title: l10n.knownHosts,
+            subtitle: l10n.knownHostsSubtitle,
+            onTap: () => KnownHostsManagerDialog.show(context),
+          ),
       ],
     );
   }

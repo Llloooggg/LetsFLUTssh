@@ -21,7 +21,6 @@ enum AppShortcut {
     SingleActivator(LogicalKeyboardKey.keyM, control: true, shift: true),
   ),
   openSettings(SingleActivator(LogicalKeyboardKey.comma, control: true)),
-  closeSettings(SingleActivator(LogicalKeyboardKey.escape)),
 
   // ── Terminal ────────────────────────────────────────────────────────────
   terminalCopy(
