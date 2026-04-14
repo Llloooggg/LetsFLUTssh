@@ -1178,7 +1178,7 @@ void main() {
     });
 
     testWidgets('source code tap does not crash', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
