@@ -389,7 +389,7 @@ The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsib
 | `session_store.dart` | `SessionStore` | CRUD via drift DAOs, search, folder tree management |
 | `session_tree.dart` | `SessionTree`, `TreeNode` | Hierarchical tree built from flat session list |
 | `session_history.dart` | `SessionHistory` | Undo/redo snapshots (stores credentials separately) |
-| `qr_codec.dart` | Free functions | Export payload encoding/decoding (QR, `.lfs` files). Versioned format (`v: 4`), deflate compressed, key map deduplication. Public API: `encodeExportPayload()`, `decodeExportPayload()`, `calculateExportPayloadSize()`, `encodeSessionCompact()`, `wrapInDeepLink()`, `decodeImportUri()`. Supports sessions, empty folders, passwords, SSH keys (embedded + manager), config, known_hosts, tags, snippets. Max ~2000 bytes for QR. |
+| `qr_codec.dart` | Free functions | Export payload encoding/decoding (QR, `.lfs` files). Versioned format (`v: 4`), deflate compressed, key map deduplication. Decoder rejects payloads with `v > 4` to avoid silently dropping unknown fields. Public API: `encodeExportPayload()`, `decodeExportPayload()`, `calculateExportPayloadSize()`, `encodeSessionCompact()`, `wrapInDeepLink()`, `decodeImportUri()`. Supports sessions, empty folders, passwords, SSH keys (embedded + manager), config, known_hosts, tags, snippets. Max ~2000 bytes for QR. |
 
 #### QR payload format (v4)
 
@@ -733,7 +733,7 @@ class DeepLinkHandler {
 
 | File | Purpose |
 |------|---------|
-| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps |
+| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
 | `key_file_helper.dart` | SSH key file parsing (PEM, OpenSSH formats) |
 
 #### .lfs format
@@ -742,6 +742,7 @@ class DeepLinkHandler {
 [salt 32B] [IV 12B] [encrypted payload + GCM tag 16B]
 
 payload = ZIP archive:
+  manifest.json           ← schema_version, app_version, created_at (see below)
   sessions.json           ← session metadata with credentials (toJsonWithCredentials)
   empty_folders.json      ← list of empty folder paths
   keys.json               ← manager SSH keys (label, type, public/private key)
@@ -757,12 +758,19 @@ Encryption: AES-256-GCM
 Key: PBKDF2-SHA256(password, salt, 600000 iterations)
 ```
 
+Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**). The
+manifest is written on every export and validated on import — archives with a
+higher `schema_version` throw `UnsupportedLfsVersionException` rather than
+silently dropping unknown fields. Archives without a manifest are treated as
+legacy v1 (back-compat). GCM's auth tag already protects archive integrity
+end-to-end, so no separate content hash is stored in the manifest.
+
 #### Import modes
 
 | Mode | Behavior |
 |------|----------|
-| **Merge** | Adds new sessions, skips existing ones (by id) |
-| **Replace** | Full replacement of all sessions from archive, with rollback on failure |
+| **Merge** | Adds new sessions; on id collision, inserts a fresh UUID with a `(copy)` suffix (same semantics for tags/snippets). Manager keys deduplicate by private-key fingerprint via `KeyStore.importForMerge()` — identical keys reuse the existing id. Config apply failure is logged but doesn't abort the merge |
+| **Replace** | Full replacement of all sessions from archive. A failure at any step (sessions, folders, config) triggers a full rollback of the snapshot (sessions + folders + config) |
 
 #### Import service
 
@@ -774,7 +782,7 @@ Key: PBKDF2-SHA256(password, salt, 600000 iterations)
 - Snippet import with ID remapping, then session→snippet link creation
 - Config application via typed `AppConfig` callback
 - Known hosts import via `KnownHostsManager.importFromString()`
-- Rollback support in replace mode via `restoreSnapshot` callback
+- Rollback support in replace mode via `restoreSnapshot` callback — snapshot includes sessions, empty folders, and (when `getCurrentConfig` is provided) the pre-import `AppConfig`, so a failed import restores atomically
 
 ---
 
@@ -2384,6 +2392,8 @@ Key = PBKDF2-SHA256(password, salt, 600000 iterations)
 Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
 
 Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths. Manager keys, tags (with session/folder assignments), and snippets (with session links) are each stored in separate JSON files inside the ZIP archive (see [§3.9](#39-import-coreimport) for full file list).
+
+The archive also carries a `manifest.json` with `schema_version` (current: `ExportImport.currentSchemaVersion`), optional `app_version`, and `created_at`. Archives with a future `schema_version` are rejected with `UnsupportedLfsVersionException` to avoid silently dropping unknown fields; missing manifest is treated as legacy v1.
 
 ### TOFU (Trust On First Use)
 

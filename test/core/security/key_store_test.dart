@@ -236,6 +236,96 @@ void main() {
     });
   });
 
+  group('KeyStore — import dedup', () {
+    late AppDatabase db;
+    late KeyStore store;
+
+    setUp(() {
+      db = openTestDatabase();
+      store = KeyStore()..setDatabase(db);
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    test('privateKeyFingerprint is stable for equivalent PEMs', () {
+      const pem = '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END-----';
+      final a = KeyStore.privateKeyFingerprint(pem);
+      final b = KeyStore.privateKeyFingerprint('$pem\n\n');
+      final c = KeyStore.privateKeyFingerprint(pem.replaceAll('\n', '\r\n'));
+      expect(a, isNotEmpty);
+      expect(a, b);
+      expect(a, c);
+    });
+
+    test('privateKeyFingerprint differs for distinct keys', () {
+      final a = KeyStore.privateKeyFingerprint('pem-a');
+      final b = KeyStore.privateKeyFingerprint('pem-b');
+      expect(a, isNot(b));
+    });
+
+    test('findIdByPrivateKey returns existing id on match', () async {
+      final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'k1');
+      await store.save(entry);
+      final id = await store.findIdByPrivateKey(entry.privateKey);
+      expect(id, entry.id);
+    });
+
+    test('findIdByPrivateKey returns null when no match', () async {
+      final id = await store.findIdByPrivateKey('does-not-exist');
+      expect(id, isNull);
+    });
+
+    test('importForMerge reuses id for identical private key', () async {
+      final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'original');
+      await store.save(entry);
+
+      // Simulate incoming import with a different id but same key material.
+      final incoming = SshKeyEntry(
+        id: 'other-id',
+        label: 'imported',
+        privateKey: entry.privateKey,
+        publicKey: entry.publicKey,
+        keyType: entry.keyType,
+        createdAt: DateTime(2025),
+      );
+      final resolvedId = await store.importForMerge(incoming);
+      expect(resolvedId, entry.id, reason: 'must dedupe by fingerprint');
+      expect(await store.loadAll(), hasLength(1));
+    });
+
+    test(
+      'importForMerge inserts fresh entry with "(copy)" label on label collision',
+      () async {
+        final a = KeyStore.generateKeyPair(SshKeyType.ed25519, 'shared');
+        await store.save(a);
+
+        final b = KeyStore.generateKeyPair(SshKeyType.ed25519, 'shared');
+        final newId = await store.importForMerge(b);
+
+        final all = await store.loadAll();
+        expect(all, hasLength(2));
+        expect(all[newId]!.label, 'shared (copy)');
+      },
+    );
+
+    test(
+      'importForMerge suffixes "(copy N)" when copy label also taken',
+      () async {
+        final a = KeyStore.generateKeyPair(SshKeyType.ed25519, 'k');
+        await store.save(a);
+        final b = KeyStore.generateKeyPair(SshKeyType.ed25519, 'k');
+        await store.save(b.copyWith(label: 'k (copy)'));
+
+        final c = KeyStore.generateKeyPair(SshKeyType.ed25519, 'k');
+        final newId = await store.importForMerge(c);
+        final all = await store.loadAll();
+        expect(all[newId]!.label, 'k (copy 2)');
+      },
+    );
+  });
+
   group('SshKeyType', () {
     test('all types have labels', () {
       for (final t in SshKeyType.values) {

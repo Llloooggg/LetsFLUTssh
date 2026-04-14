@@ -18,16 +18,26 @@ import '../../utils/logger.dart';
 /// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM.
 ///
 /// Structure inside ZIP:
+///   manifest.json  — schema + app version, created_at (see [currentSchemaVersion])
 ///   sessions.json  — full session data WITH credentials
 ///   config.json    — app configuration
 ///   known_hosts    — TOFU host key database
 ///
 /// The ZIP bytes are encrypted with AES-256-GCM using a key derived from
-/// a master password via PBKDF2 (600k iterations, SHA-256).
+/// a master password via PBKDF2 (600k iterations, SHA-256). GCM's auth tag
+/// already protects archive integrity end-to-end, so the manifest carries
+/// metadata only — no redundant content hash.
 class ExportImport {
+  /// Current .lfs schema version. Bump on format-breaking changes.
+  ///
+  /// - v1 (2026-04): initial manifest introduction. Archives without a
+  ///   manifest are treated as legacy v1 for backward compatibility.
+  static const int currentSchemaVersion = 1;
+
   static const _saltLen = 32;
   static const _ivLen = 12;
   static const _pbkdf2Iterations = 600000;
+  static const _manifestFile = 'manifest.json';
   static const _sessionsFile = 'sessions.json';
   static const _keysFile = 'keys.json';
   static const _emptyFoldersFile = 'empty_folders.json';
@@ -198,6 +208,7 @@ class ExportImport {
   /// Build the ZIP archive in memory from [input].
   static Archive _buildArchive(LfsExportInput input) {
     final archive = Archive();
+    _addManifest(archive, input);
     _addSessions(archive, input);
     _addManagerKeys(archive, input);
     _addConfig(archive, input);
@@ -205,6 +216,20 @@ class ExportImport {
     _addTags(archive, input);
     _addSnippets(archive, input);
     return archive;
+  }
+
+  static void _addManifest(Archive archive, LfsExportInput input) {
+    final manifest = <String, dynamic>{
+      'schema_version': currentSchemaVersion,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    final appVersion = input.appVersion;
+    if (appVersion != null && appVersion.isNotEmpty) {
+      manifest['app_version'] = appVersion;
+    }
+    final json = const JsonEncoder.withIndent('  ').convert(manifest);
+    final bytes = utf8.encode(json);
+    archive.addFile(ArchiveFile(_manifestFile, bytes.length, bytes));
   }
 
   static void _addSessions(Archive archive, LfsExportInput input) {
@@ -357,6 +382,14 @@ class ExportImport {
     );
     final archive = ZipDecoder().decodeBytes(zipBytes);
 
+    final manifest = _parseManifest(archive);
+    if (manifest.schemaVersion > currentSchemaVersion) {
+      throw UnsupportedLfsVersionException(
+        found: manifest.schemaVersion,
+        supported: currentSchemaVersion,
+      );
+    }
+
     List<Session> sessions = [];
     final sessionsFile = archive.findFile(_sessionsFile);
     if (sessionsFile != null) {
@@ -401,6 +434,7 @@ class ExportImport {
     );
     return _ParsedArchive(
       archive: archive,
+      manifest: manifest,
       sessions: sessions,
       emptyFolders: emptyFolders,
       managerKeys: managerKeys,
@@ -410,6 +444,33 @@ class ExportImport {
       snippets: snippetList,
       sessionSnippets: sessionSnippetLinks,
     );
+  }
+
+  /// Parse the manifest entry. Absence or malformed content is treated as a
+  /// legacy v1 archive (no manifest was written before [currentSchemaVersion]
+  /// introduction).
+  static LfsManifest _parseManifest(Archive archive) {
+    final file = archive.findFile(_manifestFile);
+    if (file == null) return const LfsManifest.legacy();
+    try {
+      final json = utf8.decode(file.content as List<int>);
+      final decoded = jsonDecode(json);
+      if (decoded is! Map<String, dynamic>) return const LfsManifest.legacy();
+      final version = decoded['schema_version'];
+      return LfsManifest(
+        schemaVersion: version is int
+            ? version
+            : (version is num ? version.toInt() : 1),
+        appVersion: decoded['app_version'] is String
+            ? decoded['app_version'] as String
+            : null,
+        createdAt: decoded['created_at'] is String
+            ? DateTime.tryParse(decoded['created_at'] as String)
+            : null,
+      );
+    } catch (_) {
+      return const LfsManifest.legacy();
+    }
   }
 
   /// Preview contents of an .lfs archive without full import.
@@ -433,6 +494,7 @@ class ExportImport {
       managerKeyCount: parsed.managerKeys.length,
       tagCount: parsed.tags.length,
       snippetCount: parsed.snippets.length,
+      manifest: parsed.manifest,
     );
   }
 
@@ -541,6 +603,7 @@ class ExportImport {
 /// Internal parsed archive result.
 class _ParsedArchive {
   final Archive archive;
+  final LfsManifest manifest;
   final List<Session> sessions;
   final Set<String> emptyFolders;
   final List<SshKeyEntry> managerKeys;
@@ -552,6 +615,7 @@ class _ParsedArchive {
 
   const _ParsedArchive({
     required this.archive,
+    required this.manifest,
     required this.sessions,
     required this.emptyFolders,
     required this.managerKeys,
@@ -563,6 +627,42 @@ class _ParsedArchive {
   });
 }
 
+/// Manifest metadata parsed from the archive.
+class LfsManifest {
+  final int schemaVersion;
+  final String? appVersion;
+  final DateTime? createdAt;
+
+  const LfsManifest({
+    required this.schemaVersion,
+    this.appVersion,
+    this.createdAt,
+  });
+
+  /// Constructs a sentinel manifest for legacy archives (pre-manifest).
+  const LfsManifest.legacy()
+    : schemaVersion = 1,
+      appVersion = null,
+      createdAt = null;
+}
+
+/// Thrown when an .lfs archive was written by a newer app version with a
+/// schema this build does not understand. The archive is not decrypted past
+/// the manifest to avoid corrupting state from unknown fields.
+class UnsupportedLfsVersionException implements Exception {
+  final int found;
+  final int supported;
+  const UnsupportedLfsVersionException({
+    required this.found,
+    required this.supported,
+  });
+
+  @override
+  String toString() =>
+      'UnsupportedLfsVersionException: archive schema v$found is newer '
+      'than supported v$supported. Update the app to import this file.';
+}
+
 /// Preview of .lfs archive contents.
 class LfsPreview {
   final List<Session> sessions;
@@ -572,6 +672,7 @@ class LfsPreview {
   final int managerKeyCount;
   final int tagCount;
   final int snippetCount;
+  final LfsManifest manifest;
 
   const LfsPreview({
     required this.sessions,
@@ -581,6 +682,7 @@ class LfsPreview {
     this.managerKeyCount = 0,
     this.tagCount = 0,
     this.snippetCount = 0,
+    this.manifest = const LfsManifest.legacy(),
   });
 
   bool get hasSessions => sessions.isNotEmpty;
@@ -663,6 +765,9 @@ class LfsExportInput {
   final List<Snippet> snippets;
   final List<ExportLink> sessionSnippets;
 
+  /// App version string recorded in the manifest (diagnostic only).
+  final String? appVersion;
+
   const LfsExportInput({
     required this.sessions,
     required this.config,
@@ -675,5 +780,6 @@ class LfsExportInput {
     this.folderTags = const [],
     this.snippets = const [],
     this.sessionSnippets = const [],
+    this.appVersion,
   });
 }

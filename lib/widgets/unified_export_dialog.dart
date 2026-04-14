@@ -127,21 +127,40 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
 
   Set<String> get _relevantEmptyFolders {
     final selectedFolders = _selectedSessions.map((s) => s.folder).toSet();
-    // Include an empty folder if:
-    //   1. Any selected session belongs to it or a subfolder (preserve hierarchy), OR
+    final all = _selectedIds.length == widget.data.sessions.length;
+    final result = <String>{};
+
+    // Explicitly record every ancestor path of each selected session's folder.
+    // Resolving a session's folder on import already creates ancestors, but
+    // including them here keeps the export payload self-describing and
+    // robust against future import flows that rely on the emptyFolders set
+    // for hierarchy.
+    for (final folder in selectedFolders) {
+      if (folder.isEmpty) continue;
+      final parts = folder.split('/');
+      for (var i = 1; i < parts.length; i++) {
+        result.add(parts.take(i).join('/'));
+      }
+    }
+
+    // Include an empty folder from the source set if:
+    //   1. Any selected session belongs to it or a subfolder, OR
     //   2. The folder is an ancestor of a selected session's folder, OR
     //   3. All sessions are selected (export full structure).
-    // This ensures the folder hierarchy is preserved on import even when
-    // empty folders contain no sessions.
-    return widget.data.emptyFolders.where((folder) {
-      return selectedFolders.any(
-            (selected) =>
-                selected == folder ||
-                selected.startsWith('$folder/') ||
-                folder.startsWith('$selected/'),
-          ) ||
-          _selectedIds.length == widget.data.sessions.length;
-    }).toSet();
+    for (final folder in widget.data.emptyFolders) {
+      if (all) {
+        result.add(folder);
+        continue;
+      }
+      final related = selectedFolders.any(
+        (selected) =>
+            selected == folder ||
+            selected.startsWith('$folder/') ||
+            folder.startsWith('$selected/'),
+      );
+      if (related) result.add(folder);
+    }
+    return result;
   }
 
   String _formatSize(int bytes) {

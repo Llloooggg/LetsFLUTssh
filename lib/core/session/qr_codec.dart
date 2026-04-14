@@ -526,8 +526,22 @@ ExportPayloadData? _parsePayload(String payload) {
   try {
     final json = jsonDecode(payload) as Map<String, dynamic>;
 
-    // Version check — log for diagnostics, accept all known versions.
-    final version = json['v'] as int?;
+    // Version check: reject future versions up-front — unknown fields may
+    // carry data this build cannot interpret, and silently dropping them
+    // would cause partial/incorrect imports. Missing `v` is treated as v1
+    // (legacy payloads predate the version marker).
+    final versionRaw = json['v'];
+    final version = versionRaw is int
+        ? versionRaw
+        : (versionRaw is num ? versionRaw.toInt() : 1);
+    if (version > _currentFormatVersion) {
+      AppLogger.instance.log(
+        'Rejected payload: schema v$version is newer than supported '
+        'v$_currentFormatVersion — update the app to import this QR.',
+        name: 'QrCodec',
+      );
+      return null;
+    }
     AppLogger.instance.log(
       'Parsing payload: version=$version',
       name: 'QrCodec',

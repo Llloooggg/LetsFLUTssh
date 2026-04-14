@@ -182,6 +182,75 @@ class KeyStore {
     _cache?.remove(id);
   }
 
+  /// Find the id of a stored key whose private material matches [privateKey].
+  /// Returns null if no match. Comparison uses a normalized SHA-256
+  /// fingerprint, tolerating trailing whitespace and line-ending differences.
+  Future<String?> findIdByPrivateKey(String privateKey) async {
+    final target = privateKeyFingerprint(privateKey);
+    if (target.isEmpty) return null;
+    final all = await loadAll();
+    for (final entry in all.values) {
+      if (privateKeyFingerprint(entry.privateKey) == target) return entry.id;
+    }
+    return null;
+  }
+
+  /// Import a key from another source (QR/.lfs), deduplicating by content.
+  ///
+  /// - If a stored key has the same private-key fingerprint, returns its id
+  ///   without writing anything (no duplicates).
+  /// - Otherwise, inserts a new entry. The id is replaced with a fresh UUID
+  ///   to avoid colliding with an unrelated stored key that happens to share
+  ///   the imported id. If the label already exists, a "(copy)"/"(copy N)"
+  ///   suffix is appended — mirrors session duplication semantics.
+  Future<String> importForMerge(SshKeyEntry entry) async {
+    final all = await loadAll();
+    final existingId = await findIdByPrivateKey(entry.privateKey);
+    if (existingId != null) return existingId;
+
+    final labels = all.values.map((e) => e.label).toSet();
+    final takenIds = all.keys.toSet();
+    final newLabel = _uniqueLabel(entry.label, labels);
+    final newId = takenIds.contains(entry.id) ? const Uuid().v4() : entry.id;
+
+    final deduped = SshKeyEntry(
+      id: newId,
+      label: newLabel,
+      privateKey: entry.privateKey,
+      publicKey: entry.publicKey,
+      keyType: entry.keyType,
+      createdAt: entry.createdAt,
+      isGenerated: entry.isGenerated,
+    );
+    await save(deduped);
+    return newId;
+  }
+
+  static String _uniqueLabel(String base, Set<String> taken) {
+    if (base.isEmpty || !taken.contains(base)) return base;
+    final copy = '$base (copy)';
+    if (!taken.contains(copy)) return copy;
+    var n = 2;
+    while (taken.contains('$base (copy $n)')) {
+      n++;
+    }
+    return '$base (copy $n)';
+  }
+
+  /// SHA-256 hex of a normalized private key PEM. Used as a content-addressable
+  /// id for deduplicating imported manager keys.
+  static String privateKeyFingerprint(String privateKey) {
+    final normalized = privateKey.replaceAll('\r\n', '\n').trim();
+    if (normalized.isEmpty) return '';
+    final digest = SHA256Digest();
+    final bytes = digest.process(Uint8List.fromList(utf8.encode(normalized)));
+    final buf = StringBuffer();
+    for (final b in bytes) {
+      buf.write(b.toRadixString(16).padLeft(2, '0'));
+    }
+    return buf.toString();
+  }
+
   /// Import a key from PEM text. Returns the created entry.
   SshKeyEntry importKey(String pem, String label) {
     final pairs = SSHKeyPair.fromPem(pem);
