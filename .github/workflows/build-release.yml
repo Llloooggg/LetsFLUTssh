@@ -370,14 +370,29 @@ jobs:
           IMPROVEMENTS=""
           DEPS=""
 
+          # Parse conventional commits with optional scope: `type(scope): body`.
+          # The scope (e.g. "installer", "import") is surfaced as a leading
+          # `(scope)` in the changelog so users see which module each entry
+          # touches. Prior version only matched unscoped prefixes and silently
+          # dropped every `feat(x):` / `fix(x):` / `refactor(x):` commit.
           while IFS= read -r line; do
             MSG="${line#* }"
-            case "$MSG" in
-              feat:*) FEATURES="$FEATURES- ${MSG#feat: }\n" ;;
-              fix:*)  FIXES="$FIXES- ${MSG#fix: }\n" ;;
-              refactor:*) IMPROVEMENTS="$IMPROVEMENTS- ${MSG#refactor: }\n" ;;
-              "chore(deps):"*) DEPS="$DEPS- ${MSG#chore(deps): }\n" ;;
-            esac
+            if [[ "$MSG" =~ ^([a-z]+)(\(([a-z0-9][a-z0-9-]*)\))?:[[:space:]]+(.+)$ ]]; then
+              TYPE="${BASH_REMATCH[1]}"
+              SCOPE="${BASH_REMATCH[3]}"
+              BODY="${BASH_REMATCH[4]}"
+              PREFIX=""
+              [ -n "$SCOPE" ] && PREFIX="($SCOPE) "
+              case "$TYPE" in
+                feat)          FEATURES="$FEATURES- ${PREFIX}${BODY}\n" ;;
+                fix)           FIXES="$FIXES- ${PREFIX}${BODY}\n" ;;
+                refactor|perf) IMPROVEMENTS="$IMPROVEMENTS- ${PREFIX}${BODY}\n" ;;
+                chore)
+                  # Only surface dependency bumps under chore.
+                  [ "$SCOPE" = "deps" ] && DEPS="$DEPS- ${BODY}\n"
+                  ;;
+              esac
+            fi
           done <<< "$(git log "$RANGE" --oneline --no-merges)"
 
           BODY=""
