@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -123,6 +124,114 @@ void main() {
       expect(clearAllBtn, findsOneWidget);
       final btn = tester.widget<IconButton>(clearAllBtn);
       expect(btn.onPressed, isNull);
+    });
+  });
+
+  group('KnownHostsManagerDialog — with populated hosts', () {
+    // Valid base64 of 32 zero bytes — fingerprint() can decode it.
+    final validKeyB64 = base64Encode(List<int>.filled(32, 0));
+
+    // Populate via `runAsync` — importFromString awaits the real-zone
+    // `_loadFuture` from setUp, which FakeAsync can't advance.
+    Future<void> populate(
+      WidgetTester tester,
+      KnownHostsManager mgr, {
+      Map<String, String>? hosts,
+    }) async {
+      final entries =
+          hosts ??
+          {
+            'example.com:22': 'ssh-ed25519 $validKeyB64',
+            'other.net:2222': 'ssh-rsa $validKeyB64',
+            'broken.host:22': 'ssh-ed25519 !!!not-base64!!!',
+          };
+      final content = entries.entries
+          .map((e) => '${e.key} ${e.value}')
+          .join('\n');
+      await tester.runAsync(() => mgr.importFromString(content));
+    }
+
+    testWidgets('renders host entries with fingerprints', (tester) async {
+      await populate(tester, manager);
+      await tester.pumpWidget(buildApp(manager));
+      await openDialog(tester);
+
+      expect(find.text('example.com:22'), findsOneWidget);
+      expect(find.text('other.net:2222'), findsOneWidget);
+      // Broken entry still renders — fingerprint falls back to '?'
+      expect(find.text('broken.host:22'), findsOneWidget);
+    });
+
+    testWidgets('filter narrows list by host and key type', (tester) async {
+      await populate(tester, manager);
+      await tester.pumpWidget(buildApp(manager));
+      await openDialog(tester);
+
+      await tester.enterText(find.byType(TextField), 'example');
+      await tester.pump();
+      expect(find.text('example.com:22'), findsOneWidget);
+      expect(find.text('other.net:2222'), findsNothing);
+
+      await tester.enterText(find.byType(TextField), 'ssh-rsa');
+      await tester.pump();
+      expect(find.text('example.com:22'), findsNothing);
+      expect(find.text('other.net:2222'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pump();
+      expect(find.text('example.com:22'), findsOneWidget);
+    });
+
+    testWidgets('each entry row has delete + copy buttons', (tester) async {
+      await populate(
+        tester,
+        manager,
+        hosts: {
+          'example.com:22': 'ssh-ed25519 $validKeyB64',
+          'other.net:2222': 'ssh-rsa $validKeyB64',
+        },
+      );
+      await tester.pumpWidget(buildApp(manager));
+      await openDialog(tester);
+
+      final deleteBtns = find.byWidgetPredicate(
+        (w) =>
+            w is IconButton &&
+            w.icon is Icon &&
+            (w.icon as Icon).icon == Icons.delete_outline,
+      );
+      expect(deleteBtns, findsNWidgets(2));
+
+      final copyBtns = find.byWidgetPredicate(
+        (w) =>
+            w is IconButton &&
+            w.icon is Icon &&
+            (w.icon as Icon).icon == Icons.content_copy,
+      );
+      expect(copyBtns, findsNWidgets(2));
+    });
+
+    testWidgets('clear all button enabled when entries exist', (tester) async {
+      await populate(tester, manager);
+      await tester.pumpWidget(buildApp(manager));
+      await openDialog(tester);
+
+      final clearBtn = find.byWidgetPredicate(
+        (w) =>
+            w is IconButton &&
+            w.icon is Icon &&
+            (w.icon as Icon).icon == Icons.delete_sweep,
+      );
+      final btn = tester.widget<IconButton>(clearBtn);
+      expect(btn.onPressed, isNotNull);
+    });
+
+    testWidgets('host count label reflects total', (tester) async {
+      await populate(tester, manager);
+      await tester.pumpWidget(buildApp(manager));
+      await openDialog(tester);
+
+      expect(find.textContaining('3'), findsWidgets);
     });
   });
 }
