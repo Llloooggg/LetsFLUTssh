@@ -23,7 +23,10 @@ Reference material for Claude. Read the specific section you need, not the whole
 | Work with theme / colors | [§8 Theme System](ARCHITECTURE.md#8-theme-system) |
 | Add/change user-facing strings | [§8.1 i18n](ARCHITECTURE.md#81-internationalization-i18n) |
 | Understand Riverpod providers | [§4 State Management](ARCHITECTURE.md#4-state-management--riverpod) |
-| Understand data persistence | [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
+| Understand data persistence / drift DB | [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
+| Work with database / DAOs | [§2 Module Map](ARCHITECTURE.md#2-module-map) (`core/db/`) + [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
+| Work with snippets | `core/snippets/` + `features/snippets/` + `providers/snippet_provider.dart` |
+| Work with tags | `core/tags/` + `features/tags/` + `providers/tag_provider.dart` |
 | Check data models | [§10 Data Models](ARCHITECTURE.md#10-data-models) |
 | Understand CI/CD / workflows | [§15 CI/CD Pipeline](ARCHITECTURE.md#15-cicd-pipeline) |
 | Check design decisions / gotchas | [§16 Design Decisions](ARCHITECTURE.md#16-design-decisions--rationale) |
