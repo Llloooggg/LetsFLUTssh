@@ -2846,6 +2846,144 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Set, change, or remove master password'**
   String get manageMasterPasswordSubtitle;
+
+  /// No description provided for @snippets.
+  ///
+  /// In en, this message translates to:
+  /// **'Snippets'**
+  String get snippets;
+
+  /// No description provided for @snippetsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage reusable command snippets'**
+  String get snippetsSubtitle;
+
+  /// No description provided for @noSnippets.
+  ///
+  /// In en, this message translates to:
+  /// **'No snippets yet'**
+  String get noSnippets;
+
+  /// No description provided for @addSnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Snippet'**
+  String get addSnippet;
+
+  /// No description provided for @editSnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Snippet'**
+  String get editSnippet;
+
+  /// No description provided for @deleteSnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Snippet'**
+  String get deleteSnippet;
+
+  /// No description provided for @deleteSnippetConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete snippet \"{title}\"?'**
+  String deleteSnippetConfirm(String title);
+
+  /// No description provided for @snippetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get snippetTitle;
+
+  /// No description provided for @snippetTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Deploy, Restart Service'**
+  String get snippetTitleHint;
+
+  /// No description provided for @snippetCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Command'**
+  String get snippetCommand;
+
+  /// No description provided for @snippetCommandHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. sudo systemctl restart nginx'**
+  String get snippetCommandHint;
+
+  /// No description provided for @snippetDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get snippetDescription;
+
+  /// No description provided for @snippetDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this command do?'**
+  String get snippetDescriptionHint;
+
+  /// No description provided for @snippetSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Snippet saved'**
+  String get snippetSaved;
+
+  /// No description provided for @snippetDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Snippet \"{title}\" deleted'**
+  String snippetDeleted(String title);
+
+  /// No description provided for @snippetCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No snippets} =1{1 snippet} other{{count} snippets}}'**
+  String snippetCount(int count);
+
+  /// No description provided for @runSnippet.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get runSnippet;
+
+  /// No description provided for @pinToSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin to this session'**
+  String get pinToSession;
+
+  /// No description provided for @unpinFromSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin from this session'**
+  String get unpinFromSession;
+
+  /// No description provided for @pinnedSnippets.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned'**
+  String get pinnedSnippets;
+
+  /// No description provided for @allSnippets.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allSnippets;
+
+  /// No description provided for @sendToTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to terminal'**
+  String get sendToTerminal;
+
+  /// No description provided for @commandCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Command copied to clipboard'**
+  String get commandCopied;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

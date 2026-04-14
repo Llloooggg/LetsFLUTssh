@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 
 import 'dao/config_dao.dart';
-import 'dao/connection_log_dao.dart';
 import 'dao/folder_dao.dart';
 import 'dao/known_host_dao.dart';
 import 'dao/session_dao.dart';
@@ -23,7 +22,6 @@ part 'database.g.dart';
     Tags,
     SessionTags,
     FolderTags,
-    ConnectionLogs,
     Snippets,
     SessionSnippets,
     SftpBookmarks,
@@ -42,7 +40,6 @@ class AppDatabase extends _$AppDatabase {
   late final knownHostDao = KnownHostDao(this);
   late final configDao = ConfigDao(this);
   late final tagDao = TagDao(this);
-  late final connectionLogDao = ConnectionLogDao(this);
   late final snippetDao = SnippetDao(this);
   late final sftpBookmarkDao = SftpBookmarkDao(this);
 }

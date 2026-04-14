@@ -141,17 +141,6 @@ class FolderTags extends Table {
   Set<Column> get primaryKey => {folderId, tagId};
 }
 
-/// SSH connection history — who connected where and when.
-@DataClassName('DbConnectionLog')
-class ConnectionLogs extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get sessionId =>
-      text().references(Sessions, #id, onDelete: KeyAction.cascade)();
-  DateTimeColumn get connectedAt => dateTime()();
-  DateTimeColumn get disconnectedAt => dateTime().nullable()();
-  TextColumn get disconnectReason => text().withDefault(const Constant(''))();
-}
-
 /// Reusable command snippets.
 @DataClassName('DbSnippet')
 class Snippets extends Table {

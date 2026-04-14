@@ -39,6 +39,7 @@ import '../../widgets/lfs_import_preview_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
 import 'export_import.dart';
 import '../key_manager/key_manager_dialog.dart';
+import '../snippets/snippet_manager_dialog.dart';
 import 'known_hosts_manager.dart';
 
 part 'settings_dialogs.dart';
