@@ -12,24 +12,26 @@ void main() {
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('logger_test_');
 
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (call) async {
-        if (call.method == 'getApplicationSupportDirectory') {
-          return tempDir.path;
-        }
-        return null;
-      },
-    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async {
+            if (call.method == 'getApplicationSupportDirectory') {
+              return tempDir.path;
+            }
+            return null;
+          },
+        );
   });
 
   tearDown(() async {
     await AppLogger.instance.setEnabled(false);
     await AppLogger.instance.dispose();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      null,
-    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
     }
@@ -58,7 +60,11 @@ void main() {
     });
 
     test('log does not crash with error parameter', () {
-      AppLogger.instance.log('error msg', name: 'Test', error: Exception('boom'));
+      AppLogger.instance.log(
+        'error msg',
+        name: 'Test',
+        error: Exception('boom'),
+      );
     });
 
     test('setEnabled(true) without init does not crash', () async {
@@ -111,7 +117,11 @@ void main() {
       await AppLogger.instance.init();
       await AppLogger.instance.setEnabled(true);
 
-      AppLogger.instance.log('something broke', name: 'Err', error: 'DetailedError');
+      AppLogger.instance.log(
+        'something broke',
+        name: 'Err',
+        error: 'DetailedError',
+      );
 
       final content = await AppLogger.instance.readLog();
       expect(content, contains('[Err] something broke'));
@@ -301,6 +311,43 @@ void main() {
       expect(File('$logPath.2').readAsStringSync(), 'old rotated 1');
       expect(File('$logPath.3').readAsStringSync(), 'old rotated 2');
       expect(File('$logPath.1').existsSync(), isTrue);
+    });
+  });
+
+  group('AppLogger.sanitize', () {
+    test('redacts PEM private keys', () {
+      const pem =
+          '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----';
+      final out = AppLogger.sanitize('boom: $pem tail');
+      expect(out, contains('[REDACTED PRIVATE KEY]'));
+      expect(out, isNot(contains('abc')));
+    });
+
+    test('redacts long base64 blobs', () {
+      final blob = 'A' * 250;
+      final out = AppLogger.sanitize('key=$blob');
+      expect(out, contains('[REDACTED BASE64]'));
+      expect(out, isNot(contains(blob)));
+    });
+
+    test('redacts IPv4 leaked through library exception messages', () {
+      final out = AppLogger.sanitize(
+        'SocketException: connect failed 192.168.1.50:22',
+      );
+      expect(out, contains('<ip>'));
+      expect(out, isNot(contains('192.168.1.50')));
+    });
+
+    test('redacts user@host patterns', () {
+      final out = AppLogger.sanitize('auth failed for admin@example.com');
+      expect(out, contains('<user>@example.com'));
+      expect(out, isNot(contains('admin@')));
+    });
+
+    test('redacts home-directory paths', () {
+      final out = AppLogger.sanitize('could not open /home/jdoe/.ssh/id_rsa');
+      expect(out, contains('/<user>/'));
+      expect(out, isNot(contains('jdoe')));
     });
   });
 }

@@ -152,10 +152,7 @@ class ImportService {
         foldersImported++;
       } catch (e) {
         if (result.mode == ImportMode.replace) rethrow;
-        AppLogger.instance.log(
-          'Skipped empty folder $folder: $e',
-          name: 'Import',
-        );
+        AppLogger.instance.log('Skipped empty folder: $e', name: 'Import');
       }
     }
 
@@ -214,10 +211,7 @@ class ImportService {
         final newId = await saveManagerKey!(key);
         idMap[key.id] = newId;
       } catch (e) {
-        AppLogger.instance.log(
-          'Skipped manager key ${key.label}: $e',
-          name: 'Import',
-        );
+        AppLogger.instance.log('Skipped manager key: $e', name: 'Import');
       }
     }
     AppLogger.instance.log(
@@ -252,7 +246,7 @@ class ImportService {
         final newId = await saveTag!(effective);
         idMap[tag.id] = newId;
       } catch (e) {
-        AppLogger.instance.log('Skipped tag ${tag.name}: $e', name: 'Import');
+        AppLogger.instance.log('Skipped tag: $e', name: 'Import');
       }
     }
     return idMap;
@@ -319,10 +313,7 @@ class ImportService {
         final newId = await saveSnippet!(effective);
         idMap[snippet.id] = newId;
       } catch (e) {
-        AppLogger.instance.log(
-          'Skipped snippet ${snippet.title}: $e',
-          name: 'Import',
-        );
+        AppLogger.instance.log('Skipped snippet: $e', name: 'Import');
       }
     }
     return idMap;
@@ -385,10 +376,7 @@ class ImportService {
         imported++;
       } catch (e) {
         if (result.mode == ImportMode.replace) rethrow;
-        AppLogger.instance.log(
-          'Skipped session ${s.label}: $e',
-          name: 'Import',
-        );
+        AppLogger.instance.log('Skipped session: $e', name: 'Import');
       }
     }
     return imported;

@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import 'sanitize.dart';
+
 /// File-based logger controlled by user setting.
 ///
 /// Writes logs to `<appSupportDir>/logs/letsflutssh.log` alongside the app data.
@@ -75,8 +77,17 @@ class AppLogger {
     }
   }
 
-  /// Strips sensitive data (PEM private keys, passwords in SQL) from a string.
-  /// Applied to all log messages and error traces.
+  /// Strips sensitive data from a string before logging.
+  ///
+  /// Applied to every log message, error, and stack trace — including those
+  /// originating from third-party libraries (dartssh2, drift, archive, etc.),
+  /// so host/user/IP data leaked through library exception messages never
+  /// reaches the log file or DevTools.
+  ///
+  /// Scrubs:
+  /// - PEM private keys and long base64 blobs (key material)
+  /// - IPv4 addresses, `user@host`, `host:port`
+  /// - Home-directory paths (`/home/<user>/`, `C:\Users\<user>\`)
   static String sanitize(String input) {
     // Redact OpenSSH/PKCS private keys in PEM format.
     final pemPattern = RegExp(
@@ -86,7 +97,9 @@ class AppLogger {
     var out = input.replaceAll(pemPattern, '[REDACTED PRIVATE KEY]');
     // Redact base64-encoded key blobs (long continuous base64 runs).
     out = out.replaceAll(RegExp(r'[A-Za-z0-9+/=]{200,}'), '[REDACTED BASE64]');
-    return out;
+    // Scrub IPs, user@host, host:port, home paths — catches data leaking
+    // through third-party exception messages.
+    return sanitizeErrorMessage(out);
   }
 
   /// Log a message. Also forwards to dart:developer log (DevTools).
