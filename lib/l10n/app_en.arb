@@ -416,7 +416,7 @@
       }
     }
   },
-  "sshConfigImportFolderName": "Imported from ~/.ssh ({date})",
+  "sshConfigImportFolderName": "~/.ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {

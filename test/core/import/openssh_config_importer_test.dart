@@ -94,6 +94,7 @@ Host withkey
       expect(s.authType, AuthType.key);
       expect(s.keyId, k.id);
       expect(k.label, 'id_ed25519');
+      // No keyLabelSuffix provided — label is just the basename.
       expect(preview.hostsWithMissingKeys, isEmpty);
     });
 
@@ -253,6 +254,22 @@ Host bad
       expect(preview.result.sessions.first.authType, AuthType.password);
       expect(preview.result.managerKeys, isEmpty);
       expect(preview.hostsWithMissingKeys, ['bad']);
+    });
+
+    test('keyLabelSuffix appends to key labels for uniqueness', () {
+      const keyPath = '/home/u/.ssh/id_ed25519';
+      final preview = importerWith({keyPath: realPem}).buildPreview(
+        configContent:
+            '''
+Host withkey
+    HostName withkey.example.com
+    User u
+    IdentityFile $keyPath
+''',
+        folderLabel: 'f',
+        keyLabelSuffix: '2026-04-15',
+      );
+      expect(preview.result.managerKeys.first.label, 'id_ed25519 2026-04-15');
     });
 
     test('expandHome expands leading ~', () {

@@ -726,7 +726,7 @@ class SFr extends S {
 
   @override
   String sshConfigImportFolderName(String date) {
-    return 'Imported from ~/.ssh ($date)';
+    return '~/.ssh $date';
   }
 
   @override

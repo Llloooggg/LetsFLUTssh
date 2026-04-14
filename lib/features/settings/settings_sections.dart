@@ -695,14 +695,12 @@ class _ExportImportTile extends ConsumerWidget {
       final content = await File(path).readAsString();
       if (!context.mounted) return;
 
-      final folderLabel = S
-          .of(context)
-          .sshConfigImportFolderName(
-            DateTime.now().toIso8601String().split('T').first,
-          );
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final folderLabel = S.of(context).sshConfigImportFolderName(date);
       final preview = OpenSshConfigImporter().buildPreview(
         configContent: content,
         folderLabel: folderLabel,
+        keyLabelSuffix: date,
       );
       final accepted = await SshConfigImportPreviewDialog.show(
         context,

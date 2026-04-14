@@ -1410,7 +1410,7 @@ abstract class S {
   /// No description provided for @sshConfigImportFolderName.
   ///
   /// In en, this message translates to:
-  /// **'Imported from ~/.ssh ({date})'**
+  /// **'~/.ssh {date}'**
   String sshConfigImportFolderName(String date);
 
   /// No description provided for @setMasterPasswordHint.

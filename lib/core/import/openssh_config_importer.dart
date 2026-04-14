@@ -62,6 +62,7 @@ class OpenSshConfigImporter {
   OpenSshConfigImportPreview buildPreview({
     required String configContent,
     required String folderLabel,
+    String keyLabelSuffix = '',
     ImportMode mode = ImportMode.merge,
   }) {
     final entries = parseOpenSshConfig(configContent);
@@ -75,6 +76,7 @@ class OpenSshConfigImporter {
         entry,
         keys,
         keyIdByFingerprint,
+        keyLabelSuffix,
       );
       if (keyMissing) missingKeys.add(entry.host);
 
@@ -120,6 +122,7 @@ class OpenSshConfigImporter {
     OpenSshConfigEntry entry,
     List<SshKeyEntry> keys,
     Map<String, String> keyIdByFingerprint,
+    String keyLabelSuffix,
   ) {
     if (entry.identityFiles.isEmpty) return ('', false);
     for (final rawPath in entry.identityFiles) {
@@ -130,7 +133,10 @@ class OpenSshConfigImporter {
       final existingId = keyIdByFingerprint[fp];
       if (existingId != null) return (existingId, false);
       try {
-        final keyEntry = _keyParser.importKey(pem, _keyLabel(rawPath));
+        final keyEntry = _keyParser.importKey(
+          pem,
+          _keyLabel(rawPath, keyLabelSuffix),
+        );
         keys.add(keyEntry);
         keyIdByFingerprint[fp] = keyEntry.id;
         return (keyEntry.id, false);
@@ -145,12 +151,14 @@ class OpenSshConfigImporter {
   }
 
   /// Derive a human label for a key from its file path. Uses the basename
-  /// so "~/.ssh/id_ed25519" becomes "id_ed25519".
-  static String _keyLabel(String rawPath) {
+  /// so "~/.ssh/id_ed25519" becomes "id_ed25519", optionally with a
+  /// trailing [suffix] for uniqueness across imports (e.g. a date stamp).
+  static String _keyLabel(String rawPath, String suffix) {
     final sep = Platform.pathSeparator;
     final normalized = rawPath.replaceAll('\\', '/');
     final idx = normalized.lastIndexOf('/');
-    final base = idx < 0 ? normalized : normalized.substring(idx + 1);
-    return base.isEmpty ? rawPath : base.replaceAll(sep, '_');
+    final baseRaw = idx < 0 ? normalized : normalized.substring(idx + 1);
+    final base = baseRaw.isEmpty ? rawPath : baseRaw.replaceAll(sep, '_');
+    return suffix.isEmpty ? base : '$base $suffix';
   }
 }
