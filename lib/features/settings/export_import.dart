@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pointycastle/export.dart';
 
 import '../../core/config/app_config.dart';
@@ -38,6 +38,120 @@ class ExportImport {
   static const _folderTagsFile = 'folder_tags.json';
   static const _snippetsFile = 'snippets.json';
   static const _sessionSnippetsFile = 'session_snippets.json';
+
+  // ─── Per-entry JSON parsers ─────────────────────────────────────────────
+  // Extracted for testability / fuzzing. Each parser accepts a raw JSON
+  // string (as stored inside the archive) and returns an empty list when
+  // the JSON is null, malformed, or not a list. Individual entries that
+  // fail to parse are skipped rather than aborting the whole import.
+
+  static String? _entryJson(ArchiveFile? file) {
+    if (file == null) return null;
+    try {
+      return utf8.decode(file.content as List<int>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static List<Map<String, dynamic>> _decodeList(String? json) {
+    if (json == null || json.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is! List) return const [];
+      return decoded.whereType<Map<String, dynamic>>().toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static DateTime _parseDate(Object? raw) {
+    if (raw is String) {
+      final parsed = DateTime.tryParse(raw);
+      if (parsed != null) return parsed;
+    }
+    return DateTime.now();
+  }
+
+  static String _asString(Object? raw) => raw is String ? raw : '';
+
+  @visibleForTesting
+  static List<SshKeyEntry> parseKeysJson(String? json) {
+    return _decodeList(json)
+        .map(
+          (m) => SshKeyEntry(
+            id: _asString(m['id']),
+            label: _asString(m['label']),
+            privateKey: _asString(m['private_key']),
+            publicKey: _asString(m['public_key']),
+            keyType: _asString(m['key_type']),
+            isGenerated: m['is_generated'] is bool
+                ? m['is_generated'] as bool
+                : false,
+            createdAt: _parseDate(m['created_at']),
+          ),
+        )
+        .toList();
+  }
+
+  @visibleForTesting
+  static List<Tag> parseTagsJson(String? json) {
+    return _decodeList(json)
+        .map(
+          (m) => Tag(
+            id: _asString(m['id']),
+            name: _asString(m['name']),
+            color: m['color'] is String ? m['color'] as String : null,
+            createdAt: _parseDate(m['created_at']),
+          ),
+        )
+        .toList();
+  }
+
+  @visibleForTesting
+  static List<Snippet> parseSnippetsJson(String? json) {
+    return _decodeList(json)
+        .map(
+          (m) => Snippet(
+            id: _asString(m['id']),
+            title: _asString(m['title']),
+            command: _asString(m['command']),
+            description: _asString(m['description']),
+            createdAt: _parseDate(m['created_at']),
+            updatedAt: _parseDate(m['updated_at']),
+          ),
+        )
+        .toList();
+  }
+
+  /// Parse session→target links. [targetKey] is `'tag_id'` for session-tag
+  /// links or `'snippet_id'` for session-snippet links.
+  @visibleForTesting
+  static List<ExportLink> parseLinksJson(
+    String? json, {
+    required String targetKey,
+  }) {
+    return _decodeList(json)
+        .map(
+          (m) => ExportLink(
+            sessionId: _asString(m['session_id']),
+            targetId: _asString(m[targetKey]),
+          ),
+        )
+        .toList();
+  }
+
+  @visibleForTesting
+  static List<ExportFolderTagLink> parseFolderTagLinksJson(String? json) {
+    return _decodeList(json)
+        .map(
+          (m) => ExportFolderTagLink(
+            folderPath: _asString(m['folder_path']),
+            tagId: _asString(m['tag_id']),
+          ),
+        )
+        .toList();
+  }
 
   /// Export app data to an encrypted .lfs file.
   ///
@@ -261,110 +375,22 @@ class ExportImport {
       emptyFolders = list.cast<String>().toSet();
     }
 
-    List<SshKeyEntry> managerKeys = [];
-    final keysFile = archive.findFile(_keysFile);
-    if (keysFile != null) {
-      final json = utf8.decode(keysFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      managerKeys = list.map((e) {
-        final m = e as Map<String, dynamic>;
-        return SshKeyEntry(
-          id: m['id'] as String? ?? '',
-          label: m['label'] as String? ?? '',
-          privateKey: m['private_key'] as String? ?? '',
-          publicKey: m['public_key'] as String? ?? '',
-          keyType: m['key_type'] as String? ?? '',
-          isGenerated: m['is_generated'] as bool? ?? false,
-          createdAt:
-              DateTime.tryParse(m['created_at'] as String? ?? '') ??
-              DateTime.now(),
-        );
-      }).toList();
-    }
-
-    // Tags
-    List<Tag> tags = [];
-    final tagsFile = archive.findFile(_tagsFile);
-    if (tagsFile != null) {
-      final json = utf8.decode(tagsFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      tags = list.map((e) {
-        final m = e as Map<String, dynamic>;
-        return Tag(
-          id: m['id'] as String? ?? '',
-          name: m['name'] as String? ?? '',
-          color: m['color'] as String?,
-          createdAt:
-              DateTime.tryParse(m['created_at'] as String? ?? '') ??
-              DateTime.now(),
-        );
-      }).toList();
-    }
-
-    List<ExportLink> sessionTagLinks = [];
-    final stFile = archive.findFile(_sessionTagsFile);
-    if (stFile != null) {
-      final json = utf8.decode(stFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      sessionTagLinks = list.map((e) {
-        final m = e as Map<String, dynamic>;
-        return ExportLink(
-          sessionId: m['session_id'] as String? ?? '',
-          targetId: m['tag_id'] as String? ?? '',
-        );
-      }).toList();
-    }
-
-    List<ExportFolderTagLink> folderTagLinks = [];
-    final ftFile = archive.findFile(_folderTagsFile);
-    if (ftFile != null) {
-      final json = utf8.decode(ftFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      folderTagLinks = list.map((e) {
-        final m = e as Map<String, dynamic>;
-        return ExportFolderTagLink(
-          folderPath: m['folder_path'] as String? ?? '',
-          tagId: m['tag_id'] as String? ?? '',
-        );
-      }).toList();
-    }
-
-    // Snippets
-    List<Snippet> snippetList = [];
-    final snFile = archive.findFile(_snippetsFile);
-    if (snFile != null) {
-      final json = utf8.decode(snFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      snippetList = list.map((e) {
-        final m = e as Map<String, dynamic>;
-        return Snippet(
-          id: m['id'] as String? ?? '',
-          title: m['title'] as String? ?? '',
-          command: m['command'] as String? ?? '',
-          description: m['description'] as String? ?? '',
-          createdAt:
-              DateTime.tryParse(m['created_at'] as String? ?? '') ??
-              DateTime.now(),
-          updatedAt:
-              DateTime.tryParse(m['updated_at'] as String? ?? '') ??
-              DateTime.now(),
-        );
-      }).toList();
-    }
-
-    List<ExportLink> sessionSnippetLinks = [];
-    final ssFile = archive.findFile(_sessionSnippetsFile);
-    if (ssFile != null) {
-      final json = utf8.decode(ssFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      sessionSnippetLinks = list.map((e) {
-        final m = e as Map<String, dynamic>;
-        return ExportLink(
-          sessionId: m['session_id'] as String? ?? '',
-          targetId: m['snippet_id'] as String? ?? '',
-        );
-      }).toList();
-    }
+    final managerKeys = parseKeysJson(_entryJson(archive.findFile(_keysFile)));
+    final tags = parseTagsJson(_entryJson(archive.findFile(_tagsFile)));
+    final sessionTagLinks = parseLinksJson(
+      _entryJson(archive.findFile(_sessionTagsFile)),
+      targetKey: 'tag_id',
+    );
+    final folderTagLinks = parseFolderTagLinksJson(
+      _entryJson(archive.findFile(_folderTagsFile)),
+    );
+    final snippetList = parseSnippetsJson(
+      _entryJson(archive.findFile(_snippetsFile)),
+    );
+    final sessionSnippetLinks = parseLinksJson(
+      _entryJson(archive.findFile(_sessionSnippetsFile)),
+      targetKey: 'snippet_id',
+    );
 
     AppLogger.instance.log(
       'Import: decrypted ${encData.length} bytes, '
@@ -591,6 +617,35 @@ class ImportResult {
     required this.mode,
     this.knownHostsContent,
   });
+
+  /// Returns a copy of this result filtered by [options], with the given
+  /// [mode].
+  ///
+  /// When `includeSessions` is false, session-dependent collections
+  /// (emptyFolders, managerKeys, sessionTags, folderTags, sessionSnippets)
+  /// are also dropped, since they are FK-referenced by sessions and cannot
+  /// be imported on their own. Standalone tags/snippets remain controllable
+  /// via their own flags.
+  ImportResult filtered(ExportOptions options, ImportMode mode) {
+    final wantSessions = options.includeSessions;
+    return ImportResult(
+      sessions: wantSessions ? sessions : const [],
+      emptyFolders: wantSessions ? emptyFolders : const {},
+      managerKeys: wantSessions && options.includeManagerKeys
+          ? managerKeys
+          : const [],
+      tags: options.includeTags ? tags : const [],
+      sessionTags: wantSessions && options.includeTags ? sessionTags : const [],
+      folderTags: wantSessions && options.includeTags ? folderTags : const [],
+      snippets: options.includeSnippets ? snippets : const [],
+      sessionSnippets: wantSessions && options.includeSnippets
+          ? sessionSnippets
+          : const [],
+      config: options.includeConfig ? config : null,
+      mode: mode,
+      knownHostsContent: options.includeKnownHosts ? knownHostsContent : null,
+    );
+  }
 }
 
 /// Bundle of inputs for [ExportImport.export]. Groups related optional
